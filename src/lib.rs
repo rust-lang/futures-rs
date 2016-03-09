@@ -1,6 +1,5 @@
 extern crate crossbeam;
 
-// use std::sync::mpsc::{Receiver, RecvError, TryRecvError};
 use std::marker;
 use std::sync::Arc;
 
@@ -8,7 +7,6 @@ use cell::AtomicCell;
 
 pub mod cell;
 pub mod mio;
-// pub mod ivar;
 pub mod slot;
 pub mod promise;
 
