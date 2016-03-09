@@ -1,12 +1,12 @@
 extern crate mio;
 
 use std::net::SocketAddr;
+use std::mem;
 use std::io;
 use std::sync::Arc;
 
 use super::Future;
-use promise::{Promise, Cancel};
-use cell::AtomicCell;
+use promise::{self, Promise, Cancel, Complete};
 
 thread_local!{
     pub static INNER: Arc<Inner> = Arc::new(Inner {
@@ -23,13 +23,8 @@ pub struct Inner {
 }
 
 pub struct TcpConnect {
-    inner: Arc<_TcpConnect>,
-}
-
-struct _TcpConnect {
     addr: SocketAddr,
     inner: Arc<Inner>,
-    callback: AtomicCell<Option<Box<TcpConnectCallback>>>,
 }
 
 trait TcpConnectCallback: Send + 'static {
@@ -50,11 +45,6 @@ pub struct TcpStream {
 }
 
 #[repr(C)]
-struct Callback<T> {
-    cb: fn(&Callback<T>),
-    data: T,
-}
-
 impl Loop {
     pub fn new() -> io::Result<Loop> {
         Ok(Loop {
@@ -64,11 +54,8 @@ impl Loop {
 
     pub fn tcp_connect(&self, addr: &SocketAddr) -> TcpConnect {
         TcpConnect {
-            inner: Arc::new(_TcpConnect {
-                addr: *addr,
-                inner: self.inner.clone(),
-                callback: AtomicCell::new(None),
-            }),
+            addr: *addr,
+            inner: self.inner.clone(),
         }
     }
 }
@@ -84,18 +71,21 @@ impl Inner {
 
             self.poll.poll(&mut events, None).unwrap();
             for event in events.iter() {
-                // ...
+                let complete = unsafe {
+                    token2complete(event.token())
+                };
+                complete.finish(event.kind());
             }
         }
     }
 }
 
-unsafe fn token2arc(token: mio::Token) -> Arc<Callback<()>> {
+unsafe fn token2complete(token: mio::Token) -> Complete<mio::EventSet> {
     mem::transmute(token.as_usize())
 }
 
-fn arc2token<T>(a: Arc<Callback<T>>) -> mio::Token {
-    unsafe { mio::Token(mem::transmute::<_, usize>(a)) }
+fn complete2token(c: Complete<mio::EventSet>) -> mio::Token {
+    unsafe { mio::Token(mem::transmute::<_, usize>(c)) }
 }
 
 impl Future for TcpConnect {
@@ -132,18 +122,24 @@ impl Future for TcpConnect {
     fn schedule<G>(self, g: G)
         where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
     {
-        *self.inner.callback.borrow().unwrap() = Some(Box::new(g));
-        let tcp = mio::tcp::TcpStream::connect(&self.inner.addr).and_then(|tcp| {
-            let poll = &self.inner.inner.poll;
-            try!(poll.register(&tcp,
-                               mio::Token(0),
-                               mio::EventSet::writable(),
-                               mio::PollOpt::edge()));
-            Ok(tcp)
+        let tcp = match mio::tcp::TcpStream::connect(&self.addr) {
+            Ok(stream) => stream,
+            Err(e) => return g(Err(e)),
+        };
+        let (p, c) = promise::pair();
+        let inner = self.inner.clone();
+
+        // TODO: this is a race in a multithreaded event loop
+        self.inner.poll.register(&tcp,
+                                 complete2token(c),
+                                 mio::EventSet::writable(),
+                                 mio::PollOpt::edge() |
+                                    mio::PollOpt::oneshot()).unwrap();
+        p.schedule(move |_events| {
+            g(Ok(TcpStream {
+                _tcp: tcp,
+                _inner: inner,
+            }));
         });
-        if let Err(e) = tcp {
-            let cb = self.inner.callback.borrow().unwrap().take().unwrap();
-            cb.call_box(Err(e));
-        }
     }
 }

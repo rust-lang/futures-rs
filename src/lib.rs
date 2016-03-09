@@ -1,7 +1,7 @@
 extern crate crossbeam;
 
 // use std::sync::mpsc::{Receiver, RecvError, TryRecvError};
-// use std::marker;
+use std::marker;
 use std::sync::Arc;
 
 use cell::AtomicCell;
@@ -45,13 +45,10 @@ pub trait Future: Send + 'static {
         where Self: Sized
     {
         let (a, b) = promise::pair();
-        let mut slot = AtomicCell::new(None);
-        let ptr = &mut slot as *mut _ as usize;
+        let slot = Arc::new(AtomicCell::new(None));
+        let slot2 = slot.clone();
         self.schedule(move |result| {
-            unsafe {
-                let ptr: *mut AtomicCell<Option<Result<_, _>>> = ptr as *mut _;
-                *(*ptr).borrow().unwrap() = Some(result);
-            }
+            *slot2.borrow().unwrap() = Some(result);
             b.finish(());
         });
         unit_await(a);
@@ -80,16 +77,17 @@ pub trait Future: Send + 'static {
         }
     }
 
-    // fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
-    //     where F: FnOnce(Self::Error) -> E,
-    //           Self: Sized,
-    // {
-    //     MapErr {
-    //         future: self,
-    //         f: f,
-    //     }
-    // }
-    //
+    fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
+        where F: FnOnce(Self::Error) -> E + Send + 'static,
+              E: Send + 'static,
+              Self: Sized,
+    {
+        MapErr {
+            future: self,
+            f: f,
+        }
+    }
+
     // fn then<F, B>(self, f: F) -> Then<Self, B, F>
     //     where F: FnOnce(Result<Self::Item, Self::Error>) -> B,
     //           B: IntoFuture,
@@ -110,15 +108,15 @@ pub trait Future: Send + 'static {
         }
     }
 
-    // fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
-    //     where F: FnOnce(Self::Error) -> B,
-    //           B: IntoFuture<Item = Self::Item>,
-    //           Self: Sized,
-    // {
-    //     OrElse {
-    //         future: _OrElse::First(self, f),
-    //     }
-    // }
+    fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
+        where F: FnOnce(Self::Error) -> B + Send + 'static,
+              B: IntoFuture<Item = Self::Item>,
+              Self: Sized,
+    {
+        OrElse {
+            future: _OrElse::First(self, f),
+        }
+    }
 
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
@@ -147,29 +145,45 @@ pub trait Future: Send + 'static {
     // }
 }
 
-// #[derive(Copy, Clone)]
-// pub struct FutureResult<T, E> {
-//     inner: Result<T, E>,
-// }
-//
-// impl<T, E> IntoFuture for Result<T, E> {
-//     type Future = FutureResult<T, E>;
-//     type Item = T;
-//     type Error = E;
-//
-//     fn into_future(self) -> FutureResult<T, E> {
-//         FutureResult { inner: self }
-//     }
-// }
-//
-// impl<T, E> Future for FutureResult<T, E> {
-//     type Item = T;
-//     type Error = E;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         Ok(self.inner)
-//     }
-// }
+#[derive(Copy, Clone)]
+pub struct FutureResult<T, E> {
+    inner: Result<T, E>,
+}
+
+impl<T, E> IntoFuture for Result<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    type Future = FutureResult<T, E>;
+    type Item = T;
+    type Error = E;
+
+    fn into_future(self) -> FutureResult<T, E> {
+        FutureResult { inner: self }
+    }
+}
+
+impl<T, E> Future for FutureResult<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        Ok(self.inner)
+    }
+
+    fn await(self) -> Result<Self::Item, Self::Error> {
+        self.inner
+    }
+
+    fn schedule<F>(self, f: F)
+        where F: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        f(self.inner)
+    }
+}
 
 pub struct Map<A, F> {
     future: A,
@@ -203,26 +217,34 @@ impl<U, A, F> Future for Map<A, F>
     }
 }
 
-// pub struct MapErr<A, F> {
-//     future: A,
-//     f: F,
-// }
-//
-// impl<A, E, F> Future for MapErr<A, F>
-//     where A: Future,
-//           F: FnOnce(A::Error) -> E,
-// {
-//     type Item = A::Item;
-//     type Error = E;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         match self.future.poll() {
-//             Ok(result) => Ok(result.map_err(self.f)),
-//             Err(f) => Err(MapErr { future: f, f: self.f })
-//         }
-//     }
-// }
-//
+pub struct MapErr<A, F> {
+    future: A,
+    f: F,
+}
+
+impl<A, E, F> Future for MapErr<A, F>
+    where A: Future,
+          F: FnOnce(A::Error) -> E + Send + 'static,
+          E: Send + 'static,
+{
+    type Item = A::Item;
+    type Error = E;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        match self.future.poll() {
+            Ok(result) => Ok(result.map_err(self.f)),
+            Err(f) => Err(MapErr { future: f, f: self.f })
+        }
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        let MapErr { future, f } = self;
+        future.schedule(move |result| g(result.map_err(f)))
+    }
+}
+
 // pub struct Then<A, B, F> where B: IntoFuture {
 //     future: _Then<A, B::Future, F>,
 // }
@@ -322,68 +344,93 @@ impl<A, B, F> Future for AndThen<A, B, F>
     }
 }
 
-// pub struct OrElse<A, B, F> where B: IntoFuture {
-//     future: _OrElse<A, B::Future, F>,
-// }
-//
-// enum _OrElse<A, B, F> {
-//     First(A, F),
-//     Second(B),
-// }
-//
-// impl<A, B, F> Future for OrElse<A, B, F>
-//     where A: Future,
-//           B: IntoFuture<Item = A::Item>,
-//           F: FnOnce(A::Error) -> B,
-// {
-//     type Item = B::Item;
-//     type Error = B::Error;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         let second = match self.future {
-//             _OrElse::First(a, f) => {
-//                 match a.poll() {
-//                     Ok(Ok(next)) => return Ok(Ok(next)),
-//                     Ok(Err(e)) => f(e).into_future(),
-//                     Err(a) => {
-//                         return Err(OrElse {
-//                             future: _OrElse::First(a, f),
-//                         })
-//                     }
-//                 }
-//             }
-//             _OrElse::Second(b) => b,
-//         };
-//         second.poll().map_err(|b| {
-//             OrElse { future: _OrElse::Second(b) }
-//         })
-//     }
-// }
-//
-// pub struct Empty<T, E> {
-//     _marker: marker::PhantomData<(T, E)>,
-// }
-//
-// pub fn empty<T, E>() -> Empty<T, E> {
-//     Empty { _marker: marker::PhantomData }
-// }
-//
-// impl<T, E> Future for Empty<T, E> {
-//     type Item = T;
-//     type Error = E;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         Err(self)
-//     }
-// }
-//
-// impl<T, E> Clone for Empty<T, E> {
-//     fn clone(&self) -> Empty<T, E> {
-//         empty()
-//     }
-// }
-//
-// impl<T, E> Copy for Empty<T, E> {}
+pub struct OrElse<A, B, F> where B: IntoFuture {
+    future: _OrElse<A, B::Future, F>,
+}
+
+enum _OrElse<A, B, F> {
+    First(A, F),
+    Second(B),
+}
+
+impl<A, B, F> Future for OrElse<A, B, F>
+    where A: Future,
+          B: IntoFuture<Item = A::Item>,
+          F: FnOnce(A::Error) -> B + Send + 'static,
+{
+    type Item = B::Item;
+    type Error = B::Error;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        let second = match self.future {
+            _OrElse::First(a, f) => {
+                match a.poll() {
+                    Ok(Ok(next)) => return Ok(Ok(next)),
+                    Ok(Err(e)) => f(e).into_future(),
+                    Err(a) => {
+                        return Err(OrElse {
+                            future: _OrElse::First(a, f),
+                        })
+                    }
+                }
+            }
+            _OrElse::Second(b) => b,
+        };
+        second.poll().map_err(|b| {
+            OrElse { future: _OrElse::Second(b) }
+        })
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        match self.future {
+            _OrElse::First(a, f) => {
+                a.schedule(move |res| {
+                    match res.map_err(|e| f(e).into_future()) {
+                        Ok(result) => g(Ok(result)),
+                        Err(next) => next.schedule(g),
+                    }
+                })
+            }
+            _OrElse::Second(b) => b.schedule(g),
+        }
+    }
+}
+
+pub struct Empty<T, E> {
+    _marker: marker::PhantomData<(T, E)>,
+}
+
+pub fn empty<T: Send + 'static, E: Send + 'static>() -> Empty<T, E> {
+    Empty { _marker: marker::PhantomData }
+}
+
+impl<T, E> Future for Empty<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        Err(self)
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        drop((self, g));
+    }
+}
+
+impl<T, E> Clone for Empty<T, E> {
+    fn clone(&self) -> Empty<T, E> {
+        Empty { _marker: marker::PhantomData }
+    }
+}
+
+impl<T, E> Copy for Empty<T, E> {}
 
 pub struct Select<A, B> {
     a: A,
@@ -414,12 +461,14 @@ impl<A, B> Future for Select<A, B>
         let cell2 = cell1.clone();
 
         a.schedule(move |result| {
-            if let Ok(Some(g)) = cell1.replace(None) {
+            let cell1 = cell1.borrow();
+            if let Some(g) = cell1.and_then(|mut b| b.take()) {
                 g(result);
             }
         });
         b.schedule(move |result| {
-            if let Ok(Some(g)) = cell2.replace(None) {
+            let cell2 = cell2.borrow();
+            if let Some(g) = cell2.and_then(|mut b| b.take()) {
                 g(result);
             }
         });
@@ -513,19 +562,19 @@ impl<A, B> Future for Join<A, B>
                             Some(g) => g,
                             None => return,
                         };
-                        let a = self.a.replace(None).ok().unwrap().unwrap();
-                        let b = self.b.replace(None).ok().unwrap().unwrap();
+                        let a = self.a.borrow().unwrap().take().unwrap();
+                        let b = self.b.borrow().unwrap().take().unwrap();
                         g(a.and_then(|a| b.map(|b| (a, b))))
                     }
                 }
 
                 a.schedule(move |result| {
                     // TODO: if we hit an error we should finish immediately
-                    assert!(data1.a.replace(Some(result)).is_ok());
+                    *data1.a.borrow().unwrap() = Some(result);
                     data1.finish();
                 });
                 b.schedule(move |result| {
-                    assert!(data2.b.replace(Some(result)).is_ok());
+                    *data2.b.borrow().unwrap() = Some(result);
                     data2.finish();
                 });
             }
@@ -579,116 +628,169 @@ impl<A, B> Future for Join<A, B>
 //         }
 //     }
 // }
-//
-// pub struct Collect<I> where I: IntoIterator, I::Item: Future {
-//     remaining: I::IntoIter,
-//     cur: Option<I::Item>,
-//     result: Vec<<I::Item as Future>::Item>,
-// }
-//
-// pub fn collect<I>(i: I) -> Collect<I>
-//     where I: IntoIterator,
-//           I::Item: Future,
-// {
-//     let mut i = i.into_iter();
-//     Collect { cur: i.next(), remaining: i, result: Vec::new() }
-// }
-//
-// impl<I> Future for Collect<I>
-//     where I: IntoIterator,
-//           I::Item: Future,
-// {
-//     type Item = Vec<<I::Item as Future>::Item>;
-//     type Error = <I::Item as Future>::Error;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         let Collect { mut remaining, mut cur, mut result } = self;
-//         loop {
-//             match cur.map(|c| c.poll()) {
-//                 Some(Ok(Ok(i))) => {
-//                     result.push(i);
-//                     cur = remaining.next();
-//                 }
-//                 Some(Ok(Err(e))) => return Ok(Err(e)),
-//                 Some(Err(e)) => {
-//                     return Err(Collect {
-//                         remaining: remaining,
-//                         cur: Some(e),
-//                         result: result,
-//                     })
-//                 }
-//                 None => return Ok(Ok(result)),
-//             }
-//         }
-//     }
-// }
-//
-// pub struct Finished<T, E> {
-//     t: T,
-//     _e: marker::PhantomData<E>,
-// }
-//
-// pub fn finished<T, E>(t: T) -> Finished<T, E> {
-//     Finished { t: t, _e: marker::PhantomData }
-// }
-//
-// impl<T, E> Future for Finished<T, E> {
-//     type Item = T;
-//     type Error = E;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         Ok(Ok(self.t))
-//     }
-// }
-//
-// pub struct Failed<T, E> {
-//     _t: marker::PhantomData<T>,
-//     e: E,
-// }
-//
-// pub fn failed<T, E>(e: E) -> Failed<T, E> {
-//     Failed { _t: marker::PhantomData, e: e }
-// }
-//
-// impl<T, E> Future for Failed<T, E> {
-//     type Item = T;
-//     type Error = E;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         Ok(Err(self.e))
-//     }
-// }
-//
-// pub struct Lazy<F, R> {
-//     inner: _Lazy<F, R>
-// }
-//
-// enum _Lazy<F, R> {
-//     First(F),
-//     Second(R),
-// }
-//
-// pub fn lazy<F, R>(f: F) -> Lazy<F, R>
-//     where F: FnOnce() -> R,
-//           R: Future
-// {
-//     Lazy { inner: _Lazy::First(f) }
-// }
-//
-// impl<F, R> Future for Lazy<F, R>
-//     where F: FnOnce() -> R,
-//           R: Future
-// {
-//     type Item = R::Item;
-//     type Error = R::Error;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         let future = match self.inner {
-//             _Lazy::First(f) => f(),
-//             _Lazy::Second(f) => f,
-//         };
-//         future.poll().map_err(|f| {
-//             Lazy { inner: _Lazy::Second(f) }
-//         })
-//     }
-// }
+
+pub struct Collect<I> where I: Iterator, I::Item: Future {
+    remaining: I,
+    cur: Option<I::Item>,
+    result: Vec<<I::Item as Future>::Item>,
+}
+
+pub fn collect<I>(i: I) -> Collect<I::IntoIter>
+    where I: IntoIterator,
+          I::Item: Future,
+          I::IntoIter: Send + 'static,
+{
+    let mut i = i.into_iter();
+    Collect { cur: i.next(), remaining: i, result: Vec::new() }
+}
+
+impl<I> Future for Collect<I>
+    where I: Iterator + Send + 'static,
+          I::Item: Future,
+{
+    type Item = Vec<<I::Item as Future>::Item>;
+    type Error = <I::Item as Future>::Error;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        let Collect { mut remaining, mut cur, mut result } = self;
+        loop {
+            match cur.map(|c| c.poll()) {
+                Some(Ok(Ok(i))) => {
+                    result.push(i);
+                    cur = remaining.next();
+                }
+                Some(Ok(Err(e))) => return Ok(Err(e)),
+                Some(Err(e)) => {
+                    return Err(Collect {
+                        remaining: remaining,
+                        cur: Some(e),
+                        result: result,
+                    })
+                }
+                None => return Ok(Ok(result)),
+            }
+        }
+    }
+
+    fn schedule<G>(mut self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        let next = match self.cur.take() {
+            Some(next) => next,
+            None => return g(Ok(self.result)),
+        };
+        next.schedule(move |res| {
+            let item = match res {
+                Ok(i) => i,
+                Err(e) => return g(Err(e)),
+            };
+            self.result.push(item);
+            self.cur = self.remaining.next();
+            self.schedule(g);
+        })
+    }
+}
+
+pub struct Finished<T, E> {
+    t: T,
+    _e: marker::PhantomData<E>,
+}
+
+pub fn finished<T, E>(t: T) -> Finished<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    Finished { t: t, _e: marker::PhantomData }
+}
+
+impl<T, E> Future for Finished<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        Ok(Ok(self.t))
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        g(Ok(self.t))
+    }
+}
+
+pub struct Failed<T, E> {
+    _t: marker::PhantomData<T>,
+    e: E,
+}
+
+pub fn failed<T, E>(e: E) -> Failed<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    Failed { _t: marker::PhantomData, e: e }
+}
+
+impl<T, E> Future for Failed<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        Ok(Err(self.e))
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        g(Err(self.e))
+    }
+}
+
+pub struct Lazy<F, R> {
+    inner: _Lazy<F, R>
+}
+
+enum _Lazy<F, R> {
+    First(F),
+    Second(R),
+}
+
+pub fn lazy<F, R>(f: F) -> Lazy<F, R>
+    where F: FnOnce() -> R + Send + 'static,
+          R: Future
+{
+    Lazy { inner: _Lazy::First(f) }
+}
+
+impl<F, R> Future for Lazy<F, R>
+    where F: FnOnce() -> R + Send + 'static,
+          R: Future
+{
+    type Item = R::Item;
+    type Error = R::Error;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        let future = match self.inner {
+            _Lazy::First(f) => f(),
+            _Lazy::Second(f) => f,
+        };
+        future.poll().map_err(|f| {
+            Lazy { inner: _Lazy::Second(f) }
+        })
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        let future = match self.inner {
+            _Lazy::First(f) => f(),
+            _Lazy::Second(f) => f,
+        };
+        future.schedule(g)
+    }
+}

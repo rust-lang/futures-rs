@@ -1,8 +1,8 @@
 extern crate mio;
 extern crate futures;
 
-use std::net::TcpListener;
 use futures::Future;
+use std::net::TcpListener;
 
 fn main() {
     let l1 = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -17,5 +17,8 @@ fn main() {
     let l = futures::mio::Loop::new().unwrap();
     let s1 = l.tcp_connect(&a1);
     let s2 = l.tcp_connect(&a2);
-    let c1 = s1.select(s2).await().unwrap();
+    let res = s1.join(s2).map(|(c1, c2)| {
+        drop((c1, c2));
+    }).await();
+    drop(res);
 }

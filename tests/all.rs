@@ -2,7 +2,11 @@ extern crate futures;
 
 use futures::*;
 
-fn is_future_v<A, B, C: Future<Item=A, Error=B>>(_: C) {}
+fn is_future_v<A, B, C>(_: C)
+    where A: Send + 'static,
+          B: Send + 'static,
+          C: Future<Item=A, Error=B>
+{}
 
 fn get<F: Future>(f: F) -> Result<F::Item, F::Error> {
     f.poll().ok().unwrap()
@@ -43,19 +47,58 @@ fn result_smoke() {
     assert_eq!(get(f_ok.select(f_err)), ok(1));
     assert_eq!(get(f_ok.select(Ok(2))), ok(1));
     assert_eq!(get(f_err.select(f_ok)), err(1));
-    assert_eq!(get(f_ok.select(Empty::new())), Ok(1));
-    assert_eq!(get(Empty::new().select(f_ok)), Ok(1));
+    assert_eq!(get(f_ok.select(empty())), Ok(1));
+    assert_eq!(get(empty().select(f_ok)), Ok(1));
     assert_eq!(get(f_ok.join(f_err)), Err(1));
     assert_eq!(get(f_ok.join(Ok(2))), Ok((1, 2)));
     assert_eq!(get(f_err.join(f_ok)), Err(1));
+}
 
-    let empty: Empty<i32, i32> = Empty::new();
+#[test]
+fn test_empty() {
+    let f_ok: FutureResult<i32, i32> = Ok(1).into_future();
+    let f_err: FutureResult<i32, i32> = Err(1).into_future();
+    let empty: Empty<i32, i32> = empty();
+
     assert!(empty.select(empty).poll().is_err());
     assert!(empty.join(empty).poll().is_err());
-    assert!(empty.or_else(|_| empty).poll().is_err());
-    assert!(empty.and_then(|_| empty).poll().is_err());
-    assert!(f_err.or_else(|_| empty).poll().is_err());
-    assert!(f_ok.and_then(|_| empty).poll().is_err());
+    assert!(empty.or_else(move |_| empty).poll().is_err());
+    assert!(empty.and_then(move |_| empty).poll().is_err());
+    assert!(f_err.or_else(move |_| empty).poll().is_err());
+    assert!(f_ok.and_then(move |_| empty).poll().is_err());
     assert!(empty.map(|a| a + 1).poll().is_err());
     assert!(empty.map_err(|a| a + 1).poll().is_err());
+    // assert!(empty.cancellable().poll().is_err());
+}
+
+// #[test]
+// fn test_cancel() {
+//     let f_ok: FutureResult<i32, i32> = Ok(1).into_future();
+//     let f_err: FutureResult<i32, i32> = Err(1).into_future();
+//
+//     assert_eq!(get(f_ok.cancellable()), Ok(1));
+//     assert_eq!(get(f_err.cancellable()), Err(CancelError::Other(1)));
+//     let mut f = f_ok.cancellable();
+//     f.cancel();
+//     assert_eq!(get(f), Err(CancelError::Cancelled));
+//     let mut f = f_err.cancellable();
+//     f.cancel();
+//     assert_eq!(get(f), Err(CancelError::Cancelled));
+// }
+
+#[test]
+fn test_collect() {
+    let f_ok1: FutureResult<i32, i32> = Ok(1).into_future();
+    let f_ok2: FutureResult<i32, i32> = Ok(2).into_future();
+    let f_ok3: FutureResult<i32, i32> = Ok(3).into_future();
+    let f_err1: FutureResult<i32, i32> = Err(1).into_future();
+
+    assert_eq!(get(collect(vec![f_ok1, f_ok2, f_ok3])), Ok(vec![1, 2, 3]));
+    assert_eq!(get(collect(vec![f_ok1, f_err1, f_ok3])), Err(1));
+}
+
+#[test]
+fn test_finished() {
+    assert_eq!(get(finished::<_, i32>(1)), Ok(1));
+    assert_eq!(get(failed::<i32, _>(1)), Err(1));
 }

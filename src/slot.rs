@@ -59,8 +59,7 @@ impl<T: 'static> Slot<T> {
     pub fn on_full<F>(&self, f: F) -> Result<(), OnFullError>
         where F: FnOnce(&Slot<T>) + Send + 'static
     {
-        let has_data = self.slot.borrow().is_some();
-        if has_data {
+        if self.slot.borrow().map(|s| s.is_some()) == Some(true) {
             return Ok(f(self))
         }
         match self.callback.borrow() {
@@ -68,8 +67,7 @@ impl<T: 'static> Slot<T> {
             None => return Ok(f(self)),
         }
 
-        let has_data = self.slot.borrow().is_some();
-        if has_data {
+        if self.slot.borrow().map(|s| s.is_some()) == Some(true) {
             let cb = self.callback.borrow().and_then(|mut cb| {
                 mem::replace(&mut *cb, None)
             });

@@ -19,6 +19,8 @@ pub fn pair<T: 'static>() -> (Promise<T>, Complete<T>) {
 }
 
 impl<T: 'static> Complete<T> {
+    // TODO: these need to handle the error case as the promise could be
+    //       getting scheduled to cause interference with `try_produce`
     pub fn finish(self, t: T) {
         assert!(self.slot.try_produce(Ok(t)).is_ok());
     }
@@ -45,6 +47,8 @@ impl<T: Send + 'static> Future for Promise<T> {
                 Err(_) => panic!("slot wasn't full on full"),
             }
         });
+        // TODO: this needs to handle the error case as the promise could be
+        // completing to cause interference with `on_full`
         assert!(res.is_ok());
     }
 }
