@@ -41,14 +41,11 @@ impl<T: Send + 'static> Future for Promise<T> {
     fn schedule<F>(self, f: F)
         where F: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
     {
-        let res = self.slot.on_full(move |slot| {
+        self.slot.on_full(move |slot| {
             match slot.try_consume() {
                 Ok(data) => f(data),
                 Err(_) => panic!("slot wasn't full on full"),
             }
-        });
-        // TODO: this needs to handle the error case as the promise could be
-        // completing to cause interference with `on_full`
-        assert!(res.is_ok());
+        })
     }
 }

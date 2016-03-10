@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use cell::AtomicCell;
 
 /// A slot in memory intended to represent the communication channel between one
@@ -6,8 +8,10 @@ use cell::AtomicCell;
 /// Each slot contains space for a piece of data, `T`, and space for callbacks.
 /// The callbacks can be run when the data is either full or empty.
 pub struct Slot<T> {
+    state: AtomicUsize,
     slot: AtomicCell<Option<T>>,
-    callback: AtomicCell<Option<Box<FnBox<T>>>>,
+    on_full: AtomicCell<Option<Box<FnBox<T>>>>,
+    on_empty: AtomicCell<Option<Box<FnBox<T>>>>,
 }
 
 /// Error value returned from erroneous calls to `try_produce`.
@@ -34,135 +38,147 @@ fn _assert() {
     _is_sync::<Slot<u32>>();
 }
 
+const DATA: usize = 1 << 0;
+const ON_FULL: usize = 1 << 1;
+const ON_EMPTY: usize = 1 << 2;
+
 impl<T: 'static> Slot<T> {
     pub fn new(val: Option<T>) -> Slot<T> {
         Slot {
+            state: AtomicUsize::new(if val.is_some() {DATA} else {0}),
             slot: AtomicCell::new(val),
-            callback: AtomicCell::new(None),
+            on_full: AtomicCell::new(None),
+            on_empty: AtomicCell::new(None),
         }
     }
 
     // PRODUCER
     pub fn try_produce(&self, t: T) -> Result<(), TryProduceError<T>> {
-        let mut slot = match self.slot.borrow() {
-            Some(borrow) => borrow,
-            None => {
-                println!("producer interference");
-                return Err(TryProduceError(t))
-            }
-        };
-        if slot.is_some() {
-            println!("producer already produced");
+        let mut state = self.state.load(Ordering::SeqCst);
+        assert!(state & ON_EMPTY == 0);
+        if state & DATA != 0 {
             return Err(TryProduceError(t))
         }
+        let mut slot = self.slot.borrow().expect("interference with consumer?");
+        assert!(slot.is_none());
         *slot = Some(t);
-        println!("producer producing");
         drop(slot);
-        let callback = self.callback.borrow().and_then(|mut cb| cb.take());
-        if let Some(callback) = callback {
-            println!("producer running callback");
-            callback.call_box(self);
+
+        loop {
+            assert!(state & ON_EMPTY == 0);
+            let old = self.state.compare_and_swap(state,
+                                                  (state | DATA) & !ON_FULL,
+                                                  Ordering::SeqCst);
+            if old == state {
+                break
+            }
+            state = old;
+        }
+        assert!(state & ON_EMPTY == 0);
+        if state & ON_FULL != 0 {
+            let cb = self.on_full.borrow().expect("interference2")
+                                 .take().expect("ON_FULL but no callback");
+            cb.call_box(self);
         }
         Ok(())
     }
 
     // PRODUCER
-    pub fn on_empty<F>(&self, f: F) -> Result<(), OnEmptyError>
+    pub fn on_empty<F>(&self, f: F)
         where F: FnOnce(&Slot<T>) + Send + 'static
     {
-        if self.slot.borrow().map(|s| s.is_none()) == Some(true) {
-            println!("on_empty immediate");
-            return Ok(f(self))
+        let mut state = self.state.load(Ordering::SeqCst);
+        assert!(state & ON_EMPTY == 0);
+        if state & DATA == 0 {
+            return f(self)
         }
-        match self.callback.borrow() {
-            Some(mut callback) => {
-                if callback.is_some() {
-                    println!("on_empty already full");
-                    drop(callback);
-                    return Ok(f(self))
-                } else {
-                    *callback = Some(Box::new(f));
-                    println!("on_empty callback registered");
-                }
-            }
-            None => {
-                println!("on_empty interference");
-                return Ok(f(self))
-            }
-        }
+        assert!(state & ON_FULL == 0);
+        let mut slot = self.on_empty.borrow().expect("on_empty interference");
+        assert!(slot.is_none());
+        *slot = Some(Box::new(f));
+        drop(slot);
 
-        if self.slot.borrow().map(|s| s.is_none()) == Some(true) {
-            println!("on_empty looking for callback");
-            let cb = self.callback.borrow().and_then(|mut cb| cb.take());
-            if let Some(cb) = cb {
-                println!("on_empty running callback");
-                cb.call_box(self);
+        loop {
+            assert_eq!(state, DATA);
+            let old = self.state.compare_and_swap(state,
+                                                  state | ON_EMPTY,
+                                                  Ordering::SeqCst);
+            if old == state {
+                break
+            }
+            state = old;
+
+            if state & DATA == 0 {
+                self.on_empty.borrow().expect("on_empty interference2")
+                             .take().expect("on_empty not full?")
+                             .call_box(self);
+                break
             }
         }
-        Ok(())
     }
 
     // CONSUMER
     pub fn try_consume(&self) -> Result<T, TryConsumeError> {
-        let mut slot = match self.slot.borrow() {
-            Some(borrow) => borrow,
-            None => {
-                println!("consumer interference");
-                return Err(TryConsumeError(()))
-            }
-        };
-        let val = match slot.take() {
-            Some(t) => t,
-            None => {
-                println!("consumer nothing available");
-                return Err(TryConsumeError(()))
-            }
-        };
-        println!("consumer consumed");
+        let mut state = self.state.load(Ordering::SeqCst);
+        assert!(state & ON_FULL == 0);
+        if state & DATA == 0 {
+            return Err(TryConsumeError(()))
+        }
+        let mut slot = self.slot.borrow().expect("interference with producer?");
+        let val = slot.take().expect("DATA but not data");
         drop(slot);
-        let callback = self.callback.borrow().and_then(|mut cb| cb.take());
-        if let Some(callback) = callback {
-            println!("consumer running callback");
-            callback.call_box(self);
+
+        loop {
+            assert!(state & ON_FULL == 0);
+            let old = self.state.compare_and_swap(state,
+                                                  state & !DATA & !ON_EMPTY,
+                                                  Ordering::SeqCst);
+            if old == state {
+                break
+            }
+            state = old;
+        }
+        assert!(state & ON_FULL == 0);
+        if state & ON_EMPTY != 0 {
+            let cb = self.on_empty.borrow().expect("interference3")
+                                  .take().expect("ON_EMPTY but no callback");
+            cb.call_box(self);
         }
         Ok(val)
     }
 
     // CONSUMER
-    pub fn on_full<F>(&self, f: F) -> Result<(), OnFullError>
+    pub fn on_full<F>(&self, f: F)
         where F: FnOnce(&Slot<T>) + Send + 'static
     {
-        if self.slot.borrow().map(|s| s.is_some()) == Some(true) {
-            println!("on full immediate");
-            return Ok(f(self))
+        let mut state = self.state.load(Ordering::SeqCst);
+        assert!(state & ON_FULL == 0);
+        if state & DATA == DATA {
+            return f(self)
         }
+        assert!(state & ON_EMPTY == 0);
+        let mut slot = self.on_full.borrow().expect("on_full interference");
+        assert!(slot.is_none());
+        *slot = Some(Box::new(f));
+        drop(slot);
 
-        match self.callback.borrow() {
-            Some(mut callback) => {
-                if callback.is_some() {
-                    println!("on full already full");
-                    drop(callback);
-                    return Ok(f(self))
-                } else {
-                    *callback = Some(Box::new(f));
-                    println!("on_full callback registered");
-                }
+        loop {
+            assert_eq!(state, 0);
+            let old = self.state.compare_and_swap(state,
+                                                  state | ON_FULL,
+                                                  Ordering::SeqCst);
+            if old == state {
+                break
             }
-            None => {
-                println!("on full interference");
-                return Ok(f(self))
-            }
-        }
+            state = old;
 
-        if self.slot.borrow().map(|s| s.is_some()) == Some(true) {
-            println!("on full looking for callback");
-            let cb = self.callback.borrow().and_then(|mut cb| cb.take());
-            if let Some(cb) = cb {
-                println!("on full callback");
-                cb.call_box(self);
+            if state & DATA == DATA {
+                self.on_full.borrow().expect("on_full interference2")
+                            .take().expect("on_full not full?")
+                            .call_box(self);
+                break
             }
         }
-        Ok(())
     }
 }
 
@@ -206,17 +222,17 @@ mod tests {
         // on_full is run immediately if full
         let hit = Arc::new(AtomicUsize::new(0));
         let hit2 = hit.clone();
-        assert!(slot.on_full(move |_s| {
+        slot.on_full(move |_s| {
             hit2.fetch_add(1, Ordering::SeqCst);
-        }).is_ok());
+        });
         assert_eq!(hit.load(Ordering::SeqCst), 1);
 
         // on_full can be run twice, and we can consume in the callback
         let hit2 = hit.clone();
-        assert!(slot.on_full(move |s| {
+        slot.on_full(move |s| {
             hit2.fetch_add(1, Ordering::SeqCst);
             assert_eq!(s.try_consume(), Ok(3));
-        }).is_ok());
+        });
         assert_eq!(hit.load(Ordering::SeqCst), 2);
 
         // Production can't run a previous callback
@@ -226,22 +242,17 @@ mod tests {
 
         // Productions run new callbacks
         let hit2 = hit.clone();
-        assert!(slot.on_full(move |s| {
+        slot.on_full(move |s| {
             hit2.fetch_add(1, Ordering::SeqCst);
             assert_eq!(s.try_consume(), Ok(5));
-        }).is_ok());
+        });
         assert_eq!(slot.try_produce(5), Ok(()));
         assert_eq!(hit.load(Ordering::SeqCst), 3);
-
-        // callbacks don't run when consuming
-        assert!(slot.on_full(|_s| {}).is_ok());
-        assert!(slot.try_consume().is_err());
-        assert!(slot.try_produce(4).is_ok());
     }
 
     #[test]
     fn channel() {
-        const N: usize = 1000;
+        const N: usize = 10000;
 
         struct Sender {
             slot: Arc<Slot<usize>>,
@@ -261,10 +272,10 @@ mod tests {
                 let me = thread::current();
                 self.hit.store(0, Ordering::SeqCst);
                 let hit = self.hit.clone();
-                assert!(self.slot.on_empty(move |_slot| {
+                self.slot.on_empty(move |_slot| {
                     hit.store(1, Ordering::SeqCst);
                     me.unpark();
-                }).is_ok());
+                });
                 while self.hit.load(Ordering::SeqCst) == 0 {
                     thread::park();
                 }
@@ -281,10 +292,10 @@ mod tests {
                 let me = thread::current();
                 self.hit.store(0, Ordering::SeqCst);
                 let hit = self.hit.clone();
-                assert!(self.slot.on_full(move |_slot| {
+                self.slot.on_full(move |_slot| {
                     hit.store(1, Ordering::SeqCst);
                     me.unpark();
-                }).is_ok());
+                });
                 while self.hit.load(Ordering::SeqCst) == 0 {
                     thread::park();
                 }
