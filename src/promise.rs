@@ -13,20 +13,26 @@ pub struct Complete<T> {
 
 pub struct Cancel(());
 
-pub fn pair<T: 'static>() -> (Promise<T>, Complete<T>) {
+pub fn pair<T: Send + 'static>() -> (Promise<T>, Complete<T>) {
     let slot = Arc::new(Slot::new(None));
     (Promise { slot: slot.clone() }, Complete { slot: slot })
 }
 
-impl<T: 'static> Complete<T> {
-    // TODO: these need to handle the error case as the promise could be
-    //       getting scheduled to cause interference with `try_produce`
+impl<T: Send + 'static> Complete<T> {
     pub fn finish(self, t: T) {
-        assert!(self.slot.try_produce(Ok(t)).is_ok());
+        self.produce(Ok(t));
     }
 
     pub fn cancel(self) {
-        assert!(self.slot.try_produce(Err(Cancel(()))).is_ok());
+        self.produce(Err(Cancel(())));
+    }
+
+    fn produce(&self, result: Result<T, Cancel>) {
+        if let Err(e) = self.slot.try_produce(result) {
+            self.slot.on_empty(|slot| {
+                slot.try_produce(e.into_inner()).ok().unwrap();
+            })
+        }
     }
 }
 

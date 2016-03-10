@@ -182,6 +182,12 @@ impl<T: 'static> Slot<T> {
     }
 }
 
+impl<T> TryProduceError<T> {
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 trait FnBox<T: 'static>: Send + 'static {
     fn call_box(self: Box<Self>, other: &Slot<T>);
 }
