@@ -141,6 +141,15 @@ pub struct FutureStream<F> {
     inner: Option<F>,
 }
 
+impl<T, F> FutureStream<F>
+    where F: Future<Item=Option<(T, F)>>,
+          T: Send + 'static,
+{
+    pub fn new(future: F) -> FutureStream<F> {
+        FutureStream { inner: Some(future) }
+    }
+}
+
 impl<T, F> Stream for FutureStream<F>
     where F: Future<Item=Option<(T, F)>>,
           T: Send + 'static,
