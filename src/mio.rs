@@ -1,12 +1,18 @@
 extern crate mio;
 
-use std::net::SocketAddr;
+// TODO: if I/O is dropped, the token is leaked
+
 use std::mem;
+use std::slice;
+use std::net::SocketAddr;
 use std::io;
 use std::sync::Arc;
 
+use self::mio::{TryRead, TryWrite};
+
 use super::Future;
-use promise::{self, Promise, Cancel, Complete};
+use promise::{Promise, Cancel};
+use slot::Slot;
 
 thread_local!{
     pub static INNER: Arc<Inner> = Arc::new(Inner {
@@ -23,25 +29,211 @@ pub struct Inner {
 }
 
 pub struct TcpConnect {
-    addr: SocketAddr,
+    tcp: mio::tcp::TcpStream,
+    slot: Arc<Slot<mio::EventSet>>,
     inner: Arc<Inner>,
 }
 
-trait TcpConnectCallback: Send + 'static {
-    fn call_box(self: Box<Self>, arg: io::Result<TcpStream>);
+impl Future for TcpConnect {
+    type Item = TcpStream;
+    type Error = io::Error;
+
+    fn poll(self) -> Result<io::Result<TcpStream>, TcpConnect> {
+        match self.slot.try_consume() {
+            Ok(_events) => Ok(Ok(TcpStream::new(self.tcp, self.inner))),
+            Err(..) => Err(self),
+        }
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        self.slot.clone().on_full(move |_events| {
+            g(Ok(TcpStream::new(self.tcp, self.inner)))
+        });
+    }
 }
 
-impl<F> TcpConnectCallback for F
-    where F: FnOnce(io::Result<TcpStream>) + Send + 'static
-{
-    fn call_box(self: Box<Self>, arg: io::Result<TcpStream>) {
-        (*self)(arg)
+pub struct TcpListener {
+    tcp: mio::tcp::TcpListener,
+    slot: Arc<Slot<mio::EventSet>>,
+    inner: Arc<Inner>,
+}
+
+impl TcpListener {
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.tcp.local_addr()
+    }
+}
+
+impl Future for TcpListener {
+    type Item = (TcpStream, SocketAddr, TcpListener);
+    type Error = io::Error;
+
+    fn poll(self) -> Result<io::Result<(TcpStream, SocketAddr, TcpListener)>,
+                                       TcpListener> {
+        match self.tcp.accept() {
+            Ok(Some((stream, addr))) => {
+                let stream = TcpStream::new(stream, self.inner.clone());
+                Ok(Ok((stream, addr, self)))
+            }
+            Ok(None) => Err(self),
+            Err(e) => Ok(Err(e)),
+        }
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        let me = match self.poll() {
+            Ok(item) => return g(item),
+            Err(me) => me,
+        };
+        let res = me.inner.poll.register(&me.tcp,
+                                         slot2token(me.slot.clone()),
+                                         mio::EventSet::readable(),
+                                         mio::PollOpt::edge() |
+                                             mio::PollOpt::oneshot());
+        if let Err(e) = res {
+            return g(Err(e))
+        }
+        me.slot.clone().on_full(move |slot| {
+            slot.try_consume().ok().unwrap();
+            me.schedule(g)
+        });
     }
 }
 
 pub struct TcpStream {
-    _tcp: mio::tcp::TcpStream,
-    _inner: Arc<Inner>,
+    tcp: mio::tcp::TcpStream,
+    inner: Arc<Inner>,
+}
+
+impl TcpStream {
+    fn new(tcp: mio::tcp::TcpStream, inner: Arc<Inner>) -> TcpStream {
+        TcpStream {
+            tcp: tcp,
+            inner: inner,
+        }
+    }
+
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.tcp.local_addr()
+    }
+
+    pub fn read(self, into: Vec<u8>) -> io::Result<TcpRead> {
+        let slot = Arc::new(Slot::new(None));
+        Ok(TcpRead {
+            stream: self,
+            buf: into,
+            slot: slot,
+        })
+    }
+
+    pub fn write(self, buf: Vec<u8>) -> io::Result<TcpWrite> {
+        let slot = Arc::new(Slot::new(None));
+        Ok(TcpWrite {
+            stream: self,
+            buf: buf,
+            slot: slot,
+        })
+    }
+
+    fn try_read(&self, into: &mut Vec<u8>) -> io::Result<Option<usize>> {
+        let mut tcp = &self.tcp;
+        unsafe {
+            let cur = into.len();
+            let dst = into.as_mut_ptr().offset(cur as isize);
+            let len = into.capacity() - cur;
+            match tcp.try_read(slice::from_raw_parts_mut(dst, len)) {
+                Ok(Some(amt)) => {
+                    into.set_len(cur + amt);
+                    Ok(Some(amt))
+                }
+                other => other,
+            }
+        }
+    }
+}
+
+pub struct TcpRead {
+    stream: TcpStream,
+    buf: Vec<u8>,
+    slot: Arc<Slot<mio::EventSet>>,
+}
+
+impl Future for TcpRead {
+    type Item = (Vec<u8>, usize, TcpStream);
+    type Error = io::Error;
+
+    fn poll(mut self) -> Result<io::Result<Self::Item>, Self> {
+        match self.stream.try_read(&mut self.buf) {
+            Ok(Some(amt)) => Ok(Ok((self.buf, amt, self.stream))),
+            Ok(None) => Err(self),
+            Err(e) => Ok(Err(e)),
+        }
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        let me = match self.poll() {
+            Ok(item) => return g(item),
+            Err(me) => me,
+        };
+        let res = me.stream.inner.poll.register(&me.stream.tcp,
+                                                slot2token(me.slot.clone()),
+                                                mio::EventSet::readable(),
+                                                mio::PollOpt::edge() |
+                                                        mio::PollOpt::oneshot());
+        if let Err(e) = res {
+            return g(Err(e))
+        }
+        me.slot.clone().on_full(move |slot| {
+            slot.try_consume().ok().unwrap();
+            me.schedule(g)
+        });
+    }
+}
+
+pub struct TcpWrite {
+    stream: TcpStream,
+    buf: Vec<u8>,
+    slot: Arc<Slot<mio::EventSet>>,
+}
+
+impl Future for TcpWrite {
+    type Item = (Vec<u8>, usize, TcpStream);
+    type Error = io::Error;
+
+    fn poll(mut self) -> Result<io::Result<Self::Item>, Self> {
+        match (&self.stream.tcp).try_write(&mut self.buf) {
+            Ok(Some(amt)) => Ok(Ok((self.buf, amt, self.stream))),
+            Ok(None) => Err(self),
+            Err(e) => Ok(Err(e)),
+        }
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        let me = match self.poll() {
+            Ok(item) => return g(item),
+            Err(me) => me,
+        };
+        let res = me.stream.inner.poll.register(&me.stream.tcp,
+                                                slot2token(me.slot.clone()),
+                                                mio::EventSet::writable(),
+                                                mio::PollOpt::edge() |
+                                                        mio::PollOpt::oneshot());
+        if let Err(e) = res {
+            return g(Err(e))
+        }
+        me.slot.clone().on_full(move |slot| {
+            slot.try_consume().ok().unwrap();
+            me.schedule(g)
+        });
+    }
 }
 
 #[repr(C)]
@@ -52,11 +244,33 @@ impl Loop {
         })
     }
 
-    pub fn tcp_connect(&self, addr: &SocketAddr) -> TcpConnect {
-        TcpConnect {
-            addr: *addr,
-            inner: self.inner.clone(),
-        }
+    pub fn tcp_connect(&self, addr: &SocketAddr) -> io::Result<TcpConnect> {
+        let tcp = try!(mio::tcp::TcpStream::connect(addr));
+        let slot = Arc::new(Slot::new(None));
+        let inner = self.inner.clone();
+
+        try!(self.inner.poll.register(&tcp,
+                                      slot2token(slot.clone()),
+                                      mio::EventSet::writable(),
+                                      mio::PollOpt::edge() |
+                                            mio::PollOpt::oneshot()));
+        Ok(TcpConnect {
+            tcp: tcp,
+            slot: slot,
+            inner: inner,
+        })
+    }
+
+    pub fn tcp_listen(&self, addr: &SocketAddr) -> io::Result<TcpListener> {
+        let tcp = try!(mio::tcp::TcpListener::bind(addr));
+        let slot = Arc::new(Slot::new(None));
+        let inner = self.inner.clone();
+
+        Ok(TcpListener {
+            tcp: tcp,
+            slot: slot,
+            inner: inner,
+        })
     }
 }
 
@@ -71,75 +285,20 @@ impl Inner {
 
             self.poll.poll(&mut events, None).unwrap();
             for event in events.iter() {
-                let complete = unsafe {
-                    token2complete(event.token())
-                };
-                complete.finish(event.kind());
+                let slot = unsafe { token2slot(event.token()) };
+                let kind = event.kind();
+                slot.on_empty(move |complete| {
+                    complete.try_produce(kind).ok().unwrap();
+                });
             }
         }
     }
 }
 
-unsafe fn token2complete(token: mio::Token) -> Complete<mio::EventSet> {
+unsafe fn token2slot(token: mio::Token) -> Arc<Slot<mio::EventSet>> {
     mem::transmute(token.as_usize())
 }
 
-fn complete2token(c: Complete<mio::EventSet>) -> mio::Token {
+fn slot2token(c: Arc<Slot<mio::EventSet>>) -> mio::Token {
     unsafe { mio::Token(mem::transmute::<_, usize>(c)) }
-}
-
-impl Future for TcpConnect {
-    type Item = TcpStream;
-    type Error = io::Error;
-
-    fn poll(self) -> Result<io::Result<TcpStream>, TcpConnect> {
-        Err(self)
-    }
-
-    // fn await(self) -> io::Result<TcpStream> {
-    //     let tcp = try!(mio::tcp::TcpStream::connect(&self.addr));
-    //     try!(self.inner.poll.register(&tcp,
-    //                                   mio::Token(0),
-    //                                   mio::EventSet::writable(),
-    //                                   mio::PollOpt::edge()));
-    //     let mut events = mio::Events::new();
-    //     'outer: loop {
-    //         try!(self.inner.poll.poll(&mut events, None));
-    //         for event in events.iter() {
-    //             if event.token() == mio::Token(0) {
-    //                 break 'outer
-    //             }
-    //         }
-    //     }
-    //     try!(self.inner.poll.deregister(&tcp));
-    //
-    //     Ok(TcpStream {
-    //         _tcp: tcp,
-    //         _inner: self.inner.clone(),
-    //     })
-    // }
-
-    fn schedule<G>(self, g: G)
-        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
-    {
-        let tcp = match mio::tcp::TcpStream::connect(&self.addr) {
-            Ok(stream) => stream,
-            Err(e) => return g(Err(e)),
-        };
-        let (p, c) = promise::pair();
-        let inner = self.inner.clone();
-
-        // TODO: this is a race in a multithreaded event loop
-        self.inner.poll.register(&tcp,
-                                 complete2token(c),
-                                 mio::EventSet::writable(),
-                                 mio::PollOpt::edge() |
-                                    mio::PollOpt::oneshot()).unwrap();
-        p.schedule(move |_events| {
-            g(Ok(TcpStream {
-                _tcp: tcp,
-                _inner: inner,
-            }));
-        });
-    }
 }
