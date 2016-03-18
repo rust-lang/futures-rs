@@ -28,6 +28,8 @@ impl<F: Future> IntoFuture for F {
     }
 }
 
+// TODO: Send + 'static is annoying
+// TODO: not object safe
 pub trait Future: Send + 'static {
     type Item: Send + 'static;
     type Error: Send + 'static;
