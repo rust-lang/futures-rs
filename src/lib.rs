@@ -9,6 +9,7 @@ pub mod cell;
 pub mod mio;
 pub mod slot;
 pub mod promise;
+pub mod stream;
 
 pub trait IntoFuture: Send + 'static {
     type Future: Future<Item=Self::Item, Error=Self::Error>;
@@ -67,6 +68,7 @@ pub trait Future: Send + 'static {
         Box::new(self)
     }
 
+    // TODO: compare this to `.then(|x| x.map(f))`
     fn map<F, U>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U + Send + 'static,
               Self: Sized,
@@ -77,6 +79,7 @@ pub trait Future: Send + 'static {
         }
     }
 
+    // TODO: compare this to `.then(|x| x.map_err(f))`
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E + Send + 'static,
               E: Send + 'static,
@@ -88,16 +91,25 @@ pub trait Future: Send + 'static {
         }
     }
 
-    // fn then<F, B>(self, f: F) -> Then<Self, B, F>
-    //     where F: FnOnce(Result<Self::Item, Self::Error>) -> B,
-    //           B: IntoFuture,
-    //           Self: Sized,
-    // {
-    //     Then {
-    //         future: _Then::First(self, f),
-    //     }
-    // }
+    fn then<F, B>(self, f: F) -> Then<Self, B, F>
+        where F: FnOnce(Result<Self::Item, Self::Error>) -> B + Send + 'static,
+              B: IntoFuture,
+              Self: Sized,
+    {
+        Then {
+            future: _Then::First(self, f),
+        }
+    }
 
+    // TODO: compare this to
+    //  ```
+    //  .then(|res| {
+    //      match res {
+    //          Ok(e) => Either::First(f(e).into_future()),
+    //          Err(e) => Either::Second(failed(e)),
+    //      }
+    //  })
+    // ```
     fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
               B: IntoFuture<Error = Self::Error>,
@@ -108,6 +120,15 @@ pub trait Future: Send + 'static {
         }
     }
 
+    // TODO: compare this to
+    //  ```
+    //  .then(|res| {
+    //      match res {
+    //          Ok(e) => Either::First(finished(e)),
+    //          Err(e) => Either::Second(f(e).into_future()),
+    //      }
+    //  })
+    // ```
     fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B + Send + 'static,
               B: IntoFuture<Item = Self::Item>,
@@ -134,6 +155,18 @@ pub trait Future: Send + 'static {
     {
         Join {
             state: _Join::Both(self, other.into_future()),
+        }
+    }
+
+    // TODO: check this is the same as `and_then(|x| x)`
+    fn flatten(self) -> Flatten<Self>
+        where Self::Item: IntoFuture,
+              <<Self as Future>::Item as IntoFuture>::Error:
+                    From<<Self as Future>::Error>,
+              Self: Sized
+    {
+        Flatten {
+            state: _Flatten::First(self),
         }
     }
 
@@ -245,42 +278,49 @@ impl<A, E, F> Future for MapErr<A, F>
     }
 }
 
-// pub struct Then<A, B, F> where B: IntoFuture {
-//     future: _Then<A, B::Future, F>,
-// }
-//
-// enum _Then<A, B, F> {
-//     First(A, F),
-//     Second(B),
-// }
-//
-// impl<A, B, F> Future for Then<A, B, F>
-//     where A: Future,
-//           B: IntoFuture,
-//           F: FnOnce(Result<A::Item, A::Error>) -> B,
-// {
-//     type Item = B::Item;
-//     type Error = B::Error;
-//
-//     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-//         let second = match self.future {
-//             _Then::First(a, f) => {
-//                 match a.poll() {
-//                     Ok(next) => f(next).into_future(),
-//                     Err(a) => {
-//                         return Err(Then {
-//                             future: _Then::First(a, f),
-//                         })
-//                     }
-//                 }
-//             }
-//             _Then::Second(b) => b,
-//         };
-//         second.poll().map_err(|b| {
-//             Then { future: _Then::Second(b) }
-//         })
-//     }
-// }
+pub struct Then<A, B, F> where B: IntoFuture {
+    future: _Then<A, B::Future, F>,
+}
+
+enum _Then<A, B, F> {
+    First(A, F),
+    Second(B),
+}
+
+impl<A, B, F> Future for Then<A, B, F>
+    where A: Future,
+          B: IntoFuture,
+          F: FnOnce(Result<A::Item, A::Error>) -> B + Send + 'static,
+{
+    type Item = B::Item;
+    type Error = B::Error;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        let second = match self.future {
+            _Then::First(a, f) => {
+                match a.poll() {
+                    Ok(next) => f(next).into_future(),
+                    Err(a) => {
+                        return Err(Then { future: _Then::First(a, f) })
+                    }
+                }
+            }
+            _Then::Second(b) => b,
+        };
+        second.poll().map_err(|b| {
+            Then { future: _Then::Second(b) }
+        })
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        match self.future {
+            _Then::First(a, f) => a.schedule(|r| f(r).into_future().schedule(g)),
+            _Then::Second(b) => b.schedule(g)
+        }
+    }
+}
 
 pub struct AndThen<A, B, F> where B: IntoFuture {
     future: _AndThen<A, B::Future, F>,
@@ -792,5 +832,56 @@ impl<F, R> Future for Lazy<F, R>
             _Lazy::Second(f) => f,
         };
         future.schedule(g)
+    }
+}
+
+pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
+    state: _Flatten<A, <A::Item as IntoFuture>::Future>,
+}
+
+enum _Flatten<A, B> {
+    First(A),
+    Second(B),
+}
+
+impl<A> Future for Flatten<A>
+    where A: Future,
+          A::Item: IntoFuture,
+          <<A as Future>::Item as IntoFuture>::Error: From<<A as Future>::Error>
+{
+    type Item = <A::Item as IntoFuture>::Item;
+    type Error = <A::Item as IntoFuture>::Error;
+
+    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
+        let b = match self.state {
+            _Flatten::First(a) => {
+                match a.poll() {
+                    Ok(Ok(b)) => b.into_future(),
+                    Ok(Err(e)) => return Ok(Err(From::from(e))),
+                    Err(a) => return Err(Flatten { state: _Flatten::First(a) }),
+                }
+            }
+            _Flatten::Second(b) => b,
+        };
+        match b.poll() {
+            Ok(ret) => Ok(ret),
+            Err(b) => Err(Flatten { state: _Flatten::Second(b) }),
+        }
+    }
+
+    fn schedule<G>(self, g: G)
+        where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
+    {
+        match self.state {
+            _Flatten::First(a) => {
+                a.schedule(|result| {
+                    match result {
+                        Ok(item) => item.into_future().schedule(g),
+                        Err(e) => g(Err(From::from(e))),
+                    }
+                })
+            }
+            _Flatten::Second(b) => b.schedule(g),
+        }
     }
 }
