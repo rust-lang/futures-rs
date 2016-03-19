@@ -11,7 +11,7 @@ use std::sync::Arc;
 use self::mio::{TryRead, TryWrite};
 
 use super::Future;
-use promise::{Promise, Cancel};
+use promise::Promise;
 use slot::Slot;
 
 thread_local!{
@@ -275,11 +275,11 @@ impl Loop {
 }
 
 impl Inner {
-    pub fn await(&self, mut promise: Promise<()>) -> Result<(), Cancel> {
+    pub fn await(&self, mut promise: Promise<(), ()>) -> Result<(), ()> {
         let mut events = mio::Events::new();
         loop {
             match promise.poll() {
-                Ok(result) => return result,
+                Ok(res) => return res,
                 Err(p) => promise = p,
             }
 

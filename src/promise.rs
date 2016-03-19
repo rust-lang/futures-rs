@@ -3,32 +3,33 @@ use std::sync::Arc;
 use Future;
 use slot::Slot;
 
-pub struct Promise<T> {
-    slot: Arc<Slot<Result<T, Cancel>>>,
+pub struct Promise<T, E> {
+    slot: Arc<Slot<Result<T, E>>>,
 }
 
-pub struct Complete<T> {
-    slot: Arc<Slot<Result<T, Cancel>>>,
+pub struct Complete<T, E> {
+    slot: Arc<Slot<Result<T, E>>>,
 }
 
-pub struct Cancel(());
-
-pub fn pair<T: Send + 'static>() -> (Promise<T>, Complete<T>) {
+pub fn pair<T, E>() -> (Promise<T, E>, Complete<T, E>)
+    where T: Send + 'static,
+          E: Send + 'static,
+{
     let slot = Arc::new(Slot::new(None));
     (Promise { slot: slot.clone() }, Complete { slot: slot })
 }
 
-impl<T: Send + 'static> Complete<T> {
+impl<T: Send + 'static, E: Send + 'static> Complete<T, E> {
     pub fn finish(self, t: T) {
-        self.produce(Ok(t));
+        self.complete(Ok(t))
     }
 
-    pub fn cancel(self) {
-        self.produce(Err(Cancel(())));
+    pub fn fail(self, e: E) {
+        self.complete(Err(e))
     }
 
-    fn produce(&self, result: Result<T, Cancel>) {
-        if let Err(e) = self.slot.try_produce(result) {
+    fn complete(self, t: Result<T, E>) {
+        if let Err(e) = self.slot.try_produce(t) {
             self.slot.on_empty(|slot| {
                 slot.try_produce(e.into_inner()).ok().unwrap();
             })
@@ -36,12 +37,15 @@ impl<T: Send + 'static> Complete<T> {
     }
 }
 
-impl<T: Send + 'static> Future for Promise<T> {
+impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
-    type Error = Cancel;
+    type Error = E;
 
     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-        self.slot.try_consume().map_err(|_| self)
+        match self.slot.try_consume() {
+            Ok(val) => Ok(val),
+            Err(..) => Err(self),
+        }
     }
 
     fn schedule<F>(self, f: F)

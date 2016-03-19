@@ -56,7 +56,7 @@ pub trait Future: Send + 'static {
         let mut slot = slot.borrow().unwrap();
         return slot.take().unwrap();
 
-        fn unit_await(p: promise::Promise<()>) {
+        fn unit_await(p: promise::Promise<(), ()>) {
             let res = mio::INNER.with(|l| l.await(p));
             assert!(res.is_ok());
         }

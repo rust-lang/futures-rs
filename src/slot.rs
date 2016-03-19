@@ -254,6 +254,13 @@ mod tests {
         });
         assert_eq!(slot.try_produce(5), Ok(()));
         assert_eq!(hit.load(Ordering::SeqCst), 3);
+
+        // on empty should fire immediately for an empty slot
+        let hit2 = hit.clone();
+        slot.on_empty(move |_| {
+            hit2.fetch_add(1, Ordering::SeqCst);
+        });
+        assert_eq!(hit.load(Ordering::SeqCst), 4);
     }
 
     #[test]
