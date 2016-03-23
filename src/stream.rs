@@ -1,9 +1,5 @@
 use {Future, IntoFuture};
 
-// pub struct Stream<A> {
-//     inner: A,
-// }
-
 pub enum PollError<E> {
     Empty,
     NotReady,

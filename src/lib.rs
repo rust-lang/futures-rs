@@ -10,6 +10,7 @@ pub mod mio;
 pub mod slot;
 pub mod promise;
 pub mod stream;
+pub mod channel;
 
 pub trait IntoFuture: Send + 'static {
     type Future: Future<Item=Self::Item, Error=Self::Error>;
