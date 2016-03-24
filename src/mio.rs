@@ -11,7 +11,6 @@ use std::sync::Arc;
 use self::mio::{TryRead, TryWrite};
 
 use super::Future;
-use promise::Promise;
 use slot::Slot;
 
 thread_local!{
@@ -275,16 +274,24 @@ impl Loop {
 }
 
 impl Inner {
-    pub fn await(&self, mut promise: Promise<(), ()>) -> Result<(), ()> {
+    pub fn await(&self, slot: &Slot<()>) {
+        let (reader, mut writer) = mio::unix::pipe().unwrap();
         let mut events = mio::Events::new();
-        loop {
-            match promise.poll() {
-                Ok(res) => return res,
-                Err(p) => promise = p,
-            }
-
+        let mut done = false;
+        slot.on_full(move |_slot| {
+            use std::io::Write;
+            writer.write(&[1]).unwrap();
+        });
+        self.poll.register(&reader, mio::Token(0),
+                           mio::EventSet::readable(),
+                           mio::PollOpt::edge()).unwrap();
+        while !done {
             self.poll.poll(&mut events, None).unwrap();
             for event in events.iter() {
+                if event.token() == mio::Token(0) {
+                    done = true;
+                    continue
+                }
                 let slot = unsafe { token2slot(event.token()) };
                 let kind = event.kind();
                 slot.on_empty(move |complete| {

@@ -1,8 +1,11 @@
 extern crate futures;
 
+use std::thread;
+
 use futures::channel::{channel, Receiver};
 use futures::*;
 use futures::stream::{Stream, PollError};
+use futures::bufstream::bufstream;
 
 #[test]
 fn smoke() {
@@ -138,4 +141,53 @@ fn rxdrop() {
     let (tx, rx) = channel::<i32, u32>();
     drop(rx);
     assert!(tx.send(Ok(1)).await().is_err());
+}
+
+#[test]
+fn bufstream_smoke() {
+    let (tx, mut rx) = bufstream::<i32, u32>(4);
+    let (vrx, mut vtx): (Vec<_>, Vec<_>) = (0..4).map(|_| {
+        let (a, b) = promise::pair::<i32, u32>();
+        (a, Some(b))
+    }).unzip();
+    for (a, b) in tx.zip(vrx) {
+        b.schedule(|val| a.send(val));
+    }
+
+    assert_eq!(rx.poll(), Err(PollError::NotReady));
+    vtx[0].take().unwrap().finish(2);
+    assert_eq!(rx.poll(), Ok(2));
+    assert_eq!(rx.poll(), Err(PollError::NotReady));
+    vtx[3].take().unwrap().finish(4);
+    assert_eq!(rx.poll(), Ok(4));
+    assert_eq!(rx.poll(), Err(PollError::NotReady));
+    vtx[1].take().unwrap().fail(3);
+    assert_eq!(rx.poll(), Err(PollError::Other(3)));
+    assert_eq!(rx.poll(), Err(PollError::NotReady));
+    vtx[2].take().unwrap().finish(1);
+    assert_eq!(rx.poll(), Ok(1));
+    assert_eq!(rx.poll(), Err(PollError::Empty));
+}
+
+#[test]
+fn bufstream_concurrent() {
+    let (tx, rx) = bufstream::<i32, u32>(4);
+    let (vrx, vtx): (Vec<_>, Vec<_>) = (0..4).map(|_| {
+        promise::pair::<i32, u32>()
+    }).unzip();
+    for (a, b) in tx.zip(vrx) {
+        b.schedule(|val| a.send(val));
+    }
+
+    let t = thread::spawn(|| {
+        let mut it = vtx.into_iter();
+        it.next().unwrap().finish(2);
+        it.next_back().unwrap().finish(4);
+        it.next().unwrap().finish(3);
+        it.next_back().unwrap().finish(1);
+        assert!(it.next().is_none());
+    });
+
+    assert_eq!(rx.collect().await(), Ok(vec![2, 4, 3, 1]));
+    t.join().unwrap();
 }

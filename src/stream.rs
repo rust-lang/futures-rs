@@ -1,5 +1,6 @@
 use {Future, IntoFuture};
 
+#[derive(PartialEq, Debug)]
 pub enum PollError<E> {
     Empty,
     NotReady,
@@ -619,3 +620,28 @@ impl<S> Stream for FlatMap<S>
         }
     }
 }
+
+// TODO: IntoStream?
+//
+// impl<I> Stream for I
+//     where I: Iterator,
+//           I: Send + 'static,
+//           I::Item: Send + 'static,
+// {
+//     type Item = I::Item;
+//     type Error = ();
+//
+//     fn poll(&mut self) -> Result<Self::Item, PollError<Self::Error>> {
+//         match self.next() {
+//             Some(item) => Ok(item),
+//             None => Err(PollError::Empty),
+//         }
+//     }
+//
+//     fn schedule<G>(mut self, g: G)
+//         where G: FnOnce(Option<Result<Self::Item, Self::Error>>, Self) +
+//                     Send + 'static,
+//     {
+//         g(self.next().map(Ok), self)
+//     }
+// }

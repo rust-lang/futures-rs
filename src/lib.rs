@@ -4,13 +4,16 @@ use std::marker;
 use std::sync::Arc;
 
 use cell::AtomicCell;
+use slot::Slot;
 
+pub mod bufstream;
+pub mod buf;
 pub mod cell;
-pub mod mio;
-pub mod slot;
-pub mod promise;
-pub mod stream;
 pub mod channel;
+pub mod mio;
+pub mod promise;
+pub mod slot;
+pub mod stream;
 
 pub trait IntoFuture: Send + 'static {
     type Future: Future<Item=Self::Item, Error=Self::Error>;
@@ -46,20 +49,18 @@ pub trait Future: Send + 'static {
     fn await(self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
-        let (a, b) = promise::pair();
-        let slot = Arc::new(AtomicCell::new(None));
+        let slot = Arc::new((Slot::new(None), AtomicCell::new(None)));
         let slot2 = slot.clone();
         self.schedule(move |result| {
-            *slot2.borrow().unwrap() = Some(result);
-            b.finish(());
+            *slot2.1.borrow().unwrap() = Some(result);
+            slot2.0.try_produce(()).ok().unwrap();
         });
-        unit_await(a);
-        let mut slot = slot.borrow().unwrap();
+        unit_await(&slot.0);
+        let mut slot = slot.1.borrow().unwrap();
         return slot.take().unwrap();
 
-        fn unit_await(p: promise::Promise<(), ()>) {
-            let res = mio::INNER.with(|l| l.await(p));
-            assert!(res.is_ok());
+        fn unit_await(p: &Slot<()>) {
+            mio::INNER.with(|l| l.await(p))
         }
     }
 
