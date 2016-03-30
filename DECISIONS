@@ -1,0 +1,32 @@
+* Object safety
+  - can help reduce monomorphization costs
+  - can get this out the door before impl trait
+  - requires no `self` fundamental methods
+  - imposes allocation at the trait boundary for "schedule" function
+
+* Core future abstraction
+  - poll() for a result
+  - invoke this callback with the result
+
+* What does completion callback take
+  - it could take Self or Result<T, E> (the future's value)
+  - Self means that and_then is hard
+  - Result<T, E> means backpressure is harder
+    - UNCONFIRMED, this is a claim of carl currently, haven't run into it
+
+* Ergonomics of returning a future
+  - returning a named struct is hard
+  - returning trait object not so bad, must name all associated types
+  - returning impl trait maybe better, maybe less associated types can be named
+  - maybe there's only one type, `Future<T>`, which everything returns
+
+* Speed of a `Stream`
+  - must be only one allocation for the lifetime of the entire stream
+  - can't send another value until the first value has been received, basically
+    `send()` returns a future which resolves to the original sender half
+
+* Speed of a "core future"
+  - probably want to avoid locks (no blocking)
+  - can all be done with fancy atomics under the assumption that there is only
+    one producer and one consumer, this should almost always be true though?
+
