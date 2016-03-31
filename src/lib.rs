@@ -215,13 +215,6 @@ pub trait Future/*: Send + 'static*/ {
     //         state: _Flatten::First(self),
     //     }
     // }
-    //
-    // // // fn cancellable(self) -> Cancellable<Self> where Self: Sized {
-    // // //     Cancellable {
-    // // //         future: self,
-    // // //         canceled: false,
-    // // //     }
-    // // // }
 }
 
 pub trait Callback<T, E>: Send + 'static {
@@ -676,41 +669,6 @@ impl<A, B, F> Future for Then<A, B, F>
 //         self.schedule(|r| cb.call(r))
 //     }
 // }
-// //
-// // // pub struct Cancellable<A> {
-// // //     future: A,
-// // //     canceled: bool,
-// // // }
-// // //
-// // // #[derive(Clone, Copy, PartialEq, Debug)]
-// // // pub enum CancelError<E> {
-// // //     Cancelled,
-// // //     Other(E),
-// // // }
-// // //
-// // // impl<A> Cancellable<A> {
-// // //     pub fn cancel(&mut self) {
-// // //         self.canceled = true;
-// // //     }
-// // // }
-// // //
-// // // impl<A> Future for Cancellable<A>
-// // //     where A: Future,
-// // // {
-// // //     type Item = A::Item;
-// // //     type Error = CancelError<A::Error>;
-// // //
-// // //     fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-// // //         if self.canceled {
-// // //             Ok(Err(CancelError::Cancelled))
-// // //         } else {
-// // //             match self.future.poll() {
-// // //                 Ok(res) => Ok(res.map_err(CancelError::Other)),
-// // //                 Err(e) => Err(e.cancellable())
-// // //             }
-// // //         }
-// // //     }
-// // // }
 //
 // pub struct Collect<I> where I: Iterator, I::Item: Future {
 //     remaining: Option<I>,
