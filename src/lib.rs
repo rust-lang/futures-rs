@@ -17,7 +17,7 @@ pub mod cell;
 // pub mod mio;
 pub mod promise;
 pub mod slot;
-pub mod stream;
+// pub mod stream;
 
 fn recover<F, R, E>(f: F) -> FutureResult<R, E>
     where F: FnOnce() -> R + Send + 'static
@@ -31,7 +31,7 @@ fn recover<F, R, E>(f: F) -> FutureResult<R, E>
 pub trait IntoFuture/*: Send + 'static*/ {
     type Future: Future<Item=Self::Item, Error=Self::Error>;
     type Item: Send + 'static;
-    type Error: Error2;
+    type Error: Send + 'static;
 
     fn into_future(self) -> Self::Future;
 }
@@ -72,9 +72,6 @@ impl<F: Future> IntoFuture for F {
 //     }
 // }
 
-pub trait Error2: Error + From<Cancel> + Send + 'static {}
-impl<E> Error2 for E where E: Error + From<Cancel> + Send + 'static {}
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FutureError<E> {
     Panicked, // TODO: Box<Any + Send> payload?
@@ -109,7 +106,7 @@ pub type FutureResult<T, E> = Result<T, FutureError<E>>;
 // TODO: not object safe
 pub trait Future/*: Send + 'static*/ {
     type Item: Send + 'static;
-    type Error: Error2;
+    type Error: Send + 'static;
 
     fn poll(&mut self) -> Option<FutureResult<Self::Item, Self::Error>>;
 
@@ -330,7 +327,7 @@ impl<T, E> FutureResult2<T, E> {
 
 impl<T, E> IntoFuture for Result<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     type Future = FutureResult2<T, E>;
     type Item = T;
@@ -344,7 +341,7 @@ impl<T, E> IntoFuture for Result<T, E>
 
 impl<T, E> Future for FutureResult2<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     type Item = T;
     type Error = E;
@@ -445,7 +442,7 @@ fn map_err<T, U, E, F>(result: FutureResult<T, E>,
 impl<U, A, F> Future for MapErr<A, F>
     where A: Future,
           F: FnOnce(A::Error) -> U + Send + 'static,
-          U: Error2,
+          U: Send + 'static,
 {
     type Item = A::Item;
     type Error = U;
@@ -752,7 +749,7 @@ pub fn empty<T: Send + 'static, E: Send + 'static>() -> Empty<T, E> {
 
 impl<T, E> Future for Empty<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     type Item = T;
     type Error = E;
@@ -887,7 +884,7 @@ impl<A, B> Future for Join<A, B>
         impl<G, A, B, E> State<G, A, B, E>
             where A: Send + 'static,
                   B: Send + 'static,
-                  E: Error2,
+                  E: Send + 'static,
                   G: FnOnce(FutureResult<(A, B), E>),
         {
             fn finish(&self) {
@@ -1042,14 +1039,14 @@ pub struct Finished<T, E> {
 
 pub fn finished<T, E>(t: T) -> Finished<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     Finished { t: Some(t), _e: marker::PhantomData }
 }
 
 impl<T, E> Future for Finished<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     type Item = T;
     type Error = E;
@@ -1083,14 +1080,14 @@ pub struct Failed<T, E> {
 
 pub fn failed<T, E>(e: E) -> Failed<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     Failed { _t: marker::PhantomData, e: Some(e) }
 }
 
 impl<T, E> Future for Failed<T, E>
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     type Item = T;
     type Error = E;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, Error2, Callback, FutureResult, FutureError};
+use {Future, Callback, FutureResult, FutureError};
 use slot::Slot;
 
 pub struct Promise<T, E> {
@@ -13,13 +13,13 @@ pub struct Complete<T, E> {
 
 pub fn pair<T, E>() -> (Promise<T, E>, Complete<T, E>)
     where T: Send + 'static,
-          E: Error2,
+          E: Send + 'static,
 {
     let slot = Arc::new(Slot::new(None));
     (Promise { slot: slot.clone() }, Complete { slot: slot })
 }
 
-impl<T: Send + 'static, E: Error2> Complete<T, E> {
+impl<T: Send + 'static, E: Send + 'static> Complete<T, E> {
     pub fn finish(self, t: T) {
         self.complete(Ok(t))
     }
@@ -37,7 +37,7 @@ impl<T: Send + 'static, E: Error2> Complete<T, E> {
     }
 }
 
-impl<T: Send + 'static, E: Error2> Future for Promise<T, E> {
+impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
 
