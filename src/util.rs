@@ -12,9 +12,13 @@ pub fn recover<F, R, E>(f: F) -> PollResult<R, E>
     Ok(f())
 }
 
+pub fn reused<E>() -> PollError<E> {
+    PollError::Panicked(Box::new(ReuseFuture))
+}
+
 pub fn opt2poll<T, E>(t: Option<T>) -> PollResult<T, E> {
     match t {
         Some(t) => Ok(t),
-        None => Err(PollError::Panicked(Box::new(ReuseFuture))),
+        None => Err(reused()),
     }
 }

@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::Ordering::{Acquire, Release, SeqCst};
-use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::atomic::Ordering::{Acquire, Release};
+use std::sync::atomic::{AtomicBool};
 
 pub struct AtomicCell<T> {
     in_use: AtomicBool,
@@ -51,27 +51,27 @@ impl<'a, T> Drop for Borrow<'a, T> {
     }
 }
 
-pub struct AtomicCounter<T> {
-    cnt: AtomicUsize,
-    data: AtomicCell<Option<T>>,
-}
-
-impl<T> AtomicCounter<T> {
-    pub fn new(data: T, cnt: usize) -> AtomicCounter<T> {
-        AtomicCounter {
-            cnt: AtomicUsize::new(cnt),
-            data: AtomicCell::new(Some(data)),
-        }
-    }
-
-    pub fn try_take(&self) -> Option<T> {
-        if self.cnt.fetch_sub(1, SeqCst) == 1 {
-            self.data.borrow().unwrap().take()
-        } else {
-            None
-        }
-    }
-}
+// pub struct AtomicCounter<T> {
+//     cnt: AtomicUsize,
+//     data: AtomicCell<Option<T>>,
+// }
+//
+// impl<T> AtomicCounter<T> {
+//     pub fn new(data: T, cnt: usize) -> AtomicCounter<T> {
+//         AtomicCounter {
+//             cnt: AtomicUsize::new(cnt),
+//             data: AtomicCell::new(Some(data)),
+//         }
+//     }
+//
+//     pub fn try_take(&self) -> Option<T> {
+//         if self.cnt.fetch_sub(1, SeqCst) == 1 {
+//             self.data.borrow().unwrap().take()
+//         } else {
+//             None
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

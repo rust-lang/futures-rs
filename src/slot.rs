@@ -84,38 +84,38 @@ impl<T: 'static> Slot<T> {
     }
 
     // PRODUCER
-    pub fn on_empty<F>(&self, f: F)
-        where F: FnOnce(&Slot<T>) + Send + 'static
-    {
-        let mut state = self.state.load(Ordering::SeqCst);
-        assert!(state & ON_EMPTY == 0);
-        if state & DATA == 0 {
-            return f(self)
-        }
-        assert!(state & ON_FULL == 0);
-        let mut slot = self.on_empty.borrow().expect("on_empty interference");
-        assert!(slot.is_none());
-        *slot = Some(Box::new(f));
-        drop(slot);
-
-        loop {
-            assert_eq!(state, DATA);
-            let old = self.state.compare_and_swap(state,
-                                                  state | ON_EMPTY,
-                                                  Ordering::SeqCst);
-            if old == state {
-                break
-            }
-            state = old;
-
-            if state & DATA == 0 {
-                self.on_empty.borrow().expect("on_empty interference2")
-                             .take().expect("on_empty not full?")
-                             .call_box(self);
-                break
-            }
-        }
-    }
+    // pub fn on_empty<F>(&self, f: F)
+    //     where F: FnOnce(&Slot<T>) + Send + 'static
+    // {
+    //     let mut state = self.state.load(Ordering::SeqCst);
+    //     assert!(state & ON_EMPTY == 0);
+    //     if state & DATA == 0 {
+    //         return f(self)
+    //     }
+    //     assert!(state & ON_FULL == 0);
+    //     let mut slot = self.on_empty.borrow().expect("on_empty interference");
+    //     assert!(slot.is_none());
+    //     *slot = Some(Box::new(f));
+    //     drop(slot);
+    //
+    //     loop {
+    //         assert_eq!(state, DATA);
+    //         let old = self.state.compare_and_swap(state,
+    //                                               state | ON_EMPTY,
+    //                                               Ordering::SeqCst);
+    //         if old == state {
+    //             break
+    //         }
+    //         state = old;
+    //
+    //         if state & DATA == 0 {
+    //             self.on_empty.borrow().expect("on_empty interference2")
+    //                          .take().expect("on_empty not full?")
+    //                          .call_box(self);
+    //             break
+    //         }
+    //     }
+    // }
 
     // CONSUMER
     pub fn try_consume(&self) -> Result<T, TryConsumeError> {
@@ -182,11 +182,11 @@ impl<T: 'static> Slot<T> {
     }
 }
 
-impl<T> TryProduceError<T> {
-    pub fn into_inner(self) -> T {
-        self.0
-    }
-}
+// impl<T> TryProduceError<T> {
+//     pub fn into_inner(self) -> T {
+//         self.0
+//     }
+// }
 
 trait FnBox<T: 'static>: Send + 'static {
     fn call_box(self: Box<Self>, other: &Slot<T>);

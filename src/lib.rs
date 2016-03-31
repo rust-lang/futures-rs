@@ -2,21 +2,16 @@
 
 extern crate crossbeam;
 
-use std::any::Any;
-use std::marker;
-use std::mem;
-use std::sync::Arc;
-
 // use cell::AtomicCell;
 // use slot::Slot;
 
 // pub mod bufstream;
 // mod buf;
-// mod cell;
+mod cell;
 // pub mod channel;
 // pub mod mio;
 // pub mod promise;
-// mod slot;
+mod slot;
 // pub mod stream;
 
 pub use done::{done, Done};
@@ -26,10 +21,14 @@ pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 pub use map::Map;
 pub use map_err::MapErr;
+pub use then::Then;
+// pub use and_then::AndThen;
 
 mod done;
 mod error;
 mod failed;
+mod then;
+// mod and_then;
 mod finished;
 mod impls;
 mod lazy;
@@ -95,7 +94,7 @@ impl<F: Future> IntoFuture for F {
 //
 // WHAT HAPPENS
 //      - panic?
-pub trait Future/*: Send + 'static*/ {
+pub trait Future: Send + 'static {
     type Item: Send + 'static;
     type Error: Send + 'static;
 
@@ -111,8 +110,8 @@ pub trait Future/*: Send + 'static*/ {
 
     fn await(&mut self) -> FutureResult<Self::Item, Self::Error>;
 
-    fn boxed<'a>(self) -> Box<Future<Item=Self::Item, Error=Self::Error> + 'a>
-        where Self: Sized + 'a
+    fn boxed(self) -> Box<Future<Item=Self::Item, Error=Self::Error>>
+        where Self: Sized
     {
         Box::new(self)
     }
@@ -134,35 +133,31 @@ pub trait Future/*: Send + 'static*/ {
         map_err::new(self, f)
     }
 
-    // fn then<F, B>(self, f: F) -> Then<Self, B, F>
-    //     where F: FnOnce(Result<Self::Item, Self::Error>) -> B + Send + 'static,
-    //           B: IntoFuture,
-    //           Self: Sized,
-    // {
-    //     Then {
-    //         future: _Then::First(self, Some(f)),
-    //     }
-    // }
-    //
-    // // TODO: compare this to
-    // //  ```
-    // //  .then(|res| {
-    // //      match res {
-    // //          Ok(e) => Either::First(f(e).into_future()),
-    // //          Err(e) => Either::Second(failed(e)),
-    // //      }
-    // //  })
-    // // ```
-    // fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
+    fn then<F, B>(self, f: F) -> Then<Self, B::Future, F>
+        where F: FnOnce(Result<Self::Item, Self::Error>) -> B + Send + 'static,
+              B: IntoFuture,
+              Self: Sized,
+    {
+        then::new(self, f)
+    }
+
+    // TODO: compare this to
+    //  ```
+    //  .then(|res| {
+    //      match res {
+    //          Ok(e) => Either::First(f(e).into_future()),
+    //          Err(e) => Either::Second(failed(e)),
+    //      }
+    //  })
+    // ```
+    // fn and_then<F, B>(self, f: F) -> AndThen<Self, B::Future, F>
     //     where F: FnOnce(Self::Item) -> B,
     //           B: IntoFuture<Error = Self::Error>,
     //           Self: Sized,
     // {
-    //     AndThen {
-    //         future: _AndThen::First(self, Some(f)),
-    //     }
+    //     and_then::new(self, f)
     // }
-    //
+
     // // TODO: compare this to
     // //  ```
     // //  .then(|res| {
@@ -203,8 +198,8 @@ pub trait Future/*: Send + 'static*/ {
     //         b_res: None,
     //     }
     // }
-    //
-    // // TODO: check this is the same as `and_then(|x| x)`
+
+    // TODO: check this is the same as `and_then(|x| x)`
     // fn flatten(self) -> Flatten<Self>
     //     where Self::Item: IntoFuture,
     //           <<Self as Future>::Item as IntoFuture>::Error:
@@ -228,179 +223,6 @@ impl<F, T, E> Callback<T, E> for F
         (*self)(result)
     }
 }
-
-pub struct Then<A, B, F> where B: IntoFuture {
-    state: _Then<A, B::Future, F>,
-}
-
-enum _Then<A, B, F> {
-    First(A, Option<F>),
-    Second(B),
-}
-
-fn then<A, B, C, D, F>(a: PollResult<A, B>, f: F) -> PollResult<C, D>
-    where F: FnOnce(Result<A, B>) -> C + Send + 'static,
-          A: Send + 'static,
-          B: Send + 'static,
-{
-    match a {
-        Ok(e) => util::recover(|| f(Ok(e))),
-        Err(PollError::Other(e)) => util::recover(|| f(Err(e))),
-        Err(PollError::Panicked(e)) => Err(PollError::Panicked(e)),
-        Err(PollError::Canceled) => Err(PollError::Canceled),
-    }
-}
-
-impl<A, B, F> Future for Then<A, B, F>
-    where A: Future,
-          B: IntoFuture,
-          F: FnOnce(Result<A::Item, A::Error>) -> B + Send + 'static,
-{
-    type Item = B::Item;
-    type Error = B::Error;
-
-    fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
-        let mut b = match self.state {
-            _Then::First(ref mut a, ref mut f) => {
-                let res = match a.poll() {
-                    Some(res) => res,
-                    None => return None,
-                };
-                let f = util::opt2poll(f.take());
-                match f.and_then(|f| then(res, f)) {
-                    Ok(b) => b.into_future(),
-                    Err(e) => return Some(Err(e)),
-                }
-            }
-            _Then::Second(ref mut b) => return b.poll(),
-        };
-        let ret = b.poll();
-        self.state = _Then::Second(b);
-        return ret
-    }
-
-    fn cancel(&mut self) {
-        match self.state {
-            _Then::First(ref mut a, _) => a.cancel(),
-            _Then::Second(ref mut b) => b.cancel(),
-        }
-    }
-
-    fn await(&mut self) -> FutureResult<B::Item, B::Error> {
-        match self.state {
-            _Then::First(ref mut a, ref mut f) => {
-                let f = try!(util::opt2poll(f.take()));
-                match a.await() {
-                    Ok(e) => f(Ok(e)).into_future().await(),
-                    Err(FutureError::Other(e)) => f(Err(e)).into_future().await(),
-                    Err(FutureError::Canceled) => Err(FutureError::Canceled)
-                }
-            }
-            _Then::Second(ref mut b) => b.await(),
-        }
-    }
-
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<B::Item, B::Error>) + Send + 'static
-    {
-        // match self.future {
-        //     _Then::First(ref mut a, ref mut f) => {
-        //         let f = f.take();
-        //         a.schedule(|r| {
-        //             match then(r, f) {
-        //                 Ok(b) => b.into_future().schedule(g),
-        //                 Err(e) => g(Err(e)),
-        //             }
-        //         })
-        //     }
-        //     _Then::Second(ref mut b) => b.schedule(g)
-        // }
-    }
-
-    fn schedule_boxed(&mut self, cb: Box<Callback<B::Item, B::Error>>) {
-        self.schedule(|r| cb.call(r))
-    }
-}
-
-// pub struct AndThen<A, B, F> where B: IntoFuture {
-//     future: _AndThen<A, B::Future, F>,
-// }
-//
-// enum _AndThen<A, B, F> {
-//     First(A, Option<F>),
-//     Second(B),
-// }
-//
-// fn and_then<A, B, C, F>(a: FutureResult<A, B>, f: Option<F>) -> FutureResult<C, B>
-//     where F: FnOnce(A) -> C + Send + 'static,
-//           A: Send + 'static,
-// {
-//     match (f, a) {
-//         (Some(f), Ok(e)) => recover(|| f(e)),
-//         (Some(_), Err(e)) => Err(e),
-//         (None, _) => Err(FutureError::Panicked)
-//     }
-// }
-//
-// impl<A, B, F> Future for AndThen<A, B, F>
-//     where A: Future,
-//           B: IntoFuture<Error = A::Error>,
-//           F: FnOnce(A::Item) -> B + Send + 'static,
-// {
-//     type Item = B::Item;
-//     type Error = B::Error;
-//
-//     fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
-//         let mut b = match self.future {
-//             _AndThen::First(ref mut a, ref mut f) => {
-//                 let res = match a.poll() {
-//                     Some(res) => res,
-//                     None => return None,
-//                 };
-//                 match and_then(res, f.take()) {
-//                     Ok(b) => b.into_future(),
-//                     Err(e) => return Some(Err(e)),
-//                 }
-//             }
-//             _AndThen::Second(ref mut b) => return b.poll(),
-//         };
-//         let ret = b.poll();
-//         self.future = _AndThen::Second(b);
-//         return ret
-//     }
-//
-//     fn await(self) -> FutureResult<B::Item, B::Error> {
-//         match self.future {
-//             _AndThen::First(a, f) => {
-//                 and_then(a.await(), f).and_then(|b| {
-//                     b.into_future().await()
-//                 })
-//             }
-//             _AndThen::Second(b) => b.await(),
-//         }
-//     }
-//
-//     fn schedule<G>(&mut self, g: G)
-//         where G: FnOnce(PollResult<B::Item, B::Error>) + Send + 'static
-//     {
-//         match self.future {
-//             _AndThen::First(ref mut a, ref mut f) => {
-//                 let f = f.take();
-//                 a.schedule(|r| {
-//                     match and_then(r, f) {
-//                         Ok(b) => b.into_future().schedule(g),
-//                         Err(e) => g(Err(e)),
-//                     }
-//                 })
-//             }
-//             _AndThen::Second(ref mut b) => b.schedule(g)
-//         }
-//     }
-//
-//     fn schedule_boxed(&mut self, cb: Box<Callback<B::Item, B::Error>>) {
-//         self.schedule(|r| cb.call(r))
-//     }
-// }
 //
 // pub struct OrElse<A, B, F> where B: IntoFuture {
 //     future: _OrElse<A, B::Future, F>,
@@ -746,72 +568,6 @@ impl<A, B, F> Future for Then<A, B, F>
 //                 result: result,
 //             }.schedule(g);
 //         })
-//     }
-//
-//     fn schedule_boxed(&mut self, cb: Box<Callback<Self::Item, Self::Error>>) {
-//         self.schedule(|r| cb.call(r))
-//     }
-// }
-//
-// pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
-//     state: _Flatten<A, <A::Item as IntoFuture>::Future>,
-// }
-//
-// enum _Flatten<A, B> {
-//     First(A),
-//     Second(B),
-// }
-//
-// impl<A> Future for Flatten<A>
-//     where A: Future,
-//           A::Item: IntoFuture,
-//           <<A as Future>::Item as IntoFuture>::Error: From<<A as Future>::Error>
-// {
-//     type Item = <A::Item as IntoFuture>::Item;
-//     type Error = <A::Item as IntoFuture>::Error;
-//
-//     fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
-//         let mut b = match self.state {
-//             _Flatten::First(ref mut a) => {
-//                 match a.poll() {
-//                     Some(Ok(a)) => a.into_future(),
-//                     Some(Err(e)) => return Some(Err(e.map(From::from))),
-//                     None => return None,
-//                 }
-//             }
-//             _Flatten::Second(ref mut b) => return b.poll(),
-//         };
-//         let ret = b.poll();
-//         self.state = _Flatten::Second(b);
-//         return ret
-//     }
-//
-//     fn await(self) -> FutureResult<Self::Item, Self::Error> {
-//         match self.state {
-//             _Flatten::First(a) => {
-//                 match a.await() {
-//                     Ok(b) => b.into_future().await(),
-//                     Err(e) => Err(e.map(From::from)),
-//                 }
-//             }
-//             _Flatten::Second(b) => b.await(),
-//         }
-//     }
-//
-//     fn schedule<G>(&mut self, g: G)
-//         where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
-//     {
-//         match self.state {
-//             _Flatten::First(ref mut a) => {
-//                 a.schedule(|result| {
-//                     match result {
-//                         Ok(item) => item.into_future().schedule(g),
-//                         Err(e) => g(Err(e.map(From::from))),
-//                     }
-//                 })
-//             }
-//             _Flatten::Second(ref mut b) => b.schedule(g),
-//         }
 //     }
 //
 //     fn schedule_boxed(&mut self, cb: Box<Callback<Self::Item, Self::Error>>) {
