@@ -30,8 +30,11 @@ fn f_err(a: u32) -> Done<i32, u32> { Err(a).into_future() }
 fn ok(a: i32) -> Result<i32, u32> { Ok(a) }
 fn err(a: u32) -> Result<i32, u32> { Err(a) }
 
-fn assert_done<T: Future, F: Fn() -> T>(f: F, result: Result<T::Item, T::Error>)
-    where T::Item: Eq + fmt::Debug, T::Error: Eq + fmt::Debug
+fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
+    where T: Future,
+          T::Item: Eq + fmt::Debug,
+          T::Error: Eq + fmt::Debug,
+          F: FnMut() -> T,
 {
     assert_eq!(&get(f()), &result);
     let (tx, rx) = channel();
@@ -45,7 +48,7 @@ fn assert_done<T: Future, F: Fn() -> T>(f: F, result: Result<T::Item, T::Error>)
     assert_panic(rx.recv().unwrap());
 }
 
-fn assert_empty<T: Future, F: Fn() -> T>(f: F) {
+fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
     let mut a = f();
     assert!(a.poll().is_none());
     a.cancel();
@@ -56,7 +59,7 @@ fn assert_empty<T: Future, F: Fn() -> T>(f: F) {
     assert_cancel(a.poll().expect("cancel should force a finish2"));
 
     let (tx, rx) = channel();
-    f().schedule(move |r| tx.send(r).unwrap());
+    f().schedule(move |r| drop(tx.send(r)));
     assert!(rx.try_recv().is_err());
 
     let (tx, rx) = channel();
@@ -341,3 +344,31 @@ fn flatten() {
 //     c1.fail(1);
 //     assert_eq!(get(f), Err(1));
 // }
+
+#[test]
+fn smoke_promise() {
+    assert_done(|| {
+        let (p, c) = promise();
+        c.finish(1);
+        p
+    }, ok(1));
+    assert_done(|| {
+        let (p, c) = promise();
+        c.fail(1);
+        p
+    }, err(1));
+    let mut completes = Vec::new();
+    assert_empty(|| {
+        let (a, b) = promise::<i32, u32>();
+        completes.push(b);
+        a
+    });
+
+    let (mut p, c) = promise::<i32, u32>();
+    drop(c);
+    assert_cancel(p.poll().unwrap());
+    assert_panic(p.poll().unwrap());
+    let (tx, rx) = channel();
+    p.schedule(move |r| tx.send(r).unwrap());
+    assert_panic(rx.recv().unwrap());
+}

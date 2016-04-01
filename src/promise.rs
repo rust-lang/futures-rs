@@ -1,38 +1,74 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Callback, FutureResult, FutureError};
+use {Future, Callback, PollResult, PollError};
 use slot::Slot;
+use util;
 
 pub struct Promise<T, E> {
-    slot: Arc<Slot<Result<T, E>>>,
+    inner: Arc<Inner<T, E>>,
+    used: bool,
 }
 
-pub struct Complete<T, E> {
-    slot: Arc<Slot<Result<T, E>>>,
-}
-
-pub fn pair<T, E>() -> (Promise<T, E>, Complete<T, E>)
+pub struct Complete<T, E>
     where T: Send + 'static,
           E: Send + 'static,
 {
-    let slot = Arc::new(Slot::new(None));
-    (Promise { slot: slot.clone() }, Complete { slot: slot })
+    inner: Arc<Inner<T, E>>,
+    completed: bool,
 }
 
-impl<T: Send + 'static, E: Send + 'static> Complete<T, E> {
-    pub fn finish(self, t: T) {
-        self.complete(Ok(t))
+struct Inner<T, E> {
+    slot: Slot<Option<Result<T, E>>>,
+    ready: AtomicBool,
+}
+
+pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    let inner = Arc::new(Inner {
+        slot: Slot::new(None),
+        ready: AtomicBool::new(false),
+    });
+    (Promise { inner: inner.clone(), used: false },
+     Complete { inner: inner, completed: false })
+}
+
+impl<T, E> Complete<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    pub fn finish(mut self, t: T) {
+        self.completed = true;
+        self.complete(Some(Ok(t)))
     }
 
-    pub fn fail(self, e: E) {
-        self.complete(Err(e))
+    pub fn fail(mut self, e: E) {
+        self.completed = true;
+        self.complete(Some(Err(e)))
     }
 
-    fn complete(self, t: Result<T, E>) {
-        if let Err(e) = self.slot.try_produce(t) {
-            self.slot.on_empty(|slot| {
-                slot.try_produce(e.into_inner()).ok().unwrap();
+    fn complete(&mut self, t: Option<Result<T, E>>) {
+        if self.inner.ready.swap(true, Ordering::SeqCst) {
+            return
+        }
+        if let Err(e) = self.inner.slot.try_produce(t) {
+            self.inner.slot.on_empty(|slot| {
+                slot.try_produce(e.into_inner()).ok()
+                    .expect("advertised as empty but wasn't");
             })
+        }
+    }
+}
+
+impl<T, E> Drop for Complete<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    fn drop(&mut self) {
+        if !self.completed {
+            self.complete(None);
         }
     }
 }
@@ -41,19 +77,40 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<FutureResult<T, E>> {
-        self.slot.try_consume().map(|r| {
-            r.map_err(FutureError::Other)
+    fn poll(&mut self) -> Option<PollResult<T, E>> {
+        if self.used {
+            return Some(Err(util::reused()))
+        }
+        self.inner.slot.try_consume().map(|r| {
+            self.used = true;
+            match r {
+                Some(Ok(e)) => Ok(e),
+                Some(Err(e)) => Err(PollError::Other(e)),
+                None => Err(PollError::Canceled),
+            }
         }).ok()
     }
 
+    fn cancel(&mut self) {
+        if !self.inner.ready.swap(true, Ordering::SeqCst) {
+            self.inner.slot.try_produce(None).ok()
+                .expect("got cancel lock but couldn't produce");
+        }
+    }
+
     fn schedule<F>(&mut self, f: F)
-        where F: FnOnce(FutureResult<T, E>) + Send + 'static
+        where F: FnOnce(PollResult<T, E>) + Send + 'static
     {
-        self.slot.on_full(move |slot| {
+        if self.used {
+            return f(Err(util::reused()))
+        }
+        self.used = true;
+        self.inner.slot.on_full(move |slot| {
             match slot.try_consume() {
-                Ok(data) => f(data.map_err(FutureError::Other)),
-                Err(_) => panic!("slot wasn't full on full"),
+                Ok(Some(Ok(e))) => f(Ok(e)),
+                Ok(Some(Err(e))) => f(Err(PollError::Other(e))),
+                Ok(None) => f(Err(PollError::Canceled)),
+                Err(..) => panic!("slot wasn't full"),
             }
         })
     }

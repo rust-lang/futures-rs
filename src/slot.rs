@@ -84,7 +84,6 @@ impl<T: 'static> Slot<T> {
     }
 
     // PRODUCER
-    #[cfg(test)]
     pub fn on_empty<F>(&self, f: F)
         where F: FnOnce(&Slot<T>) + Send + 'static
     {
@@ -183,11 +182,11 @@ impl<T: 'static> Slot<T> {
     }
 }
 
-// impl<T> TryProduceError<T> {
-//     pub fn into_inner(self) -> T {
-//         self.0
-//     }
-// }
+impl<T> TryProduceError<T> {
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 trait FnBox<T: 'static>: Send + 'static {
     fn call_box(self: Box<Self>, other: &Slot<T>);

@@ -1,16 +1,10 @@
-// #![feature(recover)]
-
-// use cell::AtomicCell;
-// use slot::Slot;
-
 // pub mod bufstream;
 // mod buf;
-mod cell;
 // pub mod channel;
 // pub mod mio;
-// pub mod promise;
-mod slot;
 // pub mod stream;
+mod cell;
+mod slot;
 mod util;
 
 mod error;
@@ -22,33 +16,36 @@ mod empty;
 mod failed;
 mod finished;
 mod lazy;
+mod promise;
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
+pub use promise::{promise, Promise, Complete};
 
 // combinators
 mod and_then;
 mod chain;
-// mod collect;
 mod flatten;
 mod impls;
+mod join;
 mod map;
 mod map_err;
 mod or_else;
-mod then;
-mod join;
 mod select;
-pub use select::Select;
+mod then;
 pub use and_then::AndThen;
-// pub use collect::{collect, Collect};
 pub use flatten::Flatten;
+pub use join::Join;
 pub use map::Map;
 pub use map_err::MapErr;
 pub use or_else::OrElse;
+pub use select::Select;
 pub use then::Then;
-pub use join::Join;
+
+// mod collect;
+// pub use collect::{collect, Collect};
 
 // TODO: Send + 'static is annoying, but required by cancel and_then, document
 // TODO: not object safe
