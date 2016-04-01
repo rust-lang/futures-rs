@@ -41,7 +41,7 @@ fn result_smoke() {
     is_future_v::<i32, u32, _>(f_ok(1).map(move |a| f_ok(a)).flatten());
 
     fn test<T: Future, F: Fn() -> T>(f: F, result: Result<T::Item, T::Error>)
-        where T::Item: Eq + fmt::Debug, T::Error: Eq
+        where T::Item: Eq + fmt::Debug, T::Error: Eq + fmt::Debug
     {
         assert_eq!(&get(f()), &result);
         let (tx, rx) = channel();
