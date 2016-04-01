@@ -57,7 +57,7 @@ fn result_smoke() {
     test(|| f_err(1).and_then(|a| Ok(a + 2)), err(1));
     test(|| f_ok(1).and_then(|a| Err(a as u32 + 3)), err(4));
     test(|| f_err(1).and_then(|a| Err(a as u32 + 4)), err(1));
-    test(|| f_ok(1).or_else(|a| Ok(a as i32 + 2)), ok(1));
+    test(|| f_ok(1).or_else(|a| Ok(a + 2)), ok(1));
     // test(|| f_err(1).or_else(|a| Ok(a as i32 + 2)), ok(3));
     // assert_eq!(get(f_ok(1).or_else(|a| Err(a + 3))), ok(1));
     // assert_eq!(get(f_err(1).or_else(|a| Err(a + 4))), err(5));
