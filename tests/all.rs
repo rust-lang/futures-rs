@@ -5,16 +5,6 @@ use std::fmt;
 
 use futures::*;
 
-fn is_future_v<A, B, C>(_: C)
-    where A: Send + 'static,
-          B: Send + 'static,
-          C: Future<Item=A, Error=B>
-{}
-
-fn get<F: Future>(mut f: F) -> Result<F::Item, F::Error> {
-    unwrap(f.poll().expect("future not ready"))
-}
-
 fn unwrap<A, B>(r: PollResult<A, B>) -> Result<A, B> {
     match r {
         Ok(e) => Ok(e),
@@ -36,15 +26,18 @@ fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
           T::Error: Eq + fmt::Debug,
           F: FnMut() -> T,
 {
-    assert_eq!(&get(f()), &result);
+    let mut a = f();
+    assert_eq!(&unwrap(a.poll().expect("future not ready")), &result);
+    assert_bad(a.poll().expect("future should still be ready"));
+
     let (tx, rx) = channel();
     f().schedule(move |r| tx.send(r).unwrap());
     assert_eq!(&unwrap(rx.recv().unwrap()), &result);
 
-    let mut f = f();
-    f.schedule(|_| ());
+    let mut a = f();
+    a.schedule(|_| ());
     let (tx, rx) = channel();
-    f.schedule(move |r| tx.send(r).unwrap());
+    a.schedule(move |r| tx.send(r).unwrap());
     assert_panic(rx.recv().unwrap());
 }
 
@@ -78,12 +71,7 @@ fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
     a.schedule(move |r| tx2.send(r).unwrap());
     assert_cancel(rx.recv().unwrap());
     a.schedule(move |r| tx.send(r).unwrap());
-    match rx.recv().unwrap() {
-        Ok(_) => panic!("expected panic, got success"),
-        Err(PollError::Other(_)) => panic!("expected panic, got other"),
-        Err(PollError::Panicked(_)) => {}
-        Err(PollError::Canceled) => {}
-    }
+    assert_bad(rx.recv().unwrap());
 }
 
 fn assert_cancel<T, E>(r: PollResult<T, E>) {
@@ -104,8 +92,23 @@ fn assert_panic<T, E>(r: PollResult<T, E>) {
     }
 }
 
+fn assert_bad<T, E>(r: PollResult<T, E>) {
+    match r {
+        Ok(_) => panic!("expected panic, got success"),
+        Err(PollError::Other(_)) => panic!("expected panic, got other"),
+        Err(PollError::Panicked(_)) => {}
+        Err(PollError::Canceled) => {}
+    }
+}
+
 #[test]
 fn result_smoke() {
+    fn is_future_v<A, B, C>(_: C)
+        where A: Send + 'static,
+              B: Send + 'static,
+              C: Future<Item=A, Error=B>
+    {}
+
     is_future_v::<i32, u32, _>(f_ok(1).map(|a| a + 1));
     is_future_v::<i32, u32, _>(f_ok(1).map_err(|a| a + 1));
     is_future_v::<i32, u32, _>(f_ok(1).and_then(|a| Ok(a)));
@@ -358,4 +361,18 @@ fn join_incomplete() {
     assert!(rx.try_recv().is_err());
     b.fail(1);
     assert_eq!(unwrap(rx.recv().unwrap()), Err(1));
+}
+
+#[test]
+fn cancel_propagates() {
+    let mut f = promise::<i32, u32>().0.then(|_| -> Done<i32, u32> { panic!() });
+    assert_cancel(f.poll().unwrap());
+    let mut f = promise::<i32, u32>().0.and_then(|_| -> Done<i32, u32> { panic!() });
+    assert_cancel(f.poll().unwrap());
+    let mut f = promise::<i32, u32>().0.or_else(|_| -> Done<i32, u32> { panic!() });
+    assert_cancel(f.poll().unwrap());
+    let mut f = promise::<i32, u32>().0.map(|_| panic!());
+    assert_cancel(f.poll().unwrap());
+    let mut f = promise::<i32, u32>().0.map_err(|_| panic!());
+    assert_cancel(f.poll().unwrap());
 }
