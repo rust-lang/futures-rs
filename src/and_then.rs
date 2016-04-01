@@ -49,7 +49,7 @@ impl<A, B, F> Future for AndThen<A, B::Future, F>
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<B::Item, B::Error>) + Send + 'static
     {
-        self.state.schedule(g, and_then::<A, B, F>)
+        self.state.schedule(g, and_then)
     }
 
     fn schedule_boxed(&mut self, cb: Box<Callback<B::Item, B::Error>>) {
