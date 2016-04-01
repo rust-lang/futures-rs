@@ -2,13 +2,13 @@ use {Future, IntoFuture, Callback, PollResult, PollError};
 use util;
 use chain::Chain;
 
-pub struct OrElse<A, B, F> {
-    state: Chain<A, B, F>,
+pub struct OrElse<A, B, F> where B: IntoFuture {
+    state: Chain<A, B::Future, F>,
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> OrElse<A, B, F>
     where A: Future,
-          B: Future,
+          B: IntoFuture<Item=A::Item>,
           F: Send + 'static,
 {
     OrElse {
@@ -32,7 +32,7 @@ fn or_else<A, B, F>(a: PollResult<A::Item, A::Error>, f: F)
     }
 }
 
-impl<A, B, F> Future for OrElse<A, B::Future, F>
+impl<A, B, F> Future for OrElse<A, B, F>
     where A: Future,
           B: IntoFuture<Item=A::Item>,
           F: FnOnce(A::Error) -> B + Send + 'static,

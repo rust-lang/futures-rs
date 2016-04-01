@@ -58,41 +58,38 @@ fn result_smoke() {
     test(|| f_ok(1).and_then(|a| Err(a as u32 + 3)), err(4));
     test(|| f_err(1).and_then(|a| Err(a as u32 + 4)), err(1));
     test(|| f_ok(1).or_else(|a| Ok(a as i32 + 2)), ok(1));
-    // test(|| f_err(1).or_else(|a| Ok(a as i32 + 2)), ok(3));
-    // assert_eq!(get(f_ok(1).or_else(|a| Err(a + 3))), ok(1));
-    // assert_eq!(get(f_err(1).or_else(|a| Err(a + 4))), err(5));
-    // assert_eq!(get(f_ok.select(f_err)), ok(1));
-    // assert_eq!(get(f_ok.select(Ok(2))), ok(1));
-    // assert_eq!(get(f_err.select(f_ok)), err(1));
-    // assert_eq!(get(f_ok.select(empty())), Ok(1));
-    // assert_eq!(get(empty().select(f_ok)), Ok(1));
-    // assert_eq!(get(f_ok.join(f_err)), Err(1));
-    // assert_eq!(get(f_ok.join(Ok(2))), Ok((1, 2)));
-    // assert_eq!(get(f_err.join(f_ok)), Err(1));
-    // assert_eq!(get(f_ok.then(|_| Ok(2))), ok(2));
-    // assert_eq!(get(f_ok.then(|_| Err(2))), err(2));
-    // assert_eq!(get(f_err.then(|_| Ok(2))), ok(2));
-    // assert_eq!(get(f_err.then(|_| Err(2))), err(2));
+    test(|| f_err(1).or_else(|a| Ok(a as i32 + 2)), ok(3));
+    test(|| f_ok(1).or_else(|a| Err(a + 3)), ok(1));
+    test(|| f_err(1).or_else(|a| Err(a + 4)), err(5));
+    test(|| f_ok(1).select(f_err(2)), ok(1));
+    test(|| f_ok(1).select(Ok(2)), ok(1));
+    test(|| f_err(1).select(f_ok(1)), err(1));
+    test(|| f_ok(1).select(empty()), Ok(1));
+    test(|| empty().select(f_ok(1)), Ok(1));
+    test(|| f_ok(1).join(f_err(1)), Err(1));
+    test(|| f_ok(1).join(Ok(2)), Ok((1, 2)));
+    test(|| f_err(1).join(f_ok(1)), Err(1));
+    test(|| f_ok(1).then(|_| Ok(2)), ok(2));
+    test(|| f_ok(1).then(|_| Err(2)), err(2));
+    test(|| f_err(1).then(|_| Ok(2)), ok(2));
+    test(|| f_err(1).then(|_| Err(2)), err(2));
 }
 
-// #[test]
-// fn test_empty() {
-//     let f_ok: FutureResult<i32, i32> = Ok(1).into_future();
-//     let f_err: FutureResult<i32, i32> = Err(1).into_future();
-//     let empty: Empty<i32, i32> = empty();
-//
-//     assert!(empty.select(empty).poll().is_err());
-//     assert!(empty.join(empty).poll().is_err());
-//     assert!(empty.or_else(move |_| empty).poll().is_err());
-//     assert!(empty.and_then(move |_| empty).poll().is_err());
-//     assert!(f_err.or_else(move |_| empty).poll().is_err());
-//     assert!(f_ok.and_then(move |_| empty).poll().is_err());
-//     assert!(empty.map(|a| a + 1).poll().is_err());
-//     assert!(empty.map_err(|a| a + 1).poll().is_err());
-//     assert!(empty.then(|a| a).poll().is_err());
-//     // assert!(empty.cancellable().poll().is_err());
-// }
-//
+#[test]
+fn test_empty() {
+    fn empty() -> Empty<i32, u32> { futures::empty() }
+
+    assert!(empty().select(empty()).poll().is_none());
+    assert!(empty().join(empty()).poll().is_none());
+    assert!(empty().or_else(move |_| empty()).poll().is_none());
+    assert!(empty().and_then(move |_| empty()).poll().is_none());
+    // assert!(f_err(1).or_else(move |_| empty()).poll().is_none());
+    // assert!(f_ok(1).and_then(move |_| empty()).poll().is_none());
+    // assert!(empty().map(|a| a + 1).poll().is_none());
+    // assert!(empty().map_err(|a| a + 1).poll().is_none());
+    // assert!(empty().then(|a| a).poll().is_none());
+}
+
 // // #[test]
 // // fn test_cancel() {
 // //     let f_ok: FutureResult<i32, i32> = Ok(1).into_future();

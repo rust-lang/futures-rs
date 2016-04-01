@@ -209,7 +209,7 @@ impl<A, B> Scheduled<A, B>
         let otherok = if flag == A_OK {B_OK} else {A_OK};
         let othererr = otherok << 1;
 
-        if old & (othererr & otherok) == 0 {
+        if old & (othererr | otherok) == 0 {
             // if the other side hasn't finished, then we only go through below
             // if we hit an error, if we finished ok then we bail out
             if flag == okflag {

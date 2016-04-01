@@ -147,7 +147,7 @@ impl<A, B> Scheduled<A, B>
 
         // if the other side finished before we did then we just drop our result
         // on the ground and let them take care of everything.
-        if old & (othererr & otherok) != 0 {
+        if old & (othererr | otherok) != 0 {
             return
         }
 

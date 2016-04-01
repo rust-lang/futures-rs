@@ -139,7 +139,7 @@ pub trait Future: Send + 'static {
     //      }
     //  })
     // ```
-    fn or_else<F, B>(self, f: F) -> OrElse<Self, B::Future, F>
+    fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B + Send + 'static,
               B: IntoFuture<Item = Self::Item>,
               Self: Sized,
@@ -184,7 +184,7 @@ impl<F, T, E> Callback<T, E> for F
     }
 }
 
-pub trait IntoFuture {
+pub trait IntoFuture: Send + 'static {
     type Future: Future<Item=Self::Item, Error=Self::Error>;
     type Item: Send + 'static;
     type Error: Send + 'static;
