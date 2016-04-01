@@ -1,4 +1,4 @@
-extern crate mio;
+// extern crate mio;
 extern crate futures;
 
 use futures::Future;

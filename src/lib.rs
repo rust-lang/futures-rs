@@ -1,7 +1,5 @@
 // #![feature(recover)]
 
-extern crate crossbeam;
-
 // use cell::AtomicCell;
 // use slot::Slot;
 
