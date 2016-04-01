@@ -45,7 +45,7 @@ fn result_smoke() {
     {
         assert_eq!(&get(f()), &result);
         let (tx, rx) = channel();
-        f().schedule(|r| tx.send(r).unwrap());
+        f().schedule(move |r| tx.send(r).unwrap());
         assert_eq!(&unwrap(rx.recv().unwrap()), &result);
     }
 
