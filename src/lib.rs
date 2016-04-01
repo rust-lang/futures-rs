@@ -41,6 +41,8 @@ mod map_err;
 mod or_else;
 mod then;
 mod join;
+mod select;
+pub use select::Select;
 pub use and_then::AndThen;
 // pub use collect::{collect, Collect};
 pub use flatten::Flatten;
@@ -147,27 +149,19 @@ pub trait Future: Send + 'static {
         or_else::new(self, f)
     }
 
-    // fn select<B>(self, other: B) -> Select<Self, B::Future>
-    //     where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
-    //           Self: Sized,
-    // {
-    //     Select {
-    //         a: self,
-    //         b: other.into_future(),
-    //     }
-    // }
-    //
-    // fn join<B>(self, other: B) -> Join<Self, B::Future>
-    //     where B: IntoFuture<Error=Self::Error>,
-    //           Self: Sized,
-    // {
-    //     Join {
-    //         a: self,
-    //         b: other.into_future(),
-    //         a_res: None,
-    //         b_res: None,
-    //     }
-    // }
+    fn select<B>(self, other: B) -> Select<Self, B::Future>
+        where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
+              Self: Sized,
+    {
+        select::new(self, other.into_future())
+    }
+
+    fn join<B>(self, other: B) -> Join<Self, B::Future>
+        where B: IntoFuture<Error=Self::Error>,
+              Self: Sized,
+    {
+        join::new(self, other.into_future())
+    }
 
     // TODO: check this is the same as `and_then(|x| x)`
     fn flatten(self) -> Flatten<Self>
