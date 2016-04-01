@@ -264,3 +264,98 @@ fn smoke_promise() {
     p.schedule(move |r| tx.send(r).unwrap());
     assert_panic(rx.recv().unwrap());
 }
+
+#[test]
+fn select_cancels() {
+    let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+    let ((atx, arx), (ctx, crx)) = (channel(), channel());
+    let a = a.map(move |a| { atx.send(a).unwrap(); a });
+    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+
+    let mut f = a.select(c);
+    assert!(f.poll().is_none());
+    assert!(arx.try_recv().is_err());
+    assert!(crx.try_recv().is_err());
+    b.finish(1);
+    assert!(f.poll().is_some());
+    assert_eq!(arx.recv().unwrap(), 1);
+    drop((d, f));
+    assert!(crx.recv().is_err());
+
+    let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+    let ((atx, _arx), (ctx, crx)) = (channel(), channel());
+    let a = a.map(move |a| { atx.send(a).unwrap(); a });
+    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+
+    let mut f = a.select(c);
+    f.schedule(|_| ());
+    assert_panic(f.poll().unwrap());
+    b.finish(1);
+    drop((d, f));
+    assert!(crx.recv().is_err());
+}
+
+#[test]
+fn join_cancels() {
+    let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+    let ((atx, _arx), (ctx, crx)) = (channel(), channel());
+    let a = a.map(move |a| { atx.send(a).unwrap(); a });
+    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+
+    let mut f = a.join(c);
+    b.fail(1);
+    assert!(f.poll().is_some());
+    drop((d, f));
+    assert!(crx.recv().is_err());
+
+    let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+    let ((atx, _arx), (ctx, crx)) = (channel(), channel());
+    let a = a.map(move |a| { atx.send(a).unwrap(); a });
+    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+
+    let mut f = a.join(c);
+    f.schedule(|_| ());
+    assert_panic(f.poll().unwrap());
+    b.fail(1);
+    drop((d, f));
+    assert!(crx.recv().is_err());
+}
+
+#[test]
+fn join_incomplete() {
+    let (a, b) = promise::<i32, u32>();
+    let mut f = f_ok(1).join(a);
+    assert!(f.poll().is_none());
+    let (tx, rx) = channel();
+    f.schedule(move |r| tx.send(r).unwrap());
+    assert!(rx.try_recv().is_err());
+    b.finish(2);
+    assert_eq!(unwrap(rx.recv().unwrap()), Ok((1, 2)));
+
+    let (a, b) = promise::<i32, u32>();
+    let mut f = a.join(f_ok(2));
+    assert!(f.poll().is_none());
+    let (tx, rx) = channel();
+    f.schedule(move |r| tx.send(r).unwrap());
+    assert!(rx.try_recv().is_err());
+    b.finish(1);
+    assert_eq!(unwrap(rx.recv().unwrap()), Ok((1, 2)));
+
+    let (a, b) = promise::<i32, u32>();
+    let mut f = f_ok(1).join(a);
+    assert!(f.poll().is_none());
+    let (tx, rx) = channel();
+    f.schedule(move |r| tx.send(r).unwrap());
+    assert!(rx.try_recv().is_err());
+    b.fail(2);
+    assert_eq!(unwrap(rx.recv().unwrap()), Err(2));
+
+    let (a, b) = promise::<i32, u32>();
+    let mut f = a.join(f_ok(2));
+    assert!(f.poll().is_none());
+    let (tx, rx) = channel();
+    f.schedule(move |r| tx.send(r).unwrap());
+    assert!(rx.try_recv().is_err());
+    b.fail(1);
+    assert_eq!(unwrap(rx.recv().unwrap()), Err(1));
+}
