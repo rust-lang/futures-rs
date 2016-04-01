@@ -21,3 +21,9 @@ notifications:
 os:
   - linux
   - osx
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
