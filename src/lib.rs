@@ -122,7 +122,7 @@ pub trait Future: Send + 'static {
     //      }
     //  })
     // ```
-    fn and_then<F, B>(self, f: F) -> AndThen<Self, B::Future, F>
+    fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B + Send + 'static,
               B: IntoFuture<Error = Self::Error>,
               Self: Sized,

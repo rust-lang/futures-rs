@@ -2,13 +2,13 @@ use {Future, IntoFuture, Callback, PollResult};
 use util;
 use chain::Chain;
 
-pub struct AndThen<A, B, F> {
-    state: Chain<A, B, F>,
+pub struct AndThen<A, B, F> where B: IntoFuture {
+    state: Chain<A, B::Future, F>,
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> AndThen<A, B, F>
     where A: Future,
-          B: Future,
+          B: IntoFuture,
           F: Send + 'static,
 {
     AndThen {
@@ -26,7 +26,7 @@ fn and_then<A, B, F>(a: PollResult<A::Item, A::Error>, f: F)
     util::recover(|| f(e)).map(|b| Err(b.into_future()))
 }
 
-impl<A, B, F> Future for AndThen<A, B::Future, F>
+impl<A, B, F> Future for AndThen<A, B, F>
     where A: Future,
           B: IntoFuture<Error=A::Error>,
           F: FnOnce(A::Item) -> B + Send + 'static,
