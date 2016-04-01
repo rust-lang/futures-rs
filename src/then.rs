@@ -2,13 +2,13 @@ use {Future, IntoFuture, PollError, Callback, PollResult};
 use util;
 use chain::Chain;
 
-pub struct Then<A, B, F> {
-    state: Chain<A, B, F>,
+pub struct Then<A, B, F> where B: IntoFuture {
+    state: Chain<A, B::Future, F>,
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
     where A: Future,
-          B: Future,
+          B: IntoFuture,
           F: Send + 'static,
 {
     Then {
@@ -31,7 +31,7 @@ fn then<A, B, F>(a: PollResult<A::Item, A::Error>, f: F)
     ret.map(|b| Err(b.into_future()))
 }
 
-impl<A, B, F> Future for Then<A, B::Future, F>
+impl<A, B, F> Future for Then<A, B, F>
     where A: Future,
           B: IntoFuture,
           F: FnOnce(Result<A::Item, A::Error>) -> B + Send + 'static,

@@ -1,14 +1,20 @@
 use std::marker;
 
 use {Future, Callback, PollResult, PollError};
+use util;
 
 pub struct Empty<T, E> {
     canceled: bool,
+    callback: Option<Box<Callback<T, E>>>,
     _marker: marker::PhantomData<(T, E)>,
 }
 
 pub fn empty<T: Send + 'static, E: Send + 'static>() -> Empty<T, E> {
-    Empty { canceled: false, _marker: marker::PhantomData }
+    Empty {
+        canceled: false,
+        callback: None,
+        _marker: marker::PhantomData,
+    }
 }
 
 impl<T, E> Future for Empty<T, E>
@@ -36,22 +42,24 @@ impl<T, E> Future for Empty<T, E>
 
     fn cancel(&mut self) {
         self.canceled = true;
+        if let Some(cb) = self.callback.take() {
+            cb.call(Err(PollError::Canceled))
+        }
     }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<T, E>) + Send + 'static
     {
-        drop(g);
+        self.schedule_boxed(Box::new(g))
     }
 
     fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {
-        drop(cb);
+        if self.canceled {
+            cb.call(Err(PollError::Canceled));
+        } else if self.callback.is_some() {
+            cb.call(Err(util::reused()))
+        } else {
+            self.callback = Some(cb);
+        }
     }
 }
-
-impl<T, E> Clone for Empty<T, E> {
-    fn clone(&self) -> Empty<T, E> {
-        Empty { canceled: self.canceled, _marker: marker::PhantomData }
-    }
-}
-

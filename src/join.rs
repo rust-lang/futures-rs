@@ -201,8 +201,8 @@ impl<A, B> Scheduled<A, B>
         };
 
         let (okflag, errflag) = (flag, flag << 1);
-        let flag = if err.is_some() {errflag} else {okflag};
-        let old = self.state.fetch_or(flag, Ordering::SeqCst);
+        let newflag = if err.is_some() {errflag} else {okflag};
+        let old = self.state.fetch_or(newflag, Ordering::SeqCst);
         assert!(old & okflag == 0);
         assert!(old & errflag == 0);
 
@@ -212,7 +212,7 @@ impl<A, B> Scheduled<A, B>
         if old & (othererr | otherok) == 0 {
             // if the other side hasn't finished, then we only go through below
             // if we hit an error, if we finished ok then we bail out
-            if flag == okflag {
+            if newflag == okflag {
                 return
             }
         } else if old & othererr != 0 {

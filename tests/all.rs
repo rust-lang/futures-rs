@@ -30,6 +30,51 @@ fn f_err(a: u32) -> Done<i32, u32> { Err(a).into_future() }
 fn ok(a: i32) -> Result<i32, u32> { Ok(a) }
 fn err(a: u32) -> Result<i32, u32> { Err(a) }
 
+fn assert_done<T: Future, F: Fn() -> T>(f: F, result: Result<T::Item, T::Error>)
+    where T::Item: Eq + fmt::Debug, T::Error: Eq + fmt::Debug
+{
+    assert_eq!(&get(f()), &result);
+    let (tx, rx) = channel();
+    f().schedule(move |r| tx.send(r).unwrap());
+    assert_eq!(&unwrap(rx.recv().unwrap()), &result);
+}
+
+fn assert_empty<T: Future, F: Fn() -> T>(f: F) {
+    let mut a = f();
+    assert!(a.poll().is_none());
+    a.cancel();
+    assert_cancel(a.poll().expect("cancel should force a finish"));
+
+    let mut a = f();
+    a.cancel();
+    assert_cancel(a.poll().expect("cancel should force a finish"));
+
+    let (tx, rx) = channel();
+    f().schedule(move |r| tx.send(r).unwrap());
+    assert!(rx.try_recv().is_err());
+
+    let (tx, rx) = channel();
+    let mut a = f();
+    a.schedule(move |r| tx.send(r).unwrap());
+    a.cancel();
+    assert_cancel(rx.recv().unwrap());
+
+    let (tx, rx) = channel();
+    let mut a = f();
+    a.cancel();
+    a.schedule(move |r| tx.send(r).unwrap());
+    assert_cancel(rx.recv().unwrap());
+}
+
+fn assert_cancel<T, E>(r: PollResult<T, E>) {
+    match r {
+        Ok(_) => panic!("can't succeed after cancel"),
+        Err(PollError::Canceled) => {}
+        Err(PollError::Panicked(_)) => panic!("panic error, not cancel"),
+        Err(PollError::Other(_)) => panic!("normal error, not cancel"),
+    }
+}
+
 #[test]
 fn result_smoke() {
     is_future_v::<i32, u32, _>(f_ok(1).map(|a| a + 1));
@@ -40,71 +85,49 @@ fn result_smoke() {
     is_future_v::<(i32, i32), u32, _>(f_ok(1).join(Err(3)));
     is_future_v::<i32, u32, _>(f_ok(1).map(move |a| f_ok(a)).flatten());
 
-    fn test<T: Future, F: Fn() -> T>(f: F, result: Result<T::Item, T::Error>)
-        where T::Item: Eq + fmt::Debug, T::Error: Eq + fmt::Debug
-    {
-        assert_eq!(&get(f()), &result);
-        let (tx, rx) = channel();
-        f().schedule(move |r| tx.send(r).unwrap());
-        assert_eq!(&unwrap(rx.recv().unwrap()), &result);
-    }
-
-    test(|| f_ok(1).map(|a| a + 2), ok(3));
-    test(|| f_err(1).map(|a| a + 2), err(1));
-    test(|| f_ok(1).map_err(|a| a + 2), ok(1));
-    test(|| f_err(1).map_err(|a| a + 2), err(3));
-    test(|| f_ok(1).and_then(|a| Ok(a + 2)), ok(3));
-    test(|| f_err(1).and_then(|a| Ok(a + 2)), err(1));
-    test(|| f_ok(1).and_then(|a| Err(a as u32 + 3)), err(4));
-    test(|| f_err(1).and_then(|a| Err(a as u32 + 4)), err(1));
-    test(|| f_ok(1).or_else(|a| Ok(a as i32 + 2)), ok(1));
-    test(|| f_err(1).or_else(|a| Ok(a as i32 + 2)), ok(3));
-    test(|| f_ok(1).or_else(|a| Err(a + 3)), ok(1));
-    test(|| f_err(1).or_else(|a| Err(a + 4)), err(5));
-    test(|| f_ok(1).select(f_err(2)), ok(1));
-    test(|| f_ok(1).select(Ok(2)), ok(1));
-    test(|| f_err(1).select(f_ok(1)), err(1));
-    test(|| f_ok(1).select(empty()), Ok(1));
-    test(|| empty().select(f_ok(1)), Ok(1));
-    test(|| f_ok(1).join(f_err(1)), Err(1));
-    test(|| f_ok(1).join(Ok(2)), Ok((1, 2)));
-    test(|| f_err(1).join(f_ok(1)), Err(1));
-    test(|| f_ok(1).then(|_| Ok(2)), ok(2));
-    test(|| f_ok(1).then(|_| Err(2)), err(2));
-    test(|| f_err(1).then(|_| Ok(2)), ok(2));
-    test(|| f_err(1).then(|_| Err(2)), err(2));
+    assert_done(|| f_ok(1).map(|a| a + 2), ok(3));
+    assert_done(|| f_err(1).map(|a| a + 2), err(1));
+    assert_done(|| f_ok(1).map_err(|a| a + 2), ok(1));
+    assert_done(|| f_err(1).map_err(|a| a + 2), err(3));
+    assert_done(|| f_ok(1).and_then(|a| Ok(a + 2)), ok(3));
+    assert_done(|| f_err(1).and_then(|a| Ok(a + 2)), err(1));
+    assert_done(|| f_ok(1).and_then(|a| Err(a as u32 + 3)), err(4));
+    assert_done(|| f_err(1).and_then(|a| Err(a as u32 + 4)), err(1));
+    assert_done(|| f_ok(1).or_else(|a| Ok(a as i32 + 2)), ok(1));
+    assert_done(|| f_err(1).or_else(|a| Ok(a as i32 + 2)), ok(3));
+    assert_done(|| f_ok(1).or_else(|a| Err(a + 3)), ok(1));
+    assert_done(|| f_err(1).or_else(|a| Err(a + 4)), err(5));
+    assert_done(|| f_ok(1).select(f_err(2)), ok(1));
+    assert_done(|| f_ok(1).select(Ok(2)), ok(1));
+    assert_done(|| f_err(1).select(f_ok(1)), err(1));
+    assert_done(|| f_ok(1).select(empty()), Ok(1));
+    assert_done(|| empty().select(f_ok(1)), Ok(1));
+    assert_done(|| f_ok(1).join(f_err(1)), Err(1));
+    assert_done(|| f_ok(1).join(Ok(2)), Ok((1, 2)));
+    assert_done(|| f_err(1).join(f_ok(1)), Err(1));
+    assert_done(|| f_ok(1).then(|_| Ok(2)), ok(2));
+    assert_done(|| f_ok(1).then(|_| Err(2)), err(2));
+    assert_done(|| f_err(1).then(|_| Ok(2)), ok(2));
+    assert_done(|| f_err(1).then(|_| Err(2)), err(2));
 }
 
 #[test]
 fn test_empty() {
     fn empty() -> Empty<i32, u32> { futures::empty() }
 
-    assert!(empty().select(empty()).poll().is_none());
-    assert!(empty().join(empty()).poll().is_none());
-    assert!(empty().or_else(move |_| empty()).poll().is_none());
-    assert!(empty().and_then(move |_| empty()).poll().is_none());
-    // assert!(f_err(1).or_else(move |_| empty()).poll().is_none());
-    // assert!(f_ok(1).and_then(move |_| empty()).poll().is_none());
-    // assert!(empty().map(|a| a + 1).poll().is_none());
-    // assert!(empty().map_err(|a| a + 1).poll().is_none());
-    // assert!(empty().then(|a| a).poll().is_none());
+    assert_empty(|| empty().select(empty()));
+    assert_empty(|| empty().join(empty()));
+    assert_empty(|| empty().join(f_ok(1)));
+    assert_empty(|| f_ok(1).join(empty()));
+    assert_empty(|| empty().or_else(move |_| empty()));
+    assert_empty(|| empty().and_then(move |_| empty()));
+    // assert_empty(|| f_err(1).or_else(move |_| empty()));
+    // assert_empty(|| f_ok(1).and_then(move |_| empty()));
+    assert_empty(|| empty().map(|a| a + 1));
+    assert_empty(|| empty().map_err(|a| a + 1));
+    assert_empty(|| empty().then(|a| a));
 }
 
-// // #[test]
-// // fn test_cancel() {
-// //     let f_ok: FutureResult<i32, i32> = Ok(1).into_future();
-// //     let f_err: FutureResult<i32, i32> = Err(1).into_future();
-// //
-// //     assert_eq!(get(f_ok.cancellable()), Ok(1));
-// //     assert_eq!(get(f_err.cancellable()), Err(CancelError::Other(1)));
-// //     let mut f = f_ok.cancellable();
-// //     f.cancel();
-// //     assert_eq!(get(f), Err(CancelError::Cancelled));
-// //     let mut f = f_err.cancellable();
-// //     f.cancel();
-// //     assert_eq!(get(f), Err(CancelError::Cancelled));
-// // }
-//
 // #[test]
 // fn test_collect() {
 //     let f_ok1: FutureResult<i32, i32> = Ok(1).into_future();

@@ -105,7 +105,7 @@ pub trait Future: Send + 'static {
         map_err::new(self, f)
     }
 
-    fn then<F, B>(self, f: F) -> Then<Self, B::Future, F>
+    fn then<F, B>(self, f: F) -> Then<Self, B, F>
         where F: FnOnce(Result<Self::Item, Self::Error>) -> B + Send + 'static,
               B: IntoFuture,
               Self: Sized,

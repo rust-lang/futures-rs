@@ -40,7 +40,13 @@ impl<U, A, F> Future for MapErr<A, F>
             Ok(f) => f,
             Err(e) => return Some(Err(e)),
         };
-        self.future.poll().map(|res| map_err(res, f))
+        match self.future.poll() {
+            Some(res) => Some(map_err(res, f)),
+            None => {
+                self.f = Some(f);
+                None
+            }
+        }
     }
 
     fn cancel(&mut self) {

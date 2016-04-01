@@ -137,8 +137,8 @@ impl<A, B> Scheduled<A, B>
 {
     fn finish(&self, val: PollResult<A::Item, A::Error>, flag: usize) {
         let (okflag, errflag) = (flag, flag << 1);
-        let flag = if val.is_err() {errflag} else {okflag};
-        let old = self.state.fetch_or(flag, Ordering::SeqCst);
+        let newflag = if val.is_err() {errflag} else {okflag};
+        let old = self.state.fetch_or(newflag, Ordering::SeqCst);
         assert!(old & okflag == 0);
         assert!(old & errflag == 0);
 
