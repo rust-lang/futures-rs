@@ -1,4 +1,4 @@
-use {Future, PollError, PollResult, FutureResult, Callback, IntoFuture};
+use {Future, PollError, PollResult, Callback, IntoFuture};
 use util;
 
 pub struct Lazy<F, R> {
@@ -56,9 +56,9 @@ impl<F, R> Future for Lazy<F, R::Future>
         }
     }
 
-    fn await(&mut self) -> FutureResult<R::Item, R::Error> {
-        try!(self.get()).await()
-    }
+    // fn await(&mut self) -> FutureResult<R::Item, R::Error> {
+    //     try!(self.get()).await()
+    // }
 
     fn cancel(&mut self) {
         if let _Lazy::Second(ref mut f) = self.inner {

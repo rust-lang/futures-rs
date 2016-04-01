@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, PollResult, FutureResult, Callback};
+use {Future, PollResult, Callback};
 use util;
 
 pub struct Finished<T, E> {
@@ -26,9 +26,9 @@ impl<T, E> Future for Finished<T, E>
         Some(util::opt2poll(self.t.take()))
     }
 
-    fn await(&mut self) -> FutureResult<T, E> {
-        Ok(try!(self.poll().unwrap()))
-    }
+    // fn await(&mut self) -> FutureResult<T, E> {
+    //     Ok(try!(self.poll().unwrap()))
+    // }
 
     fn cancel(&mut self) {
         // noop, already done

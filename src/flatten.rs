@@ -1,4 +1,4 @@
-use {Future, IntoFuture, Callback, PollResult, FutureResult, PollError};
+use {Future, IntoFuture, Callback, PollResult, PollError};
 use chain::Chain;
 
 pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
@@ -47,9 +47,9 @@ impl<A> Future for Flatten<A>
         self.state.cancel()
     }
 
-    fn await(&mut self) -> FutureResult<Self::Item, Self::Error> {
-        self.state.await(map::<A>)
-    }
+    // fn await(&mut self) -> FutureResult<Self::Item, Self::Error> {
+    //     self.state.await(map::<A>)
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static

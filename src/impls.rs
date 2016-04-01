@@ -1,4 +1,4 @@
-use {Future, PollResult, Callback, FutureResult};
+use {Future, PollResult, Callback};
 
 impl<F: ?Sized + Future> Future for Box<F> {
     type Item = F::Item;
@@ -12,9 +12,9 @@ impl<F: ?Sized + Future> Future for Box<F> {
         (**self).cancel()
     }
 
-    fn await(&mut self) -> FutureResult<F::Item, F::Error> {
-        (**self).await()
-    }
+    // fn await(&mut self) -> FutureResult<F::Item, F::Error> {
+    //     (**self).await()
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<F::Item, F::Error>) + Send + 'static,

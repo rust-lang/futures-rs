@@ -1,4 +1,4 @@
-use {Future, IntoFuture, PollError, Callback, PollResult, FutureResult};
+use {Future, IntoFuture, PollError, Callback, PollResult};
 use util;
 use chain::Chain;
 
@@ -47,9 +47,9 @@ impl<A, B, F> Future for Then<A, B::Future, F>
         self.state.cancel()
     }
 
-    fn await(&mut self) -> FutureResult<B::Item, B::Error> {
-        self.state.await(then::<A, B, F>)
-    }
+    // fn await(&mut self) -> FutureResult<B::Item, B::Error> {
+    //     self.state.await(then::<A, B, F>)
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<B::Item, B::Error>) + Send + 'static

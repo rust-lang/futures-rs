@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, PollResult, FutureResult, PollError, Callback};
+use {Future, PollResult, PollError, Callback};
 use util;
 
 pub struct Failed<T, E> {
@@ -28,9 +28,9 @@ impl<T, E> Future for Failed<T, E>
         }))
     }
 
-    fn await(&mut self) -> FutureResult<T, E> {
-        Ok(try!(self.poll().unwrap()))
-    }
+    // fn await(&mut self) -> FutureResult<T, E> {
+    //     Ok(try!(self.poll().unwrap()))
+    // }
 
     fn cancel(&mut self) {
         // noop, already done

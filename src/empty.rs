@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, FutureError, Callback, PollResult, FutureResult, PollError};
+use {Future, Callback, PollResult, PollError};
 
 pub struct Empty<T, E> {
     canceled: bool,
@@ -26,13 +26,13 @@ impl<T, E> Future for Empty<T, E>
         }
     }
 
-    fn await(&mut self) -> FutureResult<T, E> {
-        if self.canceled {
-            Err(FutureError::Canceled)
-        } else {
-            panic!("cannot ever successfully await() on Empty")
-        }
-    }
+    // fn await(&mut self) -> FutureResult<T, E> {
+    //     if self.canceled {
+    //         Err(FutureError::Canceled)
+    //     } else {
+    //         panic!("cannot ever successfully await() on Empty")
+    //     }
+    // }
 
     fn cancel(&mut self) {
         self.canceled = true;

@@ -1,4 +1,4 @@
-use {Future, PollResult, FutureResult, Callback};
+use {Future, PollResult, Callback};
 use util;
 
 pub struct Map<A, F> {
@@ -43,10 +43,10 @@ impl<U, A, F> Future for Map<A, F>
         self.future.cancel()
     }
 
-    fn await(&mut self) -> FutureResult<U, A::Error> {
-        let f = try!(util::opt2poll(self.f.take()));
-        self.future.await().map(f)
-    }
+    // fn await(&mut self) -> FutureResult<U, A::Error> {
+    //     let f = try!(util::opt2poll(self.f.take()));
+    //     self.future.await().map(f)
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<U, A::Error>) + Send + 'static

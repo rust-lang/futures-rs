@@ -3,7 +3,7 @@ use std::mem;
 
 use slot::Slot;
 use util;
-use {Future, PollResult, PollError, FutureResult, FutureError};
+use {Future, PollResult, PollError};
 
 pub enum Chain<A, B, C> {
     First(A, Option<C>),
@@ -71,31 +71,31 @@ impl<A, B, C> Chain<A, B, C>
         *self = Chain::Canceled;
     }
 
-    pub fn await<F>(&mut self, f: F) -> FutureResult<B::Item, B::Error>
-        where F: FnOnce(PollResult<A::Item, A::Error>, C)
-                        -> PollResult<Result<B::Item, B>, B::Error>
-    {
-        let b = match *self {
-            Chain::First(ref mut a, ref mut data) => {
-                let data = try!(util::opt2poll(data.take()));
-                try!(f(a.await().map_err(From::from), data))
-            }
-            Chain::Second(ref mut b) => return b.await(),
-
-            // TODO: same concern as poll() above
-            Chain::Canceled => return Err(FutureError::Canceled),
-
-            // if we see `Slot` then `schedule` has already been called, and
-            // we're not allowed to await after that, so just panic as this is a
-            // contract violation
-            Chain::Slot(..) => panic!("cannot await a scheduled future"),
-        };
-        b.or_else(|mut b| {
-            let ret = b.await();
-            *self = Chain::Second(b);
-            ret
-        })
-    }
+    // pub fn await<F>(&mut self, f: F) -> FutureResult<B::Item, B::Error>
+    //     where F: FnOnce(PollResult<A::Item, A::Error>, C)
+    //                     -> PollResult<Result<B::Item, B>, B::Error>
+    // {
+    //     let b = match *self {
+    //         Chain::First(ref mut a, ref mut data) => {
+    //             let data = try!(util::opt2poll(data.take()));
+    //             try!(f(a.await().map_err(From::from), data))
+    //         }
+    //         Chain::Second(ref mut b) => return b.await(),
+    //
+    //         // TODO: same concern as poll() above
+    //         Chain::Canceled => return Err(FutureError::Canceled),
+    //
+    //         // if we see `Slot` then `schedule` has already been called, and
+    //         // we're not allowed to await after that, so just panic as this is a
+    //         // contract violation
+    //         Chain::Slot(..) => panic!("cannot await a scheduled future"),
+    //     };
+    //     b.or_else(|mut b| {
+    //         let ret = b.await();
+    //         *self = Chain::Second(b);
+    //         ret
+    //     })
+    // }
 
     pub fn schedule<G, F>(&mut self, g: G, f: F)
         where G: FnOnce(PollResult<B::Item, B::Error>) + Send + 'static,

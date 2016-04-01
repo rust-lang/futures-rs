@@ -1,4 +1,4 @@
-use {PollResult, Future, Callback, PollError, FutureResult};
+use {PollResult, Future, Callback, PollError};
 use util;
 
 pub struct MapErr<A, F> {
@@ -47,10 +47,10 @@ impl<U, A, F> Future for MapErr<A, F>
         self.future.cancel()
     }
 
-    fn await(&mut self) -> FutureResult<A::Item, U> {
-        let f = try!(util::opt2poll(self.f.take()));
-        self.future.await().map_err(|e| e.map(f))
-    }
+    // fn await(&mut self) -> FutureResult<A::Item, U> {
+    //     let f = try!(util::opt2poll(self.f.take()));
+    //     self.future.await().map_err(|e| e.map(f))
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<A::Item, U>) + Send + 'static

@@ -1,4 +1,4 @@
-use {PollResult, Future, IntoFuture, PollError, FutureResult, Callback};
+use {PollResult, Future, IntoFuture, PollError, Callback};
 use util;
 
 #[derive(Clone)]
@@ -45,9 +45,9 @@ impl<T, E> Future for Done<T, E>
         Some(self.take())
     }
 
-    fn await(&mut self) -> FutureResult<T, E> {
-        Ok(try!(self.take()))
-    }
+    // fn await(&mut self) -> FutureResult<T, E> {
+    //     Ok(try!(self.take()))
+    // }
 
     fn cancel(&mut self) {
         // noop, "already done"
