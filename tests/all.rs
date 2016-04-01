@@ -47,7 +47,7 @@ fn assert_empty<T: Future, F: Fn() -> T>(f: F) {
 
     let mut a = f();
     a.cancel();
-    assert_cancel(a.poll().expect("cancel should force a finish"));
+    assert_cancel(a.poll().expect("cancel should force a finish2"));
 
     let (tx, rx) = channel();
     f().schedule(move |r| tx.send(r).unwrap());
@@ -121,8 +121,8 @@ fn test_empty() {
     assert_empty(|| f_ok(1).join(empty()));
     assert_empty(|| empty().or_else(move |_| empty()));
     assert_empty(|| empty().and_then(move |_| empty()));
-    // assert_empty(|| f_err(1).or_else(move |_| empty()));
-    // assert_empty(|| f_ok(1).and_then(move |_| empty()));
+    assert_empty(|| f_err(1).or_else(move |_| empty()));
+    assert_empty(|| f_ok(1).and_then(move |_| empty()));
     assert_empty(|| empty().map(|a| a + 1));
     assert_empty(|| empty().map_err(|a| a + 1));
     assert_empty(|| empty().then(|a| a));

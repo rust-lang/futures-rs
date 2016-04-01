@@ -58,7 +58,7 @@ impl<A, B, C> Chain<A, B, C>
 
     pub fn cancel(&mut self) {
         match *self {
-            Chain::First(ref mut a, _) => return a.cancel(),
+            Chain::First(ref mut a, _) => a.cancel(),
             Chain::Second(ref mut b) => return b.cancel(),
             Chain::Canceled => return,
             Chain::Slot(ref mut a, ref slot) => {
