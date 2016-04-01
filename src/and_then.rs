@@ -54,6 +54,6 @@ impl<A, B, F> Future for AndThen<A, B::Future, F>
 
     fn schedule_boxed(&mut self, cb: Box<Callback<B::Item, B::Error>>) {
         // TODO: wut? UFCS?
-        Future::schedule(self, |r| cb.call(r))
+        self.schedule(|r| cb.call(r))
     }
 }
