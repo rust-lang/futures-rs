@@ -37,6 +37,12 @@ fn assert_done<T: Future, F: Fn() -> T>(f: F, result: Result<T::Item, T::Error>)
     let (tx, rx) = channel();
     f().schedule(move |r| tx.send(r).unwrap());
     assert_eq!(&unwrap(rx.recv().unwrap()), &result);
+
+    let mut f = f();
+    f.schedule(|_| ());
+    let (tx, rx) = channel();
+    f.schedule(move |r| tx.send(r).unwrap());
+    assert_panic(rx.recv().unwrap());
 }
 
 fn assert_empty<T: Future, F: Fn() -> T>(f: F) {
@@ -54,16 +60,27 @@ fn assert_empty<T: Future, F: Fn() -> T>(f: F) {
     assert!(rx.try_recv().is_err());
 
     let (tx, rx) = channel();
+    let (tx2, rx2) = channel();
     let mut a = f();
     a.schedule(move |r| tx.send(r).unwrap());
+    a.schedule(move |r| tx2.send(r).unwrap());
+    assert_panic(rx2.recv().unwrap());
     a.cancel();
     assert_cancel(rx.recv().unwrap());
 
     let (tx, rx) = channel();
     let mut a = f();
     a.cancel();
-    a.schedule(move |r| tx.send(r).unwrap());
+    let tx2 = tx.clone();
+    a.schedule(move |r| tx2.send(r).unwrap());
     assert_cancel(rx.recv().unwrap());
+    a.schedule(move |r| tx.send(r).unwrap());
+    match rx.recv().unwrap() {
+        Ok(_) => panic!("expected panic, got success"),
+        Err(PollError::Other(_)) => panic!("expected panic, got other"),
+        Err(PollError::Panicked(_)) => {}
+        Err(PollError::Canceled) => {}
+    }
 }
 
 fn assert_cancel<T, E>(r: PollResult<T, E>) {
@@ -71,7 +88,16 @@ fn assert_cancel<T, E>(r: PollResult<T, E>) {
         Ok(_) => panic!("can't succeed after cancel"),
         Err(PollError::Canceled) => {}
         Err(PollError::Panicked(_)) => panic!("panic error, not cancel"),
-        Err(PollError::Other(_)) => panic!("normal error, not cancel"),
+        Err(PollError::Other(_)) => panic!("other error, not cancel"),
+    }
+}
+
+fn assert_panic<T, E>(r: PollResult<T, E>) {
+    match r {
+        Ok(_) => panic!("can't succeed after panic"),
+        Err(PollError::Canceled) => panic!("cancel error, not panic"),
+        Err(PollError::Panicked(_)) => {}
+        Err(PollError::Other(_)) => panic!("other error, not panic"),
     }
 }
 
@@ -85,6 +111,12 @@ fn result_smoke() {
     is_future_v::<(i32, i32), u32, _>(f_ok(1).join(Err(3)));
     is_future_v::<i32, u32, _>(f_ok(1).map(move |a| f_ok(a)).flatten());
 
+    assert_done(|| f_ok(1), ok(1));
+    assert_done(|| f_err(1), err(1));
+    assert_done(|| done(Ok(1)), ok(1));
+    assert_done(|| done(Err(1)), err(1));
+    assert_done(|| finished(1), ok(1));
+    assert_done(|| failed(1), err(1));
     assert_done(|| f_ok(1).map(|a| a + 2), ok(3));
     assert_done(|| f_err(1).map(|a| a + 2), err(1));
     assert_done(|| f_ok(1).map_err(|a| a + 2), ok(1));
@@ -115,6 +147,7 @@ fn result_smoke() {
 fn test_empty() {
     fn empty() -> Empty<i32, u32> { futures::empty() }
 
+    assert_empty(|| empty());
     assert_empty(|| empty().select(empty()));
     assert_empty(|| empty().join(empty()));
     assert_empty(|| empty().join(f_ok(1)));
@@ -138,65 +171,31 @@ fn test_empty() {
 //     assert_eq!(get(collect(vec![f_ok1, f_ok2, f_ok3])), Ok(vec![1, 2, 3]));
 //     assert_eq!(get(collect(vec![f_ok1, f_err1, f_ok3])), Err(1));
 // }
-//
-// #[test]
-// fn test_finished() {
-//     assert_eq!(get(finished::<_, i32>(1)), Ok(1));
-//     assert_eq!(get(failed::<i32, _>(1)), Err(1));
-// }
-//
-// #[test]
-// fn flatten() {
-//     assert_eq!(get(finished::<_, i32>(finished::<_, i32>(1)).flatten()), Ok(1));
-//     assert_eq!(get(finished::<_, i32>(failed::<i32, _>(1)).flatten()), Err(1));
-//     assert_eq!(get(failed(1).map(finished::<i32, _>).flatten()), Err(1));
-//     assert_eq!(get(finished::<_, i8>(finished::<_, i32>(1)).flatten()), Ok(1));
-//     assert!(finished::<_, i8>(empty::<i8, i8>()).flatten().poll().is_err());
-//     assert!(empty::<i8, i8>().map(finished::<_, i8>).flatten().poll().is_err());
-//
-// }
-//
-// #[test]
-// fn await() {
-//     let f_ok: FutureResult<i32, i32> = Ok(1).into_future();
-//     let f_err: FutureResult<i32, i32> = Err(1).into_future();
-//
-//     fn ok(a: i32) -> Result<i32, i32> { Ok(a) }
-//     fn err(a: i32) -> Result<i32, i32> { Err(a) }
-//
-//     assert_eq!(f_ok.map(|a| a + 2).await(), ok(3));
-//     assert_eq!(f_err.map(|a| a + 2).await(), err(1));
-//     assert_eq!(f_ok.map_err(|a| a + 2).await(), ok(1));
-//     assert_eq!(f_err.map_err(|a| a + 2).await(), err(3));
-//     assert_eq!(f_ok.and_then(|a| Ok(a + 2)).await(), ok(3));
-//     assert_eq!(f_err.and_then(|a| Ok(a + 2)).await(), err(1));
-//     assert_eq!(f_ok.and_then(|a| Err(a + 3)).await(), err(4));
-//     assert_eq!(f_err.and_then(|a| Err(a + 4)).await(), err(1));
-//     assert_eq!(f_ok.or_else(|a| Ok(a + 2)).await(), ok(1));
-//     assert_eq!(f_err.or_else(|a| Ok(a + 2)).await(), ok(3));
-//     assert_eq!(f_ok.or_else(|a| Err(a + 3)).await(), ok(1));
-//     assert_eq!(f_err.or_else(|a| Err(a + 4)).await(), err(5));
-//     assert_eq!(f_ok.select(f_err).await(), ok(1));
-//     assert_eq!(f_ok.select(Ok(2)).await(), ok(1));
-//     assert_eq!(f_err.select(f_ok).await(), err(1));
-//     assert_eq!(f_ok.select(empty()).await(), Ok(1));
-//     assert_eq!(empty().select(f_ok).await(), Ok(1));
-//     assert_eq!(f_ok.join(f_err).await(), Err(1));
-//     assert_eq!(f_ok.join(Ok(2)).await(), Ok((1, 2)));
-//     assert_eq!(f_err.join(f_ok).await(), Err(1));
-//     assert_eq!(f_ok.then(|_| Ok(2)).await(), ok(2));
-//     assert_eq!(f_ok.then(|_| Err(2)).await(), err(2));
-//     assert_eq!(f_err.then(|_| Ok(2)).await(), ok(2));
-//     assert_eq!(f_err.then(|_| Err(2)).await(), err(2));
-// }
-//
-// fn assert_empty<F: Future>(f: F) -> F {
-//     match f.poll() {
-//         Ok(..) => panic!("future is full"),
-//         Err(f) => f,
-//     }
-// }
-//
+
+#[test]
+fn test_finished() {
+    assert_done(|| finished(1), ok(1));
+    assert_done(|| failed(1), err(1));
+}
+
+#[test]
+fn flatten() {
+    fn finished<T: Send + 'static>(a: T) -> Finished<T, u32> {
+        futures::finished(a)
+    }
+    fn failed<E: Send + 'static>(b: E) -> Failed<i32, E> {
+        futures::failed(b)
+    }
+
+    assert_done(|| finished(finished(1)).flatten(), ok(1));
+    assert_done(|| finished(failed(1)).flatten(), err(1));
+    assert_done(|| failed(1u32).map(finished).flatten(), err(1));
+    assert_done(|| futures::finished::<_, u8>(futures::finished::<_, u32>(1))
+                           .flatten(), ok(1));
+    assert_empty(|| finished(empty::<i32, u32>()).flatten());
+    assert_empty(|| empty::<i32, u32>().map(finished).flatten());
+}
+
 // #[test]
 // fn needs_progress() {
 //     let f_ok: FutureResult<i32, i32> = Ok(1).into_future();
