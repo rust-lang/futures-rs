@@ -68,6 +68,7 @@ pub trait Future: Send + 'static {
     fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
 
     // TODO: why is this not drop()
+    //       well what if you schedule() then drop, HUH?!
     fn cancel(&mut self);
 
     fn schedule<F>(&mut self, f: F)
