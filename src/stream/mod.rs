@@ -9,12 +9,15 @@ pub trait Stream/*: Send + 'static*/ {
 
     fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>>;
 
-    fn schedule<G>(self, g: G)
+    fn cancel(&mut self);
+
+    fn schedule<G>(&mut self, g: G)
         where G: FnOnce(StreamResult<Self::Item, Self::Error>, Self) +
                     Send + 'static,
               Self: Sized;
 
-    fn schedule_boxed(self, g: Box<Callback<Option<Self::Item>, Self::Error>>);
+    fn schedule_boxed(&mut self,
+                      g: Box<Callback<Option<Self::Item>, Self::Error>>);
 
     // fn map<U, F>(self, f: F) -> Map<Self, F>
     //     where F: FnMut(Self::Item) -> U + Send + 'static,
@@ -119,7 +122,7 @@ pub trait Stream/*: Send + 'static*/ {
     // }
 }
 
-impl<S: ?Sized + Stream> Stream for Box<F> {
+impl<S: ?Sized + Stream> Stream for Box<S> {
     type Item = S::Item;
     type Error = S::Error;
 
@@ -127,12 +130,20 @@ impl<S: ?Sized + Stream> Stream for Box<F> {
         (**self).poll()
     }
 
-    fn schedule<G>(self, g: G)
-        where G: FnOnce(StreamResult<Self::Item, Self::Error>, Self) +
-                    Send + 'static {
+    fn cancel(&mut self) {
+        (**self).cancel()
     }
 
-    fn schedule_boxed(&mut self, g: Box<Callback<Option<Self::Item>, Self::Error>>);
+    fn schedule<G>(&mut self, g: G)
+        where G: FnOnce(StreamResult<Self::Item, Self::Error>) +
+                    Send + 'static {
+        self.schedule_boxed(Box::new(g))
+    }
+
+    fn schedule_boxed(&mut self,
+                      g: Box<Callback<Option<Self::Item>, Self::Error>>) {
+        (**self).schedule_boxed(g)
+    }
 }
 
 // impl<'a, F: ?Sized + Future> Future for &'a mut F {

@@ -47,6 +47,9 @@ pub use then::Then;
 // mod collect;
 // pub use collect::{collect, Collect};
 
+// streams
+// pub mod stream;
+
 // TODO: Send + 'static is annoying, but required by cancel and_then, document
 // TODO: not object safe
 //
