@@ -1,10 +1,11 @@
-// extern crate mio;
+extern crate futuremio;
 extern crate futures;
 
 use futures::Future;
 
 fn main() {
-    // let l = futures::mio::Loop::new().unwrap();
+    // let l = futuremio::Loop::new().unwrap();
+
     //
     // let l1 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
     // let l2 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();

@@ -1,0 +1,9 @@
+[package]
+name = "futuremio"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+# mio = { git = "https://github.com/alexcrichton/mio", branch = "futures-rs" }
+mio = "0.5"
+futures = { path = ".." }
