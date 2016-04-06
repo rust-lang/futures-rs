@@ -32,16 +32,14 @@ impl<A, B> Future for Select<A, B>
             State::Canceled => return Some(Err(PollError::Canceled)),
             State::Scheduled(_) => return Some(Err(util::reused())),
         };
-        match (a.poll(), b.poll()) {
-            (Some(e), _) => {
-                b.cancel();
-                Some(e)
-            }
-            (_, Some(e)) => {
-                a.cancel();
-                Some(e)
-            }
-            (None, None) => None,
+        if let Some(e) = a.poll() {
+            b.cancel();
+            Some(e)
+        } else if let Some(e) = b.poll() {
+            a.cancel();
+            Some(e)
+        } else {
+            None
         }
     }
 

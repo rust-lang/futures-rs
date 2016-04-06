@@ -140,6 +140,7 @@ impl TcpStream {
 
     // TODO: give back the buffer
     pub fn read(&self, into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
+        loop {}
         // let slot = Arc::new(Slot::new(None));
         // Ok(TcpRead {
         //     stream: self,
