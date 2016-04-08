@@ -2,11 +2,8 @@ extern crate mio;
 extern crate futures;
 
 use std::collections::HashMap;
-use std::mem;
-use std::slice;
 use std::net::SocketAddr;
 use std::io;
-use std::sync::Arc;
 
 // use self::mio::{TryRead, TryWrite};
 //
@@ -139,7 +136,7 @@ impl TcpStream {
     }
 
     // TODO: give back the buffer
-    pub fn read(&self, into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
+    pub fn read(&self, _into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
         loop {}
         // let slot = Arc::new(Slot::new(None));
         // Ok(TcpRead {
@@ -366,9 +363,9 @@ impl mio::Handler for Inner {
     type Message = Message;
 
     fn ready(&mut self,
-             io: &mut mio::EventLoop<Self>,
+             _io: &mut mio::EventLoop<Self>,
              token: mio::Token,
-             events: mio::EventSet) {
+             _events: mio::EventSet) {
         if let Some(token) = self.done.remove(&token.as_usize()) {
             token.finish(());
         }
@@ -376,8 +373,8 @@ impl mio::Handler for Inner {
     }
 
     fn notify(&mut self,
-              io: &mut mio::EventLoop<Self>,
-              msg: Message) {
+              _io: &mut mio::EventLoop<Self>,
+              _msg: Message) {
         println!("msg");
     }
 }

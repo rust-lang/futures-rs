@@ -1,7 +1,7 @@
 extern crate futuremio;
 extern crate futures;
 
-use futures::Future;
+// use futures::Future;
 
 fn main() {
     // let l = futuremio::Loop::new().unwrap();
