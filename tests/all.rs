@@ -167,17 +167,6 @@ fn test_empty() {
     assert_empty(|| empty().then(|a| a));
 }
 
-// #[test]
-// fn test_collect() {
-//     let f_ok1: FutureResult<i32, i32> = Ok(1).into_future();
-//     let f_ok2: FutureResult<i32, i32> = Ok(2).into_future();
-//     let f_ok3: FutureResult<i32, i32> = Ok(3).into_future();
-//     let f_err1: FutureResult<i32, i32> = Err(1).into_future();
-//
-//     assert_eq!(get(collect(vec![f_ok1, f_ok2, f_ok3])), Ok(vec![1, 2, 3]));
-//     assert_eq!(get(collect(vec![f_ok1, f_err1, f_ok3])), Err(1));
-// }
-
 #[test]
 fn test_finished() {
     assert_done(|| finished(1), ok(1));
@@ -201,44 +190,6 @@ fn flatten() {
     assert_empty(|| finished(empty::<i32, u32>()).flatten());
     assert_empty(|| empty::<i32, u32>().map(finished).flatten());
 }
-
-// #[test]
-// fn collect_progress() {
-//     let (p1, c1) = promise::pair::<i32, i32>();
-//     let (p2, c2) = promise::pair::<i32, i32>();
-//     let f = collect(vec![p1, p2]);
-//     let f = assert_empty(f);
-//     c1.finish(1);
-//     let f = assert_empty(assert_empty(f));
-//     c2.finish(2);
-//     assert_eq!(f.await(), Ok(vec![1, 2]));
-//
-//     let (p1, c1) = promise::pair::<i32, i32>();
-//     let (p2, c2) = promise::pair::<i32, i32>();
-//     let (tx, rx) = channel();
-//     collect(vec![p1, p2]).schedule(move |r| tx.send(r).unwrap());
-//     assert!(rx.try_recv().is_err());
-//     c1.finish(1);
-//     assert!(rx.try_recv().is_err());
-//     c2.finish(2);
-//     assert_eq!(rx.recv().unwrap(), Ok(vec![1, 2]));
-//
-//     let (p1, c1) = promise::pair::<i32, i32>();
-//     let (p2, c2) = promise::pair::<i32, i32>();
-//     let (tx, rx) = channel();
-//     collect(vec![p1, p2]).schedule(move |r| tx.send(r).unwrap());
-//     assert!(rx.try_recv().is_err());
-//     c1.finish(1);
-//     assert!(rx.try_recv().is_err());
-//     c2.fail(2);
-//     assert_eq!(rx.recv().unwrap(), Err(2));
-//
-//     let (p1, c1) = promise::pair::<i32, i32>();
-//     let (p2, _c2) = promise::pair::<i32, i32>();
-//     let f = collect(vec![p1, p2]);
-//     c1.fail(1);
-//     assert_eq!(get(f), Err(1));
-// }
 
 #[test]
 fn smoke_promise() {
@@ -375,4 +326,13 @@ fn cancel_propagates() {
     assert_cancel(f.poll().unwrap());
     let mut f = promise::<i32, u32>().0.map_err(|_| panic!());
     assert_cancel(f.poll().unwrap());
+}
+
+#[test]
+fn collect_collects() {
+    assert_done(|| collect(vec![f_ok(1), f_ok(2)]), Ok(vec![1, 2]));
+    assert_done(|| collect(vec![f_ok(1)]), Ok(vec![1]));
+    assert_done(|| collect(Vec::<Result<i32, u32>>::new()), Ok(vec![]));
+
+    // TODO: needs more tests
 }

@@ -44,8 +44,8 @@ pub use or_else::OrElse;
 pub use select::Select;
 pub use then::Then;
 
-// mod collect;
-// pub use collect::{collect, Collect};
+mod collect;
+pub use collect::{collect, Collect};
 
 // streams
 // pub mod stream;
