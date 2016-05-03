@@ -1,8 +1,15 @@
-// pub mod bufstream;
-// mod buf;
-// pub mod channel;
-// pub mod mio;
-// pub mod stream;
+// TODO:
+//
+// panic here or panic there?
+//  * catch_unwind is 6x slower than a normal call with panic=abort
+//  * catch_unwind is 7x slower than a normal call with panic=unwind
+//  * much of this is management of PANIC_COUNT
+//  * also attributed to the indirect call
+//  * data point - wangle deals with C++ exceptions
+//
+// select() and returning a future back
+//  * maybe this is just streams...
+
 mod cell;
 mod slot;
 mod util;
