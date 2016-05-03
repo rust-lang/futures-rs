@@ -1,9 +1,11 @@
+use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use Future;
-use slot::Slot;
-use stream::{Stream, PollError};
+use {Future, PollResult, PollError, Callback};
+use slot::{Slot, Token};
+use stream::{Stream, StreamResult};
+use util;
 
 pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
     where T: Send + 'static,
@@ -27,8 +29,17 @@ pub struct FutureSender<T, E>
     where T: Send + 'static,
           E: Send + 'static,
 {
-    tx: Sender<T, E>,
-    msg: Result<T, E>,
+    state: _FutureSender<T, E>,
+}
+
+enum _FutureSender<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    Start(Sender<T, E>, Result<T, E>),
+    Canceled,
+    Used,
+    Scheduled(Arc<Inner<T, E>>, Token),
 }
 
 pub struct Receiver<T, E>
@@ -39,8 +50,14 @@ pub struct Receiver<T, E>
 }
 
 struct Inner<T, E> {
-    slot: Slot<Option<Result<T, E>>>,
+    slot: Slot<Message<Result<T, E>>>,
     receiver_gone: AtomicBool,
+}
+
+enum Message<T> {
+    Data(T),
+    Done,
+    // Canceled,
 }
 
 pub struct SendError<T, E>(Result<T, E>);
@@ -52,23 +69,36 @@ impl<T, E> Stream for Receiver<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Result<Self::Item, PollError<Self::Error>> {
+    fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
         match self.inner.slot.try_consume() {
-            Ok(Some(Ok(item))) => Ok(item),
-            Ok(Some(Err(item))) => Err(PollError::Other(item)),
-            Ok(None) => Err(PollError::Empty),
-            Err(..) => Err(PollError::NotReady),
+            Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
+            Ok(Message::Data(Err(e))) => Some(Err(PollError::Other(e))),
+            Ok(Message::Done) => Some(Ok(None)),
+            // Ok(Message::Canceled) => Some(Err(PollError::Canceled)),
+            Err(..) => None,
         }
     }
 
-    fn schedule<G>(self, g: G)
-        where G: FnOnce(Option<Result<Self::Item, Self::Error>>, Self) +
-                    Send + 'static
+    fn cancel(&mut self) {
+    }
+
+    fn schedule<G>(&mut self, g: G)
+        where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static
     {
-        self.inner.clone().slot.on_full(move |slot| {
-            let val = slot.try_consume().ok().unwrap();
-            g(val, self);
-        })
+        self.inner.slot.on_full(|slot| {
+            g(match slot.try_consume() {
+                Ok(Message::Data(Ok(e))) => Ok(Some(e)),
+                Ok(Message::Data(Err(e))) => Err(PollError::Other(e)),
+                Ok(Message::Done) => Ok(None),
+                // Ok(Message::Canceled) => Err(PollError::Canceled),
+                Err(..) => Err(PollError::Canceled),
+            })
+        });
+    }
+
+    fn schedule_boxed(&mut self,
+                      g: Box<Callback<Option<Self::Item>, Self::Error>>) {
+        self.schedule(|f| g.call(f))
     }
 }
 
@@ -90,8 +120,7 @@ impl<T, E> Sender<T, E>
 {
     pub fn send(self, t: Result<T, E>) -> FutureSender<T, E> {
         FutureSender {
-            tx: self,
-            msg: t,
+            state: _FutureSender::Start(self, t),
         }
     }
 }
@@ -102,7 +131,7 @@ impl<T, E> Drop for Sender<T, E>
 {
     fn drop(&mut self) {
         self.inner.slot.on_empty(|slot| {
-            slot.try_produce(None).ok().unwrap();
+            slot.try_produce(Message::Done).ok().unwrap();
         });
     }
 }
@@ -114,33 +143,72 @@ impl<T, E> Future for FutureSender<T, E>
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(self) -> Result<Result<Self::Item, Self::Error>, Self> {
-        let FutureSender { tx, msg } = self;
-        if tx.inner.receiver_gone.load(Ordering::SeqCst) {
-            return Ok(Err(SendError(msg)))
-        }
-        match tx.inner.slot.try_produce(Some(msg)) {
-            Ok(()) => return Ok(Ok(tx)),
-            Err(e) => {
-                Err(FutureSender {
-                    tx: tx,
-                    msg: e.into_inner().unwrap(),
-                })
+    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+        match mem::replace(&mut self.state, _FutureSender::Used) {
+            _FutureSender::Start(tx, msg) => {
+                if tx.inner.receiver_gone.load(Ordering::SeqCst) {
+                    return Some(Err(PollError::Other(SendError(msg))))
+                }
+                match tx.inner.slot.try_produce(Message::Data(msg)) {
+                    Ok(()) => Some(Ok(tx)),
+                    Err(e) => {
+                        let msg = match e.into_inner() {
+                            Message::Data(d) => d,
+                            _ => panic!(),
+                        };
+                        self.state = _FutureSender::Start(tx, msg);
+                        None
+                    }
+                }
+            }
+            _FutureSender::Canceled => Some(Err(PollError::Canceled)),
+            _FutureSender::Used => Some(Err(util::reused())),
+            _FutureSender::Scheduled(s, token) => {
+                self.state = _FutureSender::Scheduled(s, token);
+                Some(Err(util::reused()))
             }
         }
     }
 
-    fn schedule<F>(self, f: F)
-        where F: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static,
+    fn cancel(&mut self) {
+        match mem::replace(&mut self.state, _FutureSender::Canceled) {
+            _FutureSender::Start(..) => {}
+            _FutureSender::Canceled => {}
+            _FutureSender::Scheduled(s, token) => {
+                s.slot.cancel(token);
+            }
+            _FutureSender::Used => self.state = _FutureSender::Used,
+        }
+    }
+
+    fn schedule<F>(&mut self, f: F)
+        where F: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static,
     {
-        let FutureSender { tx, msg } = self;
-        tx.inner.clone().slot.on_empty(move |slot| {
+        let (tx, msg) = match mem::replace(&mut self.state, _FutureSender::Used) {
+            _FutureSender::Start(tx, msg) => (tx, msg),
+            _FutureSender::Canceled => return f(Err(PollError::Canceled)),
+            _FutureSender::Used => return f(Err(util::reused())),
+            _FutureSender::Scheduled(s, token) => {
+                self.state = _FutureSender::Scheduled(s, token);
+                return f(Err(util::reused()))
+            }
+        };
+        let arc = tx.inner.clone();
+        let token = arc.slot.on_empty(|slot| {
             if tx.inner.receiver_gone.load(Ordering::SeqCst) {
-                f(Err(SendError(msg)))
-            } else {
-                slot.try_produce(Some(msg)).ok().unwrap();
-                f(Ok(tx))
+                return f(Err(PollError::Other(SendError(msg))))
+            }
+            match slot.try_produce(Message::Data(msg)) {
+                Ok(()) => f(Ok(tx)),
+
+                // we were canceled so finish immediately
+                Err(..) => f(Err(PollError::Canceled)),
             }
         });
+        self.state = _FutureSender::Scheduled(arc, token);
+    }
+
+    fn schedule_boxed(&mut self, f: Box<Callback<Self::Item, Self::Error>>) {
+        self.schedule(|r| f.call(r))
     }
 }

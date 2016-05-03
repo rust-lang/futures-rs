@@ -122,7 +122,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
                 return f(Err(util::reused()))
             }
         };
-        let token = inner.slot.on_full(move |slot| {
+        let token = inner.slot.on_full(|slot| {
             match slot.try_consume() {
                 Ok(Some(Ok(e))) => f(Ok(e)),
                 Ok(Some(Err(e))) => f(Err(PollError::Other(e))),

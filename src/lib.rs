@@ -54,7 +54,7 @@ pub use select::Select;
 pub use then::Then;
 
 // streams
-// pub mod stream;
+pub mod stream;
 
 // TODO: Send + 'static is annoying, but required by cancel and_then, document
 // TODO: not object safe

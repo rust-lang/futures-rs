@@ -226,6 +226,8 @@ impl<T: 'static> Slot<T> {
             state.0 = old;
         }
 
+        // TODO: communicate that this is being called as part of a
+        //       cancellation?
         if state.flag(ON_FULL) {
             let cb = self.on_full.borrow().expect("on_full interference3")
                                   .take().expect("on_full not full??");
@@ -244,7 +246,7 @@ impl<T> TryProduceError<T> {
     }
 }
 
-pub trait FnBox<T: 'static>: Send + 'static {
+trait FnBox<T: 'static>: Send + 'static {
     fn call_box(self: Box<Self>, other: &Slot<T>);
 }
 
@@ -425,7 +427,6 @@ mod tests {
 
         // cancel on_full
         assert_eq!(hits.load(Ordering::SeqCst), 0);
-        let hits2 = hits.clone();
         let token = slot.on_full(add());
         assert_eq!(hits.load(Ordering::SeqCst), 0);
         slot.cancel(token);
