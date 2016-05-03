@@ -11,12 +11,14 @@ mod error;
 pub use error::{PollError, PollResult, FutureError, FutureResult};
 
 // Primitive futures
+mod collect;
 mod done;
 mod empty;
 mod failed;
 mod finished;
 mod lazy;
 mod promise;
+pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
@@ -43,9 +45,6 @@ pub use map_err::MapErr;
 pub use or_else::OrElse;
 pub use select::Select;
 pub use then::Then;
-
-mod collect;
-pub use collect::{collect, Collect};
 
 // streams
 // pub mod stream;
@@ -89,21 +88,36 @@ pub trait Future: Send + 'static {
         Box::new(self)
     }
 
-    // TODO: compare this to `.then(|x| x.map(f))`
     fn map<F, U>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U + Send + 'static,
+              U: Send + 'static,
               Self: Sized,
     {
-        map::new(self, f)
+        assert_future::<U, Self::Error, _>(map::new(self, f))
     }
 
-    // TODO: compare this to `.then(|x| x.map_err(f))`
+    fn map2<F, U>(self, f: F) -> Box<Future<Item=U, Error=Self::Error>>
+        where F: FnOnce(Self::Item) -> U + Send + 'static,
+              U: Send + 'static,
+              Self: Sized,
+    {
+        self.then(|r| r.map(f)).boxed()
+    }
+
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E + Send + 'static,
               E: Send + 'static,
               Self: Sized,
     {
-        map_err::new(self, f)
+        assert_future::<Self::Item, E, _>(map_err::new(self, f))
+    }
+
+    fn map_err2<F, E>(self, f: F) -> Box<Future<Item=Self::Item, Error=E>>
+        where F: FnOnce(Self::Error) -> E + Send + 'static,
+              E: Send + 'static,
+              Self: Sized,
+    {
+        self.then(|res| res.map_err(f)).boxed()
     }
 
     fn then<F, B>(self, f: F) -> Then<Self, B, F>
@@ -111,66 +125,101 @@ pub trait Future: Send + 'static {
               B: IntoFuture,
               Self: Sized,
     {
-        then::new(self, f)
+        assert_future::<B::Item, B::Error, _>(then::new(self, f))
     }
 
-    // TODO: compare this to
-    //  ```
-    //  .then(|res| {
-    //      match res {
-    //          Ok(e) => Either::First(f(e).into_future()),
-    //          Err(e) => Either::Second(failed(e)),
-    //      }
-    //  })
-    // ```
     fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B + Send + 'static,
               B: IntoFuture<Error = Self::Error>,
               Self: Sized,
     {
-        and_then::new(self, f)
+        assert_future::<B::Item, Self::Error, _>(and_then::new(self, f))
     }
 
-    // TODO: compare this to
-    //  ```
-    //  .then(|res| {
-    //      match res {
-    //          Ok(e) => Either::First(finished(e)),
-    //          Err(e) => Either::Second(f(e).into_future()),
-    //      }
-    //  })
-    // ```
+    fn and_then2<F, B>(self, f: F) -> Box<Future<Item=B::Item, Error=Self::Error>>
+        where F: FnOnce(Self::Item) -> B + Send + 'static,
+              B: IntoFuture<Error = Self::Error>,
+              Self: Sized,
+    {
+        self.then(|res| {
+            match res {
+                Ok(e) => f(e).into_future().boxed(),
+                Err(e) => failed(e).boxed(),
+            }
+        }).boxed()
+    }
+
     fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B + Send + 'static,
               B: IntoFuture<Item = Self::Item>,
               Self: Sized,
     {
-        or_else::new(self, f)
+        assert_future::<Self::Item, B::Error, _>(or_else::new(self, f))
+    }
+
+    fn or_else2<F, B>(self, f: F) -> Box<Future<Item=B::Item, Error=B::Error>>
+        where F: FnOnce(Self::Error) -> B + Send + 'static,
+              B: IntoFuture<Item = Self::Item>,
+              Self: Sized,
+    {
+        self.then(|res| {
+            match res {
+                Ok(e) => finished(e).boxed(),
+                Err(e) => f(e).into_future().boxed(),
+            }
+        }).boxed()
     }
 
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
               Self: Sized,
     {
-        select::new(self, other.into_future())
+        let f = select::new(self, other.into_future());
+        assert_future::<Self::Item, Self::Error, _>(f)
     }
 
     fn join<B>(self, other: B) -> Join<Self, B::Future>
         where B: IntoFuture<Error=Self::Error>,
               Self: Sized,
     {
-        join::new(self, other.into_future())
+        let f = join::new(self, other.into_future());
+        assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
     }
 
-    // TODO: check this is the same as `and_then(|x| x)`
     fn flatten(self) -> Flatten<Self>
         where Self::Item: IntoFuture,
               <<Self as Future>::Item as IntoFuture>::Error:
                     From<<Self as Future>::Error>,
               Self: Sized
     {
-        flatten::new(self)
+        let f = flatten::new(self);
+        assert_future::<<<Self as Future>::Item as IntoFuture>::Item,
+                        <<Self as Future>::Item as IntoFuture>::Error,
+                        _>(f)
     }
+
+    fn flatten2(self) -> Box<Future<Item=<<Self as Future>::Item as IntoFuture>::Item,
+                                    Error=<<Self as Future>::Item as IntoFuture>::Error>>
+        where Self::Item: IntoFuture,
+              <<Self as Future>::Item as IntoFuture>::Error:
+                    From<<Self as Future>::Error>,
+              Self: Sized
+    {
+        self.then(|res| {
+            match res {
+                Ok(e) => e.into_future().boxed(),
+                Err(e) => failed(From::from(e)).boxed(),
+            }
+        })
+    }
+}
+
+fn assert_future<A, B, F>(t: F) -> F
+    where F: Future<Item=A, Error=B>,
+          A: Send + 'static,
+          B: Send + 'static,
+{
+    t
 }
 
 pub trait Callback<T, E>: Send + 'static {
