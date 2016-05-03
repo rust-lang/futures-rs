@@ -210,7 +210,7 @@ pub trait Future: Send + 'static {
                 Ok(e) => e.into_future().boxed(),
                 Err(e) => failed(From::from(e)).boxed(),
             }
-        })
+        }).boxed()
     }
 }
 
