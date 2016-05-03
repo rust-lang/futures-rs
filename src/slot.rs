@@ -30,6 +30,10 @@ pub struct OnFullError(());
 #[derive(Debug, PartialEq)]
 pub struct OnEmptyError(());
 
+pub struct Token(usize);
+
+struct State(usize);
+
 fn _is_send<T: Send>() {}
 fn _is_sync<T: Send>() {}
 
@@ -41,6 +45,8 @@ fn _assert() {
 const DATA: usize = 1 << 0;
 const ON_FULL: usize = 1 << 1;
 const ON_EMPTY: usize = 1 << 2;
+const STATE_BITS: usize = 3;
+const STATE_MASK: usize = (1 << STATE_BITS) - 1;
 
 impl<T: 'static> Slot<T> {
     pub fn new(val: Option<T>) -> Slot<T> {
@@ -54,9 +60,9 @@ impl<T: 'static> Slot<T> {
 
     // PRODUCER
     pub fn try_produce(&self, t: T) -> Result<(), TryProduceError<T>> {
-        let mut state = self.state.load(Ordering::SeqCst);
-        assert!(state & ON_EMPTY == 0);
-        if state & DATA != 0 {
+        let mut state = State(self.state.load(Ordering::SeqCst));
+        assert!(!state.flag(ON_EMPTY));
+        if state.flag(DATA) {
             return Err(TryProduceError(t))
         }
         let mut slot = self.slot.borrow().expect("interference with consumer?");
@@ -65,17 +71,17 @@ impl<T: 'static> Slot<T> {
         drop(slot);
 
         loop {
-            assert!(state & ON_EMPTY == 0);
-            let old = self.state.compare_and_swap(state,
-                                                  (state | DATA) & !ON_FULL,
+            assert!(!state.flag(ON_EMPTY));
+            let new_state = state.set_flag(DATA, true).set_flag(ON_FULL, false);
+            let old = self.state.compare_and_swap(state.0,
+                                                  new_state.0,
                                                   Ordering::SeqCst);
-            if old == state {
+            if old == state.0 {
                 break
             }
-            state = old;
+            state.0 = old;
         }
-        assert!(state & ON_EMPTY == 0);
-        if state & ON_FULL != 0 {
+        if state.flag(ON_FULL) {
             let cb = self.on_full.borrow().expect("interference2")
                                  .take().expect("ON_FULL but no callback");
             cb.call_box(self);
@@ -84,44 +90,49 @@ impl<T: 'static> Slot<T> {
     }
 
     // PRODUCER
-    pub fn on_empty<F>(&self, f: F)
+    pub fn on_empty<F>(&self, f: F) -> Token
         where F: FnOnce(&Slot<T>) + Send + 'static
     {
-        let mut state = self.state.load(Ordering::SeqCst);
-        assert!(state & ON_EMPTY == 0);
-        if state & DATA == 0 {
-            return f(self)
+        let mut state = State(self.state.load(Ordering::SeqCst));
+        assert!(!state.flag(ON_EMPTY));
+        if !state.flag(DATA) {
+            f(self);
+            return Token(0)
         }
-        assert!(state & ON_FULL == 0);
+        assert!(!state.flag(ON_FULL));
         let mut slot = self.on_empty.borrow().expect("on_empty interference");
         assert!(slot.is_none());
         *slot = Some(Box::new(f));
         drop(slot);
 
         loop {
-            assert_eq!(state, DATA);
-            let old = self.state.compare_and_swap(state,
-                                                  state | ON_EMPTY,
+            assert!(state.flag(DATA));
+            assert!(!state.flag(ON_FULL));
+            assert!(!state.flag(ON_EMPTY));
+            let new_state = state.set_flag(ON_EMPTY, true)
+                                 .set_token(state.token() + 1);
+            let old = self.state.compare_and_swap(state.0,
+                                                  new_state.0,
                                                   Ordering::SeqCst);
-            if old == state {
-                break
+            if old == state.0 {
+                return Token(new_state.token())
             }
-            state = old;
+            state.0 = old;
 
-            if state & DATA == 0 {
-                self.on_empty.borrow().expect("on_empty interference2")
-                             .take().expect("on_empty not full?")
-                             .call_box(self);
-                break
+            if !state.flag(DATA) {
+                let cb = self.on_empty.borrow().expect("on_empty interference2")
+                                      .take().expect("on_empty not empty??");
+                cb.call_box(self);
+                return Token(0)
             }
         }
     }
 
     // CONSUMER
     pub fn try_consume(&self) -> Result<T, TryConsumeError> {
-        let mut state = self.state.load(Ordering::SeqCst);
-        assert!(state & ON_FULL == 0);
-        if state & DATA == 0 {
+        let mut state = State(self.state.load(Ordering::SeqCst));
+        assert!(!state.flag(ON_FULL));
+        if !state.flag(DATA) {
             return Err(TryConsumeError(()))
         }
         let mut slot = self.slot.borrow().expect("interference with producer?");
@@ -129,17 +140,18 @@ impl<T: 'static> Slot<T> {
         drop(slot);
 
         loop {
-            assert!(state & ON_FULL == 0);
-            let old = self.state.compare_and_swap(state,
-                                                  state & !DATA & !ON_EMPTY,
+            assert!(!state.flag(ON_FULL));
+            let new_state = state.set_flag(DATA, false).set_flag(ON_EMPTY, false);
+            let old = self.state.compare_and_swap(state.0,
+                                                  new_state.0,
                                                   Ordering::SeqCst);
-            if old == state {
+            if old == state.0 {
                 break
             }
-            state = old;
+            state.0 = old;
         }
-        assert!(state & ON_FULL == 0);
-        if state & ON_EMPTY != 0 {
+        assert!(!state.flag(ON_FULL));
+        if state.flag(ON_EMPTY) {
             let cb = self.on_empty.borrow().expect("interference3")
                                   .take().expect("ON_EMPTY but no callback");
             cb.call_box(self);
@@ -148,36 +160,80 @@ impl<T: 'static> Slot<T> {
     }
 
     // CONSUMER
-    pub fn on_full<F>(&self, f: F)
+    pub fn on_full<F>(&self, f: F) -> Token
         where F: FnOnce(&Slot<T>) + Send + 'static
     {
-        let mut state = self.state.load(Ordering::SeqCst);
-        assert!(state & ON_FULL == 0);
-        if state & DATA == DATA {
-            return f(self)
+        let mut state = State(self.state.load(Ordering::SeqCst));
+        assert!(!state.flag(ON_FULL));
+        if state.flag(DATA) {
+            f(self);
+            return Token(0)
         }
-        assert!(state & ON_EMPTY == 0);
+        assert!(!state.flag(ON_EMPTY));
         let mut slot = self.on_full.borrow().expect("on_full interference");
         assert!(slot.is_none());
         *slot = Some(Box::new(f));
         drop(slot);
 
         loop {
-            assert_eq!(state, 0);
-            let old = self.state.compare_and_swap(state,
-                                                  state | ON_FULL,
+            assert!(!state.flag(DATA));
+            assert!(!state.flag(ON_EMPTY));
+            assert!(!state.flag(ON_FULL));
+            let new_state = state.set_flag(ON_FULL, true)
+                                 .set_token(state.token() + 1);
+            let old = self.state.compare_and_swap(state.0,
+                                                  new_state.0,
                                                   Ordering::SeqCst);
-            if old == state {
-                break
+            if old == state.0 {
+                return Token(new_state.token())
             }
-            state = old;
+            state.0 = old;
 
-            if state & DATA == DATA {
-                self.on_full.borrow().expect("on_full interference2")
-                            .take().expect("on_full not full?")
-                            .call_box(self);
+            if state.flag(DATA) {
+                let cb = self.on_full.borrow().expect("on_full interference2")
+                                      .take().expect("on_full not full??");
+                cb.call_box(self);
+                return Token(0)
+            }
+        }
+    }
+
+    pub fn cancel(&self, token: Token) {
+        let token = token.0;
+        if token == 0 {
+            return
+        }
+        let mut state = State(self.state.load(Ordering::SeqCst));
+        loop {
+            if state.token() != token {
+                return
+            }
+            let new_state = if state.flag(ON_FULL) {
+                assert!(!state.flag(ON_EMPTY));
+                state.set_flag(ON_FULL, false)
+            } else if state.flag(ON_EMPTY) {
+                assert!(!state.flag(ON_FULL));
+                state.set_flag(ON_EMPTY, false)
+            } else {
+                return
+            };
+            let old = self.state.compare_and_swap(state.0,
+                                                  new_state.0,
+                                                  Ordering::SeqCst);
+            if old != state.0 {
                 break
             }
+            state.0 = old;
+        }
+
+        if state.flag(ON_FULL) {
+            let cb = self.on_full.borrow().expect("on_full interference3")
+                                  .take().expect("on_full not full??");
+            cb.call_box(self);
+        } else {
+            let cb = self.on_empty.borrow().expect("on_empty interference3")
+                                  .take().expect("on_empty not empty??");
+            cb.call_box(self);
         }
     }
 }
@@ -188,7 +244,7 @@ impl<T> TryProduceError<T> {
     }
 }
 
-trait FnBox<T: 'static>: Send + 'static {
+pub trait FnBox<T: 'static>: Send + 'static {
     fn call_box(self: Box<Self>, other: &Slot<T>);
 }
 
@@ -198,6 +254,28 @@ impl<T, F> FnBox<T> for F
 {
     fn call_box(self: Box<F>, other: &Slot<T>) {
         (*self)(other)
+    }
+}
+
+impl State {
+    fn flag(&self, f: usize) -> bool {
+        self.0 & f != 0
+    }
+
+    fn set_flag(&self, f: usize, val: bool) -> State {
+        State(if val {
+            self.0 | f
+        } else {
+            self.0 & !f
+        })
+    }
+
+    fn token(&self) -> usize {
+        self.0 >> STATE_BITS
+    }
+
+    fn set_token(&self, gen: usize) -> State {
+        State((gen << STATE_BITS) | (self.0 & STATE_MASK))
     }
 }
 
@@ -333,5 +411,61 @@ mod tests {
         }
 
         a.join().unwrap();
+    }
+
+    #[test]
+    fn cancel() {
+        let slot = Slot::new(None);
+        let hits = Arc::new(AtomicUsize::new(0));
+
+        let add = || {
+            let hits = hits.clone();
+            move |_: &Slot<u32>| { hits.fetch_add(1, Ordering::SeqCst); }
+        };
+
+        // cancel on_full
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
+        let hits2 = hits.clone();
+        let token = slot.on_full(add());
+        assert_eq!(hits.load(Ordering::SeqCst), 0);
+        slot.cancel(token);
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        assert!(slot.try_consume().is_err());
+
+        // cancel on_empty
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        slot.try_produce(1).unwrap();
+        let token = slot.on_empty(add());
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        slot.cancel(token);
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        assert!(slot.try_produce(1).is_err());
+
+        // cancel with no effect
+        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let token = slot.on_full(add());
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+        slot.cancel(token);
+        assert_eq!(hits.load(Ordering::SeqCst), 3);
+        assert!(slot.try_consume().is_ok());
+        let token = slot.on_empty(add());
+        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        slot.cancel(token);
+        assert_eq!(hits.load(Ordering::SeqCst), 4);
+
+        // cancel old ones don't count
+        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        let token1 = slot.on_full(add());
+        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        assert!(slot.try_produce(1).is_ok());
+        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        assert!(slot.try_consume().is_ok());
+        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        let token2 = slot.on_full(add());
+        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        slot.cancel(token1);
+        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        slot.cancel(token2);
+        assert_eq!(hits.load(Ordering::SeqCst), 6);
     }
 }

@@ -1,13 +1,19 @@
+use std::mem;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use {Future, Callback, PollResult, PollError};
-use slot::Slot;
+use slot::{Slot, Token};
 use util;
 
 pub struct Promise<T, E> {
-    inner: Arc<Inner<T, E>>,
-    used: bool,
+    state: _Promise<T, E>,
+}
+
+enum _Promise<T, E> {
+    Start(Arc<Inner<T, E>>),
+    Scheduled(Arc<Inner<T, E>>, Token),
+    Canceled,
+    Used,
 }
 
 pub struct Complete<T, E>
@@ -20,7 +26,6 @@ pub struct Complete<T, E>
 
 struct Inner<T, E> {
     slot: Slot<Option<Result<T, E>>>,
-    ready: AtomicBool,
 }
 
 pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
@@ -29,9 +34,8 @@ pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
 {
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
-        ready: AtomicBool::new(false),
     });
-    (Promise { inner: inner.clone(), used: false },
+    (Promise { state: _Promise::Start(inner.clone()) },
      Complete { inner: inner, completed: false })
 }
 
@@ -50,14 +54,11 @@ impl<T, E> Complete<T, E>
     }
 
     fn complete(&mut self, t: Option<Result<T, E>>) {
-        if self.inner.ready.swap(true, Ordering::SeqCst) {
-            return
-        }
         if let Err(e) = self.inner.slot.try_produce(t) {
             self.inner.slot.on_empty(|slot| {
                 slot.try_produce(e.into_inner()).ok()
                     .expect("advertised as empty but wasn't");
-            })
+            });
         }
     }
 }
@@ -78,41 +79,62 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Option<PollResult<T, E>> {
-        if self.used {
-            return Some(Err(util::reused()))
-        }
-        self.inner.slot.try_consume().map(|r| {
-            self.used = true;
-            match r {
-                Some(Ok(e)) => Ok(e),
-                Some(Err(e)) => Err(PollError::Other(e)),
-                None => Err(PollError::Canceled),
+        let ret = match self.state {
+            _Promise::Start(ref inner) => {
+                match inner.slot.try_consume() {
+                    Ok(r) => r,
+                    Err(_) => return None,
+                }
             }
-        }).ok()
+            _Promise::Scheduled(..) => return Some(Err(util::reused())),
+            _Promise::Canceled => return Some(Err(PollError::Canceled)),
+            _Promise::Used => return Some(Err(util::reused())),
+        };
+
+        self.state = _Promise::Used;
+        match ret {
+            Some(Ok(e)) => Some(Ok(e)),
+            Some(Err(e)) => Some(Err(PollError::Other(e))),
+            None => Some(Err(PollError::Canceled)),
+        }
     }
 
     fn cancel(&mut self) {
-        if !self.inner.ready.swap(true, Ordering::SeqCst) {
-            self.inner.slot.try_produce(None).ok()
-                .expect("got cancel lock but couldn't produce");
+        match mem::replace(&mut self.state, _Promise::Canceled) {
+            _Promise::Start(..) => {}
+            _Promise::Canceled => {}
+            _Promise::Used => self.state = _Promise::Used,
+            _Promise::Scheduled(s, token) => {
+                s.slot.cancel(token);
+            }
         }
     }
 
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<T, E>) + Send + 'static
     {
-        if self.used {
-            return f(Err(util::reused()))
-        }
-        self.used = true;
-        self.inner.slot.on_full(move |slot| {
+        let inner = match mem::replace(&mut self.state, _Promise::Used) {
+            _Promise::Start(inner) => inner,
+            _Promise::Canceled => return f(Err(PollError::Canceled)),
+            _Promise::Used => return f(Err(util::reused())),
+            _Promise::Scheduled(s, token) => {
+                self.state = _Promise::Scheduled(s, token);
+                return f(Err(util::reused()))
+            }
+        };
+        let token = inner.slot.on_full(move |slot| {
             match slot.try_consume() {
                 Ok(Some(Ok(e))) => f(Ok(e)),
                 Ok(Some(Err(e))) => f(Err(PollError::Other(e))),
+
+                // canceled because the `Complete` handle dropped
                 Ok(None) => f(Err(PollError::Canceled)),
-                Err(..) => panic!("slot wasn't full"),
+
+                // canceled manually
+                Err(..) => f(Err(PollError::Canceled)),
             }
-        })
+        });
+        self.state = _Promise::Scheduled(inner, token);
     }
 
     fn schedule_boxed(&mut self, f: Box<Callback<T, E>>) {
