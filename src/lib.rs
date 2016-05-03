@@ -2,8 +2,9 @@
 //
 // panic here or panic there?
 //  * catch_unwind is 6x slower than a normal call with panic=abort
+//      * can be 3x if we deal with PANIC_COUNT
 //  * catch_unwind is 7x slower than a normal call with panic=unwind
-//  * much of this is management of PANIC_COUNT
+//  * perspective, allocation is 20x slower than a noop call
 //  * also attributed to the indirect call
 //  * data point - wangle deals with C++ exceptions
 //
