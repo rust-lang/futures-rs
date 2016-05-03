@@ -75,19 +75,51 @@ pub trait Future: Send + 'static {
     type Item: Send + 'static;
     type Error: Send + 'static;
 
+    // returns None - you can keep calling this, future is not consumed
+    // returns Some - future becomes consumed
+    //
+    // If future is consumed then this returns `Some` of a panicked error.
+    //
+    // TODO: why does this actually exist?
     fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
 
-    // TODO: why is this not drop()
-    //       well what if you schedule() then drop, HUH?!
+    // - If future is not consumes, causes future calls to poll() and schedule()
+    //   to return immediately with Canceled
+    // - If future is consumed via poll(), does nothing, but causes future
+    //   poll()/schedule() invocations to return immediately with Canceled
+    // - If future is consumed via schedule(), arranges to have the callback
+    //   called "as soon as possible" with a resolution. That resolution may be
+    //   Canceled, or it may be anything else (depending on how the race plays
+    //   out).
+    //
+    // Canceling a canceled future doesn't do much, shouldn't panic either.
+    //
+    // FAQ:
+    //
+    // Q: Why is this not drop?
+    // A: How to differentiate drop() vs cancel() then drop()
     fn cancel(&mut self);
 
+    // Contract: the closure `f` is guaranteed to get called
+    //
+    // - If future is consumed, `f` is immediately called with a "panicked"
+    //   result.
+    // - If future is not consumd, arranges `f` to be called with the resolved
+    //   value. May be called earlier if `cancel` is called.
+    //
+    // This function will "consume" the future.
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static,
               Self: Sized;
 
+    // Impl detail, just do this as:
+    //
+    //      self.schedule(|r| f.call(r))
     fn schedule_boxed(&mut self, f: Box<Callback<Self::Item, Self::Error>>);
 
     // TODO: why can't this be in this lib?
+    //
+    // Seems not very useful if we can't provide it.
     // fn await(&mut self) -> FutureResult<Self::Item, Self::Error>;
 
     fn boxed(self) -> Box<Future<Item=Self::Item, Error=Self::Error>>
