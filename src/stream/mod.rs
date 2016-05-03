@@ -3,6 +3,9 @@ use {Future, PollResult, Callback};
 mod channel;
 pub use self::channel::{channel, Sender, Receiver};
 
+mod map;
+pub use self::map::Map;
+
 pub type StreamResult<T, E> = PollResult<Option<T>, E>;
 
 // TODO: Send + 'static is unfortunate
@@ -21,17 +24,14 @@ pub trait Stream/*: Send + 'static*/ {
     fn schedule_boxed(&mut self,
                       g: Box<Callback<Option<Self::Item>, Self::Error>>);
 
-    // fn map<U, F>(self, f: F) -> Map<Self, F>
-    //     where F: FnMut(Self::Item) -> U + Send + 'static,
-    //           U: Send + 'static,
-    //           Self: Sized
-    // {
-    //     Map {
-    //         stream: self,
-    //         f: f,
-    //     }
-    // }
-    //
+    fn map<U, F>(self, f: F) -> Map<Self, F>
+        where F: FnMut(Self::Item) -> U + Send + 'static,
+              U: Send + 'static,
+              Self: Sized
+    {
+        map::new(self, f)
+    }
+
     // fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
     //     where F: FnMut(Self::Error) -> U + Send + 'static,
     //           U: Send + 'static,
@@ -211,34 +211,6 @@ impl<S: ?Sized + Stream> Stream for Box<S> {
 //             }
 //             None => g(None, self),
 //         }
-//     }
-// }
-//
-// pub struct Map<S, F> {
-//     stream: S,
-//     f: F,
-// }
-//
-// impl<S, F, U> Stream for Map<S, F>
-//     where S: Stream,
-//           F: FnMut(S::Item) -> U + Send + 'static,
-//           U: Send + 'static,
-// {
-//     type Item = U;
-//     type Error = S::Error;
-//
-//     fn poll(&mut self) -> Result<Self::Item, PollError<Self::Error>> {
-//         self.stream.poll().map(&mut self.f)
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Option<Result<Self::Item, Self::Error>>, Self) +
-//                     Send + 'static,
-//     {
-//         let Map { stream, mut f } = self;
-//         stream.schedule(move |result, stream| {
-//             g(result.map(|o| o.map(&mut f)), Map { stream: stream, f: f })
-//         })
 //     }
 // }
 //
