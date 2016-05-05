@@ -8,8 +8,6 @@ use util;
 
 pub struct Join<A, B> where A: Future, B: Future<Error=A::Error> {
     state: State<A, B>,
-    a_res: Option<A::Item>,
-    b_res: Option<B::Item>,
 }
 
 pub fn new<A, B>(a: A, b: B) -> Join<A, B>
@@ -18,8 +16,6 @@ pub fn new<A, B>(a: A, b: B) -> Join<A, B>
 {
     Join {
         state: State::Start(a, b),
-        a_res: None,
-        b_res: None,
     }
 }
 
@@ -74,33 +70,33 @@ impl<A, B> Future for Join<A, B>
     //     b.map(|b| (a, b))
     // }
 
-    fn cancel(&mut self) {
-        match self.state {
-            State::Start(ref mut a, ref mut b) => {
-                a.cancel();
-                b.cancel();
-            }
-            State::Scheduled(ref state) => {
-                // Unset the `SET` flag so we can attempt to "lock" the futures'
-                // memory to get acquired.
-                let old = state.state.fetch_xor(SET, Ordering::SeqCst);
-                assert!(old & SET != 0);
-
-                // We only actually do the cancellation if:
-                //
-                // * An error hasn't happened. If one has happened that whomever
-                //   set that flag is responsible for cancellation.
-                // * We're not done yet, in this case cancellation isn't
-                //   necessary.
-                if old & (A_ERR | B_ERR) == 0 &&
-                   old & (A_OK | B_OK) != A_OK | B_OK {
-                    state.cancel(old);
-                }
-            }
-            State::Canceled => {}
-        }
-        self.state = State::Canceled;
-    }
+    // fn cancel(&mut self) {
+    //     match self.state {
+    //         State::Start(ref mut a, ref mut b) => {
+    //             a.cancel();
+    //             b.cancel();
+    //         }
+    //         State::Scheduled(ref state) => {
+    //             // Unset the `SET` flag so we can attempt to "lock" the futures'
+    //             // memory to get acquired.
+    //             let old = state.state.fetch_xor(SET, Ordering::SeqCst);
+    //             assert!(old & SET != 0);
+    //
+    //             // We only actually do the cancellation if:
+    //             //
+    //             // * An error hasn't happened. If one has happened that whomever
+    //             //   set that flag is responsible for cancellation.
+    //             // * We're not done yet, in this case cancellation isn't
+    //             //   necessary.
+    //             if old & (A_ERR | B_ERR) == 0 &&
+    //                old & (A_OK | B_OK) != A_OK | B_OK {
+    //                 state.cancel(old);
+    //             }
+    //         }
+    //         State::Canceled => {}
+    //     }
+    //     self.state = State::Canceled;
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
@@ -118,20 +114,6 @@ impl<A, B> Future for Join<A, B>
                 return cb.call(Err(util::reused()))
             }
         };
-        match (self.a_res.take(), self.b_res.take()) {
-            (Some(a), Some(b)) => return cb.call(Ok((a, b))),
-            (Some(a_val), None) => {
-                b.schedule(|res| cb.call(res.map(|b| (a_val, b))));
-                self.state = State::Start(a, b);
-                return
-            }
-            (None, Some(b_val)) => {
-                a.schedule(|res| cb.call(res.map(|a| (a, b_val))));
-                self.state = State::Start(a, b);
-                return
-            }
-            (None, None) => {}
-        }
 
         let data1 = Arc::new(Scheduled {
             futures: cell::AtomicCell::new(None),
@@ -152,7 +134,7 @@ impl<A, B> Future for Join<A, B>
         // cancel them ourselves.
         let old = data3.state.fetch_or(SET, Ordering::SeqCst);
         if old & (A_ERR | B_ERR) != 0 {
-            data3.cancel(old);
+            data3.cancel();
         }
 
         self.state = State::Scheduled(data3);
@@ -236,7 +218,7 @@ impl<A, B> Scheduled<A, B>
             // them both here. Otherwise the thread putting the futures into
             // place will see the error of its ways and cancel them for us.
             if old & SET != 0 {
-                self.cancel(old);
+                self.cancel();
             }
             cb.call(Err(e))
         } else {
@@ -248,15 +230,31 @@ impl<A, B> Scheduled<A, B>
         }
     }
 
-    fn cancel(&self, state: usize) {
-        let mut futures = self.futures.borrow()
-                              .expect("[j] futures locked in cancel");
-        let pair = futures.as_mut().expect("[j] cancel but futures not here");
-        if state & (A_OK | A_ERR) == 0 {
-            pair.0.cancel();
-        }
-        if state & (B_OK | B_ERR) == 0 {
-            pair.1.cancel();
+    fn cancel(&self) {
+        let pair = self.futures.borrow().expect("[j] futures locked in cancel")
+                               .take().expect("[j] cancel but futures not here");
+        drop(pair)
+    }
+}
+
+impl<A, B> Drop for Join<A, B> where A: Future, B: Future<Error=A::Error> {
+    fn drop(&mut self) {
+        if let State::Scheduled(ref state) = self.state {
+            // Unset the `SET` flag so we can attempt to "lock" the futures'
+            // memory to get acquired.
+            let old = state.state.fetch_xor(SET, Ordering::SeqCst);
+            assert!(old & SET != 0);
+
+            // We only actually do the cancellation if:
+            //
+            // * An error hasn't happened. If one has happened that whomever
+            //   set that flag is responsible for cancellation.
+            // * We're not done yet, in this case cancellation isn't
+            //   necessary.
+            if old & (A_ERR | B_ERR) == 0 &&
+               old & (A_OK | B_OK) != A_OK | B_OK {
+                state.cancel();
+            }
         }
     }
 }

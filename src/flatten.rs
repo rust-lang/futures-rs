@@ -43,10 +43,6 @@ impl<A> Future for Flatten<A>
     //     self.state.poll(map::<A>)
     // }
 
-    fn cancel(&mut self) {
-        self.state.cancel()
-    }
-
     // fn await(&mut self) -> FutureResult<Self::Item, Self::Error> {
     //     self.state.await(map::<A>)
     // }

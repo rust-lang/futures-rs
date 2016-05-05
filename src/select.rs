@@ -43,29 +43,29 @@ impl<A, B> Future for Select<A, B>
     //     }
     // }
 
-    fn cancel(&mut self) {
-        match self.state {
-            State::Start(ref mut a, ref mut b) => {
-                a.cancel();
-                b.cancel();
-            }
-            State::Scheduled(ref state) => {
-                // Unset the `SET` flag so we can attempt to "lock" the futures'
-                // memory to get acquired.
-                let old = state.state.fetch_xor(SET, Ordering::SeqCst);
-                assert!(old & SET != 0);
-
-                // We only actually do the cancellation if nothing has actually
-                // happened yet. If either future has completed then it will
-                // take care of the cancellation for us.
-                if old & !SET == 0 {
-                    state.cancel(old);
-                }
-            }
-            State::Canceled => {}
-        }
-        self.state = State::Canceled;
-    }
+    // fn cancel(&mut self) {
+    //     match self.state {
+    //         State::Start(ref mut a, ref mut b) => {
+    //             a.cancel();
+    //             b.cancel();
+    //         }
+    //         State::Scheduled(ref state) => {
+    //             // Unset the `SET` flag so we can attempt to "lock" the futures'
+    //             // memory to get acquired.
+    //             let old = state.state.fetch_xor(SET, Ordering::SeqCst);
+    //             assert!(old & SET != 0);
+    //
+    //             // We only actually do the cancellation if nothing has actually
+    //             // happened yet. If either future has completed then it will
+    //             // take care of the cancellation for us.
+    //             if old & !SET == 0 {
+    //                 state.cancel(old);
+    //             }
+    //         }
+    //         State::Canceled => {}
+    //     }
+    //     self.state = State::Canceled;
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<A::Item, A::Error>) + Send + 'static
@@ -101,7 +101,7 @@ impl<A, B> Future for Select<A, B>
         let old = data3.state.fetch_or(SET, Ordering::SeqCst);
         assert!(old & SET == 0);
         if old != 0 {
-            data3.cancel(old);
+            data3.cancel();
         }
 
         self.state = State::Scheduled(data3);
@@ -115,8 +115,10 @@ enum State<A, B> where A: Future, B: Future {
 }
 
 const A_OK: usize = 1 << 0;
+#[allow(dead_code)]
 const A_ERR: usize = 1 << 1;
 const B_OK: usize = 1 << 2;
+#[allow(dead_code)]
 const B_ERR: usize = 1 << 3;
 const SET: usize = 1 << 4;
 
@@ -155,20 +157,35 @@ impl<A, B> Scheduled<A, B>
         // them both here. Otherwise the thread putting the futures into
         // place will see the error of its ways and cancel them for us.
         if old & SET != 0 {
-            self.cancel(old);
+            self.cancel();
         }
         cb.call(val);
     }
 
-    fn cancel(&self, state: usize) {
-        let mut futures = self.futures.borrow()
-                              .expect("[s] futures locked in cancel");
-        let pair = futures.as_mut().expect("[s] cancel but futures not here");
-        if state & (A_OK | A_ERR) == 0 {
-            pair.0.cancel();
-        }
-        if state & (B_OK | B_ERR) == 0 {
-            pair.1.cancel();
+    fn cancel(&self) {
+        let pair = self.futures.borrow().expect("[s] futures locked in cancel")
+                               .take().expect("[s] cancel but futures not here");
+        drop(pair)
+    }
+}
+
+impl<A, B> Drop for Select<A, B>
+    where A: Future,
+          B: Future<Item=A::Item, Error=A::Error>
+{
+    fn drop(&mut self) {
+        if let State::Scheduled(ref state) = self.state {
+            // Unset the `SET` flag so we can attempt to "lock" the futures'
+            // memory to get acquired.
+            let old = state.state.fetch_xor(SET, Ordering::SeqCst);
+            assert!(old & SET != 0);
+
+            // We only actually do the cancellation if nothing has actually
+            // happened yet. If either future has completed then it will
+            // take care of the cancellation for us.
+            if old & !SET == 0 {
+                state.cancel();
+            }
         }
     }
 }

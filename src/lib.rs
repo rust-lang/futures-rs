@@ -38,9 +38,7 @@ pub use promise::{promise, Promise, Complete};
 
 // combinators
 mod and_then;
-mod chain;
 mod flatten;
-mod impls;
 mod join;
 mod map;
 mod map_err;
@@ -58,6 +56,10 @@ pub use then::Then;
 
 // streams
 pub mod stream;
+
+// impl details
+mod chain;
+mod impls;
 
 // TODO: Send + 'static is annoying, but required by cancel and_then, document
 // TODO: not object safe
@@ -100,7 +102,7 @@ pub trait Future: Send + 'static {
     //
     // Q: Why is this not drop?
     // A: How to differentiate drop() vs cancel() then drop()
-    fn cancel(&mut self);
+    // fn cancel(&mut self);
 
     // Contract: the closure `f` is guaranteed to get called
     //

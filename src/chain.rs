@@ -5,11 +5,15 @@ use slot::Slot;
 use util;
 use {Future, PollResult, PollError};
 
-pub enum Chain<A, B, C> {
+pub enum Chain<A, B, C> where B: Send + 'static {
     First(A, Option<C>),
     // Second(B),
-    Slot(A, Arc<Slot<B>>),
+    Slot(A, DropSlot<B>),
     Canceled,
+}
+
+pub struct DropSlot<B> where B: Send + 'static {
+    slot: Arc<Slot<B>>,
 }
 
 impl<A, B, C> Chain<A, B, C>
@@ -56,20 +60,20 @@ impl<A, B, C> Chain<A, B, C>
     //     return ret
     // }
 
-    pub fn cancel(&mut self) {
-        match *self {
-            Chain::First(ref mut a, _) => a.cancel(),
-            // Chain::Second(ref mut b) => return b.cancel(),
-            Chain::Canceled => return,
-            Chain::Slot(ref mut a, ref slot) => {
-                a.cancel();
-                slot.on_full(|slot| {
-                    slot.try_consume().ok().unwrap().cancel();
-                });
-            }
-        }
-        *self = Chain::Canceled;
-    }
+    // pub fn cancel(&mut self) {
+    //     match *self {
+    //         Chain::First(ref mut a, _) => a.cancel(),
+    //         // Chain::Second(ref mut b) => return b.cancel(),
+    //         Chain::Canceled => return,
+    //         Chain::Slot(ref mut a, ref slot) => {
+    //             a.cancel();
+    //             slot.on_full(|slot| {
+    //                 slot.try_consume().ok().unwrap().cancel();
+    //             });
+    //         }
+    //     }
+    //     *self = Chain::Canceled;
+    // }
 
     // pub fn await<F>(&mut self, f: F) -> FutureResult<B::Item, B::Error>
     //     where F: FnOnce(PollResult<A::Item, A::Error>, C)
@@ -150,6 +154,16 @@ impl<A, B, C> Chain<A, B, C>
             }
         };
 
-        *self = Chain::Slot(a, slot);
+        *self = Chain::Slot(a, DropSlot { slot: slot });
+    }
+}
+
+impl<B> Drop for DropSlot<B>
+    where B: Send + 'static
+{
+    fn drop(&mut self) {
+        self.slot.on_full(|slot| {
+            drop(slot.try_consume().ok().unwrap());
+        });
     }
 }

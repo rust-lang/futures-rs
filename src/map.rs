@@ -45,9 +45,9 @@ impl<U, A, F> Future for Map<A, F>
     //     }
     // }
 
-    fn cancel(&mut self) {
-        self.future.cancel()
-    }
+    // fn cancel(&mut self) {
+    //     self.future.cancel()
+    // }
 
     // fn await(&mut self) -> FutureResult<U, A::Error> {
     //     let f = try!(util::opt2poll(self.f.take()));

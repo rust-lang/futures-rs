@@ -49,9 +49,9 @@ impl<U, A, F> Future for MapErr<A, F>
     //     }
     // }
 
-    fn cancel(&mut self) {
-        self.future.cancel()
-    }
+    // fn cancel(&mut self) {
+    //     self.future.cancel()
+    // }
 
     // fn await(&mut self) -> FutureResult<A::Item, U> {
     //     let f = try!(util::opt2poll(self.f.take()));

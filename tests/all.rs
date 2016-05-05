@@ -52,8 +52,10 @@ fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
     // assert_cancel(a.poll().expect("cancel should force a finish2"));
 
     let (tx, rx) = channel();
-    f().schedule(move |r| drop(tx.send(r)));
+    let mut a = f();
+    a.schedule(move |r| drop(tx.send(r)));
     assert!(rx.try_recv().is_err());
+    drop(a);
 
     let (tx, rx) = channel();
     let (tx2, rx2) = channel();
@@ -61,17 +63,17 @@ fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
     a.schedule(move |r| tx.send(r).unwrap());
     a.schedule(move |r| tx2.send(r).unwrap());
     assert_panic(rx2.recv().unwrap());
-    a.cancel();
+    drop(a);
     assert_cancel(rx.recv().unwrap());
 
     let (tx, rx) = channel();
     let mut a = f();
-    a.cancel();
     let tx2 = tx.clone();
     a.schedule(move |r| tx2.send(r).unwrap());
-    assert_cancel(rx.recv().unwrap());
     a.schedule(move |r| tx.send(r).unwrap());
     assert_bad(rx.recv().unwrap());
+    drop(a);
+    assert_cancel(rx.recv().unwrap());
 }
 
 fn assert_cancel<T, E>(r: PollResult<T, E>) {

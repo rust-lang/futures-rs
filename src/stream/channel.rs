@@ -170,16 +170,17 @@ impl<T, E> Future for FutureSender<T, E>
     //     }
     // }
 
-    fn cancel(&mut self) {
-        match mem::replace(&mut self.state, _FutureSender::Canceled) {
-            _FutureSender::Start(..) => {}
-            _FutureSender::Canceled => {}
-            _FutureSender::Scheduled(s, token) => {
-                s.slot.cancel(token);
-            }
-            _FutureSender::Used => self.state = _FutureSender::Used,
-        }
-    }
+    // TODO: move this to Drop
+    // fn cancel(&mut self) {
+    //     match mem::replace(&mut self.state, _FutureSender::Canceled) {
+    //         _FutureSender::Start(..) => {}
+    //         _FutureSender::Canceled => {}
+    //         _FutureSender::Scheduled(s, token) => {
+    //             s.slot.cancel(token);
+    //         }
+    //         _FutureSender::Used => self.state = _FutureSender::Used,
+    //     }
+    // }
 
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static,

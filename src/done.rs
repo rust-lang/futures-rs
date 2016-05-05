@@ -49,9 +49,9 @@ impl<T, E> Future for Done<T, E>
     //     Ok(try!(self.take()))
     // }
 
-    fn cancel(&mut self) {
-        // noop, "already done"
-    }
+    // fn cancel(&mut self) {
+    //     // noop, "already done"
+    // }
 
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<T, E>) + Send + 'static

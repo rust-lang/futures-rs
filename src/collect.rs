@@ -3,25 +3,36 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use cell::AtomicCell;
-use {Future, Callback, PollResult, PollError, IntoFuture};
+use {Future, Callback, PollResult, IntoFuture};
 use util;
 
-pub struct Collect<I> where I: IntoIterator, I::Item: IntoFuture {
+pub struct Collect<I>
+    where I: IntoIterator + Send + 'static,
+          I::Item: IntoFuture,
+          I::IntoIter: Send + 'static,
+{
     state: State<I>,
 }
 
-enum State<I> where I: IntoIterator, I::Item: IntoFuture {
+enum State<I>
+    where I: IntoIterator + Send + 'static,
+          I::Item: IntoFuture,
+          I::IntoIter: Send + 'static,
+{
     Local {
         cur: Option<<I::Item as IntoFuture>::Future>,
         remaining: I::IntoIter,
         result: Option<Vec<<I::Item as IntoFuture>::Item>>,
     },
     Scheduled(Arc<Scheduled<I>>),
-    Canceled,
     Done,
 }
 
-struct Scheduled<I> where I: IntoIterator, I::Item: IntoFuture {
+struct Scheduled<I>
+    where I: IntoIterator + Send + 'static,
+          I::Item: IntoFuture,
+          I::IntoIter: Send + 'static,
+{
     state: AtomicUsize,
     slot: AtomicCell<Option<<I::Item as IntoFuture>::Future>>,
 }
@@ -29,7 +40,7 @@ struct Scheduled<I> where I: IntoIterator, I::Item: IntoFuture {
 const CANCELED: usize = !0;
 
 pub fn collect<I>(i: I) -> Collect<I>
-    where I: IntoIterator,
+    where I: IntoIterator + Send + 'static,
           I::Item: IntoFuture,
           I::IntoIter: Send + 'static,
 {
@@ -106,21 +117,21 @@ impl<I> Future for Collect<I>
     //     }
     // }
 
-    fn cancel(&mut self) {
-        match self.state {
-            State::Local { ref mut cur, ref mut remaining, .. } => {
-                if let Some(mut cur) = cur.take() {
-                    cur.cancel();
-                }
-                for future in remaining {
-                    future.into_future().cancel();
-                }
-            }
-            State::Scheduled(ref s) => s.cancel(),
-            State::Canceled | State::Done => return,
-        }
-        self.state = State::Canceled;
-    }
+    // fn cancel(&mut self) {
+    //     match self.state {
+    //         State::Local { ref mut cur, ref mut remaining, .. } => {
+    //             if let Some(mut cur) = cur.take() {
+    //                 cur.cancel();
+    //             }
+    //             for future in remaining {
+    //                 future.into_future().cancel();
+    //             }
+    //         }
+    //         State::Scheduled(ref s) => s.cancel(),
+    //         State::Canceled | State::Done => return,
+    //     }
+    //     self.state = State::Canceled;
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
@@ -129,7 +140,7 @@ impl<I> Future for Collect<I>
             State::Local { cur, remaining, result } => {
                 (cur, remaining, result)
             }
-            State::Canceled => return g(Err(PollError::Canceled)),
+            // State::Canceled => return g(Err(PollError::Canceled)),
             State::Scheduled(s) => {
                 self.state = State::Scheduled(s);
                 return g(Err(util::reused()))
@@ -181,7 +192,7 @@ impl<I> Scheduled<I>
         match state.state.compare_and_swap(nth - 1, nth, Ordering::SeqCst) {
             // Someone canceled in this window, we shouldn't continue so we
             // cancel the future.
-            CANCELED => future.cancel(),
+            CANCELED => drop(future),
 
             // We have successfully moved forward. Store our future for someone
             // else to cancel. Lock acquisition can fail for two reasons:
@@ -201,14 +212,12 @@ impl<I> Scheduled<I>
             n if n <= nth - 1 => {
                 match state.slot.borrow() {
                     Some(mut slot) => *slot = Some(future),
-                    None => return future.cancel(),
+                    None => return drop(future),
                 }
 
                 if state.state.load(Ordering::SeqCst) == CANCELED {
                     let f = state.slot.borrow().and_then(|mut f| f.take());
-                    if let Some(mut f) = f {
-                        f.cancel();
-                    }
+                    drop(f);
                 }
             }
 
@@ -229,12 +238,7 @@ impl<I> Scheduled<I>
     {
         match res {
             Ok(item) => result.push(item),
-            Err(e) => {
-                for f in remaining {
-                    f.into_future().cancel();
-                }
-                return g(Err(e))
-            }
+            Err(e) => return g(Err(e)),
         }
         match remaining.next() {
             Some(f) => Scheduled::run(state, f.into_future(), remaining, result, g),
@@ -254,8 +258,18 @@ impl<I> Scheduled<I>
         // cancelling their future.
         self.state.store(CANCELED, Ordering::SeqCst);
         let f = self.slot.borrow().and_then(|mut f| f.take());
-        if let Some(mut f) = f {
-            f.cancel();
+        drop(f);
+    }
+}
+
+impl<I> Drop for Collect<I>
+    where I: IntoIterator + Send + 'static,
+          I::Item: IntoFuture,
+          I::IntoIter: Send + 'static,
+{
+    fn drop(&mut self) {
+        if let State::Scheduled(ref s) = self.state {
+            s.cancel();
         }
     }
 }

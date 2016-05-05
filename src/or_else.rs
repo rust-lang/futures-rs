@@ -44,9 +44,9 @@ impl<A, B, F> Future for OrElse<A, B, F>
     //     self.state.poll(or_else::<A, B, F>)
     // }
 
-    fn cancel(&mut self) {
-        self.state.cancel()
-    }
+    // fn cancel(&mut self) {
+    //     self.state.cancel()
+    // }
 
     // fn await(&mut self) -> FutureResult<B::Item, B::Error> {
     //     self.state.await(or_else::<A, B, F>)

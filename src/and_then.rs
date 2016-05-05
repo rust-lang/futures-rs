@@ -38,9 +38,9 @@ impl<A, B, F> Future for AndThen<A, B, F>
     //     self.state.poll(and_then::<A, B, F>)
     // }
 
-    fn cancel(&mut self) {
-        self.state.cancel()
-    }
+    // fn cancel(&mut self) {
+    //     self.state.cancel()
+    // }
 
     // fn await(&mut self) -> FutureResult<B::Item, B::Error> {
     //     self.state.await(and_then::<A, B, F>)

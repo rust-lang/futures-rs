@@ -32,9 +32,9 @@ impl<T, E> Future for Failed<T, E>
     //     Ok(try!(self.poll().unwrap()))
     // }
 
-    fn cancel(&mut self) {
-        // noop, already done
-    }
+    // fn cancel(&mut self) {
+    //     // noop, already done
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<T, E>) + Send + 'static

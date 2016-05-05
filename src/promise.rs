@@ -5,11 +5,17 @@ use {Future, Callback, PollResult, PollError};
 use slot::{Slot, Token};
 use util;
 
-pub struct Promise<T, E> {
+pub struct Promise<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
     state: _Promise<T, E>,
 }
 
-enum _Promise<T, E> {
+enum _Promise<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
     Start(Arc<Inner<T, E>>),
     Scheduled(Arc<Inner<T, E>>, Token),
     Canceled,
@@ -99,16 +105,16 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     //     }
     // }
 
-    fn cancel(&mut self) {
-        match mem::replace(&mut self.state, _Promise::Canceled) {
-            _Promise::Start(..) => {}
-            _Promise::Canceled => {}
-            _Promise::Used => self.state = _Promise::Used,
-            _Promise::Scheduled(s, token) => {
-                s.slot.cancel(token);
-            }
-        }
-    }
+    // fn cancel(&mut self) {
+    //     match mem::replace(&mut self.state, _Promise::Canceled) {
+    //         _Promise::Start(..) => {}
+    //         _Promise::Canceled => {}
+    //         _Promise::Used => self.state = _Promise::Used,
+    //         _Promise::Scheduled(s, token) => {
+    //             s.slot.cancel(token);
+    //         }
+    //     }
+    // }
 
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<T, E>) + Send + 'static
@@ -130,7 +136,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
                 // canceled because the `Complete` handle dropped
                 Ok(None) => f(Err(PollError::Canceled)),
 
-                // canceled manually
+                // canceled via Drop
                 Err(..) => f(Err(PollError::Canceled)),
             }
         });
@@ -139,5 +145,21 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
 
     fn schedule_boxed(&mut self, f: Box<Callback<T, E>>) {
         self.schedule(|r| f.call(r))
+    }
+}
+
+impl<T, E> Drop for Promise<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    fn drop(&mut self) {
+        match mem::replace(&mut self.state, _Promise::Canceled) {
+            _Promise::Start(..) => {}
+            _Promise::Canceled => {}
+            _Promise::Used => {}
+            _Promise::Scheduled(s, token) => {
+                s.slot.cancel(token);
+            }
+        }
     }
 }

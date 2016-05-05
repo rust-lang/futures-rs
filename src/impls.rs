@@ -8,9 +8,9 @@ impl<F: ?Sized + Future> Future for Box<F> {
     //     (**self).poll()
     // }
 
-    fn cancel(&mut self) {
-        (**self).cancel()
-    }
+    // fn cancel(&mut self) {
+    //     (**self).cancel()
+    // }
 
     // fn await(&mut self) -> FutureResult<F::Item, F::Error> {
     //     (**self).await()
