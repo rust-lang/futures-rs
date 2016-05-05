@@ -22,11 +22,11 @@ impl<T, E> Future for Failed<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
-        Some(util::opt2poll(self.e.take()).and_then(|e| {
-            Err(PollError::Other(e))
-        }))
-    }
+    // fn poll(&mut self) -> Option<PollResult<T, E>> {
+    //     Some(util::opt2poll(self.e.take()).and_then(|e| {
+    //         Err(PollError::Other(e))
+    //     }))
+    // }
 
     // fn await(&mut self) -> FutureResult<T, E> {
     //     Ok(try!(self.poll().unwrap()))
@@ -39,7 +39,7 @@ impl<T, E> Future for Failed<T, E>
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<T, E>) + Send + 'static
     {
-        g(self.poll().unwrap())
+        g(util::opt2poll(self.e.take()).and_then(|e| Err(PollError::Other(e))))
     }
 
     fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {

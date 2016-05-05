@@ -7,7 +7,7 @@ use {Future, PollResult, PollError};
 
 pub enum Chain<A, B, C> {
     First(A, Option<C>),
-    Second(B),
+    // Second(B),
     Slot(A, Arc<Slot<B>>),
     Canceled,
 }
@@ -21,45 +21,45 @@ impl<A, B, C> Chain<A, B, C>
         Chain::First(a, Some(c))
     }
 
-    pub fn poll<F>(&mut self, f: F) -> Option<PollResult<B::Item, B::Error>>
-        where F: FnOnce(PollResult<A::Item, A::Error>, C)
-                        -> PollResult<Result<B::Item, B>, B::Error>
-    {
-        let mut b = match *self {
-            Chain::First(ref mut a, ref mut data) => {
-                let res = match a.poll() {
-                    Some(res) => res,
-                    None => return None,
-                };
-                let data = util::opt2poll(data.take());
-                match data.and_then(|data| f(res, data)) {
-                    Ok(Ok(e)) => return Some(Ok(e)),
-                    Ok(Err(b)) => b,
-                    Err(e) => return Some(Err(e)),
-                }
-            }
-            Chain::Second(ref mut b) => return b.poll(),
-
-            // TODO: technically this is a contract violation, this is only
-            //       possible if we have schedule() then cancel() called, and
-            //       it's not allowed to call poll() after schedule(). Maybe
-            //       this should return a panic error?
-            Chain::Canceled => return Some(Err(PollError::Canceled)),
-
-            // if we see `Slot` then `schedule` has already been called, and
-            // we're not allowed to poll after that, so just return a panicked
-            // error (this is a contract violation)
-            Chain::Slot(..) => return Some(Err(util::reused())),
-        };
-        let ret = b.poll();
-        *self = Chain::Second(b);
-        return ret
-    }
+    // pub fn poll<F>(&mut self, f: F) -> Option<PollResult<B::Item, B::Error>>
+    //     where F: FnOnce(PollResult<A::Item, A::Error>, C)
+    //                     -> PollResult<Result<B::Item, B>, B::Error>
+    // {
+    //     let mut b = match *self {
+    //         Chain::First(ref mut a, ref mut data) => {
+    //             let res = match a.poll() {
+    //                 Some(res) => res,
+    //                 None => return None,
+    //             };
+    //             let data = util::opt2poll(data.take());
+    //             match data.and_then(|data| f(res, data)) {
+    //                 Ok(Ok(e)) => return Some(Ok(e)),
+    //                 Ok(Err(b)) => b,
+    //                 Err(e) => return Some(Err(e)),
+    //             }
+    //         }
+    //         Chain::Second(ref mut b) => return b.poll(),
+    //
+    //         // TODO: technically this is a contract violation, this is only
+    //         //       possible if we have schedule() then cancel() called, and
+    //         //       it's not allowed to call poll() after schedule(). Maybe
+    //         //       this should return a panic error?
+    //         Chain::Canceled => return Some(Err(PollError::Canceled)),
+    //
+    //         // if we see `Slot` then `schedule` has already been called, and
+    //         // we're not allowed to poll after that, so just return a panicked
+    //         // error (this is a contract violation)
+    //         Chain::Slot(..) => return Some(Err(util::reused())),
+    //     };
+    //     let ret = b.poll();
+    //     *self = Chain::Second(b);
+    //     return ret
+    // }
 
     pub fn cancel(&mut self) {
         match *self {
             Chain::First(ref mut a, _) => a.cancel(),
-            Chain::Second(ref mut b) => return b.cancel(),
+            // Chain::Second(ref mut b) => return b.cancel(),
             Chain::Canceled => return,
             Chain::Slot(ref mut a, ref slot) => {
                 a.cancel();
@@ -132,11 +132,11 @@ impl<A, B, C> Chain<A, B, C>
                 (a, slot2)
             }
 
-            Chain::Second(mut b) => {
-                b.schedule(g);
-                *self = Chain::Second(b);
-                return
-            }
+            // Chain::Second(mut b) => {
+            //     b.schedule(g);
+            //     *self = Chain::Second(b);
+            //     return
+            // }
 
             // TODO: same concern as poll() above
             Chain::Canceled => return g(Err(PollError::Canceled)),

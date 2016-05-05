@@ -41,9 +41,9 @@ impl<T, E> Future for Done<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
-        Some(self.take())
-    }
+    // fn poll(&mut self) -> Option<PollResult<T, E>> {
+    //     Some(self.take())
+    // }
 
     // fn await(&mut self) -> FutureResult<T, E> {
     //     Ok(try!(self.take()))

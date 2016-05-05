@@ -39,9 +39,9 @@ impl<A> Future for Flatten<A>
     type Item = <<A as Future>::Item as IntoFuture>::Item;
     type Error = <<A as Future>::Item as IntoFuture>::Error;
 
-    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
-        self.state.poll(map::<A>)
-    }
+    // fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+    //     self.state.poll(map::<A>)
+    // }
 
     fn cancel(&mut self) {
         self.state.cancel()

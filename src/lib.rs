@@ -18,6 +18,8 @@ mod util;
 mod error;
 pub use error::{PollError, PollResult, FutureError, FutureResult};
 
+pub mod executor;
+
 // Primitive futures
 mod collect;
 mod done;
@@ -81,7 +83,7 @@ pub trait Future: Send + 'static {
     // If future is consumed then this returns `Some` of a panicked error.
     //
     // TODO: why does this actually exist?
-    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
+    // fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
 
     // - If future is not consumes, causes future calls to poll() and schedule()
     //   to return immediately with Canceled

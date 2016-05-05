@@ -24,13 +24,13 @@ impl<T, E> Future for Empty<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
-        if self.canceled {
-            Some(Err(PollError::Canceled))
-        } else {
-            None
-        }
-    }
+    // fn poll(&mut self) -> Option<PollResult<T, E>> {
+    //     if self.canceled {
+    //         Some(Err(PollError::Canceled))
+    //     } else {
+    //         None
+    //     }
+    // }
 
     // fn await(&mut self) -> FutureResult<T, E> {
     //     if self.canceled {

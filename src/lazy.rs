@@ -49,12 +49,12 @@ impl<F, R> Future for Lazy<F, R::Future>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self) -> Option<PollResult<R::Item, R::Error>> {
-        match self.get() {
-            Ok(f) => f.poll(),
-            Err(e) => Some(Err(e)),
-        }
-    }
+    // fn poll(&mut self) -> Option<PollResult<R::Item, R::Error>> {
+    //     match self.get() {
+    //         Ok(f) => f.poll(),
+    //         Err(e) => Some(Err(e)),
+    //     }
+    // }
 
     // fn await(&mut self) -> FutureResult<R::Item, R::Error> {
     //     try!(self.get()).await()

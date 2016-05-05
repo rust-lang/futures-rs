@@ -78,26 +78,26 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
-        let ret = match self.state {
-            _Promise::Start(ref inner) => {
-                match inner.slot.try_consume() {
-                    Ok(r) => r,
-                    Err(_) => return None,
-                }
-            }
-            _Promise::Scheduled(..) => return Some(Err(util::reused())),
-            _Promise::Canceled => return Some(Err(PollError::Canceled)),
-            _Promise::Used => return Some(Err(util::reused())),
-        };
-
-        self.state = _Promise::Used;
-        match ret {
-            Some(Ok(e)) => Some(Ok(e)),
-            Some(Err(e)) => Some(Err(PollError::Other(e))),
-            None => Some(Err(PollError::Canceled)),
-        }
-    }
+    // fn poll(&mut self) -> Option<PollResult<T, E>> {
+    //     let ret = match self.state {
+    //         _Promise::Start(ref inner) => {
+    //             match inner.slot.try_consume() {
+    //                 Ok(r) => r,
+    //                 Err(_) => return None,
+    //             }
+    //         }
+    //         _Promise::Scheduled(..) => return Some(Err(util::reused())),
+    //         _Promise::Canceled => return Some(Err(PollError::Canceled)),
+    //         _Promise::Used => return Some(Err(util::reused())),
+    //     };
+    //
+    //     self.state = _Promise::Used;
+    //     match ret {
+    //         Some(Ok(e)) => Some(Ok(e)),
+    //         Some(Err(e)) => Some(Err(PollError::Other(e))),
+    //         None => Some(Err(PollError::Canceled)),
+    //     }
+    // }
 
     fn cancel(&mut self) {
         match mem::replace(&mut self.state, _Promise::Canceled) {

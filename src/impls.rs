@@ -4,9 +4,9 @@ impl<F: ?Sized + Future> Future for Box<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Option<PollResult<F::Item, F::Error>> {
-        (**self).poll()
-    }
+    // fn poll(&mut self) -> Option<PollResult<F::Item, F::Error>> {
+    //     (**self).poll()
+    // }
 
     fn cancel(&mut self) {
         (**self).cancel()

@@ -40,9 +40,9 @@ impl<A, B, F> Future for OrElse<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
-        self.state.poll(or_else::<A, B, F>)
-    }
+    // fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
+    //     self.state.poll(or_else::<A, B, F>)
+    // }
 
     fn cancel(&mut self) {
         self.state.cancel()

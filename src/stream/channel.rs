@@ -143,32 +143,32 @@ impl<T, E> Future for FutureSender<T, E>
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
-        match mem::replace(&mut self.state, _FutureSender::Used) {
-            _FutureSender::Start(tx, msg) => {
-                if tx.inner.receiver_gone.load(Ordering::SeqCst) {
-                    return Some(Err(PollError::Other(SendError(msg))))
-                }
-                match tx.inner.slot.try_produce(Message::Data(msg)) {
-                    Ok(()) => Some(Ok(tx)),
-                    Err(e) => {
-                        let msg = match e.into_inner() {
-                            Message::Data(d) => d,
-                            _ => panic!(),
-                        };
-                        self.state = _FutureSender::Start(tx, msg);
-                        None
-                    }
-                }
-            }
-            _FutureSender::Canceled => Some(Err(PollError::Canceled)),
-            _FutureSender::Used => Some(Err(util::reused())),
-            _FutureSender::Scheduled(s, token) => {
-                self.state = _FutureSender::Scheduled(s, token);
-                Some(Err(util::reused()))
-            }
-        }
-    }
+    // fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+    //     match mem::replace(&mut self.state, _FutureSender::Used) {
+    //         _FutureSender::Start(tx, msg) => {
+    //             if tx.inner.receiver_gone.load(Ordering::SeqCst) {
+    //                 return Some(Err(PollError::Other(SendError(msg))))
+    //             }
+    //             match tx.inner.slot.try_produce(Message::Data(msg)) {
+    //                 Ok(()) => Some(Ok(tx)),
+    //                 Err(e) => {
+    //                     let msg = match e.into_inner() {
+    //                         Message::Data(d) => d,
+    //                         _ => panic!(),
+    //                     };
+    //                     self.state = _FutureSender::Start(tx, msg);
+    //                     None
+    //                 }
+    //             }
+    //         }
+    //         _FutureSender::Canceled => Some(Err(PollError::Canceled)),
+    //         _FutureSender::Used => Some(Err(util::reused())),
+    //         _FutureSender::Scheduled(s, token) => {
+    //             self.state = _FutureSender::Scheduled(s, token);
+    //             Some(Err(util::reused()))
+    //         }
+    //     }
+    // }
 
     fn cancel(&mut self) {
         match mem::replace(&mut self.state, _FutureSender::Canceled) {

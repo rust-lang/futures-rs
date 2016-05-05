@@ -35,19 +35,19 @@ impl<U, A, F> Future for MapErr<A, F>
     type Item = A::Item;
     type Error = U;
 
-    fn poll(&mut self) -> Option<PollResult<A::Item, U>> {
-        let f = match util::opt2poll(self.f.take()) {
-            Ok(f) => f,
-            Err(e) => return Some(Err(e)),
-        };
-        match self.future.poll() {
-            Some(res) => Some(map_err(res, f)),
-            None => {
-                self.f = Some(f);
-                None
-            }
-        }
-    }
+    // fn poll(&mut self) -> Option<PollResult<A::Item, U>> {
+    //     let f = match util::opt2poll(self.f.take()) {
+    //         Ok(f) => f,
+    //         Err(e) => return Some(Err(e)),
+    //     };
+    //     match self.future.poll() {
+    //         Some(res) => Some(map_err(res, f)),
+    //         None => {
+    //             self.f = Some(f);
+    //             None
+    //         }
+    //     }
+    // }
 
     fn cancel(&mut self) {
         self.future.cancel()

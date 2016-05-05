@@ -39,9 +39,9 @@ impl<A, B, F> Future for Then<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
-        self.state.poll(then::<A, B, F>)
-    }
+    // fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
+    //     self.state.poll(then::<A, B, F>)
+    // }
 
     fn cancel(&mut self) {
         self.state.cancel()

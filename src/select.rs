@@ -26,22 +26,22 @@ impl<A, B> Future for Select<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Option<PollResult<A::Item, A::Error>> {
-        let (a, b) = match self.state {
-            State::Start(ref mut a, ref mut b) => (a, b),
-            State::Canceled => return Some(Err(PollError::Canceled)),
-            State::Scheduled(_) => return Some(Err(util::reused())),
-        };
-        if let Some(e) = a.poll() {
-            b.cancel();
-            Some(e)
-        } else if let Some(e) = b.poll() {
-            a.cancel();
-            Some(e)
-        } else {
-            None
-        }
-    }
+    // fn poll(&mut self) -> Option<PollResult<A::Item, A::Error>> {
+    //     let (a, b) = match self.state {
+    //         State::Start(ref mut a, ref mut b) => (a, b),
+    //         State::Canceled => return Some(Err(PollError::Canceled)),
+    //         State::Scheduled(_) => return Some(Err(util::reused())),
+    //     };
+    //     if let Some(e) = a.poll() {
+    //         b.cancel();
+    //         Some(e)
+    //     } else if let Some(e) = b.poll() {
+    //         a.cancel();
+    //         Some(e)
+    //     } else {
+    //         None
+    //     }
+    // }
 
     fn cancel(&mut self) {
         match self.state {
