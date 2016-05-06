@@ -2,8 +2,10 @@ extern crate mio;
 extern crate futures;
 
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::io;
+use std::net::SocketAddr;
+use std::sync::mpsc::{channel, TryRecvError};
+use std::sync::Arc;
 
 // use self::mio::{TryRead, TryWrite};
 //
@@ -29,7 +31,7 @@ struct Inner {
 }
 
 enum Message {
-    Wait(Complete<(), io::Error>),
+    Wait(Complete<(), io::Error>, mio::EventSet, Arc<mio::Evented + Send + Sync>),
 }
 
 // pub struct TcpConnect {
@@ -59,8 +61,7 @@ enum Message {
 // }
 //
 pub struct TcpListener {
-    tcp: mio::tcp::TcpListener,
-    // slot: Arc<Slot<mio::EventSet>>,
+    tcp: Arc<mio::tcp::TcpListener>,
     io: mio::Sender<Message>,
 }
 
@@ -69,10 +70,37 @@ impl TcpListener {
         self.tcp.local_addr()
     }
 
-    pub fn accept(&self) -> Box<IoFuture<TcpStream>> {
+    pub fn accept(&self) -> Box<IoFuture<(TcpStream, SocketAddr)>> {
+        match self.tcp.accept() {
+            Err(e) => return futures::failed(e).boxed(),
+            Ok(Some((tcp, addr))) => {
+                let tcp = TcpStream {
+                    tcp: Arc::new(tcp),
+                    io: self.io.clone(),
+                };
+                return futures::finished((tcp, addr)).boxed()
+            }
+            Ok(None) => {}
+        }
+
         let (p, c) = promise();
-        drop(c);
-        p.boxed()
+        let r = self.io.send(Message::Wait(c,
+                                           mio::EventSet::readable(),
+                                           self.tcp.clone()));
+        match r {
+            Ok(()) => {
+                let me = TcpListener {
+                    tcp: self.tcp.clone(),
+                    io: self.io.clone(),
+                };
+                p.map(move |()| me.accept()).flatten().boxed()
+            }
+            Err(mio::NotifyError::Io(e)) => {
+                return futures::failed(e).boxed()
+            }
+            Err(mio::NotifyError::Full(..)) => panic!("full channel"),
+            Err(mio::NotifyError::Closed(..)) => panic!("closed channel"),
+        }
     }
 }
 
@@ -115,7 +143,7 @@ impl TcpListener {
 // }
 //
 pub struct TcpStream {
-    tcp: mio::tcp::TcpStream,
+    tcp: Arc<mio::tcp::TcpStream>,
     io: mio::Sender<Message>,
 }
 
@@ -136,15 +164,15 @@ impl TcpStream {
     }
 
     // TODO: give back the buffer
-    pub fn read(&self, _into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
-        loop {}
-        // let slot = Arc::new(Slot::new(None));
-        // Ok(TcpRead {
-        //     stream: self,
-        //     buf: into,
-        //     slot: slot,
-        // })
-    }
+    // pub fn read(&self, _into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
+    //     loop {}
+    //     // let slot = Arc::new(Slot::new(None));
+    //     // Ok(TcpRead {
+    //     //     stream: self,
+    //     //     buf: into,
+    //     //     slot: slot,
+    //     // })
+    // }
 
 //     pub fn write(self, buf: Vec<u8>) -> io::Result<TcpWrite> {
 //         let slot = Arc::new(Slot::new(None));
@@ -265,9 +293,18 @@ impl Loop {
 
     pub fn await<F: Future>(&mut self, mut f: F)
                             -> FutureResult<F::Item, F::Error> {
+        let (tx, rx) = channel();
+        f.schedule(move |r| {
+            drop(tx.send(r))
+            // TODO: signal to the event loop that it should wake up
+        });
         let mut ret = None;
         self._await(&mut || {
-            ret = f.poll();
+            match rx.try_recv() {
+                Ok(e) => ret = Some(e),
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => panic!(),
+            }
             ret.is_some()
         });
         Ok(try!(ret.unwrap()))
@@ -281,7 +318,6 @@ impl Loop {
 
     pub fn tcp_connect(&mut self, addr: &SocketAddr)
                        -> Box<IoFuture<TcpStream>> {
-        let (p, c) = promise();
         let pair = mio::tcp::TcpStream::connect(addr).and_then(|tcp| {
             let token = self.inner.next;
             self.inner.next += 1;
@@ -294,19 +330,17 @@ impl Loop {
         });
         match pair {
             Ok((tcp, token)) => {
+                let (p, c) = promise();
                 assert!(self.inner.done.insert(token, c).is_none());
                 let io = self.io.channel();
                 p.map(|()| {
                     TcpStream {
-                        tcp: tcp,
+                        tcp: Arc::new(tcp),
                         io: io,
                     }
                 }).boxed()
             }
-            Err(e) => {
-                c.fail(e);
-                p.map(|()| panic!("should have failed")).boxed()
-            }
+            Err(e) => futures::failed(e).boxed(),
         }
     }
 
@@ -315,7 +349,7 @@ impl Loop {
         let io = self.io.channel();
 
         Ok(TcpListener {
-            tcp: tcp,
+            tcp: Arc::new(tcp),
             io: io,
         })
     }
@@ -373,8 +407,25 @@ impl mio::Handler for Inner {
     }
 
     fn notify(&mut self,
-              _io: &mut mio::EventLoop<Self>,
-              _msg: Message) {
-        println!("msg");
+              io: &mut mio::EventLoop<Self>,
+              msg: Message) {
+        match msg {
+            Message::Wait(c, events, evented) => {
+                let token = self.next;
+                self.next += 1;
+                let evented: &mio::Evented = &*evented;
+                let r = io.register(evented,
+                                    mio::Token(token),
+                                    events,
+                                    mio::PollOpt::edge() |
+                                        mio::PollOpt::oneshot());
+                match r {
+                    Ok(()) => {
+                        self.done.insert(token, c);
+                    }
+                    Err(e) => c.fail(e),
+                }
+            }
+        }
     }
 }
