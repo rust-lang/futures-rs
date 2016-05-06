@@ -83,6 +83,8 @@ impl<A, B> Future for Select<A, B>
                 return cb.call(Err(util::reused()))
             }
         };
+
+        // TODO: optimize the case that either future is immediately done.
         let data1 = Arc::new(Scheduled {
             futures: cell::AtomicCell::new(None),
             state: AtomicUsize::new(0),

@@ -108,7 +108,7 @@ pub trait Future: Send + 'static {
     //
     // - If future is consumed, `f` is immediately called with a "panicked"
     //   result.
-    // - If future is not consumd, arranges `f` to be called with the resolved
+    // - If future is not consumed, arranges `f` to be called with the resolved
     //   value. May be called earlier if `cancel` is called.
     //
     // This function will "consume" the future.

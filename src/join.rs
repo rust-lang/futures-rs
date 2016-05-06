@@ -115,6 +115,7 @@ impl<A, B> Future for Join<A, B>
             }
         };
 
+        // TODO: optimize the case that both futures are immediately done.
         let data1 = Arc::new(Scheduled {
             futures: cell::AtomicCell::new(None),
             a_val: cell::AtomicCell::new(None),
