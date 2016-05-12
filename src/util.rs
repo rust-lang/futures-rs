@@ -1,3 +1,5 @@
+use std::panic::{self, AssertUnwindSafe};
+
 use {PollResult, PollError};
 
 // TODO: reexport this?
@@ -6,10 +8,7 @@ struct ReuseFuture;
 pub fn recover<F, R, E>(f: F) -> PollResult<R, E>
     where F: FnOnce() -> R + Send + 'static
 {
-    // use std::panic::{recover, AssertRecoverSafe};
-    //
-    // recover(AssertRecoverSafe(f)).map_err(|_| FutureError::Panicked)
-    Ok(f())
+    panic::catch_unwind(AssertUnwindSafe(f)).map_err(PollError::Panicked)
 }
 
 pub fn reused<E>() -> PollError<E> {

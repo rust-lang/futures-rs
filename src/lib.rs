@@ -44,6 +44,7 @@ mod map;
 mod map_err;
 mod or_else;
 mod select;
+mod select2;
 mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
@@ -52,6 +53,7 @@ pub use map::Map;
 pub use map_err::MapErr;
 pub use or_else::OrElse;
 pub use select::Select;
+pub use select2::{Select2, Select2Next};
 pub use then::Then;
 
 // streams
@@ -220,6 +222,16 @@ pub trait Future: Send + 'static {
     {
         let f = select::new(self, other.into_future());
         assert_future::<Self::Item, Self::Error, _>(f)
+    }
+
+    fn select2<B>(self, other: B) -> Select2<Self, B::Future>
+        where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
+              Self: Sized,
+    {
+        let f = select2::new(self, other.into_future());
+        assert_future::<(Self::Item, Select2Next<Self, B::Future>),
+                        (Self::Error, Select2Next<Self, B::Future>),
+                        _>(f)
     }
 
     fn join<B>(self, other: B) -> Join<Self, B::Future>
