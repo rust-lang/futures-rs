@@ -2,13 +2,12 @@ extern crate mio;
 extern crate futures;
 
 use std::collections::HashMap;
-use std::io;
+use std::io::{self, Read, Write};
 use std::net::SocketAddr;
-use std::sync::mpsc::{channel, TryRecvError};
+use std::slice;
 use std::sync::Arc;
+use std::sync::mpsc::{channel, TryRecvError};
 
-// use self::mio::{TryRead, TryWrite};
-//
 use futures::{Future, FutureResult, promise, Complete};
 // use slot::Slot;
 //
@@ -93,7 +92,7 @@ impl TcpListener {
                     tcp: self.tcp.clone(),
                     io: self.io.clone(),
                 };
-                p.map(move |()| me.accept()).flatten().boxed()
+                p.and_then(move |()| me.accept()).boxed()
             }
             Err(mio::NotifyError::Io(e)) => {
                 return futures::failed(e).boxed()
@@ -141,10 +140,16 @@ impl TcpListener {
 //         });
 //     }
 // }
-//
+
+#[derive(Clone)]
 pub struct TcpStream {
     tcp: Arc<mio::tcp::TcpStream>,
     io: mio::Sender<Message>,
+}
+
+unsafe fn slice_to_end(v: &mut Vec<u8>) -> &mut [u8] {
+    slice::from_raw_parts_mut(v.as_mut_ptr().offset(v.len() as isize),
+                              v.capacity() - v.len())
 }
 
 impl TcpStream {
@@ -163,16 +168,74 @@ impl TcpStream {
         self.tcp.peer_addr()
     }
 
-    // TODO: give back the buffer
-    // pub fn read(&self, _into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
-    //     loop {}
-    //     // let slot = Arc::new(Slot::new(None));
-    //     // Ok(TcpRead {
-    //     //     stream: self,
-    //     //     buf: into,
-    //     //     slot: slot,
-    //     // })
-    // }
+    pub fn read(&self, mut into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
+        let r = unsafe {
+            (&*self.tcp).read(slice_to_end(&mut into))
+        };
+        match r {
+            Ok(i) => {
+                unsafe {
+                    let len = into.len();
+                    into.set_len(len + i);
+                }
+                return futures::finished(into).boxed()
+            }
+            Err(e) => {
+                if e.kind() != io::ErrorKind::WouldBlock {
+                    return futures::failed(e).boxed()
+                }
+            }
+        }
+        let (p, c) = promise();
+        let r = self.io.send(Message::Wait(c,
+                                           mio::EventSet::readable(),
+                                           self.tcp.clone()));
+        match r {
+            Ok(()) => {
+                let me2 = TcpStream {
+                    tcp: self.tcp.clone(),
+                    io: self.io.clone(),
+                };
+                p.and_then(move |()| me2.read(into)).boxed()
+            }
+            Err(mio::NotifyError::Io(e)) => {
+                return futures::failed(e).boxed()
+            }
+            Err(mio::NotifyError::Full(..)) => panic!("full channel"),
+            Err(mio::NotifyError::Closed(..)) => panic!("closed channel"),
+        }
+    }
+
+    pub fn write(&self, offset: usize, data: Vec<u8>)
+                 -> Box<IoFuture<(usize, Vec<u8>)>> {
+        let r = (&*self.tcp).write(&data[offset..]);
+        match r {
+            Ok(i) => return futures::finished((offset + i, data)).boxed(),
+            Err(e) => {
+                if e.kind() != io::ErrorKind::WouldBlock {
+                    return futures::failed(e).boxed()
+                }
+            }
+        }
+        let (p, c) = promise();
+        let r = self.io.send(Message::Wait(c,
+                                           mio::EventSet::writable(),
+                                           self.tcp.clone()));
+        match r {
+            Ok(()) => {
+                let me2 = TcpStream {
+                    tcp: self.tcp.clone(),
+                    io: self.io.clone(),
+                };
+                p.and_then(move |()| me2.write(offset, data)).boxed()
+            }
+            Err(mio::NotifyError::Io(e)) => {
+                return futures::failed(e).boxed()
+            }
+            Err(mio::NotifyError::Full(..)) => panic!("full channel"),
+            Err(mio::NotifyError::Closed(..)) => panic!("closed channel"),
+        }
+    }
 
 //     pub fn write(self, buf: Vec<u8>) -> io::Result<TcpWrite> {
 //         let slot = Arc::new(Slot::new(None));
@@ -403,7 +466,6 @@ impl mio::Handler for Inner {
         if let Some(token) = self.done.remove(&token.as_usize()) {
             token.finish(());
         }
-        // println!("{:?}: {:?}", token, events);
     }
 
     fn notify(&mut self,
@@ -414,11 +476,11 @@ impl mio::Handler for Inner {
                 let token = self.next;
                 self.next += 1;
                 let evented: &mio::Evented = &*evented;
-                let r = io.register(evented,
-                                    mio::Token(token),
-                                    events,
-                                    mio::PollOpt::edge() |
-                                        mio::PollOpt::oneshot());
+                let r = io.reregister(evented,
+                                      mio::Token(token),
+                                      events,
+                                      mio::PollOpt::edge() |
+                                          mio::PollOpt::oneshot());
                 match r {
                     Ok(()) => {
                         self.done.insert(token, c);

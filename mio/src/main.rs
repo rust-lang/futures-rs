@@ -1,12 +1,38 @@
 extern crate futuremio;
 extern crate futures;
 
-// use futures::Future;
+use std::sync::atomic::*;
+use std::thread;
+use std::time::Duration;
+
+use futures::Future;
+
+static CNT: AtomicUsize = ATOMIC_USIZE_INIT;
 
 fn main() {
-    // let l = futuremio::Loop::new().unwrap();
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::new(1, 0));
+            println!("{}", CNT.swap(0, Ordering::SeqCst));
+        }
+    });
+    let mut l = futuremio::Loop::new().unwrap();
 
-    //
+    let addr = "127.0.0.1:12345".parse().unwrap();
+    let tcp = l.tcp_connect(&addr);
+    let tcp = tcp.and_then(|t| read(t, Vec::with_capacity(64 * 1024)));
+
+    l.await(tcp).unwrap();
+
+    fn read(s: futuremio::TcpStream, mut v: Vec<u8>) -> Box<futuremio::IoFuture<()>> {
+        v.truncate(0);
+        let s2 = s.clone();
+        s.read(v).and_then(|v| {
+            CNT.fetch_add(v.len(), Ordering::SeqCst);
+            read(s2, v)
+        }).boxed()
+    }
+
     // let l1 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
     // let l2 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
     // let a1 = l1.local_addr().unwrap();
