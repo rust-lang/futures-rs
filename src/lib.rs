@@ -62,6 +62,7 @@ pub mod stream;
 // impl details
 mod chain;
 mod impls;
+mod forget;
 
 // TODO: Send + 'static is annoying, but required by cancel and_then, document
 // TODO: not object safe
@@ -267,6 +268,10 @@ pub trait Future: Send + 'static {
                 Err(e) => failed(From::from(e)).boxed(),
             }
         }).boxed()
+    }
+
+    fn forget(self) where Self: Sized {
+        forget::forget(self);
     }
 }
 
