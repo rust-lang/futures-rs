@@ -235,7 +235,7 @@ fn select1() {
     let (p1, c1) = promise::<i32, i32>();
     let (p2, c2) = promise::<i32, i32>();
     let (tx, rx) = channel();
-    p1.select2(p2).map(move |v| tx.send(v).unwrap()).forget();
+    p1.select(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     c1.finish(1);
     let (v, p2) = rx.recv().unwrap();
@@ -254,7 +254,7 @@ fn select2() {
     let (p1, c1) = promise::<i32, i32>();
     let (p2, c2) = promise::<i32, i32>();
     let (tx, rx) = channel();
-    p1.select2(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    p1.select(p2).map_err(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     c1.fail(1);
     let (v, p2) = rx.recv().unwrap();
@@ -273,7 +273,7 @@ fn select3() {
     let (p1, c1) = promise::<i32, i32>();
     let (p2, c2) = promise::<i32, i32>();
     let (tx, rx) = channel();
-    p1.select2(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    p1.select(p2).map_err(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     c1.fail(1);
     let (v, p2) = rx.recv().unwrap();
@@ -308,6 +308,7 @@ fn select4() {
         rx2.recv().unwrap();
         drop(c2);
     }
+    drop(tx);
 
     t.join().unwrap();
 }

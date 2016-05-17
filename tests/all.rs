@@ -103,6 +103,13 @@ fn assert_bad<T, E>(r: PollResult<T, E>) {
     }
 }
 
+fn unselect<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
+    match r {
+        Ok((t, _)) => Ok(t),
+        Err((e, _)) => Err(e),
+    }
+}
+
 #[test]
 fn result_smoke() {
     fn is_future_v<A, B, C>(_: C)
@@ -115,7 +122,6 @@ fn result_smoke() {
     is_future_v::<i32, u32, _>(f_ok(1).map_err(|a| a + 1));
     is_future_v::<i32, u32, _>(f_ok(1).and_then(|a| Ok(a)));
     is_future_v::<i32, u32, _>(f_ok(1).or_else(|a| Err(a)));
-    is_future_v::<i32, u32, _>(f_ok(1).select(Err(3)));
     is_future_v::<(i32, i32), u32, _>(f_ok(1).join(Err(3)));
     is_future_v::<i32, u32, _>(f_ok(1).map(move |a| f_ok(a)).flatten());
 
@@ -137,11 +143,11 @@ fn result_smoke() {
     assert_done(|| f_err(1).or_else(|a| Ok(a as i32 + 2)), ok(3));
     assert_done(|| f_ok(1).or_else(|a| Err(a + 3)), ok(1));
     assert_done(|| f_err(1).or_else(|a| Err(a + 4)), err(5));
-    assert_done(|| f_ok(1).select(f_err(2)), ok(1));
-    assert_done(|| f_ok(1).select(Ok(2)), ok(1));
-    assert_done(|| f_err(1).select(f_ok(1)), err(1));
-    assert_done(|| f_ok(1).select(empty()), Ok(1));
-    assert_done(|| empty().select(f_ok(1)), Ok(1));
+    assert_done(|| f_ok(1).select(f_err(2)).then(unselect), ok(1));
+    assert_done(|| f_ok(1).select(Ok(2)).then(unselect), ok(1));
+    assert_done(|| f_err(1).select(f_ok(1)).then(unselect), err(1));
+    assert_done(|| f_ok(1).select(empty()).then(unselect), Ok(1));
+    assert_done(|| empty().select(f_ok(1)).then(unselect), Ok(1));
     assert_done(|| f_ok(1).join(f_err(1)), Err(1));
     assert_done(|| f_ok(1).join(Ok(2)), Ok((1, 2)));
     assert_done(|| f_err(1).join(f_ok(1)), Err(1));
@@ -228,7 +234,7 @@ fn select_cancels() {
     let a = a.map(move |a| { atx.send(a).unwrap(); a });
     let c = c.map(move |c| { ctx.send(c).unwrap(); c });
 
-    let mut f = a.select(c);
+    let mut f = a.select(c).then(unselect);
     // assert!(f.poll().is_none());
     assert!(arx.try_recv().is_err());
     assert!(crx.try_recv().is_err());
@@ -244,7 +250,7 @@ fn select_cancels() {
     let a = a.map(move |a| { atx.send(a).unwrap(); a });
     let c = c.map(move |c| { ctx.send(c).unwrap(); c });
 
-    let mut f = a.select(c);
+    let mut f = a.select(c).then(unselect);
     f.schedule(|_| ());
     f.schedule(assert_panic);
     // assert_panic(f.poll().unwrap());
@@ -351,13 +357,13 @@ fn select2() {
         }
     }
 
-    assert_done(|| f_ok(2).select2(empty()).then(d), Ok(2));
-    assert_done(|| empty().select2(f_ok(2)).then(d), Ok(2));
-    assert_done(|| f_err(2).select2(empty()).then(d), Err(2));
-    assert_done(|| empty().select2(f_err(2)).then(d), Err(2));
+    assert_done(|| f_ok(2).select(empty()).then(d), Ok(2));
+    assert_done(|| empty().select(f_ok(2)).then(d), Ok(2));
+    assert_done(|| f_err(2).select(empty()).then(d), Err(2));
+    assert_done(|| empty().select(f_err(2)).then(d), Err(2));
 
     assert_done(|| {
-        f_ok(1).select2(f_ok(2))
+        f_ok(1).select(f_ok(2))
                .map_err(|_| 0)
                .and_then(|(a, b)| b.map(move |b| a + b))
     }, Ok(3));
@@ -366,7 +372,7 @@ fn select2() {
     // get the notification of the second one.
     {
         let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let mut f = a.select2(c);
+        let mut f = a.select(c);
         let (tx, rx) = channel();
         f.schedule(move |r| tx.send(r).unwrap());
         b.finish(1);
@@ -385,7 +391,7 @@ fn select2() {
     // Fail the second half and ensure that we see the first one finish
     {
         let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let mut f = a.select2(c);
+        let mut f = a.select(c);
         let (tx, rx) = channel();
         f.schedule(move |r| tx.send(r).unwrap());
         d.fail(1);
@@ -406,7 +412,7 @@ fn select2() {
         let ((atx, arx), (ctx, crx)) = (channel(), channel());
         let a = a.map(move |v| { atx.send(v).unwrap(); v });
         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-        let f = a.select2(c);
+        let f = a.select(c);
         drop(f);
         assert!(crx.recv().is_err());
         assert!(arx.recv().is_err());
@@ -418,7 +424,7 @@ fn select2() {
         let ((atx, arx), (ctx, crx)) = (channel(), channel());
         let a = a.map(move |v| { atx.send(v).unwrap(); v });
         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-        let mut f = a.select2(c);
+        let mut f = a.select(c);
         f.schedule(|_| ());
         drop(f);
         assert!(crx.recv().is_err());
@@ -432,7 +438,7 @@ fn select2() {
         let a = a.map(move |v| { atx.send(v).unwrap(); v });
         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
         let (tx, rx) = channel();
-        let mut f = a.select2(c).map(move |_| tx.send(()).unwrap());
+        let mut f = a.select(c).map(move |_| tx.send(()).unwrap());
         f.schedule(|_| ());
         drop(b);
         assert!(crx.recv().is_err());
@@ -443,7 +449,7 @@ fn select2() {
     // Cancel on early drop
     {
         let (tx, rx) = channel();
-        let mut f = f_ok(1).select2(empty().map(move |()| {
+        let mut f = f_ok(1).select(empty().map(move |()| {
             tx.send(()).unwrap();
             1
         }));
