@@ -1,7 +1,7 @@
 use {Future, PollResult, Callback};
 
-mod channel;
-pub use self::channel::{channel, Sender, Receiver};
+// mod channel;
+// pub use self::channel::{channel, Sender, Receiver};
 
 mod map;
 pub use self::map::Map;
@@ -13,9 +13,7 @@ pub trait Stream/*: Send + 'static*/ {
     type Item: Send + 'static;
     type Error: Send + 'static;
 
-    fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>>;
-
-    fn cancel(&mut self);
+    // fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>>;
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static,
@@ -128,13 +126,9 @@ impl<S: ?Sized + Stream> Stream for Box<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
-        (**self).poll()
-    }
-
-    fn cancel(&mut self) {
-        (**self).cancel()
-    }
+    // fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
+    //     (**self).poll()
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(StreamResult<Self::Item, Self::Error>) +

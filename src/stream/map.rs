@@ -22,24 +22,20 @@ impl<S, F, U> Stream for Map<S, F>
     type Item = U;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
-        self.stream.poll().map(|r| {
-            r.and_then(|r| {
-                let mut f = try!(util::opt2poll(self.f.take()));
-                let e = match r {
-                    Some(e) => e,
-                    None => return Ok(None),
-                };
-                let (r, f) = try!(util::recover(|| (f(e), f)));
-                self.f = Some(f);
-                Ok(Some(r))
-            })
-        })
-    }
-
-    fn cancel(&mut self) {
-        self.stream.cancel()
-    }
+    // fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
+    //     self.stream.poll().map(|r| {
+    //         r.and_then(|r| {
+    //             let mut f = try!(util::opt2poll(self.f.take()));
+    //             let e = match r {
+    //                 Some(e) => e,
+    //                 None => return Ok(None),
+    //             };
+    //             let (r, f) = try!(util::recover(|| (f(e), f)));
+    //             self.f = Some(f);
+    //             Ok(Some(r))
+    //         })
+    //     })
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static,

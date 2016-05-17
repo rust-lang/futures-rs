@@ -69,18 +69,15 @@ impl<T, E> Stream for Receiver<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
-        match self.inner.slot.try_consume() {
-            Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
-            Ok(Message::Data(Err(e))) => Some(Err(PollError::Other(e))),
-            Ok(Message::Done) => Some(Ok(None)),
-            // Ok(Message::Canceled) => Some(Err(PollError::Canceled)),
-            Err(..) => None,
-        }
-    }
-
-    fn cancel(&mut self) {
-    }
+    // fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
+    //     match self.inner.slot.try_consume() {
+    //         Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
+    //         Ok(Message::Data(Err(e))) => Some(Err(PollError::Other(e))),
+    //         Ok(Message::Done) => Some(Ok(None)),
+    //         // Ok(Message::Canceled) => Some(Err(PollError::Canceled)),
+    //         Err(..) => None,
+    //     }
+    // }
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static
