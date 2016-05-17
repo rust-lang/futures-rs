@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {PollResult, Callback, Future, PollError};
-use cell;
+use lock::Lock;
 use util;
 
 pub struct Join<A, B> where A: Future, B: Future<Error=A::Error> {
@@ -117,18 +117,18 @@ impl<A, B> Future for Join<A, B>
 
         // TODO: optimize the case that both futures are immediately done.
         let data1 = Arc::new(Scheduled {
-            futures: cell::AtomicCell::new(None),
-            a_val: cell::AtomicCell::new(None),
-            b_val: cell::AtomicCell::new(None),
+            futures: Lock::new(None),
+            a_val: Lock::new(None),
+            b_val: Lock::new(None),
             state: AtomicUsize::new(0),
-            cb: cell::AtomicCell::new(Some(cb)),
+            cb: Lock::new(Some(cb)),
         });
         let data2 = data1.clone();
         let data3 = data2.clone();
 
         a.schedule(move |result| data1.finish(&data1.a_val, result, A_OK));
         b.schedule(move |result| data2.finish(&data2.b_val, result, B_OK));
-        *data3.futures.borrow().expect("[j] futures locked") = Some((a, b));
+        *data3.futures.try_lock().expect("[j] futures locked") = Some((a, b));
 
         // Tell the state that we've now placed the futures so they can be
         // canceled. If, however, an error already happened then we need to
@@ -158,11 +158,11 @@ struct Scheduled<A, B>
     where A: Future,
           B: Future<Error=A::Error>,
 {
-    futures: cell::AtomicCell<Option<(A, B)>>,
-    a_val: cell::AtomicCell<Option<A::Item>>,
-    b_val: cell::AtomicCell<Option<B::Item>>,
+    futures: Lock<Option<(A, B)>>,
+    a_val: Lock<Option<A::Item>>,
+    b_val: Lock<Option<B::Item>>,
     state: AtomicUsize,
-    cb: cell::AtomicCell<Option<Box<Callback<(A::Item, B::Item), A::Error>>>>,
+    cb: Lock<Option<Box<Callback<(A::Item, B::Item), A::Error>>>>,
 }
 
 impl<A, B> Scheduled<A, B>
@@ -170,12 +170,12 @@ impl<A, B> Scheduled<A, B>
           B: Future<Error=A::Error>,
 {
     fn finish<T>(&self,
-                 slot: &cell::AtomicCell<Option<T>>,
+                 slot: &Lock<Option<T>>,
                  val: PollResult<T, A::Error>,
                  flag: usize) {
         let err = match val {
             Ok(t) => {
-                let mut slot = slot.borrow().expect("[j] cannot lock own slot");
+                let mut slot = slot.try_lock().expect("[j] cannot lock own slot");
                 assert!(slot.is_none());
                 *slot = Some(t);
                 None
@@ -212,7 +212,7 @@ impl<A, B> Scheduled<A, B>
         // In both cases we're responsible for cleaning up, so all the takes()
         // here are assertions.
 
-        let cb = self.cb.borrow().expect("[j] done but cb is locked")
+        let cb = self.cb.try_lock().expect("[j] done but cb is locked")
                         .take().expect("[j] done done but cb not here");
         if let Some(e) = err {
             // If the futures have made their way over to us, then we cancel
@@ -223,16 +223,16 @@ impl<A, B> Scheduled<A, B>
             }
             cb.call(Err(e))
         } else {
-            let a = self.a_val.borrow().expect("[j] done, but a locked")
+            let a = self.a_val.try_lock().expect("[j] done, but a locked")
                               .take().expect("[j] done but a not here");
-            let b = self.b_val.borrow().expect("[j] done, but b locked")
+            let b = self.b_val.try_lock().expect("[j] done, but b locked")
                               .take().expect("[j] done but b not here");
             cb.call(Ok((a, b)))
         }
     }
 
     fn cancel(&self) {
-        let pair = self.futures.borrow().expect("[j] futures locked in cancel")
+        let pair = self.futures.try_lock().expect("[j] futures locked in cancel")
                                .take().expect("[j] cancel but futures not here");
         drop(pair)
     }

@@ -2,7 +2,7 @@ use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use cell::AtomicCell;
+use lock::Lock;
 use {Future, Callback, PollResult, IntoFuture};
 use util;
 
@@ -34,7 +34,7 @@ struct Scheduled<I>
           I::IntoIter: Send + 'static,
 {
     state: AtomicUsize,
-    slot: AtomicCell<Option<<I::Item as IntoFuture>::Future>>,
+    slot: Lock<Option<<I::Item as IntoFuture>::Future>>,
 }
 
 const CANCELED: usize = !0;
@@ -158,7 +158,7 @@ impl<I> Future for Collect<I>
         };
         let state = Arc::new(Scheduled {
             state: AtomicUsize::new(result.len()),
-            slot: AtomicCell::new(None),
+            slot: Lock::new(None),
         });
         Scheduled::run(&state, cur, remaining, result, g);
 
@@ -210,13 +210,13 @@ impl<I> Scheduled<I>
             // ensure that if a cancellation came in while we were storing the
             // future we actually cancel the future.
             n if n <= nth - 1 => {
-                match state.slot.borrow() {
+                match state.slot.try_lock() {
                     Some(mut slot) => *slot = Some(future),
                     None => return drop(future),
                 }
 
                 if state.state.load(Ordering::SeqCst) == CANCELED {
-                    let f = state.slot.borrow().and_then(|mut f| f.take());
+                    let f = state.slot.try_lock().and_then(|mut f| f.take());
                     drop(f);
                 }
             }
@@ -257,7 +257,7 @@ impl<I> Scheduled<I>
         // the lock they'll check the state again and see CANCELED, then
         // cancelling their future.
         self.state.store(CANCELED, Ordering::SeqCst);
-        let f = self.slot.borrow().and_then(|mut f| f.take());
+        let f = self.slot.try_lock().and_then(|mut f| f.take());
         drop(f);
     }
 }

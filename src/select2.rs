@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {PollResult, Callback, Future, PollError};
-use cell;
+use lock::Lock;
 use slot::Slot;
 use util;
 
@@ -50,9 +50,9 @@ impl<A, B> Future for Select2<A, B>
 
         // TODO: optimize the case that either future is immediately done.
         let data1 = Arc::new(Scheduled {
-            futures: cell::AtomicCell::new(None),
+            futures: Lock::new(None),
             state: AtomicUsize::new(0),
-            cb: cell::AtomicCell::new(Some(cb)),
+            cb: Lock::new(Some(cb)),
             data: Slot::new(None),
         });
         let data2 = data1.clone();
@@ -60,7 +60,7 @@ impl<A, B> Future for Select2<A, B>
 
         a.schedule(move |result| Scheduled::finish(data1, result));
         b.schedule(move |result| Scheduled::finish(data2, result));
-        *data3.futures.borrow().expect("[s2] futures locked") = Some((a, b));
+        *data3.futures.try_lock().expect("[s2] futures locked") = Some((a, b));
 
         // Inform our state flags that the futures are available to be canceled.
         // If the cancellation flag is set then we never turn SET on and instead
@@ -99,9 +99,9 @@ struct Scheduled<A, B>
     where A: Future,
           B: Future<Item=A::Item, Error=A::Error>,
 {
-    futures: cell::AtomicCell<Option<(A, B)>>,
+    futures: Lock<Option<(A, B)>>,
     state: AtomicUsize,
-    cb: cell::AtomicCell<Option<Box<Callback<(A::Item, Select2Next<A, B>),
+    cb: Lock<Option<Box<Callback<(A::Item, Select2Next<A, B>),
                                              (A::Error, Select2Next<A, B>)>>>>,
     data: Slot<PollResult<A::Item, A::Error>>,
 }
@@ -121,7 +121,7 @@ impl<A, B> Scheduled<A, B>
             return
         }
 
-        let cb = me.cb.borrow().expect("[s2] done but cb is locked")
+        let cb = me.cb.try_lock().expect("[s2] done but cb is locked")
                       .take().expect("[s2] done done but cb not here");
         let next = Select2Next { state: me };
         cb.call(match val {
@@ -133,7 +133,7 @@ impl<A, B> Scheduled<A, B>
     }
 
     fn cancel(&self) {
-        let pair = self.futures.borrow().expect("[s2] futures locked in cancel")
+        let pair = self.futures.try_lock().expect("[s2] futures locked in cancel")
                                .take().expect("[s2] cancel but futures not here");
         drop(pair)
     }

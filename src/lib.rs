@@ -11,7 +11,7 @@
 // select() and returning a future back
 //  * maybe this is just streams...
 
-mod cell;
+mod lock;
 mod slot;
 mod util;
 

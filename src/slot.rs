@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use cell::AtomicCell;
+use lock::Lock;
 
 /// A slot in memory intended to represent the communication channel between one
 /// producer and one consumer.
@@ -9,9 +9,9 @@ use cell::AtomicCell;
 /// The callbacks can be run when the data is either full or empty.
 pub struct Slot<T> {
     state: AtomicUsize,
-    slot: AtomicCell<Option<T>>,
-    on_full: AtomicCell<Option<Box<FnBox<T>>>>,
-    on_empty: AtomicCell<Option<Box<FnBox<T>>>>,
+    slot: Lock<Option<T>>,
+    on_full: Lock<Option<Box<FnBox<T>>>>,
+    on_empty: Lock<Option<Box<FnBox<T>>>>,
 }
 
 /// Error value returned from erroneous calls to `try_produce`.
@@ -52,9 +52,9 @@ impl<T: 'static> Slot<T> {
     pub fn new(val: Option<T>) -> Slot<T> {
         Slot {
             state: AtomicUsize::new(if val.is_some() {DATA} else {0}),
-            slot: AtomicCell::new(val),
-            on_full: AtomicCell::new(None),
-            on_empty: AtomicCell::new(None),
+            slot: Lock::new(val),
+            on_full: Lock::new(None),
+            on_empty: Lock::new(None),
         }
     }
 
@@ -65,7 +65,7 @@ impl<T: 'static> Slot<T> {
         if state.flag(DATA) {
             return Err(TryProduceError(t))
         }
-        let mut slot = self.slot.borrow().expect("interference with consumer?");
+        let mut slot = self.slot.try_lock().expect("interference with consumer?");
         assert!(slot.is_none());
         *slot = Some(t);
         drop(slot);
@@ -82,7 +82,7 @@ impl<T: 'static> Slot<T> {
             state.0 = old;
         }
         if state.flag(ON_FULL) {
-            let cb = self.on_full.borrow().expect("interference2")
+            let cb = self.on_full.try_lock().expect("interference2")
                                  .take().expect("ON_FULL but no callback");
             cb.call_box(self);
         }
@@ -100,7 +100,7 @@ impl<T: 'static> Slot<T> {
             return Token(0)
         }
         assert!(!state.flag(ON_FULL));
-        let mut slot = self.on_empty.borrow().expect("on_empty interference");
+        let mut slot = self.on_empty.try_lock().expect("on_empty interference");
         assert!(slot.is_none());
         *slot = Some(Box::new(f));
         drop(slot);
@@ -120,7 +120,7 @@ impl<T: 'static> Slot<T> {
             state.0 = old;
 
             if !state.flag(DATA) {
-                let cb = self.on_empty.borrow().expect("on_empty interference2")
+                let cb = self.on_empty.try_lock().expect("on_empty interference2")
                                       .take().expect("on_empty not empty??");
                 cb.call_box(self);
                 return Token(0)
@@ -135,7 +135,7 @@ impl<T: 'static> Slot<T> {
         if !state.flag(DATA) {
             return Err(TryConsumeError(()))
         }
-        let mut slot = self.slot.borrow().expect("interference with producer?");
+        let mut slot = self.slot.try_lock().expect("interference with producer?");
         let val = slot.take().expect("DATA but not data");
         drop(slot);
 
@@ -152,7 +152,7 @@ impl<T: 'static> Slot<T> {
         }
         assert!(!state.flag(ON_FULL));
         if state.flag(ON_EMPTY) {
-            let cb = self.on_empty.borrow().expect("interference3")
+            let cb = self.on_empty.try_lock().expect("interference3")
                                   .take().expect("ON_EMPTY but no callback");
             cb.call_box(self);
         }
@@ -170,7 +170,7 @@ impl<T: 'static> Slot<T> {
             return Token(0)
         }
         assert!(!state.flag(ON_EMPTY));
-        let mut slot = self.on_full.borrow().expect("on_full interference");
+        let mut slot = self.on_full.try_lock().expect("on_full interference");
         assert!(slot.is_none());
         *slot = Some(Box::new(f));
         drop(slot);
@@ -190,7 +190,7 @@ impl<T: 'static> Slot<T> {
             state.0 = old;
 
             if state.flag(DATA) {
-                let cb = self.on_full.borrow().expect("on_full interference2")
+                let cb = self.on_full.try_lock().expect("on_full interference2")
                                       .take().expect("on_full not full??");
                 cb.call_box(self);
                 return Token(0)
@@ -229,11 +229,11 @@ impl<T: 'static> Slot<T> {
         // TODO: communicate that this is being called as part of a
         //       cancellation?
         if state.flag(ON_FULL) {
-            let cb = self.on_full.borrow().expect("on_full interference3")
+            let cb = self.on_full.try_lock().expect("on_full interference3")
                                   .take().expect("on_full not full??");
             cb.call_box(self);
         } else {
-            let cb = self.on_empty.borrow().expect("on_empty interference3")
+            let cb = self.on_empty.try_lock().expect("on_empty interference3")
                                   .take().expect("on_empty not empty??");
             cb.call_box(self);
         }

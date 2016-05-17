@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {PollResult, Callback, Future, PollError};
-use cell;
+use lock::Lock;
 use util;
 
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
@@ -86,16 +86,16 @@ impl<A, B> Future for Select<A, B>
 
         // TODO: optimize the case that either future is immediately done.
         let data1 = Arc::new(Scheduled {
-            futures: cell::AtomicCell::new(None),
+            futures: Lock::new(None),
             state: AtomicUsize::new(0),
-            cb: cell::AtomicCell::new(Some(cb)),
+            cb: Lock::new(Some(cb)),
         });
         let data2 = data1.clone();
         let data3 = data2.clone();
 
         a.schedule(move |result| data1.finish(result, A_OK));
         b.schedule(move |result| data2.finish(result, B_OK));
-        *data3.futures.borrow().expect("[s] futures locked") = Some((a, b));
+        *data3.futures.try_lock().expect("[s] futures locked") = Some((a, b));
 
         // Tell the state that we've now placed the futures so they can be
         // canceled. If, however, an error already happened or someone already
@@ -128,9 +128,9 @@ struct Scheduled<A, B>
     where A: Future,
           B: Future,
 {
-    futures: cell::AtomicCell<Option<(A, B)>>,
+    futures: Lock<Option<(A, B)>>,
     state: AtomicUsize,
-    cb: cell::AtomicCell<Option<Box<Callback<A::Item, A::Error>>>>,
+    cb: Lock<Option<Box<Callback<A::Item, A::Error>>>>,
 }
 
 impl<A, B> Scheduled<A, B>
@@ -153,7 +153,7 @@ impl<A, B> Scheduled<A, B>
             return
         }
 
-        let cb = self.cb.borrow().expect("[s] done but cb is locked")
+        let cb = self.cb.try_lock().expect("[s] done but cb is locked")
                         .take().expect("[s] done done but cb not here");
         // If the futures have made their way over to us, then we cancel
         // them both here. Otherwise the thread putting the futures into
@@ -165,7 +165,7 @@ impl<A, B> Scheduled<A, B>
     }
 
     fn cancel(&self) {
-        let pair = self.futures.borrow().expect("[s] futures locked in cancel")
+        let pair = self.futures.try_lock().expect("[s] futures locked in cancel")
                                .take().expect("[s] cancel but futures not here");
         drop(pair)
     }
