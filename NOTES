@@ -1,3 +1,0 @@
-1. streams are Future<(T, Self)>
-2. streams reduce allocations?
-3. streams
