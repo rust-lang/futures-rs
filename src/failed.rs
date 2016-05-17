@@ -22,20 +22,6 @@ impl<T, E> Future for Failed<T, E>
     type Item = T;
     type Error = E;
 
-    // fn poll(&mut self) -> Option<PollResult<T, E>> {
-    //     Some(util::opt2poll(self.e.take()).and_then(|e| {
-    //         Err(PollError::Other(e))
-    //     }))
-    // }
-
-    // fn await(&mut self) -> FutureResult<T, E> {
-    //     Ok(try!(self.poll().unwrap()))
-    // }
-
-    // fn cancel(&mut self) {
-    //     // noop, already done
-    // }
-
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<T, E>) + Send + 'static
     {

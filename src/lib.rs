@@ -1,22 +1,9 @@
-// TODO:
-//
-// panic here or panic there?
-//  * catch_unwind is 6x slower than a normal call with panic=abort
-//      * can be 3x if we deal with PANIC_COUNT
-//  * catch_unwind is 7x slower than a normal call with panic=unwind
-//  * perspective, allocation is 20x slower than a noop call
-//  * also attributed to the indirect call
-//  * data point - wangle deals with C++ exceptions
-//
-// select() and returning a future back
-//  * maybe this is just streams...
-
 mod lock;
 mod slot;
 mod util;
 
 mod error;
-pub use error::{PollError, PollResult, FutureError, FutureResult};
+pub use error::{PollError, PollResult};
 
 pub mod executor;
 
@@ -62,39 +49,23 @@ mod chain;
 mod impls;
 mod forget;
 
-// TODO: Send + 'static is annoying, but required by cancel and_then, document
-// TODO: not object safe
-//
-// FINISH CONDITIONS
-//      - poll() return Some
-//      - await() is called
-//      - schedule() is called
-//      - schedule_boxed() is called
-//
-// BAD:
-//      - doing any finish condition after an already called finish condition
-//
-// WHAT HAPPENS
-//      - panic?
 pub trait Future: Send + 'static {
     type Item: Send + 'static;
     type Error: Send + 'static;
 
     // Contract: the closure `f` is guaranteed to get called
     //
-    // - If future is consumed, `f` is immediately called with a "panicked"
-    //   result.
-    // - If future is not consumed, arranges `f` to be called with the resolved
-    //   value. May be called earlier if `cancel` is called.
-    //
-    // This function will "consume" the future.
+    // Semantics:
+    // - If this is the first `schedule`, `f` will be called with the value when
+    //   it's ready.
+    // - Otherwise `f` is called immediately with a "panicked" value.
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static,
               Self: Sized;
 
-    // Impl detail, just do this as:
+    // Object-safety detail, equivalent to:
     //
-    //      self.schedule(|r| f.call(r))
+    //    self.schedule(|r| f.call(r))
     fn schedule_boxed(&mut self, f: Box<Callback<Self::Item, Self::Error>>);
 
     fn boxed(self) -> Box<Future<Item=Self::Item, Error=Self::Error>>
@@ -212,5 +183,18 @@ impl<F: Future> IntoFuture for F {
 
     fn into_future(self) -> F {
         self
+    }
+}
+
+impl<T, E> IntoFuture for Result<T, E>
+    where T: Send + 'static,
+          E: Send + 'static,
+{
+    type Future = Done<T, E>;
+    type Item = T;
+    type Error = E;
+
+    fn into_future(self) -> Done<T, E> {
+        done(self)
     }
 }

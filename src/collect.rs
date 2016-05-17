@@ -62,77 +62,6 @@ impl<I> Future for Collect<I>
     type Item = Vec<<I::Item as IntoFuture>::Item>;
     type Error = <I::Item as IntoFuture>::Error;
 
-    // fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
-    //     let (cur, remaining, result) = match self.state {
-    //         State::Local { ref mut cur, ref mut remaining, ref mut result } => {
-    //             (cur, remaining, result)
-    //         }
-    //         State::Canceled => return Some(Err(PollError::Canceled)),
-    //         State::Scheduled(..) |
-    //         State::Done => return Some(Err(util::reused())),
-    //     };
-    //     loop {
-    //         match cur.as_mut().map(Future::poll) {
-    //             Some(Some(Ok(i))) => {
-    //                 result.as_mut().unwrap().push(i);
-    //                 *cur = remaining.next().map(IntoFuture::into_future);
-    //             }
-    //             Some(Some(Err(e))) => {
-    //                 for item in remaining {
-    //                     item.into_future().cancel();
-    //                 }
-    //                 return Some(Err(e))
-    //             }
-    //             Some(None) => return None,
-    //
-    //             None => {
-    //                 match result.take() {
-    //                     Some(vec) => return Some(Ok(vec)),
-    //                     None => return Some(Err(util::reused())),
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-    // fn await(&mut self) -> FutureResult<Self::Item, Self::Error> {
-    //     if self.canceled {
-    //         return Err(FutureError::Canceled)
-    //     }
-    //     let remaining = try!(util::opt2poll(self.remaining.as_mut()));
-    //     let mut err = None;
-    //     for item in self.cur.take().into_iter().chain(remaining) {
-    //         if err.is_some() {
-    //             item.cancel();
-    //         } else {
-    //             match item.await() {
-    //                 Ok(item) => self.result.push(item),
-    //                 Err(e) => err = Some(e),
-    //             }
-    //         }
-    //     }
-    //     match err {
-    //         Some(err) => Err(err),
-    //         None => Ok(mem::replace(&mut self.result, Vec::new()))
-    //     }
-    // }
-
-    // fn cancel(&mut self) {
-    //     match self.state {
-    //         State::Local { ref mut cur, ref mut remaining, .. } => {
-    //             if let Some(mut cur) = cur.take() {
-    //                 cur.cancel();
-    //             }
-    //             for future in remaining {
-    //                 future.into_future().cancel();
-    //             }
-    //         }
-    //         State::Scheduled(ref s) => s.cancel(),
-    //         State::Canceled | State::Done => return,
-    //     }
-    //     self.state = State::Canceled;
-    // }
-
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
     {
@@ -140,7 +69,6 @@ impl<I> Future for Collect<I>
             State::Local { cur, remaining, result } => {
                 (cur, remaining, result)
             }
-            // State::Canceled => return g(Err(PollError::Canceled)),
             State::Scheduled(s) => {
                 self.state = State::Scheduled(s);
                 return g(Err(util::reused()))

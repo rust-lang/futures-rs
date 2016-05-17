@@ -21,29 +21,6 @@ impl<T, E> Future for Empty<T, E>
     type Item = T;
     type Error = E;
 
-    // fn poll(&mut self) -> Option<PollResult<T, E>> {
-    //     if self.canceled {
-    //         Some(Err(PollError::Canceled))
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    // fn await(&mut self) -> FutureResult<T, E> {
-    //     if self.canceled {
-    //         Err(FutureError::Canceled)
-    //     } else {
-    //         panic!("cannot ever successfully await() on Empty")
-    //     }
-    // }
-
-    // fn cancel(&mut self) {
-    //     self.canceled = true;
-    //     if let Some(cb) = self.callback.take() {
-    //         cb.call(Err(PollError::Canceled))
-    //     }
-    // }
-
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<T, E>) + Send + 'static
     {
