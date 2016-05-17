@@ -229,3 +229,85 @@ fn join5() {
     assert_eq!(rx.recv(), Ok(((1, 2), 3)));
     assert!(rx.recv().is_err());
 }
+
+#[test]
+fn select1() {
+    let (p1, c1) = promise::<i32, i32>();
+    let (p2, c2) = promise::<i32, i32>();
+    let (tx, rx) = channel();
+    p1.select2(p2).map(move |v| tx.send(v).unwrap()).forget();
+    assert!(rx.try_recv().is_err());
+    c1.finish(1);
+    let (v, p2) = rx.recv().unwrap();
+    assert_eq!(v, 1);
+    assert!(rx.recv().is_err());
+
+    let (tx, rx) = channel();
+    p2.map(move |v| tx.send(v).unwrap()).forget();
+    c2.finish(2);
+    assert_eq!(rx.recv(), Ok(2));
+    assert!(rx.recv().is_err());
+}
+
+#[test]
+fn select2() {
+    let (p1, c1) = promise::<i32, i32>();
+    let (p2, c2) = promise::<i32, i32>();
+    let (tx, rx) = channel();
+    p1.select2(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    assert!(rx.try_recv().is_err());
+    c1.fail(1);
+    let (v, p2) = rx.recv().unwrap();
+    assert_eq!(v, 1);
+    assert!(rx.recv().is_err());
+
+    let (tx, rx) = channel();
+    p2.map(move |v| tx.send(v).unwrap()).forget();
+    c2.finish(2);
+    assert_eq!(rx.recv(), Ok(2));
+    assert!(rx.recv().is_err());
+}
+
+#[test]
+fn select3() {
+    let (p1, c1) = promise::<i32, i32>();
+    let (p2, c2) = promise::<i32, i32>();
+    let (tx, rx) = channel();
+    p1.select2(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    assert!(rx.try_recv().is_err());
+    c1.fail(1);
+    let (v, p2) = rx.recv().unwrap();
+    assert_eq!(v, 1);
+    assert!(rx.recv().is_err());
+
+    let (tx, rx) = channel();
+    p2.map_err(move |v| tx.send(v).unwrap()).forget();
+    c2.fail(2);
+    assert_eq!(rx.recv(), Ok(2));
+    assert!(rx.recv().is_err());
+}
+
+#[test]
+fn select4() {
+    let (tx, rx) = channel::<Complete<i32, i32>>();
+
+    let t = thread::spawn(move || {
+        for c in rx {
+            c.finish(1);
+        }
+    });
+
+    let (tx2, rx2) = channel();
+    for _ in 0..10000 {
+        let (p1, c1) = promise::<i32, i32>();
+        let (p2, c2) = promise::<i32, i32>();
+
+        let tx3 = tx2.clone();
+        p1.select(p2).map(move |_| tx3.send(()).unwrap()).forget();
+        tx.send(c1).unwrap();
+        rx2.recv().unwrap();
+        drop(c2);
+    }
+
+    t.join().unwrap();
+}
