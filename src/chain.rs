@@ -54,7 +54,19 @@ impl<A, B, C> Chain<A, B, C>
                 });
                 let slot2 = slot.clone();
                 a.schedule(move |r| {
+                    // Eagerly drop the first future in case it's holding on to
+                    // any resources, it's done and we don't need it any more.
+                    //
+                    // Note that this should crucially help a recursive chain of
+                    // `.and_then(|_| and_then(|_| ..))` from allocating
+                    // "infinite memory" because we'll drop the left hand side
+                    // ASAP which means that the only memory active is in theory
+                    // just for futures in flight.
+                    //
+                    // TODO: needs a test and probably some assurances that this
+                    //       is indeed happening.
                     slot.drop_a();
+
                     let mut b = match f(r, data) {
                         Ok(Ok(e)) => return g(Ok(e)),
                         Ok(Err(b)) => b,
