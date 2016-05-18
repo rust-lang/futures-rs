@@ -2,7 +2,7 @@ use {Future, IntoFuture, PollError, Callback, PollResult};
 use util;
 use chain::Chain;
 
-pub struct Then<A, B, F> where B: IntoFuture {
+pub struct Then<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,
 }
 

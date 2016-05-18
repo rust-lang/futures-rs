@@ -1,4 +1,4 @@
-use {Future, PollResult, Callback};
+use {PollResult, Callback};
 
 // mod channel;
 // pub use self::channel::{channel, Sender, Receiver};

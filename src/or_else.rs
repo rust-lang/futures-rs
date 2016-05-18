@@ -2,7 +2,7 @@ use {Future, IntoFuture, Callback, PollResult, PollError};
 use util;
 use chain::Chain;
 
-pub struct OrElse<A, B, F> where B: IntoFuture {
+pub struct OrElse<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,
 }
 

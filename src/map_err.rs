@@ -30,14 +30,15 @@ impl<U, A, F> Future for MapErr<A, F>
         };
 
         self.future.schedule(|result| {
-            g(match result {
-                Err(PollError::Other(e)) => {
+            let r = match (result, f) {
+                (Err(PollError::Other(e)), f) => {
                     util::recover(|| f(e)).and_then(|e| Err(PollError::Other(e)))
                 }
-                Err(PollError::Panicked(e)) => Err(PollError::Panicked(e)),
-                Err(PollError::Canceled) => Err(PollError::Canceled),
-                Ok(e) => Ok(e),
-            })
+                (Err(PollError::Panicked(e)), _) => Err(PollError::Panicked(e)),
+                (Err(PollError::Canceled), _) => Err(PollError::Canceled),
+                (Ok(e), _) => Ok(e),
+            };
+            g(r)
         })
     }
 

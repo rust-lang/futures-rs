@@ -2,7 +2,7 @@ use {Future, IntoFuture, Callback, PollResult};
 use util;
 use chain::Chain;
 
-pub struct AndThen<A, B, F> where B: IntoFuture {
+pub struct AndThen<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,
 }
 
