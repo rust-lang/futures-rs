@@ -4,11 +4,12 @@ extern crate futures;
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
+use std::panic;
 use std::slice;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, TryRecvError};
 
-use futures::{Future, FutureResult, promise, Complete};
+use futures::{Future, promise, Complete, PollError};
 // use slot::Slot;
 //
 // thread_local!{
@@ -355,7 +356,7 @@ impl Loop {
     }
 
     pub fn await<F: Future>(&mut self, mut f: F)
-                            -> FutureResult<F::Item, F::Error> {
+                            -> Result<F::Item, F::Error> {
         let (tx, rx) = channel();
         f.schedule(move |r| {
             drop(tx.send(r))
@@ -370,7 +371,12 @@ impl Loop {
             }
             ret.is_some()
         });
-        Ok(try!(ret.unwrap()))
+        match ret.unwrap() {
+            Ok(e) => Ok(e),
+            Err(PollError::Other(e)) => Err(e),
+            Err(PollError::Panicked(p)) => panic::resume_unwind(p),
+            Err(PollError::Canceled) => panic!("canceled"),
+        }
     }
 
     fn _await(&mut self, done: &mut FnMut() -> bool) {
@@ -407,8 +413,12 @@ impl Loop {
         }
     }
 
-    pub fn tcp_listen(&self, addr: &SocketAddr) -> io::Result<TcpListener> {
+    pub fn tcp_listen(&mut self, addr: &SocketAddr) -> io::Result<TcpListener> {
         let tcp = try!(mio::tcp::TcpListener::bind(addr));
+        try!(self.io.register(&tcp,
+                              mio::Token(0),
+                              mio::EventSet::none(),
+                              mio::PollOpt::empty()));
         let io = self.io.channel();
 
         Ok(TcpListener {
