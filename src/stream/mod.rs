@@ -4,12 +4,15 @@ use {Future, PollResult, Callback};
 // pub use self::channel::{channel, Sender, Receiver};
 
 mod map;
+mod filter;
+mod map_err;
 pub use self::map::Map;
+pub use self::map_err::MapErr;
+pub use self::filter::Filter;
 
 pub type StreamResult<T, E> = PollResult<Option<T>, E>;
 
-// TODO: Send + 'static is unfortunate
-pub trait Stream/*: Send + 'static*/ {
+pub trait Stream: Send + 'static {
     type Item: Send + 'static;
     type Error: Send + 'static;
 
@@ -30,27 +33,21 @@ pub trait Stream/*: Send + 'static*/ {
         map::new(self, f)
     }
 
-    // fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
-    //     where F: FnMut(Self::Error) -> U + Send + 'static,
-    //           U: Send + 'static,
-    //           Self: Sized
-    // {
-    //     MapErr {
-    //         stream: self,
-    //         f: f,
-    //     }
-    // }
-    //
-    // fn filter<F>(self, f: F) -> Filter<Self, F>
-    //     where F: FnMut(&Self::Item) -> bool + Send + 'static,
-    //           Self: Sized
-    // {
-    //     Filter {
-    //         stream: self,
-    //         f: f,
-    //     }
-    // }
-    //
+    fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
+        where F: FnMut(Self::Error) -> U + Send + 'static,
+              U: Send + 'static,
+              Self: Sized
+    {
+        map_err::new(self, f)
+    }
+
+    fn filter<F>(self, f: F) -> Filter<Self, F>
+        where F: FnMut(&Self::Item) -> bool + Send + 'static,
+              Self: Sized
+    {
+        filter::new(self, f)
+    }
+
     // // TODO: is this the same as map + flatten?
     // fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
     //     where F: FnMut(Self::Item) -> U + Send + 'static,
@@ -205,78 +202,6 @@ impl<S: ?Sized + Stream> Stream for Box<S> {
 //             }
 //             None => g(None, self),
 //         }
-//     }
-// }
-//
-// pub struct MapErr<S, F> {
-//     stream: S,
-//     f: F,
-// }
-//
-// impl<S, F, U> Stream for MapErr<S, F>
-//     where S: Stream,
-//           F: FnMut(S::Error) -> U + Send + 'static,
-//           U: Send + 'static,
-// {
-//     type Item = S::Item;
-//     type Error = U;
-//
-//     fn poll(&mut self) -> Result<Self::Item, PollError<Self::Error>> {
-//         self.stream.poll().map_err(|e| {
-//             e.map(&mut self.f)
-//         })
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Option<Result<Self::Item, Self::Error>>, Self) +
-//                     Send + 'static,
-//     {
-//         let MapErr { stream, mut f } = self;
-//         stream.schedule(move |result, s| {
-//             g(result.map(|r| r.map_err(&mut f)), MapErr { stream: s, f: f })
-//         })
-//     }
-// }
-//
-// pub struct Filter<S, F> {
-//     stream: S,
-//     f: F,
-// }
-//
-// impl<S, F> Stream for Filter<S, F>
-//     where S: Stream,
-//           F: FnMut(&S::Item) -> bool + Send + 'static,
-// {
-//     type Item = S::Item;
-//     type Error = S::Error;
-//
-//     fn poll(&mut self) -> Result<Self::Item, PollError<Self::Error>> {
-//         loop {
-//             match self.stream.poll() {
-//                 Ok(item) => {
-//                     if (self.f)(&item) {
-//                         return Ok(item)
-//                     }
-//                 }
-//                 Err(e) => return Err(e),
-//             }
-//         }
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Option<Result<Self::Item, Self::Error>>, Self) +
-//                     Send + 'static,
-//     {
-//         let Filter { stream, f } = self;
-//         stream.schedule(move |result, s| {
-//             let mut me = Filter { stream: s, f: f };
-//             if let Some(Ok(ref item)) = result {
-//                 if !(me.f)(item) {
-//                     return me.schedule(g)
-//                 }
-//             }
-//             g(result, me)
-//         })
 //     }
 // }
 //

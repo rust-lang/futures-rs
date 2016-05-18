@@ -1,29 +1,29 @@
 use std::sync::Arc;
 
-use Callback;
+use {Callback, PollError};
 use slot::Slot;
 use stream::{Stream, StreamResult};
 use util;
 
-pub struct Map<S, F> {
+pub struct MapErr<S, F> {
     stream: S,
     f: Arc<Slot<F>>,
 }
 
-pub fn new<S, F>(s: S, f: F) -> Map<S, F> where F: Send + 'static {
-    Map {
+pub fn new<S, F>(s: S, f: F) -> MapErr<S, F> where F: Send + 'static {
+    MapErr {
         stream: s,
         f: Arc::new(Slot::new(Some(f))),
     }
 }
 
-impl<S, F, U> Stream for Map<S, F>
+impl<S, F, U> Stream for MapErr<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> U + Send + 'static,
+          F: FnMut(S::Error) -> U + Send + 'static,
           U: Send + 'static,
 {
-    type Item = U;
-    type Error = S::Error;
+    type Item = S::Item;
+    type Error = U;
 
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static,
@@ -35,17 +35,22 @@ impl<S, F, U> Stream for Map<S, F>
         let slot = self.f.clone();
         self.stream.schedule(move |res| {
             let (f, res) = match res {
-                Ok(Some(e)) => {
+                Ok(e) => (Some(f), Ok(e)),
+                Err(PollError::Other(e)) => {
                     match util::recover(|| (f(e), f)) {
-                        Ok((r, f)) => (Some(f), Ok(Some(r))),
+                        Ok((r, f)) => (Some(f), Err(PollError::Other(r))),
                         Err(e) => (None, Err(e)),
                     }
                 }
-                Ok(None) => (Some(f), Ok(None)),
-                Err(e) => (Some(f), Err(e)),
+                Err(PollError::Panicked(e)) => {
+                    (Some(f), Err(PollError::Panicked(e)))
+                }
+                Err(PollError::Canceled) => {
+                    (Some(f), Err(PollError::Canceled))
+                }
             };
             if let Some(f) = f {
-                slot.try_produce(f).ok().expect("map stream failed to produce");
+                slot.try_produce(f).ok().expect("map_err stream failed to produce");
             }
             g(res)
         })
@@ -56,4 +61,5 @@ impl<S, F, U> Stream for Map<S, F>
         self.schedule(|r| g.call(r))
     }
 }
+
 
