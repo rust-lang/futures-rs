@@ -11,7 +11,7 @@ fn fetch_item() -> Box<MyFuture<Option<Foo>>> {
 fn fetch_item2(a: Box<MyFuture<Foo>>, b: Box<MyFuture<Foo>>) -> Box<MyFuture<Option<Foo>>> {
     let a = a.then(|a| disambiguate(a, 0));
     let b = b.then(|b| disambiguate(b, 1));
-    a.select2(b).map(Some).select2(timeout()).then(|res| {
+    a.select(b).map(Some).select(timeout()).then(|res| {
         let (to_restart, other) = match res {
             // Something finished successfully, see if it's a valid response
             Ok((Some(((val, which), next)), _next_timeout)) => {
