@@ -31,9 +31,9 @@ pub struct TcpListener {
     tx: mio::channel::Sender<Message>,
 }
 
-pub struct ErrorBuf {
-    buf: Vec<u8>,
+pub struct Error<T> {
     err: io::Error,
+    data: T,
 }
 
 impl TcpListener {
@@ -105,7 +105,7 @@ impl TcpStream {
     }
 
     pub fn read(&self, mut into: Vec<u8>)
-                -> Box<Future<Item=Vec<u8>, Error=ErrorBuf>> {
+                -> Box<Future<Item=Vec<u8>, Error=Error<Vec<u8>>>> {
         let r = unsafe {
             (&*self.tcp).read(slice_to_end(&mut into))
         };
@@ -119,10 +119,7 @@ impl TcpStream {
             }
             Err(e) => {
                 if e.kind() != io::ErrorKind::WouldBlock {
-                    return futures::failed(ErrorBuf {
-                        err: e,
-                        buf: into,
-                    }).boxed()
+                    return futures::failed(Error::new(e, into)).boxed()
                 }
             }
         }
@@ -140,35 +137,27 @@ impl TcpStream {
                     match res {
                         Ok(()) => me2.read(into),
                         Err(e) => {
-                            futures::failed(ErrorBuf {
-                                err: e,
-                                buf: into,
-                            }).boxed()
+                            futures::failed(Error::new(e, into)).boxed()
                         }
                     }
                 }).boxed()
             }
             Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(ErrorBuf {
-                    err: e,
-                    buf: into,
-                }).boxed()
+                return futures::failed(Error::new(e, into)).boxed()
             }
             Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
 
     pub fn write(&self, offset: usize, data: Vec<u8>)
-                 -> Box<Future<Item=(usize, Vec<u8>), Error=ErrorBuf>> {
+                 -> Box<Future<Item=(usize, Vec<u8>),
+                               Error=Error<(usize, Vec<u8>)>>> {
         let r = (&*self.tcp).write(&data[offset..]);
         match r {
             Ok(i) => return futures::finished((offset + i, data)).boxed(),
             Err(e) => {
                 if e.kind() != io::ErrorKind::WouldBlock {
-                    return futures::failed(ErrorBuf {
-                        buf: data,
-                        err: e
-                    }).boxed()
+                    return futures::failed(Error::new(e, (offset, data))).boxed()
                 }
             }
         }
@@ -186,19 +175,13 @@ impl TcpStream {
                     match res {
                         Ok(()) => me2.write(offset, data),
                         Err(e) => {
-                            futures::failed(ErrorBuf {
-                                buf: data,
-                                err: e
-                            }).boxed()
+                            futures::failed(Error::new(e, (offset, data))).boxed()
                         }
                     }
                 }).boxed()
             }
             Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(ErrorBuf {
-                    err: e,
-                    buf: data,
-                }).boxed()
+                return futures::failed(Error::new(e, (offset, data))).boxed()
             }
             Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
@@ -335,14 +318,21 @@ impl Loop {
     }
 }
 
-impl ErrorBuf {
-    pub fn into_pair(self) -> (io::Error, Vec<u8>) {
-        (self.err, self.buf)
+impl<T> Error<T> {
+    pub fn new(err: io::Error, data: T) -> Error<T> {
+        Error {
+            err: err,
+            data: data,
+        }
+    }
+
+    pub fn into_pair(self) -> (io::Error, T) {
+        (self.err, self.data)
     }
 }
 
-impl From<ErrorBuf> for io::Error {
-    fn from(buf: ErrorBuf) -> io::Error {
-        buf.err
+impl<T> From<Error<T>> for io::Error {
+    fn from(e: Error<T>) -> io::Error {
+        e.err
     }
 }
