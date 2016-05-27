@@ -26,7 +26,7 @@ fn main() {
 
     fn read(s: futuremio::TcpStream, mut v: Vec<u8>) -> Box<futuremio::IoFuture<()>> {
         v.truncate(0);
-        let data = s.read(v);
+        let data = s.read(v).map_err(From::from);
         data.and_then(|v| {
             CNT.fetch_add(v.len(), Ordering::SeqCst);
             read(s, v)

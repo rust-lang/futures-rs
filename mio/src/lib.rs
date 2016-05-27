@@ -10,13 +10,6 @@ use std::sync::Arc;
 use std::sync::mpsc::{channel, TryRecvError};
 
 use futures::{Future, promise, Complete, PollError};
-// use slot::Slot;
-//
-// thread_local!{
-//     pub static INNER: Arc<Inner> = Arc::new(Inner {
-//         poll: mio::Poll::new().unwrap(),
-//     })
-// }
 
 pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
 
@@ -33,36 +26,14 @@ enum Message {
     Register(Arc<mio::Evented + Send + Sync>),
 }
 
-// pub struct TcpConnect {
-//     tcp: mio::tcp::TcpStream,
-//     slot: Arc<Slot<mio::EventSet>>,
-//     inner: Arc<Inner>,
-// }
-//
-// impl Future for TcpConnect {
-//     type Item = TcpStream;
-//     type Error = io::Error;
-//
-//     fn poll(self) -> Result<io::Result<TcpStream>, TcpConnect> {
-//         match self.slot.try_consume() {
-//             Ok(_events) => Ok(Ok(TcpStream::new(self.tcp, self.inner))),
-//             Err(..) => Err(self),
-//         }
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
-//     {
-//         self.slot.clone().on_full(move |_events| {
-//             g(Ok(TcpStream::new(self.tcp, self.inner)))
-//         });
-//     }
-// }
-//
-
 pub struct TcpListener {
     tcp: Arc<mio::tcp::TcpListener>,
     tx: mio::channel::Sender<Message>,
+}
+
+pub struct ErrorBuf {
+    buf: Vec<u8>,
+    err: io::Error,
 }
 
 impl TcpListener {
@@ -114,44 +85,6 @@ impl TcpListener {
     }
 }
 
-// impl Future for TcpListener {
-//     type Item = (TcpStream, SocketAddr, TcpListener);
-//     type Error = io::Error;
-//
-//     fn poll(self) -> Result<io::Result<(TcpStream, SocketAddr, TcpListener)>,
-//                                        TcpListener> {
-//         match self.tcp.accept() {
-//             Ok(Some((stream, addr))) => {
-//                 let stream = TcpStream::new(stream, self.inner.clone());
-//                 Ok(Ok((stream, addr, self)))
-//             }
-//             Ok(None) => Err(self),
-//             Err(e) => Ok(Err(e)),
-//         }
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
-//     {
-//         let me = match self.poll() {
-//             Ok(item) => return g(item),
-//             Err(me) => me,
-//         };
-//         let res = me.inner.poll.register(&me.tcp,
-//                                          slot2token(me.slot.clone()),
-//                                          mio::EventSet::readable(),
-//                                          mio::PollOpt::edge() |
-//                                              mio::PollOpt::oneshot());
-//         if let Err(e) = res {
-//             return g(Err(e))
-//         }
-//         me.slot.clone().on_full(move |slot| {
-//             slot.try_consume().ok().unwrap();
-//             me.schedule(g)
-//         });
-//     }
-// }
-
 pub struct TcpStream {
     tcp: Arc<mio::tcp::TcpStream>,
     tx: mio::channel::Sender<Message>,
@@ -163,13 +96,6 @@ unsafe fn slice_to_end(v: &mut Vec<u8>) -> &mut [u8] {
 }
 
 impl TcpStream {
-//     fn new(tcp: mio::tcp::TcpStream, inner: Arc<Inner>) -> TcpStream {
-//         TcpStream {
-//             tcp: tcp,
-//             inner: inner,
-//         }
-//     }
-
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.tcp.local_addr()
     }
@@ -178,7 +104,8 @@ impl TcpStream {
         self.tcp.peer_addr()
     }
 
-    pub fn read(&self, mut into: Vec<u8>) -> Box<IoFuture<Vec<u8>>> {
+    pub fn read(&self, mut into: Vec<u8>)
+                -> Box<Future<Item=Vec<u8>, Error=ErrorBuf>> {
         let r = unsafe {
             (&*self.tcp).read(slice_to_end(&mut into))
         };
@@ -192,7 +119,10 @@ impl TcpStream {
             }
             Err(e) => {
                 if e.kind() != io::ErrorKind::WouldBlock {
-                    return futures::failed(e).boxed()
+                    return futures::failed(ErrorBuf {
+                        err: e,
+                        buf: into,
+                    }).boxed()
                 }
             }
         }
@@ -206,23 +136,39 @@ impl TcpStream {
                     tcp: self.tcp.clone(),
                     tx: self.tx.clone(),
                 };
-                p.and_then(move |()| me2.read(into)).boxed()
+                p.then(move |res| {
+                    match res {
+                        Ok(()) => me2.read(into),
+                        Err(e) => {
+                            futures::failed(ErrorBuf {
+                                err: e,
+                                buf: into,
+                            }).boxed()
+                        }
+                    }
+                }).boxed()
             }
             Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(e).boxed()
+                return futures::failed(ErrorBuf {
+                    err: e,
+                    buf: into,
+                }).boxed()
             }
             Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
 
     pub fn write(&self, offset: usize, data: Vec<u8>)
-                 -> Box<IoFuture<(usize, Vec<u8>)>> {
+                 -> Box<Future<Item=(usize, Vec<u8>), Error=ErrorBuf>> {
         let r = (&*self.tcp).write(&data[offset..]);
         match r {
             Ok(i) => return futures::finished((offset + i, data)).boxed(),
             Err(e) => {
                 if e.kind() != io::ErrorKind::WouldBlock {
-                    return futures::failed(e).boxed()
+                    return futures::failed(ErrorBuf {
+                        buf: data,
+                        err: e
+                    }).boxed()
                 }
             }
         }
@@ -236,120 +182,28 @@ impl TcpStream {
                     tcp: self.tcp.clone(),
                     tx: self.tx.clone(),
                 };
-                p.and_then(move |()| me2.write(offset, data)).boxed()
+                p.then(move |res| {
+                    match res {
+                        Ok(()) => me2.write(offset, data),
+                        Err(e) => {
+                            futures::failed(ErrorBuf {
+                                buf: data,
+                                err: e
+                            }).boxed()
+                        }
+                    }
+                }).boxed()
             }
             Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(e).boxed()
+                return futures::failed(ErrorBuf {
+                    err: e,
+                    buf: data,
+                }).boxed()
             }
             Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
-
-//     pub fn write(self, buf: Vec<u8>) -> io::Result<TcpWrite> {
-//         let slot = Arc::new(Slot::new(None));
-//         Ok(TcpWrite {
-//             stream: self,
-//             buf: buf,
-//             slot: slot,
-//         })
-//     }
-//
-//     fn try_read(&self, into: &mut Vec<u8>) -> io::Result<Option<usize>> {
-//         let mut tcp = &self.tcp;
-//         unsafe {
-//             let cur = into.len();
-//             let dst = into.as_mut_ptr().offset(cur as isize);
-//             let len = into.capacity() - cur;
-//             match tcp.try_read(slice::from_raw_parts_mut(dst, len)) {
-//                 Ok(Some(amt)) => {
-//                     into.set_len(cur + amt);
-//                     Ok(Some(amt))
-//                 }
-//                 other => other,
-//             }
-//         }
-//     }
 }
-//
-// pub struct TcpRead {
-//     stream: TcpStream,
-//     buf: Vec<u8>,
-//     slot: Arc<Slot<mio::EventSet>>,
-// }
-//
-// impl Future for TcpRead {
-//     type Item = (Vec<u8>, usize, TcpStream);
-//     type Error = io::Error;
-//
-//     fn poll(mut self) -> Result<io::Result<Self::Item>, Self> {
-//         match self.stream.try_read(&mut self.buf) {
-//             Ok(Some(amt)) => Ok(Ok((self.buf, amt, self.stream))),
-//             Ok(None) => Err(self),
-//             Err(e) => Ok(Err(e)),
-//         }
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
-//     {
-//         let me = match self.poll() {
-//             Ok(item) => return g(item),
-//             Err(me) => me,
-//         };
-//         let res = me.stream.inner.poll.register(&me.stream.tcp,
-//                                                 slot2token(me.slot.clone()),
-//                                                 mio::EventSet::readable(),
-//                                                 mio::PollOpt::edge() |
-//                                                         mio::PollOpt::oneshot());
-//         if let Err(e) = res {
-//             return g(Err(e))
-//         }
-//         me.slot.clone().on_full(move |slot| {
-//             slot.try_consume().ok().unwrap();
-//             me.schedule(g)
-//         });
-//     }
-// }
-//
-// pub struct TcpWrite {
-//     stream: TcpStream,
-//     buf: Vec<u8>,
-//     slot: Arc<Slot<mio::EventSet>>,
-// }
-//
-// impl Future for TcpWrite {
-//     type Item = (Vec<u8>, usize, TcpStream);
-//     type Error = io::Error;
-//
-//     fn poll(mut self) -> Result<io::Result<Self::Item>, Self> {
-//         match (&self.stream.tcp).try_write(&mut self.buf) {
-//             Ok(Some(amt)) => Ok(Ok((self.buf, amt, self.stream))),
-//             Ok(None) => Err(self),
-//             Err(e) => Ok(Err(e)),
-//         }
-//     }
-//
-//     fn schedule<G>(self, g: G)
-//         where G: FnOnce(Result<Self::Item, Self::Error>) + Send + 'static
-//     {
-//         let me = match self.poll() {
-//             Ok(item) => return g(item),
-//             Err(me) => me,
-//         };
-//         let res = me.stream.inner.poll.register(&me.stream.tcp,
-//                                                 slot2token(me.slot.clone()),
-//                                                 mio::EventSet::writable(),
-//                                                 mio::PollOpt::edge() |
-//                                                         mio::PollOpt::oneshot());
-//         if let Err(e) = res {
-//             return g(Err(e))
-//         }
-//         me.slot.clone().on_full(move |slot| {
-//             slot.try_consume().ok().unwrap();
-//             me.schedule(g)
-//         });
-//     }
-// }
 
 impl Loop {
     pub fn new() -> io::Result<Loop> {
@@ -480,46 +334,15 @@ impl Loop {
         })
     }
 }
-//
-// impl Inner {
-//     pub fn await(&self, slot: &Slot<()>) {
-//         let (reader, mut writer) = mio::unix::pipe().unwrap();
-//         let mut events = mio::Events::new();
-//         let mut done = false;
-//         slot.on_full(move |_slot| {
-//             use std::io::Write;
-//             writer.write(&[1]).unwrap();
-//         });
-//         self.poll.register(&reader, mio::Token(0),
-//                            mio::EventSet::readable(),
-//                            mio::PollOpt::edge()).unwrap();
-//         while !done {
-//             self.poll.poll(&mut events, None).unwrap();
-//             for event in events.iter() {
-//                 if event.token() == mio::Token(0) {
-//                     done = true;
-//                     continue
-//                 }
-//                 let slot = unsafe { token2slot(event.token()) };
-//                 let kind = event.kind();
-//                 slot.on_empty(move |complete| {
-//                     complete.try_produce(kind).ok().unwrap();
-//                 });
-//             }
-//         }
-//     }
-// }
-//
-// unsafe fn token2slot(token: mio::Token) -> Arc<Slot<mio::EventSet>> {
-//     mem::transmute(token.as_usize())
-// }
-//
-// fn slot2token(c: Arc<Slot<mio::EventSet>>) -> mio::Token {
-//     unsafe { mio::Token(mem::transmute::<_, usize>(c)) }
-// }
 
-// impl mio::Handler for Inner {
-//     type Timeout = ();
-//     type Message = Message;
-//
-// }
+impl ErrorBuf {
+    pub fn into_pair(self) -> (io::Error, Vec<u8>) {
+        (self.err, self.buf)
+    }
+}
+
+impl From<ErrorBuf> for io::Error {
+    fn from(buf: ErrorBuf) -> io::Error {
+        buf.err
+    }
+}
