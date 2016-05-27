@@ -1,0 +1,13 @@
+[package]
+name = "http"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+futuremio = { path = "../mio" }
+futures = { path = ".." }
+httparse = "1.1"
+time = "0.1"
+
+[profile.release]
+debug = true
