@@ -12,6 +12,8 @@ pub trait Executor: Send + Sync + 'static {
     fn execute_boxed(&self, f: Box<ExecuteCallback>);
 }
 
+pub static DEFAULT: Limited = Limited;
+
 impl<T: Executor + ?Sized + Send + Sync + 'static> Executor for Box<T> {
     fn execute_boxed(&self, f: Box<ExecuteCallback>) {
         (**self).execute_boxed(f)
@@ -34,9 +36,9 @@ impl<F: FnOnce() + Send + 'static> ExecuteCallback for F {
     }
 }
 
-pub struct Default;
+pub struct Inline;
 
-impl Executor for Default {
+impl Executor for Inline {
     fn execute<F: FnOnce() + Send + 'static>(&self, f: F) {
         f()
     }
@@ -58,8 +60,11 @@ struct LimitState {
 }
 
 impl Executor for Limited {
-    fn execute_boxed(&self, f: Box<ExecuteCallback>) {
+    fn execute<F>(&self, f: F) where F: FnOnce() + Send + 'static {
         LIMITED.with(|state| state.execute(f))
+    }
+    fn execute_boxed(&self, f: Box<ExecuteCallback>) {
+        self.execute(|| f.call());
     }
 }
 
@@ -71,23 +76,26 @@ impl LimitState {
         }
     }
 
-    fn execute(&self, cb: Box<ExecuteCallback>) {
+    fn execute<F>(&self, f: F) where F: FnOnce() + Send + 'static {
         match self.count.get() {
             0 => {
                 self.count.set(1);
-                let mut cb = Some(cb);
-                while let Some(f) = cb {
-                    f.call();
-                    cb = self.deferred.borrow_mut().pop();
+                f();
+                loop {
+                    let cb = self.deferred.borrow_mut().pop();
+                    match cb {
+                        Some(f) => f.call(),
+                        None => break,
+                    }
                 }
                 self.count.set(0);
             }
             n if n < LIMIT => {
                 self.count.set(n + 1);
-                cb.call();
+                f();
                 self.count.set(n);
             }
-            _ => self.deferred.borrow_mut().push(cb),
+            _ => self.deferred.borrow_mut().push(Box::new(f)),
         }
     }
 }

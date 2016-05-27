@@ -1,6 +1,6 @@
 use {Future, IntoFuture, Callback, PollResult, PollError};
-use util;
 use chain::Chain;
+use util;
 
 pub struct OrElse<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,

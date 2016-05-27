@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {PollResult, Callback, Future, PollError};
+use executor::{Executor, DEFAULT};
 use lock::Lock;
 use util;
 
@@ -36,10 +37,12 @@ impl<A, B> Future for Join<A, B>
     fn schedule_boxed(&mut self, cb: Box<Callback<Self::Item, Self::Error>>) {
         let (mut a, mut b) = match mem::replace(&mut self.state, State::Canceled) {
             State::Start(a, b) => (a, b),
-            State::Canceled => return cb.call(Err(PollError::Canceled)),
+            State::Canceled => {
+                return DEFAULT.execute(|| cb.call(Err(PollError::Canceled)))
+            }
             State::Scheduled(s) => {
                 self.state = State::Scheduled(s);
-                return cb.call(Err(util::reused()))
+                return DEFAULT.execute(|| cb.call(Err(util::reused())))
             }
         };
 
@@ -149,13 +152,13 @@ impl<A, B> Scheduled<A, B>
             if old & SET != 0 {
                 self.cancel();
             }
-            cb.call(Err(e))
+            DEFAULT.execute(|| cb.call(Err(e)))
         } else {
             let a = self.a_val.try_lock().expect("[j] done, but a locked")
                               .take().expect("[j] done but a not here");
             let b = self.b_val.try_lock().expect("[j] done, but b locked")
                               .take().expect("[j] done but b not here");
-            cb.call(Ok((a, b)))
+            DEFAULT.execute(|| cb.call(Ok((a, b))))
         }
     }
 

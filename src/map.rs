@@ -1,4 +1,5 @@
 use {Future, PollResult, Callback};
+use executor::{Executor, DEFAULT};
 use util;
 
 pub struct Map<A, F> {
@@ -29,7 +30,8 @@ impl<U, A, F> Future for Map<A, F>
             Err(e) => return g(Err(e)),
         };
         self.future.schedule(|result| {
-            g(result.and_then(|e| util::recover(|| f(e))))
+            let res = result.and_then(|e| util::recover(|| f(e)));
+            DEFAULT.execute(|| g(res))
         })
     }
 

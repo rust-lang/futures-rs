@@ -1,4 +1,5 @@
 use {PollResult, Future, Callback, PollError};
+use executor::{Executor, DEFAULT};
 use util;
 
 pub struct MapErr<A, F> {
@@ -26,7 +27,7 @@ impl<U, A, F> Future for MapErr<A, F>
     {
         let f = match util::opt2poll(self.f.take()) {
             Ok(f) => f,
-            Err(e) => return g(Err(e)),
+            Err(e) => return DEFAULT.execute(|| g(Err(e))),
         };
 
         self.future.schedule(|result| {
@@ -38,7 +39,7 @@ impl<U, A, F> Future for MapErr<A, F>
                 (Err(PollError::Canceled), _) => Err(PollError::Canceled),
                 (Ok(e), _) => Ok(e),
             };
-            g(r)
+            DEFAULT.execute(|| g(r))
         })
     }
 

@@ -1,4 +1,5 @@
 use {Future, Callback, PollResult, PollError};
+use executor::{Executor, DEFAULT};
 use util;
 
 pub struct Empty<T, E>
@@ -29,7 +30,7 @@ impl<T, E> Future for Empty<T, E>
 
     fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {
         if self.callback.is_some() {
-            cb.call(Err(util::reused()))
+            DEFAULT.execute(|| cb.call(Err(util::reused())))
         } else {
             self.callback = Some(cb);
         }
@@ -42,7 +43,7 @@ impl<T, E> Drop for Empty<T, E>
 {
     fn drop(&mut self) {
         if let Some(cb) = self.callback.take() {
-            cb.call(Err(PollError::Canceled));
+            DEFAULT.execute(|| cb.call(Err(PollError::Canceled)));
         }
     }
 }

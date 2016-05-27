@@ -1,6 +1,7 @@
 use std::marker;
 
 use {Future, PollResult, Callback};
+use executor::{Executor, DEFAULT};
 use util;
 
 pub struct Finished<T, E> {
@@ -25,7 +26,8 @@ impl<T, E> Future for Finished<T, E>
     fn schedule<G>(&mut self, g: G)
         where G: FnOnce(PollResult<T, E>) + Send + 'static
     {
-        g(util::opt2poll(self.t.take()))
+        let res = util::opt2poll(self.t.take());
+        DEFAULT.execute(|| g(res));
     }
 
     fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {

@@ -1,6 +1,7 @@
 use std::mem;
 
 use {Future, PollResult, Callback, IntoFuture};
+use executor::{Executor, DEFAULT};
 use util;
 
 pub struct Lazy<F, R> {
@@ -34,16 +35,18 @@ impl<F, R> Future for Lazy<F, R::Future>
             _Lazy::First(f) => {
                 let mut f = match util::recover(f) {
                     Ok(f) => f.into_future(),
-                    Err(e) => return g(Err(e)),
+                    Err(e) => return DEFAULT.execute(|| g(Err(e))),
                 };
                 f.schedule(g);
                 self.inner = _Lazy::Second(f);
             }
             _Lazy::Second(f) => {
                 self.inner = _Lazy::Second(f);
-                g(Err(util::reused()))
+                DEFAULT.execute(|| g(Err(util::reused())))
             }
-            _Lazy::Moved => g(Err(util::reused())),
+            _Lazy::Moved => {
+                DEFAULT.execute(|| g(Err(util::reused())))
+            }
         };
     }
 

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::mem;
 
+use executor::{Executor, DEFAULT};
 use slot::Slot;
 use util;
 use {Future, PollResult};
@@ -68,9 +69,9 @@ impl<A, B, C> Chain<A, B, C>
                     slot.drop_a();
 
                     let mut b = match f(r, data) {
-                        Ok(Ok(e)) => return g(Ok(e)),
+                        Ok(Ok(e)) => return DEFAULT.execute(|| g(Ok(e))),
                         Ok(Err(b)) => b,
-                        Err(e) => return g(Err(e)),
+                        Err(e) => return DEFAULT.execute(|| g(Err(e))),
                     };
                     b.schedule(g);
                     slot.b.try_produce(b).ok().unwrap();
@@ -84,7 +85,7 @@ impl<A, B, C> Chain<A, B, C>
             // panicked error as this is a contract violation
             Chain::Slot(s) => {
                 *self = Chain::Slot(s);
-                return g(Err(util::reused()))
+                return DEFAULT.execute(|| g(Err(util::reused())))
             }
 
             // should be unreachable

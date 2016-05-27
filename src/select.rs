@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {PollResult, Callback, Future, PollError};
+use executor::{Executor, DEFAULT};
 use lock::Lock;
 use slot::Slot;
 use util;
@@ -41,10 +42,12 @@ impl<A, B> Future for Select<A, B>
     fn schedule_boxed(&mut self, cb: Box<Callback<Self::Item, Self::Error>>) {
         let (mut a, mut b) = match mem::replace(&mut self.state, State::Canceled) {
             State::Start(a, b) => (a, b),
-            State::Canceled => return cb.call(Err(PollError::Canceled)),
+            State::Canceled => {
+                return DEFAULT.execute(|| cb.call(Err(PollError::Canceled)))
+            }
             State::Scheduled(s) => {
                 self.state = State::Scheduled(s);
-                return cb.call(Err(util::reused()))
+                return DEFAULT.execute(|| cb.call(Err(util::reused())))
             }
         };
 
@@ -124,12 +127,13 @@ impl<A, B> Scheduled<A, B>
         let cb = me.cb.try_lock().expect("[s] done but cb is locked")
                       .take().expect("[s] done done but cb not here");
         let next = SelectNext { state: me };
-        cb.call(match val {
+        let res = match val {
             Ok(v) => Ok((v, next)),
             Err(PollError::Other(e)) => Err(PollError::Other((e, next))),
             Err(PollError::Panicked(p)) => Err(PollError::Panicked(p)),
             Err(PollError::Canceled) => Err(PollError::Canceled),
-        })
+        };
+        DEFAULT.execute(|| cb.call(res))
     }
 
     fn cancel(&self) {
@@ -168,7 +172,8 @@ impl<A, B> Future for SelectNext<A, B>
         where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
     {
         self.state.data.on_full(|slot| {
-            g(slot.try_consume().unwrap());
+            let data = slot.try_consume().unwrap();
+            DEFAULT.execute(|| g(data));
         });
     }
 

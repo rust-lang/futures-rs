@@ -1,5 +1,6 @@
-use {PollResult, Future, PollError, Callback};
+use executor::{Executor, DEFAULT};
 use util;
+use {PollResult, Future, PollError, Callback};
 
 pub struct Done<T, E> {
     inner: Option<Result<T, E>>,
@@ -22,9 +23,10 @@ impl<T, E> Future for Done<T, E>
     fn schedule<F>(&mut self, f: F)
         where F: FnOnce(PollResult<T, E>) + Send + 'static
     {
-        f(util::opt2poll(self.inner.take()).and_then(|r| {
+        let res = util::opt2poll(self.inner.take()).and_then(|r| {
             r.map_err(PollError::Other)
-        }))
+        });
+        DEFAULT.execute(|| f(res))
     }
 
     fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {
