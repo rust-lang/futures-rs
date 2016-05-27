@@ -47,7 +47,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "mio"
 version = "0.5.0"
-source = "git+https://github.com/alexcrichton/mio?branch=tcp-sync#c05cf426765f17bdd65bcb93853ab0cea3725162"
+source = "git+https://github.com/alexcrichton/mio?branch=tcp-sync#35906a4dd04c13a3b240f743bd8cd59834d6037d"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",

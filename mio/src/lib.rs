@@ -21,17 +21,16 @@ use futures::{Future, promise, Complete, PollError};
 pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
 
 pub struct Loop {
-    io: mio::EventLoop<Inner>,
-    inner: Inner,
-}
-
-struct Inner {
+    io: mio::Poll,
+    tx: mio::channel::Sender<Message>,
+    rx: mio::channel::Receiver<Message>,
     next: usize,
     done: HashMap<usize, Complete<(), io::Error>>,
 }
 
 enum Message {
     Wait(Complete<(), io::Error>, mio::EventSet, Arc<mio::Evented + Send + Sync>),
+    Register(Arc<mio::Evented + Send + Sync>),
 }
 
 // pub struct TcpConnect {
@@ -60,9 +59,10 @@ enum Message {
 //     }
 // }
 //
+
 pub struct TcpListener {
     tcp: Arc<mio::tcp::TcpListener>,
-    io: mio::Sender<Message>,
+    tx: mio::channel::Sender<Message>,
 }
 
 impl TcpListener {
@@ -76,30 +76,40 @@ impl TcpListener {
             Ok(Some((tcp, addr))) => {
                 let tcp = TcpStream {
                     tcp: Arc::new(tcp),
-                    io: self.io.clone(),
+                    tx: self.tx.clone(),
                 };
-                return futures::finished((tcp, addr)).boxed()
+                let res = self.tx.send(Message::Register(tcp.tcp.clone()));
+                let res = res.map(|()| (tcp, addr));
+                let res = res.map_err(|e| {
+                    match e {
+                        mio::channel::SendError::Io(e) => e,
+                        // TODO: need to handle a closed channel
+                        mio::channel::SendError::Disconnected(..) => {
+                            panic!("closed channel")
+                        }
+                    }
+                });
+                return futures::done(res).boxed()
             }
             Ok(None) => {}
         }
 
         let (p, c) = promise();
-        let r = self.io.send(Message::Wait(c,
+        let r = self.tx.send(Message::Wait(c,
                                            mio::EventSet::readable(),
                                            self.tcp.clone()));
         match r {
             Ok(()) => {
                 let me = TcpListener {
                     tcp: self.tcp.clone(),
-                    io: self.io.clone(),
+                    tx: self.tx.clone(),
                 };
                 p.and_then(move |()| me.accept()).boxed()
             }
-            Err(mio::NotifyError::Io(e)) => {
+            Err(mio::channel::SendError::Io(e)) => {
                 return futures::failed(e).boxed()
             }
-            Err(mio::NotifyError::Full(..)) => panic!("full channel"),
-            Err(mio::NotifyError::Closed(..)) => panic!("closed channel"),
+            Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
 }
@@ -142,10 +152,9 @@ impl TcpListener {
 //     }
 // }
 
-#[derive(Clone)]
 pub struct TcpStream {
     tcp: Arc<mio::tcp::TcpStream>,
-    io: mio::Sender<Message>,
+    tx: mio::channel::Sender<Message>,
 }
 
 unsafe fn slice_to_end(v: &mut Vec<u8>) -> &mut [u8] {
@@ -188,22 +197,21 @@ impl TcpStream {
             }
         }
         let (p, c) = promise();
-        let r = self.io.send(Message::Wait(c,
+        let r = self.tx.send(Message::Wait(c,
                                            mio::EventSet::readable(),
                                            self.tcp.clone()));
         match r {
             Ok(()) => {
                 let me2 = TcpStream {
                     tcp: self.tcp.clone(),
-                    io: self.io.clone(),
+                    tx: self.tx.clone(),
                 };
                 p.and_then(move |()| me2.read(into)).boxed()
             }
-            Err(mio::NotifyError::Io(e)) => {
+            Err(mio::channel::SendError::Io(e)) => {
                 return futures::failed(e).boxed()
             }
-            Err(mio::NotifyError::Full(..)) => panic!("full channel"),
-            Err(mio::NotifyError::Closed(..)) => panic!("closed channel"),
+            Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
 
@@ -219,22 +227,21 @@ impl TcpStream {
             }
         }
         let (p, c) = promise();
-        let r = self.io.send(Message::Wait(c,
+        let r = self.tx.send(Message::Wait(c,
                                            mio::EventSet::writable(),
                                            self.tcp.clone()));
         match r {
             Ok(()) => {
                 let me2 = TcpStream {
                     tcp: self.tcp.clone(),
-                    io: self.io.clone(),
+                    tx: self.tx.clone(),
                 };
                 p.and_then(move |()| me2.write(offset, data)).boxed()
             }
-            Err(mio::NotifyError::Io(e)) => {
+            Err(mio::channel::SendError::Io(e)) => {
                 return futures::failed(e).boxed()
             }
-            Err(mio::NotifyError::Full(..)) => panic!("full channel"),
-            Err(mio::NotifyError::Closed(..)) => panic!("closed channel"),
+            Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
 
@@ -346,12 +353,18 @@ impl TcpStream {
 
 impl Loop {
     pub fn new() -> io::Result<Loop> {
+        let (tx, rx) = mio::channel::from_std_channel(channel());
+        let io = try!(mio::Poll::new());
+        try!(io.register(&rx,
+                         mio::Token(0),
+                         mio::EventSet::readable(),
+                         mio::PollOpt::edge()));
         Ok(Loop {
-            io: try!(mio::EventLoop::new()),
-            inner: Inner {
-                done: HashMap::new(),
-                next: 0,
-            },
+            io: io,
+            done: HashMap::new(),
+            next: 1,
+            tx: tx,
+            rx: rx,
         })
     }
 
@@ -381,15 +394,56 @@ impl Loop {
 
     fn _await(&mut self, done: &mut FnMut() -> bool) {
         while !done() {
-            self.io.run_once(&mut self.inner, None).unwrap();
+            let amt = self.io.poll(None).unwrap();
+
+            for i in 0..amt {
+                let event = self.io.events().get(i).unwrap();
+                let token = event.token().as_usize();
+                if token == 0 {
+                    while let Ok(msg) = self.rx.try_recv() {
+                        self.notify(msg);
+                    }
+                } else if let Some(complete) = self.done.remove(&token) {
+                    complete.finish(());
+                }
+            }
+        }
+    }
+
+    fn notify(&mut self, msg: Message) {
+        match msg {
+            Message::Wait(c, events, evented) => {
+                let token = self.next;
+                self.next += 1;
+                let evented: &mio::Evented = &*evented;
+                let r = self.io.reregister(evented,
+                                           mio::Token(token),
+                                           events,
+                                           mio::PollOpt::edge() |
+                                              mio::PollOpt::oneshot());
+                match r {
+                    Ok(()) => {
+                        self.done.insert(token, c);
+                    }
+                    Err(e) => c.fail(e),
+                }
+            }
+            Message::Register(evented) => {
+                // TODO: propagate this error somewhere
+                let evented: &mio::Evented = &*evented;
+                self.io.register(evented,
+                                 mio::Token(0),
+                                 mio::EventSet::none(),
+                                 mio::PollOpt::empty()).unwrap();
+            }
         }
     }
 
     pub fn tcp_connect(&mut self, addr: &SocketAddr)
                        -> Box<IoFuture<TcpStream>> {
         let pair = mio::tcp::TcpStream::connect(addr).and_then(|tcp| {
-            let token = self.inner.next;
-            self.inner.next += 1;
+            let token = self.next;
+            self.next += 1;
             try!(self.io.register(&tcp,
                                   mio::Token(token),
                                   mio::EventSet::writable(),
@@ -400,12 +454,12 @@ impl Loop {
         match pair {
             Ok((tcp, token)) => {
                 let (p, c) = promise();
-                assert!(self.inner.done.insert(token, c).is_none());
-                let io = self.io.channel();
+                assert!(self.done.insert(token, c).is_none());
+                let tx = self.tx.clone();
                 p.map(|()| {
                     TcpStream {
                         tcp: Arc::new(tcp),
-                        io: io,
+                        tx: tx,
                     }
                 }).boxed()
             }
@@ -419,11 +473,10 @@ impl Loop {
                               mio::Token(0),
                               mio::EventSet::none(),
                               mio::PollOpt::empty()));
-        let io = self.io.channel();
 
         Ok(TcpListener {
             tcp: Arc::new(tcp),
-            io: io,
+            tx: self.tx.clone(),
         })
     }
 }
@@ -465,39 +518,8 @@ impl Loop {
 //     unsafe { mio::Token(mem::transmute::<_, usize>(c)) }
 // }
 
-impl mio::Handler for Inner {
-    type Timeout = ();
-    type Message = Message;
-
-    fn ready(&mut self,
-             _io: &mut mio::EventLoop<Self>,
-             token: mio::Token,
-             _events: mio::EventSet) {
-        if let Some(token) = self.done.remove(&token.as_usize()) {
-            token.finish(());
-        }
-    }
-
-    fn notify(&mut self,
-              io: &mut mio::EventLoop<Self>,
-              msg: Message) {
-        match msg {
-            Message::Wait(c, events, evented) => {
-                let token = self.next;
-                self.next += 1;
-                let evented: &mio::Evented = &*evented;
-                let r = io.reregister(evented,
-                                      mio::Token(token),
-                                      events,
-                                      mio::PollOpt::edge() |
-                                          mio::PollOpt::oneshot());
-                match r {
-                    Ok(()) => {
-                        self.done.insert(token, c);
-                    }
-                    Err(e) => c.fail(e),
-                }
-            }
-        }
-    }
-}
+// impl mio::Handler for Inner {
+//     type Timeout = ();
+//     type Message = Message;
+//
+// }

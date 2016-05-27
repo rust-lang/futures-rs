@@ -26,10 +26,10 @@ fn main() {
 
     fn read(s: futuremio::TcpStream, mut v: Vec<u8>) -> Box<futuremio::IoFuture<()>> {
         v.truncate(0);
-        let s2 = s.clone();
-        s.read(v).and_then(|v| {
+        let data = s.read(v);
+        data.and_then(|v| {
             CNT.fetch_add(v.len(), Ordering::SeqCst);
-            read(s2, v)
+            read(s, v)
         }).boxed()
     }
 
