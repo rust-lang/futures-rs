@@ -1,4 +1,5 @@
 mod lock;
+/// A slot in memory for communicating between a producer and a consumer.
 mod slot;
 mod util;
 
