@@ -2,7 +2,7 @@ extern crate mio;
 extern crate futures;
 
 use std::collections::HashMap;
-use std::io::{self, Read, Write};
+use std::io::{self, ErrorKind, Read, Write};
 use std::net::SocketAddr;
 use std::panic;
 use std::slice;
@@ -231,7 +231,20 @@ impl Loop {
 
     fn _await(&mut self, done: &mut FnMut() -> bool) {
         while !done() {
-            let amt = self.io.poll(None).unwrap();
+            let amt;
+            // On Linux, Poll::poll is epoll_wait, which may return EINTR if a
+            // ptracer attaches. This retry loop prevents crashing when
+            // attaching strace, or similar.
+            loop {
+                match self.io.poll(None) {
+                    Ok(a) => {
+                        amt = a;
+                        break;
+                    }
+                    Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+                    err@Err(_) => { err.unwrap(); },
+                }
+            }
 
             for i in 0..amt {
                 let event = self.io.events().get(i).unwrap();
