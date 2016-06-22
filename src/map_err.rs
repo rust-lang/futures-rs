@@ -2,6 +2,9 @@ use {PollResult, Future, Callback, PollError};
 use executor::{Executor, DEFAULT};
 use util;
 
+/// Future for the `map_err` combinator, changing the error type of a future.
+///
+/// This is created by this `Future::map_err` method.
 pub struct MapErr<A, F> {
     future: A,
     f: Option<F>,

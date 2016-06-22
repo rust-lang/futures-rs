@@ -1,7 +1,21 @@
+//! Work in progress implementation of executors for Futures.
+//!
+//! Note that this interface is very likely to change and not stay as-is, and it
+//! is not currently used much by futures beyond `DEFAULT`.
+
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 
+/// Encapsulation of a value which has the ability to execute arbitrary code.
+///
+/// This trait is object safe and intended to be used through pointers like
+/// `Box` and `Arc.
 pub trait Executor: Send + Sync + 'static {
+    /// Executes the given closure `f`, perhaps on a different thread or
+    /// deferred to a later time.
+    ///
+    /// This method may not execute `f` immediately, but it will arrange for the
+    /// callback to be invoked "in the near future".
     fn execute<F>(&self, f: F)
         where F: FnOnce() + Send + 'static,
               Self: Sized
@@ -9,9 +23,14 @@ pub trait Executor: Send + Sync + 'static {
         self.execute_boxed(Box::new(f))
     }
 
+    /// Object-safe method of the above interface used when implementing trait
+    /// objects.
+    ///
+    /// This should not be called direclty and instead `execute` should be used.
     fn execute_boxed(&self, f: Box<ExecuteCallback>);
 }
 
+/// The default executor, used by futures by default currently.
 pub static DEFAULT: Limited = Limited;
 
 impl<T: Executor + ?Sized + Send + Sync + 'static> Executor for Box<T> {
@@ -26,7 +45,9 @@ impl<T: Executor + ?Sized + Send + Sync + 'static> Executor for Arc<T> {
     }
 }
 
+/// Essentially `Box<FnOnce() + Send>`, just as a trait.
 pub trait ExecuteCallback: Send + 'static {
+    #[allow(missing_docs)]
     fn call(self: Box<Self>);
 }
 
@@ -36,6 +57,8 @@ impl<F: FnOnce() + Send + 'static> ExecuteCallback for F {
     }
 }
 
+/// Implementation of an `Executor` which just executes everything immediately
+/// as soon as it's passed in.
 pub struct Inline;
 
 impl Executor for Inline {
@@ -48,6 +71,8 @@ impl Executor for Inline {
     }
 }
 
+/// Implementation of an executor which executes all callbacks immediately, but
+/// bounds the amount of recursion to prevent blowing the stack.
 pub struct Limited;
 
 thread_local!(static LIMITED: LimitState = LimitState::new());

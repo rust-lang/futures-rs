@@ -2,6 +2,10 @@ use {Future, IntoFuture, Callback, PollResult, PollError};
 use chain::Chain;
 use util;
 
+/// Future for the `or_else` combinator, chaining a computation onto the end of
+/// a future which fails with an error.
+///
+/// This is created by this `Future::or_else` method.
 pub struct OrElse<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,
 }

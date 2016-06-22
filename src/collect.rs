@@ -6,6 +6,10 @@ use lock::Lock;
 use {Future, Callback, PollResult, IntoFuture};
 use util;
 
+/// A future which takes a list of futures and resolves with a vector of the
+/// completed values.
+///
+/// This future is created with the `collect` method.
 pub struct Collect<I>
     where I: IntoIterator + Send + 'static,
           I::Item: IntoFuture,
@@ -39,6 +43,42 @@ struct Scheduled<I>
 
 const CANCELED: usize = !0;
 
+/// Creates a future which represents a collection of the results of the futures
+/// given.
+///
+/// The returned future will execute each underlying future one at a time,
+/// collecting the results into a destincation `Vec<T>`. If any future returns
+/// an error then all other futures will be canceled and an error will be
+/// returned immediately. If all futures complete successfully, however, then
+/// the returned future will succeed with a `Vec` of all the successful results.
+///
+/// Note that this function does **not** attempt to execute each future in
+/// parallel, they are all executed in sequence.
+///
+/// # Examples
+///
+/// ```
+/// use futures::*;
+///
+/// let f = collect(vec![
+///     finished::<u32, u32>(1),
+///     finished::<u32, u32>(2),
+///     finished::<u32, u32>(3),
+/// ]);
+/// let f = f.map(|x| {
+///     assert_eq!(x, [1, 2, 3]);
+/// });
+///
+/// let f = collect(vec![
+///     finished::<u32, u32>(1).boxed(),
+///     failed::<u32, u32>(2).boxed(),
+///     finished::<u32, u32>(3).boxed(),
+/// ]);
+/// let f = f.then(|x| {
+///     assert_eq!(x, Err(2));
+///     x
+/// });
+/// ```
 pub fn collect<I>(i: I) -> Collect<I>
     where I: IntoIterator + Send + 'static,
           I::Item: IntoFuture,

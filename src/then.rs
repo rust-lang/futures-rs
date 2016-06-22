@@ -2,6 +2,10 @@ use {Future, IntoFuture, PollError, Callback, PollResult};
 use util;
 use chain::Chain;
 
+/// Future for the `then` combinator, chaining computations on the end of
+/// another future regardless of its outcome.
+///
+/// This is created by this `Future::then` method.
 pub struct Then<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,
 }

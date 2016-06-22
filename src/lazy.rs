@@ -4,6 +4,10 @@ use {Future, PollResult, Callback, IntoFuture};
 use executor::{Executor, DEFAULT};
 use util;
 
+/// A future which defers creation of the actual future until a callback is
+/// scheduled.
+///
+/// This is created by the `lazy` function.
 pub struct Lazy<F, R> {
     inner: _Lazy<F, R>
 }
@@ -14,6 +18,25 @@ enum _Lazy<F, R> {
     Moved,
 }
 
+/// Creates a new future which will eventually be the same as the one created
+/// by the closure provided.
+///
+/// The provided closure is only run once the future has a callback scheduled
+/// on it, otherwise the callback never runs. Once run, however, this future is
+/// the same as the one the closure creates.
+///
+/// # Examples
+///
+/// ```
+/// use futures::*;
+///
+/// let a = lazy(|| finished::<u32, u32>(1));
+///
+/// let b = lazy(|| -> Done<u32, u32> {
+///     panic!("oh no!")
+/// });
+/// drop(b); // closure is never run
+/// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
     where F: FnOnce() -> R + Send + 'static,
           R: IntoFuture

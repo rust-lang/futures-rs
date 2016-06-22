@@ -2,6 +2,9 @@ use {Future, PollResult, Callback};
 use executor::{Executor, DEFAULT};
 use util;
 
+/// Future for the `map` combinator, changing the type of a future.
+///
+/// This is created by this `Future::map` method.
 pub struct Map<A, F> {
     future: A,
     f: Option<F>,

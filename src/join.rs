@@ -7,6 +7,9 @@ use executor::{Executor, DEFAULT};
 use lock::Lock;
 use util;
 
+/// Future for the `join` combinator, waiting for two futures to complete.
+///
+/// This is created by this `Future::join` method.
 pub struct Join<A, B> where A: Future, B: Future<Error=A::Error> {
     state: State<A, B>,
 }

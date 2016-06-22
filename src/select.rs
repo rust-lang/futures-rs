@@ -8,10 +8,18 @@ use lock::Lock;
 use slot::Slot;
 use util;
 
+/// Future for the `select` combinator, waiting for one of two futures to
+/// complete.
+///
+/// This is created by this `Future::select` method.
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     state: State<A, B>,
 }
 
+/// Future yielded as the second result in a `Select` future.
+///
+/// This sentinel future represents the completion of the second future to a
+/// `select` which finished second.
 pub struct SelectNext<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     state: Arc<Scheduled<A, B>>,
 }

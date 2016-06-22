@@ -5,6 +5,10 @@ use {Future, Callback, PollResult, PollError};
 use slot::{Slot, Token};
 use util;
 
+/// A future representing the completion of a computation happening elsewhere in
+/// memory.
+///
+/// This is created by the `promise` function.
 pub struct Promise<T, E>
     where T: Send + 'static,
           E: Send + 'static,
@@ -22,6 +26,10 @@ enum _Promise<T, E>
     Used,
 }
 
+/// Represents the completion half of a promise through which the result of a
+/// computation is signaled.
+///
+/// This is created by the `promise` function.
 pub struct Complete<T, E>
     where T: Send + 'static,
           E: Send + 'static,
@@ -34,6 +42,32 @@ struct Inner<T, E> {
     slot: Slot<Option<Result<T, E>>>,
 }
 
+/// Creates a new in-memory promise used to represent completing a computation.
+///
+/// A promise in this library is a concrete implementation of the `Future` trait
+/// used to complete a computation from one location with a future representing
+/// what to do in another.
+///
+/// This function is similar to Rust's channels found in the standard library.
+/// Two halves are returned, the first of which is a `Promise` which implements
+/// the `Future` trait. The second half is a `Complete` handle which is used to
+/// signal the end of a computation.
+///
+/// Each half can be separately owned and sent across threads.
+///
+/// # Examples
+///
+/// ```
+/// use futures::*;
+///
+/// let (p, c) = promise::<i32, i32>();
+///
+/// p.map(|i| {
+///     println!("got: {}", i);
+/// }).forget();
+///
+/// c.finish(3);
+/// ```
 pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
     where T: Send + 'static,
           E: Send + 'static,
@@ -49,11 +83,21 @@ impl<T, E> Complete<T, E>
     where T: Send + 'static,
           E: Send + 'static,
 {
+    /// Completes this promise with a successful result.
+    ///
+    /// This function will consume `self` and indicate to the other end, the
+    /// `Promise`, that the error provided is the result of the computation this
+    /// represents.
     pub fn finish(mut self, t: T) {
         self.completed = true;
         self.complete(Some(Ok(t)))
     }
 
+    /// Completes this promise with a failed result.
+    ///
+    /// This function will consume `self` and indicate to the other end, the
+    /// `Promise`, that the error provided is the result of the computation this
+    /// represents.
     pub fn fail(mut self, e: E) {
         self.completed = true;
         self.complete(Some(Err(e)))
