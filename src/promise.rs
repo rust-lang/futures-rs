@@ -1,7 +1,8 @@
-use std::mem;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Callback, PollResult, PollError};
+use {Future, Wake, PollResult, PollError};
+use executor::{Executor, DEFAULT};
 use slot::{Slot, Token};
 use util;
 
@@ -13,17 +14,9 @@ pub struct Promise<T, E>
     where T: Send + 'static,
           E: Send + 'static,
 {
-    state: _Promise<T, E>,
-}
-
-enum _Promise<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
-    Start(Arc<Inner<T, E>>),
-    Scheduled(Arc<Inner<T, E>>, Token),
-    Canceled,
-    Used,
+    inner: Arc<Inner<T, E>>,
+    token: Option<Token>,
+    used: bool,
 }
 
 /// Represents the completion half of a promise through which the result of a
@@ -40,6 +33,7 @@ pub struct Complete<T, E>
 
 struct Inner<T, E> {
     slot: Slot<Option<Result<T, E>>>,
+    pending_wake: AtomicBool,
 }
 
 /// Creates a new in-memory promise used to represent completing a computation.
@@ -74,9 +68,18 @@ pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
 {
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
+        pending_wake: AtomicBool::new(false),
     });
-    (Promise { state: _Promise::Start(inner.clone()) },
-     Complete { inner: inner, completed: false })
+    let promise = Promise {
+        inner: inner.clone(),
+        token: None,
+        used: false,
+    };
+    let complete = Complete {
+        inner: inner,
+        completed: false,
+    };
+    (promise, complete)
 }
 
 impl<T, E> Complete<T, E>
@@ -128,35 +131,67 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
 
-    fn schedule<F>(&mut self, f: F)
-        where F: FnOnce(PollResult<T, E>) + Send + 'static
-    {
-        let inner = match mem::replace(&mut self.state, _Promise::Used) {
-            _Promise::Start(inner) => inner,
-            _Promise::Canceled => return f(Err(PollError::Canceled)),
-            _Promise::Used => return f(Err(util::reused())),
-            _Promise::Scheduled(s, token) => {
-                self.state = _Promise::Scheduled(s, token);
-                return f(Err(util::reused()))
-            }
+    // fn schedule<F>(&mut self, f: F)
+    //     where F: FnOnce(PollResult<T, E>) + Send + 'static
+    // {
+    //     let inner = match mem::replace(&mut self.state, _Promise::Used) {
+    //         _Promise::Start(inner) => inner,
+    //         _Promise::Canceled => return f(Err(PollError::Canceled)),
+    //         _Promise::Used => return f(Err(util::reused())),
+    //         _Promise::Scheduled(s, token) => {
+    //             self.state = _Promise::Scheduled(s, token);
+    //             return f(Err(util::reused()))
+    //         }
+    //     };
+    //     let token = inner.slot.on_full(|slot| {
+    //         match slot.try_consume() {
+    //             Ok(Some(Ok(e))) => f(Ok(e)),
+    //             Ok(Some(Err(e))) => f(Err(PollError::Other(e))),
+    //
+    //             // canceled because the `Complete` handle dropped
+    //             Ok(None) => f(Err(PollError::Canceled)),
+    //
+    //             // canceled via Drop
+    //             Err(..) => f(Err(PollError::Canceled)),
+    //         }
+    //     });
+    //     self.state = _Promise::Scheduled(inner, token);
+    // }
+    //
+    // fn schedule_boxed(&mut self, f: Box<Callback<T, E>>) {
+    //     self.schedule(|r| f.call(r))
+    // }
+
+    fn poll(&mut self) -> Option<PollResult<T, E>> {
+        if self.inner.pending_wake.load(Ordering::SeqCst) {
+            return None
+        }
+        let ret = match self.inner.slot.try_consume() {
+            Ok(Some(Ok(e))) => Ok(e),
+            Ok(Some(Err(e))) => Err(PollError::Other(e)),
+            Ok(None) => Err(PollError::Canceled),
+            Err(_) if self.used => Err(util::reused()),
+            Err(_) => return None,
         };
-        let token = inner.slot.on_full(|slot| {
-            match slot.try_consume() {
-                Ok(Some(Ok(e))) => f(Ok(e)),
-                Ok(Some(Err(e))) => f(Err(PollError::Other(e))),
-
-                // canceled because the `Complete` handle dropped
-                Ok(None) => f(Err(PollError::Canceled)),
-
-                // canceled via Drop
-                Err(..) => f(Err(PollError::Canceled)),
-            }
-        });
-        self.state = _Promise::Scheduled(inner, token);
+        self.used = true;
+        Some(ret)
     }
 
-    fn schedule_boxed(&mut self, f: Box<Callback<T, E>>) {
-        self.schedule(|r| f.call(r))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        if self.used {
+            return DEFAULT.execute(move || wake.wake())
+        }
+        if self.inner.pending_wake.load(Ordering::SeqCst) {
+            if let Some(token) = self.token.take() {
+                self.inner.slot.cancel(token);
+            }
+        }
+        self.inner.pending_wake.store(true, Ordering::SeqCst);
+        let inner = self.inner.clone();
+        self.token = Some(self.inner.slot.on_full(move |_| {
+            inner.pending_wake.store(false, Ordering::SeqCst);
+            wake.wake()
+        }));
     }
 }
 
@@ -165,13 +200,8 @@ impl<T, E> Drop for Promise<T, E>
           E: Send + 'static,
 {
     fn drop(&mut self) {
-        match mem::replace(&mut self.state, _Promise::Canceled) {
-            _Promise::Start(..) => {}
-            _Promise::Canceled => {}
-            _Promise::Used => {}
-            _Promise::Scheduled(s, token) => {
-                s.slot.cancel(token);
-            }
+        if let Some(token) = self.token.take() {
+            self.inner.slot.cancel(token)
         }
     }
 }

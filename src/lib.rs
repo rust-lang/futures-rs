@@ -8,7 +8,9 @@
 //! if anything is unclear please open an issue and hopefully it'll be
 //! documented quickly!
 
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
+
+use std::sync::Arc;
 
 mod lock;
 mod slot;
@@ -20,14 +22,14 @@ pub use error::{PollError, PollResult};
 pub mod executor;
 
 // Primitive futures
-mod collect;
+// mod collect;
 mod done;
 mod empty;
 mod failed;
 mod finished;
 mod lazy;
 mod promise;
-pub use collect::{collect, Collect};
+// pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
@@ -54,7 +56,7 @@ pub use select::{Select, SelectNext};
 pub use then::Then;
 
 // streams
-pub mod stream;
+// pub mod stream;
 
 // impl details
 mod chain;
@@ -152,57 +154,9 @@ pub trait Future: Send + 'static {
     /// expressed through the `PollError` type, not this type.
     type Error: Send + 'static;
 
-    /// Schedules a callback to run with the resolved value of this future when
-    /// it's ready.
-    ///
-    /// The callback provided may be run immediately if the value is ready, or
-    /// may be run later on an arbitrary thread when the value becomes
-    /// available. Essentially, no guarantee is made about when or where this
-    /// callback will be run.
-    ///
-    /// It is guaranteed, however, that the callback `f` **will always be run**.
-    /// The value that it is yielded represents how the future has resolved.
-    ///
-    /// A future can only have at most one callback successfully scheduled on
-    /// it. If the `schedule` method is called twice then the second call will
-    /// immediately call the closure with `Err(PollError::Panicked(..))` and
-    /// some payload.
-    ///
-    /// If a future is canceled, then the closure will be called as soon as
-    /// possible with `Err(PollError::Canceled)` to indicate that the
-    /// cancellation has happened.
-    ///
-    /// Note that this method should likely never be called directly. This is
-    /// used to implement all combinators but when using a `Future` it is rarely
-    /// invoked.
-    ///
-    /// # Panics
-    ///
-    /// Implementors of this function should take care to ensure that this
-    /// function never panics. Many core combinators will not signal panics
-    /// properly if implementations of this function panic.
-    ///
-    /// # Errors
-    ///
-    /// This function does not return anything, so it cannot return an error.
-    /// Instead, errors must be signaled by calling the callback itself.
-    fn schedule<F>(&mut self, f: F)
-        where F: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static,
-              Self: Sized;
+    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
 
-    /// Sibling method of `schedule` above which simply exists to be an
-    /// object-safe version for trait objects to use.
-    ///
-    /// This should typically never be called directly as it has the same
-    /// semantics and is otherwise less performant and less ergonomic than
-    /// `schedule`. For implementors, however, this is typically implemented as:
-    ///
-    /// ```ignore
-    /// fn schedule_boxed(&mut self, f: Box<Callback<Self::Item, Self::Error>>) {
-    ///     self.schedule(|r| f.call(r))
-    /// }
-    /// ```
-    fn schedule_boxed(&mut self, f: Box<Callback<Self::Item, Self::Error>>);
+    fn schedule(&mut self, wake: Arc<Wake>);
 
     /// Convenience function for turning this future into a trait object.
     ///
@@ -550,16 +504,15 @@ fn assert_future<A, B, F>(t: F) -> F
 }
 
 /// Trait that essentially encapsulates `Box<FnOnce(PollResult<T, E>)>`
-pub trait Callback<T, E>: Send + 'static {
-    #[allow(missing_docs)]
-    fn call(self: Box<Self>, result: PollResult<T, E>);
+pub trait Wake: Send + Sync + 'static {
+    fn wake(&self);
 }
 
-impl<F, T, E> Callback<T, E> for F
-    where F: FnOnce(PollResult<T, E>) + Send + 'static
+impl<F> Wake for F
+    where F: Fn() + Send + Sync + 'static
 {
-    fn call(self: Box<F>, result: PollResult<T, E>) {
-        (*self)(result)
+    fn wake(&self) {
+        self()
     }
 }
 

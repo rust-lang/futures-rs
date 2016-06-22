@@ -1,17 +1,22 @@
-use std::mem;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::mem;
 
-use {PollResult, Callback, Future, PollError};
+use {PollResult, Wake, Future};
 use executor::{Executor, DEFAULT};
-use lock::Lock;
 use util;
 
 /// Future for the `join` combinator, waiting for two futures to complete.
 ///
 /// This is created by this `Future::join` method.
 pub struct Join<A, B> where A: Future, B: Future<Error=A::Error> {
-    state: State<A, B>,
+    a: MaybeDone<A>,
+    b: MaybeDone<B>,
+}
+
+enum MaybeDone<A: Future> {
+    NotYet(A),
+    Done(A::Item),
+    Gone,
 }
 
 pub fn new<A, B>(a: A, b: B) -> Join<A, B>
@@ -19,7 +24,8 @@ pub fn new<A, B>(a: A, b: B) -> Join<A, B>
           B: Future<Error=A::Error>,
 {
     Join {
-        state: State::Start(a, b),
+        a: MaybeDone::NotYet(a),
+        b: MaybeDone::NotYet(b),
     }
 }
 
@@ -30,166 +36,62 @@ impl<A, B> Future for Join<A, B>
     type Item = (A::Item, B::Item);
     type Error = A::Error;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
-    {
-        // TODO: pretty unfortunate we gotta box this up
-        self.schedule_boxed(Box::new(g))
+    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+        match (self.a.poll(), self.b.poll()) {
+            (Ok(true), Ok(true)) => Some(Ok((self.a.take(), self.b.take()))),
+            (Err(e), _) |
+            (_, Err(e)) => {
+                self.a = MaybeDone::Gone;
+                self.b = MaybeDone::Gone;
+                Some(Err(e))
+            }
+            (Ok(_), Ok(_)) => None,
+        }
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<Self::Item, Self::Error>>) {
-        let (mut a, mut b) = match mem::replace(&mut self.state, State::Canceled) {
-            State::Start(a, b) => (a, b),
-            State::Canceled => {
-                return DEFAULT.execute(|| cb.call(Err(PollError::Canceled)))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        match (&mut self.a, &mut self.b) {
+            // need to wait for both
+            (&mut MaybeDone::NotYet(ref mut a),
+             &mut MaybeDone::NotYet(ref mut b)) => {
+                a.schedule(wake.clone());
+                b.schedule(wake);
             }
-            State::Scheduled(s) => {
-                self.state = State::Scheduled(s);
-                return DEFAULT.execute(|| cb.call(Err(util::reused())))
-            }
+
+            // Only need to wait for one
+            (&mut MaybeDone::NotYet(ref mut a), _) => a.schedule(wake),
+            (_, &mut MaybeDone::NotYet(ref mut b)) => b.schedule(wake),
+
+            // We're "ready" as we'll return a panicked response
+            (&mut MaybeDone::Gone, _) |
+            (_, &mut MaybeDone::Gone) => DEFAULT.execute(move || wake.wake()),
+
+            // Shouldn't be possible, can't get into this state
+            (&mut MaybeDone::Done(_), &mut MaybeDone::Done(_)) => panic!(),
+        }
+    }
+}
+
+impl<A: Future> MaybeDone<A> {
+    fn poll(&mut self) -> PollResult<bool, A::Error> {
+        let res = match *self {
+            MaybeDone::NotYet(ref mut a) => a.poll(),
+            MaybeDone::Done(_) => return Ok(true),
+            MaybeDone::Gone => return Err(util::reused()),
         };
-
-        // TODO: optimize the case that both futures are immediately done.
-        let data1 = Arc::new(Scheduled {
-            futures: Lock::new(None),
-            a_val: Lock::new(None),
-            b_val: Lock::new(None),
-            state: AtomicUsize::new(0),
-            cb: Lock::new(Some(cb)),
-        });
-        let data2 = data1.clone();
-        let data3 = data2.clone();
-
-        a.schedule(move |result| data1.finish(&data1.a_val, result, A_OK));
-        b.schedule(move |result| data2.finish(&data2.b_val, result, B_OK));
-        *data3.futures.try_lock().expect("[j] futures locked") = Some((a, b));
-
-        // Tell the state that we've now placed the futures so they can be
-        // canceled. If, however, an error already happened then we need to
-        // cancel them ourselves.
-        let old = data3.state.fetch_or(SET, Ordering::SeqCst);
-        if old & (A_ERR | B_ERR) != 0 {
-            data3.cancel();
-        }
-
-        self.state = State::Scheduled(data3);
-    }
-}
-
-enum State<A, B> where A: Future, B: Future<Error=A::Error> {
-    Start(A, B),
-    Scheduled(Arc<Scheduled<A, B>>),
-    Canceled,
-}
-
-const A_OK: usize = 1 << 0;
-const A_ERR: usize = 1 << 1;
-const B_OK: usize = 1 << 2;
-const B_ERR: usize = 1 << 3;
-const SET: usize = 1 << 4;
-
-struct Scheduled<A, B>
-    where A: Future,
-          B: Future<Error=A::Error>,
-{
-    futures: Lock<Option<(A, B)>>,
-    a_val: Lock<Option<A::Item>>,
-    b_val: Lock<Option<B::Item>>,
-    state: AtomicUsize,
-    cb: Lock<Option<Box<Callback<(A::Item, B::Item), A::Error>>>>,
-}
-
-impl<A, B> Scheduled<A, B>
-    where A: Future,
-          B: Future<Error=A::Error>,
-{
-    fn finish<T>(&self,
-                 slot: &Lock<Option<T>>,
-                 val: PollResult<T, A::Error>,
-                 flag: usize) {
-        let err = match val {
-            Ok(t) => {
-                let mut slot = slot.try_lock().expect("[j] cannot lock own slot");
-                assert!(slot.is_none());
-                *slot = Some(t);
-                None
+        match res {
+            Some(res) => {
+                *self = MaybeDone::Done(try!(res));
+                Ok(true)
             }
-            Err(e) => Some(e),
-        };
-
-        let (okflag, errflag) = (flag, flag << 1);
-        let newflag = if err.is_some() {errflag} else {okflag};
-        let old = self.state.fetch_or(newflag, Ordering::SeqCst);
-        assert!(old & okflag == 0);
-        assert!(old & errflag == 0);
-
-        let otherok = if flag == A_OK {B_OK} else {A_OK};
-        let othererr = otherok << 1;
-
-        if old & (othererr | otherok) == 0 {
-            // if the other side hasn't finished, then we only go through below
-            // if we hit an error, if we finished ok then we bail out
-            if newflag == okflag {
-                return
-            }
-        } else if old & othererr != 0 {
-            // if the other side hit an error, they're doing cleanup
-            return
-        }
-
-        // If we're here, then we're in one of two situations:
-        //
-        // * The other side hasn't done anything and we hit an error
-        // * The other side finished ok and we either hit an error or finished
-        //   ok
-        //
-        // In both cases we're responsible for cleaning up, so all the takes()
-        // here are assertions.
-
-        let cb = self.cb.try_lock().expect("[j] done but cb is locked")
-                        .take().expect("[j] done done but cb not here");
-        if let Some(e) = err {
-            // If the futures have made their way over to us, then we cancel
-            // them both here. Otherwise the thread putting the futures into
-            // place will see the error of its ways and cancel them for us.
-            if old & SET != 0 {
-                self.cancel();
-            }
-            DEFAULT.execute(|| cb.call(Err(e)))
-        } else {
-            let a = self.a_val.try_lock().expect("[j] done, but a locked")
-                              .take().expect("[j] done but a not here");
-            let b = self.b_val.try_lock().expect("[j] done, but b locked")
-                              .take().expect("[j] done but b not here");
-            DEFAULT.execute(|| cb.call(Ok((a, b))))
+            None => Ok(false),
         }
     }
 
-    fn cancel(&self) {
-        let pair = self.futures.try_lock().expect("[j] futures locked in cancel")
-                               .take().expect("[j] cancel but futures not here");
-        drop(pair)
-    }
-}
-
-impl<A, B> Drop for Join<A, B> where A: Future, B: Future<Error=A::Error> {
-    fn drop(&mut self) {
-        if let State::Scheduled(ref state) = self.state {
-            // Unset the `SET` flag so we can attempt to "lock" the futures'
-            // memory to get acquired.
-            let old = state.state.fetch_xor(SET, Ordering::SeqCst);
-            assert!(old & SET != 0);
-
-            // We only actually do the cancellation if:
-            //
-            // * An error hasn't happened. If one has happened that whomever
-            //   set that flag is responsible for cancellation.
-            // * We're not done yet, in this case cancellation isn't
-            //   necessary.
-            if old & (A_ERR | B_ERR) == 0 &&
-               old & (A_OK | B_OK) != A_OK | B_OK {
-                state.cancel();
-            }
+    fn take(&mut self) -> A::Item {
+        match mem::replace(self, MaybeDone::Gone) {
+            MaybeDone::Done(a) => a,
+            _ => panic!(),
         }
     }
 }

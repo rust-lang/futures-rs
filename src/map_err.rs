@@ -1,5 +1,6 @@
-use {PollResult, Future, Callback, PollError};
-use executor::{Executor, DEFAULT};
+use std::sync::Arc;
+
+use {Future, PollResult, Wake};
 use util;
 
 /// Future for the `map_err` combinator, changing the error type of a future.
@@ -25,29 +26,19 @@ impl<U, A, F> Future for MapErr<A, F>
     type Item = A::Item;
     type Error = U;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<A::Item, U>) + Send + 'static
-    {
-        let f = match util::opt2poll(self.f.take()) {
-            Ok(f) => f,
-            Err(e) => return DEFAULT.execute(|| g(Err(e))),
+    fn poll(&mut self) -> Option<PollResult<A::Item, U>> {
+        let result = match self.future.poll() {
+            Some(result) => result,
+            None => return None,
         };
-
-        self.future.schedule(|result| {
-            let r = match (result, f) {
-                (Err(PollError::Other(e)), f) => {
-                    util::recover(|| f(e)).and_then(|e| Err(PollError::Other(e)))
-                }
-                (Err(PollError::Panicked(e)), _) => Err(PollError::Panicked(e)),
-                (Err(PollError::Canceled), _) => Err(PollError::Canceled),
-                (Ok(e), _) => Ok(e),
-            };
-            DEFAULT.execute(|| g(r))
-        })
+        let f = util::opt2poll(self.f.take());
+        Some(f.and_then(|f| {
+            result.map_err(|e| e.map(f))
+        }))
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<A::Item, U>>) {
-        self.schedule(|r| cb.call(r));
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        self.future.schedule(wake)
     }
 }
 

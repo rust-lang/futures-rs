@@ -1,4 +1,6 @@
-use {Future, IntoFuture, Callback, PollResult};
+use std::sync::Arc;
+
+use {Future, IntoFuture, Wake, PollResult};
 use chain::Chain;
 
 /// Future for the `flatten` combinator, flattening a future-of-a-future to just
@@ -26,10 +28,8 @@ impl<A> Future for Flatten<A>
     type Item = <<A as Future>::Item as IntoFuture>::Item;
     type Error = <<A as Future>::Item as IntoFuture>::Error;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<Self::Item, Self::Error>) + Send + 'static
-    {
-        self.state.schedule(g, |a, ()| {
+    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+        self.state.poll(|a, ()| {
             match a {
                 Ok(item) => Ok(Err(item.into_future())),
                 Err(e) => Err(e.map(From::from)),
@@ -37,7 +37,7 @@ impl<A> Future for Flatten<A>
         })
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<Self::Item, Self::Error>>) {
-        self.schedule(|r| cb.call(r))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        self.state.schedule(wake)
     }
 }

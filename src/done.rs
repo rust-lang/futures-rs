@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use executor::{Executor, DEFAULT};
 use util;
-use {PollResult, Future, PollError, Callback};
+use {PollResult, Future, PollError, Wake};
 
 /// A future representing a value that is immediately ready.
 ///
@@ -37,16 +39,13 @@ impl<T, E> Future for Done<T, E>
     type Item = T;
     type Error = E;
 
-    fn schedule<F>(&mut self, f: F)
-        where F: FnOnce(PollResult<T, E>) + Send + 'static
-    {
-        let res = util::opt2poll(self.inner.take()).and_then(|r| {
+    fn poll(&mut self) -> Option<PollResult<T, E>> {
+        Some(util::opt2poll(self.inner.take()).and_then(|r| {
             r.map_err(PollError::Other)
-        });
-        DEFAULT.execute(|| f(res))
+        }))
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {
-        self.schedule(|r| cb.call(r));
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        DEFAULT.execute(move || wake.wake());
     }
 }

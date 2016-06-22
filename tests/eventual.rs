@@ -13,10 +13,10 @@ fn and_then1() {
     let p1 = finished::<_, i32>("a").then(move |t| { tx2.send("first").unwrap(); t });
     let tx2 = tx.clone();
     let p2 = finished("b").then(move |t| { tx2.send("second").unwrap(); t });
-    let mut f = p1.and_then(|_| p2);
+    let f = p1.and_then(|_| p2);
 
     assert!(rx.try_recv().is_err());
-    f.schedule(move |s| tx.send(s.ok().unwrap()).unwrap());
+    f.map(move |s| tx.send(s).unwrap()).forget();
     assert_eq!(rx.recv(), Ok("first"));
     assert_eq!(rx.recv(), Ok("second"));
     assert_eq!(rx.recv(), Ok("b"));
@@ -31,10 +31,10 @@ fn and_then2() {
     let p1 = failed::<i32, _>(2).then(move |t| { tx2.send("first").unwrap(); t });
     let tx2 = tx.clone();
     let p2 = finished("b").then(move |t| { tx2.send("second").unwrap(); t });
-    let mut f = p1.and_then(|_| p2);
+    let f = p1.and_then(|_| p2);
 
     assert!(rx.try_recv().is_err());
-    f.schedule(move |s| { drop(tx); s.unwrap_err(); });
+    f.map_err(|_| drop(tx)).forget();
     assert_eq!(rx.recv(), Ok("first"));
     assert!(rx.recv().is_err());
 }

@@ -1,6 +1,8 @@
+use std::any::Any;
 use std::mem;
+use std::sync::Arc;
 
-use {Future, PollResult, Callback, IntoFuture};
+use {Future, PollResult, Wake, IntoFuture, PollError};
 use executor::{Executor, DEFAULT};
 use util;
 
@@ -9,7 +11,8 @@ use util;
 ///
 /// This is created by the `lazy` function.
 pub struct Lazy<F, R> {
-    inner: _Lazy<F, R>
+    inner: _Lazy<F, R>,
+    deferred_error: Option<Box<Any+Send>>,
 }
 
 enum _Lazy<F, R> {
@@ -41,7 +44,32 @@ pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
     where F: FnOnce() -> R + Send + 'static,
           R: IntoFuture
 {
-    Lazy { inner: _Lazy::First(f) }
+    Lazy {
+        inner: _Lazy::First(f),
+        deferred_error: None,
+    }
+}
+
+impl<F, R> Lazy<F, R::Future>
+    where F: FnOnce() -> R + Send + 'static,
+          R: IntoFuture,
+{
+    fn get<E>(&mut self) -> PollResult<&mut R::Future, E> {
+        match self.inner {
+            _Lazy::First(_) => {}
+            _Lazy::Second(ref mut f) => return Ok(f),
+            _Lazy::Moved => return Err(util::reused()),
+        }
+        let f = match mem::replace(&mut self.inner, _Lazy::Moved) {
+            _Lazy::First(f) => try!(util::recover(f)),
+            _ => panic!(),
+        };
+        self.inner = _Lazy::Second(f.into_future());
+        match self.inner {
+            _Lazy::Second(ref mut f) => Ok(f),
+            _ => panic!(),
+        }
+    }
 }
 
 impl<F, R> Future for Lazy<F, R::Future>
@@ -51,30 +79,25 @@ impl<F, R> Future for Lazy<F, R::Future>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<R::Item, R::Error>) + Send + 'static
-    {
-        match mem::replace(&mut self.inner, _Lazy::Moved) {
-            _Lazy::First(f) => {
-                let mut f = match util::recover(f) {
-                    Ok(f) => f.into_future(),
-                    Err(e) => return DEFAULT.execute(|| g(Err(e))),
-                };
-                f.schedule(g);
-                self.inner = _Lazy::Second(f);
-            }
-            _Lazy::Second(f) => {
-                self.inner = _Lazy::Second(f);
-                DEFAULT.execute(|| g(Err(util::reused())))
-            }
-            _Lazy::Moved => {
-                DEFAULT.execute(|| g(Err(util::reused())))
-            }
-        };
+    fn poll(&mut self) -> Option<PollResult<R::Item, R::Error>> {
+        if let Some(e) = self.deferred_error.take() {
+            return Some(Err(PollError::Panicked(e)))
+        }
+        match self.get() {
+            Ok(f) => f.poll(),
+            Err(e) => Some(Err(e)),
+        }
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<R::Item, R::Error>>) {
-        // TODO: wut? UFCS?
-        Future::schedule(self, |r| cb.call(r))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        let err = match self.get::<()>() {
+            Ok(f) => return f.schedule(wake),
+            Err(PollError::Panicked(e)) => e,
+            Err(_) => panic!(),
+        };
+
+        // TODO: put this in a better location?
+        self.deferred_error = Some(err);
+        DEFAULT.execute(move || wake.wake());
     }
 }

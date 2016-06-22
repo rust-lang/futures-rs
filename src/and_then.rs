@@ -1,4 +1,6 @@
-use {Future, IntoFuture, Callback, PollResult};
+use std::sync::Arc;
+
+use {Future, IntoFuture, Wake, PollResult};
 use util;
 use chain::Chain;
 
@@ -28,16 +30,14 @@ impl<A, B, F> Future for AndThen<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<B::Item, B::Error>) + Send + 'static
-    {
-        self.state.schedule(g, |a, f| {
-            let e = try!(a);
+    fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
+        self.state.poll(|result, f| {
+            let e = try!(result);
             util::recover(|| f(e)).map(|b| Err(b.into_future()))
         })
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<B::Item, B::Error>>) {
-        self.schedule(|r| cb.call(r))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        self.state.schedule(wake)
     }
 }

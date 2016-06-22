@@ -1,6 +1,7 @@
-use {Future, Callback, PollResult, PollError};
-use executor::{Executor, DEFAULT};
-use util;
+use std::marker;
+use std::sync::Arc;
+
+use {Future, Wake, PollResult};
 
 /// A future which is never resolved.
 ///
@@ -9,7 +10,7 @@ pub struct Empty<T, E>
     where T: Send + 'static,
           E: Send + 'static,
 {
-    callback: Option<Box<Callback<T, E>>>,
+    _data: marker::PhantomData<(T, E)>,
 }
 
 /// Creates a future which never resolves, representing a computation that never
@@ -19,9 +20,7 @@ pub struct Empty<T, E>
 /// susceptible to cancellation. That is, if a callback is scheduled on the
 /// returned future, it is only run once the future is dropped (canceled).
 pub fn empty<T: Send + 'static, E: Send + 'static>() -> Empty<T, E> {
-    Empty {
-        callback: None,
-    }
+    Empty { _data: marker::PhantomData }
 }
 
 impl<T, E> Future for Empty<T, E>
@@ -31,28 +30,11 @@ impl<T, E> Future for Empty<T, E>
     type Item = T;
     type Error = E;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<T, E>) + Send + 'static
-    {
-        self.schedule_boxed(Box::new(g))
+    fn poll(&mut self) -> Option<PollResult<T, E>> {
+        None
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {
-        if self.callback.is_some() {
-            DEFAULT.execute(|| cb.call(Err(util::reused())))
-        } else {
-            self.callback = Some(cb);
-        }
-    }
-}
-
-impl<T, E> Drop for Empty<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
-    fn drop(&mut self) {
-        if let Some(cb) = self.callback.take() {
-            DEFAULT.execute(|| cb.call(Err(PollError::Canceled)));
-        }
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        drop(wake)
     }
 }

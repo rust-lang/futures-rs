@@ -1,5 +1,6 @@
-use {Future, PollResult, Callback};
-use executor::{Executor, DEFAULT};
+use std::sync::Arc;
+
+use {Future, PollResult, Wake};
 use util;
 
 /// Future for the `map` combinator, changing the type of a future.
@@ -25,20 +26,18 @@ impl<U, A, F> Future for Map<A, F>
     type Item = U;
     type Error = A::Error;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<U, A::Error>) + Send + 'static
-    {
-        let f = match util::opt2poll(self.f.take()) {
-            Ok(f) => f,
-            Err(e) => return g(Err(e)),
+    fn poll(&mut self) -> Option<PollResult<U, A::Error>> {
+        let result = match self.future.poll() {
+            Some(result) => result,
+            None => return None,
         };
-        self.future.schedule(|result| {
-            let res = result.and_then(|e| util::recover(|| f(e)));
-            DEFAULT.execute(|| g(res))
-        })
+        let callback = util::opt2poll(self.f.take());
+        Some(result.and_then(|e| {
+            callback.map(|f| f(e))
+        }))
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<U, A::Error>>) {
-        self.schedule(|r| cb.call(r));
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        self.future.schedule(wake)
     }
 }

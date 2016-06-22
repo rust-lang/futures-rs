@@ -1,6 +1,7 @@
 use std::marker;
+use std::sync::Arc;
 
-use {Future, PollResult, PollError, Callback};
+use {Future, PollResult, PollError, Wake};
 use executor::{Executor, DEFAULT};
 use util;
 
@@ -38,15 +39,12 @@ impl<T, E> Future for Failed<T, E>
     type Item = T;
     type Error = E;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(PollResult<T, E>) + Send + 'static
-    {
-        let res = util::opt2poll(self.e.take())
-                       .and_then(|e| Err(PollError::Other(e)));
-        DEFAULT.execute(|| g(res))
+    fn poll(&mut self) -> Option<PollResult<T, E>> {
+        Some(util::opt2poll(self.e.take())
+                  .and_then(|e| Err(PollError::Other(e))))
     }
 
-    fn schedule_boxed(&mut self, cb: Box<Callback<T, E>>) {
-        self.schedule(|r| cb.call(r))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        DEFAULT.execute(move || wake.wake());
     }
 }
