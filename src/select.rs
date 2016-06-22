@@ -134,12 +134,14 @@ impl<A, B> Scheduled<A, B>
 
         let cb = me.cb.try_lock().expect("[s] done but cb is locked")
                       .take().expect("[s] done done but cb not here");
-        let next = SelectNext { state: me };
-        let res = match val {
-            Ok(v) => Ok((v, next)),
-            Err(PollError::Other(e)) => Err(PollError::Other((e, next))),
-            Err(PollError::Panicked(p)) => Err(PollError::Panicked(p)),
-            Err(PollError::Canceled) => Err(PollError::Canceled),
+        let res = {
+            let next = SelectNext { state: me };
+            match val {
+                Ok(v) => Ok((v, next)),
+                Err(PollError::Other(e)) => Err(PollError::Other((e, next))),
+                Err(PollError::Panicked(p)) => Err(PollError::Panicked(p)),
+                Err(PollError::Canceled) => Err(PollError::Canceled),
+            }
         };
         DEFAULT.execute(|| cb.call(res))
     }
