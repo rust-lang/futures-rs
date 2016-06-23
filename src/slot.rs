@@ -421,14 +421,18 @@ impl<T: 'static> Slot<T> {
         //
         // Figure out which callback we just canceled, and now that the flag is
         // unset we should own the callback to clear it.
+
+        // TODO: should this actually call the callback
         if state.flag(ON_FULL) {
             let cb = self.on_full.try_lock().expect("on_full interference3")
                                   .take().expect("on_full not full??");
-            cb.call_box(self);
+            // cb.call_box(self);
+            drop(cb);
         } else {
             let cb = self.on_empty.try_lock().expect("on_empty interference3")
                                   .take().expect("on_empty not empty??");
-            cb.call_box(self);
+            // cb.call_box(self);
+            drop(cb);
         }
     }
 }
