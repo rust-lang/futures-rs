@@ -3,7 +3,7 @@ use std::mem;
 
 use {PollResult, Wake, Future};
 use executor::{Executor, DEFAULT};
-use util;
+use util::{self, Collapsed};
 
 /// Future for the `join` combinator, waiting for two futures to complete.
 ///
@@ -14,7 +14,7 @@ pub struct Join<A, B> where A: Future, B: Future<Error=A::Error> {
 }
 
 enum MaybeDone<A: Future> {
-    NotYet(A),
+    NotYet(Collapsed<A>),
     Done(A::Item),
     Gone,
 }
@@ -23,6 +23,8 @@ pub fn new<A, B>(a: A, b: B) -> Join<A, B>
     where A: Future,
           B: Future<Error=A::Error>,
 {
+    let a = Collapsed::Start(a);
+    let b = Collapsed::Start(b);
     Join {
         a: MaybeDone::NotYet(a),
         b: MaybeDone::NotYet(b),
@@ -70,6 +72,13 @@ impl<A, B> Future for Join<A, B>
             (&mut MaybeDone::Done(_), &mut MaybeDone::Done(_)) => panic!(),
         }
     }
+
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        self.a.collapse();
+        self.b.collapse();
+        None
+    }
 }
 
 impl<A: Future> MaybeDone<A> {
@@ -92,6 +101,13 @@ impl<A: Future> MaybeDone<A> {
         match mem::replace(self, MaybeDone::Gone) {
             MaybeDone::Done(a) => a,
             _ => panic!(),
+        }
+    }
+
+    fn collapse(&mut self) {
+        match *self {
+            MaybeDone::NotYet(ref mut a) => a.collapse(),
+            _ => {}
         }
     }
 }

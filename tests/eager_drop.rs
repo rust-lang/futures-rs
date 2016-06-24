@@ -47,6 +47,10 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     fn schedule(&mut self, wake: Arc<Wake>) {
         self.future.schedule(wake)
     }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=F::Item, Error=F::Error>>> {
+        None
+    }
 }
 
 #[test]

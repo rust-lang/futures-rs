@@ -37,4 +37,8 @@ impl<T, E> Future for Empty<T, E>
     fn schedule(&mut self, wake: Arc<Wake>) {
         drop(wake)
     }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {
+        None
+    }
 }

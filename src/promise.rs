@@ -131,37 +131,6 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
 
-    // fn schedule<F>(&mut self, f: F)
-    //     where F: FnOnce(PollResult<T, E>) + Send + 'static
-    // {
-    //     let inner = match mem::replace(&mut self.state, _Promise::Used) {
-    //         _Promise::Start(inner) => inner,
-    //         _Promise::Canceled => return f(Err(PollError::Canceled)),
-    //         _Promise::Used => return f(Err(util::reused())),
-    //         _Promise::Scheduled(s, token) => {
-    //             self.state = _Promise::Scheduled(s, token);
-    //             return f(Err(util::reused()))
-    //         }
-    //     };
-    //     let token = inner.slot.on_full(|slot| {
-    //         match slot.try_consume() {
-    //             Ok(Some(Ok(e))) => f(Ok(e)),
-    //             Ok(Some(Err(e))) => f(Err(PollError::Other(e))),
-    //
-    //             // canceled because the `Complete` handle dropped
-    //             Ok(None) => f(Err(PollError::Canceled)),
-    //
-    //             // canceled via Drop
-    //             Err(..) => f(Err(PollError::Canceled)),
-    //         }
-    //     });
-    //     self.state = _Promise::Scheduled(inner, token);
-    // }
-    //
-    // fn schedule_boxed(&mut self, f: Box<Callback<T, E>>) {
-    //     self.schedule(|r| f.call(r))
-    // }
-
     fn poll(&mut self) -> Option<PollResult<T, E>> {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             return None
@@ -192,6 +161,10 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
             inner.pending_wake.store(false, Ordering::SeqCst);
             wake.wake()
         }));
+    }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {
+        None
     }
 }
 

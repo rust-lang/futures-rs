@@ -12,6 +12,9 @@ use util;
 /// This is created by the `lazy` function.
 pub struct Lazy<F, R> {
     inner: _Lazy<F, R>,
+    // TODO: the handling of a panicked closure here is pretty bad, should
+    //       refactor this or just delete this future, seems to have very little
+    //       reason to exist any more.
     deferred_error: Option<Box<Any+Send>>,
 }
 
@@ -90,6 +93,10 @@ impl<F, R> Future for Lazy<F, R::Future>
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
+        if self.deferred_error.is_some() {
+            return DEFAULT.execute(move || wake.wake())
+        }
+
         let err = match self.get::<()>() {
             Ok(f) => return f.schedule(wake),
             Err(PollError::Panicked(e)) => e,
@@ -99,5 +106,21 @@ impl<F, R> Future for Lazy<F, R::Future>
         // TODO: put this in a better location?
         self.deferred_error = Some(err);
         DEFAULT.execute(move || wake.wake());
+    }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {
+        if self.deferred_error.is_some() {
+            return None
+        }
+
+        let err = match self.get::<()>() {
+            Ok(f) => return f.tailcall(),
+            Err(PollError::Panicked(e)) => e,
+            Err(_) => panic!(),
+        };
+
+        // TODO: put this in a better location?
+        self.deferred_error = Some(err);
+        None
     }
 }

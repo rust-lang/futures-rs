@@ -1,15 +1,16 @@
 use std::sync::Arc;
+use std::mem;
 
-use {PollResult, Wake, Future};
+use {PollResult, Wake, Future, empty};
 use executor::{Executor, DEFAULT};
-use util;
+use util::{self, Collapsed};
 
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.
 ///
 /// This is created by this `Future::select` method.
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
-    inner: Option<(A, B)>,
+    inner: Option<(Collapsed<A>, Collapsed<B>)>,
 }
 
 /// Future yielded as the second result in a `Select` future.
@@ -20,15 +21,17 @@ pub struct SelectNext<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Er
     inner: OneOf<A, B>,
 }
 
-enum OneOf<A, B> {
-    A(A),
-    B(B),
+enum OneOf<A, B> where A: Future, B: Future {
+    A(Collapsed<A>),
+    B(Collapsed<B>),
 }
 
 pub fn new<A, B>(a: A, b: B) -> Select<A, B>
     where A: Future,
           B: Future<Item=A::Item, Error=A::Error>
 {
+    let a = Collapsed::Start(a);
+    let b = Collapsed::Start(b);
     Select {
         inner: Some((a, b)),
     }
@@ -75,6 +78,15 @@ impl<A, B> Future for Select<A, B>
             None => DEFAULT.execute(move || wake.wake()),
         }
     }
+
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        if let Some((ref mut a, ref mut b)) = self.inner {
+            a.collapse();
+            b.collapse();
+        }
+        None
+    }
 }
 
 impl<A, B> Future for SelectNext<A, B>
@@ -95,6 +107,21 @@ impl<A, B> Future for SelectNext<A, B>
         match self.inner {
             OneOf::A(ref mut a) => a.schedule(wake),
             OneOf::B(ref mut b) => b.schedule(wake),
+        }
+    }
+
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        match self.inner {
+            OneOf::A(ref mut a) => a.collapse(),
+            OneOf::B(ref mut b) => b.collapse(),
+        }
+        match self.inner {
+            OneOf::A(Collapsed::Tail(ref mut a)) |
+            OneOf::B(Collapsed::Tail(ref mut a)) => {
+                Some(mem::replace(a, Box::new(empty())))
+            }
+            _ => None,
         }
     }
 }

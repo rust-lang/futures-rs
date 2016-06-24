@@ -158,6 +158,9 @@ pub trait Future: Send + 'static {
 
     fn schedule(&mut self, wake: Arc<Wake>);
 
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>>;
+
     /// Convenience function for turning this future into a trait object.
     ///
     /// This simply avoids the need to write `Box::new` and can often help with

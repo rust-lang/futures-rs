@@ -45,4 +45,9 @@ impl<A, B, F> Future for Then<A, B, F>
     fn schedule(&mut self, wake: Arc<Wake>) {
         self.state.schedule(wake)
     }
+
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        self.state.tailcall()
+    }
 }

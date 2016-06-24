@@ -82,14 +82,14 @@ fn assert_panic<T, E>(r: PollResult<T, E>) {
     }
 }
 
-fn assert_bad<T, E>(r: PollResult<T, E>) {
-    match r {
-        Ok(_) => panic!("expected panic, got success"),
-        Err(PollError::Other(_)) => panic!("expected panic, got other"),
-        Err(PollError::Panicked(_)) => {}
-        Err(PollError::Canceled) => {}
-    }
-}
+// fn assert_bad<T, E>(r: PollResult<T, E>) {
+//     match r {
+//         Ok(_) => panic!("expected panic, got success"),
+//         Err(PollError::Other(_)) => panic!("expected panic, got other"),
+//         Err(PollError::Panicked(_)) => {}
+//         Err(PollError::Canceled) => {}
+//     }
+// }
 
 fn unselect<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
     match r {
@@ -290,37 +290,37 @@ fn join_incomplete() {
     let mut f = f_ok(1).join(a);
     assert!(f.poll().is_none());
     let (tx, rx) = channel();
-    f.schedule(move |r| tx.send(r).unwrap());
+    f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     b.finish(2);
-    assert_eq!(unwrap(rx.recv().unwrap()), Ok((1, 2)));
+    assert_eq!(rx.recv().unwrap(), (1, 2));
 
     let (a, b) = promise::<i32, u32>();
     let mut f = a.join(f_ok(2));
     assert!(f.poll().is_none());
     let (tx, rx) = channel();
-    f.schedule(move |r| tx.send(r).unwrap());
+    f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     b.finish(1);
-    assert_eq!(unwrap(rx.recv().unwrap()), Ok((1, 2)));
+    assert_eq!(rx.recv().unwrap(), (1, 2));
 
     let (a, b) = promise::<i32, u32>();
     let mut f = f_ok(1).join(a);
     assert!(f.poll().is_none());
     let (tx, rx) = channel();
-    f.schedule(move |r| tx.send(r).unwrap());
+    f.map_err(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     b.fail(2);
-    assert_eq!(unwrap(rx.recv().unwrap()), Err(2));
+    assert_eq!(rx.recv().unwrap(), 2);
 
     let (a, b) = promise::<i32, u32>();
     let mut f = a.join(f_ok(2));
     assert!(f.poll().is_none());
     let (tx, rx) = channel();
-    f.schedule(move |r| tx.send(r).unwrap());
+    f.map_err(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     b.fail(1);
-    assert_eq!(unwrap(rx.recv().unwrap()), Err(1));
+    assert_eq!(rx.recv().unwrap(), 1);
 }
 
 #[test]
@@ -345,114 +345,107 @@ fn cancel_propagates() {
 //
 //     // TODO: needs more tests
 // }
-//
-// #[test]
-// fn select2() {
-//     fn d<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
-//         match r {
-//             Ok((t, _u)) => Ok(t),
-//             Err((e, _u)) => Err(e),
-//         }
-//     }
-//
-//     assert_done(|| f_ok(2).select(empty()).then(d), Ok(2));
-//     assert_done(|| empty().select(f_ok(2)).then(d), Ok(2));
-//     assert_done(|| f_err(2).select(empty()).then(d), Err(2));
-//     assert_done(|| empty().select(f_err(2)).then(d), Err(2));
-//
-//     assert_done(|| {
-//         f_ok(1).select(f_ok(2))
-//                .map_err(|_| 0)
-//                .and_then(|(a, b)| b.map(move |b| a + b))
-//     }, Ok(3));
-//
-//     // Finish one half of a select and then fail the second, ensuring that we
-//     // get the notification of the second one.
-//     {
-//         let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-//         let mut f = a.select(c);
-//         let (tx, rx) = channel();
-//         f.schedule(move |r| tx.send(r).unwrap());
-//         b.finish(1);
-//         let (val, mut next) = rx.recv().unwrap().ok().unwrap();
-//         assert_eq!(val, 1);
-//         let (tx, rx) = channel();
-//         next.schedule(move |r| tx.send(r).unwrap());
-//         assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
-//         d.fail(2);
-//         match rx.recv().unwrap() {
-//             Err(PollError::Other(2)) => {}
-//             _ => panic!("wrong error"),
-//         }
-//     }
-//
-//     // Fail the second half and ensure that we see the first one finish
-//     {
-//         let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-//         let mut f = a.select(c);
-//         let (tx, rx) = channel();
-//         f.schedule(move |r| tx.send(r).unwrap());
-//         d.fail(1);
-//         let mut next = match rx.recv().unwrap() {
-//             Err(PollError::Other((1, next))) => next,
-//             _ => panic!("wrong result"),
-//         };
-//         let (tx, rx) = channel();
-//         next.schedule(move |r| tx.send(r).unwrap());
-//         assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
-//         b.finish(2);
-//         assert_eq!(rx.recv().unwrap().ok().unwrap(), 2);
-//     }
-//
-//     // Cancelling the first half should cancel the second
-//     {
-//         let ((a, _b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-//         let ((atx, arx), (ctx, crx)) = (channel(), channel());
-//         let a = a.map(move |v| { atx.send(v).unwrap(); v });
-//         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-//         let f = a.select(c);
-//         drop(f);
-//         assert!(crx.recv().is_err());
-//         assert!(arx.recv().is_err());
-//     }
-//
-//     // Cancel after a schedule
-//     {
-//         let ((a, _b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-//         let ((atx, arx), (ctx, crx)) = (channel(), channel());
-//         let a = a.map(move |v| { atx.send(v).unwrap(); v });
-//         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-//         let mut f = a.select(c);
-//         f.schedule(|_| ());
-//         drop(f);
-//         assert!(crx.recv().is_err());
-//         assert!(arx.recv().is_err());
-//     }
-//
-//     // Cancel propagates
-//     {
-//         let ((a, b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-//         let ((atx, arx), (ctx, crx)) = (channel(), channel());
-//         let a = a.map(move |v| { atx.send(v).unwrap(); v });
-//         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-//         let (tx, rx) = channel();
-//         let mut f = a.select(c).map(move |_| tx.send(()).unwrap());
-//         f.schedule(|_| ());
-//         drop(b);
-//         assert!(crx.recv().is_err());
-//         assert!(arx.recv().is_err());
-//         assert!(rx.recv().is_err());
-//     }
-//
-//     // Cancel on early drop
-//     {
-//         let (tx, rx) = channel();
-//         let mut f = f_ok(1).select(empty().map(move |()| {
-//             tx.send(()).unwrap();
-//             1
-//         }));
-//         f.schedule(|_| ());
-//         drop(f);
-//         assert!(rx.recv().is_err());
-//     }
-// }
+
+#[test]
+fn select2() {
+    fn d<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
+        match r {
+            Ok((t, _u)) => Ok(t),
+            Err((e, _u)) => Err(e),
+        }
+    }
+
+    assert_done(|| f_ok(2).select(empty()).then(d), Ok(2));
+    assert_done(|| empty().select(f_ok(2)).then(d), Ok(2));
+    assert_done(|| f_err(2).select(empty()).then(d), Err(2));
+    assert_done(|| empty().select(f_err(2)).then(d), Err(2));
+
+    assert_done(|| {
+        f_ok(1).select(f_ok(2))
+               .map_err(|_| 0)
+               .and_then(|(a, b)| b.map(move |b| a + b))
+    }, Ok(3));
+
+    // Finish one half of a select and then fail the second, ensuring that we
+    // get the notification of the second one.
+    {
+        let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let f = a.select(c);
+        let (tx, rx) = channel();
+        f.map(move |r| tx.send(r).unwrap()).forget();
+        b.finish(1);
+        let (val, next) = rx.recv().unwrap();
+        assert_eq!(val, 1);
+        let (tx, rx) = channel();
+        next.map_err(move |r| tx.send(r).unwrap()).forget();
+        assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
+        d.fail(2);
+        assert_eq!(rx.recv().unwrap(), 2);
+    }
+
+    // Fail the second half and ensure that we see the first one finish
+    {
+        let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let f = a.select(c);
+        let (tx, rx) = channel();
+        f.map_err(move |r| tx.send(r).unwrap()).forget();
+        d.fail(1);
+        let (val, next) = rx.recv().unwrap();
+        assert_eq!(val, 1);
+        let (tx, rx) = channel();
+        next.map(move |r| tx.send(r).unwrap()).forget();
+        assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
+        b.finish(2);
+        assert_eq!(rx.recv().unwrap(), 2);
+    }
+
+    // Cancelling the first half should cancel the second
+    {
+        let ((a, _b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let ((atx, arx), (ctx, crx)) = (channel(), channel());
+        let a = a.map(move |v| { atx.send(v).unwrap(); v });
+        let c = c.map(move |v| { ctx.send(v).unwrap(); v });
+        let f = a.select(c);
+        drop(f);
+        assert!(crx.recv().is_err());
+        assert!(arx.recv().is_err());
+    }
+
+    // Cancel after a schedule
+    {
+        let ((a, _b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let ((atx, arx), (ctx, crx)) = (channel(), channel());
+        let a = a.map(move |v| { atx.send(v).unwrap(); v });
+        let c = c.map(move |v| { ctx.send(v).unwrap(); v });
+        let mut f = a.select(c);
+        f.schedule(Arc::new(|| ()));
+        drop(f);
+        assert!(crx.recv().is_err());
+        assert!(arx.recv().is_err());
+    }
+
+    // Cancel propagates
+    {
+        let ((a, b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let ((atx, arx), (ctx, crx)) = (channel(), channel());
+        let a = a.map(move |v| { atx.send(v).unwrap(); v });
+        let c = c.map(move |v| { ctx.send(v).unwrap(); v });
+        let (tx, rx) = channel();
+        a.select(c).map(move |_| tx.send(()).unwrap()).forget();
+        drop(b);
+        assert!(crx.recv().is_err());
+        assert!(arx.recv().is_err());
+        assert!(rx.recv().is_err());
+    }
+
+    // Cancel on early drop
+    {
+        let (tx, rx) = channel();
+        let f = f_ok(1).select(empty().map(move |()| {
+            tx.send(()).unwrap();
+            1
+        }));
+        drop(f);
+        assert!(rx.recv().is_err());
+    }
+}

@@ -44,12 +44,23 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
     fn schedule(&mut self, wake: Arc<Wake>) {
         self.inner.schedule(wake)
     }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=(), Error=()>>> {
+        if let Some(f) = self.inner.tailcall() {
+            self.inner = f;
+        }
+        None
+    }
 }
 
 fn _forget(mut future: Thunk, forget: Arc<Forget>) {
     if future.poll().is_some() {
         return
     }
+    let mut future = match future.tailcall() {
+        Some(f) => f,
+        None => future,
+    };
     future.schedule(forget.clone());
     forget.slot.try_produce((future, forget.clone())).ok().unwrap();
 }

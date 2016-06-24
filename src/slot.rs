@@ -410,7 +410,7 @@ impl<T: 'static> Slot<T> {
             let old = self.state.compare_and_swap(state.0,
                                                   new_state.0,
                                                   Ordering::SeqCst);
-            if old != state.0 {
+            if old == state.0 {
                 break
             }
             state.0 = old;
@@ -425,7 +425,7 @@ impl<T: 'static> Slot<T> {
         // TODO: should this actually call the callback
         if state.flag(ON_FULL) {
             let cb = self.on_full.try_lock().expect("on_full interference3")
-                                  .take().expect("on_full not full??");
+                                 .take().expect("on_full not full??");
             // cb.call_box(self);
             drop(cb);
         } else {

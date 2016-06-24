@@ -1,6 +1,12 @@
 use std::panic::{self, AssertUnwindSafe};
+use std::sync::Arc;
 
-use {PollResult, PollError};
+use {PollResult, PollError, Wake, Future};
+
+pub enum Collapsed<T: Future> {
+    Start(T),
+    Tail(Box<Future<Item=T::Item, Error=T::Error>>),
+}
 
 // TODO: reexport this?
 struct ReuseFuture;
@@ -32,5 +38,39 @@ pub fn opt2poll<T, E>(t: Option<T>) -> PollResult<T, E> {
     match t {
         Some(t) => Ok(t),
         None => Err(reused()),
+    }
+}
+
+impl<T: Future> Collapsed<T> {
+    pub fn poll(&mut self) -> Option<PollResult<T::Item, T::Error>> {
+        match *self {
+            Collapsed::Start(ref mut a) => a.poll(),
+            Collapsed::Tail(ref mut a) => a.poll(),
+        }
+    }
+
+    pub fn schedule(&mut self, wake: Arc<Wake>) {
+        match *self {
+            Collapsed::Start(ref mut a) => a.schedule(wake),
+            Collapsed::Tail(ref mut a) => a.schedule(wake),
+        }
+    }
+
+    pub fn collapse(&mut self) {
+        let a = match *self {
+            Collapsed::Start(ref mut a) => {
+                match a.tailcall() {
+                    Some(a) => a,
+                    None => return,
+                }
+            }
+            Collapsed::Tail(ref mut a) => {
+                if let Some(b) = a.tailcall() {
+                    *a = b;
+                }
+                return
+            }
+        };
+        *self = Collapsed::Tail(a);
     }
 }

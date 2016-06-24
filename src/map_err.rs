@@ -1,19 +1,21 @@
 use std::sync::Arc;
 
 use {Future, PollResult, Wake};
-use util;
+use util::{self, Collapsed};
 
 /// Future for the `map_err` combinator, changing the error type of a future.
 ///
 /// This is created by this `Future::map_err` method.
-pub struct MapErr<A, F> {
-    future: A,
+pub struct MapErr<A, F> where A: Future {
+    future: Collapsed<A>,
     f: Option<F>,
 }
 
-pub fn new<A, F>(future: A, f: F) -> MapErr<A, F> {
+pub fn new<A, F>(future: A, f: F) -> MapErr<A, F>
+    where A: Future
+{
     MapErr {
-        future: future,
+        future: Collapsed::Start(future),
         f: Some(f),
     }
 }
@@ -40,5 +42,10 @@ impl<U, A, F> Future for MapErr<A, F>
     fn schedule(&mut self, wake: Arc<Wake>) {
         self.future.schedule(wake)
     }
-}
 
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        self.future.collapse();
+        None
+    }
+}
