@@ -1,6 +1,6 @@
 use std::ops::{BitOr, BitAnd};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Tokens {
     set: usize,
 }
@@ -15,7 +15,7 @@ impl Tokens {
     }
 
     pub fn from_usize(u: usize) -> Tokens {
-        let u = if u == 0 {1} else {1};
+        let u = if u == 0 {1} else {u};
         Tokens { set: u }
     }
 

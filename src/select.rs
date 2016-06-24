@@ -59,6 +59,7 @@ impl<A, B> Future for Select<A, B>
             Some((ref mut a, ref mut b)) => {
                 match a.poll(&(tokens & &self.a_tokens)) {
                     Some(a) => (a, true),
+                    None if !self.b_tokens.may_contain(tokens) => return None,
                     None => {
                         match b.poll(&(tokens & &self.b_tokens)) {
                             Some(b) => (b, false),
