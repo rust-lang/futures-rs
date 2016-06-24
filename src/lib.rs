@@ -18,7 +18,7 @@
 //          * makes util::recover sketchy (oh dear)
 //          * Future for Empty<T, E>  requires both T/E to be 'static?
 
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 use std::sync::Arc;
 
@@ -91,35 +91,15 @@ mod forget;
 ///
 /// # Core methods
 ///
-/// A future is in essence simply one method:
+/// The core methods of futures, currently `poll`, `schedule`, and `tailcall`,
+/// are not intended to be called in general. These are used to drive an entire
+/// task of many futures composed together only from the top level.
 ///
-/// ```ignore
-/// fn schedule<F>(&mut self, f: F) where F: FnOnce(Result<Item, Error>)
-/// ```
-///
-/// This says that with a future you can schedule a callback to get run with the
-/// resolved value (at some point). In reality, though, there are a few extra
-/// caveats:
-///
-/// * The callback is also bound by `Send + 'static`. The `'static` bound allows
-///   the closure to be run at some arbitrary point in the future (i.e. it can't
-///   reference stack data) and the `Send` bound allows the callback to be run
-///   on an entirely separate thread. Implicitly, this makes futures threadsafe
-///   by default by ensuring that all callbacks can always be safely executed on
-///   other threads.
-/// * Futures can fail for more reasons than explicitly returning an error, for
-///   example they can be canceled or a computation can panic. So in reality
-///   instead of a `Result` this is actually a `PollResult` to encapsulate these
-///   other error scenarios.
-/// * The `Future` trait is also object safe, so there is a sibling method to
-///   this called `schedule_boxed` that basically just exists to allow trait
-///   objects.
+/// More documentation can be found on each method about what its purpose is,
+/// but in general all of the combinators are the main methods that should be
+/// used.
 ///
 /// # Combinators
-///
-/// Wait a minute, if the crux of a future is scheduling a callback, isn't that
-/// just "callback hell" all over again? With futures, thankfully, the answer is
-/// no!
 ///
 /// Like iterators, futures provide a large number of combinators to work with
 /// futures to express computations in a much more natural method than
@@ -132,29 +112,7 @@ mod forget;
 /// or those on `Option` and `Result`. Like with iterators, the combinators are
 /// zero-cost and don't impose any extra layers of indirection you wouldn't
 /// otherwise have to write down.
-///
-/// # Cancellation
-///
-/// The final core aspect of this `Future` trait is how cancellation of a future
-/// is expressed. When a future is canceled, it is in general just a "best
-/// effort" operation that doesn't operate like an asynchronous interrupt, but
-/// rather cancels computation chains at predetermined points.
-///
-/// When a future is canceled any callback that has been scheduled on it is
-/// arranged to be called "as soon as possible" while still ensuring that no
-/// more pending work is in flight. This means that some long-running
-/// computation on a thread pool, for example, may still be going. If, however,
-/// `A.and_then(B)` is canceled and `A` hasn't finished yet, then it's
-/// guaranteed that `B` will never run.
-///
-/// Cancellation in this `Future` trait is expressed through `drop`. That is,
-/// when a future goes out of scope, it is implicitly canceled. Consequently if
-/// a program is interested in the value of a future it must ensure that the
-/// future remains alive until the value has become available.
-///
-/// The core combinators leverage this fact by cancelling or dropping futures as
-/// soon as possible when they can. For example the `join` combinator will drop
-/// the other future if one of them resolves with an error.
+// TODO: expand this
 pub trait Future: Send + 'static {
 
     /// The type of value that this future will resolved with if it is
@@ -168,11 +126,110 @@ pub trait Future: Send + 'static {
     /// expressed through the `PollError` type, not this type.
     type Error: Send + 'static;
 
+    /// Query this future to see if its value has become available.
+    ///
+    /// This function will check the internal state of the future and assess
+    /// whether the value is ready to be produced. Implementors of this function
+    /// should ensure that a call to this **never blocks** as event loops may
+    /// not work properly otherwise.
+    ///
+    /// Callers of this function may provide an optional set of "interested
+    /// tokens" in the `tokens` argument which indicates which tokens are likely
+    /// ready to be looked at. Tokens are learned about through the `schedule`
+    /// method below and communicated through the callback in that method.
+    ///
+    /// Implementors of the `Future` trait may safely assume that if tokens of
+    /// interest are not in `tokens` then futures may not need to be polled
+    /// (skipping calls to `poll` in some cases).
+    ///
+    /// # Return value
+    ///
+    /// This function returns `None` if the future is not ready yet, or `Some`
+    /// with the result of this future if it's ready. Once a future has returned
+    /// `Some` it is considered an error to continue polling it. Many futures
+    /// will return `Some` with a result that indicates a panic if this happens,
+    /// but that is not always the case.
+    ///
+    /// # Panics
+    ///
+    /// It is recommended that implementations of this method **avoid panics**.
+    /// Combinators and consumers of this method will not properly report panics
+    /// if this method itself panics.
+    ///
+    /// # Errors
+    ///
+    /// If `Some` is returned, then a `PollResult<Item, Error>` is returned.
+    /// This is just a typedef around `Result<Item, PollError<Error>>` which
+    /// encapsulates that a future can currently fail execution for two reasons.
+    /// First a future may fail legitimately (return a normal error), but it may
+    /// also panic. Both of thse results are communicated through the `Err`
+    /// portion of this result.
     fn poll(&mut self, tokens: &Tokens)
             -> Option<PollResult<Self::Item, Self::Error>>;
 
+    /// Register a callback to be run whenever this future can make progress
+    /// again.
+    ///
+    /// Throughout the lifetime of a future it may frequently be `poll`'d on to
+    /// test whether the value is ready yet. If `None` is returned, however, the
+    /// caller may then register a callback via this function to get a
+    /// notification when the future can indeed make progress.
+    ///
+    /// The `wake` argument provided here will receive a notification (get
+    /// called) when this future can make progress. It may also be called
+    /// spuriously when the future may not be able to make progress. Whenever
+    /// called, however, it is recommended to call `poll` next to try to move
+    /// the future forward.
+    ///
+    /// Implementors of the `Future` trait are recommended to just blindly pass
+    /// around this callback rather than manufacture new callbacks for contained
+    /// futures.
+    ///
+    /// When the `wake` callback is invoked it will be provided a set of tokens
+    /// that represent the set of events which have happened since it was last
+    /// called (or the last call to `poll`). These events can then be used to
+    /// pass back into the `poll` function above to ensure the future does not
+    /// unnecessarily `poll` the wrong future.
+    ///
+    /// # Return value
+    ///
+    /// This function returns a `Tokens` structure representing the set of
+    /// tokens that this future will be interested in. Callers may interpret
+    /// this as a filter of when to call `poll` to make progress.
+    ///
+    /// Implementors of this function must take care to return an appropriate
+    /// value to ensure that `poll` is called. Combinators may not call `poll`
+    /// to make progress if the tokens passed to `wake` do not intersect the
+    /// tokens returned here.
+    ///
+    /// # Multiple callbacks
+    ///
+    /// This function cannot be used to queue up multiple callbacks to be
+    /// invoked when a future is ready to make progress. Only the most recent
+    /// call to `schedule` is guaranteed to have notifications received when
+    /// `schedule` is called multiple times.
+    ///
+    /// If this function is called twice, it may be the case that the previous
+    /// callback is never invoked. It is recommended that this function is
+    /// called with the same callback for the entire lifetime of this future.
     fn schedule(&mut self, wake: Arc<Wake>) -> Tokens;
 
+    /// Perform tail-call optimization on this future.
+    ///
+    /// A particular future may actually represent a large tree of computation,
+    /// the structure of which can be optimized periodically after some of the
+    /// work has completed. This function is intended to be called after an
+    /// unsuccessful `poll` to ensure that the computation graph of a future
+    /// remains at a reasonable size.
+    ///
+    /// This function is intended to be idempotent. If `None` is returned then
+    /// the internal structure may have been optimized, but this future itself
+    /// must stick around to represent the computation at hand.
+    ///
+    /// If `Some` is returned then the returned future will be realized with the
+    /// same value that this future *would* have been had this method not been
+    /// called. Essentially, if `Some` is returned, then this future can be
+    /// forgotten and instead the returned value is used.
     fn tailcall(&mut self)
                 -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>>;
 
@@ -521,7 +578,12 @@ fn assert_future<A, B, F>(t: F) -> F
     t
 }
 
+/// A trait essentially representing `Fn(&Tokens) + Send + Send + 'static`.
+///
+/// This is used as an argument to the `Future::schedule` function.
 pub trait Wake: Send + Sync + 'static {
+    /// Invokes this callback indicating that the provided set of events have
+    /// activity and the associated futures may make progress.
     fn wake(&self, tokens: &Tokens);
 }
 
