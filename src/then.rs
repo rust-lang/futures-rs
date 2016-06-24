@@ -36,7 +36,6 @@ impl<A, B, F> Future for Then<A, B, F>
                 Ok(e) => util::recover(|| f(Ok(e))),
                 Err(PollError::Other(e)) => util::recover(|| f(Err(e))),
                 Err(PollError::Panicked(e)) => Err(PollError::Panicked(e)),
-                Err(PollError::Canceled) => Err(PollError::Canceled),
             };
             ret.map(|b| Err(b.into_future()))
         })

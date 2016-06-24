@@ -9,7 +9,6 @@ use futures::*;
 fn unwrap<A, B>(r: PollResult<A, B>) -> Result<A, B> {
     match r {
         Ok(e) => Ok(e),
-        Err(PollError::Canceled) => panic!("future canceled"),
         Err(PollError::Panicked(p)) => panic!(p),
         Err(PollError::Other(e)) => Err(e),
     }
@@ -64,19 +63,9 @@ fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
     // assert_cancel(rx.recv().unwrap());
 }
 
-fn assert_cancel<T, E>(r: PollResult<T, E>) {
-    match r {
-        Ok(_) => panic!("can't succeed after cancel"),
-        Err(PollError::Canceled) => {}
-        Err(PollError::Panicked(_)) => panic!("panic error, not cancel"),
-        Err(PollError::Other(_)) => panic!("other error, not cancel"),
-    }
-}
-
 fn assert_panic<T, E>(r: PollResult<T, E>) {
     match r {
         Ok(_) => panic!("can't succeed after panic"),
-        Err(PollError::Canceled) => panic!("cancel error, not panic"),
         Err(PollError::Panicked(_)) => {}
         Err(PollError::Other(_)) => panic!("other error, not panic"),
     }
@@ -208,7 +197,7 @@ fn smoke_promise() {
 
     let (mut p, c) = promise::<i32, u32>();
     drop(c);
-    assert_cancel(p.poll().expect("should be done"));
+    assert_panic(p.poll().expect("should be done"));
     assert_panic(p.poll().expect("should be done2"));
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
@@ -326,15 +315,15 @@ fn join_incomplete() {
 #[test]
 fn cancel_propagates() {
     let mut f = promise::<i32, u32>().0.then(|_| -> Done<i32, u32> { panic!() });
-    assert_cancel(f.poll().unwrap());
+    assert_panic(f.poll().unwrap());
     let mut f = promise::<i32, u32>().0.and_then(|_| -> Done<i32, u32> { panic!() });
-    assert_cancel(f.poll().unwrap());
+    assert_panic(f.poll().unwrap());
     let mut f = promise::<i32, u32>().0.or_else(|_| -> Done<i32, u32> { panic!() });
-    assert_cancel(f.poll().unwrap());
+    assert_panic(f.poll().unwrap());
     let mut f = promise::<i32, u32>().0.map(|_| panic!());
-    assert_cancel(f.poll().unwrap());
+    assert_panic(f.poll().unwrap());
     let mut f = promise::<i32, u32>().0.map_err(|_| panic!());
-    assert_cancel(f.poll().unwrap());
+    assert_panic(f.poll().unwrap());
 }
 
 // #[test]

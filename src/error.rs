@@ -14,10 +14,6 @@ pub enum PollError<E> {
     /// come up the most.
     Other(E),
 
-    /// Indicates that a future was canceled and all progress should halt
-    /// immediately.
-    Canceled,
-
     /// Indicates that this future somewhere along the way panicked and the
     /// payload was captured in a `Box<Any+Send>` here.
     Panicked(Box<Any + Send>),
@@ -31,7 +27,6 @@ impl<E> PollError<E> {
     pub fn map<F: FnOnce(E) -> E2, E2>(self, f: F) -> PollError<E2> {
         match self {
             PollError::Panicked(e) => PollError::Panicked(e),
-            PollError::Canceled => PollError::Canceled,
             PollError::Other(e) => PollError::Other(f(e)),
         }
     }

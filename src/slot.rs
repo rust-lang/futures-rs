@@ -624,47 +624,54 @@ mod tests {
         };
 
         // cancel on_full
-        assert_eq!(hits.load(Ordering::SeqCst), 0);
+        let n = hits.load(Ordering::SeqCst);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         let token = slot.on_full(add());
-        assert_eq!(hits.load(Ordering::SeqCst), 0);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         slot.cancel(token);
-        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         assert!(slot.try_consume().is_err());
+        assert!(slot.try_produce(1).is_ok());
+        assert!(slot.try_consume().is_ok());
+        assert_eq!(hits.load(Ordering::SeqCst), n);
 
         // cancel on_empty
-        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        let n = hits.load(Ordering::SeqCst);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         slot.try_produce(1).unwrap();
         let token = slot.on_empty(add());
-        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         slot.cancel(token);
-        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         assert!(slot.try_produce(1).is_err());
 
         // cancel with no effect
-        assert_eq!(hits.load(Ordering::SeqCst), 2);
+        let n = hits.load(Ordering::SeqCst);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         let token = slot.on_full(add());
-        assert_eq!(hits.load(Ordering::SeqCst), 3);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         slot.cancel(token);
-        assert_eq!(hits.load(Ordering::SeqCst), 3);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         assert!(slot.try_consume().is_ok());
         let token = slot.on_empty(add());
-        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 2);
         slot.cancel(token);
-        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 2);
 
         // cancel old ones don't count
-        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        let n = hits.load(Ordering::SeqCst);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         let token1 = slot.on_full(add());
-        assert_eq!(hits.load(Ordering::SeqCst), 4);
+        assert_eq!(hits.load(Ordering::SeqCst), n);
         assert!(slot.try_produce(1).is_ok());
-        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         assert!(slot.try_consume().is_ok());
-        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         let token2 = slot.on_full(add());
-        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         slot.cancel(token1);
-        assert_eq!(hits.load(Ordering::SeqCst), 5);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         slot.cancel(token2);
-        assert_eq!(hits.load(Ordering::SeqCst), 6);
+        assert_eq!(hits.load(Ordering::SeqCst), n + 1);
     }
 }

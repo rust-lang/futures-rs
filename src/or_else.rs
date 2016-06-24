@@ -35,7 +35,6 @@ impl<A, B, F> Future for OrElse<A, B, F>
             match a {
                 Ok(item) => Ok(Ok(item)),
                 Err(PollError::Panicked(d)) => Err(PollError::Panicked(d)),
-                Err(PollError::Canceled) => Err(PollError::Canceled),
                 Err(PollError::Other(e)) => {
                     util::recover(|| f(e)).map(|e| Err(e.into_future()))
                 }

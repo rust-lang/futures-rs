@@ -127,6 +127,8 @@ impl<T, E> Drop for Complete<T, E>
     }
 }
 
+struct Canceled;
+
 impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
@@ -138,7 +140,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
         let ret = match self.inner.slot.try_consume() {
             Ok(Some(Ok(e))) => Ok(e),
             Ok(Some(Err(e))) => Err(PollError::Other(e)),
-            Ok(None) => Err(PollError::Canceled),
+            Ok(None) => Err(PollError::Panicked(Box::new(Canceled))),
             Err(_) if self.used => Err(util::reused()),
             Err(_) => return None,
         };
