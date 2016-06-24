@@ -8,6 +8,16 @@
 //! if anything is unclear please open an issue and hopefully it'll be
 //! documented quickly!
 
+// OPEN QUESTIONS:
+//
+// 1. Can Send + 'static be removed from lost of places?
+//      * probably not Future as trait objects are everywhere (b/c of tailcall)
+//        and those need to be Send
+//      * probably not item types because...
+//          * they're stored in Join (eh)
+//          * makes util::recover sketchy (oh dear)
+//          * Future for Empty<T, E>  requires both T/E to be 'static?
+
 // #![deny(missing_docs)]
 
 use std::sync::Arc;
