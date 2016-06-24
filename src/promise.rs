@@ -1,8 +1,7 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
 
-use {Future, Wake, PollResult, PollError};
-use executor::{Executor, DEFAULT};
+use {Future, Wake, PollResult, PollError, Tokens};
 use slot::{Slot, Token};
 use util;
 
@@ -15,8 +14,9 @@ pub struct Promise<T, E>
           E: Send + 'static,
 {
     inner: Arc<Inner<T, E>>,
-    token: Option<Token>,
+    cancel_token: Option<Token>,
     used: bool,
+    token: usize,
 }
 
 /// Represents the completion half of a promise through which the result of a
@@ -66,14 +66,17 @@ pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
     where T: Send + 'static,
           E: Send + 'static,
 {
+    static COUNT: AtomicUsize = ATOMIC_USIZE_INIT;
+
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
         pending_wake: AtomicBool::new(false),
     });
     let promise = Promise {
         inner: inner.clone(),
-        token: None,
+        cancel_token: None,
         used: false,
+        token: COUNT.fetch_add(1, Ordering::SeqCst),
     };
     let complete = Complete {
         inner: inner,
@@ -133,7 +136,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
+    fn poll(&mut self, _: &Tokens) -> Option<PollResult<T, E>> {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             return None
         }
@@ -148,21 +151,24 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
         Some(ret)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+        let tokens = Tokens::from_usize(self.token);
         if self.used {
-            return DEFAULT.execute(move || wake.wake())
+            return util::done(wake)
         }
         if self.inner.pending_wake.load(Ordering::SeqCst) {
-            if let Some(token) = self.token.take() {
-                self.inner.slot.cancel(token);
+            if let Some(cancel_token) = self.cancel_token.take() {
+                self.inner.slot.cancel(cancel_token);
             }
         }
         self.inner.pending_wake.store(true, Ordering::SeqCst);
         let inner = self.inner.clone();
-        self.token = Some(self.inner.slot.on_full(move |_| {
+        let wake_tokens = tokens.clone();
+        self.cancel_token = Some(self.inner.slot.on_full(move |_| {
             inner.pending_wake.store(false, Ordering::SeqCst);
-            wake.wake()
+            wake.wake(&wake_tokens)
         }));
+        tokens
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {
@@ -175,8 +181,8 @@ impl<T, E> Drop for Promise<T, E>
           E: Send + 'static,
 {
     fn drop(&mut self) {
-        if let Some(token) = self.token.take() {
-            self.inner.slot.cancel(token)
+        if let Some(cancel_token) = self.cancel_token.take() {
+            self.inner.slot.cancel(cancel_token)
         }
     }
 }

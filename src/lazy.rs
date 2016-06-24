@@ -2,8 +2,7 @@ use std::any::Any;
 use std::mem;
 use std::sync::Arc;
 
-use {Future, PollResult, Wake, IntoFuture, PollError};
-use executor::{Executor, DEFAULT};
+use {Future, PollResult, Wake, IntoFuture, PollError, Tokens};
 use util;
 
 /// A future which defers creation of the actual future until a callback is
@@ -82,19 +81,19 @@ impl<F, R> Future for Lazy<F, R::Future>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self) -> Option<PollResult<R::Item, R::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<R::Item, R::Error>> {
         if let Some(e) = self.deferred_error.take() {
             return Some(Err(PollError::Panicked(e)))
         }
         match self.get() {
-            Ok(f) => f.poll(),
+            Ok(f) => f.poll(tokens),
             Err(e) => Some(Err(e)),
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
         if self.deferred_error.is_some() {
-            return DEFAULT.execute(move || wake.wake())
+            return util::done(wake)
         }
 
         let err = match self.get::<()>() {
@@ -105,7 +104,7 @@ impl<F, R> Future for Lazy<F, R::Future>
 
         // TODO: put this in a better location?
         self.deferred_error = Some(err);
-        DEFAULT.execute(move || wake.wake());
+        util::done(wake)
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {

@@ -1,8 +1,7 @@
 use std::marker;
 use std::sync::Arc;
 
-use {Future, PollResult, Wake};
-use executor::{Executor, DEFAULT};
+use {Future, PollResult, Wake, Tokens};
 use util;
 
 /// A future representing a finished successful computation.
@@ -41,12 +40,12 @@ impl<T, E> Future for Finished<T, E>
     type Error = E;
 
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
+    fn poll(&mut self, _: &Tokens) -> Option<PollResult<T, E>> {
         Some(util::opt2poll(self.t.take()))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
-        DEFAULT.execute(move || wake.wake());
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+        util::done(wake)
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {

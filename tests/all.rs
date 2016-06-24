@@ -27,21 +27,21 @@ fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
           F: FnMut() -> T,
 {
     let mut a = f();
-    assert_eq!(&unwrap(a.poll().unwrap()), &result);
+    assert_eq!(&unwrap(a.poll(&Tokens::all()).unwrap()), &result);
     drop(a);
 
     let mut a = f();
-    assert!(a.poll().is_some());
-    assert_panic(a.poll().unwrap());
+    assert!(a.poll(&Tokens::all()).is_some());
+    assert_panic(a.poll(&Tokens::all()).unwrap());
     drop(a);
 }
 
 fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
-    assert!(f().poll().is_none());
+    assert!(f().poll(&Tokens::all()).is_none());
 
     let mut a = f();
-    a.schedule(Arc::new(move || ()));
-    assert!(a.poll().is_none());
+    a.schedule(Arc::new(move |_: &Tokens| ()));
+    assert!(a.poll(&Tokens::all()).is_none());
     drop(a);
 
     // let (tx, rx) = channel();
@@ -197,13 +197,13 @@ fn smoke_promise() {
 
     let (mut p, c) = promise::<i32, u32>();
     drop(c);
-    assert_panic(p.poll().expect("should be done"));
-    assert_panic(p.poll().expect("should be done2"));
+    assert_panic(p.poll(&Tokens::all()).expect("should be done"));
+    assert_panic(p.poll(&Tokens::all()).expect("should be done2"));
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
-    p.schedule(Arc::new(move || tx.lock().unwrap().send(()).unwrap()));
+    p.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
     rx.recv().unwrap();
-    assert_panic(p.poll().expect("should be done2"));
+    assert_panic(p.poll(&Tokens::all()).expect("should be done2"));
 }
 
 #[test]
@@ -214,12 +214,12 @@ fn select_cancels() {
     let c = c.map(move |c| { ctx.send(c).unwrap(); c });
 
     let mut f = a.select(c).then(unselect);
-    // assert!(f.poll().is_none());
+    // assert!(f.poll(&Tokens::all()).is_none());
     assert!(arx.try_recv().is_err());
     assert!(crx.try_recv().is_err());
     b.finish(1);
     // f.schedule(|_| ());
-    assert!(f.poll().is_some());
+    assert!(f.poll(&Tokens::all()).is_some());
     assert_eq!(arx.recv().unwrap(), 1);
     drop((d, f));
     assert!(crx.recv().is_err());
@@ -232,13 +232,13 @@ fn select_cancels() {
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
     let mut f = a.select(c).then(unselect);
-    assert!(f.poll().is_none());
-    f.schedule(Arc::new(move || tx.lock().unwrap().send(()).unwrap()));
+    assert!(f.poll(&Tokens::all()).is_none());
+    f.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
     assert!(rx.try_recv().is_err());
     b.finish(1);
     assert!(rx.recv().is_ok());
-    assert!(f.poll().is_some());
-    assert_panic(f.poll().unwrap());
+    assert!(f.poll(&Tokens::all()).is_some());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
     drop((d, f));
     assert!(crx.recv().is_err());
 }
@@ -252,7 +252,7 @@ fn join_cancels() {
 
     let mut f = a.join(c);
     b.fail(1);
-    assert!(f.poll().is_some());
+    assert!(f.poll(&Tokens::all()).is_some());
     drop((d, f));
     assert!(crx.recv().is_err());
 
@@ -264,11 +264,11 @@ fn join_cancels() {
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
     let mut f = a.join(c);
-    f.schedule(Arc::new(move || tx.lock().unwrap().send(()).unwrap()));
+    f.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
     assert!(rx.try_recv().is_err());
     b.fail(1);
-    assert!(f.poll().is_some());
-    assert_panic(f.poll().unwrap());
+    assert!(f.poll(&Tokens::all()).is_some());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
     drop((d, f));
     assert!(crx.recv().is_err());
 }
@@ -277,7 +277,7 @@ fn join_cancels() {
 fn join_incomplete() {
     let (a, b) = promise::<i32, u32>();
     let mut f = f_ok(1).join(a);
-    assert!(f.poll().is_none());
+    assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -286,7 +286,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32, u32>();
     let mut f = a.join(f_ok(2));
-    assert!(f.poll().is_none());
+    assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -295,7 +295,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32, u32>();
     let mut f = f_ok(1).join(a);
-    assert!(f.poll().is_none());
+    assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map_err(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -304,7 +304,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32, u32>();
     let mut f = a.join(f_ok(2));
-    assert!(f.poll().is_none());
+    assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map_err(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -315,15 +315,15 @@ fn join_incomplete() {
 #[test]
 fn cancel_propagates() {
     let mut f = promise::<i32, u32>().0.then(|_| -> Done<i32, u32> { panic!() });
-    assert_panic(f.poll().unwrap());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
     let mut f = promise::<i32, u32>().0.and_then(|_| -> Done<i32, u32> { panic!() });
-    assert_panic(f.poll().unwrap());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
     let mut f = promise::<i32, u32>().0.or_else(|_| -> Done<i32, u32> { panic!() });
-    assert_panic(f.poll().unwrap());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
     let mut f = promise::<i32, u32>().0.map(|_| panic!());
-    assert_panic(f.poll().unwrap());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
     let mut f = promise::<i32, u32>().0.map_err(|_| panic!());
-    assert_panic(f.poll().unwrap());
+    assert_panic(f.poll(&Tokens::all()).unwrap());
 }
 
 // #[test]
@@ -407,7 +407,7 @@ fn select2() {
         let a = a.map(move |v| { atx.send(v).unwrap(); v });
         let c = c.map(move |v| { ctx.send(v).unwrap(); v });
         let mut f = a.select(c);
-        f.schedule(Arc::new(|| ()));
+        f.schedule(Arc::new(|_: &Tokens| ()));
         drop(f);
         assert!(crx.recv().is_err());
         assert!(arx.recv().is_err());

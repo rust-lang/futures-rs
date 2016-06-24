@@ -29,23 +29,27 @@ mod util;
 mod error;
 pub use error::{PollError, PollResult};
 
+mod token;
+pub use token::Tokens;
+
 pub mod executor;
 
 // Primitive futures
-// mod collect;
 mod done;
 mod empty;
 mod failed;
 mod finished;
 mod lazy;
 mod promise;
-// pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 pub use promise::{promise, Promise, Complete};
+
+// mod collect;
+// pub use collect::{collect, Collect};
 
 // combinators
 mod and_then;
@@ -164,9 +168,10 @@ pub trait Future: Send + 'static {
     /// expressed through the `PollError` type, not this type.
     type Error: Send + 'static;
 
-    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<PollResult<Self::Item, Self::Error>>;
 
-    fn schedule(&mut self, wake: Arc<Wake>);
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens;
 
     fn tailcall(&mut self)
                 -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>>;
@@ -516,16 +521,15 @@ fn assert_future<A, B, F>(t: F) -> F
     t
 }
 
-/// Trait that essentially encapsulates `Box<FnOnce(PollResult<T, E>)>`
 pub trait Wake: Send + Sync + 'static {
-    fn wake(&self);
+    fn wake(&self, tokens: &Tokens);
 }
 
 impl<F> Wake for F
-    where F: Fn() + Send + Sync + 'static
+    where F: Fn(&Tokens) + Send + Sync + 'static
 {
-    fn wake(&self) {
-        self()
+    fn wake(&self, tokens: &Tokens) {
+        self(tokens)
     }
 }
 

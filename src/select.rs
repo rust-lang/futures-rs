@@ -1,8 +1,7 @@
 use std::sync::Arc;
 use std::mem;
 
-use {PollResult, Wake, Future, empty};
-use executor::{Executor, DEFAULT};
+use {PollResult, Wake, Future, Tokens, empty};
 use util::{self, Collapsed};
 
 /// Future for the `select` combinator, waiting for one of two futures to
@@ -11,6 +10,8 @@ use util::{self, Collapsed};
 /// This is created by this `Future::select` method.
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     inner: Option<(Collapsed<A>, Collapsed<B>)>,
+    a_tokens: Tokens,
+    b_tokens: Tokens,
 }
 
 /// Future yielded as the second result in a `Select` future.
@@ -34,6 +35,8 @@ pub fn new<A, B>(a: A, b: B) -> Select<A, B>
     let b = Collapsed::Start(b);
     Select {
         inner: Some((a, b)),
+        a_tokens: Tokens::all(),
+        b_tokens: Tokens::all(),
     }
 }
 
@@ -44,13 +47,20 @@ impl<A, B> Future for Select<A, B>
     type Item = (A::Item, SelectNext<A, B>);
     type Error = (A::Error, SelectNext<A, B>);
 
-    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<PollResult<Self::Item, Self::Error>> {
         let (ret, is_a) = match self.inner {
+            Some((_, ref mut b)) if !self.a_tokens.may_contain(tokens) => {
+                match b.poll(&(tokens & &self.b_tokens)) {
+                    Some(b) => (b, false),
+                    None => return None,
+                }
+            }
             Some((ref mut a, ref mut b)) => {
-                match a.poll() {
+                match a.poll(&(tokens & &self.a_tokens)) {
                     Some(a) => (a, true),
                     None => {
-                        match b.poll() {
+                        match b.poll(&(tokens & &self.b_tokens)) {
                             Some(b) => (b, false),
                             None => return None,
                         }
@@ -69,13 +79,14 @@ impl<A, B> Future for Select<A, B>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
         match self.inner {
             Some((ref mut a, ref mut b)) => {
-                a.schedule(wake.clone());
-                b.schedule(wake);
+                self.a_tokens = a.schedule(wake.clone());
+                self.b_tokens = b.schedule(wake.clone());
+                &self.a_tokens | &self.b_tokens
             }
-            None => DEFAULT.execute(move || wake.wake()),
+            None => util::done(wake),
         }
     }
 
@@ -96,14 +107,15 @@ impl<A, B> Future for SelectNext<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<PollResult<Self::Item, Self::Error>> {
         match self.inner {
-            OneOf::A(ref mut a) => a.poll(),
-            OneOf::B(ref mut b) => b.poll(),
+            OneOf::A(ref mut a) => a.poll(tokens),
+            OneOf::B(ref mut b) => b.poll(tokens),
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
         match self.inner {
             OneOf::A(ref mut a) => a.schedule(wake),
             OneOf::B(ref mut b) => b.schedule(wake),

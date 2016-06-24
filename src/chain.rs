@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use std::mem;
 
-use executor::{Executor, DEFAULT};
 use util::{self, Collapsed};
-use {Future, PollResult, Wake};
+use {Future, PollResult, Wake, Tokens};
 
 pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
     First(Collapsed<A>, C),
@@ -20,19 +19,19 @@ impl<A, B, C> Chain<A, B, C>
         Chain::First(Collapsed::Start(a), c)
     }
 
-    pub fn poll<F>(&mut self, f: F)
+    pub fn poll<F>(&mut self, tokens: &Tokens, f: F)
                   -> Option<PollResult<B::Item, B::Error>>
         where F: FnOnce(PollResult<A::Item, A::Error>, C)
                         -> PollResult<Result<B::Item, B>, B::Error> + Send + 'static,
     {
         let a_result = match *self {
             Chain::First(ref mut a, _) => {
-                match a.poll() {
+                match a.poll(tokens) {
                     Some(a) => a,
                     None => return None,
                 }
             }
-            Chain::Second(ref mut b) => return b.poll(),
+            Chain::Second(ref mut b) => return b.poll(tokens),
             Chain::Done => return Some(Err(util::reused())),
         };
         let data = match mem::replace(self, Chain::Done) {
@@ -42,7 +41,7 @@ impl<A, B, C> Chain<A, B, C>
         match f(a_result, data) {
             Ok(Ok(e)) => Some(Ok(e)),
             Ok(Err(mut b)) => {
-                let ret = b.poll();
+                let ret = b.poll(&Tokens::all());
                 *self = Chain::Second(b);
                 ret
             }
@@ -50,11 +49,11 @@ impl<A, B, C> Chain<A, B, C>
         }
     }
 
-    pub fn schedule(&mut self, wake: Arc<Wake>) {
+    pub fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
         match *self {
             Chain::First(ref mut a, _) => a.schedule(wake),
             Chain::Second(ref mut b) => b.schedule(wake),
-            Chain::Done => DEFAULT.execute(move || wake.wake()),
+            Chain::Done => util::done(wake),
         }
     }
 

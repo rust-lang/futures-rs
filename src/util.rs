@@ -1,7 +1,8 @@
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
 
-use {PollResult, PollError, Wake, Future};
+use {PollResult, PollError, Wake, Future, Tokens};
+use executor::{Executor, DEFAULT};
 
 pub enum Collapsed<T: Future> {
     Start(T),
@@ -42,14 +43,14 @@ pub fn opt2poll<T, E>(t: Option<T>) -> PollResult<T, E> {
 }
 
 impl<T: Future> Collapsed<T> {
-    pub fn poll(&mut self) -> Option<PollResult<T::Item, T::Error>> {
+    pub fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<T::Item, T::Error>> {
         match *self {
-            Collapsed::Start(ref mut a) => a.poll(),
-            Collapsed::Tail(ref mut a) => a.poll(),
+            Collapsed::Start(ref mut a) => a.poll(tokens),
+            Collapsed::Tail(ref mut a) => a.poll(tokens),
         }
     }
 
-    pub fn schedule(&mut self, wake: Arc<Wake>) {
+    pub fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
         match *self {
             Collapsed::Start(ref mut a) => a.schedule(wake),
             Collapsed::Tail(ref mut a) => a.schedule(wake),
@@ -73,4 +74,9 @@ impl<T: Future> Collapsed<T> {
         };
         *self = Collapsed::Tail(a);
     }
+}
+
+pub fn done(wake: Arc<Wake>) -> Tokens {
+    DEFAULT.execute(move || wake.wake(&Tokens::all()));
+    Tokens::all()
 }

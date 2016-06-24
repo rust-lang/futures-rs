@@ -1,7 +1,7 @@
 use std::marker;
 use std::sync::Arc;
 
-use {Future, Wake, PollResult};
+use {Future, Wake, PollResult, Tokens};
 
 /// A future which is never resolved.
 ///
@@ -30,12 +30,13 @@ impl<T, E> Future for Empty<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
+    fn poll(&mut self, _: &Tokens) -> Option<PollResult<T, E>> {
         None
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
-        drop(wake)
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+        drop(wake);
+        Tokens::empty()
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {

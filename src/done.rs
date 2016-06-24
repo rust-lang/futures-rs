@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use executor::{Executor, DEFAULT};
 use util;
-use {PollResult, Future, PollError, Wake};
+use {PollResult, Future, PollError, Wake, Tokens};
 
 /// A future representing a value that is immediately ready.
 ///
@@ -39,14 +38,14 @@ impl<T, E> Future for Done<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
+    fn poll(&mut self, _tokens: &Tokens) -> Option<PollResult<T, E>> {
         Some(util::opt2poll(self.inner.take()).and_then(|r| {
             r.map_err(PollError::Other)
         }))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
-        DEFAULT.execute(move || wake.wake());
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+        util::done(wake)
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {

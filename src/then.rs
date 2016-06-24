@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, IntoFuture, PollError, Wake, PollResult};
+use {Future, IntoFuture, PollError, Wake, PollResult, Tokens};
 use util;
 use chain::Chain;
 
@@ -30,8 +30,9 @@ impl<A, B, F> Future for Then<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Option<PollResult<B::Item, B::Error>> {
-        self.state.poll(|a, f| {
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<PollResult<B::Item, B::Error>> {
+        self.state.poll(tokens, |a, f| {
             let ret = match a {
                 Ok(e) => util::recover(|| f(Ok(e))),
                 Err(PollError::Other(e)) => util::recover(|| f(Err(e))),
@@ -41,7 +42,7 @@ impl<A, B, F> Future for Then<A, B, F>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens  {
         self.state.schedule(wake)
     }
 

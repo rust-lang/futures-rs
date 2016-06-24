@@ -1,8 +1,7 @@
 use std::marker;
 use std::sync::Arc;
 
-use {Future, PollResult, PollError, Wake};
-use executor::{Executor, DEFAULT};
+use {Future, PollResult, PollError, Wake, Tokens};
 use util;
 
 /// A future representing a finished but erroneous computation.
@@ -39,13 +38,13 @@ impl<T, E> Future for Failed<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Option<PollResult<T, E>> {
+    fn poll(&mut self, _: &Tokens) -> Option<PollResult<T, E>> {
         Some(util::opt2poll(self.e.take())
                   .and_then(|e| Err(PollError::Other(e))))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
-        DEFAULT.execute(move || wake.wake());
+    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+        util::done(wake)
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {
