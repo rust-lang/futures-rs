@@ -326,14 +326,14 @@ fn cancel_propagates() {
     assert_panic(f.poll(&Tokens::all()).unwrap());
 }
 
-// #[test]
-// fn collect_collects() {
-//     assert_done(|| collect(vec![f_ok(1), f_ok(2)]), Ok(vec![1, 2]));
-//     assert_done(|| collect(vec![f_ok(1)]), Ok(vec![1]));
-//     assert_done(|| collect(Vec::<Result<i32, u32>>::new()), Ok(vec![]));
-//
-//     // TODO: needs more tests
-// }
+#[test]
+fn collect_collects() {
+    assert_done(|| collect(vec![f_ok(1), f_ok(2)]), Ok(vec![1, 2]));
+    assert_done(|| collect(vec![f_ok(1)]), Ok(vec![1]));
+    assert_done(|| collect(Vec::<Result<i32, u32>>::new()), Ok(vec![]));
+
+    // TODO: needs more tests
+}
 
 #[test]
 fn select2() {

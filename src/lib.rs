@@ -35,21 +35,20 @@ pub use token::Tokens;
 pub mod executor;
 
 // Primitive futures
+mod collect;
 mod done;
 mod empty;
 mod failed;
 mod finished;
 mod lazy;
 mod promise;
+pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 pub use promise::{promise, Promise, Complete};
-
-// mod collect;
-// pub use collect::{collect, Collect};
 
 // combinators
 mod and_then;
