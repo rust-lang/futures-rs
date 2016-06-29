@@ -151,7 +151,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
         Some(ret)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         let tokens = Tokens::from_usize(self.token);
         if self.used {
             return util::done(wake)
@@ -163,12 +163,10 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
         }
         self.inner.pending_wake.store(true, Ordering::SeqCst);
         let inner = self.inner.clone();
-        let wake_tokens = tokens.clone();
         self.cancel_token = Some(self.inner.slot.on_full(move |_| {
             inner.pending_wake.store(false, Ordering::SeqCst);
-            wake.wake(&wake_tokens)
+            wake.wake(&tokens)
         }));
-        tokens
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {

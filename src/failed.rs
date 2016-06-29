@@ -43,7 +43,7 @@ impl<T, E> Future for Failed<T, E>
                   .and_then(|e| Err(PollError::Other(e))))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         util::done(wake)
     }
 

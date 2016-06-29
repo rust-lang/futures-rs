@@ -91,7 +91,7 @@ impl<F, R> Future for Lazy<F, R::Future>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         if self.deferred_error.is_some() {
             return util::done(wake)
         }

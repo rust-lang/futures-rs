@@ -10,8 +10,6 @@ use util::{self, Collapsed};
 /// This is created by this `Future::select` method.
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     inner: Option<(Collapsed<A>, Collapsed<B>)>,
-    a_tokens: Tokens,
-    b_tokens: Tokens,
 }
 
 /// Future yielded as the second result in a `Select` future.
@@ -35,8 +33,6 @@ pub fn new<A, B>(a: A, b: B) -> Select<A, B>
     let b = Collapsed::Start(b);
     Select {
         inner: Some((a, b)),
-        a_tokens: Tokens::all(),
-        b_tokens: Tokens::all(),
     }
 }
 
@@ -50,18 +46,11 @@ impl<A, B> Future for Select<A, B>
     fn poll(&mut self, tokens: &Tokens)
             -> Option<PollResult<Self::Item, Self::Error>> {
         let (ret, is_a) = match self.inner {
-            Some((_, ref mut b)) if !self.a_tokens.may_contain(tokens) => {
-                match b.poll(&(tokens & &self.b_tokens)) {
-                    Some(b) => (b, false),
-                    None => return None,
-                }
-            }
             Some((ref mut a, ref mut b)) => {
-                match a.poll(&(tokens & &self.a_tokens)) {
+                match a.poll(tokens) {
                     Some(a) => (a, true),
-                    None if !self.b_tokens.may_contain(tokens) => return None,
                     None => {
-                        match b.poll(&(tokens & &self.b_tokens)) {
+                        match b.poll(tokens)  {
                             Some(b) => (b, false),
                             None => return None,
                         }
@@ -80,12 +69,11 @@ impl<A, B> Future for Select<A, B>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         match self.inner {
             Some((ref mut a, ref mut b)) => {
-                self.a_tokens = a.schedule(wake.clone());
-                self.b_tokens = b.schedule(wake.clone());
-                &self.a_tokens | &self.b_tokens
+                a.schedule(wake.clone());
+                b.schedule(wake.clone());
             }
             None => util::done(wake),
         }
@@ -116,7 +104,7 @@ impl<A, B> Future for SelectNext<A, B>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         match self.inner {
             OneOf::A(ref mut a) => a.schedule(wake),
             OneOf::B(ref mut b) => b.schedule(wake),

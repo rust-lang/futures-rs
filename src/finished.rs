@@ -44,7 +44,7 @@ impl<T, E> Future for Finished<T, E>
         Some(util::opt2poll(self.t.take()))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         util::done(wake)
     }
 

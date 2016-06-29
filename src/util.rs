@@ -50,7 +50,7 @@ impl<T: Future> Collapsed<T> {
         }
     }
 
-    pub fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    pub fn schedule(&mut self, wake: Arc<Wake>) {
         match *self {
             Collapsed::Start(ref mut a) => a.schedule(wake),
             Collapsed::Tail(ref mut a) => a.schedule(wake),
@@ -76,7 +76,6 @@ impl<T: Future> Collapsed<T> {
     }
 }
 
-pub fn done(wake: Arc<Wake>) -> Tokens {
-    DEFAULT.execute(move || wake.wake(&Tokens::all()));
-    Tokens::all()
+pub fn done(wake: Arc<Wake>) {
+    DEFAULT.execute(move || wake.wake(&Tokens::empty()));
 }

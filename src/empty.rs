@@ -34,9 +34,8 @@ impl<T, E> Future for Empty<T, E>
         None
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         drop(wake);
-        Tokens::empty()
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {

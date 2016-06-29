@@ -42,7 +42,7 @@ impl<A, B, F> Future for Then<A, B, F>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens  {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         self.state.schedule(wake)
     }
 

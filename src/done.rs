@@ -44,7 +44,7 @@ impl<T, E> Future for Done<T, E>
         }))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         util::done(wake)
     }
 

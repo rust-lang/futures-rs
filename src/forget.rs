@@ -44,7 +44,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens {
+    fn schedule(&mut self, wake: Arc<Wake>) {
         self.inner.schedule(wake)
     }
 

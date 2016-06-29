@@ -140,7 +140,7 @@ pub trait Future: Send + 'static {
     ///
     /// Implementors of the `Future` trait may safely assume that if tokens of
     /// interest are not in `tokens` then futures may not need to be polled
-    /// (skipping calls to `poll` in some cases).
+    /// (skipping work in `poll` in some cases).
     ///
     /// # Return value
     ///
@@ -189,18 +189,7 @@ pub trait Future: Send + 'static {
     /// that represent the set of events which have happened since it was last
     /// called (or the last call to `poll`). These events can then be used to
     /// pass back into the `poll` function above to ensure the future does not
-    /// unnecessarily `poll` the wrong future.
-    ///
-    /// # Return value
-    ///
-    /// This function returns a `Tokens` structure representing the set of
-    /// tokens that this future will be interested in. Callers may interpret
-    /// this as a filter of when to call `poll` to make progress.
-    ///
-    /// Implementors of this function must take care to return an appropriate
-    /// value to ensure that `poll` is called. Combinators may not call `poll`
-    /// to make progress if the tokens passed to `wake` do not intersect the
-    /// tokens returned here.
+    /// unnecessarily `poll` too much.
     ///
     /// # Multiple callbacks
     ///
@@ -212,7 +201,7 @@ pub trait Future: Send + 'static {
     /// If this function is called twice, it may be the case that the previous
     /// callback is never invoked. It is recommended that this function is
     /// called with the same callback for the entire lifetime of this future.
-    fn schedule(&mut self, wake: Arc<Wake>) -> Tokens;
+    fn schedule(&mut self, wake: Arc<Wake>);
 
     /// Perform tail-call optimization on this future.
     ///
