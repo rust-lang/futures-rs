@@ -16,7 +16,57 @@ use fnv::FnvHasher;
 
 use futures::{Future, Tokens, promise, Complete, Wake, PollError, PollResult};
 
-pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
+pub struct MioEvent {
+    events: mio::EventSet,
+    source: Source,
+    loop_handle: LoopHandle,
+}
+
+impl MioEvent {
+    fn into_future<C: PollCompletion>(self, completion: C) -> MioFuture<C> {
+        MioFuture {
+            event: self,
+            completion: completion,
+        }
+    }
+}
+
+pub trait PollCompletion {
+    type Item: Send + 'static;
+    type Error: Send + 'static;
+
+    fn poll_completion(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
+}
+
+pub struct MioFuture<C> {
+    event: MioEvent,
+    completion: C,
+}
+
+impl<C> Future for MioFuture<C> where C: PollCompletion + Send + 'static {
+    type Item = C::Item;
+    type Error = C::Error;
+
+    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<C::Item, C::Error>> {
+        // TODO: filter by tokens
+        self.completion.poll_completion()
+    }
+
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        // TODO: record token
+        self.event.loop_handle.schedule(Interest {
+            waiter: wake,
+            source: self.event.source.clone(),
+            events: self.event.events,
+            first_time: false, // assume already registered
+        });
+    }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        None
+    }
+}
+
 
 #[derive(Clone)]
 pub struct TcpListener {
@@ -77,40 +127,6 @@ impl Future for TcpListenerAccept {
 pub struct TcpStream {
     tcp: Arc<mio::tcp::TcpStream>,
     loop_handle: LoopHandle,
-}
-
-pub struct TcpStreamReady {
-    events: mio::EventSet,
-    inner: TcpStream,
-}
-
-impl Future for TcpStreamReady {
-    type Item = ();
-    type Error = io::Error;
-
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<(), io::Error>> {
-        Some(Ok(()))
-    }
-
-    fn schedule(&mut self, wake: Arc<Wake>) {
-        // TODO: record token
-        self.inner.loop_handle.schedule(Interest {
-            waiter: wake,
-            source: self.inner.tcp.clone(),
-            events: self.events,
-            first_time: false,
-        });
-    }
-
-    fn tailcall(&mut self) -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        None
-    }
-}
-
-impl ReadinessFuture for TcpStreamReady {
-    fn should_poll(&mut self, tokens: &Tokens) -> bool {
-        true // TODO
-    }
 }
 
 pub struct ReadCompletion {
@@ -188,41 +204,36 @@ impl TcpStream {
         self.tcp.peer_addr()
     }
 
-    pub fn ready_to_read(&self) -> TcpStreamReady {
-        TcpStreamReady {
+    pub fn ready_to_read(&self) -> MioEvent {
+        MioEvent {
             events: mio::EventSet::readable(),
-            inner: self.clone(),
+            source: self.tcp.clone(),
+            loop_handle: self.loop_handle.clone(),
         }
     }
 
-    pub fn ready_to_write(&self) -> TcpStreamReady {
-        TcpStreamReady {
+    pub fn ready_to_write(&self) -> MioEvent {
+        MioEvent {
             events: mio::EventSet::writable(),
-            inner: self.clone(),
+            source: self.tcp.clone(),
+            loop_handle: self.loop_handle.clone(),
         }
     }
 
     // TODO: wrap in newtype
-    pub fn read(&self, mut into: Vec<u8>) -> IntoCompletion<TcpStreamReady, ReadCompletion> {
-        IntoCompletion {
-            readiness: self.ready_to_read(),
-            completion: ReadCompletion {
-                tcp: self.tcp.clone(),
-                into: Some(into)
-            }
-        }
+    pub fn read(&self, mut into: Vec<u8>) -> MioFuture<ReadCompletion> {
+        self.ready_to_read().into_future(ReadCompletion {
+            tcp: self.tcp.clone(),
+            into: Some(into)
+        })
     }
 
-    pub fn write(&self, offset: usize, data: Vec<u8>)
-                 -> IntoCompletion<TcpStreamReady, WriteCompletion> {
-        IntoCompletion {
-            readiness: self.ready_to_write(),
-            completion: WriteCompletion {
-                tcp: self.tcp.clone(),
-                offset: offset,
-                data: Some(data),
-            }
-        }
+    pub fn write(&self, offset: usize, data: Vec<u8>) -> MioFuture<WriteCompletion> {
+        self.ready_to_write().into_future(WriteCompletion {
+            tcp: self.tcp.clone(),
+            offset: offset,
+            data: Some(data),
+        })
     }
 }
 
@@ -435,53 +446,6 @@ impl LoopHandle {
 
     fn deschedule(&self, token: usize) {
         unimplemented!()
-    }
-}
-
-/// A ReadinessFuture is one that only signals the possible occurrence of some
-/// event, rather than the completion of some action. It is useful primarily for
-/// composition and reuse around `schedule`, with a `Completion` wrapping it up
-/// with a meaningful `poll`.
-
-// TODO: consider whether to require Self::Item = Void, Self::Error =
-// Void
-pub trait ReadinessFuture: Future {
-    fn should_poll(&mut self, &Tokens) -> bool;
-}
-
-pub trait PollCompletion {
-    type Item: Send + 'static;
-    type Error: Send + 'static;
-
-    fn poll_completion(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
-}
-
-pub struct IntoCompletion<R, C> {
-    readiness: R,
-    completion: C,
-}
-
-impl<R, C> Future for IntoCompletion<R, C>
-    where R: ReadinessFuture, C: PollCompletion + Send + 'static
-{
-    type Item = C::Item;
-    type Error = C::Error;
-
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<C::Item, C::Error>> {
-        if self.readiness.should_poll(tokens) {
-            self.completion.poll_completion()
-        } else {
-            None
-        }
-    }
-
-    fn schedule(&mut self, wake: Arc<Wake>) {
-        self.readiness.schedule(wake)
-    }
-
-    fn tailcall(&mut self) -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        // TODO: flatten correctly
-        None
     }
 }
 
