@@ -54,7 +54,7 @@ struct Inner<T, E> {
 /// ```
 /// use futures::*;
 ///
-/// let (p, c) = promise::<i32, i32>();
+/// let (c, p) = promise::<i32, i32>();
 ///
 /// p.map(|i| {
 ///     println!("got: {}", i);
@@ -62,7 +62,7 @@ struct Inner<T, E> {
 ///
 /// c.finish(3);
 /// ```
-pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
+pub fn promise<T, E>() -> (Complete<T, E>, Promise<T, E>)
     where T: Send + 'static,
           E: Send + 'static,
 {
@@ -82,7 +82,7 @@ pub fn promise<T, E>() -> (Promise<T, E>, Complete<T, E>)
         inner: inner,
         completed: false,
     };
-    (promise, complete)
+    (complete, promise)
 }
 
 impl<T, E> Complete<T, E>

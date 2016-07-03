@@ -56,7 +56,7 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
 
 #[test]
 fn and_then_drops_eagerly() {
-    let (p, c) = promise::<(), ()>();
+    let (c, p) = promise::<(), ()>();
     let (tx, rx) = channel::<()>();
     let (tx2, rx2) = channel();
     FutureData { _data: tx, future: p }.and_then(move |_| {

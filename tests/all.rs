@@ -179,23 +179,23 @@ fn flatten() {
 #[test]
 fn smoke_promise() {
     assert_done(|| {
-        let (p, c) = promise();
+        let (c, p) = promise();
         c.finish(1);
         p
     }, ok(1));
     assert_done(|| {
-        let (p, c) = promise();
+        let (c, p) = promise();
         c.fail(1);
         p
     }, err(1));
     let mut completes = Vec::new();
     assert_empty(|| {
         let (a, b) = promise::<i32, u32>();
-        completes.push(b);
-        a
+        completes.push(a);
+        b
     });
 
-    let (mut p, c) = promise::<i32, u32>();
+    let (c, mut p) = promise::<i32, u32>();
     drop(c);
     assert_panic(p.poll(&Tokens::all()).expect("should be done"));
     assert_panic(p.poll(&Tokens::all()).expect("should be done2"));
@@ -209,120 +209,120 @@ fn smoke_promise() {
 #[test]
 fn select_cancels() {
     let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-    let ((atx, arx), (ctx, crx)) = (channel(), channel());
-    let a = a.map(move |a| { atx.send(a).unwrap(); a });
-    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+    let ((btx, brx), (dtx, drx)) = (channel(), channel());
+    let b = b.map(move |b| { btx.send(b).unwrap(); b });
+    let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = a.select(c).then(unselect);
+    let mut f = b.select(d).then(unselect);
     // assert!(f.poll(&Tokens::all()).is_none());
-    assert!(arx.try_recv().is_err());
-    assert!(crx.try_recv().is_err());
-    b.finish(1);
+    assert!(brx.try_recv().is_err());
+    assert!(drx.try_recv().is_err());
+    a.finish(1);
     // f.schedule(|_| ());
     assert!(f.poll(&Tokens::all()).is_some());
-    assert_eq!(arx.recv().unwrap(), 1);
-    drop((d, f));
-    assert!(crx.recv().is_err());
+    assert_eq!(brx.recv().unwrap(), 1);
+    drop((c, f));
+    assert!(drx.recv().is_err());
 
     let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-    let ((atx, _arx), (ctx, crx)) = (channel(), channel());
-    let a = a.map(move |a| { atx.send(a).unwrap(); a });
-    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+    let ((btx, _brx), (dtx, drx)) = (channel(), channel());
+    let b = b.map(move |b| { btx.send(b).unwrap(); b });
+    let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
-    let mut f = a.select(c).then(unselect);
+    let mut f = b.select(d).then(unselect);
     assert!(f.poll(&Tokens::all()).is_none());
     f.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
     assert!(rx.try_recv().is_err());
-    b.finish(1);
+    a.finish(1);
     assert!(rx.recv().is_ok());
     assert!(f.poll(&Tokens::all()).is_some());
     assert_panic(f.poll(&Tokens::all()).unwrap());
-    drop((d, f));
-    assert!(crx.recv().is_err());
+    drop((c, f));
+    assert!(drx.recv().is_err());
 }
 
 #[test]
 fn join_cancels() {
     let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-    let ((atx, _arx), (ctx, crx)) = (channel(), channel());
-    let a = a.map(move |a| { atx.send(a).unwrap(); a });
-    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+    let ((btx, _brx), (dtx, drx)) = (channel(), channel());
+    let b = b.map(move |b| { btx.send(b).unwrap(); b });
+    let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = a.join(c);
-    b.fail(1);
+    let mut f = b.join(d);
+    a.fail(1);
     assert!(f.poll(&Tokens::all()).is_some());
-    drop((d, f));
-    assert!(crx.recv().is_err());
+    drop((c, f));
+    assert!(drx.recv().is_err());
 
     let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-    let ((atx, _arx), (ctx, crx)) = (channel(), channel());
-    let a = a.map(move |a| { atx.send(a).unwrap(); a });
-    let c = c.map(move |c| { ctx.send(c).unwrap(); c });
+    let ((btx, _brx), (dtx, drx)) = (channel(), channel());
+    let b = b.map(move |b| { btx.send(b).unwrap(); b });
+    let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
-    let mut f = a.join(c);
+    let mut f = b.join(d);
     f.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
     assert!(rx.try_recv().is_err());
-    b.fail(1);
+    a.fail(1);
     assert!(f.poll(&Tokens::all()).is_some());
     assert_panic(f.poll(&Tokens::all()).unwrap());
-    drop((d, f));
-    assert!(crx.recv().is_err());
+    drop((c, f));
+    assert!(drx.recv().is_err());
 }
 
 #[test]
 fn join_incomplete() {
     let (a, b) = promise::<i32, u32>();
-    let mut f = f_ok(1).join(a);
+    let mut f = f_ok(1).join(b);
     assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    b.finish(2);
+    a.finish(2);
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
     let (a, b) = promise::<i32, u32>();
-    let mut f = a.join(f_ok(2));
+    let mut f = b.join(f_ok(2));
     assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    b.finish(1);
+    a.finish(1);
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
     let (a, b) = promise::<i32, u32>();
-    let mut f = f_ok(1).join(a);
+    let mut f = f_ok(1).join(b);
     assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map_err(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    b.fail(2);
+    a.fail(2);
     assert_eq!(rx.recv().unwrap(), 2);
 
     let (a, b) = promise::<i32, u32>();
-    let mut f = a.join(f_ok(2));
+    let mut f = b.join(f_ok(2));
     assert!(f.poll(&Tokens::all()).is_none());
     let (tx, rx) = channel();
     f.map_err(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    b.fail(1);
+    a.fail(1);
     assert_eq!(rx.recv().unwrap(), 1);
 }
 
 #[test]
 fn cancel_propagates() {
-    let mut f = promise::<i32, u32>().0.then(|_| -> Done<i32, u32> { panic!() });
+    let mut f = promise::<i32, u32>().1.then(|_| -> Done<i32, u32> { panic!() });
     assert_panic(f.poll(&Tokens::all()).unwrap());
-    let mut f = promise::<i32, u32>().0.and_then(|_| -> Done<i32, u32> { panic!() });
+    let mut f = promise::<i32, u32>().1.and_then(|_| -> Done<i32, u32> { panic!() });
     assert_panic(f.poll(&Tokens::all()).unwrap());
-    let mut f = promise::<i32, u32>().0.or_else(|_| -> Done<i32, u32> { panic!() });
+    let mut f = promise::<i32, u32>().1.or_else(|_| -> Done<i32, u32> { panic!() });
     assert_panic(f.poll(&Tokens::all()).unwrap());
-    let mut f = promise::<i32, u32>().0.map(|_| panic!());
+    let mut f = promise::<i32, u32>().1.map(|_| panic!());
     assert_panic(f.poll(&Tokens::all()).unwrap());
-    let mut f = promise::<i32, u32>().0.map_err(|_| panic!());
+    let mut f = promise::<i32, u32>().1.map_err(|_| panic!());
     assert_panic(f.poll(&Tokens::all()).unwrap());
 }
 
@@ -359,71 +359,71 @@ fn select2() {
     // get the notification of the second one.
     {
         let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let f = a.select(c);
+        let f = b.select(d);
         let (tx, rx) = channel();
         f.map(move |r| tx.send(r).unwrap()).forget();
-        b.finish(1);
+        a.finish(1);
         let (val, next) = rx.recv().unwrap();
         assert_eq!(val, 1);
         let (tx, rx) = channel();
         next.map_err(move |r| tx.send(r).unwrap()).forget();
         assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
-        d.fail(2);
+        c.fail(2);
         assert_eq!(rx.recv().unwrap(), 2);
     }
 
     // Fail the second half and ensure that we see the first one finish
     {
         let ((a, b), (c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let f = a.select(c);
+        let f = b.select(d);
         let (tx, rx) = channel();
         f.map_err(move |r| tx.send(r).unwrap()).forget();
-        d.fail(1);
+        c.fail(1);
         let (val, next) = rx.recv().unwrap();
         assert_eq!(val, 1);
         let (tx, rx) = channel();
         next.map(move |r| tx.send(r).unwrap()).forget();
         assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
-        b.finish(2);
+        a.finish(2);
         assert_eq!(rx.recv().unwrap(), 2);
     }
 
     // Cancelling the first half should cancel the second
     {
-        let ((a, _b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let ((atx, arx), (ctx, crx)) = (channel(), channel());
-        let a = a.map(move |v| { atx.send(v).unwrap(); v });
-        let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-        let f = a.select(c);
+        let ((_a, b), (_c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let ((btx, brx), (dtx, drx)) = (channel(), channel());
+        let b = b.map(move |v| { btx.send(v).unwrap(); v });
+        let d = d.map(move |v| { dtx.send(v).unwrap(); v });
+        let f = b.select(d);
         drop(f);
-        assert!(crx.recv().is_err());
-        assert!(arx.recv().is_err());
+        assert!(drx.recv().is_err());
+        assert!(brx.recv().is_err());
     }
 
     // Cancel after a schedule
     {
-        let ((a, _b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let ((atx, arx), (ctx, crx)) = (channel(), channel());
-        let a = a.map(move |v| { atx.send(v).unwrap(); v });
-        let c = c.map(move |v| { ctx.send(v).unwrap(); v });
-        let mut f = a.select(c);
+        let ((_a, b), (_c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let ((btx, brx), (dtx, drx)) = (channel(), channel());
+        let b = b.map(move |v| { btx.send(v).unwrap(); v });
+        let d = d.map(move |v| { dtx.send(v).unwrap(); v });
+        let mut f = b.select(d);
         f.schedule(Arc::new(|_: &Tokens| ()));
         drop(f);
-        assert!(crx.recv().is_err());
-        assert!(arx.recv().is_err());
+        assert!(drx.recv().is_err());
+        assert!(brx.recv().is_err());
     }
 
     // Cancel propagates
     {
-        let ((a, b), (c, _d)) = (promise::<i32, u32>(), promise::<i32, u32>());
-        let ((atx, arx), (ctx, crx)) = (channel(), channel());
-        let a = a.map(move |v| { atx.send(v).unwrap(); v });
-        let c = c.map(move |v| { ctx.send(v).unwrap(); v });
+        let ((a, b), (_c, d)) = (promise::<i32, u32>(), promise::<i32, u32>());
+        let ((btx, brx), (dtx, drx)) = (channel(), channel());
+        let b = b.map(move |v| { btx.send(v).unwrap(); v });
+        let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let (tx, rx) = channel();
-        a.select(c).map(move |_| tx.send(()).unwrap()).forget();
-        drop(b);
-        assert!(crx.recv().is_err());
-        assert!(arx.recv().is_err());
+        b.select(d).map(move |_| tx.send(()).unwrap()).forget();
+        drop(a);
+        assert!(drx.recv().is_err());
+        assert!(brx.recv().is_err());
         assert!(rx.recv().is_err());
     }
 
