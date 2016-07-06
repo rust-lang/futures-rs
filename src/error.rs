@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::panic;
 
 /// The result yielded to the `Future::schedule` callback which indicates the
 /// final result of a future.
@@ -28,6 +29,18 @@ impl<E> PollError<E> {
         match self {
             PollError::Panicked(e) => PollError::Panicked(e),
             PollError::Other(e) => PollError::Other(f(e)),
+        }
+    }
+
+    /// Unwraps the `E` from this `PollError<E>`, propagating a panic if it
+    /// represents a panicked result.
+    ///
+    /// Note that the closure is not guaranteed to be called as not all variants
+    /// of a `PollError` have data to call it with.
+    pub fn unwrap(self) -> E {
+        match self {
+            PollError::Other(e) => e,
+            PollError::Panicked(e) => panic::resume_unwind(e),
         }
     }
 }
