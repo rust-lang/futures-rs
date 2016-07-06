@@ -46,8 +46,4 @@ impl<T, E> Future for Failed<T, E>
     fn schedule(&mut self, wake: Arc<Wake>) {
         util::done(wake)
     }
-
-    fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {
-        None
-    }
 }

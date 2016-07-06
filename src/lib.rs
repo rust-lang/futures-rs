@@ -219,7 +219,9 @@ pub trait Future: Send + 'static {
     /// called. Essentially, if `Some` is returned, then this future can be
     /// forgotten and instead the returned value is used.
     fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>>;
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        None
+    }
 
     /// Convenience function for turning this future into a trait object.
     ///

@@ -168,10 +168,6 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
             wake.wake(&tokens)
         }));
     }
-
-    fn tailcall(&mut self) -> Option<Box<Future<Item=T, Error=E>>> {
-        None
-    }
 }
 
 impl<T, E> Drop for Promise<T, E>
