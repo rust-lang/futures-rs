@@ -35,7 +35,9 @@ impl<U, A, F> Future for Map<A, F>
         };
         let callback = util::opt2poll(self.f.take());
         Some(result.and_then(|e| {
-            callback.map(|f| f(e))
+            callback.and_then(|f| {
+                util::recover(|| f(e))
+            })
         }))
     }
 

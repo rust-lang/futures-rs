@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, PollResult, Wake, Tokens};
+use {Future, PollResult, Wake, Tokens, PollError};
 use util::{self, Collapsed};
 
 /// Future for the `map_err` combinator, changing the error type of a future.
@@ -34,8 +34,14 @@ impl<U, A, F> Future for MapErr<A, F>
             None => return None,
         };
         let f = util::opt2poll(self.f.take());
-        Some(f.and_then(|f| {
-            result.map_err(|e| e.map(f))
+        Some(f.and_then(move |f| {
+            match result {
+                Ok(e) => Ok(e),
+                Err(PollError::Other(e)) => {
+                    util::recover(|| f(e)).and_then(|e| Err(PollError::Other(e)))
+                }
+                Err(PollError::Panicked(e)) => Err(PollError::Panicked(e)),
+            }
         }))
     }
 
