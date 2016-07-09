@@ -60,6 +60,7 @@ fn adapters() {
     assert_done(|| err_list().fold(0, |a, b| a + b), Err(3));
     assert_done(|| list().filter(|a| *a % 2 == 0).collect(), Ok(vec![2]));
     assert_done(|| list().and_then(|a| Ok(a + 1)).collect(), Ok(vec![2, 3, 4]));
+    assert_done(|| list().then(|a| a.map(|e| e + 1)).collect(), Ok(vec![2, 3, 4]));
     assert_done(|| list().and_then(|a| failed::<i32, u32>(a as u32)).collect(),
                 Err(1));
     assert_done(|| err_list().or_else(|a| {

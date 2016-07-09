@@ -70,5 +70,3 @@ impl<S, F, U> Stream for OrElse<S, F, U>
         }
     }
 }
-
-

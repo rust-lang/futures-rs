@@ -15,6 +15,7 @@ mod future;
 mod map;
 mod map_err;
 mod or_else;
+mod then;
 pub use self::and_then::AndThen;
 pub use self::collect::Collect;
 pub use self::filter::Filter;
@@ -23,6 +24,7 @@ pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::or_else::OrElse;
+pub use self::then::Then;
 
 mod impls;
 
@@ -70,6 +72,14 @@ pub trait Stream: Send + 'static {
               Self: Sized
     {
         filter::new(self, f)
+    }
+
+    fn then<F, U>(self, f: F) -> Then<Self, F, U>
+        where F: FnMut(Result<Self::Item, Self::Error>) -> U + Send + 'static,
+              U: IntoFuture,
+              Self: Sized
+    {
+        then::new(self, f)
     }
 
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
