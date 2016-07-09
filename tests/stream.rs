@@ -1,7 +1,7 @@
 extern crate support;
 extern crate futures;
 
-use futures::Future;
+use futures::{failed, finished, Future};
 use futures::stream::*;
 use support::*;
 
@@ -59,11 +59,12 @@ fn adapters() {
     assert_done(|| list().fold(0, |a, b| a + b), Ok(6));
     assert_done(|| err_list().fold(0, |a, b| a + b), Err(3));
     assert_done(|| list().filter(|a| *a % 2 == 0).collect(), Ok(vec![2]));
-//     assert_eq!(list().and_then(|a| Ok(a + 1)).collect(),
-//                Ok(vec![2, 3, 4]));
-//     assert_eq!(err_list().or_else(|a| {
-//         finished::<i32, u32>(a as i32)
-//     }).collect(), Ok(vec![1, 2, 3]));
+    assert_done(|| list().and_then(|a| Ok(a + 1)).collect(), Ok(vec![2, 3, 4]));
+    assert_done(|| list().and_then(|a| failed::<i32, u32>(a as u32)).collect(),
+                Err(1));
+    assert_done(|| err_list().or_else(|a| {
+        finished::<i32, u32>(a as i32)
+    }).collect(), Ok(vec![1, 2, 3]));
 //     assert_eq!(list().map(|_| list()).flat_map().collect(),
 //                Ok(vec![1, 2, 3, 1, 2, 3, 1, 2, 3]));
 //     assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect(),

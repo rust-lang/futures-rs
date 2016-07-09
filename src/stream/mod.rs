@@ -2,23 +2,27 @@
 
 use std::sync::Arc;
 
-use {PollResult, Wake, Tokens};
+use {PollResult, Wake, Tokens, IntoFuture};
 
 mod channel;
 pub use self::channel::{channel, Sender, Receiver};
 
+mod and_then;
+mod collect;
 mod filter;
+mod fold;
 mod future;
 mod map;
 mod map_err;
+mod or_else;
+pub use self::and_then::AndThen;
+pub use self::collect::Collect;
 pub use self::filter::Filter;
+pub use self::fold::Fold;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
-pub use self::collect::Collect;
-mod collect;
-mod fold;
-pub use self::fold::Fold;
+pub use self::or_else::OrElse;
 
 mod impls;
 
@@ -68,31 +72,21 @@ pub trait Stream: Send + 'static {
         filter::new(self, f)
     }
 
-    // // TODO: is this the same as map + flatten?
-    // fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
-    //     where F: FnMut(Self::Item) -> U + Send + 'static,
-    //           U: IntoFuture<Error=Self::Error>,
-    //           Self: Sized
-    // {
-    //     AndThen {
-    //         stream: self,
-    //         f: f,
-    //         future: None,
-    //     }
-    // }
-    //
-    // // TODO: is this the same as map_err + flatten?
-    // fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
-    //     where F: FnMut(Self::Error) -> U + Send + 'static,
-    //           U: IntoFuture<Item=Self::Item>,
-    //           Self: Sized
-    // {
-    //     OrElse {
-    //         stream: self,
-    //         f: f,
-    //         future: None,
-    //     }
-    // }
+    fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
+        where F: FnMut(Self::Item) -> U + Send + 'static,
+              U: IntoFuture<Error=Self::Error>,
+              Self: Sized
+    {
+        and_then::new(self, f)
+    }
+
+    fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
+        where F: FnMut(Self::Error) -> U + Send + 'static,
+              U: IntoFuture<Item=Self::Item>,
+              Self: Sized
+    {
+        or_else::new(self, f)
+    }
 
     fn collect(self) -> Collect<Self> where Self: Sized {
         collect::new(self)
