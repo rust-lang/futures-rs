@@ -1,19 +1,22 @@
 use std::sync::Arc;
 
-use {Callback, PollError};
-use slot::Slot;
+use {Wake, Tokens, PollError};
 use stream::{Stream, StreamResult};
 use util;
 
 pub struct MapErr<S, F> {
     stream: S,
-    f: Arc<Slot<F>>,
+    f: Option<F>,
 }
 
-pub fn new<S, F>(s: S, f: F) -> MapErr<S, F> where F: Send + 'static {
+pub fn new<S, F, U>(s: S, f: F) -> MapErr<S, F>
+    where S: Stream,
+          F: FnMut(S::Error) -> U + Send + 'static,
+          U: Send + 'static,
+{
     MapErr {
         stream: s,
-        f: Arc::new(Slot::new(Some(f))),
+        f: Some(f),
     }
 }
 
@@ -25,41 +28,30 @@ impl<S, F, U> Stream for MapErr<S, F>
     type Item = S::Item;
     type Error = U;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static,
-    {
-        let mut f = match util::opt2poll(self.f.try_consume().ok()) {
-            Ok(f) => f,
-            Err(e) => return g(Err(e)),
-        };
-        let slot = self.f.clone();
-        self.stream.schedule(move |res| {
-            let (f, res) = match res {
-                Ok(e) => (Some(f), Ok(e)),
-                Err(PollError::Other(e)) => {
-                    match util::recover(|| (f(e), f)) {
-                        Ok((r, f)) => (Some(f), Err(PollError::Other(r))),
-                        Err(e) => (None, Err(e)),
-                    }
-                }
-                Err(PollError::Panicked(e)) => {
-                    (Some(f), Err(PollError::Panicked(e)))
-                }
-                Err(PollError::Canceled) => {
-                    (Some(f), Err(PollError::Canceled))
-                }
-            };
-            if let Some(f) = f {
-                slot.try_produce(f).ok().expect("map_err stream failed to produce");
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<StreamResult<S::Item, U>> {
+        let item = match self.stream.poll(tokens) {
+            Some(Ok(e)) => return Some(Ok(e)),
+            Some(Err(PollError::Other(e))) => e,
+            Some(Err(PollError::Panicked(e))) => {
+                return Some(Err(PollError::Panicked(e)))
             }
-            g(res)
-        })
+            None => return None,
+        };
+        let mut f = match util::opt2poll(self.f.take()) {
+            Ok(f) => f,
+            Err(e) => return Some(Err(e)),
+        };
+        match util::recover(move || (f(item), f)) {
+            Ok((e, f)) => {
+                self.f = Some(f);
+                Some(Err(PollError::Other(e)))
+            }
+            Err(e) => Some(Err(e))
+        }
     }
 
-    fn schedule_boxed(&mut self,
-                      g: Box<Callback<Option<Self::Item>, Self::Error>>) {
-        self.schedule(|r| g.call(r))
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        self.stream.schedule(wake)
     }
 }
-
-

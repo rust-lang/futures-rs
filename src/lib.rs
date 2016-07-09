@@ -69,7 +69,7 @@ pub use select::{Select, SelectNext};
 pub use then::Then;
 
 // streams
-// pub mod stream;
+pub mod stream;
 
 // impl details
 mod chain;

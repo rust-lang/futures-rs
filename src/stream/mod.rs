@@ -1,16 +1,22 @@
 #![allow(missing_docs)]
 
-use {PollResult, Callback};
+use std::sync::Arc;
 
-// mod channel;
-// pub use self::channel::{channel, Sender, Receiver};
+use {PollResult, Wake, Tokens};
 
-mod map;
+mod channel;
+pub use self::channel::{channel, Sender, Receiver};
+
 mod filter;
+mod future;
+mod map;
 mod map_err;
+pub use self::filter::Filter;
+pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
-pub use self::filter::Filter;
+
+mod impls;
 
 pub type StreamResult<T, E> = PollResult<Option<T>, E>;
 
@@ -18,14 +24,22 @@ pub trait Stream: Send + 'static {
     type Item: Send + 'static;
     type Error: Send + 'static;
 
-    // fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>>;
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<StreamResult<Self::Item, Self::Error>>;
 
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(StreamResult<Self::Item, Self::Error>) + Send + 'static,
-              Self: Sized;
+    fn schedule(&mut self, wake: Arc<Wake>);
 
-    fn schedule_boxed(&mut self,
-                      g: Box<Callback<Option<Self::Item>, Self::Error>>);
+    fn boxed(self) -> Box<Stream<Item=Self::Item, Error=Self::Error>>
+        where Self: Sized
+    {
+        Box::new(self)
+    }
+
+    fn into_future(self) -> StreamFuture<Self>
+        where Self: Sized
+    {
+        future::new(self)
+    }
 
     fn map<U, F>(self, f: F) -> Map<Self, F>
         where F: FnMut(Self::Item) -> U + Send + 'static,
@@ -119,26 +133,6 @@ pub trait Stream: Send + 'static {
     //         inner: None,
     //     }
     // }
-}
-
-impl<S: ?Sized + Stream> Stream for Box<S> {
-    type Item = S::Item;
-    type Error = S::Error;
-
-    // fn poll(&mut self) -> Option<StreamResult<Self::Item, Self::Error>> {
-    //     (**self).poll()
-    // }
-
-    fn schedule<G>(&mut self, g: G)
-        where G: FnOnce(StreamResult<Self::Item, Self::Error>) +
-                    Send + 'static {
-        self.schedule_boxed(Box::new(g))
-    }
-
-    fn schedule_boxed(&mut self,
-                      g: Box<Callback<Option<Self::Item>, Self::Error>>) {
-        (**self).schedule_boxed(g)
-    }
 }
 
 // pub struct FutureStream<F> {
@@ -552,3 +546,4 @@ impl<S: ?Sized + Stream> Stream for Box<S> {
 //         g(self.next().map(Ok), self)
 //     }
 // }
+
