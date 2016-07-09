@@ -15,7 +15,7 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
         receiver_gone: AtomicBool::new(false),
-        token: COUNT.fetch_add(1, Ordering::SeqCst),
+        token: COUNT.fetch_add(1, Ordering::SeqCst) + 1,
     });
     let sender = Sender {
         inner: inner.clone(),
@@ -23,6 +23,7 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
     let receiver = Receiver {
         inner: inner,
         on_full_token: None,
+        done: false,
     };
     (sender, receiver)
 }
@@ -48,6 +49,7 @@ pub struct Receiver<T, E>
 {
     inner: Arc<Inner<T, E>>,
     on_full_token: Option<Token>,
+    done: bool,
 }
 
 struct Inner<T, E> {
@@ -70,16 +72,22 @@ impl<T, E> Stream for Receiver<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<T, E>> {
-        if !tokens.may_contain(&Tokens::from_usize(self.inner.token)) {
-            return None
+    fn poll(&mut self, _tokens: &Tokens) -> Option<StreamResult<T, E>> {
+        if self.done {
+            return Some(Err(util::reused()))
         }
+        // if !tokens.may_contain(&Tokens::from_usize(self.inner.token)) {
+        //     return None
+        // }
 
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
             Ok(Message::Data(Err(e))) => Some(Err(PollError::Other(e))),
-            Ok(Message::Done) => Some(Ok(None)),
+            Ok(Message::Done) => {
+                self.done = true;
+                Some(Ok(None))
+            }
             Err(..) => None,
         }
     }

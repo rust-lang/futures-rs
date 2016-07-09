@@ -17,6 +17,8 @@ pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::collect::Collect;
 mod collect;
+mod fold;
+pub use self::fold::Fold;
 
 mod impls;
 
@@ -96,18 +98,14 @@ pub trait Stream: Send + 'static {
         collect::new(self)
     }
 
-    // fn fold<F, T>(self, init: T, f: F) -> Fold<Self, F, T>
-    //     where F: FnMut(T, Self::Item) -> T + Send + 'static,
-    //           T: Send + 'static,
-    //           Self: Sized
-    // {
-    //     Fold {
-    //         stream: self,
-    //         f: f,
-    //         val: Some(init),
-    //     }
-    // }
-    //
+    fn fold<F, T>(self, init: T, f: F) -> Fold<Self, F, T>
+        where F: FnMut(T, Self::Item) -> T + Send + 'static,
+              T: Send + 'static,
+              Self: Sized
+    {
+        fold::new(self, f, init)
+    }
+
     // fn flatten(self) -> Flatten<Self>
     //     where Self::Item: IntoFuture,
     //           <<Self as Stream>::Item as IntoFuture>::Error:
