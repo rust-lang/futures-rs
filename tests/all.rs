@@ -1,84 +1,11 @@
 extern crate futures;
+extern crate support;
 
 use std::sync::{Mutex, Arc};
 use std::sync::mpsc::{channel, TryRecvError};
-use std::fmt;
 
 use futures::*;
-
-fn unwrap<A, B>(r: PollResult<A, B>) -> Result<A, B> {
-    match r {
-        Ok(e) => Ok(e),
-        Err(PollError::Panicked(p)) => panic!(p),
-        Err(PollError::Other(e)) => Err(e),
-    }
-}
-
-
-fn f_ok(a: i32) -> Done<i32, u32> { Ok(a).into_future() }
-fn f_err(a: u32) -> Done<i32, u32> { Err(a).into_future() }
-fn ok(a: i32) -> Result<i32, u32> { Ok(a) }
-fn err(a: u32) -> Result<i32, u32> { Err(a) }
-
-fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
-    where T: Future,
-          T::Item: Eq + fmt::Debug,
-          T::Error: Eq + fmt::Debug,
-          F: FnMut() -> T,
-{
-    let mut a = f();
-    assert_eq!(&unwrap(a.poll(&Tokens::all()).unwrap()), &result);
-    drop(a);
-
-    let mut a = f();
-    assert!(a.poll(&Tokens::all()).is_some());
-    assert_panic(a.poll(&Tokens::all()).unwrap());
-    drop(a);
-}
-
-fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
-    assert!(f().poll(&Tokens::all()).is_none());
-
-    let mut a = f();
-    a.schedule(Arc::new(move |_: &Tokens| ()));
-    assert!(a.poll(&Tokens::all()).is_none());
-    drop(a);
-
-    // let (tx, rx) = channel();
-    // let (tx2, rx2) = channel();
-    // let mut a = f();
-    // a.schedule(move |r| tx.send(r).unwrap());
-    // a.schedule(move |r| tx2.send(r).unwrap());
-    // assert_panic(rx2.recv().unwrap());
-    // drop(a);
-    // assert_cancel(rx.recv().unwrap());
-
-    // let (tx, rx) = channel();
-    // let mut a = f();
-    // let tx2 = tx.clone();
-    // a.schedule(move |r| tx2.send(r).unwrap());
-    // a.schedule(move |r| tx.send(r).unwrap());
-    // assert_bad(rx.recv().unwrap());
-    // drop(a);
-    // assert_cancel(rx.recv().unwrap());
-}
-
-fn assert_panic<T, E>(r: PollResult<T, E>) {
-    match r {
-        Ok(_) => panic!("can't succeed after panic"),
-        Err(PollError::Panicked(_)) => {}
-        Err(PollError::Other(_)) => panic!("other error, not panic"),
-    }
-}
-
-// fn assert_bad<T, E>(r: PollResult<T, E>) {
-//     match r {
-//         Ok(_) => panic!("expected panic, got success"),
-//         Err(PollError::Other(_)) => panic!("expected panic, got other"),
-//         Err(PollError::Panicked(_)) => {}
-//         Err(PollError::Canceled) => {}
-//     }
-// }
+use support::*;
 
 fn unselect<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
     match r {

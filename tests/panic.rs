@@ -1,15 +1,12 @@
 extern crate futures;
+extern crate support;
 
 use futures::*;
 
 fn assert_panic<F>(mut f: F)
     where F: Future<Item=u32, Error=u32>
 {
-    match f.poll(&Tokens::all()).expect("should be ready") {
-        Ok(_) => panic!("can't succeed after panic"),
-        Err(PollError::Panicked(_)) => {}
-        Err(PollError::Other(_)) => panic!("other error, not panic"),
-    }
+    support::assert_panic(f.poll(&Tokens::all()).expect("should be ready"))
 }
 
 #[test]

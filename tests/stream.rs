@@ -1,12 +1,10 @@
-// extern crate futures;
-//
-// use std::thread;
-//
-// use futures::channel::{channel, Receiver};
-// use futures::*;
-// use futures::stream::{Stream, PollError};
-// use futures::bufstream::bufstream;
-//
+extern crate support;
+extern crate futures;
+
+use futures::Future;
+use futures::stream::*;
+use support::*;
+
 // #[test]
 // fn smoke() {
 //     let (tx, rx) = channel::<i32, u32>();
@@ -14,34 +12,34 @@
 //       .and_then(|tx| tx.send(Ok(2)))
 //       .and_then(|tx| tx.send(Ok(3)))
 //       .schedule(|r| assert!(r.is_ok()));
-//     assert_eq!(rx.collect().await(), Ok(vec![1, 2, 3]));
+//     assert_eq!(rx.collect(), Ok(vec![1, 2, 3]));
 //
 //     let (tx, rx) = channel::<i32, u32>();
 //     tx.send(Ok(1))
 //       .and_then(|tx| tx.send(Err(2)))
 //       .and_then(|tx| tx.send(Ok(3)))
 //       .schedule(|r| assert!(r.is_ok()));
-//     assert_eq!(rx.collect().await(), Err(2));
+//     assert_eq!(rx.collect(), Err(2));
 // }
-//
-// fn list() -> Receiver<i32, u32> {
-//     let (tx, rx) = channel();
-//     tx.send(Ok(1))
-//       .and_then(|tx| tx.send(Ok(2)))
-//       .and_then(|tx| tx.send(Ok(3)))
-//       .schedule(|r| assert!(r.is_ok()));
-//     return rx
-// }
-//
-// fn err_list() -> Receiver<i32, u32> {
-//     let (tx, rx) = channel();
-//     tx.send(Ok(1))
-//       .and_then(|tx| tx.send(Ok(2)))
-//       .and_then(|tx| tx.send(Err(3)))
-//       .schedule(|_| {});
-//     return rx
-// }
-//
+
+fn list() -> Receiver<i32, u32> {
+    let (tx, rx) = channel();
+    tx.send(Ok(1))
+      .and_then(|tx| tx.send(Ok(2)))
+      .and_then(|tx| tx.send(Ok(3)))
+      .forget();
+    return rx
+}
+
+fn err_list() -> Receiver<i32, u32> {
+    let (tx, rx) = channel();
+    tx.send(Ok(1))
+      .and_then(|tx| tx.send(Ok(2)))
+      .and_then(|tx| tx.send(Err(3)))
+      .forget();
+    return rx
+}
+
 // fn collect_poll<S: Stream>(mut s: S) -> Result<Vec<S::Item>, S::Error> {
 //     let mut base = Vec::new();
 //     loop {
@@ -54,23 +52,23 @@
 //     }
 // }
 //
-// #[test]
-// fn adapters() {
-//     assert_eq!(list().map(|a| a + 1).collect().await(), Ok(vec![2, 3, 4]));
-//     assert_eq!(err_list().map_err(|a| a + 1).collect().await(), Err(4));
-//     assert_eq!(list().fold(0, |a, b| a + b).await(), Ok(6));
-//     assert_eq!(list().filter(|a| *a % 2 == 0).collect().await(), Ok(vec![2]));
-//     assert_eq!(list().and_then(|a| Ok(a + 1)).collect().await(),
+#[test]
+fn adapters() {
+    assert_done(|| list().map(|a| a + 1).collect(), Ok(vec![2, 3, 4]));
+    assert_done(|| err_list().map_err(|a| a + 1).collect(), Err(4));
+//     assert_eq!(list().fold(0, |a, b| a + b), Ok(6));
+    assert_done(|| list().filter(|a| *a % 2 == 0).collect(), Ok(vec![2]));
+//     assert_eq!(list().and_then(|a| Ok(a + 1)).collect(),
 //                Ok(vec![2, 3, 4]));
 //     assert_eq!(err_list().or_else(|a| {
 //         finished::<i32, u32>(a as i32)
-//     }).collect().await(), Ok(vec![1, 2, 3]));
-//     assert_eq!(list().map(|_| list()).flat_map().collect().await(),
+//     }).collect(), Ok(vec![1, 2, 3]));
+//     assert_eq!(list().map(|_| list()).flat_map().collect(),
 //                Ok(vec![1, 2, 3, 1, 2, 3, 1, 2, 3]));
-//     assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect().await(),
+//     assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect(),
 //                Ok(vec![1, 2, 3]));
-// }
-//
+}
+
 // #[test]
 // fn adapters_poll() {
 //     assert_eq!(collect_poll(list().map(|a| a + 1)), Ok(vec![2, 3, 4]));
@@ -112,16 +110,16 @@
 //     // let (tx, rx) = channel::<i32, u32>();
 //     // let rx = rx.and_then(|a| failed::<i32, _>(a as u32));
 //     // tx.send(Ok(1)).schedule(|_| ());
-//     // assert_eq!(rx.collect().await(), Err(1));
-//     // assert_eq!(list().fold(0, |a, b| a + b).await(), Ok(6));
-//     // assert_eq!(list().and_then(|a| Ok(a + 1)).collect().await(),
+//     // assert_eq!(rx.collect(), Err(1));
+//     // assert_eq!(list().fold(0, |a, b| a + b), Ok(6));
+//     // assert_eq!(list().and_then(|a| Ok(a + 1)).collect(),
 //     //            Ok(vec![2, 3, 4]));
 //     // assert_eq!(err_list().or_else(|a| {
 //     //     finished::<i32, u32>(a as i32)
-//     // }).collect().await(), Ok(vec![1, 2, 3]));
-//     // assert_eq!(list().map(|_| list()).flat_map().collect().await(),
+//     // }).collect(), Ok(vec![1, 2, 3]));
+//     // assert_eq!(list().map(|_| list()).flat_map().collect(),
 //     //            Ok(vec![1, 2, 3, 1, 2, 3, 1, 2, 3]));
-//     // assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect().await(),
+//     // assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect(),
 //     //            Ok(vec![1, 2, 3]));
 //
 //     assert_eq!(list().collect().poll().ok().unwrap(), Ok(vec![1, 2, 3]));
@@ -140,7 +138,7 @@
 // fn rxdrop() {
 //     let (tx, rx) = channel::<i32, u32>();
 //     drop(rx);
-//     assert!(tx.send(Ok(1)).await().is_err());
+//     assert!(tx.send(Ok(1)).is_err());
 // }
 //
 // #[test]
@@ -188,6 +186,6 @@
 //         assert!(it.next().is_none());
 //     });
 //
-//     assert_eq!(rx.collect().await(), Ok(vec![2, 4, 3, 1]));
+//     assert_eq!(rx.collect(), Ok(vec![2, 4, 3, 1]));
 //     t.join().unwrap();
 // }

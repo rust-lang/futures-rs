@@ -15,6 +15,8 @@ pub use self::filter::Filter;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
+pub use self::collect::Collect;
+mod collect;
 
 mod impls;
 
@@ -89,15 +91,11 @@ pub trait Stream: Send + 'static {
     //         future: None,
     //     }
     // }
-    //
-    // // TODO: compare with fold + push
-    // fn collect(self) -> Collect<Self> where Self: Sized {
-    //     Collect {
-    //         stream: self,
-    //         elems: Vec::new(),
-    //     }
-    // }
-    //
+
+    fn collect(self) -> Collect<Self> where Self: Sized {
+        collect::new(self)
+    }
+
     // fn fold<F, T>(self, init: T, f: F) -> Fold<Self, F, T>
     //     where F: FnMut(T, Self::Item) -> T + Send + 'static,
     //           T: Send + 'static,
