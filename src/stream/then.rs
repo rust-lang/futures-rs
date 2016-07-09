@@ -57,6 +57,7 @@ impl<S, F, U> Stream for Then<S, F, U>
             }
         }
         assert!(self.future.is_some());
+        // TODO: Tokens::all() if we just created the future?
         let res = self.future.as_mut().unwrap().poll(tokens);
         if res.is_some() {
             self.future = None;

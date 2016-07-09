@@ -10,6 +10,7 @@ pub use self::channel::{channel, Sender, Receiver};
 mod and_then;
 mod collect;
 mod filter;
+mod flat_map;
 mod fold;
 mod future;
 mod map;
@@ -19,6 +20,7 @@ mod then;
 pub use self::and_then::AndThen;
 pub use self::collect::Collect;
 pub use self::filter::Filter;
+pub use self::flat_map::FlatMap;
 pub use self::fold::Fold;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
@@ -121,18 +123,14 @@ pub trait Stream: Send + 'static {
     //         future: None,
     //     }
     // }
-    //
-    // fn flat_map(self) -> FlatMap<Self>
-    //     where Self::Item: Stream,
-    //           <<Self as Stream>::Item as Stream>::Error:
-    //                 From<<Self as Stream>::Error>,
-    //           Self: Sized
-    // {
-    //     FlatMap {
-    //         outer: self,
-    //         inner: None,
-    //     }
-    // }
+
+    fn flat_map(self) -> FlatMap<Self>
+        where Self::Item: Stream,
+              <Self::Item as Stream>::Error: From<Self::Error>,
+              Self: Sized
+    {
+        flat_map::new(self)
+    }
 }
 
 // pub struct FutureStream<F> {

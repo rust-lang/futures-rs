@@ -66,8 +66,8 @@ fn adapters() {
     assert_done(|| err_list().or_else(|a| {
         finished::<i32, u32>(a as i32)
     }).collect(), Ok(vec![1, 2, 3]));
-//     assert_eq!(list().map(|_| list()).flat_map().collect(),
-//                Ok(vec![1, 2, 3, 1, 2, 3, 1, 2, 3]));
+    assert_done(|| list().map(|_| list()).flat_map().collect(),
+                Ok(vec![1, 2, 3, 1, 2, 3, 1, 2, 3]));
 //     assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect(),
 //                Ok(vec![1, 2, 3]));
 }
