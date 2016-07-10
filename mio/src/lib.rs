@@ -1,39 +1,81 @@
 extern crate mio;
 extern crate futures;
+extern crate fnv;
 
+use std::hash::BuildHasherDefault;
 use std::collections::HashMap;
 use std::io::{self, ErrorKind, Read, Write};
 use std::net::SocketAddr;
 use std::panic;
 use std::slice;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, TryRecvError};
 
-use futures::{Future, promise, Complete, PollError};
+use fnv::FnvHasher;
 
-pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
+use futures::{Future, Tokens, promise, Complete, Wake, PollError, PollResult};
 
-pub struct Loop {
-    io: mio::Poll,
-    tx: mio::channel::Sender<Message>,
-    rx: mio::channel::Receiver<Message>,
-    next: usize,
-    done: HashMap<usize, Complete<(), io::Error>>,
+pub struct MioEvent {
+    events: mio::EventSet,
+    source: Source,
+    loop_handle: LoopHandle,
 }
 
-enum Message {
-    Wait(Complete<(), io::Error>, mio::EventSet, Arc<mio::Evented + Send + Sync>),
-    Register(Arc<mio::Evented + Send + Sync>),
+impl MioEvent {
+    fn into_future<C: PollCompletion>(self, completion: C) -> MioFuture<C> {
+        MioFuture {
+            event: self,
+            completion: completion,
+        }
+    }
 }
 
+pub trait PollCompletion {
+    type Item: Send + 'static;
+    type Error: Send + 'static;
+
+    fn poll_completion(&mut self) -> Option<PollResult<Self::Item, Self::Error>>;
+}
+
+pub struct MioFuture<C> {
+    event: MioEvent,
+    completion: C,
+}
+
+impl<C> Future for MioFuture<C> where C: PollCompletion + Send + 'static {
+    type Item = C::Item;
+    type Error = C::Error;
+
+    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<C::Item, C::Error>> {
+        // TODO: filter by tokens
+        self.completion.poll_completion()
+    }
+
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        // TODO: record token
+        self.event.loop_handle.schedule(Interest {
+            waiter: wake,
+            source: self.event.source.clone(),
+            events: self.event.events,
+            first_time: false, // assume already registered
+        });
+    }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        None
+    }
+}
+
+
+#[derive(Clone)]
 pub struct TcpListener {
     tcp: Arc<mio::tcp::TcpListener>,
-    tx: mio::channel::Sender<Message>,
+    loop_handle: LoopHandle,
 }
 
-pub struct Error<T> {
-    err: io::Error,
-    data: T,
+pub struct TcpListenerAccept {
+    inner: TcpListener
 }
 
 impl TcpListener {
@@ -41,53 +83,111 @@ impl TcpListener {
         self.tcp.local_addr()
     }
 
-    pub fn accept(&self) -> Box<IoFuture<(TcpStream, SocketAddr)>> {
-        match self.tcp.accept() {
-            Err(e) => return futures::failed(e).boxed(),
+    pub fn accept(&self) -> TcpListenerAccept {
+        TcpListenerAccept { inner: self.clone() }
+    }
+}
+
+impl Future for TcpListenerAccept {
+    type Item = (TcpStream, SocketAddr);
+    type Error = io::Error;
+
+    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<Self::Item, Self::Error>> {
+        // TODO: attempt poll only if tokens match
+        match self.inner.tcp.accept() {
+            Err(e) => Some(Err(PollError::Other(e))),
             Ok(Some((tcp, addr))) => {
                 let tcp = TcpStream {
                     tcp: Arc::new(tcp),
-                    tx: self.tx.clone(),
+                    loop_handle: self.inner.loop_handle.clone(),
                 };
-                let res = self.tx.send(Message::Register(tcp.tcp.clone()));
-                let res = res.map(|()| (tcp, addr));
-                let res = res.map_err(|e| {
-                    match e {
-                        mio::channel::SendError::Io(e) => e,
-                        // TODO: need to handle a closed channel
-                        mio::channel::SendError::Disconnected(..) => {
-                            panic!("closed channel")
-                        }
-                    }
-                });
-                return futures::done(res).boxed()
+                self.inner.loop_handle.register(tcp.tcp.clone());
+                Some(Ok((tcp, addr)))
             }
-            Ok(None) => {}
+            Ok(None) => None
         }
+    }
 
-        let (p, c) = promise();
-        let r = self.tx.send(Message::Wait(c,
-                                           mio::EventSet::readable(),
-                                           self.tcp.clone()));
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        // TODO: record token for dtor
+        self.inner.loop_handle.schedule(Interest {
+            waiter: wake,
+            source: self.inner.tcp.clone(),
+            events: mio::EventSet::readable(),
+            first_time: false,
+        });
+    }
+
+    fn tailcall(&mut self) -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        None
+    }
+}
+
+#[derive(Clone)]
+pub struct TcpStream {
+    tcp: Arc<mio::tcp::TcpStream>,
+    loop_handle: LoopHandle,
+}
+
+pub struct ReadCompletion {
+    tcp: Arc<mio::tcp::TcpStream>,
+    into: Option<Vec<u8>>,
+}
+
+impl PollCompletion for ReadCompletion {
+    type Item = Vec<u8>;
+    type Error = Error<Vec<u8>>;
+
+    fn poll_completion(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+        let mut into = self.into.take().unwrap();
+        let r = unsafe {
+            (&*self.tcp).read(slice_to_end(&mut into))
+        };
         match r {
-            Ok(()) => {
-                let me = TcpListener {
-                    tcp: self.tcp.clone(),
-                    tx: self.tx.clone(),
-                };
-                p.and_then(move |()| me.accept()).boxed()
+            Ok(i) => {
+                unsafe {
+                    let len = into.len();
+                    into.set_len(len + i);
+                }
+                Some(Ok(into))
             }
-            Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(e).boxed()
+            Err(e) => {
+                if e.kind() == io::ErrorKind::WouldBlock {
+                    self.into = Some(into);
+                    None
+                } else {
+                    Some(Err(PollError::Other(Error::new(e, into))))
+                }
             }
-            Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
         }
     }
 }
 
-pub struct TcpStream {
+pub struct WriteCompletion {
     tcp: Arc<mio::tcp::TcpStream>,
-    tx: mio::channel::Sender<Message>,
+    offset: usize,
+    data: Option<Vec<u8>>,
+}
+
+impl PollCompletion for WriteCompletion {
+    type Item = (usize, Vec<u8>);
+    type Error = Error<(usize, Vec<u8>)>;
+
+    fn poll_completion(&mut self) -> Option<PollResult<Self::Item, Self::Error>> {
+        let mut data = self.data.take().unwrap();
+        let r = (&*self.tcp).write(&data[self.offset..]);
+        match r {
+            Ok(i) => Some(Ok((self.offset + i, data))),
+            Err(e) => {
+                if e.kind() == io::ErrorKind::WouldBlock {
+                    self.data = Some(data);
+                    None
+                } else {
+                    Some(Err(PollError::Other(Error::new(e, (self.offset, data)))))
+                }
+            }
+        }
+    }
 }
 
 unsafe fn slice_to_end(v: &mut Vec<u8>) -> &mut [u8] {
@@ -104,88 +204,73 @@ impl TcpStream {
         self.tcp.peer_addr()
     }
 
-    pub fn read(&self, mut into: Vec<u8>)
-                -> Box<Future<Item=Vec<u8>, Error=Error<Vec<u8>>>> {
-        let r = unsafe {
-            (&*self.tcp).read(slice_to_end(&mut into))
-        };
-        match r {
-            Ok(i) => {
-                unsafe {
-                    let len = into.len();
-                    into.set_len(len + i);
-                }
-                return futures::finished(into).boxed()
-            }
-            Err(e) => {
-                if e.kind() != io::ErrorKind::WouldBlock {
-                    return futures::failed(Error::new(e, into)).boxed()
-                }
-            }
-        }
-        let (p, c) = promise();
-        let r = self.tx.send(Message::Wait(c,
-                                           mio::EventSet::readable(),
-                                           self.tcp.clone()));
-        match r {
-            Ok(()) => {
-                let me2 = TcpStream {
-                    tcp: self.tcp.clone(),
-                    tx: self.tx.clone(),
-                };
-                p.then(move |res| {
-                    match res {
-                        Ok(()) => me2.read(into),
-                        Err(e) => {
-                            futures::failed(Error::new(e, into)).boxed()
-                        }
-                    }
-                }).boxed()
-            }
-            Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(Error::new(e, into)).boxed()
-            }
-            Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
+    pub fn ready_to_read(&self) -> MioEvent {
+        MioEvent {
+            events: mio::EventSet::readable(),
+            source: self.tcp.clone(),
+            loop_handle: self.loop_handle.clone(),
         }
     }
 
-    pub fn write(&self, offset: usize, data: Vec<u8>)
-                 -> Box<Future<Item=(usize, Vec<u8>),
-                               Error=Error<(usize, Vec<u8>)>>> {
-        let r = (&*self.tcp).write(&data[offset..]);
-        match r {
-            Ok(i) => return futures::finished((offset + i, data)).boxed(),
-            Err(e) => {
-                if e.kind() != io::ErrorKind::WouldBlock {
-                    return futures::failed(Error::new(e, (offset, data))).boxed()
-                }
-            }
-        }
-        let (p, c) = promise();
-        let r = self.tx.send(Message::Wait(c,
-                                           mio::EventSet::writable(),
-                                           self.tcp.clone()));
-        match r {
-            Ok(()) => {
-                let me2 = TcpStream {
-                    tcp: self.tcp.clone(),
-                    tx: self.tx.clone(),
-                };
-                p.then(move |res| {
-                    match res {
-                        Ok(()) => me2.write(offset, data),
-                        Err(e) => {
-                            futures::failed(Error::new(e, (offset, data))).boxed()
-                        }
-                    }
-                }).boxed()
-            }
-            Err(mio::channel::SendError::Io(e)) => {
-                return futures::failed(Error::new(e, (offset, data))).boxed()
-            }
-            Err(mio::channel::SendError::Disconnected(..)) => panic!("closed channel"),
+    pub fn ready_to_write(&self) -> MioEvent {
+        MioEvent {
+            events: mio::EventSet::writable(),
+            source: self.tcp.clone(),
+            loop_handle: self.loop_handle.clone(),
         }
     }
+
+    // TODO: wrap in newtype
+    pub fn read(&self, mut into: Vec<u8>) -> MioFuture<ReadCompletion> {
+        self.ready_to_read().into_future(ReadCompletion {
+            tcp: self.tcp.clone(),
+            into: Some(into)
+        })
+    }
+
+    pub fn write(&self, offset: usize, data: Vec<u8>) -> MioFuture<WriteCompletion> {
+        self.ready_to_write().into_future(WriteCompletion {
+            tcp: self.tcp.clone(),
+            offset: offset,
+            data: Some(data),
+        })
+    }
+}
+
+type Waiter = Arc<Wake>;
+type Source = Arc<mio::Evented + Send + Sync>;
+
+pub struct Loop {
+    io: mio::Poll,
+    tx: mio::channel::Sender<Message>,
+    rx: mio::channel::Receiver<Message>,
+    dispatch: HashMap<usize, Waiter, BuildHasherDefault<FnvHasher>>,
+    token_counter: TokenCounter,
+}
+
+#[derive(Clone)]
+pub struct LoopHandle {
+    tx: mio::channel::Sender<Message>,
+    tok: TokenCounter,
+}
+
+#[derive(Clone)]
+struct TokenCounter {
+    counter: Arc<AtomicUsize>
+}
+
+struct Interest {
+    waiter: Waiter,
+    source: Source,
+    events: mio::EventSet,
+    first_time: bool,
+}
+
+enum Message {
+    Register(Source),
+    Schedule(usize, Interest),
+    Deschedule(usize),
+    Shutdown
 }
 
 impl Loop {
@@ -198,39 +283,15 @@ impl Loop {
                          mio::PollOpt::edge()));
         Ok(Loop {
             io: io,
-            done: HashMap::new(),
-            next: 1,
             tx: tx,
             rx: rx,
+            dispatch: HashMap::default(),
+            token_counter: TokenCounter::new(),
         })
     }
 
-    pub fn await<F: Future>(&mut self, mut f: F)
-                            -> Result<F::Item, F::Error> {
-        let (tx, rx) = channel();
-        f.schedule(move |r| {
-            drop(tx.send(r))
-            // TODO: signal to the event loop that it should wake up
-        });
-        let mut ret = None;
-        self._await(&mut || {
-            match rx.try_recv() {
-                Ok(e) => ret = Some(e),
-                Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => panic!(),
-            }
-            ret.is_some()
-        });
-        match ret.unwrap() {
-            Ok(e) => Ok(e),
-            Err(PollError::Other(e)) => Err(e),
-            Err(PollError::Panicked(p)) => panic::resume_unwind(p),
-            Err(PollError::Canceled) => panic!("canceled"),
-        }
-    }
-
-    fn _await(&mut self, done: &mut FnMut() -> bool) {
-        while !done() {
+    pub fn run(&mut self) {
+        loop {
             let amt;
             // On Linux, Poll::poll is epoll_wait, which may return EINTR if a
             // ptracer attaches. This retry loop prevents crashing when
@@ -246,6 +307,8 @@ impl Loop {
                 }
             }
 
+            // TODO: attempt to coalesce events into token sets when they are
+            // for the same Wake
             for i in 0..amt {
                 let event = self.io.events().get(i).unwrap();
                 let token = event.token().as_usize();
@@ -253,42 +316,57 @@ impl Loop {
                     while let Ok(msg) = self.rx.try_recv() {
                         self.notify(msg);
                     }
-                } else if let Some(complete) = self.done.remove(&token) {
-                    complete.finish(());
+                } else if let Some(wake) = self.dispatch.remove(&token) {
+                    wake.wake(&Tokens::from_usize(token));
                 }
             }
         }
+    }
+
+    fn register_(&mut self, source: Source) {
+        self.io.register(&*source, mio::Token(0), mio::EventSet::none(), mio::PollOpt::empty());
+    }
+
+    fn schedule_(&mut self, token: usize, interest: Interest) {
+        let Interest { waiter, source, events, first_time } = interest;
+        let old = self.dispatch.insert(token, waiter);
+        debug_assert!(old.is_none());
+
+        // TODO handle failure
+        if first_time {
+            self.io.register(&*source,
+                             mio::Token(token),
+                             events,
+                             mio::PollOpt::edge() | mio::PollOpt::oneshot()).unwrap();
+        } else {
+            self.io.reregister(&*source,
+                               mio::Token(token),
+                               events,
+                               mio::PollOpt::edge() | mio::PollOpt::oneshot()).unwrap();
+        }
+    }
+
+    fn deschedule_(&mut self, token: usize) {
+        self.dispatch.remove(&token);
     }
 
     fn notify(&mut self, msg: Message) {
         match msg {
-            Message::Wait(c, events, evented) => {
-                let token = self.next;
-                self.next += 1;
-                let evented: &mio::Evented = &*evented;
-                let r = self.io.reregister(evented,
-                                           mio::Token(token),
-                                           events,
-                                           mio::PollOpt::edge() |
-                                              mio::PollOpt::oneshot());
-                match r {
-                    Ok(()) => {
-                        self.done.insert(token, c);
-                    }
-                    Err(e) => c.fail(e),
-                }
-            }
-            Message::Register(evented) => {
-                // TODO: propagate this error somewhere
-                let evented: &mio::Evented = &*evented;
-                self.io.register(evented,
-                                 mio::Token(0),
-                                 mio::EventSet::none(),
-                                 mio::PollOpt::empty()).unwrap();
-            }
+            Message::Register(source) => self.register_(source),
+            Message::Schedule(token, interest) => self.schedule_(token, interest),
+            Message::Deschedule(tok) => self.deschedule_(tok),
+            Message::Shutdown => unimplemented!()
         }
     }
 
+    fn handle(&self) -> LoopHandle {
+        LoopHandle {
+            tx: self.tx.clone(),
+            tok: self.token_counter.clone(),
+        }
+    }
+
+/*
     pub fn tcp_connect(&mut self, addr: &SocketAddr)
                        -> Box<IoFuture<TcpStream>> {
         let pair = mio::tcp::TcpStream::connect(addr).and_then(|tcp| {
@@ -316,9 +394,12 @@ impl Loop {
             Err(e) => futures::failed(e).boxed(),
         }
     }
+*/
 
     pub fn tcp_listen(&mut self, addr: &SocketAddr) -> io::Result<TcpListener> {
         let tcp = try!(mio::tcp::TcpListener::bind(addr));
+
+        // dummy registration, so that we can always re-register in the future
         try!(self.io.register(&tcp,
                               mio::Token(0),
                               mio::EventSet::none(),
@@ -326,9 +407,51 @@ impl Loop {
 
         Ok(TcpListener {
             tcp: Arc::new(tcp),
-            tx: self.tx.clone(),
+            loop_handle: self.handle(),
         })
     }
+}
+
+impl TokenCounter {
+    pub fn new() -> TokenCounter {
+        TokenCounter { counter: Arc::new(AtomicUsize::new(1)) }
+    }
+
+    pub fn next_token(&self) -> usize {
+        // TODO: handle rollover robustly...
+        // the 0 token is reserved
+        let mut next = 0;
+        while next == 0 {
+            next = self.counter.fetch_add(1, Ordering::Relaxed);
+        }
+        next
+    }
+}
+
+// TODO: use TLS to avoid sending messages
+impl LoopHandle {
+    fn register(&self, source: Source) {
+        self.tx.send(Message::Register(source))
+            .map_err(|_| ())
+            .expect("failed to send register message") // todo: handle failure
+    }
+
+    fn schedule(&self, interest: Interest) -> usize {
+        let token = self.tok.next_token();
+        self.tx.send(Message::Schedule(token, interest))
+            .map_err(|_| ())
+            .expect("failed to send schedule message"); // TODO: handle failure?
+        token
+    }
+
+    fn deschedule(&self, token: usize) {
+        unimplemented!()
+    }
+}
+
+pub struct Error<T> {
+    err: io::Error,
+    data: T,
 }
 
 impl<T> Error<T> {
