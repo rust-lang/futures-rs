@@ -141,9 +141,7 @@ impl Loop {
                 let event = self.io.borrow_mut().events().get(i).unwrap();
                 let token = event.token().as_usize();
                 if token == 0 {
-                    while let Ok(msg) = self.rx.try_recv() {
-                        self.notify(msg);
-                    }
+                    self.consume_queue();
                 } else {
                     let mut reader = None;
                     let mut writer = None;
@@ -212,6 +210,12 @@ impl Loop {
         reregister(&mut self.io.borrow_mut(), token, sched);
     }
 
+    fn consume_queue(&self) {
+        while let Ok(msg) = self.rx.try_recv() {
+            self.notify(msg);
+        }
+    }
+
     fn notify(&self, msg: Message) {
         match msg {
             Message::AddSource(source, id, wake) => {
@@ -234,9 +238,9 @@ impl LoopHandle {
         if CURRENT_LOOP.is_set() {
             CURRENT_LOOP.with(|lp| {
                 if lp.id == self.id {
-                    // TODO: we should probably clear the message queue first,
-                    // to avoid out of order delivery? Currently these messages
-                    // are "skipping the queue"
+                    // Need to execute all existing requests first, to ensure
+                    // that our message is processed "in order"
+                    lp.consume_queue()
                     lp.notify(msg_dance.take().unwrap());
                 }
             })
