@@ -12,6 +12,7 @@ pub use self::iter::{iter, IterStream};
 mod and_then;
 mod collect;
 mod filter;
+mod filter_map;
 mod flat_map;
 mod fold;
 mod for_each;
@@ -24,6 +25,7 @@ mod then;
 pub use self::and_then::AndThen;
 pub use self::collect::Collect;
 pub use self::filter::Filter;
+pub use self::filter_map::FilterMap;
 pub use self::flat_map::FlatMap;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
@@ -80,6 +82,13 @@ pub trait Stream: Send + 'static {
               Self: Sized
     {
         filter::new(self, f)
+    }
+
+    fn filter_map<F, B>(self, f: F) -> FilterMap<Self, F>
+        where F: FnMut(Self::Item) -> Option<B> + Send + 'static,
+              Self: Sized
+    {
+        filter_map::new(self, f)
     }
 
     fn then<F, U>(self, f: F) -> Then<Self, F, U>
