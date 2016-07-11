@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::io::{self, ErrorKind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
@@ -18,6 +18,7 @@ const SLAB_CAPACITY: usize = 1024 * 64;
 
 pub struct Loop {
     id: usize,
+    active: Cell<bool>,
     io: RefCell<mio::Poll>,
     tx: mio::channel::Sender<Message>,
     rx: mio::channel::Receiver<Message>,
@@ -103,6 +104,7 @@ impl Loop {
                          mio::PollOpt::edge()));
         Ok(Loop {
             id: NEXT_LOOP_ID.fetch_add(1, Ordering::Relaxed),
+            active: Cell::new(true),
             io: RefCell::new(io),
             tx: tx,
             rx: rx,
@@ -117,8 +119,15 @@ impl Loop {
         }
     }
 
-    pub fn run(&mut self) {
-        loop {
+    pub fn run<F: Future>(self, f: F) -> Result<F::Item, F::Error> {
+        let (tx_res, rx_res) = mpsc::channel();
+        let handle = self.handle();
+        f.then(move |res| {
+            handle.shutdown();
+            tx_res.send(res)
+        }).forget();
+
+        while self.active.get() {
             let amt;
             // On Linux, Poll::poll is epoll_wait, which may return EINTR if a
             // ptracer attaches. This retry loop prevents crashing when
@@ -156,7 +165,7 @@ impl Loop {
                         }
                     }
 
-                    CURRENT_LOOP.set(self, || {
+                    CURRENT_LOOP.set(&self, || {
                         if let Some(reader_wake) = reader.take() {
                             reader_wake.wake(&Tokens::from_usize(token));
                         }
@@ -176,6 +185,8 @@ impl Loop {
                 }
             }
         }
+
+        rx_res.recv().unwrap()
     }
 
     fn add_source(&self, source: Source) -> usize {
@@ -226,7 +237,7 @@ impl Loop {
             Message::DropSource(tok) => self.drop_source(tok),
             Message::Schedule(tok, dir, wake) => self.schedule(tok, dir, wake),
             Message::Deschedule(tok, dir) => self.deschedule(tok, dir),
-            Message::Shutdown => unimplemented!(),
+            Message::Shutdown => self.active.set(false),
         }
     }
 }
@@ -240,7 +251,7 @@ impl LoopHandle {
                 if lp.id == self.id {
                     // Need to execute all existing requests first, to ensure
                     // that our message is processed "in order"
-                    lp.consume_queue()
+                    lp.consume_queue();
                     lp.notify(msg_dance.take().unwrap());
                 }
             })
@@ -277,6 +288,10 @@ impl LoopHandle {
 
     pub fn deschedule(&self, tok: usize, dir: Direction) {
         self.send(Message::Deschedule(tok, dir));
+    }
+
+    pub fn shutdown(&self) {
+        self.send(Message::Shutdown);
     }
 }
 

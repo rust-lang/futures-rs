@@ -20,7 +20,7 @@ fn main() {
             println!("{}", CNT.swap(0, Ordering::SeqCst));
         }
     });
-    let mut l = futuremio::Loop::new().unwrap();
+    let l = futuremio::Loop::new().unwrap();
 
     let addr = "127.0.0.1:12345".parse().unwrap();
     let tcp = futuremio::tcp_connect(l.handle(), &addr);
@@ -36,8 +36,7 @@ fn main() {
         println!("error! {}", e);
         e
     });
-    read.forget();
-    l.run();
+    l.run(read);
 
     // let l1 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
     // let l2 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
