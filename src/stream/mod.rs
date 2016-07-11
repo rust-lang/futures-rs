@@ -14,6 +14,7 @@ mod collect;
 mod filter;
 mod flat_map;
 mod fold;
+mod for_each;
 mod future;
 mod map;
 mod map_err;
@@ -25,6 +26,7 @@ pub use self::collect::Collect;
 pub use self::filter::Filter;
 pub use self::flat_map::FlatMap;
 pub use self::fold::Fold;
+pub use self::for_each::ForEach;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
@@ -141,5 +143,12 @@ pub trait Stream: Send + 'static {
               Self: Sized,
     {
         skip_while::new(self, pred)
+    }
+
+    fn for_each<F>(self, f: F) -> ForEach<Self, F>
+        where F: FnMut(Self::Item) -> Result<(), Self::Error> + Send + 'static,
+              Self: Sized,
+    {
+        for_each::new(self, f)
     }
 }
