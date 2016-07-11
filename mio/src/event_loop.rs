@@ -1,29 +1,34 @@
-use mio;
-
+use std::cell::RefCell;
 use std::hash::BuildHasherDefault;
 use std::collections::HashMap;
 use std::io::{self, ErrorKind};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::sync::mpsc;
 
+use mio;
 use fnv::FnvHasher;
-
 use futures::{Tokens, Wake};
 
 pub type Waiter = Arc<Wake>;
 pub type Source = Arc<mio::Evented + Send + Sync>;
 
+static NEXT_LOOP_ID: AtomicUsize = ATOMIC_USIZE_INIT;
+
+scoped_thread_local!(static CURRENT_LOOP: Loop);
+
 pub struct Loop {
-    io: mio::Poll,
+    id: usize,
+    io: RefCell<mio::Poll>,
     tx: mio::channel::Sender<Message>,
     rx: mio::channel::Receiver<Message>,
     counter: TokenCounter,
-    dispatch: HashMap<usize, Scheduled, BuildHasherDefault<FnvHasher>>,
+    dispatch: RefCell<HashMap<usize, Scheduled, BuildHasherDefault<FnvHasher>>>,
 }
 
 #[derive(Clone)]
 pub struct LoopHandle {
+    id: usize,
     tx: mio::channel::Sender<Message>,
     counter: TokenCounter,
 }
@@ -105,16 +110,18 @@ impl Loop {
                          mio::EventSet::readable(),
                          mio::PollOpt::edge()));
         Ok(Loop {
-            io: io,
+            id: NEXT_LOOP_ID.fetch_add(1, Ordering::Relaxed),
+            io: RefCell::new(io),
             tx: tx,
             rx: rx,
-            dispatch: HashMap::default(),
+            dispatch: RefCell::new(HashMap::default()),
             counter: TokenCounter::new(),
         })
     }
 
     pub fn handle(&self) -> LoopHandle {
         LoopHandle {
+            id: self.id,
             counter: self.counter.clone(),
             tx: self.tx.clone(),
         }
@@ -127,7 +134,7 @@ impl Loop {
             // ptracer attaches. This retry loop prevents crashing when
             // attaching strace, or similar.
             loop {
-                match self.io.poll(None) {
+                match self.io.borrow_mut().poll(None) {
                     Ok(a) => {
                         amt = a;
                         break;
@@ -141,67 +148,79 @@ impl Loop {
 
             // TODO: coalesce token sets for a given Wake?
             for i in 0..amt {
-                let event = self.io.events().get(i).unwrap();
+                let event = self.io.borrow_mut().events().get(i).unwrap();
                 let token = event.token().as_usize();
                 if token == 0 {
                     while let Ok(msg) = self.rx.try_recv() {
                         self.notify(msg);
                     }
-                } else if let Some(sched) = self.dispatch.get_mut(&token) {
-                    // TODO: optimize calls to epoll_ctl
+                } else {
+                    let mut reader = None;
+                    let mut writer = None;
 
-                    if event.kind().is_readable() {
-                        if let Some(ref mut wake) = sched.reader.take() {
-                            wake.wake(&Tokens::from_usize(token));
+                    if let Some(sched) = self.dispatch.borrow_mut().get_mut(&token) {
+                        if event.kind().is_readable() {
+                            reader = sched.reader.take();
+                        }
+
+                        if event.kind().is_writable() {
+                            writer = sched.writer.take();
                         }
                     }
 
-                    if event.kind().is_writable() {
-                        if let Some(ref mut wake) = sched.writer.take() {
-                            wake.wake(&Tokens::from_usize(token));
+                    CURRENT_LOOP.set(self, || {
+                        if let Some(reader_wake) = reader.take() {
+                            reader_wake.wake(&Tokens::from_usize(token));
                         }
-                    }
+                        if let Some(writer_wake) = writer.take() {
+                            writer_wake.wake(&Tokens::from_usize(token));
+                        }
+                    });
 
                     // For now, always reregister, to deal with the fact that
                     // combined oneshot + read|write requires rearming even if
                     // only one side fired.
                     //
                     // TODO: optimize this
-                    reregister(&mut self.io, token, &sched);
+                    if let Some(sched) = self.dispatch.borrow().get(&token) {
+                        reregister(&mut self.io.borrow_mut(), token, &sched);
+                    }
                 }
             }
         }
     }
 
-    fn add_source(&mut self, token: usize, source: Source) {
+    fn add_source(&self, token: usize, source: Source) {
         let sched = Scheduled {
             source: source,
             reader: None,
             writer: None,
         };
-        register(&mut self.io, token, &sched);
-        let old = self.dispatch.insert(token, sched);
+        register(&mut self.io.borrow_mut(), token, &sched);
+        let old = self.dispatch.borrow_mut().insert(token, sched);
         debug_assert!(old.is_none());
     }
 
-    fn drop_source(&mut self, token: usize) {
-        let sched = self.dispatch.remove(&token).unwrap();
-        deregister(&mut self.io, &sched);
+    fn drop_source(&self, token: usize) {
+        let sched = self.dispatch.borrow_mut().remove(&token).unwrap();
+        deregister(&mut self.io.borrow_mut(), &sched);
     }
 
-    fn schedule(&mut self, token: usize, dir: Direction, wake: Waiter) {
-        let sched = self.dispatch.get_mut(&token).unwrap();
+    fn schedule(&self, token: usize, dir: Direction, wake: Waiter) {
+        let mut dispatch = self.dispatch.borrow_mut();
+        let sched = dispatch.get_mut(&token).unwrap();
         *sched.waiter_for(dir) = Some(wake);
-        reregister(&mut self.io, token, sched);
+        reregister(&mut self.io.borrow_mut(), token, sched);
     }
 
-    fn deschedule(&mut self, token: usize, dir: Direction) {
-        let sched = self.dispatch.get_mut(&token).unwrap();
+    fn deschedule(&self, token: usize, dir: Direction) {
+        let mut dispatch = self.dispatch.borrow_mut();
+        let sched = dispatch.get_mut(&token).unwrap();
         *sched.waiter_for(dir) = None;
-        reregister(&mut self.io, token, sched);
+        reregister(&mut self.io.borrow_mut(), token, sched);
     }
 
-    fn notify(&mut self, msg: Message) {
+    fn notify(&self, msg: Message) {
         match msg {
             Message::AddSource(tok, source) => self.add_source(tok, source),
             Message::DropSource(tok) => self.drop_source(tok),
@@ -212,13 +231,24 @@ impl Loop {
     }
 }
 
-// TODO: use TLS to avoid sending messages
 impl LoopHandle {
     fn send(&self, msg: Message) {
-        self.tx
-            .send(msg)
-            .map_err(|_| ())
-            .expect("failed to send register message") // todo: handle failure
+        let mut msg_dance = Some(msg);
+
+        if CURRENT_LOOP.is_set() {
+            CURRENT_LOOP.with(|lp| {
+                if lp.id == self.id {
+                    lp.notify(msg_dance.take().unwrap());
+                }
+            })
+        }
+
+        if let Some(msg) = msg_dance.take() {
+            self.tx
+                .send(msg)
+                .map_err(|_| ())
+                .expect("failed to send register message") // todo: handle failure
+        }
     }
 
     pub fn add_source(&self, source: Source) -> usize {
