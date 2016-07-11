@@ -1,3 +1,4 @@
+extern crate mio;
 extern crate futuremio;
 extern crate futures;
 
@@ -6,6 +7,9 @@ use std::thread;
 use std::time::Duration;
 
 use futures::Future;
+use futures::stream::Stream;
+
+use mio::TryRead;
 
 static CNT: AtomicUsize = ATOMIC_USIZE_INIT;
 
@@ -16,22 +20,23 @@ fn main() {
             println!("{}", CNT.swap(0, Ordering::SeqCst));
         }
     });
-    let mut l = futuremio::Loop::new().unwrap();
+    let l = futuremio::Loop::new().unwrap();
 
     let addr = "127.0.0.1:12345".parse().unwrap();
-    let tcp = l.tcp_connect(&addr);
-    let tcp = tcp.and_then(|t| read(t, Vec::with_capacity(64 * 1024)));
-
-    l.await(tcp).unwrap();
-
-    fn read(s: futuremio::TcpStream, mut v: Vec<u8>) -> Box<futuremio::IoFuture<()>> {
-        v.truncate(0);
-        let data = s.read(v).map_err(From::from);
-        data.and_then(|v| {
-            CNT.fetch_add(v.len(), Ordering::SeqCst);
-            read(s, v)
-        }).boxed()
-    }
+    let tcp = futuremio::tcp_connect(l.handle(), &addr);
+    let read = tcp.and_then(|s| {
+        let mut buf = [0u8; 64 * 1024];
+        let sock = s.source;
+        s.ready_read.for_each(move |_| {
+            let len = try!((&*sock).try_read(&mut buf)).unwrap_or(0);
+            CNT.fetch_add(len, Ordering::SeqCst);
+            Ok(())
+        })
+    }).map_err(|e| {
+        println!("error! {}", e);
+        e
+    });
+    l.run(read);
 
     // let l1 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
     // let l2 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
