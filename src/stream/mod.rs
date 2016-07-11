@@ -18,6 +18,7 @@ mod future;
 mod map;
 mod map_err;
 mod or_else;
+mod skip_while;
 mod then;
 pub use self::and_then::AndThen;
 pub use self::collect::Collect;
@@ -28,6 +29,7 @@ pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::or_else::OrElse;
+pub use self::skip_while::SkipWhile;
 pub use self::then::Then;
 
 mod impls;
@@ -132,5 +134,12 @@ pub trait Stream: Send + 'static {
               Self: Sized
     {
         flat_map::new(self)
+    }
+
+    fn skip_while<P>(self, pred: P) -> SkipWhile<Self, P>
+        where P: FnMut(&Self::Item) -> Result<bool, Self::Error> + Send + 'static,
+              Self: Sized,
+    {
+        skip_while::new(self, pred)
     }
 }
