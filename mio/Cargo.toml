@@ -7,8 +7,8 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 mio = { git = "https://github.com/alexcrichton/mio", branch = "tcp-sync" }
 # mio = "0.5"
 futures = { path = ".." }
-fnv = "1.0.2"
 scoped-tls = "0.1.0"
+slab = "0.2.0"
 
 [lib]
 test = false

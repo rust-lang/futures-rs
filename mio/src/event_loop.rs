@@ -1,41 +1,33 @@
 use std::cell::RefCell;
-use std::hash::BuildHasherDefault;
-use std::collections::HashMap;
 use std::io::{self, ErrorKind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::sync::mpsc;
 
 use mio;
-use fnv::FnvHasher;
-use futures::{Tokens, Wake};
+use slab::Slab;
+use futures::{Future, Tokens, Wake, PollResult};
 
 pub type Waiter = Arc<Wake>;
 pub type Source = Arc<mio::Evented + Send + Sync>;
 
 static NEXT_LOOP_ID: AtomicUsize = ATOMIC_USIZE_INIT;
-
 scoped_thread_local!(static CURRENT_LOOP: Loop);
+
+const SLAB_CAPACITY: usize = 1024 * 64;
 
 pub struct Loop {
     id: usize,
     io: RefCell<mio::Poll>,
     tx: mio::channel::Sender<Message>,
     rx: mio::channel::Receiver<Message>,
-    counter: TokenCounter,
-    dispatch: RefCell<HashMap<usize, Scheduled, BuildHasherDefault<FnvHasher>>>,
+    dispatch: RefCell<Slab<Scheduled, usize>>,
 }
 
 #[derive(Clone)]
 pub struct LoopHandle {
     id: usize,
     tx: mio::channel::Sender<Message>,
-    counter: TokenCounter,
-}
-
-#[derive(Clone)]
-struct TokenCounter {
-    counter: Arc<AtomicUsize>,
 }
 
 #[derive(Copy, Clone)]
@@ -71,7 +63,7 @@ impl Scheduled {
 }
 
 enum Message {
-    AddSource(usize, Source),
+    AddSource(Source, Arc<AtomicUsize>, Waiter),
     DropSource(usize),
     Schedule(usize, Direction, Waiter),
     Deschedule(usize, Direction),
@@ -114,15 +106,13 @@ impl Loop {
             io: RefCell::new(io),
             tx: tx,
             rx: rx,
-            dispatch: RefCell::new(HashMap::default()),
-            counter: TokenCounter::new(),
+            dispatch: RefCell::new(Slab::new_starting_at(1, SLAB_CAPACITY)),
         })
     }
 
     pub fn handle(&self) -> LoopHandle {
         LoopHandle {
             id: self.id,
-            counter: self.counter.clone(),
             tx: self.tx.clone(),
         }
     }
@@ -158,7 +148,7 @@ impl Loop {
                     let mut reader = None;
                     let mut writer = None;
 
-                    if let Some(sched) = self.dispatch.borrow_mut().get_mut(&token) {
+                    if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
                         if event.kind().is_readable() {
                             reader = sched.reader.take();
                         }
@@ -182,7 +172,7 @@ impl Loop {
                     // only one side fired.
                     //
                     // TODO: optimize this
-                    if let Some(sched) = self.dispatch.borrow().get(&token) {
+                    if let Some(sched) = self.dispatch.borrow().get(token) {
                         reregister(&mut self.io.borrow_mut(), token, &sched);
                     }
                 }
@@ -190,39 +180,45 @@ impl Loop {
         }
     }
 
-    fn add_source(&self, token: usize, source: Source) {
+    fn add_source(&self, source: Source) -> usize {
         let sched = Scheduled {
             source: source,
             reader: None,
             writer: None,
         };
-        register(&mut self.io.borrow_mut(), token, &sched);
-        let old = self.dispatch.borrow_mut().insert(token, sched);
-        debug_assert!(old.is_none());
+        let mut dispatch = self.dispatch.borrow_mut();
+        // TODO: handle out of space
+        let entry = dispatch.vacant_entry().unwrap();
+        register(&mut self.io.borrow_mut(), entry.index(), &sched);
+        entry.insert(sched).index()
     }
 
     fn drop_source(&self, token: usize) {
-        let sched = self.dispatch.borrow_mut().remove(&token).unwrap();
+        let sched = self.dispatch.borrow_mut().remove(token).unwrap();
         deregister(&mut self.io.borrow_mut(), &sched);
     }
 
     fn schedule(&self, token: usize, dir: Direction, wake: Waiter) {
         let mut dispatch = self.dispatch.borrow_mut();
-        let sched = dispatch.get_mut(&token).unwrap();
+        let sched = dispatch.get_mut(token).unwrap();
         *sched.waiter_for(dir) = Some(wake);
         reregister(&mut self.io.borrow_mut(), token, sched);
     }
 
     fn deschedule(&self, token: usize, dir: Direction) {
         let mut dispatch = self.dispatch.borrow_mut();
-        let sched = dispatch.get_mut(&token).unwrap();
+        let sched = dispatch.get_mut(token).unwrap();
         *sched.waiter_for(dir) = None;
         reregister(&mut self.io.borrow_mut(), token, sched);
     }
 
     fn notify(&self, msg: Message) {
         match msg {
-            Message::AddSource(tok, source) => self.add_source(tok, source),
+            Message::AddSource(source, id, wake) => {
+                let tok = self.add_source(source);
+                id.store(tok, Ordering::Relaxed);
+                wake.wake(&Tokens::from_usize(ADD_SOURCE_TOKEN));
+            }
             Message::DropSource(tok) => self.drop_source(tok),
             Message::Schedule(tok, dir, wake) => self.schedule(tok, dir, wake),
             Message::Deschedule(tok, dir) => self.deschedule(tok, dir),
@@ -238,6 +234,9 @@ impl LoopHandle {
         if CURRENT_LOOP.is_set() {
             CURRENT_LOOP.with(|lp| {
                 if lp.id == self.id {
+                    // TODO: we should probably clear the message queue first,
+                    // to avoid out of order delivery? Currently these messages
+                    // are "skipping the queue"
                     lp.notify(msg_dance.take().unwrap());
                 }
             })
@@ -251,10 +250,17 @@ impl LoopHandle {
         }
     }
 
-    pub fn add_source(&self, source: Source) -> usize {
-        let tok = self.counter.next_token();
-        self.send(Message::AddSource(tok, source));
-        tok
+    pub fn add_source(&self, source: Source) -> AddSource {
+        AddSource {
+            loop_handle: self.clone(),
+            source: Some(source),
+            id: Arc::new(AtomicUsize::new(0)),
+            scheduled: false,
+        }
+    }
+
+    fn add_source_(&self, source: Source, id: Arc<AtomicUsize>, wake: Waiter) {
+        self.send(Message::AddSource(source, id, wake));
     }
 
     pub fn drop_source(&self, tok: usize) {
@@ -270,18 +276,48 @@ impl LoopHandle {
     }
 }
 
-impl TokenCounter {
-    pub fn new() -> TokenCounter {
-        TokenCounter { counter: Arc::new(AtomicUsize::new(1)) }
+const ADD_SOURCE_TOKEN: usize = 0;
+
+pub struct AddSource {
+    loop_handle: LoopHandle,
+    source: Option<Source>,
+    id: Arc<AtomicUsize>,
+    scheduled: bool,
+}
+
+impl Future for AddSource {
+    type Item = usize;
+    type Error = io::Error; // TODO: integrate channel error?
+
+    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<usize, io::Error>> {
+        if self.scheduled {
+            if tokens.may_contain(&Tokens::from_usize(ADD_SOURCE_TOKEN)) {
+                let id = self.id.load(Ordering::Relaxed);
+                if id != 0 {
+                    return Some(Ok(id))
+                }
+            }
+        } else {
+            if CURRENT_LOOP.is_set() {
+                let res = CURRENT_LOOP.with(|lp| {
+                    if lp.id == self.loop_handle.id {
+                        Some(lp.add_source(self.source.take().unwrap()))
+                    } else {
+                        None
+                    }
+                });
+                if let Some(id) = res {
+                    return Some(Ok(id));
+                }
+            }
+        }
+
+        None
     }
 
-    pub fn next_token(&self) -> usize {
-        // TODO: handle rollover robustly...
-        // the 0 token is reserved
-        let mut next = 0;
-        while next == 0 {
-            next = self.counter.fetch_add(1, Ordering::Relaxed);
-        }
-        next
+    fn schedule(&mut self, wake: Arc<Wake>) {
+        if self.scheduled { return; }
+        self.scheduled = true;
+        self.loop_handle.add_source_(self.source.take().unwrap(), self.id.clone(), wake);
     }
 }

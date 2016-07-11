@@ -1,6 +1,6 @@
 extern crate mio;
 extern crate futures;
-extern crate fnv;
+extern crate slab;
 
 #[macro_use]
 extern crate scoped_tls;

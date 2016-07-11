@@ -2,7 +2,6 @@ extern crate mio;
 extern crate futuremio;
 extern crate futures;
 
-use std::io::Read;
 use std::sync::atomic::*;
 use std::thread;
 use std::time::Duration;

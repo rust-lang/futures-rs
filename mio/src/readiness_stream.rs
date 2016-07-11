@@ -7,7 +7,7 @@ use mio;
 use std::io;
 use std::sync::Arc;
 
-use futures::{Tokens, Wake};
+use futures::{Future, Tokens, Wake};
 use futures::stream::{Stream, StreamResult};
 
 // TODO: figure out a nicer way to factor this
@@ -103,26 +103,28 @@ pub struct ReadinessPair<T> {
 }
 
 impl<E> ReadinessPair<E> where E: Send + Sync + mio::Evented + 'static {
-    pub fn new(loop_handle: LoopHandle, event: E) -> ReadinessPair<E> {
+    pub fn new(loop_handle: LoopHandle, event: E)
+               -> Box<Future<Item=ReadinessPair<E>, Error=io::Error>> {
         let event = Arc::new(event);
-        let token = loop_handle.add_source(event.clone());
-        let drop_source = Arc::new(DropSource::new(token, loop_handle.clone()));
-        ReadinessPair {
-            source: event,
-            ready_read: ReadinessStream {
-                dir: Direction::Read,
-                state: State::NeverPolled,
-                token: token,
-                loop_handle: loop_handle.clone(),
-                _drop_source: drop_source.clone(),
-            },
-            ready_write: ReadinessStream {
-                dir: Direction::Write,
-                state: State::NeverPolled,
-                token: token,
-                loop_handle: loop_handle,
-                _drop_source: drop_source,
-            },
-        }
+        loop_handle.add_source(event.clone()).and_then(|token| {
+            let drop_source = Arc::new(DropSource::new(token, loop_handle.clone()));
+            Ok(ReadinessPair {
+                source: event,
+                ready_read: ReadinessStream {
+                    dir: Direction::Read,
+                    state: State::NeverPolled,
+                    token: token,
+                    loop_handle: loop_handle.clone(),
+                    _drop_source: drop_source.clone(),
+                },
+                ready_write: ReadinessStream {
+                    dir: Direction::Write,
+                    state: State::NeverPolled,
+                    token: token,
+                    loop_handle: loop_handle,
+                    _drop_source: drop_source,
+                },
+            })
+        }).boxed()
     }
 }
