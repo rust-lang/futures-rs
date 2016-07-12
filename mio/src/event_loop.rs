@@ -8,7 +8,6 @@ use mio;
 use slab::Slab;
 use futures::{Future, Tokens, Wake};
 
-pub type Waiter = Arc<Wake>;
 pub type Source = Arc<mio::Evented + Send + Sync>;
 
 static NEXT_LOOP_ID: AtomicUsize = ATOMIC_USIZE_INIT;
@@ -44,12 +43,12 @@ pub enum Direction {
 
 struct Scheduled {
     source: Source,
-    reader: Option<Waiter>,
-    writer: Option<Waiter>,
+    reader: Option<Arc<Wake>>,
+    writer: Option<Arc<Wake>>,
 }
 
 impl Scheduled {
-    fn waiter_for(&mut self, dir: Direction) -> &mut Option<Waiter> {
+    fn waiter_for(&mut self, dir: Direction) -> &mut Option<Arc<Wake>> {
         match dir {
             Direction::Read => &mut self.reader,
             Direction::Write => &mut self.writer,
@@ -69,9 +68,9 @@ impl Scheduled {
 }
 
 enum Message {
-    AddSource(Source, Arc<AtomicUsize>, Waiter),
+    AddSource(Source, Arc<AtomicUsize>, Arc<Wake>),
     DropSource(usize),
-    Schedule(usize, Direction, Waiter),
+    Schedule(usize, Direction, Arc<Wake>),
     Deschedule(usize, Direction),
     Shutdown,
 }
@@ -212,7 +211,7 @@ impl Loop {
         deregister(&mut self.io.borrow_mut(), &sched);
     }
 
-    fn schedule(&self, token: usize, dir: Direction, wake: Waiter) {
+    fn schedule(&self, token: usize, dir: Direction, wake: Arc<Wake>) {
         let mut dispatch = self.dispatch.borrow_mut();
         let sched = dispatch.get_mut(token).unwrap();
         *sched.waiter_for(dir) = Some(wake);
@@ -290,7 +289,7 @@ impl LoopHandle {
         }
     }
 
-    fn add_source_(&self, source: Source, id: Arc<AtomicUsize>, wake: Waiter) {
+    fn add_source_(&self, source: Source, id: Arc<AtomicUsize>, wake: Arc<Wake>) {
         self.send(Message::AddSource(source, id, wake));
     }
 
