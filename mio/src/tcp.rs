@@ -1,11 +1,12 @@
 use std::io::{self, ErrorKind};
+use std::sync::Arc;
 use std::net::{self, SocketAddr};
 
 use futures::stream::Stream;
-use futures::{self, Future, IntoFuture, failed};
+use futures::{Future, IntoFuture, failed};
 use mio;
 
-use {IoFuture, IoStream, ReadinessPair, LoopHandle};
+use {IoFuture, IoStream, ReadinessPair, ReadinessStream, LoopHandle};
 
 pub struct TcpListener {
     loop_handle: LoopHandle,
@@ -37,6 +38,16 @@ impl TcpListener {
     ///
     /// Finally, the `handle` argument is the event loop that this listener will
     /// be bound to.
+    ///
+    /// The platform specific behavior of this function looks like:
+    ///
+    /// * On Unix, the socket is placed into nonblocking mode and connections
+    ///   can be accepted as normal
+    ///
+    /// * On Windows, the address is stored internally and all future accepts
+    ///   will only be for the same IP version as `addr` specified. That is, if
+    ///   `addr` is an IPv4 address then all sockets accepted will be IPv4 as
+    ///   well (same for IPv6).
     pub fn from_listener(listener: net::TcpListener,
                          addr: &SocketAddr,
                          handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
@@ -59,13 +70,81 @@ impl TcpListener {
             .filter_map(|i| i)
             .and_then(move |(tcp, addr)| {
                 ReadinessPair::new(loop_handle.clone(), tcp).map(move |pair| {
-                    (pair, addr)
+                    let stream = TcpStream {
+                        source: pair.source,
+                        ready_read: pair.ready_read,
+                        ready_write: pair.ready_write,
+                    };
+                    (stream, addr)
                 })
             }).boxed()
     }
 }
 
-pub type TcpStream = ReadinessPair<mio::tcp::TcpStream>;
+pub struct TcpStream {
+    pub source: Arc<mio::tcp::TcpStream>,
+    pub ready_read: ReadinessStream,
+    pub ready_write: ReadinessStream,
+}
+
+impl TcpStream {
+    fn new(connected_stream: mio::tcp::TcpStream,
+           handle: LoopHandle)
+           -> Box<IoFuture<TcpStream>> {
+        // Once we've connected, wait for the stream to be writable as that's
+        // when the actual connection has been initiated. Once we're writable we
+        // check for `take_socket_error` to see if the connect actually hit an
+        // error or not.
+        //
+        // If all that succeeded then we ship everything on up.
+        ReadinessPair::new(handle, connected_stream).and_then(|pair| {
+            let ReadinessPair { source, ready_read, ready_write } = pair;
+            let source_for_skip = source.clone(); // TODO: find a better way to do this
+            let connected = ready_write.skip_while(move |&()| {
+                match source_for_skip.take_socket_error() {
+                    Ok(()) => Ok(false),
+                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => Ok(true),
+                    Err(e) => Err(e),
+                }
+            });
+            let connected = connected.into_future();
+            connected.map(move |(_, stream)| {
+                TcpStream {
+                    source: source,
+                    ready_read: ready_read,
+                    ready_write: stream.into_inner()
+                }
+            })
+        }).boxed()
+    }
+
+    /// Creates a new `TcpStream` from the pending socket inside the given
+    /// `std::net::TcpStream`, connecting it to the address specified.
+    ///
+    /// This constructor allows configuring the socket before it's actually
+    /// connected, and this function will transfer ownership to the returned
+    /// `TcpStream` if successful. An unconnected `TcpStream` can be created
+    /// with the `net2::TcpBuilder` type (and also configured via that route).
+    ///
+    /// The platform specific behavior of this function looks like:
+    ///
+    /// * On Unix, the socket is placed into nonblocking mode and then a
+    ///   `connect` call is issued.
+    ///
+    /// * On Windows, the address is stored internally and the connect operation
+    ///   is issued when the returned `TcpStream` is registered with an event
+    ///   loop. Note that on Windows you must `bind` a socket before it can be
+    ///   connected, so if a custom `TcpBuilder` is used it should be bound
+    ///   (perhaps to `INADDR_ANY`) before this method is called.
+    pub fn connect_stream(stream: net::TcpStream,
+                          addr: &SocketAddr,
+                          handle: LoopHandle) -> Box<IoFuture<TcpStream>> {
+        match mio::tcp::TcpStream::connect_stream(stream, addr) {
+            Ok(tcp) => TcpStream::new(tcp, handle),
+            Err(e) => failed(e).boxed(),
+        }
+    }
+}
 
 impl LoopHandle {
     /// Create a new TCP listener associated with this event loop.
@@ -88,35 +167,9 @@ impl LoopHandle {
     /// connection or during the socket creation, that error will be returned to
     /// the future instead.
     pub fn tcp_connect(self, addr: &SocketAddr) -> Box<IoFuture<TcpStream>> {
-        let stream = match mio::tcp::TcpStream::connect(addr) {
-            Ok(tcp) => tcp,
-            Err(e) => return futures::failed(e).boxed(),
-        };
-
-        // Once we've connected, wait for the stream to be writable as that's when
-        // the actual connection has been initiated. Once we're writable we check
-        // for `take_socket_error` to see if the connect actually hit an error or
-        // not.
-        //
-        // If all that succeeded then we ship everything on up.
-        ReadinessPair::new(self, stream).and_then(|pair| {
-            let ReadinessPair { source, ready_read, ready_write } = pair;
-            let source_for_skip = source.clone(); // TODO: find a better way to do this
-            let connected = ready_write.skip_while(move |&()| {
-                match source_for_skip.take_socket_error() {
-                    Ok(()) => Ok(false),
-                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => Ok(true),
-                    Err(e) => Err(e),
-                }
-            });
-            let connected = connected.into_future();
-            connected.map(move |(_, stream)| {
-                ReadinessPair {
-                    source: source,
-                    ready_read: ready_read,
-                    ready_write: stream.into_inner()
-                }
-            })
-        }).boxed()
+        match mio::tcp::TcpStream::connect(addr) {
+            Ok(tcp) => TcpStream::new(tcp, self),
+            Err(e) => failed(e).boxed(),
+        }
     }
 }
