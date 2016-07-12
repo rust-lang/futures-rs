@@ -1,7 +1,7 @@
 use std::mem;
 use std::sync::Arc;
 
-use {Wake, Tokens, Future};
+use {Wake, Tokens, Future, ALL_TOKENS};
 use stream::Stream;
 
 pub struct Collect<S> where S: Stream {
@@ -30,10 +30,9 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
+    fn poll(&mut self, mut tokens: &Tokens)
             -> Option<Result<Vec<S::Item>, S::Error>> {
         loop {
-            // TODO: reset tokens if we turn the loop once?
             match self.stream.poll(tokens) {
                 Some(Ok(Some(e))) => self.items.push(e),
                 Some(Ok(None)) => return Some(Ok(self.finish())),
@@ -43,6 +42,7 @@ impl<S> Future for Collect<S>
                 }
                 None => return None,
             }
+            tokens = &ALL_TOKENS;
         }
     }
 

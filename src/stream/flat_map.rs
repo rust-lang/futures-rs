@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens};
+use {Wake, Tokens, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
 pub struct FlatMap<S>
@@ -29,10 +29,9 @@ impl<S> Stream for FlatMap<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
+    fn poll(&mut self, mut tokens: &Tokens)
             -> Option<StreamResult<Self::Item, Self::Error>> {
         loop {
-            // TODO: reset tokens on each turn of the loop?
             if self.next.is_none() {
                 match self.stream.poll(tokens) {
                     Some(Ok(Some(e))) => self.next = Some(e),
@@ -40,13 +39,14 @@ impl<S> Stream for FlatMap<S>
                     Some(Err(e)) => return Some(Err(From::from(e))),
                     None => return None,
                 }
+                tokens = &ALL_TOKENS;
             }
             assert!(self.next.is_some());
-            // TODO: Tokens::all() if we just created the stream
             match self.next.as_mut().unwrap().poll(tokens) {
                 Some(Ok(None)) => self.next = None,
                 other => return other,
             }
+            tokens = &ALL_TOKENS;
         }
     }
 

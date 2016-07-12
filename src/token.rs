@@ -7,6 +7,10 @@ pub struct Tokens {
     set: usize,
 }
 
+/// A static which corresponds to a set which contains all tokens, useful for
+/// passing around in various combinators.
+pub static ALL_TOKENS: Tokens = Tokens { set: !0 };
+
 impl Tokens {
     /// Creates a new set of tokens representing that no events have happened.
     ///

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens};
+use {Wake, Tokens, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
 pub struct SkipWhile<S, P> {
@@ -27,14 +27,13 @@ impl<S, P> Stream for SkipWhile<S, P>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
+    fn poll(&mut self, mut tokens: &Tokens)
             -> Option<StreamResult<S::Item, S::Error>> {
         if self.done_skipping {
             return self.stream.poll(tokens);
         }
 
         loop {
-            // TODO: reset tokens on each turn of the loop?
             let item = match self.stream.poll(tokens) {
                 Some(Ok(Some(e))) => e,
                 Some(Ok(None)) => return Some(Ok(None)),
@@ -49,6 +48,7 @@ impl<S, P> Stream for SkipWhile<S, P>
                 Ok(true) => {}
                 Err(e) => return Some(Err(e)),
             }
+            tokens = &ALL_TOKENS;
         }
     }
 

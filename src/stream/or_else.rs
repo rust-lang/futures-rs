@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, Future};
+use {Wake, Tokens, IntoFuture, Future, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
 pub struct OrElse<S, F, U>
@@ -31,7 +31,7 @@ impl<S, F, U> Stream for OrElse<S, F, U>
     type Item = S::Item;
     type Error = U::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
+    fn poll(&mut self, mut tokens: &Tokens)
             -> Option<StreamResult<S::Item, U::Error>> {
         if self.future.is_none() {
             let item = match self.stream.poll(tokens) {
@@ -40,9 +40,9 @@ impl<S, F, U> Stream for OrElse<S, F, U>
                 None => return None,
             };
             self.future = Some((self.f)(item).into_future());
+            tokens = &ALL_TOKENS;
         }
         assert!(self.future.is_some());
-        // TODO: Tokens::all() if we just created the future?
         let res = self.future.as_mut().unwrap().poll(tokens);
         if res.is_some() {
             self.future = None;

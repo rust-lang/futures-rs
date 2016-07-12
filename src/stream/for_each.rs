@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, Wake, Tokens};
+use {Future, Wake, Tokens, ALL_TOKENS};
 use stream::Stream;
 
 pub struct ForEach<S, F> {
@@ -25,9 +25,8 @@ impl<S, F> Future for ForEach<S, F>
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<Result<(), S::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Option<Result<(), S::Error>> {
         loop {
-            // TODO: reset the tokens on each turn?
             match self.stream.poll(tokens) {
                 Some(Ok(Some(e))) => {
                     match (self.f)(e) {
@@ -39,6 +38,7 @@ impl<S, F> Future for ForEach<S, F>
                 Some(Err(e)) => return Some(Err(e)),
                 None => return None,
             }
+            tokens = &ALL_TOKENS;
         }
     }
 

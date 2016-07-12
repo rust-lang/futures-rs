@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, Future};
+use {Wake, Tokens, Future, ALL_TOKENS};
 use stream::Stream;
 
 pub struct Fold<S, F, T> {
@@ -29,10 +29,9 @@ impl<S, F, T> Future for Fold<S, F, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<Result<T, S::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Option<Result<T, S::Error>> {
         let mut state = self.state.take().expect("cannot poll Fold twice");
         loop {
-            // TODO: reset tokens once we turn the loop?
             match self.stream.poll(tokens) {
                 Some(Ok(Some(e))) => state = (self.f)(state, e),
                 Some(Ok(None)) => return Some(Ok(state)),
@@ -42,6 +41,7 @@ impl<S, F, T> Future for Fold<S, F, T>
                     return None
                 }
             }
+            tokens = &ALL_TOKENS;
         }
     }
 

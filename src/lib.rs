@@ -17,7 +17,7 @@ mod slot;
 mod util;
 
 mod token;
-pub use token::Tokens;
+pub use token::{Tokens, ALL_TOKENS};
 
 pub mod executor;
 

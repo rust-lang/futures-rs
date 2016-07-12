@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::mem;
 
 use util::{self, Collapsed};
-use {Future, Wake, Tokens};
+use {Future, Wake, Tokens, ALL_TOKENS};
 
 pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
     First(Collapsed<A>, C),
@@ -41,7 +41,7 @@ impl<A, B, C> Chain<A, B, C>
         match f(a_result, data) {
             Ok(Ok(e)) => Some(Ok(e)),
             Ok(Err(mut b)) => {
-                let ret = b.poll(&Tokens::all());
+                let ret = b.poll(&ALL_TOKENS);
                 *self = Chain::Second(b);
                 ret
             }
