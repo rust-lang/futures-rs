@@ -597,6 +597,7 @@ pub trait Future: Send + 'static {
     ///
     /// Generally applications should retain handles on futures to ensure
     /// they're properly cleaned up if something unexpected happens.
+    // TODO: this is super dangerous, remove it
     fn forget(self) where Self: Sized {
         forget::forget(self);
     }
