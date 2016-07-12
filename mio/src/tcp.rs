@@ -1,8 +1,8 @@
 use std::io::{self, ErrorKind};
-use std::net::SocketAddr;
+use std::net::{self, SocketAddr};
 
 use futures::stream::Stream;
-use futures::{self, Future, IntoFuture};
+use futures::{self, Future, IntoFuture, failed};
 use mio;
 
 use {IoFuture, IoStream, ReadinessPair, LoopHandle};
@@ -13,6 +13,39 @@ pub struct TcpListener {
 }
 
 impl TcpListener {
+    fn new(listener: mio::tcp::TcpListener,
+           handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
+        ReadinessPair::new(handle.clone(), listener).map(|p| {
+            TcpListener { loop_handle: handle, inner: p }
+        }).boxed()
+    }
+
+    /// Create a new TCP listener from the standard library's TCP listener.
+    ///
+    /// This method can be used when the `LoopHandle::tcp_listen` method isn't
+    /// sufficient because perhaps some more configuration is needed in terms of
+    /// before the calls to `bind` and `listen`.
+    ///
+    /// This API is typically paired with the `net2` crate and the `TcpBuilder`
+    /// type to build up and customize a listener before it's shipped off to the
+    /// backing event loop. This allows configuration of options like
+    /// `SO_REUSEPORT`, binding to multiple addresses, etc.
+    ///
+    /// The `addr` argument here is one of the addresses that `listener` is
+    /// bound to and the listener will only be guaranteed to accept connections
+    /// of the same address type currently.
+    ///
+    /// Finally, the `handle` argument is the event loop that this listener will
+    /// be bound to.
+    pub fn from_listener(listener: net::TcpListener,
+                         addr: &SocketAddr,
+                         handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
+        mio::tcp::TcpListener::from_listener(listener, addr)
+            .into_future()
+            .and_then(|l| TcpListener::new(l, handle))
+            .boxed()
+    }
+
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.inner.source.local_addr()
     }
@@ -41,12 +74,10 @@ impl LoopHandle {
     /// and will be returned as a future. The returned future, if resolved
     /// successfully, can then be used to accept incoming connections.
     pub fn tcp_listen(self, addr: &SocketAddr) -> Box<IoFuture<TcpListener>> {
-        let cloned_handle = self.clone();
-        mio::tcp::TcpListener::bind(addr)
-            .into_future()
-            .and_then(|tcp| ReadinessPair::new(cloned_handle, tcp))
-            .map(|p| TcpListener { loop_handle: self, inner: p })
-            .boxed()
+        match mio::tcp::TcpListener::bind(addr) {
+            Ok(l) => TcpListener::new(l, self),
+            Err(e) => failed(e).boxed(),
+        }
     }
 
     /// Create a new TCP stream connected to the specified address.
