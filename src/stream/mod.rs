@@ -147,6 +147,7 @@ pub trait Stream: Send + 'static {
         flat_map::new(self)
     }
 
+    // TODO: should this closure return a Result?
     fn skip_while<P>(self, pred: P) -> SkipWhile<Self, P>
         where P: FnMut(&Self::Item) -> Result<bool, Self::Error> + Send + 'static,
               Self: Sized,
@@ -154,6 +155,7 @@ pub trait Stream: Send + 'static {
         skip_while::new(self, pred)
     }
 
+    // TODO: should this closure return a result?
     fn for_each<F>(self, f: F) -> ForEach<Self, F>
         where F: FnMut(Self::Item) -> Result<(), Self::Error> + Send + 'static,
               Self: Sized,
