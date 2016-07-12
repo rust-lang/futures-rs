@@ -248,24 +248,38 @@ impl Loop {
 
 impl LoopHandle {
     fn send(&self, msg: Message) {
-        let mut msg_dance = Some(msg);
-
-        if CURRENT_LOOP.is_set() {
-            CURRENT_LOOP.with(|lp| {
-                if lp.id == self.id {
+        self.with_loop(|lp| {
+            match lp {
+                Some(lp) => {
                     // Need to execute all existing requests first, to ensure
                     // that our message is processed "in order"
                     lp.consume_queue();
-                    lp.notify(msg_dance.take().unwrap());
+                    lp.notify(msg);
+                }
+                None => {
+                    // TODO: handle failure
+                    self.tx
+                        .send(msg)
+                        .map_err(|_| ())
+                        .expect("failed to send register message")
+                }
+            }
+        })
+    }
+
+    fn with_loop<F, R>(&self, f: F) -> R
+        where F: FnOnce(Option<&Loop>) -> R
+    {
+        if CURRENT_LOOP.is_set() {
+            CURRENT_LOOP.with(|lp| {
+                if lp.id == self.id {
+                    f(Some(lp))
+                } else {
+                    f(None)
                 }
             })
-        }
-
-        if let Some(msg) = msg_dance.take() {
-            self.tx
-                .send(msg)
-                .map_err(|_| ())
-                .expect("failed to send register message") // todo: handle failure
+        } else {
+            f(None)
         }
     }
 
