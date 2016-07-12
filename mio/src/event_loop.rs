@@ -202,7 +202,10 @@ impl Loop {
             writer: None,
         };
         let mut dispatch = self.dispatch.borrow_mut();
-        // TODO: handle out of space
+        if dispatch.vacant_entry().is_none() {
+            let amt = dispatch.count();
+            dispatch.grow(amt);
+        }
         let entry = dispatch.vacant_entry().unwrap();
         try!(register(&mut self.io.borrow_mut(), entry.index(), &sched));
         Ok(entry.insert(sched).index())
