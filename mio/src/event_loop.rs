@@ -389,6 +389,19 @@ impl LoopHandle {
         self.send(Message::DropSource(tok));
     }
 
+    /// Send a message to the associated event loop that it should shut down, or
+    /// otherwise break out of its current loop of iteration.
+    ///
+    /// This method does not forcibly cause the event loop to shut down or
+    /// perform an interrupt on whatever task is currently running, instead a
+    /// message is simply enqueued to at a later date process the request to
+    /// stop looping ASAP.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the event loop this handle is associated
+    /// with has gone away, or if there is an error communicating with the event
+    /// loop.
     pub fn shutdown(&self) {
         self.send(Message::Shutdown);
     }
