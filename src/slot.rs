@@ -5,6 +5,8 @@
 //! a value. It is unlikely that this module will survive stabilization of this
 //! library, so it is not recommended to rely on it.
 
+#![allow(dead_code)] // imported in a few places
+
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use lock::Lock;
@@ -80,6 +82,7 @@ pub struct OnFullError(());
 pub struct OnEmptyError(());
 
 /// A `Token` represents a registered callback, and can be used to cancel the callback.
+#[derive(Clone, Copy)]
 pub struct Token(usize);
 
 // Slot state: the lowest 3 bits are flags; the remaining bits are used to
