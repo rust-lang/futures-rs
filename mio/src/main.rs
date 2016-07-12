@@ -36,7 +36,7 @@ fn main() {
         println!("error! {}", e);
         e
     });
-    l.run(read);
+    l.run(read).unwrap();
 
     // let l1 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();
     // let l2 = l.tcp_listen(&"127.0.0.1:0".parse().unwrap()).unwrap();

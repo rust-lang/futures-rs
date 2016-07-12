@@ -6,7 +6,7 @@ use std::sync::mpsc;
 
 use mio;
 use slab::Slab;
-use futures::{Future, Tokens, Wake, PollResult};
+use futures::{Future, Tokens, Wake};
 
 pub type Waiter = Arc<Wake>;
 pub type Source = Arc<mio::Evented + Send + Sync>;
@@ -308,7 +308,7 @@ impl Future for AddSource {
     type Item = usize;
     type Error = io::Error; // TODO: integrate channel error?
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<usize, io::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Option<Result<usize, io::Error>> {
         if self.scheduled {
             if tokens.may_contain(&Tokens::from_usize(ADD_SOURCE_TOKEN)) {
                 let id = self.id.load(Ordering::Relaxed);

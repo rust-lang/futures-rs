@@ -48,8 +48,8 @@ impl TcpListener {
 pub type TcpStream = ReadinessPair<mio::tcp::TcpStream>;
 
 pub fn tcp_connect(handle: LoopHandle,
-               addr: &SocketAddr)
-               -> Box<Future<Item = TcpStream, Error = io::Error>> {
+                   addr: &SocketAddr)
+                   -> Box<Future<Item = TcpStream, Error = io::Error>> {
     match mio::tcp::TcpStream::connect(addr) {
         Ok(tcp) => {
             ReadinessPair::new(handle, tcp)
