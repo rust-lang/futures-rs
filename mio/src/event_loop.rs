@@ -77,13 +77,13 @@ enum Message {
     Shutdown,
 }
 
-fn register(poll: &mut mio::Poll, token: usize, sched: &Scheduled) {
-    // TODO: handle error
+fn register(poll: &mut mio::Poll,
+            token: usize,
+            sched: &Scheduled) -> io::Result<()> {
     poll.register(&*sched.source,
                   mio::Token(token),
                   mio::EventSet::none(),
                   mio::PollOpt::level())
-        .unwrap();
 }
 
 fn reregister(poll: &mut mio::Poll, token: usize, sched: &Scheduled) {
@@ -204,7 +204,7 @@ impl Loop {
         let mut dispatch = self.dispatch.borrow_mut();
         // TODO: handle out of space
         let entry = dispatch.vacant_entry().unwrap();
-        register(&mut self.io.borrow_mut(), entry.index(), &sched);
+        try!(register(&mut self.io.borrow_mut(), entry.index(), &sched));
         Ok(entry.insert(sched).index())
     }
 
