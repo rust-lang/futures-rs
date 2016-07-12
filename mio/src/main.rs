@@ -23,7 +23,7 @@ fn main() {
     let l = futuremio::Loop::new().unwrap();
 
     let addr = "127.0.0.1:12345".parse().unwrap();
-    let tcp = futuremio::tcp_connect(l.handle(), &addr);
+    let tcp = l.handle().tcp_connect(&addr);
     let read = tcp.and_then(|s| {
         let mut buf = [0u8; 64 * 1024];
         let sock = s.source;

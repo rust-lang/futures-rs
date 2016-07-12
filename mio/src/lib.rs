@@ -22,4 +22,4 @@ pub type IoStream<T> = Stream<Item=T, Error=io::Error>;
 
 pub use event_loop::{Loop, LoopHandle, Direction};
 pub use readiness_stream::{ReadinessStream, ReadinessPair};
-pub use tcp::{TcpListener, TcpStream, tcp_connect};
+pub use tcp::{TcpListener, TcpStream};
