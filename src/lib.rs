@@ -50,6 +50,7 @@ pub use promise::{promise, Promise, Complete, Canceled};
 // combinators
 mod and_then;
 mod flatten;
+mod fuse;
 mod join;
 mod map;
 mod map_err;
@@ -58,6 +59,7 @@ mod select;
 mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
+pub use fuse::Fuse;
 pub use join::Join;
 pub use map::Map;
 pub use map_err::MapErr;
@@ -535,6 +537,46 @@ pub trait Future: Send + 'static {
         assert_future::<<<Self as Future>::Item as IntoFuture>::Item,
                         <<Self as Future>::Item as IntoFuture>::Error,
                         _>(f)
+    }
+
+    /// Fuse a future such that `poll` will never again be called once it has
+    /// returned a success.
+    ///
+    /// Currently once a future has returned `Some` from `poll` any further
+    /// calls could exhibit bad behavior such as block forever, panic, never
+    /// return, etc. If it is known that `poll` may be called too often then
+    /// this method can be used to ensure that it has defined semantics.
+    ///
+    /// Once a future has been `fuse`d and it returns success from `poll`, then
+    /// it will forever return `None` from `poll` again (never resolve). This,
+    /// unlike the trait's `poll` method, is guaranteed.
+    ///
+    /// Additionally, once a future has completed, this `Fuse` combinator will
+    /// ensure that all registered callbacks will not be registered with the
+    /// underlying future.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use futures::*;
+    ///
+    /// # let tokens = &Tokens::all();
+    /// let mut future = finished::<i32, u32>(2);
+    /// assert!(future.poll(&tokens).is_some());
+    ///
+    /// // Normally, a call such as this would panic:
+    /// //future.poll(&tokens);
+    ///
+    /// // This, however, is guaranteed to not panic
+    /// let mut future = finished::<i32, u32>(2).fuse();
+    /// assert!(future.poll(&tokens).is_some());
+    /// assert!(future.poll(&tokens).is_none());
+    /// ```
+    fn fuse(self) -> Fuse<Self>
+        where Self: Sized
+    {
+        let f = fuse::new(self);
+        assert_future::<Self::Item, Self::Error, _>(f)
     }
 
     /// Consume this future and allow it to execute without cancelling it.
