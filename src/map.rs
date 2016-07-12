@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Future, PollResult, Wake, Tokens};
-use util::{self, Collapsed};
+use {Future, Wake, Tokens};
+use util::Collapsed;
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -28,17 +28,10 @@ impl<U, A, F> Future for Map<A, F>
     type Item = U;
     type Error = A::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<U, A::Error>> {
-        let result = match self.future.poll(tokens) {
-            Some(result) => result,
-            None => return None,
-        };
-        let callback = util::opt2poll(self.f.take());
-        Some(result.and_then(|e| {
-            callback.and_then(|f| {
-                util::recover(|| f(e))
-            })
-        }))
+    fn poll(&mut self, tokens: &Tokens) -> Option<Result<U, A::Error>> {
+        self.future.poll(tokens).map(|result| {
+            result.map(self.f.take().expect("cannot poll Map twice"))
+        })
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {

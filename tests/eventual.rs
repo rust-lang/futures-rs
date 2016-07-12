@@ -41,8 +41,8 @@ fn and_then2() {
 
 #[test]
 fn promise1() {
-    let (c, p) = promise::<i32, i32>();
-    let t = thread::spawn(|| c.finish(1));
+    let (c, p) = promise::<i32>();
+    let t = thread::spawn(|| c.complete(1));
 
     let (tx, rx) = channel();
     p.map(move |e| tx.send(e).unwrap()).forget();
@@ -52,8 +52,8 @@ fn promise1() {
 
 #[test]
 fn promise2() {
-    let (c, p) = promise::<i32, i32>();
-    let t = thread::spawn(|| c.finish(1));
+    let (c, p) = promise::<i32>();
+    let t = thread::spawn(|| c.complete(1));
     t.join().unwrap();
 
     let (tx, rx) = channel();
@@ -63,11 +63,11 @@ fn promise2() {
 
 #[test]
 fn promise3() {
-    let (c, p) = promise::<i32, i32>();
+    let (c, p) = promise::<i32>();
     let (tx, rx) = channel();
     p.map(move |e| tx.send(e).unwrap()).forget();
 
-    let t = thread::spawn(|| c.finish(1));
+    let t = thread::spawn(|| c.complete(1));
     t.join().unwrap();
 
     assert_eq!(rx.recv(), Ok(1));
@@ -75,7 +75,7 @@ fn promise3() {
 
 #[test]
 fn promise4() {
-    let (c, p) = promise::<i32, i32>();
+    let (c, p) = promise::<i32>();
     drop(c);
 
     let (tx, rx) = channel();
@@ -85,14 +85,14 @@ fn promise4() {
 
 #[test]
 fn proimse5() {
-    let (c, p) = promise::<i32, i32>();
+    let (c, p) = promise::<i32>();
     drop(p);
-    c.finish(2);
+    c.complete(2);
 }
 
 #[test]
 fn promise5() {
-    let (c, p) = promise::<i32, i32>();
+    let (c, p) = promise::<i32>();
     let t = thread::spawn(|| drop(c));
     let (tx, rx) = channel();
     p.map(move |t| tx.send(t).unwrap()).forget();
@@ -102,7 +102,7 @@ fn promise5() {
 
 #[test]
 fn cancel1() {
-    let (c, p) = promise::<i32, i32>();
+    let (c, p) = promise::<i32>();
     drop(c);
     p.map(|_| panic!()).forget();
 }
@@ -122,25 +122,25 @@ fn map_err2() {
 
 #[test]
 fn map_err3() {
-    let (c, p) = promise::<i32, i32>();
-    p.map_err(|_| panic!()).forget();
+    let (c, p) = promise::<i32>();
+    p.map_err(|_| {}).forget();
     drop(c);
 }
 
 #[test]
 fn or_else1() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
 
     let (tx, rx) = channel();
     let tx2 = tx.clone();
-    let p1 = p1.map_err(move |i| { tx2.send(i).unwrap(); i });
+    let p1 = p1.map_err(move |i| { tx2.send(2).unwrap(); i });
     let tx2 = tx.clone();
     let p2 = p2.map(move |i| { tx2.send(i).unwrap(); i });
 
     assert!(rx.try_recv().is_err());
-    c1.fail(2);
-    c2.finish(3);
+    drop(c1);
+    c2.complete(3);
     p1.or_else(|_| p2).map(move |v| tx.send(v).unwrap()).forget();
 
     assert_eq!(rx.recv(), Ok(2));
@@ -151,7 +151,7 @@ fn or_else1() {
 
 #[test]
 fn or_else2() {
-    let (c1, p1) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
 
     let (tx, rx) = channel();
 
@@ -160,7 +160,7 @@ fn or_else2() {
         finished::<i32, i32>(1)
     }).forget();
 
-    c1.finish(2);
+    c1.complete(2);
     assert!(rx.recv().is_err());
 }
 
@@ -176,26 +176,26 @@ fn join1() {
 
 #[test]
 fn join2() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.finish(1);
+    c1.complete(1);
     assert!(rx.try_recv().is_err());
-    c2.finish(2);
+    c2.complete(2);
     assert_eq!(rx.recv(), Ok((1, 2)));
     assert!(rx.recv().is_err());
 }
 
 #[test]
 fn join3() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
     let (tx, rx) = channel();
-    p1.join(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    p1.join(p2).map_err(move |_v| tx.send(1).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.fail(1);
+    drop(c1);
     assert_eq!(rx.recv(), Ok(1));
     assert!(rx.recv().is_err());
     drop(c2);
@@ -203,104 +203,105 @@ fn join3() {
 
 #[test]
 fn join4() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).map_err(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     drop(c1);
-    assert!(rx.recv().is_err());
+    assert!(rx.recv().is_ok());
     drop(c2);
+    assert!(rx.recv().is_err());
 }
 
 #[test]
 fn join5() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
-    let (c3, p3) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
+    let (c3, p3) = promise::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).join(p3).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.finish(1);
+    c1.complete(1);
     assert!(rx.try_recv().is_err());
-    c2.finish(2);
+    c2.complete(2);
     assert!(rx.try_recv().is_err());
-    c3.finish(3);
+    c3.complete(3);
     assert_eq!(rx.recv(), Ok(((1, 2), 3)));
     assert!(rx.recv().is_err());
 }
 
 #[test]
 fn select1() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
     let (tx, rx) = channel();
     p1.select(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.finish(1);
+    c1.complete(1);
     let (v, p2) = rx.recv().unwrap();
     assert_eq!(v, 1);
     assert!(rx.recv().is_err());
 
     let (tx, rx) = channel();
     p2.map(move |v| tx.send(v).unwrap()).forget();
-    c2.finish(2);
+    c2.complete(2);
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
 }
 
 #[test]
 fn select2() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
     let (tx, rx) = channel();
-    p1.select(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    p1.select(p2).map_err(move |v| tx.send((1, v.1)).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.fail(1);
+    drop(c1);
     let (v, p2) = rx.recv().unwrap();
     assert_eq!(v, 1);
     assert!(rx.recv().is_err());
 
     let (tx, rx) = channel();
     p2.map(move |v| tx.send(v).unwrap()).forget();
-    c2.finish(2);
+    c2.complete(2);
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
 }
 
 #[test]
 fn select3() {
-    let (c1, p1) = promise::<i32, i32>();
-    let (c2, p2) = promise::<i32, i32>();
+    let (c1, p1) = promise::<i32>();
+    let (c2, p2) = promise::<i32>();
     let (tx, rx) = channel();
-    p1.select(p2).map_err(move |v| tx.send(v).unwrap()).forget();
+    p1.select(p2).map_err(move |v| tx.send((1, v.1)).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.fail(1);
+    drop(c1);
     let (v, p2) = rx.recv().unwrap();
     assert_eq!(v, 1);
     assert!(rx.recv().is_err());
 
     let (tx, rx) = channel();
-    p2.map_err(move |v| tx.send(v).unwrap()).forget();
-    c2.fail(2);
+    p2.map_err(move |_v| tx.send(2).unwrap()).forget();
+    drop(c2);
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
 }
 
 #[test]
 fn select4() {
-    let (tx, rx) = channel::<Complete<i32, i32>>();
+    let (tx, rx) = channel::<Complete<i32>>();
 
     let t = thread::spawn(move || {
         for c in rx {
-            c.finish(1);
+            c.complete(1);
         }
     });
 
     let (tx2, rx2) = channel();
     for _ in 0..10000 {
-        let (c1, p1) = promise::<i32, i32>();
-        let (c2, p2) = promise::<i32, i32>();
+        let (c1, p1) = promise::<i32>();
+        let (c2, p2) = promise::<i32>();
 
         let tx3 = tx2.clone();
         p1.select(p2).map(move |_| tx3.send(()).unwrap()).forget();

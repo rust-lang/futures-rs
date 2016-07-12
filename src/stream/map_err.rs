@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, PollError};
+use {Wake, Tokens};
 use stream::{Stream, StreamResult};
-use util;
 
 pub struct MapErr<S, F> {
     stream: S,
-    f: Option<F>,
+    f: F,
 }
 
 pub fn new<S, F, U>(s: S, f: F) -> MapErr<S, F>
@@ -16,7 +15,7 @@ pub fn new<S, F, U>(s: S, f: F) -> MapErr<S, F>
 {
     MapErr {
         stream: s,
-        f: Some(f),
+        f: f,
     }
 }
 
@@ -30,24 +29,10 @@ impl<S, F, U> Stream for MapErr<S, F>
 
     fn poll(&mut self, tokens: &Tokens)
             -> Option<StreamResult<S::Item, U>> {
-        let item = match self.stream.poll(tokens) {
-            Some(Ok(e)) => return Some(Ok(e)),
-            Some(Err(PollError::Other(e))) => e,
-            Some(Err(PollError::Panicked(e))) => {
-                return Some(Err(PollError::Panicked(e)))
-            }
-            None => return None,
-        };
-        let mut f = match util::opt2poll(self.f.take()) {
-            Ok(f) => f,
-            Err(e) => return Some(Err(e)),
-        };
-        match util::recover(move || (f(item), f)) {
-            Ok((e, f)) => {
-                self.f = Some(f);
-                Some(Err(PollError::Other(e)))
-            }
-            Err(e) => Some(Err(e))
+        match self.stream.poll(tokens) {
+            Some(Ok(e)) => Some(Ok(e)),
+            Some(Err(e)) => Some(Err((self.f)(e))),
+            None => None,
         }
     }
 

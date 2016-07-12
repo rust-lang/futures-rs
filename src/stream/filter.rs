@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use {Wake, Tokens};
 use stream::{Stream, StreamResult};
-use util;
 
 pub struct Filter<S, F> {
     stream: S,
-    f: Option<F>,
+    f: F,
 }
 
 pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
@@ -15,7 +14,7 @@ pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
 {
     Filter {
         stream: s,
-        f: Some(f),
+        f: f,
     }
 }
 
@@ -29,23 +28,15 @@ impl<S, F> Stream for Filter<S, F>
     fn poll(&mut self, tokens: &Tokens)
             -> Option<StreamResult<S::Item, S::Error>> {
         loop {
-            let item = match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => e,
+            match self.stream.poll(tokens) {
+                Some(Ok(Some(e))) => {
+                    if (self.f)(&e) {
+                        return Some(Ok(Some(e)))
+                    }
+                }
                 Some(Ok(None)) => return Some(Ok(None)),
                 Some(Err(e)) => return Some(Err(e)),
                 None => return None,
-            };
-            let mut f = match util::opt2poll(self.f.take()) {
-                Ok(f) => f,
-                Err(e) => return Some(Err(e)),
-            };
-            match util::recover(move || (f(&item), item, f)) {
-                Ok((false, _, f)) => self.f = Some(f),
-                Ok((true, item, f)) => {
-                    self.f = Some(f);
-                    return Some(Ok(Some(item)))
-                }
-                Err(e) => return Some(Err(e))
             }
         }
     }

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, PollError};
+use {Wake, Tokens};
 use stream::{Stream, StreamResult};
-use util;
 
 pub struct SkipWhile<S, P> {
     stream: S,
-    pred: Option<P>,
+    pred: P,
     done_skipping: bool,
 }
 
@@ -16,7 +15,7 @@ pub fn new<S, P>(s: S, p: P) -> SkipWhile<S, P>
 {
     SkipWhile {
         stream: s,
-        pred: Some(p),
+        pred: p,
         done_skipping: false,
     }
 }
@@ -28,32 +27,26 @@ impl<S, P> Stream for SkipWhile<S, P>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<S::Item, S::Error>> {
+    fn poll(&mut self, tokens: &Tokens)
+            -> Option<StreamResult<S::Item, S::Error>> {
         if self.done_skipping {
             return self.stream.poll(tokens);
         }
 
         loop {
+            // TODO: reset tokens on each turn of the loop?
             let item = match self.stream.poll(tokens) {
                 Some(Ok(Some(e))) => e,
                 Some(Ok(None)) => return Some(Ok(None)),
                 Some(Err(e)) => return Some(Err(e)),
                 None => return None,
             };
-            let mut pred = match util::opt2poll(self.pred.take()) {
-                Ok(pred) => pred,
-                Err(e) => return Some(Err(e)),
-            };
-            match util::recover(move || (pred(&item), item, pred)) {
-                Ok((res, item, pred)) => {
-                    self.pred = Some(pred);
-                    if let Ok(false) = res {
-                        self.done_skipping = true;
-                        return Some(Ok(Some(item)));
-                    } else if let Err(e) = res {
-                        return Some(Err(PollError::Other(e)));
-                    }
+            match (self.pred)(&item) {
+                Ok(false) => {
+                    self.done_skipping = true;
+                    return Some(Ok(Some(item)))
                 }
+                Ok(true) => {}
                 Err(e) => return Some(Err(e)),
             }
         }
@@ -65,6 +58,7 @@ impl<S, P> Stream for SkipWhile<S, P>
 }
 
 impl<S, P> SkipWhile<S, P> {
+    // TODO: why here and not elsewhere...
     pub fn into_inner(self) -> S {
         self.stream
     }

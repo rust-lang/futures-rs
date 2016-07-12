@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::mem;
 
 use util::{self, Collapsed};
-use {Future, PollResult, Wake, Tokens};
+use {Future, Wake, Tokens};
 
 pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
     First(Collapsed<A>, C),
@@ -20,9 +20,9 @@ impl<A, B, C> Chain<A, B, C>
     }
 
     pub fn poll<F>(&mut self, tokens: &Tokens, f: F)
-                  -> Option<PollResult<B::Item, B::Error>>
-        where F: FnOnce(PollResult<A::Item, A::Error>, C)
-                        -> PollResult<Result<B::Item, B>, B::Error> + Send + 'static,
+                  -> Option<Result<B::Item, B::Error>>
+        where F: FnOnce(Result<A::Item, A::Error>, C)
+                        -> Result<Result<B::Item, B>, B::Error> + Send + 'static,
     {
         let a_result = match *self {
             Chain::First(ref mut a, _) => {
@@ -32,7 +32,7 @@ impl<A, B, C> Chain<A, B, C>
                 }
             }
             Chain::Second(ref mut b) => return b.poll(tokens),
-            Chain::Done => return Some(Err(util::reused())),
+            Chain::Done => panic!("cannot poll a chained future twice"),
         };
         let data = match mem::replace(self, Chain::Done) {
             Chain::First(_, c) => c,

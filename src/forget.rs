@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use {Future, Wake, PollResult, Tokens};
+use {Future, Wake, Tokens};
 use executor::{DEFAULT, Executor};
 use slot::Slot;
 
@@ -13,10 +13,7 @@ struct Forget {
     tokens: AtomicUsize,
 }
 
-pub fn forget<T: Future>(mut t: T) {
-    if t.poll(&Tokens::all()).is_some() {
-        return
-    }
+pub fn forget<T: Future>(t: T) {
     let thunk = ThunkFuture { inner: t.boxed() }.boxed();
     let forget = Arc::new(Forget {
         slot: Slot::new(None),
@@ -36,10 +33,10 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<(), ()>> {
+    fn poll(&mut self, tokens: &Tokens) -> Option<Result<(), ()>> {
         match self.inner.poll(tokens) {
             Some(Ok(_)) => Some(Ok(())),
-            Some(Err(e)) => Some(Err(e.map(|_| ()))),
+            Some(Err(_)) => Some(Err(())),
             None => None,
         }
     }
@@ -59,6 +56,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
 fn _forget(mut future: Thunk,
            forget: Arc<Forget>,
            tokens: &Tokens) {
+    // TODO: catch panics here?
     if future.poll(tokens).is_some() {
         return
     }

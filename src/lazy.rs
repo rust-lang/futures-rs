@@ -1,9 +1,7 @@
-use std::any::Any;
 use std::mem;
 use std::sync::Arc;
 
-use {Future, PollResult, Wake, IntoFuture, PollError, Tokens};
-use util;
+use {Future, Wake, IntoFuture, Tokens};
 
 /// A future which defers creation of the actual future until a callback is
 /// scheduled.
@@ -11,10 +9,6 @@ use util;
 /// This is created by the `lazy` function.
 pub struct Lazy<F, R> {
     inner: _Lazy<F, R>,
-    // TODO: the handling of a panicked closure here is pretty bad, should
-    //       refactor this or just delete this future, seems to have very little
-    //       reason to exist any more.
-    deferred_error: Option<Box<Any+Send>>,
 }
 
 enum _Lazy<F, R> {
@@ -48,7 +42,6 @@ pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
 {
     Lazy {
         inner: _Lazy::First(f),
-        deferred_error: None,
     }
 }
 
@@ -56,20 +49,19 @@ impl<F, R> Lazy<F, R::Future>
     where F: FnOnce() -> R + Send + 'static,
           R: IntoFuture,
 {
-    fn get<E>(&mut self) -> PollResult<&mut R::Future, E> {
+    fn get(&mut self) -> &mut R::Future {
         match self.inner {
             _Lazy::First(_) => {}
-            _Lazy::Second(ref mut f) => return Ok(f),
-            _Lazy::Moved => return Err(util::reused()),
+            _Lazy::Second(ref mut f) => return f,
+            _Lazy::Moved => panic!(), // can only happen if `f()` panics
         }
-        let f = match mem::replace(&mut self.inner, _Lazy::Moved) {
-            _Lazy::First(f) => try!(util::recover(f)),
-            _ => panic!(),
-        };
-        self.inner = _Lazy::Second(f.into_future());
+        match mem::replace(&mut self.inner, _Lazy::Moved) {
+            _Lazy::First(f) => self.inner = _Lazy::Second(f().into_future()),
+            _ => panic!(), // we already found First
+        }
         match self.inner {
-            _Lazy::Second(ref mut f) => Ok(f),
-            _ => panic!(),
+            _Lazy::Second(ref mut f) => f,
+            _ => panic!(), // we just stored Second
         }
     }
 }
@@ -81,45 +73,15 @@ impl<F, R> Future for Lazy<F, R::Future>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<R::Item, R::Error>> {
-        if let Some(e) = self.deferred_error.take() {
-            return Some(Err(PollError::Panicked(e)))
-        }
-        match self.get() {
-            Ok(f) => f.poll(tokens),
-            Err(e) => Some(Err(e)),
-        }
+    fn poll(&mut self, tokens: &Tokens) -> Option<Result<R::Item, R::Error>> {
+        self.get().poll(tokens)
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
-        if self.deferred_error.is_some() {
-            return util::done(wake)
-        }
-
-        let err = match self.get::<()>() {
-            Ok(f) => return f.schedule(wake),
-            Err(PollError::Panicked(e)) => e,
-            Err(_) => panic!(),
-        };
-
-        // TODO: put this in a better location?
-        self.deferred_error = Some(err);
-        util::done(wake)
+        self.get().schedule(wake)
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {
-        if self.deferred_error.is_some() {
-            return None
-        }
-
-        let err = match self.get::<()>() {
-            Ok(f) => return f.tailcall(),
-            Err(PollError::Panicked(e)) => e,
-            Err(_) => panic!(),
-        };
-
-        // TODO: put this in a better location?
-        self.deferred_error = Some(err);
-        None
+        self.get().tailcall()
     }
 }

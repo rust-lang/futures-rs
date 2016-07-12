@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, Future, PollResult};
+use {Wake, Tokens, Future};
 use stream::Stream;
-use util;
 
 pub struct Fold<S, F, T> {
     stream: S,
-    state: Option<(F, T)>,
+    f: F,
+    state: Option<T>,
 }
 
 pub fn new<S, F, T>(s: S, f: F, t: T) -> Fold<S, F, T>
@@ -16,7 +16,8 @@ pub fn new<S, F, T>(s: S, f: F, t: T) -> Fold<S, F, T>
 {
     Fold {
         stream: s,
-        state: Some((f, t)),
+        f: f,
+        state: Some(t),
     }
 }
 
@@ -28,27 +29,18 @@ impl<S, F, T> Future for Fold<S, F, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<PollResult<T, S::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Option<Result<T, S::Error>> {
+        let mut state = self.state.take().expect("cannot poll Fold twice");
         loop {
+            // TODO: reset tokens once we turn the loop?
             match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => {
-                    let (mut f, t) = match util::opt2poll(self.state.take()) {
-                        Ok(s) => s,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    match util::recover(|| (f(t, e), f)) {
-                        Ok((next, f)) => self.state = Some((f, next)),
-                        Err(e) => return Some(Err(e)),
-                    }
+                Some(Ok(Some(e))) => state = (self.f)(state, e),
+                Some(Ok(None)) => return Some(Ok(state)),
+                Some(Err(e)) => return Some(Err(e)),
+                None => {
+                    self.state = Some(state);
+                    return None
                 }
-                Some(Ok(None)) => {
-                    return Some(util::opt2poll(self.state.take().map(|p| p.1)))
-                }
-                Some(Err(e)) => {
-                    drop(self.state.take());
-                    return Some(Err(e))
-                }
-                None => return None,
             }
         }
     }

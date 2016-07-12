@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, Future, PollError};
+use {Wake, Tokens, IntoFuture, Future};
 use stream::{Stream, StreamResult};
-use util;
 
 pub struct Then<S, F, U>
     where U: IntoFuture,
 {
     stream: S,
     future: Option<U::Future>,
-    f: Option<F>,
+    f: F,
 }
 
 pub fn new<S, F, U>(s: S, f: F) -> Then<S, F, U>
@@ -20,7 +19,7 @@ pub fn new<S, F, U>(s: S, f: F) -> Then<S, F, U>
     Then {
         stream: s,
         future: None,
-        f: Some(f),
+        f: f,
     }
 }
 
@@ -36,25 +35,12 @@ impl<S, F, U> Stream for Then<S, F, U>
             -> Option<StreamResult<U::Item, U::Error>> {
         if self.future.is_none() {
             let item = match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => Ok(e),
                 Some(Ok(None)) => return Some(Ok(None)),
-                Some(Err(PollError::Other(e))) => Err(e),
-                Some(Err(PollError::Panicked(e))) => {
-                    return Some(Err(PollError::Panicked(e)))
-                }
+                Some(Ok(Some(e))) => Ok(e),
+                Some(Err(e)) => Err(e),
                 None => return None,
             };
-            let mut f = match util::opt2poll(self.f.take()) {
-                Ok(f) => f,
-                Err(e) => return Some(Err(e)),
-            };
-            match util::recover(|| (f(item).into_future(), f)) {
-                Ok((future, f)) => {
-                    self.future = Some(future);
-                    self.f = Some(f);
-                }
-                Err(e) => return Some(Err(e)),
-            }
+            self.future = Some((self.f)(item).into_future());
         }
         assert!(self.future.is_some());
         // TODO: Tokens::all() if we just created the future?

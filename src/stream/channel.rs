@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 
-use {Future, PollResult, PollError, Wake, Tokens};
+use {Future, Wake, Tokens};
 use slot::{Slot, Token};
 use stream::{Stream, StreamResult};
 use util;
@@ -23,7 +23,6 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
     let receiver = Receiver {
         inner: inner,
         on_full_token: None,
-        done: false,
     };
     (sender, receiver)
 }
@@ -49,7 +48,6 @@ pub struct Receiver<T, E>
 {
     inner: Arc<Inner<T, E>>,
     on_full_token: Option<Token>,
-    done: bool,
 }
 
 struct Inner<T, E> {
@@ -73,9 +71,6 @@ impl<T, E> Stream for Receiver<T, E>
     type Error = E;
 
     fn poll(&mut self, _tokens: &Tokens) -> Option<StreamResult<T, E>> {
-        if self.done {
-            return Some(Err(util::reused()))
-        }
         // if !tokens.may_contain(&Tokens::from_usize(self.inner.token)) {
         //     return None
         // }
@@ -83,11 +78,8 @@ impl<T, E> Stream for Receiver<T, E>
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
-            Ok(Message::Data(Err(e))) => Some(Err(PollError::Other(e))),
-            Ok(Message::Done) => {
-                self.done = true;
-                Some(Ok(None))
-            }
+            Ok(Message::Data(Err(e))) => Some(Err(e)),
+            Ok(Message::Done) => Some(Ok(None)),
             Err(..) => None,
         }
     }
@@ -150,15 +142,9 @@ impl<T, E> Future for FutureSender<T, E>
     type Error = SendError<T, E>;
 
     fn poll(&mut self, _tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
-        let data = match util::opt2poll(self.data.take()) {
-            Ok(data) => data,
-            Err(e) => return Some(Err(e)),
-        };
-        let sender = match util::opt2poll(self.sender.take()) {
-            Ok(e) => e,
-            Err(e) => return Some(Err(e)),
-        };
+            -> Option<Result<Self::Item, Self::Error>> {
+        let data = self.data.take().expect("cannot poll FutureSender twice");
+        let sender = self.sender.take().expect("cannot poll FutureSender twice");
         match sender.inner.slot.try_produce(Message::Data(data)) {
             Ok(()) => return Some(Ok(sender)),
             Err(e) => {

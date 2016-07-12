@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use {Wake, Tokens, IntoFuture, Future};
 use stream::{Stream, StreamResult};
-use util;
 
 pub struct AndThen<S, F, U>
     where U: IntoFuture,
 {
     stream: S,
     future: Option<U::Future>,
-    f: Option<F>,
+    f: F,
 }
 
 pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
@@ -20,7 +19,7 @@ pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
     AndThen {
         stream: s,
         future: None,
-        f: Some(f),
+        f: f,
     }
 }
 
@@ -41,17 +40,7 @@ impl<S, F, U> Stream for AndThen<S, F, U>
                 Some(Err(e)) => return Some(Err(e)),
                 None => return None,
             };
-            let mut f = match util::opt2poll(self.f.take()) {
-                Ok(f) => f,
-                Err(e) => return Some(Err(e)),
-            };
-            match util::recover(|| (f(item).into_future(), f)) {
-                Ok((future, f)) => {
-                    self.future = Some(future);
-                    self.f = Some(f);
-                }
-                Err(e) => return Some(Err(e)),
-            }
+            self.future = Some((self.f)(item).into_future());
         }
 
         assert!(self.future.is_some());

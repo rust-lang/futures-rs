@@ -1,8 +1,8 @@
 use std::mem;
 use std::sync::Arc;
 
-use {Future, PollResult, IntoFuture, Wake, Tokens};
-use util::{self, Collapsed};
+use {Future, IntoFuture, Wake, Tokens};
+use util::Collapsed;
 
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
@@ -16,7 +16,6 @@ pub struct Collect<I>
     cur: Option<Collapsed<<I::Item as IntoFuture>::Future>>,
     remaining: I::IntoIter,
     result: Vec<<I::Item as IntoFuture>::Item>,
-    polled_once: bool,
 }
 
 /// Creates a future which represents a collection of the results of the futures
@@ -65,7 +64,6 @@ pub fn collect<I>(i: I) -> Collect<I>
         cur: i.next().map(IntoFuture::into_future).map(Collapsed::Start),
         remaining: i,
         result: Vec::new(),
-        polled_once: false,
     }
 }
 
@@ -79,8 +77,7 @@ impl<I> Future for Collect<I>
 
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
-        let polled_once = mem::replace(&mut self.polled_once, true);
+            -> Option<Result<Self::Item, Self::Error>> {
         loop {
             match self.cur {
                 Some(ref mut cur) => {
@@ -102,16 +99,14 @@ impl<I> Future for Collect<I>
                         None => return None,
                     }
                 }
-                None if !polled_once => return Some(Ok(Vec::new())),
-                None => return Some(Err(util::reused())),
+                None => {
+                    return Some(Ok(mem::replace(&mut self.result, Vec::new())))
+                }
             }
 
             self.cur = self.remaining.next()
                            .map(IntoFuture::into_future)
                            .map(Collapsed::Start);
-            if self.cur.is_none() {
-                return Some(Ok(mem::replace(&mut self.result, Vec::new())))
-            }
         }
     }
 

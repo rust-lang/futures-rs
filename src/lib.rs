@@ -26,9 +26,6 @@ mod lock;
 mod slot;
 mod util;
 
-mod error;
-pub use error::{PollError, PollResult};
-
 mod token;
 pub use token::Tokens;
 
@@ -48,7 +45,7 @@ pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
-pub use promise::{promise, Promise, Complete};
+pub use promise::{promise, Promise, Complete, Canceled};
 
 // combinators
 mod and_then;
@@ -157,14 +154,14 @@ pub trait Future: Send + 'static {
     ///
     /// # Errors
     ///
-    /// If `Some` is returned, then a `PollResult<Item, Error>` is returned.
+    /// If `Some` is returned, then a `Result<Item, Error>` is returned.
     /// This is just a typedef around `Result<Item, PollError<Error>>` which
     /// encapsulates that a future can currently fail execution for two reasons.
     /// First a future may fail legitimately (return a normal error), but it may
     /// also panic. Both of thse results are communicated through the `Err`
     /// portion of this result.
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>>;
+            -> Option<Result<Self::Item, Self::Error>>;
 
     /// Register a callback to be run whenever this future can make progress
     /// again.

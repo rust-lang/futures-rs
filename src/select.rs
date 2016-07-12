@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::mem;
 
-use {PollResult, Wake, Future, Tokens, empty};
+use {Wake, Future, Tokens, empty};
 use util::{self, Collapsed};
 
 /// Future for the `select` combinator, waiting for one of two futures to
@@ -44,7 +44,7 @@ impl<A, B> Future for Select<A, B>
     type Error = (A::Error, SelectNext<A, B>);
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
+            -> Option<Result<Self::Item, Self::Error>> {
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
                 match a.poll(tokens) {
@@ -57,7 +57,7 @@ impl<A, B> Future for Select<A, B>
                     }
                 }
             }
-            None => return Some(Err(util::reused())),
+            None => panic!("cannot poll select twice"),
         };
 
         let (a, b) = self.inner.take().unwrap();
@@ -65,7 +65,7 @@ impl<A, B> Future for Select<A, B>
         let next = SelectNext { inner: next };
         Some(match ret {
             Ok(a) => Ok((a, next)),
-            Err(e) => Err(e.map(move |e| (e, next))),
+            Err(e) => Err((e, next)),
         })
     }
 
@@ -97,7 +97,7 @@ impl<A, B> Future for SelectNext<A, B>
     type Error = A::Error;
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
+            -> Option<Result<Self::Item, Self::Error>> {
         match self.inner {
             OneOf::A(ref mut a) => a.poll(tokens),
             OneOf::B(ref mut b) => b.poll(tokens),

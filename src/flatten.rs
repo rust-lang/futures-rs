@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, IntoFuture, Wake, PollResult, Tokens};
+use {Future, IntoFuture, Wake, Tokens};
 use chain::Chain;
 
 /// Future for the `flatten` combinator, flattening a future-of-a-future to just
@@ -29,12 +29,10 @@ impl<A> Future for Flatten<A>
     type Error = <<A as Future>::Item as IntoFuture>::Error;
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
+            -> Option<Result<Self::Item, Self::Error>> {
         self.state.poll(tokens, |a, ()| {
-            match a {
-                Ok(item) => Ok(Err(item.into_future())),
-                Err(e) => Err(e.map(From::from)),
-            }
+            let future = try!(a).into_future();
+            Ok(Err(future))
         })
     }
 

@@ -1,7 +1,7 @@
 use std::marker;
 use std::sync::Arc;
 
-use {Future, PollResult, Wake, Tokens};
+use {Future, Wake, Tokens};
 use util;
 
 /// A future representing a finished successful computation.
@@ -40,8 +40,8 @@ impl<T, E> Future for Finished<T, E>
     type Error = E;
 
 
-    fn poll(&mut self, _: &Tokens) -> Option<PollResult<T, E>> {
-        Some(util::opt2poll(self.t.take()))
+    fn poll(&mut self, _: &Tokens) -> Option<Result<T, E>> {
+        Some(Ok(self.t.take().expect("cannot poll Finished twice")))
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {

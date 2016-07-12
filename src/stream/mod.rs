@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use {PollResult, Wake, Tokens, IntoFuture};
+use {Wake, Tokens, IntoFuture};
 
 mod channel;
 mod iter;
@@ -38,7 +38,7 @@ pub use self::then::Then;
 
 mod impls;
 
-pub type StreamResult<T, E> = PollResult<Option<T>, E>;
+pub type StreamResult<T, E> = Result<Option<T>, E>;
 
 pub trait Stream: Send + 'static {
     type Item: Send + 'static;

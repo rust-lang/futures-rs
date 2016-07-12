@@ -1,21 +1,18 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
 
-use {Future, Wake, PollResult, PollError, Tokens};
+use {Future, Wake, Tokens};
 use slot::{Slot, Token};
-use util;
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
 ///
 /// This is created by the `promise` function.
-pub struct Promise<T, E>
+pub struct Promise<T>
     where T: Send + 'static,
-          E: Send + 'static,
 {
-    inner: Arc<Inner<T, E>>,
+    inner: Arc<Inner<T>>,
     cancel_token: Option<Token>,
-    used: bool,
     token: usize,
 }
 
@@ -23,16 +20,15 @@ pub struct Promise<T, E>
 /// computation is signaled.
 ///
 /// This is created by the `promise` function.
-pub struct Complete<T, E>
+pub struct Complete<T>
     where T: Send + 'static,
-          E: Send + 'static,
 {
-    inner: Arc<Inner<T, E>>,
+    inner: Arc<Inner<T>>,
     completed: bool,
 }
 
-struct Inner<T, E> {
-    slot: Slot<Option<Result<T, E>>>,
+struct Inner<T> {
+    slot: Slot<Option<T>>,
     pending_wake: AtomicBool,
 }
 
@@ -54,17 +50,16 @@ struct Inner<T, E> {
 /// ```
 /// use futures::*;
 ///
-/// let (c, p) = promise::<i32, i32>();
+/// let (c, p) = promise::<i32>();
 ///
 /// p.map(|i| {
 ///     println!("got: {}", i);
 /// }).forget();
 ///
-/// c.finish(3);
+/// c.complete(3);
 /// ```
-pub fn promise<T, E>() -> (Complete<T, E>, Promise<T, E>)
+pub fn promise<T>() -> (Complete<T>, Promise<T>)
     where T: Send + 'static,
-          E: Send + 'static,
 {
     static COUNT: AtomicUsize = ATOMIC_USIZE_INIT;
 
@@ -75,7 +70,6 @@ pub fn promise<T, E>() -> (Complete<T, E>, Promise<T, E>)
     let promise = Promise {
         inner: inner.clone(),
         cancel_token: None,
-        used: false,
         token: COUNT.fetch_add(1, Ordering::SeqCst),
     };
     let complete = Complete {
@@ -85,31 +79,20 @@ pub fn promise<T, E>() -> (Complete<T, E>, Promise<T, E>)
     (complete, promise)
 }
 
-impl<T, E> Complete<T, E>
+impl<T> Complete<T>
     where T: Send + 'static,
-          E: Send + 'static,
 {
     /// Completes this promise with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the
     /// `Promise`, that the error provided is the result of the computation this
     /// represents.
-    pub fn finish(mut self, t: T) {
+    pub fn complete(mut self, t: T) {
         self.completed = true;
-        self.complete(Some(Ok(t)))
+        self.send(Some(t))
     }
 
-    /// Completes this promise with a failed result.
-    ///
-    /// This function will consume `self` and indicate to the other end, the
-    /// `Promise`, that the error provided is the result of the computation this
-    /// represents.
-    pub fn fail(mut self, e: E) {
-        self.completed = true;
-        self.complete(Some(Err(e)))
-    }
-
-    fn complete(&mut self, t: Option<Result<T, E>>) {
+    fn send(&mut self, t: Option<T>) {
         if let Err(e) = self.inner.slot.try_produce(t) {
             self.inner.slot.on_empty(|slot| {
                 slot.try_produce(e.into_inner()).ok()
@@ -119,43 +102,39 @@ impl<T, E> Complete<T, E>
     }
 }
 
-impl<T, E> Drop for Complete<T, E>
+impl<T> Drop for Complete<T>
     where T: Send + 'static,
-          E: Send + 'static,
 {
     fn drop(&mut self) {
         if !self.completed {
-            self.complete(None);
+            self.send(None);
         }
     }
 }
 
-struct Canceled;
+/// Error returned from a `Promise<T>` whenever the correponding `Complete<T>`
+/// is dropped.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Canceled;
 
-impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
+impl<T: Send + 'static> Future for Promise<T> {
     type Item = T;
-    type Error = E;
+    type Error = Canceled;
 
-    fn poll(&mut self, _: &Tokens) -> Option<PollResult<T, E>> {
+    fn poll(&mut self, _: &Tokens) -> Option<Result<T, Canceled>> {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             return None
         }
         let ret = match self.inner.slot.try_consume() {
-            Ok(Some(Ok(e))) => Ok(e),
-            Ok(Some(Err(e))) => Err(PollError::Other(e)),
-            Ok(None) => Err(PollError::Panicked(Box::new(Canceled))),
-            Err(_) if self.used => Err(util::reused()),
+            Ok(Some(e)) => Ok(e),
+            Ok(None) => Err(Canceled),
             Err(_) => return None,
         };
-        self.used = true;
         Some(ret)
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
         let tokens = Tokens::from_usize(self.token);
-        if self.used {
-            return util::done(wake)
-        }
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             if let Some(cancel_token) = self.cancel_token.take() {
                 self.inner.slot.cancel(cancel_token);
@@ -170,9 +149,8 @@ impl<T: Send + 'static, E: Send + 'static> Future for Promise<T, E> {
     }
 }
 
-impl<T, E> Drop for Promise<T, E>
+impl<T> Drop for Promise<T>
     where T: Send + 'static,
-          E: Send + 'static,
 {
     fn drop(&mut self) {
         if let Some(cancel_token) = self.cancel_token.take() {

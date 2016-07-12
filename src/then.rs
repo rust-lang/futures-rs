@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use {Future, IntoFuture, PollError, Wake, PollResult, Tokens};
-use util;
+use {Future, IntoFuture, Wake, Tokens};
 use chain::Chain;
 
 /// Future for the `then` combinator, chaining computations on the end of
@@ -31,14 +30,9 @@ impl<A, B, F> Future for Then<A, B, F>
     type Error = B::Error;
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<B::Item, B::Error>> {
+            -> Option<Result<B::Item, B::Error>> {
         self.state.poll(tokens, |a, f| {
-            let ret = match a {
-                Ok(e) => util::recover(|| f(Ok(e))),
-                Err(PollError::Other(e)) => util::recover(|| f(Err(e))),
-                Err(PollError::Panicked(e)) => Err(PollError::Panicked(e)),
-            };
-            ret.map(|b| Err(b.into_future()))
+            Ok(Err(f(a).into_future()))
         })
     }
 

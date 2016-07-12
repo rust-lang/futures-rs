@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use {Tokens, Wake, Future, PollResult};
+use {Tokens, Wake, Future};
 use stream::Stream;
-use util;
 
 pub struct StreamFuture<S> {
     stream: Option<S>,
@@ -17,7 +16,7 @@ impl<S: Stream> Future for StreamFuture<S> {
     type Error = S::Error;
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
+            -> Option<Result<Self::Item, Self::Error>> {
         let item = match self.stream {
             Some(ref mut s) => {
                 match s.poll(tokens) {
@@ -26,7 +25,7 @@ impl<S: Stream> Future for StreamFuture<S> {
                     None => return None,
                 }
             }
-            None => return Some(Err(util::reused())),
+            None => panic!("cannot poll StreamFuture twice"),
         };
 
         Some(Ok((item, self.stream.take().unwrap())))

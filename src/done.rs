@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use util;
-use {PollResult, Future, PollError, Wake, Tokens};
+use {Future, Wake, Tokens};
 
 /// A future representing a value that is immediately ready.
 ///
@@ -38,10 +38,8 @@ impl<T, E> Future for Done<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _tokens: &Tokens) -> Option<PollResult<T, E>> {
-        Some(util::opt2poll(self.inner.take()).and_then(|r| {
-            r.map_err(PollError::Other)
-        }))
+    fn poll(&mut self, _tokens: &Tokens) -> Option<Result<T, E>> {
+        Some(self.inner.take().expect("cannot poll Done twice"))
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {

@@ -41,7 +41,7 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Error = F::Error;
 
     fn poll(&mut self, tokens: &Tokens)
-            -> Option<PollResult<Self::Item, Self::Error>> {
+            -> Option<Result<Self::Item, Self::Error>> {
         self.future.poll(tokens)
     }
 
@@ -56,7 +56,7 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
 
 #[test]
 fn and_then_drops_eagerly() {
-    let (c, p) = promise::<(), ()>();
+    let (c, p) = promise::<()>();
     let (tx, rx) = channel::<()>();
     let (tx2, rx2) = channel();
     FutureData { _data: tx, future: p }.and_then(move |_| {
@@ -65,7 +65,7 @@ fn and_then_drops_eagerly() {
         finished(1)
     }).forget();
     assert!(rx2.try_recv().is_err());
-    c.finish(());
+    c.complete(());
     rx2.recv().unwrap();
 }
 
