@@ -144,24 +144,24 @@ pub trait Future: Send + 'static {
     ///
     /// This function returns `None` if the future is not ready yet, or `Some`
     /// with the result of this future if it's ready. Once a future has returned
-    /// `Some` it is considered an error to continue polling it. Many futures
-    /// will return `Some` with a result that indicates a panic if this happens,
-    /// but that is not always the case.
+    /// `Some` it is considered a contract error to continue polling it.
     ///
     /// # Panics
     ///
-    /// It is recommended that implementations of this method **avoid panics**.
-    /// Combinators and consumers of this method will not properly report panics
-    /// if this method itself panics.
+    /// Once a future has completed (returned `Some` from `poll`), then any
+    /// future calls to `poll` may panic, block forever, or otherwise cause
+    /// wrong behavior. The `Future` trait itself provides no guarantees about
+    /// the behavior of `poll` after `Some` has been returned at least once.
+    ///
+    /// Callers who may call `poll` too many times may want to consider using
+    /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
+    /// a little bit of extra cost.
     ///
     /// # Errors
     ///
-    /// If `Some` is returned, then a `Result<Item, Error>` is returned.
-    /// This is just a typedef around `Result<Item, PollError<Error>>` which
-    /// encapsulates that a future can currently fail execution for two reasons.
-    /// First a future may fail legitimately (return a normal error), but it may
-    /// also panic. Both of thse results are communicated through the `Err`
-    /// portion of this result.
+    /// If `Some` is returned, then a `Result<Item, Error>` is returned. This
+    /// future may have failed to finish the computation, in which case the
+    /// `Err` variant will be returned with an appropriate payload of an error.
     fn poll(&mut self, tokens: &Tokens)
             -> Option<Result<Self::Item, Self::Error>>;
 
@@ -199,6 +199,18 @@ pub trait Future: Send + 'static {
     /// If this function is called twice, it may be the case that the previous
     /// callback is never invoked. It is recommended that this function is
     /// called with the same callback for the entire lifetime of this future.
+    ///
+    /// # Panics
+    ///
+    /// Once a future has returned `Some` (it's been completed) then future
+    /// calls to either `poll` or this function, `schedule`, should not be
+    /// expected to behave well. A call to `schedule` after a poll has succeeded
+    /// may panic, block forever, or otherwise exhibit odd behavior.
+    ///
+    /// Callers who may call `schedule` after a future is finished may want to
+    /// consider using the `fuse` adaptor which defines the behavior of
+    /// `schedule` after a successful poll, but comes with a little bit of
+    /// extra cost.
     fn schedule(&mut self, wake: Arc<Wake>);
 
     /// Perform tail-call optimization on this future.
@@ -217,6 +229,9 @@ pub trait Future: Send + 'static {
     /// same value that this future *would* have been had this method not been
     /// called. Essentially, if `Some` is returned, then this future can be
     /// forgotten and instead the returned value is used.
+    ///
+    /// Note that this is a default method which returns `None`, but any future
+    /// adaptor should implement it to flatten the underlying future, if any.
     fn tailcall(&mut self)
                 -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         None
