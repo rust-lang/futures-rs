@@ -12,6 +12,10 @@ use futures::stream::Stream;
 mod readiness_stream;
 mod event_loop;
 mod tcp;
+#[path = "../../src/slot.rs"]
+mod slot;
+#[path = "../../src/lock.rs"]
+mod lock;
 
 pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
 pub type IoStream<T> = Stream<Item=T, Error=io::Error>;
