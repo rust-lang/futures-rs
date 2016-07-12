@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::sync::mpsc;
 
 use mio;
+use mio::channel::SendError;
 use slab::Slab;
 use futures::{Future, Tokens, Wake};
 
@@ -262,11 +263,22 @@ impl LoopHandle {
                     lp.notify(msg);
                 }
                 None => {
-                    // TODO: handle failure
-                    self.tx
-                        .send(msg)
-                        .map_err(|_| ())
-                        .expect("failed to send register message")
+                    match self.tx.send(msg) {
+                        Ok(()) => {}
+
+                        // This should only happen when there was an error
+                        // writing to the pipe to wake up the event loop,
+                        // hopefully that never happens
+                        Err(SendError::Io(e)) => {
+                            panic!("error sending message to event loop: {}", e)
+                        }
+
+                        // If we're still sending a message to the event loop
+                        // after it's closed, then that's bad!
+                        Err(SendError::Disconnected(_)) => {
+                            panic!("event loop is no longer available")
+                        }
+                    }
                 }
             }
         })
@@ -299,6 +311,12 @@ impl LoopHandle {
     ///
     /// This token is then passed in turn to each of the methods below to
     /// interact with notifications on the I/O object itself.
+    ///
+    /// # Panics
+    ///
+    /// The returned future will panic if the event loop this handle is
+    /// associated with has gone away, or if there is an error communicating
+    /// with the event loop.
     pub fn add_source(&self, source: Source) -> AddSource {
         AddSource {
             loop_handle: self.clone(),
@@ -322,6 +340,12 @@ impl LoopHandle {
     /// invoked. Note that one the `wake` callback is invoked once it will not
     /// be invoked again, it must be re-`schedule`d to continue receiving
     /// notifications.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the event loop this handle is associated
+    /// with has gone away, or if there is an error communicating with the event
+    /// loop.
     pub fn schedule(&self, tok: usize, dir: Direction, wake: Arc<Wake>) {
         self.send(Message::Schedule(tok, dir, wake));
     }
@@ -332,6 +356,12 @@ impl LoopHandle {
     /// unregistered from the event loop with this method. This method does not
     /// guarantee that the callback will not be invoked if it hasn't already,
     /// but a best effort will be made to ensure it is not called.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the event loop this handle is associated
+    /// with has gone away, or if there is an error communicating with the event
+    /// loop.
     pub fn deschedule(&self, tok: usize, dir: Direction) {
         self.send(Message::Deschedule(tok, dir));
     }
@@ -349,6 +379,12 @@ impl LoopHandle {
     /// reach the event loop. Despite this fact, this method will attempt to
     /// ensure that the callbacks are **not** invoked, so pending scheduled
     /// callbacks cannot be relied upon to get called.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the event loop this handle is associated
+    /// with has gone away, or if there is an error communicating with the event
+    /// loop.
     pub fn drop_source(&self, tok: usize) {
         self.send(Message::DropSource(tok));
     }
