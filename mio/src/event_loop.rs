@@ -25,6 +25,11 @@ pub struct Loop {
     dispatch: RefCell<Slab<Scheduled, usize>>,
 }
 
+/// Handle to an event loop, used to construct I/O objects, send messages, and
+/// otherwise interact indirectly with the event loop itself.
+///
+/// Handles can be cloned, and when cloned they will still refer to the
+/// same underlying event loop.
 #[derive(Clone)]
 pub struct LoopHandle {
     id: usize,
@@ -265,6 +270,17 @@ impl LoopHandle {
         }
     }
 
+    /// Add a new source to an event loop, returning a future which will resolve
+    /// to the token that can be used to identify this source.
+    ///
+    /// When a new I/O object is created it needs to be communicated to the
+    /// event loop to ensure that it's registered and ready to receive
+    /// notifications. The event loop with then respond with a unique token that
+    /// this handle can be identified with (the resolved value of the returned
+    /// future).
+    ///
+    /// This token is then passed in turn to each of the methods below to
+    /// interact with notifications on the I/O object itself.
     pub fn add_source(&self, source: Source) -> AddSource {
         AddSource {
             loop_handle: self.clone(),
@@ -278,16 +294,46 @@ impl LoopHandle {
         self.send(Message::AddSource(source, id, wake));
     }
 
-    pub fn drop_source(&self, tok: usize) {
-        self.send(Message::DropSource(tok));
-    }
-
-    pub fn schedule(&self, tok: usize, dir: Direction, wake: Waiter) {
+    /// Begin listening for events on an event loop.
+    ///
+    /// Once an I/O object has been registered with the event loop through the
+    /// `add_source` method, this method can be used with the assigned token to
+    /// begin awaiting notifications.
+    ///
+    /// The `dir` argument indicates how the I/O object is expected to be
+    /// awaited on (either readable or writable) and the `wake` callback will be
+    /// invoked. Note that one the `wake` callback is invoked once it will not
+    /// be invoked again, it must be re-`schedule`d to continue receiving
+    /// notifications.
+    pub fn schedule(&self, tok: usize, dir: Direction, wake: Arc<Wake>) {
         self.send(Message::Schedule(tok, dir, wake));
     }
 
+    /// Stop listening for events on an event loop.
+    ///
+    /// Once a callback has been scheduled with the `schedule` method, it can be
+    /// unregistered from the event loop with this method. This method does not
+    /// guarantee that the callback will not be invoked if it hasn't already,
+    /// but a best effort will be made to ensure it is not called.
     pub fn deschedule(&self, tok: usize, dir: Direction) {
         self.send(Message::Deschedule(tok, dir));
+    }
+
+    /// Unregister all information associated with a token on an event loop,
+    /// deallocating all internal resources assigned to the given token.
+    ///
+    /// This method should be called whenever a source of events is being
+    /// destroyed. This will ensure that the event loop can reuse `tok` for
+    /// another I/O object if necessary and also remove it from any poll
+    /// notifications and callbacks.
+    ///
+    /// Note that wake callbacks may still be invoked after this method is
+    /// called as it may take some time for the message to drop a source to
+    /// reach the event loop. Despite this fact, this method will attempt to
+    /// ensure that the callbacks are **not** invoked, so pending scheduled
+    /// callbacks cannot be relied upon to get called.
+    pub fn drop_source(&self, tok: usize) {
+        self.send(Message::DropSource(tok));
     }
 
     pub fn shutdown(&self) {
@@ -297,6 +343,10 @@ impl LoopHandle {
 
 const ADD_SOURCE_TOKEN: usize = 0;
 
+/// A future which will resolve a unique `tok` token for an I/O object.
+///
+/// Created through the `LoopHandle::add_source` method, this future can also
+/// resolve to an error if there's an issue communicating with the event loop.
 pub struct AddSource {
     loop_handle: LoopHandle,
     source: Option<Source>,
