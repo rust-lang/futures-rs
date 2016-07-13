@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use time;
+
 use io2::Serialize;
 
 pub struct Response {
@@ -27,15 +29,23 @@ impl Response {
 }
 
 impl Serialize for Response {
-    #[allow(unused_must_use)]
     fn serialize(&self, buf: &mut Vec<u8>) {
-        write!(buf, "HTTP/1.1 200 OK\r\n");
+        buf.extend_from_slice(b"\
+            HTTP/1.1 200 OK\r\n\
+            Server: Example\r\n\
+        ");
 
+        write!(buf, "\
+            Content-Length: {}\r\n\
+            Date: {}\r\n\
+        ", self.response.len(), time::now().rfc822()).unwrap();
         for &(ref k, ref v) in &self.headers {
-            write!(buf, "{}: {}\r\n", k, v);
+            buf.extend_from_slice(k.as_bytes());
+            buf.extend_from_slice(b": ");
+            buf.extend_from_slice(v.as_bytes());
+            buf.extend_from_slice(b"\r\n");
         }
-
-        write!(buf, "\r\n");
-        write!(buf, "{}", self.response);
+        buf.extend_from_slice(b"\r\n");
+        buf.extend_from_slice(self.response.as_bytes());
     }
 }

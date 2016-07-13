@@ -16,10 +16,7 @@ fn main() {
     http::serve(&addr, |_r: http::Request| {
         let mut r = Response::new();
         r.header("Content-Type", "text/plain")
-         .header("Content-Lenth", "15")
-         .header("Server", "wut")
-         .header("Date", &time::now().rfc822().to_string())
-         .body("Hello, World!");
+         .body("Hello, World!\r\n");
         finished::<_, std::io::Error>(r).boxed()
     }).unwrap()
 }

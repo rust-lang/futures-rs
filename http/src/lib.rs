@@ -1,6 +1,7 @@
 extern crate futuremio;
 extern crate futures;
 extern crate httparse;
+extern crate time;
 #[macro_use]
 extern crate log;
 
