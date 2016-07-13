@@ -210,8 +210,10 @@ impl<W, S> Future for StreamWriter<W, S>
     type Error = S::Error;
 
     fn poll(&mut self, tokens: &Tokens) -> Option<Result<(), S::Error>> {
+        // make sure to pass down `tokens` only on the *first* poll for items
+        let mut tokens_for_items = Some(tokens);
         loop {
-            match self.items.poll(tokens) {
+            match self.items.poll(tokens_for_items.take().unwrap_or(&Tokens::all())) {
                 Some(Err(e)) => return Some(Err(e)),
                 Some(Ok(Some(item))) => item.serialize(&mut self.buf),
                 _ => break,
