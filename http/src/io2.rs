@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 use std::sync::Arc;
 
-use futures::{Future, Wake, Tokens};
+use futures::{Future, Wake, Tokens, ALL_TOKENS};
 use futures::stream::{Stream, StreamResult, Fuse};
 use futuremio::*;
 
@@ -226,13 +226,14 @@ impl<W, S> Future for StreamWriter<W, S>
 
     fn poll(&mut self, tokens: &Tokens) -> Option<Result<(), S::Error>> {
         // make sure to pass down `tokens` only on the *first* poll for items
-        let mut tokens_for_items = Some(tokens);
+        let mut tokens_for_items = tokens;
         loop {
-            match self.items.poll(tokens_for_items.take().unwrap_or(&Tokens::all())) {
+            match self.items.poll(tokens_for_items) {
                 Some(Err(e)) => return Some(Err(e)),
                 Some(Ok(Some(item))) => {
                     debug!("got an item to serialize!");
-                    item.serialize(&mut self.buf)
+                    item.serialize(&mut self.buf);
+                    tokens_for_items = &ALL_TOKENS;
                 }
                 Some(Ok(None)) |
                 None => break,
