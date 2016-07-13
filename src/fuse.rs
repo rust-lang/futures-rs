@@ -9,14 +9,12 @@ use {Future, Wake, Tokens};
 /// after it has succeeded, and after it has succeeded all future calls to
 /// `schedule` will be ignored.
 pub struct Fuse<A> {
-    future: A,
-    done: bool,
+    future: Option<A>,
 }
 
 pub fn new<A: Future>(f: A) -> Fuse<A> {
     Fuse {
-        future: f,
-        done: false,
+        future: Some(f),
     }
 }
 
@@ -25,18 +23,16 @@ impl<A: Future> Future for Fuse<A> {
     type Error = A::Error;
 
     fn poll(&mut self, tokens: &Tokens) -> Option<Result<A::Item, A::Error>> {
-        if self.done {
-            None
-        } else {
-            let res = self.future.poll(tokens);
-            self.done = res.is_some();
-            return res
+        let ret = self.future.as_mut().and_then(|f| f.poll(tokens));
+        if ret.is_some() {
+            self.future = None;
         }
+        return ret
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
-        if !self.done {
-            self.future.schedule(wake);
+        if let Some(ref mut f) = self.future {
+            f.schedule(wake);
         }
     }
 }
