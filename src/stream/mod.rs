@@ -16,6 +16,7 @@ mod filter_map;
 mod flat_map;
 mod fold;
 mod for_each;
+mod fuse;
 mod future;
 mod map;
 mod map_err;
@@ -29,6 +30,7 @@ pub use self::filter_map::FilterMap;
 pub use self::flat_map::FlatMap;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
+pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
@@ -200,5 +202,23 @@ pub trait Stream: Send + 'static {
               Self: Sized,
     {
         for_each::new(self, f)
+    }
+
+    /// Fuse a stream such that `poll`/`schedule` will never again be called
+    /// once it has terminated (signaled emptyness or an error).
+    ///
+    /// Currently once a stream has returned `Some(Ok(None))` from `poll` any further
+    /// calls could exhibit bad behavior such as block forever, panic, never
+    /// return, etc. If it is known that `poll` may be called too often then
+    /// this method can be used to ensure that it has defined semantics.
+    ///
+    /// Once a stream has been `fuse`d and it terminates, then
+    /// it will forever return `None` from `poll` again (never resolve). This,
+    /// unlike the trait's `poll` method, is guaranteed.
+    ///
+    /// Additionally, once a stream has completed, this `Fuse` combinator will
+    /// never call `schedule` on the underlying stream.
+    fn fuse(self) -> Fuse<Self> where Self: Sized {
+        fuse::new(self)
     }
 }
