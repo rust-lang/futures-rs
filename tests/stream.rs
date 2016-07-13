@@ -1,7 +1,7 @@
 extern crate support;
 extern crate futures;
 
-use futures::{failed, finished, Future};
+use futures::{failed, finished, Future, promise};
 use futures::stream::*;
 use support::*;
 
@@ -192,3 +192,40 @@ fn adapters() {
 //     assert_eq!(rx.collect(), Ok(vec![2, 4, 3, 1]));
 //     t.join().unwrap();
 // }
+
+#[test]
+fn buffered() {
+    let (tx, rx) = channel::<_, u32>();
+    let (a, b) = promise::<u32>();
+    let (c, d) = promise::<u32>();
+
+    tx.send(Ok(b.map_err(|_| 2).boxed()))
+      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+      .forget();
+
+    let mut rx = rx.buffered(2);
+    sassert_empty(&mut rx);
+    c.complete(3);
+    sassert_next(&mut rx, 3);
+    sassert_empty(&mut rx);
+    a.complete(5);
+    sassert_next(&mut rx, 5);
+    sassert_done(&mut rx);
+
+    let (tx, rx) = channel::<_, u32>();
+    let (a, b) = promise::<u32>();
+    let (c, d) = promise::<u32>();
+
+    tx.send(Ok(b.map_err(|_| 2).boxed()))
+      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+      .forget();
+
+    let mut rx = rx.buffered(1);
+    sassert_empty(&mut rx);
+    c.complete(3);
+    sassert_empty(&mut rx);
+    a.complete(5);
+    sassert_next(&mut rx, 5);
+    sassert_next(&mut rx, 3);
+    sassert_done(&mut rx);
+}

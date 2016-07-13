@@ -21,6 +21,7 @@ pub use self::channel::{channel, Sender, Receiver};
 pub use self::iter::{iter, IterStream};
 
 mod and_then;
+mod buffered;
 mod collect;
 mod filter;
 mod filter_map;
@@ -35,6 +36,7 @@ mod or_else;
 mod skip_while;
 mod then;
 pub use self::and_then::AndThen;
+pub use self::buffered::Buffered;
 pub use self::collect::Collect;
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -580,5 +582,22 @@ pub trait Stream: Send + 'static {
     /// never call `schedule` on the underlying stream.
     fn fuse(self) -> Fuse<Self> where Self: Sized {
         fuse::new(self)
+    }
+
+    /// An adaptor for creating a buffered list of pending futures.
+    ///
+    /// If this stream's item can be converted into a future, then this adaptor
+    /// will buffer up to `amt` futures and then return results in the order
+    /// that the futures are completed. No more than `amt` futures will be
+    /// buffered at any point in time, and less than `amt` may also be buffered
+    /// depending on the state of each future.
+    ///
+    /// The returned stream will be a stream of each future's result, with
+    /// errors passed through whenever they occur.
+    fn buffered(self, amt: usize) -> Buffered<Self>
+        where Self::Item: IntoFuture<Error=<Self as Stream>::Error>,
+              Self: Sized,
+    {
+        buffered::new(self, amt)
     }
 }
