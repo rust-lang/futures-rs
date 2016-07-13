@@ -13,7 +13,8 @@ fn main() {
     env_logger::init().unwrap();
     let addr = env::args().nth(1).unwrap_or("127.0.0.1:8080".to_string());
     let addr = addr.parse::<SocketAddr>().unwrap();
-    http::serve(&addr, |_r: http::Request| {
+    http::serve(&addr, |r: http::Request| {
+        assert_eq!(r.path(), "/plaintext");
         let mut r = Response::new();
         r.header("Content-Type", "text/plain")
          .body("Hello, World!\r\n");

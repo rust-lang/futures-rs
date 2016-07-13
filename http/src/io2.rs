@@ -1,5 +1,6 @@
-use std::sync::Arc;
 use std::io::{self, Read, Write};
+use std::mem;
+use std::sync::Arc;
 
 use futures::{Future, Wake, Tokens};
 use futures::stream::{Stream, StreamResult, Fuse};
@@ -9,7 +10,10 @@ pub trait Parse: Sized + Send + 'static {
     type Parser: Default + Send + 'static;
     type Error: Send + 'static + From<io::Error>;
 
-    fn parse(parser: &mut Self::Parser, buf: &[u8]) -> Option<Result<(Self, usize), Self::Error>>;
+    fn parse(parser: &mut Self::Parser,
+             buf: &Arc<Vec<u8>>,
+             offset: usize)
+             -> Option<Result<(Self, usize), Self::Error>>;
 }
 
 /// A stream for parsing from an underlying reader, using an unbounded internal
@@ -19,6 +23,7 @@ pub struct ParseStream<R, P: Parse> {
     source_ready: ReadinessStream,
     parser: P::Parser,
     buf: Vec<u8>,
+    last_buf: Option<Arc<Vec<u8>>>,
 
     // how far into the buffer have we parsed? note: we drain lazily
     pos: usize,
@@ -40,6 +45,7 @@ impl<R, P> ParseStream<R, P>
             source_ready: source_ready,
             parser: Default::default(),
             buf: Vec::with_capacity(2048),
+            last_buf: None,
             pos: 0,
             need_parse: false,
             eof: false,
@@ -57,8 +63,8 @@ fn read<R: Read>(socket: &mut R, input: &mut Vec<u8>) -> io::Result<(usize, bool
             }
             Ok(n) => {
                 trace!("socket read {} bytes", n);
-                let len = input.len();
                 unsafe {
+                    let len = input.len();
                     input.set_len(len + n);
                 }
                 return Ok((n, false));
@@ -81,13 +87,6 @@ fn read<R: Read>(socket: &mut R, input: &mut Vec<u8>) -> io::Result<(usize, bool
     }
 }
 
-impl<R, P: Parse> ParseStream<R, P> {
-    fn drain(&mut self) {
-        self.buf.drain(..self.pos);
-        self.pos = 0;
-    }
-}
-
 impl<R, P> Stream for ParseStream<R, P>
     where R: Read + Send + 'static,
           P: Parse
@@ -96,48 +95,59 @@ impl<R, P> Stream for ParseStream<R, P>
     type Error = P::Error;
 
     fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<P, P::Error>> {
-        if !self.eof {
+        loop {
+            if let Some(mut data) = self.last_buf.take() {
+                assert!(self.buf.len() == 0);
+                debug!("attempting to parse");
+                match P::parse(&mut self.parser, &data, self.pos) {
+                    Some(Ok((i, n))) => {
+                        self.pos += n;
+                        self.last_buf = Some(data);
+                        return Some(Ok(Some(i)))
+                    }
+                    Some(Err(e)) => return Some(Err(e)),
+                    None => {}
+                }
+
+                // If we didn't even get an entire request then try to keep the
+                // same buffer and avoid reallocating a bunch.
+                let mut swapped = false;
+                if self.pos == 0 {
+                    if let Some(ptr) = Arc::get_mut(&mut data) {
+                        mem::swap(&mut *ptr, &mut self.buf);
+                        swapped = true;
+                    }
+                }
+
+                // If the offset is > 0 or the arc is referenced elsewhere
+                // though then just take the data and put it on the beginning of
+                // the buffer
+                if !swapped {
+                    self.buf.extend_from_slice(&data[self.pos..]);
+                    self.pos = 0;
+                }
+            }
+
+            if self.eof {
+                return Some(Ok(None))
+            }
+
             match self.source_ready.poll(tokens) {
                 // TODO: consider refactoring `poll` API to make this more
                 //       readable...
-                None => {}
+                None => return None,
                 Some(Err(e)) => return Some(Err(e.into())),
                 Some(Ok(Some(()))) => {
-                    // drain any stale contents, to make as much space as we can
-                    // before reading
-                    self.drain();
-
                     match read(&mut self.source, &mut self.buf) {
-                        Ok((n, eof)) => {
-                            self.eof = eof;
-                            if n > 0 {
-                                self.need_parse = true
-                            }
-                        }
+                        Ok((_n, eof)) => self.eof = eof,
                         Err(e) => return Some(Err(e.into())),
                     }
+                    assert!(self.last_buf.is_none());
+                    let buf = mem::replace(&mut self.buf, Vec::with_capacity(2048));
+                    self.last_buf = Some(Arc::new(buf));
                 }
                 _ => unreachable!(),
             }
-        }
-
-        if self.need_parse {
-            debug!("attempting to parse");
-            if let Some(res) = P::parse(&mut self.parser, &self.buf[self.pos..]) {
-                return Some(res.map(|(i, n)| {
-                    self.pos += n;
-                    Some(i)
-                }))
-            }
-
-            // don't try to parse again until we've seen more bytes
-            self.need_parse = false;
-        }
-
-        if self.eof {
-            Some(Ok(None))
-        } else {
-            None
         }
     }
 
