@@ -23,7 +23,7 @@ pub fn new<S>(s: S, amt: usize) -> Buffered<S>
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
 {
     Buffered {
-        stream: s.fuse(),
+        stream: super::fuse::new(s),
         futures: (0..amt).map(|_| None).collect(),
     }
 }

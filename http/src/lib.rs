@@ -57,8 +57,9 @@ pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S)
         .and_then(move |listener| {
             listener.incoming().map(move |(stream, _)| {
                 handle(stream, service.clone())
-            }).map_err(From::from).buffered(8).for_each(|()| Ok(()))
-        });
+            }).boxed().map_err(From::from).buffered(8).for_each(|()| Ok(()))
+        })
+    .boxed();
     lp.run(listen)
 }
 
@@ -75,7 +76,7 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
 
     let input = ParseStream::new(read, stream.ready_read)
         .map_err(From::from);
-    let responses = input.and_then(move |req| service.process(req));
+    let responses = input.boxed().and_then(move |req| service.process(req)).boxed();
     let output = StreamWriter::new(write, stream.ready_write, responses);
 
     output.boxed()
