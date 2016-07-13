@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use futures::Future;
 use futures::stream::Stream;
-use futuremio::{Loop, TcpListener, TcpStream};
+use futuremio::{Loop, TcpStream};
 
 mod request;
 pub use self::request::{Request, RequestHeaders};
@@ -19,7 +19,6 @@ pub use self::response::Response;
 mod io2;
 pub use io2::{Parse, Serialize};
 use io2::{ParseStream, StreamWriter};
-// mod atomic;
 
 pub trait Service<Req, Resp>: Send + Sync + 'static
     where Req: Send + 'static,
@@ -43,7 +42,8 @@ impl<Req, Resp, Fut, F> Service<Req, Resp> for F
     }
 }
 
-pub fn serve<Err, Req, Resp, S>(addr: &SocketAddr, s: S)
+pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S)
+                           -> Result<(), <S::Fut as Future>::Error>
     where Req: Parse,
           Resp: Serialize,
           S: Service<Req, Resp>,
@@ -53,16 +53,17 @@ pub fn serve<Err, Req, Resp, S>(addr: &SocketAddr, s: S)
     let lp = Loop::new().unwrap();
 
     let listen = lp.handle().tcp_listen(addr)
+        .map_err(From::from)
         .and_then(move |listener| {
-            listener.incoming().for_each(move |(stream, _)| {
-                handle(stream, service.clone());
-                Ok(()) // TODO: some kind of error handling
-            })
+            listener.incoming().map(move |(stream, _)| {
+                handle(stream, service.clone())
+            }).map_err(From::from).buffered(8).for_each(|()| Ok(()))
         });
-    lp.run(listen);
+    lp.run(listen)
 }
 
 fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
+                        -> Box<Future<Item=(), Error=<S::Fut as Future>::Error>>
     where Req: Parse,
           Resp: Serialize,
           S: Service<Req, Resp>,
@@ -74,13 +75,10 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
 
     let input = ParseStream::new(read, stream.ready_read)
         .map_err(From::from);
-    // TODO: the `and_then` here sequentializes receiving/parsing requests and
-    // processing them. We want a general combiantor that let's them proceed
-    // concurrently, probably up to some fixed concurrency amount.
     let responses = input.and_then(move |req| service.process(req));
     let output = StreamWriter::new(write, stream.ready_write, responses);
 
-    output.forget()
+    output.boxed()
 }
 
 // TODO: clean this up

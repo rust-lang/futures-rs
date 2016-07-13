@@ -27,6 +27,7 @@ impl Response {
 }
 
 impl Serialize for Response {
+    #[allow(unused_must_use)]
     fn serialize(&self, buf: &mut Vec<u8>) {
         write!(buf, "HTTP/1.1 200 OK\r\n");
 
