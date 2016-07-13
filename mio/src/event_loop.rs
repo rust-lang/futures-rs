@@ -189,11 +189,17 @@ impl Loop {
                     }
 
                     CURRENT_LOOP.set(&self, || {
-                        if let Some(reader_wake) = reader.take() {
-                            reader_wake.wake(&Tokens::from_usize(token));
-                        }
-                        if let Some(writer_wake) = writer.take() {
-                            writer_wake.wake(&Tokens::from_usize(token));
+                        let tokens = Tokens::from_usize(token);
+                        match (reader, writer) {
+                            (Some(r), Some(w)) => {
+                                r.wake(&tokens);
+                                if &*r as *const Wake != &*w as *const Wake {
+                                    w.wake(&tokens);
+                                }
+                            }
+                            (Some(r), None) => r.wake(&tokens),
+                            (None, Some(w)) => w.wake(&tokens),
+                            (None, None) => {}
                         }
                     });
 
