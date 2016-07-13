@@ -56,6 +56,12 @@ struct Scheduled {
     source: Source,
     reader: Option<Arc<Wake>>,
     writer: Option<Arc<Wake>>,
+
+    // boolean flag indicating if callbacks are currently being run for this
+    // `Scheduled` source. If they're running then there's no need to call
+    // `reregister` if we hit the event loop again because we're going to do so
+    // anyway at the end of the callbacks being run anyway.
+    running_callbacks: bool,
 }
 
 impl Scheduled {
@@ -97,6 +103,7 @@ fn register(poll: &mut mio::Poll,
 
 fn reregister(poll: &mut mio::Poll, token: usize, sched: &Scheduled) {
     // TODO: handle error
+    assert!(!sched.running_callbacks);
     poll.reregister(&*sched.source,
                     mio::Token(token),
                     sched.event_set(),
@@ -186,6 +193,9 @@ impl Loop {
                         if event.kind().is_writable() {
                             writer = sched.writer.take();
                         }
+
+                        assert!(!sched.running_callbacks);
+                        sched.running_callbacks = true;
                     }
 
                     CURRENT_LOOP.set(&self, || {
@@ -208,7 +218,9 @@ impl Loop {
                     // only one side fired.
                     //
                     // TODO: optimize this
-                    if let Some(sched) = self.dispatch.borrow().get(token) {
+                    if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
+                        assert!(sched.running_callbacks);
+                        sched.running_callbacks = false;
                         reregister(&mut self.io.borrow_mut(), token, &sched);
                     }
                 }
@@ -223,6 +235,7 @@ impl Loop {
             source: source,
             reader: None,
             writer: None,
+            running_callbacks: false,
         };
         let mut dispatch = self.dispatch.borrow_mut();
         if dispatch.vacant_entry().is_none() {
@@ -243,14 +256,18 @@ impl Loop {
         let mut dispatch = self.dispatch.borrow_mut();
         let sched = dispatch.get_mut(token).unwrap();
         *sched.waiter_for(dir) = Some(wake);
-        reregister(&mut self.io.borrow_mut(), token, sched);
+        if !sched.running_callbacks {
+            reregister(&mut self.io.borrow_mut(), token, sched);
+        }
     }
 
     fn deschedule(&self, token: usize, dir: Direction) {
         let mut dispatch = self.dispatch.borrow_mut();
         let sched = dispatch.get_mut(token).unwrap();
         *sched.waiter_for(dir) = None;
-        reregister(&mut self.io.borrow_mut(), token, sched);
+        if !sched.running_callbacks {
+            reregister(&mut self.io.borrow_mut(), token, sched);
+        }
     }
 
     fn consume_queue(&self) {
