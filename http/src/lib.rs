@@ -42,8 +42,7 @@ impl<Req, Resp, Fut, F> Service<Req, Resp> for F
     }
 }
 
-pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S)
-                           -> Result<(), <S::Fut as Future>::Error>
+pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S) -> io::Result<()>
     where Req: Parse,
           Resp: Serialize,
           S: Service<Req, Resp>,
@@ -55,16 +54,16 @@ pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S)
     let listen = lp.handle().tcp_listen(addr)
         .map_err(From::from)
         .and_then(move |listener| {
-            listener.incoming().map(move |(stream, _)| {
-                handle(stream, service.clone())
-            }).boxed().map_err(From::from).buffered(8).for_each(|()| Ok(()))
+            listener.incoming().for_each(move |(stream, _)| {
+                handle(stream, service.clone());
+                Ok(()) // TODO: some kind of error handling
+            })
         })
-    .boxed();
+        .boxed();
     lp.run(listen)
 }
 
 fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
-                        -> Box<Future<Item=(), Error=<S::Fut as Future>::Error>>
     where Req: Parse,
           Resp: Serialize,
           S: Service<Req, Resp>,
@@ -79,7 +78,9 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
     let responses = input.boxed().and_then(move |req| service.process(req)).boxed();
     let output = StreamWriter::new(write, stream.ready_write, responses);
 
-    output.boxed()
+    // Crucially use `.forget()` here instead of returning the future, allows
+    // processing multiple separate connections concurrently.
+    output.forget()
 }
 
 // TODO: clean this up
