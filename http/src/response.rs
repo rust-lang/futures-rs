@@ -30,12 +30,9 @@ impl Response {
 
 impl Serialize for Response {
     fn serialize(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(b"\
+        write!(buf, "\
             HTTP/1.1 200 OK\r\n\
             Server: Example\r\n\
-        ");
-
-        write!(buf, "\
             Content-Length: {}\r\n\
             Date: {}\r\n\
         ", self.response.len(), time::now().rfc822()).unwrap();
