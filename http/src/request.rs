@@ -1,9 +1,9 @@
 use std::io;
 use std::slice;
 
-use futures::*;
-use futuremio::*;
 use httparse;
+
+use io2::Parse;
 
 pub struct Request {
     method: String,
@@ -17,46 +17,6 @@ pub struct RequestHeaders<'req> {
 }
 
 impl Request {
-    pub fn new(s: TcpStream) -> Box<IoFuture<(Request, TcpStream)>> {
-        Request::parse(s, Vec::with_capacity(16))
-    }
-
-    fn parse(s: TcpStream,
-             mut buf: Vec<u8>) -> Box<IoFuture<(Request, TcpStream)>> {
-        buf.reserve(1);
-        let contents = s.read(buf);
-        contents.map_err(From::from).and_then(move |buf| {
-            {
-                let mut headers = [httparse::EMPTY_HEADER; 16];
-                let mut r = httparse::Request::new(&mut headers);
-                let status = match r.parse(&buf) {
-                    Ok(status) => status,
-                    Err(e) => {
-                        let err = io::Error::new(io::ErrorKind::Other,
-                                                 format!("failed to parse http \
-                                                          request: {:?}", e));
-                        return failed(err).boxed()
-                    }
-                };
-                match status {
-                    httparse::Status::Complete(amt) => {
-                        assert_eq!(amt, buf.len());
-                        return finished((Request {
-                            method: r.method.unwrap().to_string(),
-                            path: r.path.unwrap().to_string(),
-                            version: r.version.unwrap(),
-                            headers: r.headers.iter().map(|h| {
-                                (h.name.to_string(), h.value.to_owned())
-                            }).collect(),
-                        }, s)).boxed()
-                    }
-                    httparse::Status::Partial => {}
-                }
-            }
-            Request::parse(s, buf).boxed()
-        }).boxed()
-    }
-
     pub fn method(&self) -> &str {
         &self.method
     }
@@ -74,12 +34,42 @@ impl Request {
     }
 }
 
+impl Parse for Request {
+    type Parser = ();
+    // FiXME: probably want a different error type
+    type Error = io::Error;
+
+    fn parse(_: &mut (), buf: &[u8]) -> Option<Result<(Request, usize), io::Error>> {
+        let mut headers = [httparse::EMPTY_HEADER; 16];
+        let mut r = httparse::Request::new(&mut headers);
+        let status = match r.parse(&buf) {
+            Ok(status) => status,
+            Err(e) => {
+                return Some(Err(io::Error::new(io::ErrorKind::Other,
+                                               format!("failed to parse http request: {:?}", e))))
+            }
+        };
+        match status {
+            httparse::Status::Complete(amt) => {
+                Some(Ok((Request {
+                    method: r.method.unwrap().to_string(),
+                    path: r.path.unwrap().to_string(),
+                    version: r.version.unwrap(),
+                    headers: r.headers
+                        .iter()
+                        .map(|h| (h.name.to_string(), h.value.to_owned()))
+                        .collect(),
+                }, amt)))
+            }
+            httparse::Status::Partial => None
+        }
+    }
+}
+
 impl<'req> Iterator for RequestHeaders<'req> {
     type Item = (&'req str, &'req [u8]);
 
     fn next(&mut self) -> Option<(&'req str, &'req [u8])> {
-        self.headers.next().map(|&(ref a, ref b)| {
-            (&a[..], &b[..])
-        })
+        self.headers.next().map(|&(ref a, ref b)| (&a[..], &b[..]))
     }
 }

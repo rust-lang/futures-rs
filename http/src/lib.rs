@@ -2,50 +2,106 @@ extern crate futures;
 extern crate futuremio;
 extern crate httparse;
 
-use std::io;
+use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use futures::*;
-use futuremio::{Loop, IoFuture, TcpListener, TcpStream};
+use futures::Future;
+use futures::stream::Stream;
+use futuremio::{Loop, TcpListener, TcpStream};
 
 mod request;
 pub use self::request::{Request, RequestHeaders};
+
 mod response;
 pub use self::response::Response;
 
 mod io2;
-mod atomic;
+pub use io2::{Parse, Serialize};
+use io2::{ParseStream, StreamWriter};
+// mod atomic;
 
-pub fn serve<S>(addr: &SocketAddr, s: S)
-    where S: Fn(Request) -> Box<Future<Item=Response, Error=io::Error>> +
-             Sync + Send + 'static
+pub trait Service<Req, Resp>: Send + Sync + 'static
+    where Req: Send + 'static,
+          Resp: Send + 'static
 {
-    _serve(addr, Arc::new(s))
+    type Fut: Future<Item = Resp>;
+
+    fn process(&self, req: Req) -> Self::Fut;
 }
 
-type Handler = Arc<Fn(Request) -> Box<IoFuture<Response>> + Send + Sync>;
+impl<Req, Resp, Fut, F> Service<Req, Resp> for F
+    where F: Fn(Req) -> Fut + Send + Sync + 'static,
+          Fut: Future<Item = Resp>,
+          Req: Send + 'static,
+          Resp: Send + 'static
+{
+    type Fut = Fut;
 
-fn _serve(addr: &SocketAddr, s: Handler) {
-    let mut l = Loop::new().unwrap();
-    let listener = l.tcp_listen(addr).unwrap();
-    let f = accept(listener, s);
-    l.await(f).unwrap();
+    fn process(&self, req: Req) -> Fut {
+        (self)(req)
+    }
 }
 
-fn accept(listener: TcpListener, cb: Handler) -> Box<IoFuture<()>> {
-    let pair = listener.accept();
-    pair.and_then(move |(stream, _addr)| {
-        handle(stream, cb.clone())
-            .join(accept(listener, cb))
-            .map(|_| ())
-            .boxed()
-    }).boxed()
+pub fn serve<Err, Req, Resp, S>(addr: &SocketAddr, s: S)
+    where Req: Parse,
+          Resp: Serialize,
+          S: Service<Req, Resp>,
+          <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>, // TODO: simplify this?
+{
+    let service = Arc::new(s);
+    let lp = Loop::new().unwrap();
+
+    let listen = lp.handle().tcp_listen(addr)
+        .and_then(move |listener| {
+            listener.incoming().for_each(move |(stream, _)| {
+                handle(stream, service.clone());
+                Ok(()) // TODO: some kind of error handling
+            })
+        });
+    lp.run(listen);
 }
 
-fn handle(stream: TcpStream, cb: Handler) -> Box<IoFuture<()>> {
-    Request::new(stream)
-        .and_then(move |(req, s)| cb(req).map(|resp| (resp, s)))
-        .and_then(|(resp, s)| resp.send(s))
-        .boxed()
+fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
+    where Req: Parse,
+          Resp: Serialize,
+          S: Service<Req, Resp>,
+          <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>,
+{
+    // hack around lack of Read/Write impl on Arc<...>
+    let read = SourceWrapper(stream.source.clone());
+    let write = SourceWrapper(stream.source);
+
+    let input = ParseStream::new(read, stream.ready_read)
+        .map_err(From::from);
+    // TODO: the `and_then` here sequentializes receiving/parsing requests and
+    // processing them. We want a general combiantor that let's them proceed
+    // concurrently, probably up to some fixed concurrency amount.
+    let responses = input.and_then(move |req| service.process(req));
+    let output = StreamWriter::new(write, stream.ready_write, responses);
+
+    output.forget()
+}
+
+// TODO: clean this up
+// Hack around the lack of forwarding Read/Write impls for Arc<TcpStream>
+struct SourceWrapper<S>(Arc<S>);
+
+impl<S> Read for SourceWrapper<S>
+    where for<'a> &'a S: Read
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&*self.0).read(buf)
+    }
+}
+
+impl<S> Write for SourceWrapper<S>
+    where for<'a> &'a S: Write
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&*self.0).write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (&*self.0).flush()
+    }
 }
