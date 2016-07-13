@@ -38,10 +38,49 @@ pub use self::then::Then;
 
 mod impls;
 
+/// A simple typedef around the result that a stream can produce.
+///
+/// The `Ok` variant can contain a successful result of the stream, either the
+/// next element or a signal that the strem has ended. The `Err` variant
+/// contains the error that a stream encounterd, if any.
 pub type StreamResult<T, E> = Result<Option<T>, E>;
 
+/// A stream of values, not all of which have been produced yet.
+///
+/// `Stream` is a trait to represent any source of sequential events or items
+/// which acts like an iterator but may block over time. Like `Future` the
+/// methods of `Stream` never block and it is thus suitable for programming in
+/// an asynchronous fashion. This trait is very similar to the `Iterator` trait
+/// in the standard library where `Some` is used to signal elements of the
+/// stream and `None` is used to indicate that the stream is finished.
+///
+/// Like futures a stream has basic combinators to transform the stream, perform
+/// more work on each item, etc.
+///
+/// # Basic methods
+///
+/// Like futures, a `Stream` has two core methods which drive processing of data
+/// and notifications of when new data might be ready. The `poll` method checks
+/// the status of a stream and the `schedule` method is used to receive
+/// notifications for when it may be ready to call `poll` again.
+///
+/// Also like future, a stream has an associated error type to represent that an
+/// element of the computation failed for some reason. Errors, however, do not
+/// signal the end of the stream.
+///
+/// # Streams as Futures
+///
+/// Any instance of `Stream` can also be viewed as a `Future` where the resolved
+/// value is the next item in the stream along with the rest of the stream. The
+/// `into_future` adaptor can be used here to convert any stream into a future
+/// for use with other future methods like `join` and `select`.
+// TODO: more here
 pub trait Stream: Send + 'static {
+
+    /// The type of item this stream will yield on success.
     type Item: Send + 'static;
+
+    /// The type of error this stream may generate.
     type Error: Send + 'static;
 
     fn poll(&mut self, tokens: &Tokens)
