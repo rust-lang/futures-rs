@@ -17,7 +17,7 @@ fn main() {
         assert_eq!(r.path(), "/plaintext");
         let mut r = Response::new();
         r.header("Content-Type", "text/plain")
-         .body("Hello, World!\r\n");
-        finished::<_, std::io::Error>(r).boxed()
+         .body("Hello, World!");
+        finished::<_, std::io::Error>(r)
     }).unwrap()
 }

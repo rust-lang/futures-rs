@@ -61,8 +61,7 @@ pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S) -> io::Result<()>
                 handle(stream, service.clone());
                 Ok(()) // TODO: some kind of error handling
             })
-        })
-        .boxed();
+        });
     lp.run(listen)
 }
 
@@ -77,7 +76,7 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
     let write = SourceWrapper(stream.source);
 
     let input = ParseStream::new(read, stream.ready_read).map_err(From::from);
-    let responses = input.boxed().and_then(move |req| service.process(req)).boxed();
+    let responses = input.and_then(move |req| service.process(req));
     let output = StreamWriter::new(write, stream.ready_write, responses);
 
     // Crucially use `.forget()` here instead of returning the future, allows
