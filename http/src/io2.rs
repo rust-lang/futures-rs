@@ -123,7 +123,7 @@ impl<R, P> Stream for ParseStream<R, P>
 
         if self.need_parse {
             debug!("attempting to parse");
-            if let Some(res) = P::parse(&mut self.parser, &self.buf) {
+            if let Some(res) = P::parse(&mut self.parser, &self.buf[self.pos..]) {
                 return Some(res.map(|(i, n)| {
                     self.pos += n;
                     Some(i)
