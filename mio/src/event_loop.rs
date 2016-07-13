@@ -18,6 +18,13 @@ scoped_thread_local!(static CURRENT_LOOP: Loop);
 
 const SLAB_CAPACITY: usize = 1024 * 64;
 
+/// An event loop.
+///
+/// The event loop is the main source of blocking in an application which drives
+/// all other I/O events and notifications happening. Each event loop can have
+/// multiple handles pointing to it, each of which can then be used to create
+/// various I/O objects to interact with the event loop in interesting ways.
+// TODO: expand this
 pub struct Loop {
     id: usize,
     active: Cell<bool>,
@@ -38,6 +45,7 @@ pub struct LoopHandle {
     tx: mio::channel::Sender<Message>,
 }
 
+#[allow(missing_docs)]
 #[derive(Copy, Clone)]
 pub enum Direction {
     Read,
@@ -102,6 +110,8 @@ fn deregister(poll: &mut mio::Poll, sched: &Scheduled) {
 }
 
 impl Loop {
+    /// Creates a new event loop, returning any error that happened during the
+    /// creation.
     pub fn new() -> io::Result<Loop> {
         let (tx, rx) = mio::channel::from_std_channel(mpsc::channel());
         let io = try!(mio::Poll::new());
@@ -119,6 +129,11 @@ impl Loop {
         })
     }
 
+    /// Generates a handle to this event loop used to construct I/O objects and
+    /// send messages.
+    ///
+    /// Handles to an event loop are cloneable as well and clones will always
+    /// refer to the same event loop.
     pub fn handle(&self) -> LoopHandle {
         LoopHandle {
             id: self.id,
@@ -126,6 +141,7 @@ impl Loop {
         }
     }
 
+    #[allow(missing_docs)]
     pub fn run<F: Future>(self, f: F) -> Result<F::Item, F::Error> {
         let (tx_res, rx_res) = mpsc::channel();
         let handle = self.handle();

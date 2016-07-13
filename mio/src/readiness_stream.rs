@@ -1,3 +1,5 @@
+#![allow(missing_docs)] // TODO: document this module
+
 use super::event_loop::{Direction, LoopHandle};
 
 use self::drop_source::DropSource;

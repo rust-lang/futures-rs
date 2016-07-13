@@ -8,6 +8,10 @@ use mio;
 
 use {IoFuture, IoStream, ReadinessPair, ReadinessStream, LoopHandle};
 
+/// An I/O object representing a TCP socket listening for incoming connections.
+///
+/// This object can be converted into a stream of incoming connections for
+/// various forms of processing.
 pub struct TcpListener {
     loop_handle: LoopHandle,
     inner: ReadinessPair<mio::tcp::TcpListener>,
@@ -57,17 +61,26 @@ impl TcpListener {
             .boxed()
     }
 
+    /// Returns the local address that this listener is bound to.
+    ///
+    /// This can be useful, for example, when binding to port 0 to figure out
+    /// which port was actually bound.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.inner.source.local_addr()
     }
 
+    /// Consumes this listener, returning a stream of the sockets this listener
+    /// accepts.
+    ///
+    /// This method returns an implementation of the `Stream` trait which
+    /// resolves to the sockets the are accepted on this listener.
     pub fn incoming(self) -> Box<IoStream<(TcpStream, SocketAddr)>> {
         let TcpListener { loop_handle, inner } = self;
         let source = inner.source;
 
         inner.ready_read
             .and_then(move |()| source.accept())
-            .filter_map(|i| i)
+            .filter_map(|i| i) // discard spurious notifications
             .and_then(move |(tcp, addr)| {
                 ReadinessPair::new(loop_handle.clone(), tcp).map(move |pair| {
                     let stream = TcpStream {
@@ -81,6 +94,13 @@ impl TcpListener {
     }
 }
 
+/// An I/O object representing a TCP stream connected to a remote endpoint.
+///
+/// A TCP stream can either be created by connecting to an endpoint or by
+/// accepting a connection from a listener. Inside the stream is access to the
+/// raw underlying I/O object as well as streams for the read/write
+/// notifications on the stream itself.
+#[allow(missing_docs)]
 pub struct TcpStream {
     pub source: Arc<mio::tcp::TcpStream>,
     pub ready_read: ReadinessStream,
@@ -114,7 +134,7 @@ impl TcpStream {
                     ready_read: ready_read,
                     ready_write: stream.into_inner()
                 }
-            })
+            }).map_err(|(e, _)| e)
         }).boxed()
     }
 
