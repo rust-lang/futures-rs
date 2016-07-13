@@ -22,17 +22,11 @@ impl<S: Stream> Stream for Fuse<S> {
     type Error = S::Error;
 
     fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<S::Item, S::Error>> {
-        if let Some(mut s) = self.stream.take() {
-            let res = s.poll(tokens);
-            match res {
-                None => self.stream = Some(s),
-                Some(Ok(Some(_))) => self.stream = Some(s),
-                _ => {},
-            }
-            res
-        } else {
-            Some(Ok(None))
+        let ret = self.stream.as_mut().and_then(|s| s.poll(tokens));
+        if let Some(Ok(None)) = ret {
+            self.stream = None;
         }
+        return ret
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
