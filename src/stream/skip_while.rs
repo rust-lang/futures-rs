@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Wake, Tokens, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
+/// A stream combinator which skips elements of a stream while a predicate
+/// holds.
+///
+/// This structure is produced by the `Stream::skip_while` method.
 pub struct SkipWhile<S, P> {
     stream: S,
     pred: P,
@@ -59,6 +63,7 @@ impl<S, P> Stream for SkipWhile<S, P>
 
 impl<S, P> SkipWhile<S, P> {
     // TODO: why here and not elsewhere...
+    #[allow(missing_docs)]
     pub fn into_inner(self) -> S {
         self.stream
     }

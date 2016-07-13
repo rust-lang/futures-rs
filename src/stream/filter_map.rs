@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Wake, Tokens};
 use stream::{Stream, StreamResult};
 
+/// A combinator used to filter the results of a stream and simultaneously map
+/// them to a different type.
+///
+/// This structure is returned by the `Stream::filter_map` method.
 pub struct FilterMap<S, F> {
     stream: S,
     f: F,

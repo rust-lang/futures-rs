@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Wake, Tokens, IntoFuture, Future, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
+/// A stream combinator which chains a computation onto values produced by a
+/// stream.
+///
+/// This structure is produced by the `Stream::and_then` method.
 pub struct AndThen<S, F, U>
     where U: IntoFuture,
 {

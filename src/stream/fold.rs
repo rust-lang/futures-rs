@@ -3,6 +3,9 @@ use std::sync::Arc;
 use {Wake, Tokens, Future, ALL_TOKENS};
 use stream::Stream;
 
+/// A future used to collect all the results of a stream into one generic type.
+///
+/// This future is returned by the `Stream::fold` method.
 pub struct Fold<S, F, T> {
     stream: S,
     f: F,

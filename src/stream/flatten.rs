@@ -3,25 +3,29 @@ use std::sync::Arc;
 use {Wake, Tokens, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
-pub struct FlatMap<S>
+/// A combinator used to flatten a stream-of-streams into one long stream of
+/// elements.
+///
+/// This combinator is created by the `Stream::flatten` method.
+pub struct Flatten<S>
     where S: Stream,
 {
     stream: S,
     next: Option<S::Item>,
 }
 
-pub fn new<S>(s: S) -> FlatMap<S>
+pub fn new<S>(s: S) -> Flatten<S>
     where S: Stream,
           S::Item: Stream,
           <S::Item as Stream>::Error: From<S::Error>,
 {
-    FlatMap {
+    Flatten {
         stream: s,
         next: None,
     }
 }
 
-impl<S> Stream for FlatMap<S>
+impl<S> Stream for Flatten<S>
     where S: Stream,
           S::Item: Stream,
           <S::Item as Stream>::Error: From<S::Error>,

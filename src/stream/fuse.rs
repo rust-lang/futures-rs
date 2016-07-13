@@ -37,6 +37,8 @@ impl<S: Stream> Stream for Fuse<S> {
 }
 
 impl<S> Fuse<S> {
+    // TODO: docs
+    #[allow(missing_docs)]
     pub fn is_done(&self) -> bool {
         self.stream.is_none()
     }

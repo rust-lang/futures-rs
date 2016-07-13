@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Wake, Tokens};
 use stream::{Stream, StreamResult};
 
+/// A stream combinator which will change the error type of a stream from one
+/// type to another.
+///
+/// This is produced by the `Stream::map_err` method.
 pub struct MapErr<S, F> {
     stream: S,
     f: F,

@@ -1,4 +1,15 @@
-#![allow(missing_docs)]
+//! Asynchronous streams
+//!
+//! This module contains the `Stream` trait and a number of adaptors for this
+//! trait. This trait is very similar to the `Iterator` trait in the standard
+//! library except that it expresses the concept of blocking as well. A stream
+//! here is a sequential sequence of values which may take some amount of time
+//! inbetween to produce.
+//!
+//! A stream may request that it is blocked between values while the next value
+//! is calculated, and provides a way to get notified once the next value is
+//! ready as well.
+// TODO: expand these docs
 
 use std::sync::Arc;
 
@@ -13,7 +24,7 @@ mod and_then;
 mod collect;
 mod filter;
 mod filter_map;
-mod flat_map;
+mod flatten;
 mod fold;
 mod for_each;
 mod fuse;
@@ -27,7 +38,7 @@ pub use self::and_then::AndThen;
 pub use self::collect::Collect;
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
-pub use self::flat_map::FlatMap;
+pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
 pub use self::fuse::Fuse;
@@ -69,6 +80,7 @@ pub type StreamResult<T, E> = Result<Option<T>, E>;
 /// Also like future, a stream has an associated error type to represent that an
 /// element of the computation failed for some reason. Errors, however, do not
 /// signal the end of the stream.
+// TODO: is that last clause correct?
 ///
 /// # Streams as Futures
 ///
@@ -85,23 +97,121 @@ pub trait Stream: Send + 'static {
     /// The type of error this stream may generate.
     type Error: Send + 'static;
 
+    /// Attempt to pull out the next value of this stream, returning `None` if
+    /// it's not ready yet.
+    ///
+    /// This method, like `Future::poll`, is the sole method of pulling out a
+    /// value from a stream. The `tokens` argument can be passed to indicate
+    /// what tokens may have interest, and it's safe for implementations to skip
+    /// work if tokens of interest are not in that set.
+    ///
+    /// Implementors of this trait must ensure that implementations of this
+    /// method do not block, as it may cause consumers to behave badly.
+    ///
+    /// # Return value
+    ///
+    /// If `None` is returned then this stream's next value is not ready yet,
+    /// and `schedule` can be used to receive a notification for when the value
+    /// may become ready in the future. If `Some` is returned then the returned
+    /// value represents the next value on the stream. `Err` indicates an error
+    /// happened, while `Ok` indicates whether there was a new item on the
+    /// stream or whether the stream has terminated.
+    ///
+    /// # Panics
+    ///
+    /// Once a stream is finished, that is `Ok(None)` has been returned,
+    /// further calls to `poll` may result in a panic or other "bad behavior".
+    /// If this is difficult to guard against then the `fuse` adapter can be
+    /// used to ensure that `poll` always has well-defined semantics.
+    // TODO: more here
     fn poll(&mut self, tokens: &Tokens)
             -> Option<StreamResult<Self::Item, Self::Error>>;
 
+    /// Register a callback to get notified when the next value on the stream is
+    /// ready for consumption.
+    ///
+    /// This is very similar to the `Future::schedule` method which registers a
+    /// callback. The callback provided will only be invoked once for the next
+    /// value on a stream. If an application is interested in more values on a
+    /// stream, then a callback needs to be re-registered.
+    ///
+    /// Multiple calls to `schedule` while waiting for one value to be produced
+    /// will only result in the final `wake` callback passed actually getting
+    /// invoked. Consumers must take care that if `schedule` is called twice the
+    /// previous callback does not need to be invoked.
+    ///
+    /// Implementors of the `Stream` trait are recommended to just blindly pass
+    /// around this callback rather than manufacture new callbacks for contained
+    /// futures.
+    ///
+    /// When the `wake` callback is invoked it will be provided a set of tokens
+    /// that represent the set of events which have happened since it was last
+    /// called (or the last call to `poll`). These events can then be used to
+    /// pass back into the `poll` function above to ensure the stream does not
+    /// unnecessarily `poll` too much.
+    ///
+    /// # Panics
+    ///
+    /// Once a stream has returned `Ok(None)` (it's been completed) then further
+    /// calls to either `poll` or this function, `schedule`, should not be
+    /// expected to behave well. A call to `schedule` after a poll has succeeded
+    /// may panic, block forever, or otherwise exhibit odd behavior.
+    ///
+    /// Callers who may call `schedule` after a stream is finished may want to
+    /// consider using the `fuse` adaptor which defines the behavior of
+    /// `schedule` after a successful poll, but comes with a little bit of
+    /// extra cost.
     fn schedule(&mut self, wake: Arc<Wake>);
 
+    /// Convenience function for turning this stream into a trait object.
+    ///
+    /// This simply avoids the need to write `Box::new` and can often help with
+    /// type inference as well by always returning a trait object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel();
+    /// let a: Box<Stream<Item=i32, Error=i32>> = rx.boxed();
+    /// ```
     fn boxed(self) -> Box<Stream<Item=Self::Item, Error=Self::Error>>
         where Self: Sized
     {
         Box::new(self)
     }
 
+    /// Converts this stream into a `Future`.
+    ///
+    /// A stream can be viewed as simply a future which will resolve to the next
+    /// element of the stream as well as the stream itself. The returned future
+    /// can be used to compose streams and futures together by placing
+    /// everything into the "world of futures".
     fn into_future(self) -> StreamFuture<Self>
         where Self: Sized
     {
         future::new(self)
     }
 
+    /// Converts a stream of type `T` to a stream of type `U`.
+    ///
+    /// The provided closure is executed over all elements of this stream as
+    /// they are made available, and the callback will be executed inline with
+    /// calls to `poll`.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it, similar to the existing `map` methods in the
+    /// standard library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let rx = rx.map(|x| x + 3);
+    /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
         where F: FnMut(Self::Item) -> U + Send + 'static,
               U: Send + 'static,
@@ -110,6 +220,24 @@ pub trait Stream: Send + 'static {
         map::new(self, f)
     }
 
+    /// Converts a stream of error type `T` to a stream of error type `U`.
+    ///
+    /// The provided closure is executed over all errors of this stream as
+    /// they are made available, and the callback will be executed inline with
+    /// calls to `poll`.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it, similar to the existing `map_err` methods in the
+    /// standard library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let rx = rx.map_err(|x| x + 3);
+    /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
         where F: FnMut(Self::Error) -> U + Send + 'static,
               U: Send + 'static,
@@ -118,6 +246,28 @@ pub trait Stream: Send + 'static {
         map_err::new(self, f)
     }
 
+    /// Filters the values produced by this stream according to the provided
+    /// predicate.
+    ///
+    /// As values of this stream are made available, the provided predicate will
+    /// be run against them. If the predicate returns `true` then the stream
+    /// will yield the value, but if the predicate returns `false` then the
+    /// value will be discarded and the next value will be produced.
+    ///
+    /// All errors are passed through without filtering in this combinator.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it, similar to the existing `filter` methods in the
+    /// standard library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let evens = rx.filter(|x| x % 0 == 2);
+    /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
         where F: FnMut(&Self::Item) -> bool + Send + 'static,
               Self: Sized
@@ -125,6 +275,34 @@ pub trait Stream: Send + 'static {
         filter::new(self, f)
     }
 
+    /// Filters the values produced by this stream while simultaneously mapping
+    /// them to a different type.
+    ///
+    /// As values of this stream are made available, the provided function will
+    /// be run on them. If the predicate returns `Some(e)` then the stream will
+    /// yield the value `e`, but if the predicate returns `None` then the next
+    /// value will be produced.
+    ///
+    /// All errors are passed through without filtering in this combinator.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it, similar to the existing `filter_map` methods in the
+    /// standard library.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let evens_plus_one = rx.filter_map(|x| {
+    ///     if x % 0 == 2 {
+    ///         Some(x + 1)
+    ///     } else {
+    ///         None
+    ///     }
+    /// });
+    /// ```
     fn filter_map<F, B>(self, f: F) -> FilterMap<Self, F>
         where F: FnMut(Self::Item) -> Option<B> + Send + 'static,
               Self: Sized
@@ -132,6 +310,37 @@ pub trait Stream: Send + 'static {
         filter_map::new(self, f)
     }
 
+    /// Chain on a computation for when a value is ready, passing the resulting
+    /// item to the provided closure `f`.
+    ///
+    /// This function can be used to ensure a computation runs regardless of
+    /// the next value on the stream. The closure provided will be yielded a
+    /// `Result` once a value is ready, and the returned future will then be run
+    /// to completion to produce the next value on this stream.
+    ///
+    /// The returned value of the closure must implement the `IntoFuture` trait
+    /// and can represent some more work to be done before the composed stream
+    /// is finished. Note that the `Result` type implements the `IntoFuture`
+    /// trait so it is possible to simply alter the `Result` yielded to the
+    /// closure and return it.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    ///
+    /// let rx = rx.then(|result| {
+    ///     match result {
+    ///         Ok(e) => Ok(e + 3),
+    ///         Err(e) => Err(e - 4),
+    ///     }
+    /// });
+    /// ```
     fn then<F, U>(self, f: F) -> Then<Self, F, U>
         where F: FnMut(Result<Self::Item, Self::Error>) -> U + Send + 'static,
               U: IntoFuture,
@@ -140,6 +349,41 @@ pub trait Stream: Send + 'static {
         then::new(self, f)
     }
 
+    /// Chain on a computation for when a value is ready, passing the successful
+    /// results to the provided closure `f`.
+    ///
+    /// This function can be used run a unit of work when the next successful
+    /// value on a stream is ready. The closure provided will be yielded a value
+    /// when ready, and the returned future will then be run to completion to
+    /// produce the next value on this stream.
+    ///
+    /// Any errors produced by this stream will not be passed to the closure,
+    /// and will be passed through.
+    ///
+    /// The returned value of the closure must implement the `IntoFuture` trait
+    /// and can represent some more work to be done before the composed stream
+    /// is finished. Note that the `Result` type implements the `IntoFuture`
+    /// trait so it is possible to simply alter the `Result` yielded to the
+    /// closure and return it.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    ///
+    /// let rx = rx.and_then(|result| {
+    ///     if result % 2 == 0 {
+    ///         Ok(result)
+    ///     } else {
+    ///         Err(result as u32)
+    ///     }
+    /// });
+    /// ```
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
         where F: FnMut(Self::Item) -> U + Send + 'static,
               U: IntoFuture<Error=Self::Error>,
@@ -148,6 +392,41 @@ pub trait Stream: Send + 'static {
         and_then::new(self, f)
     }
 
+    /// Chain on a computation for when an error happens, passing the
+    /// erroneous result to the provided closure `f`.
+    ///
+    /// This function can be used run a unit of work and attempt to recover from
+    /// an error if one happens. The closure provided will be yielded an error
+    /// when one appears, and the returned future will then be run to completion
+    /// to produce the next value on this stream.
+    ///
+    /// Any successful values produced by this stream will not be passed to the
+    /// closure, and will be passed through.
+    ///
+    /// The returned value of the closure must implement the `IntoFuture` trait
+    /// and can represent some more work to be done before the composed stream
+    /// is finished. Note that the `Result` type implements the `IntoFuture`
+    /// trait so it is possible to simply alter the `Result` yielded to the
+    /// closure and return it.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::*;
+    ///
+    /// let (_tx, rx) = channel::<i32, u32>();
+    ///
+    /// let rx = rx.or_else(|result| {
+    ///     if result % 2 == 0 {
+    ///         Ok(result as i32)
+    ///     } else {
+    ///         Err(result)
+    ///     }
+    /// });
+    /// ```
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
         where F: FnMut(Self::Error) -> U + Send + 'static,
               U: IntoFuture<Item=Self::Item>,
@@ -156,10 +435,78 @@ pub trait Stream: Send + 'static {
         or_else::new(self, f)
     }
 
+    /// Collect all of the values of this stream into a vector, returning a
+    /// future representing the result of that computation.
+    ///
+    /// This combinator will collect all successful results of this stream and
+    /// collect them into a `Vec<Self::Item>`. If an error happens then all
+    /// collected elements will be dropped and the error will be returned.
+    ///
+    /// The returned future will be resolved whenever an error happens or when
+    /// the stream returns `Ok(None)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::{finished, Future, Tokens};
+    /// use futures::stream::*;
+    ///
+    /// let (tx, rx) = channel::<i32, u32>();
+    ///
+    /// fn send(n: i32, tx: Sender<i32, u32>)
+    ///         -> Box<Future<Item=(), Error=()>> {
+    ///     if n == 0 {
+    ///         return finished(()).boxed()
+    ///     }
+    ///     tx.send(Ok(n)).map_err(|_| ()).and_then(move |tx| {
+    ///         send(n - 1, tx)
+    ///     }).boxed()
+    /// }
+    ///
+    /// send(5, tx).forget();
+    ///
+    /// let mut result = rx.collect();
+    /// assert_eq!(result.poll(&Tokens::all()), Some(Ok(vec![5, 4, 3, 2, 1])));
+    /// ```
     fn collect(self) -> Collect<Self> where Self: Sized {
         collect::new(self)
     }
 
+    /// Execute an accumulating computation over a stream, collecting all the
+    /// values into one final result.
+    ///
+    /// This combinator will collect all successful results of this stream
+    /// according to the closure provided. The initial state is also provided to
+    /// this method and then is returned again by each execution of the closure.
+    /// Once the entire stream has been exhausted the returned future will
+    /// resolve to this value.
+    ///
+    /// If an error happens then collected state will be dropped and the error
+    /// will be returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::{finished, Future, Tokens};
+    /// use futures::stream::*;
+    ///
+    /// let (tx, rx) = channel::<i32, u32>();
+    ///
+    /// fn send(n: i32, tx: Sender<i32, u32>)
+    ///         -> Box<Future<Item=(), Error=()>> {
+    ///     if n == 0 {
+    ///         return finished(()).boxed()
+    ///     }
+    ///     tx.send(Ok(n)).map_err(|_| ()).and_then(move |tx| {
+    ///         send(n - 1, tx)
+    ///     }).boxed()
+    /// }
+    ///
+    /// send(5, tx).forget();
+    ///
+    /// let mut result = rx.fold(0, |a, b| a + b);
+    /// assert_eq!(result.poll(&Tokens::all()), Some(Ok(15)));
+    /// ```
     fn fold<F, T>(self, init: T, f: F) -> Fold<Self, F, T>
         where F: FnMut(T, Self::Item) -> T + Send + 'static,
               T: Send + 'static,
@@ -168,27 +515,39 @@ pub trait Stream: Send + 'static {
         fold::new(self, f, init)
     }
 
-    // fn flatten(self) -> Flatten<Self>
-    //     where Self::Item: IntoFuture,
-    //           <<Self as Stream>::Item as IntoFuture>::Error:
-    //                 From<<Self as Stream>::Error>,
-    //           Self: Sized
-    // {
-    //     Flatten {
-    //         stream: self,
-    //         future: None,
-    //     }
-    // }
-
-    fn flat_map(self) -> FlatMap<Self>
+    /// Flattens a stream of streams into just one continuous stream.
+    ///
+    /// If this stream's elements are themselves streams then this combinator
+    /// will flatten out the entire stream to one long chain of elements. Any
+    /// errors are passed through without looking at them, but otherwise each
+    /// individual stream will get exhausted before moving on to the next.
+    ///
+    /// ```
+    /// use futures::{finished, Future, Tokens};
+    /// use futures::stream::*;
+    ///
+    /// let (tx1, rx1) = channel::<i32, u32>();
+    /// let (tx2, rx2) = channel::<i32, u32>();
+    /// let (tx3, rx3) = channel::<_, u32>();
+    ///
+    /// tx1.send(Ok(1)).and_then(|tx1| tx1.send(Ok(2))).forget();
+    /// tx2.send(Ok(3)).and_then(|tx2| tx2.send(Ok(4))).forget();
+    ///
+    /// tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).forget();
+    ///
+    /// let mut result = rx3.flatten().collect();
+    /// assert_eq!(result.poll(&Tokens::all()), Some(Ok(vec![1, 2, 3, 4])));
+    /// ```
+    fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream,
               <Self::Item as Stream>::Error: From<Self::Error>,
               Self: Sized
     {
-        flat_map::new(self)
+        flatten::new(self)
     }
 
     // TODO: should this closure return a Result?
+    #[allow(missing_docs)]
     fn skip_while<P>(self, pred: P) -> SkipWhile<Self, P>
         where P: FnMut(&Self::Item) -> Result<bool, Self::Error> + Send + 'static,
               Self: Sized,
@@ -197,6 +556,7 @@ pub trait Stream: Send + 'static {
     }
 
     // TODO: should this closure return a result?
+    #[allow(missing_docs)]
     fn for_each<F>(self, f: F) -> ForEach<Self, F>
         where F: FnMut(Self::Item) -> Result<(), Self::Error> + Send + 'static,
               Self: Sized,

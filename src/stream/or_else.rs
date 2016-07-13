@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Wake, Tokens, IntoFuture, Future, ALL_TOKENS};
 use stream::{Stream, StreamResult};
 
+/// A stream combinator which chains a computation onto errors produced by a
+/// stream.
+///
+/// This structure is produced by the `Stream::or_else` method.
 pub struct OrElse<S, F, U>
     where U: IntoFuture,
 {

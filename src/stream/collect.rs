@@ -4,6 +4,9 @@ use std::sync::Arc;
 use {Wake, Tokens, Future, ALL_TOKENS};
 use stream::Stream;
 
+/// A future which collects all of the values of a stream into a vector.
+///
+/// This future is created by the `Stream::collect` method.
 pub struct Collect<S> where S: Stream {
     stream: S,
     items: Vec<S::Item>,

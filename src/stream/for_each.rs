@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Future, Wake, Tokens, ALL_TOKENS};
 use stream::Stream;
 
+/// A stream combinator which executes a unit closure over each item on a
+/// stream.
+///
+/// This structure is returned by the `Stream::for_each` method.
 pub struct ForEach<S, F> {
     stream: S,
     f: F,

@@ -3,6 +3,10 @@ use std::sync::Arc;
 use {Wake, Tokens};
 use stream::{Stream, StreamResult};
 
+/// A stream combinator used to filter the results of a stream and only yield
+/// some values.
+///
+/// This structure is produced by the `Stream::filter` method.
 pub struct Filter<S, F> {
     stream: S,
     f: F,
