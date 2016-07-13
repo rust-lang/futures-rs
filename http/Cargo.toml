@@ -8,6 +8,8 @@ futuremio = { path = "../mio" }
 futures = { path = ".." }
 httparse = "1.1"
 time = "0.1"
+env_logger = "0.3"
+log = "0.3"
 
 [profile.release]
 debug = true

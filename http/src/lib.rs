@@ -1,6 +1,8 @@
-extern crate futures;
 extern crate futuremio;
+extern crate futures;
 extern crate httparse;
+#[macro_use]
+extern crate log;
 
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
@@ -73,8 +75,7 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
     let read = SourceWrapper(stream.source.clone());
     let write = SourceWrapper(stream.source);
 
-    let input = ParseStream::new(read, stream.ready_read)
-        .map_err(From::from);
+    let input = ParseStream::new(read, stream.ready_read).map_err(From::from);
     let responses = input.boxed().and_then(move |req| service.process(req)).boxed();
     let output = StreamWriter::new(write, stream.ready_write, responses);
 

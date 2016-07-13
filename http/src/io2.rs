@@ -51,8 +51,12 @@ impl<R, P> ParseStream<R, P>
 fn read<R: Read>(socket: &mut R, input: &mut Vec<u8>) -> io::Result<(usize, bool)> {
     loop {
         match socket.read(unsafe { slice_to_end(input) }) {
-            Ok(0) => return Ok((0, true)),
+            Ok(0) => {
+                trace!("socket EOF");
+                return Ok((0, true))
+            }
             Ok(n) => {
+                trace!("socket read {} bytes", n);
                 let len = input.len();
                 unsafe {
                     input.set_len(len + n);
@@ -94,7 +98,8 @@ impl<R, P> Stream for ParseStream<R, P>
     fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<P, P::Error>> {
         if !self.eof {
             match self.source_ready.poll(tokens) {
-                // TODO: consider refactoring `poll` API to make this more readable...
+                // TODO: consider refactoring `poll` API to make this more
+                //       readable...
                 None => {}
                 Some(Err(e)) => return Some(Err(e.into())),
                 Some(Ok(Some(()))) => {
@@ -117,6 +122,7 @@ impl<R, P> Stream for ParseStream<R, P>
         }
 
         if self.need_parse {
+            debug!("attempting to parse");
             if let Some(res) = P::parse(&mut self.parser, &self.buf) {
                 return Some(res.map(|(i, n)| {
                     self.pos += n;
@@ -156,7 +162,9 @@ fn write<W: Write>(sink: &mut W, buf: &mut Vec<u8>) -> io::Result<()> {
                 return Err(io::Error::new(io::ErrorKind::Other, "early eof2"));
             }
             Ok(n) => {
-                buf.drain(..n); // TODO: consider draining more lazily, i.e. only just before returning
+                // TODO: consider draining more lazily, i.e. only just before
+                //       returning
+                buf.drain(..n);
                 if buf.len() == 0 {
                     return Ok(());
                 }
@@ -215,8 +223,12 @@ impl<W, S> Future for StreamWriter<W, S>
         loop {
             match self.items.poll(tokens_for_items.take().unwrap_or(&Tokens::all())) {
                 Some(Err(e)) => return Some(Err(e)),
-                Some(Ok(Some(item))) => item.serialize(&mut self.buf),
-                _ => break,
+                Some(Ok(Some(item))) => {
+                    debug!("got an item to serialize!");
+                    item.serialize(&mut self.buf)
+                }
+                Some(Ok(None)) |
+                None => break,
             }
         }
 
@@ -229,13 +241,15 @@ impl<W, S> Future for StreamWriter<W, S>
             match self.sink_ready.poll(tokens) {
                 Some(Err(e)) => Some(Err(e.into())),
                 Some(Ok(Some(()))) => {
+                    debug!("trying to write some data");
                     if let Err(e) = write(&mut self.sink, &mut self.buf) {
                         Some(Err(e.into()))
                     } else {
                         None
                     }
                 }
-                _ => None,
+                Some(Ok(None)) | // TODO: this should translate to an error
+                None => None,
             }
         } else if self.items.is_done() {
             // Nothing more to write to sink, and no more incoming items; we're done!
