@@ -1,5 +1,4 @@
 use std::io::{self, Read, Write};
-use std::mem;
 use std::sync::Arc;
 
 use futures::{Future, Wake, Tokens};
@@ -22,8 +21,7 @@ pub struct ParseStream<R, P: Parse> {
     source: R,
     source_ready: ReadinessStream,
     parser: P::Parser,
-    buf: Vec<u8>,
-    last_buf: Option<Arc<Vec<u8>>>,
+    buf: Arc<Vec<u8>>,
 
     // how far into the buffer have we parsed? note: we drain lazily
     pos: usize,
@@ -44,8 +42,7 @@ impl<R, P> ParseStream<R, P>
             source: source,
             source_ready: source_ready,
             parser: Default::default(),
-            buf: Vec::with_capacity(2048),
-            last_buf: None,
+            buf: Arc::new(Vec::with_capacity(2048)),
             pos: 0,
             need_parse: false,
             eof: false,
@@ -96,36 +93,35 @@ impl<R, P> Stream for ParseStream<R, P>
 
     fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<P, P::Error>> {
         loop {
-            if let Some(mut data) = self.last_buf.take() {
-                assert!(self.buf.len() == 0);
+            if self.need_parse {
                 debug!("attempting to parse");
-                match P::parse(&mut self.parser, &data, self.pos) {
+                match P::parse(&mut self.parser, &self.buf, self.pos) {
                     Some(Ok((i, n))) => {
                         self.pos += n;
-                        self.last_buf = Some(data);
                         return Some(Ok(Some(i)))
                     }
                     Some(Err(e)) => return Some(Err(e)),
-                    None => {}
-                }
-
-                // If we didn't even get an entire request then try to keep the
-                // same buffer and avoid reallocating a bunch.
-                let mut swapped = false;
-                if self.pos == 0 {
-                    if let Some(ptr) = Arc::get_mut(&mut data) {
-                        mem::swap(&mut *ptr, &mut self.buf);
-                        swapped = true;
+                    None => {
+                        self.need_parse = false;
                     }
                 }
 
-                // If the offset is > 0 or the arc is referenced elsewhere
-                // though then just take the data and put it on the beginning of
-                // the buffer
-                if !swapped {
-                    self.buf.extend_from_slice(&data[self.pos..]);
-                    self.pos = 0;
+                // Fast path if we can get mutable access to our own current
+                // buffer.
+                let mut drained = false;
+                if let Some(buf) = Arc::get_mut(&mut self.buf) {
+                    buf.drain(..self.pos);
+                    drained = true;
                 }
+
+                // If we couldn't get access above then we give ourself a new
+                // buffer here.
+                if !drained {
+                    let mut v = Vec::with_capacity(2048);
+                    v.extend_from_slice(&self.buf[self.pos..]);
+                    self.buf = Arc::new(v);
+                }
+                self.pos = 0;
             }
 
             if self.eof {
@@ -138,13 +134,14 @@ impl<R, P> Stream for ParseStream<R, P>
                 None => return None,
                 Some(Err(e)) => return Some(Err(e.into())),
                 Some(Ok(Some(()))) => {
-                    match read(&mut self.source, &mut self.buf) {
-                        Ok((_n, eof)) => self.eof = eof,
+                    let buf = Arc::get_mut(&mut self.buf).unwrap();
+                    match read(&mut self.source, buf) {
+                        Ok((n, eof)) => {
+                            self.eof = eof;
+                            self.need_parse = self.need_parse || n > 0;
+                        }
                         Err(e) => return Some(Err(e.into())),
                     }
-                    assert!(self.last_buf.is_none());
-                    let buf = mem::replace(&mut self.buf, Vec::with_capacity(2048));
-                    self.last_buf = Some(Arc::new(buf));
                 }
                 _ => unreachable!(),
             }
