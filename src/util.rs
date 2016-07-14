@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Future, Tokens};
+use {Wake, Future, Tokens, TOKENS_EMPTY};
 use executor::{Executor, DEFAULT};
 
 pub enum Collapsed<T: Future> {
@@ -43,5 +43,5 @@ impl<T: Future> Collapsed<T> {
 }
 
 pub fn done(wake: Arc<Wake>) {
-    DEFAULT.execute(move || wake.wake(&Tokens::empty()));
+    DEFAULT.execute(move || wake.wake(&TOKENS_EMPTY));
 }

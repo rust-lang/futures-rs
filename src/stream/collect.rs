@@ -1,7 +1,7 @@
 use std::mem;
 use std::sync::Arc;
 
-use {Wake, Tokens, Future, ALL_TOKENS};
+use {Wake, Tokens, Future, TOKENS_ALL};
 use stream::Stream;
 
 /// A future which collects all of the values of a stream into a vector.
@@ -45,7 +45,7 @@ impl<S> Future for Collect<S>
                 }
                 None => return None,
             }
-            tokens = &ALL_TOKENS;
+            tokens = &TOKENS_ALL;
         }
     }
 

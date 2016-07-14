@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, Future, ALL_TOKENS};
+use {Wake, Tokens, IntoFuture, Future, TOKENS_ALL};
 use stream::{Stream, StreamResult};
 
 /// A stream combinator which chains a computation onto each item produced by a
@@ -45,7 +45,7 @@ impl<S, F, U> Stream for Then<S, F, U>
                 None => return None,
             };
             self.future = Some((self.f)(item).into_future());
-            tokens = &ALL_TOKENS;
+            tokens = &TOKENS_ALL;
         }
         assert!(self.future.is_some());
         let res = self.future.as_mut().unwrap().poll(tokens);

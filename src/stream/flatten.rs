@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, ALL_TOKENS};
+use {Wake, Tokens, TOKENS_ALL};
 use stream::{Stream, StreamResult};
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
@@ -43,14 +43,14 @@ impl<S> Stream for Flatten<S>
                     Some(Err(e)) => return Some(Err(From::from(e))),
                     None => return None,
                 }
-                tokens = &ALL_TOKENS;
+                tokens = &TOKENS_ALL;
             }
             assert!(self.next.is_some());
             match self.next.as_mut().unwrap().poll(tokens) {
                 Some(Ok(None)) => self.next = None,
                 other => return other,
             }
-            tokens = &ALL_TOKENS;
+            tokens = &TOKENS_ALL;
         }
     }
 

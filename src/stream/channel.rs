@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use {Future, Wake, Tokens};
 use slot::{Slot, Token};
@@ -21,12 +21,9 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
     where T: Send + 'static,
           E: Send + 'static,
 {
-    static COUNT: AtomicUsize = ATOMIC_USIZE_INIT;
-
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
         receiver_gone: AtomicBool::new(false),
-        token: COUNT.fetch_add(1, Ordering::SeqCst) + 1,
     });
     let sender = Sender {
         inner: inner.clone(),
@@ -74,7 +71,6 @@ pub struct Receiver<T, E>
 struct Inner<T, E> {
     slot: Slot<Message<Result<T, E>>>,
     receiver_gone: AtomicBool,
-    token: usize,
 }
 
 enum Message<T> {
@@ -92,10 +88,6 @@ impl<T, E> Stream for Receiver<T, E>
     type Error = E;
 
     fn poll(&mut self, _tokens: &Tokens) -> Option<StreamResult<T, E>> {
-        // if !tokens.may_contain(&Tokens::from_usize(self.inner.token)) {
-        //     return None
-        // }
-
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
@@ -110,9 +102,8 @@ impl<T, E> Stream for Receiver<T, E>
             self.inner.slot.cancel(token);
         }
 
-        let token = self.inner.token;
         self.on_full_token = Some(self.inner.slot.on_full(move |_| {
-            wake.wake(&Tokens::from_usize(token))
+            util::done(wake);
         }));
     }
 }
@@ -188,7 +179,7 @@ impl<T, E> Future for FutureSender<T, E>
             Some(ref s) => {
                 // TODO: don't drop token?
                 s.inner.slot.on_empty(move |_slot| {
-                    wake.wake(&Tokens::all());
+                    util::done(wake);
                 });
             }
             None => util::done(wake),

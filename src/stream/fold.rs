@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, Future, ALL_TOKENS};
+use {Wake, Tokens, Future, TOKENS_ALL};
 use stream::Stream;
 
 /// A future used to collect all the results of a stream into one generic type.
@@ -44,7 +44,7 @@ impl<S, F, T> Future for Fold<S, F, T>
                     return None
                 }
             }
-            tokens = &ALL_TOKENS;
+            tokens = &TOKENS_ALL;
         }
     }
 

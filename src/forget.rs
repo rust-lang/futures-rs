@@ -1,7 +1,8 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use {Future, Wake, Tokens};
+use token::AtomicTokens;
 use executor::{DEFAULT, Executor};
 use slot::Slot;
 
@@ -10,7 +11,7 @@ type Thunk = Box<Future<Item=(), Error=()>>;
 struct Forget {
     slot: Slot<(Thunk, Arc<Forget>)>,
     registered: AtomicBool,
-    tokens: AtomicUsize,
+    tokens: AtomicTokens,
 }
 
 pub fn forget<T: Future>(t: T) {
@@ -18,9 +19,9 @@ pub fn forget<T: Future>(t: T) {
     let forget = Arc::new(Forget {
         slot: Slot::new(None),
         registered: AtomicBool::new(false),
-        tokens: AtomicUsize::new(0),
+        tokens: AtomicTokens::all(),
     });
-    _forget(thunk, forget, &Tokens::all())
+    _forget(thunk, forget)
 }
 
 // FIXME(rust-lang/rust#34416) should just be able to use map/map_err, but that
@@ -53,38 +54,52 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
     }
 }
 
-fn _forget(mut future: Thunk,
-           forget: Arc<Forget>,
-           tokens: &Tokens) {
-    // TODO: catch panics here?
-    if future.poll(tokens).is_some() {
-        return
+fn _forget(mut future: Thunk, forget: Arc<Forget>) {
+    loop {
+        // TODO: catch panics here?
+        if future.poll(&forget.tokens.get_tokens()).is_some() {
+            return
+        }
+        future = match future.tailcall() {
+            Some(f) => f,
+            None => future,
+        };
+        if !forget.tokens.any() {
+            break
+        }
     }
-    let mut future = match future.tailcall() {
-        Some(f) => f,
-        None => future,
-    };
+
+    // Ok, we've seen that there are no tokens which show interest in the
+    // future. Schedule interest on the future for when something is ready and
+    // then relinquish the future and the forget back to the slot, which will
+    // then pick it up once a wake callback has fired.
     future.schedule(forget.clone());
     forget.slot.try_produce((future, forget.clone())).ok().unwrap();
 }
 
 impl Wake for Forget {
     fn wake(&self, tokens: &Tokens) {
-        self.tokens.fetch_or(tokens.as_usize(), Ordering::SeqCst);
+        // First, add all our tokens provided into the shared token set.
+        self.tokens.add(tokens);
+
+        // Next, see if we can actually register an `on_full` callback. The
+        // `Slot` requires that only one registration happens, and this flag
+        // guards that.
         if self.registered.swap(true, Ordering::SeqCst) {
             return
         }
+
+        // If we won the race to register a callback, do so now. Once the slot
+        // is resolve we allow another registration **before we poll again**.
+        // This allows any future which may be somewhat badly behaved to be
+        // compatible with this.
+        //
+        // TODO: this store of `false` should *probably* be before the
+        //       `schedule` call in forget above, need to think it through.
         self.slot.on_full(|slot| {
             let (future, forget) = slot.try_consume().ok().unwrap();
-
-            // TODO: think real hard about the ordering of this store and the
-            //       swap below
             forget.registered.store(false, Ordering::SeqCst);
-            DEFAULT.execute(|| {
-                let tokens = forget.tokens.swap(0, Ordering::SeqCst);
-                let tokens = Tokens::from_usize(tokens);
-                _forget(future, forget, &tokens)
-            })
+            DEFAULT.execute(|| _forget(future, forget));
         });
     }
 }

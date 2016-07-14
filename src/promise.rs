@@ -1,8 +1,9 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use {Future, Wake, Tokens};
 use slot::{Slot, Token};
+use util;
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
@@ -13,7 +14,6 @@ pub struct Promise<T>
 {
     inner: Arc<Inner<T>>,
     cancel_token: Option<Token>,
-    token: usize,
 }
 
 /// Represents the completion half of a promise through which the result of a
@@ -61,8 +61,6 @@ struct Inner<T> {
 pub fn promise<T>() -> (Complete<T>, Promise<T>)
     where T: Send + 'static,
 {
-    static COUNT: AtomicUsize = ATOMIC_USIZE_INIT;
-
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
         pending_wake: AtomicBool::new(false),
@@ -70,7 +68,6 @@ pub fn promise<T>() -> (Complete<T>, Promise<T>)
     let promise = Promise {
         inner: inner.clone(),
         cancel_token: None,
-        token: COUNT.fetch_add(1, Ordering::SeqCst),
     };
     let complete = Complete {
         inner: inner,
@@ -134,7 +131,6 @@ impl<T: Send + 'static> Future for Promise<T> {
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
-        let tokens = Tokens::from_usize(self.token);
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             if let Some(cancel_token) = self.cancel_token.take() {
                 self.inner.slot.cancel(cancel_token);
@@ -144,7 +140,7 @@ impl<T: Send + 'static> Future for Promise<T> {
         let inner = self.inner.clone();
         self.cancel_token = Some(self.inner.slot.on_full(move |_| {
             inner.pending_wake.store(false, Ordering::SeqCst);
-            wake.wake(&tokens)
+            util::done(wake);
         }));
     }
 }

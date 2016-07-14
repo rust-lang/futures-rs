@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, ALL_TOKENS};
+use {Wake, Tokens, TOKENS_ALL};
 use stream::{Stream, StreamResult};
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -52,7 +52,7 @@ impl<S, P> Stream for SkipWhile<S, P>
                 Ok(true) => {}
                 Err(e) => return Some(Err(e)),
             }
-            tokens = &ALL_TOKENS;
+            tokens = &TOKENS_ALL;
         }
     }
 

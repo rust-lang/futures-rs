@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, ALL_TOKENS};
+use {Wake, Tokens, IntoFuture, TOKENS_ALL};
 use stream::{Stream, StreamResult, Fuse};
 use util::Collapsed;
 
@@ -42,7 +42,7 @@ impl<S> Stream for Buffered<S>
             let mut tokens = tokens;
 
             // First, if this slot is empty, try to fill it in. If we fill it in
-            // we're careful to use ALL_TOKENS for the next poll() below.
+            // we're careful to use TOKENS_ALL for the next poll() below.
             if f.is_none() {
                 match self.stream.poll(tokens) {
                     Some(Ok(Some(e))) => {
@@ -52,7 +52,7 @@ impl<S> Stream for Buffered<S>
                     Some(Ok(None)) |
                     None => continue,
                 }
-                tokens = &ALL_TOKENS;
+                tokens = &TOKENS_ALL;
             }
 
             // If we're here then our slot is full, so we unwrap it and poll it.

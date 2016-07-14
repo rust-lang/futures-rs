@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, Wake, Tokens, ALL_TOKENS};
+use {Future, Wake, Tokens, TOKENS_ALL};
 use stream::Stream;
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -42,7 +42,7 @@ impl<S, F> Future for ForEach<S, F>
                 Some(Err(e)) => return Some(Err(e)),
                 None => return None,
             }
-            tokens = &ALL_TOKENS;
+            tokens = &TOKENS_ALL;
         }
     }
 
