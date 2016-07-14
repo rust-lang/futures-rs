@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 use std::sync::Arc;
 
-use futures::{Future, Wake, Tokens, ALL_TOKENS};
+use futures::{Future, Wake, Tokens, TOKENS_ALL};
 use futures::stream::{Stream, StreamResult, Fuse};
 use futuremio::*;
 
@@ -233,7 +233,7 @@ impl<W, S> Future for StreamWriter<W, S>
                 Some(Ok(Some(item))) => {
                     debug!("got an item to serialize!");
                     item.serialize(&mut self.buf);
-                    tokens_for_items = &ALL_TOKENS;
+                    tokens_for_items = &TOKENS_ALL;
                 }
                 Some(Ok(None)) |
                 None => break,
