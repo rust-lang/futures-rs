@@ -57,6 +57,10 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
 fn _forget(mut future: Thunk, forget: Arc<Forget>) {
     loop {
         // TODO: catch panics here?
+
+        // Note that we need to poll at least once as the wake callback may have
+        // received an empty set of tokens, but that's still a valid reason to
+        // poll a future.
         if future.poll(&forget.tokens.get_tokens()).is_some() {
             return
         }
