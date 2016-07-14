@@ -2,7 +2,7 @@ use std::io::{self, ErrorKind};
 use std::sync::Arc;
 use std::net::{self, SocketAddr};
 
-use futures::stream::Stream;
+use futures::stream::{self, Stream};
 use futures::{Future, IntoFuture, failed};
 use mio;
 
@@ -79,8 +79,12 @@ impl TcpListener {
         let source = inner.source;
 
         inner.ready_read
-            .and_then(move |()| source.accept())
-            .filter_map(|i| i) // discard spurious notifications
+            .map(move |()| {
+                stream::iter(NonblockingIter {
+                    source: source.clone()
+                }.fuse()).and_then(|e| e)
+            })
+            .flatten()
             .and_then(move |(tcp, addr)| {
                 ReadinessPair::new(loop_handle.clone(), tcp).map(move |pair| {
                     let stream = TcpStream {
@@ -91,6 +95,22 @@ impl TcpListener {
                     (stream, addr)
                 })
             }).boxed()
+    }
+}
+
+struct NonblockingIter {
+    source: Arc<mio::tcp::TcpListener>,
+}
+
+impl Iterator for NonblockingIter {
+    type Item = io::Result<(mio::tcp::TcpStream, SocketAddr)>;
+
+    fn next(&mut self) -> Option<io::Result<(mio::tcp::TcpStream, SocketAddr)>> {
+        match self.source.accept() {
+            Ok(Some(e)) => Some(Ok(e)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
     }
 }
 
