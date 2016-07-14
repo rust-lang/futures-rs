@@ -11,6 +11,7 @@ pub struct Request {
     method: Slice,
     path: Slice,
     version: u8,
+    // TODO: use a small vec to avoid this unconditional allocation
     headers: Vec<(Slice, Slice)>,
     data: Arc<Vec<u8>>,
 }
