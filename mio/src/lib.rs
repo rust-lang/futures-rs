@@ -15,6 +15,9 @@ extern crate slab;
 #[macro_use]
 extern crate scoped_tls;
 
+#[macro_use]
+extern crate log;
+
 use std::io;
 use futures::Future;
 use futures::stream::Stream;

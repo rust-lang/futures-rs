@@ -3,6 +3,7 @@ use std::io::{self, ErrorKind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::sync::mpsc;
+use std::time::Instant;
 
 use mio;
 use mio::channel::SendError;
@@ -164,6 +165,7 @@ impl Loop {
             // On Linux, Poll::poll is epoll_wait, which may return EINTR if a
             // ptracer attaches. This retry loop prevents crashing when
             // attaching strace, or similar.
+            let start = Instant::now();
             loop {
                 match self.io.borrow_mut().poll(None) {
                     Ok(a) => {
@@ -176,8 +178,10 @@ impl Loop {
                     }
                 }
             }
+            debug!("loop poll - {:?}", start.elapsed());
 
             // TODO: coalesce token sets for a given Wake?
+            let start = Instant::now();
             for i in 0..amt {
                 let event = self.io.borrow_mut().events().get(i).unwrap();
                 let token = event.token().as_usize();
@@ -229,6 +233,8 @@ impl Loop {
                     }
                 }
             }
+
+            debug!("loop process - {} events, {:?}", amt, start.elapsed());
         }
 
         rx_res.recv().unwrap()

@@ -5,10 +5,10 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 
 [dependencies]
 mio = { git = "https://github.com/alexcrichton/mio", branch = "tcp-sync" }
-# mio = "0.5"
 futures = { path = ".." }
 scoped-tls = "0.1.0"
 slab = "0.2.0"
+log = "0.3"
 
 [lib]
 test = false
