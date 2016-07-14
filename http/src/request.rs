@@ -57,6 +57,8 @@ impl Parse for Request {
              buf: &Arc<Vec<u8>>,
              offset: usize)
              -> Option<Result<(Request, usize), io::Error>> {
+        // TODO: we should grow this headers array if parsing fails and asks for
+        //       more headers
         let mut headers = [httparse::EMPTY_HEADER; 16];
         let mut r = httparse::Request::new(&mut headers);
         let status = match r.parse(&buf[offset..]) {
