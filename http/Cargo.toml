@@ -13,3 +13,6 @@ log = "0.3"
 
 [profile.release]
 debug = true
+
+[replace]
+"time:0.1.35" = { git = "https://github.com/rust-lang-deprecated/time" }
