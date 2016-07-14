@@ -104,11 +104,13 @@ fn register(poll: &mut mio::Poll,
 fn reregister(poll: &mut mio::Poll, token: usize, sched: &Scheduled) {
     // TODO: handle error
     assert!(!sched.running_callbacks);
-    poll.reregister(&*sched.source,
-                    mio::Token(token),
-                    sched.event_set(),
-                    mio::PollOpt::edge() | mio::PollOpt::oneshot())
-        .unwrap();
+    if sched.event_set() != mio::EventSet::none() {
+        poll.reregister(&*sched.source,
+                        mio::Token(token),
+                        sched.event_set(),
+                        mio::PollOpt::edge() | mio::PollOpt::oneshot())
+            .unwrap();
+    }
 }
 
 fn deregister(poll: &mut mio::Poll, sched: &Scheduled) {
@@ -185,13 +187,16 @@ impl Loop {
                     let mut reader = None;
                     let mut writer = None;
 
+                    let mut tokens = Tokens::empty();
                     if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
                         if event.kind().is_readable() {
                             reader = sched.reader.take();
+                            tokens.insert(2 * token);
                         }
 
                         if event.kind().is_writable() {
                             writer = sched.writer.take();
+                            tokens.insert(2 * token + 1);
                         }
 
                         assert!(!sched.running_callbacks);
@@ -199,7 +204,6 @@ impl Loop {
                     }
 
                     CURRENT_LOOP.set(&self, || {
-                        let tokens = Tokens::from_usize(token);
                         match (reader, writer) {
                             (Some(r), Some(w)) => {
                                 r.wake(&tokens);
@@ -465,7 +469,7 @@ impl Future for AddSource {
     fn poll(&mut self, tokens: &Tokens) -> Option<Result<usize, io::Error>> {
         match self.result {
             Some((ref result, _)) => {
-                if tokens.may_contain(&Tokens::from_usize(ADD_SOURCE_TOKEN)) {
+                if tokens.may_contain(ADD_SOURCE_TOKEN) {
                     result.try_consume().ok()
                 } else {
                     None
@@ -486,14 +490,14 @@ impl Future for AddSource {
         if let Some((ref result, ref mut token)) = self.result {
             result.cancel(*token);
             *token = result.on_full(move |_| {
-                wake.wake(&Tokens::from_usize(ADD_SOURCE_TOKEN));
+                wake.wake(&Tokens::one(ADD_SOURCE_TOKEN));
             });
             return
         }
 
         let result = Arc::new(Slot::new(None));
         let token = result.on_full(move |_| {
-            wake.wake(&Tokens::from_usize(ADD_SOURCE_TOKEN));
+            wake.wake(&Tokens::one(ADD_SOURCE_TOKEN));
         });
         self.result = Some((result.clone(), token));
         self.loop_handle.add_source_(self.source.take().unwrap(), result);

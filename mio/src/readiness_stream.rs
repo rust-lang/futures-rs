@@ -61,6 +61,7 @@ pub struct ReadinessStream {
     dir: Direction,
     state: State,
     token: usize,
+    token_to_test: usize,
     loop_handle: LoopHandle,
     _drop_source: Arc<DropSource>,
 }
@@ -76,7 +77,7 @@ impl Stream for ReadinessStream {
     type Error = io::Error;
 
     fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<(), io::Error>> {
-        if self.state.ready_on_poll() && tokens.may_contain(&Tokens::from_usize(self.token)) {
+        if self.state.ready_on_poll() && tokens.may_contain(self.token_to_test) {
             self.state = State::Polled;
             Some(Ok(Some(())))
         } else {
@@ -85,6 +86,7 @@ impl Stream for ReadinessStream {
     }
 
     fn schedule(&mut self, wake: Arc<Wake>) {
+        // TODO: need to update the wake callback
         if self.state != State::Scheduled {
             self.state = State::Scheduled;
             self.loop_handle.schedule(self.token, self.dir, wake)
@@ -116,6 +118,7 @@ impl<E> ReadinessPair<E> where E: Send + Sync + mio::Evented + 'static {
                     dir: Direction::Read,
                     state: State::NeverPolled,
                     token: token,
+                    token_to_test: 2 * token,
                     loop_handle: loop_handle.clone(),
                     _drop_source: drop_source.clone(),
                 },
@@ -123,6 +126,7 @@ impl<E> ReadinessPair<E> where E: Send + Sync + mio::Evented + 'static {
                     dir: Direction::Write,
                     state: State::NeverPolled,
                     token: token,
+                    token_to_test: 2 * token + 1,
                     loop_handle: loop_handle,
                     _drop_source: drop_source,
                 },
