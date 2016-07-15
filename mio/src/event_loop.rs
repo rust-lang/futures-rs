@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::io::{self, ErrorKind};
+use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::sync::mpsc;
@@ -55,33 +56,22 @@ pub enum Direction {
 
 struct Scheduled {
     source: Source,
-    reader: Option<Arc<Wake>>,
-    writer: Option<Arc<Wake>>,
+    reader: Half,
+    writer: Half,
+}
 
-    // boolean flag indicating if callbacks are currently being run for this
-    // `Scheduled` source. If they're running then there's no need to call
-    // `reregister` if we hit the event loop again because we're going to do so
-    // anyway at the end of the callbacks being run anyway.
-    running_callbacks: bool,
+enum Half {
+    NotReady,
+    Ready,
+    Waiting(Arc<Wake>),
 }
 
 impl Scheduled {
-    fn waiter_for(&mut self, dir: Direction) -> &mut Option<Arc<Wake>> {
+    fn waiter_for(&mut self, dir: Direction) -> &mut Half {
         match dir {
             Direction::Read => &mut self.reader,
             Direction::Write => &mut self.writer,
         }
-    }
-
-    fn event_set(&self) -> mio::EventSet {
-        let mut set = mio::EventSet::none();
-        if self.reader.is_some() {
-            set = set | mio::EventSet::readable()
-        }
-        if self.writer.is_some() {
-            set = set | mio::EventSet::writable()
-        }
-        set
     }
 }
 
@@ -98,20 +88,8 @@ fn register(poll: &mut mio::Poll,
             sched: &Scheduled) -> io::Result<()> {
     poll.register(&*sched.source,
                   mio::Token(token),
-                  mio::EventSet::none(),
-                  mio::PollOpt::level())
-}
-
-fn reregister(poll: &mut mio::Poll, token: usize, sched: &Scheduled) {
-    // TODO: handle error
-    assert!(!sched.running_callbacks);
-    if sched.event_set() != mio::EventSet::none() {
-        poll.reregister(&*sched.source,
-                        mio::Token(token),
-                        sched.event_set(),
-                        mio::PollOpt::edge() | mio::PollOpt::oneshot())
-            .unwrap();
-    }
+                  mio::EventSet::readable() | mio::EventSet::writable(),
+                  mio::PollOpt::edge())
 }
 
 fn deregister(poll: &mut mio::Poll, sched: &Scheduled) {
@@ -194,17 +172,14 @@ impl Loop {
                     let mut tokens = Tokens::empty();
                     if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
                         if event.kind().is_readable() {
-                            reader = sched.reader.take();
+                            writer = sched.reader.set();
                             tokens.insert(2 * token);
                         }
 
                         if event.kind().is_writable() {
-                            writer = sched.writer.take();
+                            reader = sched.writer.set();
                             tokens.insert(2 * token + 1);
                         }
-
-                        assert!(!sched.running_callbacks);
-                        sched.running_callbacks = true;
                     }
 
                     CURRENT_LOOP.set(&self, || {
@@ -220,17 +195,6 @@ impl Loop {
                             (None, None) => {}
                         }
                     });
-
-                    // For now, always reregister, to deal with the fact that
-                    // combined oneshot + read|write requires rearming even if
-                    // only one side fired.
-                    //
-                    // TODO: optimize this
-                    if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
-                        assert!(sched.running_callbacks);
-                        sched.running_callbacks = false;
-                        reregister(&mut self.io.borrow_mut(), token, &sched);
-                    }
                 }
             }
 
@@ -243,9 +207,8 @@ impl Loop {
     fn add_source(&self, source: Source) -> io::Result<usize> {
         let sched = Scheduled {
             source: source,
-            reader: None,
-            writer: None,
-            running_callbacks: false,
+            reader: Half::NotReady,
+            writer: Half::NotReady,
         };
         let mut dispatch = self.dispatch.borrow_mut();
         if dispatch.vacant_entry().is_none() {
@@ -263,21 +226,26 @@ impl Loop {
     }
 
     fn schedule(&self, token: usize, dir: Direction, wake: Arc<Wake>) {
-        let mut dispatch = self.dispatch.borrow_mut();
-        let sched = dispatch.get_mut(token).unwrap();
-        *sched.waiter_for(dir) = Some(wake);
-        if !sched.running_callbacks {
-            reregister(&mut self.io.borrow_mut(), token, sched);
+        let to_call = {
+            let mut dispatch = self.dispatch.borrow_mut();
+            let sched = dispatch.get_mut(token).unwrap();
+            sched.waiter_for(dir).block(Some(wake))
+        };
+        if let Some(to_call) = to_call {
+            let mut tokens = Tokens::empty();
+            let token = match dir {
+                Direction::Read => 2 * token,
+                Direction::Write => 2 * token + 1,
+            };
+            tokens.insert(token);
+            to_call.wake(&tokens);
         }
     }
 
     fn deschedule(&self, token: usize, dir: Direction) {
         let mut dispatch = self.dispatch.borrow_mut();
         let sched = dispatch.get_mut(token).unwrap();
-        *sched.waiter_for(dir) = None;
-        if !sched.running_callbacks {
-            reregister(&mut self.io.borrow_mut(), token, sched);
-        }
+        assert!(sched.waiter_for(dir).block(None).is_none());
     }
 
     fn consume_queue(&self) {
@@ -298,6 +266,31 @@ impl Loop {
             Message::Deschedule(tok, dir) => self.deschedule(tok, dir),
             Message::Shutdown => self.active.set(false),
         }
+    }
+}
+
+impl Half {
+    fn set(&mut self) -> Option<Arc<Wake>> {
+        match mem::replace(self, Half::Ready) {
+            Half::NotReady => None,
+            Half::Ready => None,
+            Half::Waiting(arc) => {
+                *self = Half::NotReady;
+                Some(arc)
+            }
+        }
+    }
+
+    fn block(&mut self, waiter: Option<Arc<Wake>>) -> Option<Arc<Wake>> {
+        match (&*self, waiter) {
+            (&Half::NotReady, None) => {}
+            (&Half::NotReady, Some(other)) => *self = Half::Waiting(other),
+            (&Half::Ready, None) => {}
+            (&Half::Ready, Some(other)) => return Some(other),
+            (&Half::Waiting(..), None) => *self = Half::NotReady,
+            (&Half::Waiting(..), Some(other)) => *self = Half::Waiting(other),
+        }
+        None
     }
 }
 

@@ -20,6 +20,7 @@ pub trait Parse: Sized + Send + 'static {
 pub struct ParseStream<R, P: Parse> {
     source: R,
     source_ready: ReadinessStream,
+    read_ready: bool,
     parser: P::Parser,
     buf: Arc<Vec<u8>>,
 
@@ -41,6 +42,7 @@ impl<R, P> ParseStream<R, P>
         ParseStream {
             source: source,
             source_ready: source_ready,
+            read_ready: false,
             parser: Default::default(),
             buf: Arc::new(Vec::with_capacity(2048)),
             pos: 0,
@@ -128,22 +130,25 @@ impl<R, P> Stream for ParseStream<R, P>
                 return Some(Ok(None))
             }
 
-            match self.source_ready.poll(tokens) {
-                // TODO: consider refactoring `poll` API to make this more
-                //       readable...
-                None => return None,
-                Some(Err(e)) => return Some(Err(e.into())),
-                Some(Ok(Some(()))) => {
-                    let buf = Arc::get_mut(&mut self.buf).unwrap();
-                    match read(&mut self.source, buf) {
-                        Ok((n, eof)) => {
-                            self.eof = eof;
-                            self.need_parse = self.need_parse || n > 0;
-                        }
-                        Err(e) => return Some(Err(e.into())),
-                    }
+            if !self.read_ready {
+                match self.source_ready.poll(tokens) {
+                    // TODO: consider refactoring `poll` API to make this more
+                    //       readable...
+                    None => return None,
+                    Some(Err(e)) => return Some(Err(e.into())),
+                    Some(Ok(Some(()))) => self.read_ready = true,
+                    _ => unreachable!(),
                 }
-                _ => unreachable!(),
+            }
+
+            let buf = Arc::get_mut(&mut self.buf).unwrap();
+            match read(&mut self.source, buf) {
+                Ok((n, eof)) => {
+                    self.eof = eof;
+                    self.need_parse = self.need_parse || n > 0;
+                    self.read_ready = n > 0;
+                }
+                Err(e) => return Some(Err(e.into())),
             }
         }
     }
@@ -195,6 +200,7 @@ pub trait Serialize: Send + 'static {
 pub struct StreamWriter<W, S> {
     sink: W,
     sink_ready: ReadinessStream,
+    write_ready: bool,
     items: Fuse<S>,
     buf: Vec<u8>,
 }
@@ -209,6 +215,7 @@ impl<W, S> StreamWriter<W, S>
         StreamWriter {
             sink: sink,
             sink_ready: sink_ready,
+            write_ready: false,
             items: items.fuse(),
             buf: Vec::with_capacity(2048),
         }
@@ -245,21 +252,27 @@ impl<W, S> Future for StreamWriter<W, S>
         // write regardless of sink_ready.poll, because we haven't asked for a
         // readiness notifcation. Saves a trip around the event loop.
 
-        if self.buf.len() > 0 {
-            match self.sink_ready.poll(tokens) {
-                Some(Err(e)) => Some(Err(e.into())),
-                Some(Ok(Some(()))) => {
-                    debug!("trying to write some data");
-                    if let Err(e) = write(&mut self.sink, &mut self.buf) {
-                        Some(Err(e.into()))
-                    } else {
-                        None
-                    }
+        while self.buf.len() > 0 {
+            if !self.write_ready {
+                match self.sink_ready.poll(tokens) {
+                    Some(Err(e)) => return Some(Err(e.into())),
+                    Some(Ok(Some(()))) => self.write_ready = true,
+                    Some(Ok(None)) | // TODO: this should translate to an error
+                    None => return None,
                 }
-                Some(Ok(None)) | // TODO: this should translate to an error
-                None => None,
             }
-        } else if self.items.is_done() {
+
+            debug!("trying to write some data");
+            let before = self.buf.len();
+            if let Err(e) = write(&mut self.sink, &mut self.buf) {
+                return Some(Err(e.into()))
+            }
+            if before == self.buf.len() {
+                self.write_ready = false;
+            }
+        }
+
+        if self.items.is_done() {
             // Nothing more to write to sink, and no more incoming items; we're done!
             Some(Ok(()))
         } else {

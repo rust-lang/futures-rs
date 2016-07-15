@@ -16,7 +16,7 @@ fn main() {
     http::serve(&addr, |r: http::Request| {
         assert_eq!(r.path(), "/plaintext");
         let mut r = Response::new();
-        r.header("Content-Type", "text/plain")
+        r.header("Content-Type", "text/plain; charset=UTF-8")
          .body("Hello, World!");
         finished::<_, std::io::Error>(r)
     }).unwrap()
