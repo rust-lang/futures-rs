@@ -97,13 +97,14 @@ impl<T, E> Stream for Receiver<T, E>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         if let Some(token) = self.on_full_token.take() {
             self.inner.slot.cancel(token);
         }
 
+        let wake = wake.clone();
         self.on_full_token = Some(self.inner.slot.on_full(move |_| {
-            util::done(wake);
+            util::done(&wake);
         }));
     }
 }
@@ -174,12 +175,13 @@ impl<T, E> Future for FutureSender<T, E>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         match self.sender {
             Some(ref s) => {
+                let wake = wake.clone();
                 // TODO: don't drop token?
                 s.inner.slot.on_empty(move |_slot| {
-                    util::done(wake);
+                    util::done(&wake);
                 });
             }
             None => util::done(wake),

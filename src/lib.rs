@@ -201,7 +201,7 @@ pub trait Future: Send + 'static {
     /// consider using the `fuse` adaptor which defines the behavior of
     /// `schedule` after a successful poll, but comes with a little bit of
     /// extra cost.
-    fn schedule(&mut self, wake: Arc<Wake>);
+    fn schedule(&mut self, wake: &Arc<Wake>);
 
     /// Perform tail-call optimization on this future.
     ///

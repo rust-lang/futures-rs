@@ -48,7 +48,7 @@ impl<S, F, T> Future for Fold<S, F, T>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.stream.schedule(wake)
     }
 }

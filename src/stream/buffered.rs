@@ -83,13 +83,13 @@ impl<S> Stream for Buffered<S>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         let mut any_none = false;
         // Primarily we're interested in all our pending futures, so schedule a
         // callback on all of them.
         for f in self.futures.iter_mut() {
             match *f {
-                Some(ref mut f) => f.schedule(wake.clone()),
+                Some(ref mut f) => f.schedule(wake),
                 None => any_none = true,
             }
         }

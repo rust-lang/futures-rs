@@ -29,7 +29,7 @@ impl<S: Stream> Stream for Fuse<S> {
         return ret
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         if let Some(ref mut stream) = self.stream {
             stream.schedule(wake)
         }

@@ -77,7 +77,7 @@ impl<F, R> Future for Lazy<F, R::Future>
         self.get().poll(tokens)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.get().schedule(wake)
     }
 

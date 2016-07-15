@@ -85,7 +85,7 @@ impl Stream for ReadinessStream {
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         // TODO: need to update the wake callback
         if self.state != State::Scheduled {
             self.state = State::Scheduled;

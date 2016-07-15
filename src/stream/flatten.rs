@@ -54,7 +54,7 @@ impl<S> Stream for Flatten<S>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         match self.next {
             Some(ref mut s) => s.schedule(wake),
             None => self.stream.schedule(wake),

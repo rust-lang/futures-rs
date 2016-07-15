@@ -69,11 +69,11 @@ impl<A, B> Future for Select<A, B>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         match self.inner {
             Some((ref mut a, ref mut b)) => {
-                a.schedule(wake.clone());
-                b.schedule(wake.clone());
+                a.schedule(wake);
+                b.schedule(wake);
             }
             None => util::done(wake),
         }
@@ -104,7 +104,7 @@ impl<A, B> Future for SelectNext<A, B>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         match self.inner {
             OneOf::A(ref mut a) => a.schedule(wake),
             OneOf::B(ref mut b) => b.schedule(wake),

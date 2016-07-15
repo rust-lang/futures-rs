@@ -113,10 +113,15 @@ impl AtomicTokens {
         }
     }
 
+    // TODO: document Relaxed here a bunch
+
     pub fn get_tokens(&self) -> Tokens {
         let ret = AtomicTokens::empty();
         for (src, dst) in self.data.iter().zip(ret.data.iter()) {
-            dst.store(src.swap(0, Ordering::SeqCst), Ordering::SeqCst);
+            let v = src.swap(0, Ordering::Relaxed);
+            if v != 0 {
+                dst.store(v, Ordering::Relaxed);
+            }
         }
         Tokens { repr: Repr::Bloom(ret) }
     }
@@ -126,16 +131,19 @@ impl AtomicTokens {
             Repr::Empty => {}
             Repr::All => {
                 for dst in self.data.iter() {
-                    dst.store(!0, Ordering::SeqCst);
+                    dst.store(!0, Ordering::Relaxed);
                 }
             }
             Repr::One(u) => {
                 let (slot, bit) = self.index(u);
-                slot.fetch_or(bit, Ordering::SeqCst);
+                slot.fetch_or(bit, Ordering::Relaxed);
             }
             Repr::Bloom(ref b) => {
                 for (src, dst) in b.data.iter().zip(self.data.iter()) {
-                    dst.fetch_or(src.load(Ordering::SeqCst), Ordering::SeqCst);
+                    let src = src.load(Ordering::Relaxed);
+                    if src != 0 {
+                        dst.fetch_or(src, Ordering::Relaxed);
+                    }
                 }
             }
         }
@@ -144,16 +152,16 @@ impl AtomicTokens {
     pub fn insert(&mut self, other: usize) {
         let (slot, bit) = self.index(other);
         // TODO: don't do an atomic here
-        slot.fetch_or(bit, Ordering::SeqCst);
+        slot.fetch_or(bit, Ordering::Relaxed);
     }
 
     pub fn may_contain(&self, token: usize) -> bool {
         let (slot, bit) = self.index(token);
-        slot.load(Ordering::SeqCst) & bit == bit
+        slot.load(Ordering::Relaxed) & bit == bit
     }
 
     pub fn any(&self) -> bool {
-        self.data.iter().any(|s| s.load(Ordering::SeqCst) != 0)
+        self.data.iter().any(|s| s.load(Ordering::Relaxed) != 0)
     }
 
     /// Returns the slot in which that token will go along with the value

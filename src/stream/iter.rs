@@ -47,7 +47,7 @@ impl<I, E> Stream for IterStream<I, E>
         Some(Ok(self.iter.next()))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         util::done(wake)
     }
 }

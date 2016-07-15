@@ -49,7 +49,7 @@ impl<A, B, C> Chain<A, B, C>
         }
     }
 
-    pub fn schedule(&mut self, wake: Arc<Wake>) {
+    pub fn schedule(&mut self, wake: &Arc<Wake>) {
         match *self {
             Chain::First(ref mut a, _) => a.schedule(wake),
             Chain::Second(ref mut b) => b.schedule(wake),

@@ -51,12 +51,12 @@ impl<A, B> Future for Join<A, B>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         match (&mut self.a, &mut self.b) {
             // need to wait for both
             (&mut MaybeDone::NotYet(ref mut a),
              &mut MaybeDone::NotYet(ref mut b)) => {
-                a.schedule(wake.clone());
+                a.schedule(wake);
                 b.schedule(wake);
             }
 

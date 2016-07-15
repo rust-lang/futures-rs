@@ -12,7 +12,7 @@ impl<S: ?Sized + Stream> Stream for Box<S> {
         (**self).poll(tokens)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         (**self).schedule(wake)
     }
 }

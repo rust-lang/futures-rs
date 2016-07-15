@@ -42,7 +42,7 @@ impl<T, E> Future for Failed<T, E>
         Some(Err(self.e.take().expect("cannot poll Failed twice")))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         util::done(wake)
     }
 }

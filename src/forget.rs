@@ -42,7 +42,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.inner.schedule(wake)
     }
 
@@ -77,8 +77,11 @@ fn _forget(mut future: Thunk, forget: Arc<Forget>) {
     // future. Schedule interest on the future for when something is ready and
     // then relinquish the future and the forget back to the slot, which will
     // then pick it up once a wake callback has fired.
-    future.schedule(forget.clone());
-    forget.slot.try_produce((future, forget.clone())).ok().unwrap();
+    //
+    // TODO: can this clone() be removed?
+    let forget2 = forget.clone();
+    future.schedule(&(forget as Arc<Wake>));
+    forget2.slot.try_produce((future, forget2.clone())).ok().unwrap();
 }
 
 impl Wake for Forget {

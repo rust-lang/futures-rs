@@ -45,7 +45,7 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
         self.future.poll(tokens)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.future.schedule(wake)
     }
 

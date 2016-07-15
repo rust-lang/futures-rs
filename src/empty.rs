@@ -34,7 +34,7 @@ impl<T, E> Future for Empty<T, E>
         None
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         drop(wake);
     }
 }

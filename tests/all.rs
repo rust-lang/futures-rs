@@ -129,7 +129,8 @@ fn smoke_promise() {
     drop(c);
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
-    p.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
+    let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
+    p.schedule(&(arc as Arc<Wake>));
     rx.recv().unwrap();
 }
 
@@ -160,7 +161,8 @@ fn select_cancels() {
     let tx = Mutex::new(tx);
     let mut f = b.select(d).then(unselect);
     assert!(f.poll(&Tokens::all()).is_none());
-    f.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
+    let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
+    f.schedule(&(arc as Arc<Wake>));
     assert!(rx.try_recv().is_err());
     a.complete(1);
     assert!(rx.recv().is_ok());
@@ -190,7 +192,8 @@ fn join_cancels() {
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
     let mut f = b.join(d);
-    f.schedule(Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap()));
+    let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
+    f.schedule(&(arc as Arc<Wake>));
     assert!(rx.try_recv().is_err());
     drop(a);
     assert!(f.poll(&Tokens::all()).is_some());
@@ -318,7 +321,7 @@ fn select2() {
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let mut f = b.select(d);
-        f.schedule(Arc::new(|_: &Tokens| ()));
+        f.schedule(&(Arc::new(|_: &Tokens| ()) as Arc<Wake>));
         drop(f);
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());

@@ -395,8 +395,8 @@ impl LoopHandle {
     /// This function will panic if the event loop this handle is associated
     /// with has gone away, or if there is an error communicating with the event
     /// loop.
-    pub fn schedule(&self, tok: usize, dir: Direction, wake: Arc<Wake>) {
-        self.send(Message::Schedule(tok, dir, wake));
+    pub fn schedule(&self, tok: usize, dir: Direction, wake: &Arc<Wake>) {
+        self.send(Message::Schedule(tok, dir, wake.clone()));
     }
 
     /// Stop listening for events on an event loop.
@@ -492,7 +492,8 @@ impl Future for AddSource {
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
+        let wake = wake.clone();
         if let Some((ref result, ref mut token)) = self.result {
             result.cancel(*token);
             *token = result.on_full(move |_| {

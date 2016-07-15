@@ -130,7 +130,7 @@ impl<T: Send + 'static> Future for Promise<T> {
         Some(ret)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             if let Some(cancel_token) = self.cancel_token.take() {
                 self.inner.slot.cancel(cancel_token);
@@ -138,9 +138,10 @@ impl<T: Send + 'static> Future for Promise<T> {
         }
         self.inner.pending_wake.store(true, Ordering::SeqCst);
         let inner = self.inner.clone();
+        let wake = wake.clone();
         self.cancel_token = Some(self.inner.slot.on_full(move |_| {
             inner.pending_wake.store(false, Ordering::SeqCst);
-            util::done(wake);
+            util::done(&wake);
         }));
     }
 }

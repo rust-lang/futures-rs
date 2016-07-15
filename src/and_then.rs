@@ -38,7 +38,7 @@ impl<A, B, F> Future for AndThen<A, B, F>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.state.schedule(wake)
     }
 

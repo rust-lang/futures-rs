@@ -110,7 +110,7 @@ impl<I> Future for Collect<I>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         if let Some(ref mut cur) = self.cur {
             cur.schedule(wake);
         }

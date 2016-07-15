@@ -44,7 +44,7 @@ impl<T, E> Future for Finished<T, E>
         Some(Ok(self.t.take().expect("cannot poll Finished twice")))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         util::done(wake)
     }
 }

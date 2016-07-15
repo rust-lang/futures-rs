@@ -148,7 +148,7 @@ impl<R, P> Stream for ParseStream<R, P>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         // TODO: think through this carefully...
         if self.need_parse {
             // Empty tokens because in a `need_parse` situation, we'll attempt
@@ -267,10 +267,10 @@ impl<W, S> Future for StreamWriter<W, S>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         // wake up on writability only if we have something to write
         if self.buf.len() > 0 {
-            self.sink_ready.schedule(wake.clone());
+            self.sink_ready.schedule(wake);
         }
 
         // for now, we are always happy to write more items into our unbounded buffer

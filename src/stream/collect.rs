@@ -49,7 +49,7 @@ impl<S> Future for Collect<S>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.stream.schedule(wake)
     }
 }

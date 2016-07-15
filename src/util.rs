@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use {Wake, Future, Tokens, TOKENS_EMPTY};
-use executor::{Executor, DEFAULT};
 
 pub enum Collapsed<T: Future> {
     Start(T),
@@ -16,7 +15,7 @@ impl<T: Future> Collapsed<T> {
         }
     }
 
-    pub fn schedule(&mut self, wake: Arc<Wake>) {
+    pub fn schedule(&mut self, wake: &Arc<Wake>) {
         match *self {
             Collapsed::Start(ref mut a) => a.schedule(wake),
             Collapsed::Tail(ref mut a) => a.schedule(wake),
@@ -42,6 +41,6 @@ impl<T: Future> Collapsed<T> {
     }
 }
 
-pub fn done(wake: Arc<Wake>) {
-    DEFAULT.execute(move || wake.wake(&TOKENS_EMPTY));
+pub fn done(wake: &Arc<Wake>) {
+    wake.wake(&TOKENS_EMPTY);
 }

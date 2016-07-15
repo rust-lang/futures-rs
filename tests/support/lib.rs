@@ -26,7 +26,7 @@ pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
     assert!(f().poll(&Tokens::all()).is_none());
 
     let mut a = f();
-    a.schedule(Arc::new(move |_: &Tokens| ()));
+    a.schedule(&(Arc::new(move |_: &Tokens| ()) as Arc<Wake>));
     assert!(a.poll(&Tokens::all()).is_none());
     drop(a);
 }

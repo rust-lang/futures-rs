@@ -15,7 +15,7 @@ impl<T, E> Future for Box<Future<Item=T, Error=E>>
         (**self).poll(tokens)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         (**self).schedule(wake)
     }
 
@@ -37,7 +37,7 @@ impl<F: Future> Future for Box<F> {
         (**self).poll(tokens)
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         (**self).schedule(wake)
     }
 

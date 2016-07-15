@@ -163,7 +163,7 @@ pub trait Stream: Send + 'static {
     /// consider using the `fuse` adaptor which defines the behavior of
     /// `schedule` after a successful poll, but comes with a little bit of
     /// extra cost.
-    fn schedule(&mut self, wake: Arc<Wake>);
+    fn schedule(&mut self, wake: &Arc<Wake>);
 
     /// Convenience function for turning this stream into a trait object.
     ///

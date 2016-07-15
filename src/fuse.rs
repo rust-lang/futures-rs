@@ -30,7 +30,7 @@ impl<A: Future> Future for Fuse<A> {
         return ret
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         if let Some(ref mut f) = self.future {
             f.schedule(wake);
         }

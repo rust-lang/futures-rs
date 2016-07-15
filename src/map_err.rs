@@ -34,7 +34,7 @@ impl<U, A, F> Future for MapErr<A, F>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.future.schedule(wake)
     }
 

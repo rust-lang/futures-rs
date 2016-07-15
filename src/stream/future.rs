@@ -38,7 +38,7 @@ impl<S: Stream> Future for StreamFuture<S> {
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         if let Some(s) = self.stream.as_mut() {
             s.schedule(wake)
         }

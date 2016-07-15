@@ -39,7 +39,7 @@ impl<A, B, F> Future for OrElse<A, B, F>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.state.schedule(wake)
     }
 

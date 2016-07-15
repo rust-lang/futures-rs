@@ -46,7 +46,7 @@ impl<S, F> Future for ForEach<S, F>
         }
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.stream.schedule(wake)
     }
 }

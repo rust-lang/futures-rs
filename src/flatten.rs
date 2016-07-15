@@ -36,7 +36,7 @@ impl<A> Future for Flatten<A>
         })
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         self.state.schedule(wake)
     }
 

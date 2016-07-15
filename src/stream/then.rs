@@ -55,7 +55,7 @@ impl<S, F, U> Stream for Then<S, F, U>
         res.map(|r| r.map(Some))
     }
 
-    fn schedule(&mut self, wake: Arc<Wake>) {
+    fn schedule(&mut self, wake: &Arc<Wake>) {
         match self.future {
             Some(ref mut s) => s.schedule(wake),
             None => self.stream.schedule(wake),
