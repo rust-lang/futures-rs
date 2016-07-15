@@ -9,7 +9,7 @@ use slot::Slot;
 type Thunk = Box<Future<Item=(), Error=()>>;
 
 struct Forget {
-    slot: Slot<(Thunk, Arc<Forget>)>,
+    slot: Slot<(Thunk, Arc<Forget>, Arc<Wake>)>,
     registered: AtomicBool,
     tokens: AtomicTokens,
 }
@@ -21,7 +21,7 @@ pub fn forget<T: Future>(t: T) {
         registered: AtomicBool::new(false),
         tokens: AtomicTokens::all(),
     });
-    _forget(thunk, forget)
+    _forget(thunk, forget.clone(), forget)
 }
 
 // FIXME(rust-lang/rust#34416) should just be able to use map/map_err, but that
@@ -54,7 +54,9 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
     }
 }
 
-fn _forget(mut future: Thunk, forget: Arc<Forget>) {
+fn _forget(mut future: Thunk,
+           forget: Arc<Forget>,
+           wake: Arc<Wake>) {
     loop {
         // TODO: catch panics here?
 
@@ -77,11 +79,8 @@ fn _forget(mut future: Thunk, forget: Arc<Forget>) {
     // future. Schedule interest on the future for when something is ready and
     // then relinquish the future and the forget back to the slot, which will
     // then pick it up once a wake callback has fired.
-    //
-    // TODO: can this clone() be removed?
-    let forget2 = forget.clone();
-    future.schedule(&(forget as Arc<Wake>));
-    forget2.slot.try_produce((future, forget2.clone())).ok().unwrap();
+    future.schedule(&wake);
+    forget.slot.try_produce((future, forget.clone(), wake)).ok().unwrap();
 }
 
 impl Wake for Forget {
@@ -104,9 +103,9 @@ impl Wake for Forget {
         // TODO: this store of `false` should *probably* be before the
         //       `schedule` call in forget above, need to think it through.
         self.slot.on_full(|slot| {
-            let (future, forget) = slot.try_consume().ok().unwrap();
+            let (future, forget, wake) = slot.try_consume().ok().unwrap();
             forget.registered.store(false, Ordering::SeqCst);
-            DEFAULT.execute(|| _forget(future, forget));
+            DEFAULT.execute(|| _forget(future, forget, wake));
         });
     }
 }
