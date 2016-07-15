@@ -1,5 +1,7 @@
+use std::panic;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
 
 use {Future, Wake, Tokens};
 use token::AtomicTokens;
@@ -63,8 +65,15 @@ fn _forget(mut future: Thunk,
         // Note that we need to poll at least once as the wake callback may have
         // received an empty set of tokens, but that's still a valid reason to
         // poll a future.
-        if future.poll(&forget.tokens.get_tokens()).is_some() {
-            return
+        let tokens = forget.tokens.get_tokens();
+        let result = catch_unwind(move || {
+            (future.poll(&tokens), future)
+        });
+        match result {
+            Ok((Some(_), _)) => return,
+            Ok((None, f)) => future = f,
+            // TODO: do something smarter
+            Err(e) => panic::resume_unwind(e),
         }
         future = match future.tailcall() {
             Some(f) => f,
@@ -81,6 +90,12 @@ fn _forget(mut future: Thunk,
     // then pick it up once a wake callback has fired.
     future.schedule(&wake);
     forget.slot.try_produce((future, forget.clone(), wake)).ok().unwrap();
+}
+
+fn catch_unwind<F, U>(f: F) -> thread::Result<U>
+    where F: FnOnce() -> U + Send + 'static,
+{
+    panic::catch_unwind(panic::AssertUnwindSafe(f))
 }
 
 impl Wake for Forget {
