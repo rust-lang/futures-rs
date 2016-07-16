@@ -10,6 +10,7 @@ httparse = "1.1"
 time = "0.1"
 env_logger = "0.3"
 log = "0.3"
+net2 = "0.2"
 
 [profile.release]
 debug = true

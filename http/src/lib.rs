@@ -1,4 +1,5 @@
 extern crate futuremio;
+extern crate net2;
 extern crate futures;
 extern crate httparse;
 extern crate time;
@@ -8,10 +9,11 @@ extern crate log;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::thread;
 
 use futures::Future;
 use futures::stream::Stream;
-use futuremio::{Loop, TcpStream};
+use futuremio::{Loop, LoopHandle, TcpStream, TcpListener, IoFuture};
 
 mod request;
 pub use self::request::{Request, RequestHeaders};
@@ -45,24 +47,94 @@ impl<Req, Resp, Fut, F> Service<Req, Resp> for F
     }
 }
 
-pub fn serve<Req, Resp, S>(addr: &SocketAddr, s: S) -> io::Result<()>
-    where Req: Parse,
-          Resp: Serialize,
-          S: Service<Req, Resp>,
-          <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>, // TODO: simplify this?
-{
-    let service = Arc::new(s);
-    let lp = Loop::new().unwrap();
+pub struct Server {
+    addr: SocketAddr,
+    workers: u32,
+}
 
-    let listen = lp.handle().tcp_listen(addr)
-        .map_err(From::from)
-        .and_then(move |listener| {
-            listener.incoming().for_each(move |(stream, _)| {
+impl Server {
+    pub fn new(addr: &SocketAddr) -> Server {
+        Server {
+            addr: *addr,
+            workers: 1,
+        }
+    }
+
+    pub fn workers(&mut self, workers: u32) -> &mut Server {
+        if cfg!(unix) {
+            self.workers = workers;
+        }
+        self
+    }
+
+    pub fn serve<Req, Resp, S>(&mut self, s: S) -> io::Result<()>
+        where Req: Parse,
+              Resp: Serialize,
+              S: Service<Req, Resp>,
+              <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>, // TODO: simplify this?
+    {
+        let service = Arc::new(s);
+
+        let threads = (0..self.workers - 1).map(|i| {
+            let lp = Loop::new().unwrap();
+            let service = service.clone();
+            let listener = self.listener(lp.handle());
+            thread::Builder::new().name(format!("worker{}", i)).spawn(move || {
+                lp.run(listener.and_then(move |l| {
+                    l.incoming().for_each(move |(stream, _)| {
+                        handle(stream, service.clone());
+                        Ok(()) // TODO: error handling
+                    })
+                }))
+            }).unwrap()
+        }).collect::<Vec<_>>();
+
+        let lp = Loop::new().unwrap();
+            let listener = self.listener(lp.handle());
+        lp.run(listener.and_then(move |l| {
+            l.incoming().for_each(move |(stream, _)| {
                 handle(stream, service.clone());
-                Ok(()) // TODO: some kind of error handling
+                Ok(()) // TODO: error handling
             })
-        });
-    lp.run(listen)
+        })).unwrap();
+
+        for thread in threads {
+            thread.join().unwrap().unwrap();
+        }
+
+        Ok(())
+    }
+
+    fn listener(&self, handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
+        let listener = (|| {
+            let listener = try!(net2::TcpBuilder::new_v4());
+            try!(self.configure_tcp(&listener));
+            try!(listener.reuse_address(true));
+            try!(listener.bind(&self.addr));
+            listener.listen(1024)
+        })();
+
+        match listener {
+            Ok(l) => TcpListener::from_listener(l, &self.addr, handle),
+            Err(e) => futures::failed(e).boxed()
+        }
+    }
+
+    #[cfg(unix)]
+    fn configure_tcp(&self, tcp: &net2::TcpBuilder) -> io::Result<()> {
+        use net2::unix::*;
+
+        if self.workers > 1 {
+            try!(tcp.reuse_port(true));
+        }
+
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn configure_tcp(&self, _tcp: &net2::TcpBuilder) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
