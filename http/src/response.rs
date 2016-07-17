@@ -1,7 +1,5 @@
 use std::fmt::{self, Write};
 
-use time;
-
 use io2::Serialize;
 
 pub struct Response {
@@ -35,7 +33,7 @@ impl Serialize for Response {
             Server: Example\r\n\
             Content-Length: {}\r\n\
             Date: {}\r\n\
-        ", self.response.len(), time::now().rfc822()).unwrap();
+        ", self.response.len(), ::date::now()).unwrap();
         for &(ref k, ref v) in &self.headers {
             extend(buf, k.as_bytes());
             extend(buf, b": ");
@@ -58,6 +56,10 @@ impl<'a> fmt::Write for FastWrite<'a> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         extend(self.0, s.as_bytes());
         Ok(())
+    }
+
+    fn write_fmt(&mut self, args: fmt::Arguments) -> fmt::Result {
+        fmt::write(self, args)
     }
 }
 
