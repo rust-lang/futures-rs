@@ -613,7 +613,7 @@ fn assert_future<A, B, F>(t: F) -> F
     t
 }
 
-/// A trait essentially representing `Fn(&Tokens) + Send + Send + 'static`.
+/// A trait essentially representing `Fn(&Tokens) + Send + Sync + 'static`.
 ///
 /// This is used as an argument to the `Future::schedule` function.
 pub trait Wake: Send + Sync + 'static {
