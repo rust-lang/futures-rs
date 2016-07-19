@@ -572,15 +572,15 @@ pub trait Future: Send + 'static {
     ///
     /// # let tokens = &Tokens::all();
     /// let mut future = finished::<i32, u32>(2);
-    /// assert!(future.poll(&tokens).is_some());
+    /// assert!(future.poll(&tokens).is_ready());
     ///
     /// // Normally, a call such as this would panic:
     /// //future.poll(&tokens);
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = finished::<i32, u32>(2).fuse();
-    /// assert!(future.poll(&tokens).is_some());
-    /// assert!(future.poll(&tokens).is_none());
+    /// assert!(future.poll(&tokens).is_ready());
+    /// assert!(future.poll(&tokens).is_not_ready());
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized

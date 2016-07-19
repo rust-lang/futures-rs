@@ -9,7 +9,7 @@ macro_rules! try_poll {
 }
 
 /// Possible return values from the `Future::poll` method.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Poll<T, E> {
     /// Indicates that the future is not ready yet, ask again later.
     NotReady,

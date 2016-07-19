@@ -442,7 +442,7 @@ pub trait Stream: Send + 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Tokens};
+    /// use futures::{finished, Future, Tokens, Poll};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
@@ -460,7 +460,8 @@ pub trait Stream: Send + 'static {
     /// send(5, tx).forget();
     ///
     /// let mut result = rx.collect();
-    /// assert_eq!(result.poll(&Tokens::all()), Some(Ok(vec![5, 4, 3, 2, 1])));
+    /// assert_eq!(result.poll(&Tokens::all()),
+    ///            Poll::Ok(vec![5, 4, 3, 2, 1]));
     /// ```
     fn collect(self) -> Collect<Self> where Self: Sized {
         collect::new(self)
@@ -481,7 +482,7 @@ pub trait Stream: Send + 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Tokens};
+    /// use futures::{finished, Future, Tokens, Poll};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
@@ -499,7 +500,7 @@ pub trait Stream: Send + 'static {
     /// send(5, tx).forget();
     ///
     /// let mut result = rx.fold(0, |a, b| a + b);
-    /// assert_eq!(result.poll(&Tokens::all()), Some(Ok(15)));
+    /// assert_eq!(result.poll(&Tokens::all()), Poll::Ok(15));
     /// ```
     fn fold<F, T>(self, init: T, f: F) -> Fold<Self, F, T>
         where F: FnMut(T, Self::Item) -> T + Send + 'static,
@@ -517,7 +518,7 @@ pub trait Stream: Send + 'static {
     /// individual stream will get exhausted before moving on to the next.
     ///
     /// ```
-    /// use futures::{finished, Future, Tokens};
+    /// use futures::{finished, Future, Tokens, Poll};
     /// use futures::stream::*;
     ///
     /// let (tx1, rx1) = channel::<i32, u32>();
@@ -530,7 +531,7 @@ pub trait Stream: Send + 'static {
     /// tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).forget();
     ///
     /// let mut result = rx3.flatten().collect();
-    /// assert_eq!(result.poll(&Tokens::all()), Some(Ok(vec![1, 2, 3, 4])));
+    /// assert_eq!(result.poll(&Tokens::all()), Poll::Ok(vec![1, 2, 3, 4]));
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream,
