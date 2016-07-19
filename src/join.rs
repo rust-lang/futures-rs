@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::mem;
 
-use {Wake, Future, Tokens};
+use {Wake, Future, Tokens, Poll};
 use util::{self, Collapsed};
 
 /// Future for the `join` combinator, waiting for two futures to complete.
@@ -37,17 +37,16 @@ impl<A, B> Future for Join<A, B>
     type Item = (A::Item, B::Item);
     type Error = A::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         match (self.a.poll(tokens), self.b.poll(tokens)) {
-            (Ok(true), Ok(true)) => Some(Ok((self.a.take(), self.b.take()))),
+            (Ok(true), Ok(true)) => Poll::Ok((self.a.take(), self.b.take())),
             (Err(e), _) |
             (_, Err(e)) => {
                 self.a = MaybeDone::Gone;
                 self.b = MaybeDone::Gone;
-                Some(Err(e))
+                Poll::Err(e)
             }
-            (Ok(_), Ok(_)) => None,
+            (Ok(_), Ok(_)) => Poll::NotReady,
         }
     }
 
@@ -93,11 +92,12 @@ impl<A: Future> MaybeDone<A> {
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };
         match res {
-            Some(res) => {
-                *self = MaybeDone::Done(try!(res));
+            Poll::Ok(res) => {
+                *self = MaybeDone::Done(res);
                 Ok(true)
             }
-            None => Ok(false),
+            Poll::Err(res) => Err(res),
+            Poll::NotReady => Ok(false),
         }
     }
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, Poll};
+use stream::Stream;
 
 /// A stream combinator which will change the error type of a stream from one
 /// type to another.
@@ -31,13 +31,8 @@ impl<S, F, U> Stream for MapErr<S, F>
     type Item = S::Item;
     type Error = U;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<StreamResult<S::Item, U>> {
-        match self.stream.poll(tokens) {
-            Some(Ok(e)) => Some(Ok(e)),
-            Some(Err(e)) => Some(Err((self.f)(e))),
-            None => None,
-        }
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<S::Item>, U> {
+        self.stream.poll(tokens).map_err(&mut self.f)
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {

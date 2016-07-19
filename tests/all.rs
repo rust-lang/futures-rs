@@ -124,7 +124,7 @@ fn smoke_promise() {
 
     let (c, mut p) = promise::<i32>();
     drop(c);
-    assert!(p.poll(&Tokens::all()).expect("should be done").is_err());
+    assert!(p.poll(&Tokens::all()).unwrap().is_err());
     let (c, mut p) = promise::<i32>();
     drop(c);
     let (tx, rx) = channel();
@@ -142,12 +142,12 @@ fn select_cancels() {
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let mut f = b.select(d).then(unselect);
-    // assert!(f.poll(&Tokens::all()).is_none());
+    // assert!(f.poll(&Tokens::all()).is_not_ready());
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.complete(1);
     // f.schedule(|_| ());
-    assert!(f.poll(&Tokens::all()).is_some());
+    assert!(f.poll(&Tokens::all()).is_ready());
     assert_eq!(brx.recv().unwrap(), 1);
     drop((c, f));
     assert!(drx.recv().is_err());
@@ -160,13 +160,13 @@ fn select_cancels() {
     let (tx, rx) = channel();
     let tx = Mutex::new(tx);
     let mut f = b.select(d).then(unselect);
-    assert!(f.poll(&Tokens::all()).is_none());
+    assert!(f.poll(&Tokens::all()).is_not_ready());
     let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
     f.schedule(&(arc as Arc<Wake>));
     assert!(rx.try_recv().is_err());
     a.complete(1);
     assert!(rx.recv().is_ok());
-    assert!(f.poll(&Tokens::all()).is_some());
+    assert!(f.poll(&Tokens::all()).is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
 }
@@ -180,7 +180,7 @@ fn join_cancels() {
 
     let mut f = b.join(d);
     drop(a);
-    assert!(f.poll(&Tokens::all()).is_some());
+    assert!(f.poll(&Tokens::all()).is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
 
@@ -196,7 +196,7 @@ fn join_cancels() {
     f.schedule(&(arc as Arc<Wake>));
     assert!(rx.try_recv().is_err());
     drop(a);
-    assert!(f.poll(&Tokens::all()).is_some());
+    assert!(f.poll(&Tokens::all()).is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
 }
@@ -205,7 +205,7 @@ fn join_cancels() {
 fn join_incomplete() {
     let (a, b) = promise::<i32>();
     let mut f = finished(1).join(b);
-    assert!(f.poll(&Tokens::all()).is_none());
+    assert!(f.poll(&Tokens::all()).is_not_ready());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -214,7 +214,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32>();
     let mut f = b.join(Ok(2));
-    assert!(f.poll(&Tokens::all()).is_none());
+    assert!(f.poll(&Tokens::all()).is_not_ready());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -223,7 +223,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32>();
     let mut f = finished(1).join(b);
-    assert!(f.poll(&Tokens::all()).is_none());
+    assert!(f.poll(&Tokens::all()).is_not_ready());
     let (tx, rx) = channel();
     f.map_err(move |_r| tx.send(2).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -232,7 +232,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32>();
     let mut f = b.join(Ok(2));
-    assert!(f.poll(&Tokens::all()).is_none());
+    assert!(f.poll(&Tokens::all()).is_not_ready());
     let (tx, rx) = channel();
     f.map_err(move |_r| tx.send(1).unwrap()).forget();
     assert!(rx.try_recv().is_err());

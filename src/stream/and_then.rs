@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, Future, TOKENS_ALL};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, IntoFuture, Future, TOKENS_ALL, Poll};
+use stream::Stream;
 
 /// A stream combinator which chains a computation onto values produced by a
 /// stream.
@@ -35,25 +35,22 @@ impl<S, F, U> Stream for AndThen<S, F, U>
     type Item = U::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens)
-            -> Option<StreamResult<U::Item, S::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Poll<Option<U::Item>, S::Error> {
         if self.future.is_none() {
-            let item = match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => e,
-                Some(Ok(None)) => return Some(Ok(None)),
-                Some(Err(e)) => return Some(Err(e)),
-                None => return None,
+            let item = match try_poll!(self.stream.poll(tokens)) {
+                Ok(None) => return Poll::Ok(None),
+                Ok(Some(e)) => e,
+                Err(e) => return Poll::Err(e),
             };
             self.future = Some((self.f)(item).into_future());
             tokens = &TOKENS_ALL;
         }
-
         assert!(self.future.is_some());
         let res = self.future.as_mut().unwrap().poll(tokens);
-        if res.is_some() {
+        if res.is_ready() {
             self.future = None;
         }
-        res.map(|r| r.map(Some))
+        res.map(Some)
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {

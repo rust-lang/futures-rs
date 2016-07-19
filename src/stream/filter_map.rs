@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, Poll};
+use stream::Stream;
 
 /// A combinator used to filter the results of a stream and simultaneously map
 /// them to a different type.
@@ -30,18 +30,16 @@ impl<S, F, B> Stream for FilterMap<S, F>
     type Item = B;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<B, S::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<B>, S::Error> {
         loop {
-            match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => {
-                    match (self.f)(e) {
-                        Some(e) => return Some(Ok(Some(e))),
-                        None => {}
+            match try_poll!(self.stream.poll(tokens)) {
+                Ok(Some(e)) => {
+                    if let Some(e) = (self.f)(e) {
+                        return Poll::Ok(Some(e))
                     }
                 }
-                Some(Ok(None)) => return Some(Ok(None)),
-                Some(Err(e)) => return Some(Err(e)),
-                None => return None,
+                Ok(None) => return Poll::Ok(None),
+                Err(e) => return Poll::Err(e),
             }
         }
     }

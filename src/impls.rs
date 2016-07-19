@@ -1,7 +1,7 @@
 use std::mem;
 use std::sync::Arc;
 
-use {Future, Wake, Tokens, empty};
+use {Future, Wake, Tokens, empty, Poll};
 
 impl<T, E> Future for Box<Future<Item=T, Error=E>>
     where T: Send + 'static,
@@ -10,8 +10,7 @@ impl<T, E> Future for Box<Future<Item=T, Error=E>>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         (**self).poll(tokens)
     }
 
@@ -32,8 +31,7 @@ impl<F: Future> Future for Box<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         (**self).poll(tokens)
     }
 

@@ -40,17 +40,12 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         self.future.poll(tokens)
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {
         self.future.schedule(wake)
-    }
-
-    fn tailcall(&mut self) -> Option<Box<Future<Item=F::Item, Error=F::Error>>> {
-        None
     }
 }
 

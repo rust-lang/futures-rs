@@ -1,7 +1,7 @@
 use std::mem;
 use std::sync::Arc;
 
-use {Wake, Tokens, Future, TOKENS_ALL};
+use {Wake, Tokens, Future, TOKENS_ALL, Poll};
 use stream::Stream;
 
 /// A future which collects all of the values of a stream into a vector.
@@ -33,17 +33,15 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens)
-            -> Option<Result<Vec<S::Item>, S::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Poll<Vec<S::Item>, S::Error> {
         loop {
-            match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => self.items.push(e),
-                Some(Ok(None)) => return Some(Ok(self.finish())),
-                Some(Err(e)) => {
+            match try_poll!(self.stream.poll(tokens)) {
+                Ok(Some(e)) => self.items.push(e),
+                Ok(None) => return Poll::Ok(self.finish()),
+                Err(e) => {
                     self.finish();
-                    return Some(Err(e))
+                    return Poll::Err(e)
                 }
-                None => return None,
             }
             tokens = &TOKENS_ALL;
         }

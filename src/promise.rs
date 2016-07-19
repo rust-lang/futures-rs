@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Wake, Tokens};
+use {Future, Wake, Tokens, Poll};
 use slot::{Slot, Token};
 use util;
 
@@ -118,16 +118,15 @@ impl<T: Send + 'static> Future for Promise<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self, _: &Tokens) -> Option<Result<T, Canceled>> {
+    fn poll(&mut self, _: &Tokens) -> Poll<T, Canceled> {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
-            return None
+            return Poll::NotReady
         }
-        let ret = match self.inner.slot.try_consume() {
-            Ok(Some(e)) => Ok(e),
-            Ok(None) => Err(Canceled),
-            Err(_) => return None,
-        };
-        Some(ret)
+        match self.inner.slot.try_consume() {
+            Ok(Some(e)) => Poll::Ok(e),
+            Ok(None) => Poll::Err(Canceled),
+            Err(_) => Poll::NotReady,
+        }
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {

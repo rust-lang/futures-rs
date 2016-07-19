@@ -19,6 +19,10 @@ mod util;
 mod token;
 pub use token::{Tokens, TOKENS_ALL, TOKENS_EMPTY};
 
+#[macro_use]
+mod poll;
+pub use poll::Poll;
+
 pub mod executor;
 
 // Primitive futures
@@ -132,16 +136,18 @@ pub trait Future: Send + 'static {
     ///
     /// # Return value
     ///
-    /// This function returns `None` if the future is not ready yet, or `Some`
-    /// with the result of this future if it's ready. Once a future has returned
-    /// `Some` it is considered a contract error to continue polling it.
+    /// This function returns `Poll::NotReady` if the future is not ready yet,
+    /// or `Poll::{Ok,Err}` with the result of this future if it's ready. Once
+    /// a future has returned `Some` it is considered a contract error to
+    /// continue polling it.
     ///
     /// # Panics
     ///
-    /// Once a future has completed (returned `Some` from `poll`), then any
-    /// future calls to `poll` may panic, block forever, or otherwise cause
-    /// wrong behavior. The `Future` trait itself provides no guarantees about
-    /// the behavior of `poll` after `Some` has been returned at least once.
+    /// Once a future has completed (returned `Poll::{Ok, Err}` from `poll`),
+    /// then any future calls to `poll` may panic, block forever, or otherwise
+    /// cause wrong behavior. The `Future` trait itself provides no guarantees
+    /// about the behavior of `poll` after `Some` has been returned at least
+    /// once.
     ///
     /// Callers who may call `poll` too many times may want to consider using
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
@@ -149,11 +155,10 @@ pub trait Future: Send + 'static {
     ///
     /// # Errors
     ///
-    /// If `Some` is returned, then a `Result<Item, Error>` is returned. This
-    /// future may have failed to finish the computation, in which case the
-    /// `Err` variant will be returned with an appropriate payload of an error.
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>>;
+    /// This future may have failed to finish the computation, in which case
+    /// the `Poll::Err` variant will be returned with an appropriate payload of
+    /// an error.
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error>;
 
     /// Register a callback to be run whenever this future can make progress
     /// again.

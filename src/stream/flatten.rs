@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, TOKENS_ALL};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, TOKENS_ALL, Poll};
+use stream::Stream;
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.
@@ -34,20 +34,19 @@ impl<S> Stream for Flatten<S>
     type Error = <S::Item as Stream>::Error;
 
     fn poll(&mut self, mut tokens: &Tokens)
-            -> Option<StreamResult<Self::Item, Self::Error>> {
+            -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             if self.next.is_none() {
-                match self.stream.poll(tokens) {
-                    Some(Ok(Some(e))) => self.next = Some(e),
-                    Some(Ok(None)) => return Some(Ok(None)),
-                    Some(Err(e)) => return Some(Err(From::from(e))),
-                    None => return None,
+                match try_poll!(self.stream.poll(tokens)) {
+                    Ok(Some(e)) => self.next = Some(e),
+                    Ok(None) => return Poll::Ok(None),
+                    Err(e) => return Poll::Err(From::from(e)),
                 }
                 tokens = &TOKENS_ALL;
             }
             assert!(self.next.is_some());
             match self.next.as_mut().unwrap().poll(tokens) {
-                Some(Ok(None)) => self.next = None,
+                Poll::Ok(None) => self.next = None,
                 other => return other,
             }
             tokens = &TOKENS_ALL;

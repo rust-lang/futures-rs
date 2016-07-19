@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, Wake, Tokens};
+use {Future, Wake, Tokens, Poll};
 
 /// A future which "fuse"s an future once it's been resolved.
 ///
@@ -22,12 +22,12 @@ impl<A: Future> Future for Fuse<A> {
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<Result<A::Item, A::Error>> {
-        let ret = self.future.as_mut().and_then(|f| f.poll(tokens));
-        if ret.is_some() {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<A::Item, A::Error> {
+        let ret = self.future.as_mut().map(|f| f.poll(tokens));
+        if ret.as_ref().map(|r| r.is_ready()) == Some(true) {
             self.future = None;
         }
-        return ret
+        return ret.unwrap_or(Poll::NotReady)
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {

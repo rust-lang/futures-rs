@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Tokens, Wake, Future};
+use {Tokens, Wake, Future, Poll};
 use stream::Stream;
 
 /// A combinator used to temporarily convert a stream into a future.
@@ -18,24 +18,17 @@ impl<S: Stream> Future for StreamFuture<S> {
     type Item = (Option<S::Item>, S);
     type Error = (S::Error, S);
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
-        let item = match self.stream {
-            Some(ref mut s) => {
-                match s.poll(tokens) {
-                    Some(Ok(e)) => Ok(e),
-                    Some(Err(e)) => Err(e),
-                    None => return None,
-                }
-            }
-            None => panic!("cannot poll StreamFuture twice"),
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
+        let item = {
+            let s = self.stream.as_mut().expect("polling StreamFuture twice");
+            try_poll!(s.poll(tokens))
         };
         let stream = self.stream.take().unwrap();
 
-        Some(match item {
-            Ok(e) => Ok((e, stream)),
-            Err(e) => Err((e, stream)),
-        })
+        match item {
+            Ok(e) => Poll::Ok((e, stream)),
+            Err(e) => Poll::Err((e, stream)),
+        }
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {

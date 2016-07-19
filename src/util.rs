@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Future, Tokens, TOKENS_EMPTY};
+use {Wake, Future, Tokens, TOKENS_EMPTY, Poll};
 
 pub enum Collapsed<T: Future> {
     Start(T),
@@ -8,7 +8,7 @@ pub enum Collapsed<T: Future> {
 }
 
 impl<T: Future> Collapsed<T> {
-    pub fn poll(&mut self, tokens: &Tokens) -> Option<Result<T::Item, T::Error>> {
+    pub fn poll(&mut self, tokens: &Tokens) -> Poll<T::Item, T::Error> {
         match *self {
             Collapsed::Start(ref mut a) => a.poll(tokens),
             Collapsed::Tail(ref mut a) => a.poll(tokens),

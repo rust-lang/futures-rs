@@ -23,29 +23,29 @@ pub fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
 }
 
 pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
-    assert!(f().poll(&Tokens::all()).is_none());
+    assert!(f().poll(&Tokens::all()).is_not_ready());
 
     let mut a = f();
     a.schedule(&(Arc::new(move |_: &Tokens| ()) as Arc<Wake>));
-    assert!(a.poll(&Tokens::all()).is_none());
+    assert!(a.poll(&Tokens::all()).is_not_ready());
     drop(a);
 }
 
 pub fn sassert_done<S: Stream>(s: &mut S) {
     match s.poll(&Tokens::all()) {
-        Some(Ok(None)) => {}
-        Some(Ok(Some(_))) => panic!("stream had more elements"),
-        Some(Err(_)) => panic!("stream had an error"),
-        None => panic!("stream wasn't ready"),
+        Poll::Ok(None) => {}
+        Poll::Ok(Some(_)) => panic!("stream had more elements"),
+        Poll::Err(_) => panic!("stream had an error"),
+        Poll::NotReady => panic!("stream wasn't ready"),
     }
 }
 
 pub fn sassert_empty<S: Stream>(s: &mut S) {
     match s.poll(&Tokens::all()) {
-        Some(Ok(None)) => panic!("stream is at its end"),
-        Some(Ok(Some(_))) => panic!("stream had more elements"),
-        Some(Err(_)) => panic!("stream had an error"),
-        None => {}
+        Poll::Ok(None) => panic!("stream is at its end"),
+        Poll::Ok(Some(_)) => panic!("stream had more elements"),
+        Poll::Err(_) => panic!("stream had an error"),
+        Poll::NotReady => {}
     }
 }
 
@@ -53,9 +53,9 @@ pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
     where S::Item: Eq + fmt::Debug
 {
     match s.poll(&Tokens::all()) {
-        Some(Ok(None)) => panic!("stream is at its end"),
-        Some(Ok(Some(e))) => assert_eq!(e, item),
-        Some(Err(_)) => panic!("stream had an error"),
-        None => panic!("stream wasn't ready"),
+        Poll::Ok(None) => panic!("stream is at its end"),
+        Poll::Ok(Some(e)) => assert_eq!(e, item),
+        Poll::Err(_) => panic!("stream had an error"),
+        Poll::NotReady => panic!("stream wasn't ready"),
     }
 }

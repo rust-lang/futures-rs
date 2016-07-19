@@ -13,7 +13,7 @@
 
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture};
+use {Wake, Tokens, IntoFuture, Poll};
 
 mod channel;
 mod iter;
@@ -52,13 +52,6 @@ pub use self::skip_while::SkipWhile;
 pub use self::then::Then;
 
 mod impls;
-
-/// A simple typedef around the result that a stream can produce.
-///
-/// The `Ok` variant can contain a successful result of the stream, either the
-/// next element or a signal that the strem has ended. The `Err` variant
-/// contains the error that a stream encounterd, if any.
-pub type StreamResult<T, E> = Result<Option<T>, E>;
 
 /// A stream of values, not all of which have been produced yet.
 ///
@@ -112,22 +105,21 @@ pub trait Stream: Send + 'static {
     ///
     /// # Return value
     ///
-    /// If `None` is returned then this stream's next value is not ready yet,
-    /// and `schedule` can be used to receive a notification for when the value
-    /// may become ready in the future. If `Some` is returned then the returned
-    /// value represents the next value on the stream. `Err` indicates an error
-    /// happened, while `Ok` indicates whether there was a new item on the
-    /// stream or whether the stream has terminated.
+    /// If `Poll::NotReady` is returned then this stream's next value is not
+    /// ready yet, and `schedule` can be used to receive a notification for when
+    /// the value may become ready in the future. If `Some` is returned then the
+    /// returned value represents the next value on the stream. `Err` indicates
+    /// an error happened, while `Ok` indicates whether there was a new item on
+    /// the stream or whether the stream has terminated.
     ///
     /// # Panics
     ///
-    /// Once a stream is finished, that is `Ok(None)` has been returned,
+    /// Once a stream is finished, that is `Poll::Ok(None)` has been returned,
     /// further calls to `poll` may result in a panic or other "bad behavior".
     /// If this is difficult to guard against then the `fuse` adapter can be
     /// used to ensure that `poll` always has well-defined semantics.
     // TODO: more here
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<StreamResult<Self::Item, Self::Error>>;
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<Self::Item>, Self::Error>;
 
     /// Register a callback to get notified when the next value on the stream is
     /// ready for consumption.

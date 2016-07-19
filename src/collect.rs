@@ -1,7 +1,7 @@
 use std::mem;
 use std::sync::Arc;
 
-use {Future, IntoFuture, Wake, Tokens};
+use {Future, IntoFuture, Wake, Tokens, Poll};
 use util::Collapsed;
 
 /// A future which takes a list of futures and resolves with a vector of the
@@ -76,31 +76,28 @@ impl<I> Future for Collect<I>
     type Error = <I::Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         loop {
             match self.cur {
                 Some(ref mut cur) => {
-                    match cur.poll(tokens) {
-                        Some(Ok(e)) => self.result.push(e),
+                    match try_poll!(cur.poll(tokens)) {
+                        Ok(e) => self.result.push(e),
 
                         // If we hit an error, drop all our associated resources
                         // ASAP.
-                        Some(Err(e)) => {
+                        Err(e) => {
                             for f in self.remaining.by_ref() {
                                 drop(f);
                             }
                             for f in self.result.drain(..) {
                                 drop(f);
                             }
-                            return Some(Err(e))
+                            return Poll::Err(e)
                         }
-
-                        None => return None,
                     }
                 }
                 None => {
-                    return Some(Ok(mem::replace(&mut self.result, Vec::new())))
+                    return Poll::Ok(mem::replace(&mut self.result, Vec::new()))
                 }
             }
 

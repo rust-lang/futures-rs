@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, Future, TOKENS_ALL};
+use {Wake, Tokens, Future, TOKENS_ALL, Poll};
 use stream::Stream;
 
 /// A future used to collect all the results of a stream into one generic type.
@@ -32,16 +32,16 @@ impl<S, F, T> Future for Fold<S, F, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Option<Result<T, S::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Poll<T, S::Error> {
         let mut state = self.state.take().expect("cannot poll Fold twice");
         loop {
             match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => state = (self.f)(state, e),
-                Some(Ok(None)) => return Some(Ok(state)),
-                Some(Err(e)) => return Some(Err(e)),
-                None => {
+                Poll::Ok(Some(e)) => state = (self.f)(state, e),
+                Poll::Ok(None) => return Poll::Ok(state),
+                Poll::Err(e) => return Poll::Err(e),
+                Poll::NotReady => {
                     self.state = Some(state);
-                    return None
+                    return Poll::NotReady
                 }
             }
             tokens = &TOKENS_ALL;

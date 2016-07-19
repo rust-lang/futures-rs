@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, Poll};
+use stream::Stream;
 
 /// A stream combinator used to filter the results of a stream and only yield
 /// some values.
@@ -29,18 +29,16 @@ impl<S, F> Stream for Filter<S, F>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<StreamResult<S::Item, S::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<S::Item>, S::Error> {
         loop {
-            match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => {
+            match try_poll!(self.stream.poll(tokens)) {
+                Ok(Some(e)) => {
                     if (self.f)(&e) {
-                        return Some(Ok(Some(e)))
+                        return Poll::Ok(Some(e))
                     }
                 }
-                Some(Ok(None)) => return Some(Ok(None)),
-                Some(Err(e)) => return Some(Err(e)),
-                None => return None,
+                Ok(None) => return Poll::Ok(None),
+                Err(e) => return Poll::Err(e),
             }
         }
     }

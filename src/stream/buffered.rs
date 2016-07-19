@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, TOKENS_ALL};
-use stream::{Stream, StreamResult, Fuse};
+use {Wake, Tokens, IntoFuture, TOKENS_ALL, Poll};
+use stream::{Stream, Fuse};
 use util::Collapsed;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
@@ -35,8 +35,7 @@ impl<S> Stream for Buffered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<StreamResult<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<Self::Item>, Self::Error> {
         let mut any_some = false;
         for f in self.futures.iter_mut() {
             let mut tokens = tokens;
@@ -45,12 +44,12 @@ impl<S> Stream for Buffered<S>
             // we're careful to use TOKENS_ALL for the next poll() below.
             if f.is_none() {
                 match self.stream.poll(tokens) {
-                    Some(Ok(Some(e))) => {
+                    Poll::Ok(Some(e)) => {
                         *f = Some(Collapsed::Start(e.into_future()));
                     }
-                    Some(Err(e)) => return Some(Err(e)),
-                    Some(Ok(None)) |
-                    None => continue,
+                    Poll::Err(e) => return Poll::Err(e),
+                    Poll::Ok(None) |
+                    Poll::NotReady => continue,
                 }
                 tokens = &TOKENS_ALL;
             }
@@ -59,10 +58,11 @@ impl<S> Stream for Buffered<S>
             let ret = {
                 let future = f.as_mut().unwrap();
                 match future.poll(tokens) {
-                    Some(value) => value,
+                    Poll::Ok(e) => Poll::Ok(Some(e)),
+                    Poll::Err(e) => Poll::Err(e),
 
                     // TODO: should this happen here or elsewhere?
-                    None => {
+                    Poll::NotReady => {
                         future.collapse();
                         any_some = true;
                         continue
@@ -73,13 +73,13 @@ impl<S> Stream for Buffered<S>
             // Ok, that future is done, so we chuck it out and return its value.
             // Next time we're poll()'d it'll get filled in again.
             *f = None;
-            return Some(ret.map(Some))
+            return ret
         }
 
         if any_some || !self.stream.is_done() {
-            None
+            Poll::NotReady
         } else {
-            Some(Ok(None))
+            Poll::Ok(None)
         }
     }
 

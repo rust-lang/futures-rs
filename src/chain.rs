@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::mem;
 
 use util::{self, Collapsed};
-use {Future, Wake, Tokens, TOKENS_ALL};
+use {Future, Wake, Tokens, TOKENS_ALL, Poll};
 
 pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
     First(Collapsed<A>, C),
@@ -19,18 +19,12 @@ impl<A, B, C> Chain<A, B, C>
         Chain::First(Collapsed::Start(a), c)
     }
 
-    pub fn poll<F>(&mut self, tokens: &Tokens, f: F)
-                  -> Option<Result<B::Item, B::Error>>
+    pub fn poll<F>(&mut self, tokens: &Tokens, f: F) -> Poll<B::Item, B::Error>
         where F: FnOnce(Result<A::Item, A::Error>, C)
                         -> Result<Result<B::Item, B>, B::Error> + Send + 'static,
     {
         let a_result = match *self {
-            Chain::First(ref mut a, _) => {
-                match a.poll(tokens) {
-                    Some(a) => a,
-                    None => return None,
-                }
-            }
+            Chain::First(ref mut a, _) => try_poll!(a.poll(tokens)),
             Chain::Second(ref mut b) => return b.poll(tokens),
             Chain::Done => panic!("cannot poll a chained future twice"),
         };
@@ -39,13 +33,13 @@ impl<A, B, C> Chain<A, B, C>
             _ => panic!(),
         };
         match f(a_result, data) {
-            Ok(Ok(e)) => Some(Ok(e)),
+            Ok(Ok(e)) => Poll::Ok(e),
             Ok(Err(mut b)) => {
                 let ret = b.poll(&TOKENS_ALL);
                 *self = Chain::Second(b);
                 ret
             }
-            Err(e) => Some(Err(e)),
+            Err(e) => Poll::Err(e),
         }
     }
 

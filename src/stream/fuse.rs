@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, Poll};
+use stream::Stream;
 
 /// A stream which "fuse"s a stream once it's terminated.
 ///
@@ -21,12 +21,13 @@ impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<S::Item, S::Error>> {
-        let ret = self.stream.as_mut().and_then(|s| s.poll(tokens));
-        if let Some(Ok(None)) = ret {
-            self.stream = None;
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<S::Item>, S::Error> {
+        let ret = self.stream.as_mut().map(|s| s.poll(tokens));
+        match ret {
+            Some(Poll::Ok(None)) => self.stream = None,
+            _ => {}
         }
-        return ret
+        ret.unwrap_or(Poll::NotReady)
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::mem;
 
-use {Wake, Future, Tokens, empty};
+use {Wake, Future, Tokens, empty, Poll};
 use util::{self, Collapsed};
 
 /// Future for the `select` combinator, waiting for one of two futures to
@@ -43,18 +43,13 @@ impl<A, B> Future for Select<A, B>
     type Item = (A::Item, SelectNext<A, B>);
     type Error = (A::Error, SelectNext<A, B>);
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
                 match a.poll(tokens) {
-                    Some(a) => (a, true),
-                    None => {
-                        match b.poll(tokens)  {
-                            Some(b) => (b, false),
-                            None => return None,
-                        }
-                    }
+                    Poll::Ok(a) => (Ok(a), true),
+                    Poll::Err(a) => (Err(a), true),
+                    Poll::NotReady => (try_poll!(b.poll(tokens)), false),
                 }
             }
             None => panic!("cannot poll select twice"),
@@ -63,10 +58,10 @@ impl<A, B> Future for Select<A, B>
         let (a, b) = self.inner.take().unwrap();
         let next = if is_a {OneOf::B(b)} else {OneOf::A(a)};
         let next = SelectNext { inner: next };
-        Some(match ret {
-            Ok(a) => Ok((a, next)),
-            Err(e) => Err((e, next)),
-        })
+        match ret {
+            Ok(a) => Poll::Ok((a, next)),
+            Err(e) => Poll::Err((e, next)),
+        }
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {
@@ -96,8 +91,7 @@ impl<A, B> Future for SelectNext<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         match self.inner {
             OneOf::A(ref mut a) => a.poll(tokens),
             OneOf::B(ref mut b) => b.poll(tokens),

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Wake, Tokens};
+use {Future, Wake, Tokens, Poll};
 use slot::{Slot, Token};
-use stream::{Stream, StreamResult};
+use stream::Stream;
 use util;
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
@@ -87,13 +87,13 @@ impl<T, E> Stream for Receiver<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _tokens: &Tokens) -> Option<StreamResult<T, E>> {
+    fn poll(&mut self, _tokens: &Tokens) -> Poll<Option<T>, E> {
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
-            Ok(Message::Data(Ok(e))) => Some(Ok(Some(e))),
-            Ok(Message::Data(Err(e))) => Some(Err(e)),
-            Ok(Message::Done) => Some(Ok(None)),
-            Err(..) => None,
+            Ok(Message::Data(Ok(e))) => Poll::Ok(Some(e)),
+            Ok(Message::Data(Err(e))) => Poll::Err(e),
+            Ok(Message::Done) => Poll::Ok(None),
+            Err(..) => Poll::NotReady,
         }
     }
 
@@ -158,19 +158,18 @@ impl<T, E> Future for FutureSender<T, E>
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(&mut self, _tokens: &Tokens)
-            -> Option<Result<Self::Item, Self::Error>> {
+    fn poll(&mut self, _tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
         let data = self.data.take().expect("cannot poll FutureSender twice");
         let sender = self.sender.take().expect("cannot poll FutureSender twice");
         match sender.inner.slot.try_produce(Message::Data(data)) {
-            Ok(()) => return Some(Ok(sender)),
+            Ok(()) => return Poll::Ok(sender),
             Err(e) => {
                 self.data = Some(match e.into_inner() {
                     Message::Data(data) => data,
                     Message::Done => panic!(),
                 });
                 self.sender = Some(sender);
-                None
+                Poll::NotReady
             }
         }
     }

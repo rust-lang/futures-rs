@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
-use {Future, Wake, Tokens};
+use {Future, Wake, Tokens, Poll};
 use token::AtomicTokens;
 use executor::{DEFAULT, Executor};
 use slot::Slot;
@@ -36,12 +36,8 @@ impl<T: Send + 'static, E: Send + 'static> Future for ThunkFuture<T, E> {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<Result<(), ()>> {
-        match self.inner.poll(tokens) {
-            Some(Ok(_)) => Some(Ok(())),
-            Some(Err(_)) => Some(Err(())),
-            None => None,
-        }
+    fn poll(&mut self, tokens: &Tokens) -> Poll<(), ()> {
+        self.inner.poll(tokens).map(|_| ()).map_err(|_| ())
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {
@@ -70,8 +66,8 @@ fn _forget(mut future: Thunk,
             (future.poll(&tokens), future)
         });
         match result {
-            Ok((Some(_), _)) => return,
-            Ok((None, f)) => future = f,
+            Ok((ref r, _)) if r.is_ready() => return,
+            Ok((_, f)) => future = f,
             // TODO: do something smarter
             Err(e) => panic::resume_unwind(e),
         }

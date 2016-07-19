@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use {Future, Wake, Tokens, TOKENS_ALL};
+use {Future, Wake, Tokens, TOKENS_ALL, Poll};
 use stream::Stream;
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -29,18 +29,17 @@ impl<S, F> Future for ForEach<S, F>
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Option<Result<(), S::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Poll<(), S::Error> {
         loop {
-            match self.stream.poll(tokens) {
-                Some(Ok(Some(e))) => {
+            match try_poll!(self.stream.poll(tokens)) {
+                Ok(Some(e)) => {
                     match (self.f)(e) {
                         Ok(()) => {}
-                        Err(e) => return Some(Err(e)),
+                        Err(e) => return Poll::Err(e),
                     }
                 }
-                Some(Ok(None)) => return Some(Ok(())),
-                Some(Err(e)) => return Some(Err(e)),
-                None => return None,
+                Ok(None) => return Poll::Ok(()),
+                Err(e) => return Poll::Err(e),
             }
             tokens = &TOKENS_ALL;
         }

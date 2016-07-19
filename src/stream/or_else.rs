@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, Future, TOKENS_ALL};
-use stream::{Stream, StreamResult};
+use {Wake, Tokens, IntoFuture, Future, TOKENS_ALL, Poll};
+use stream::Stream;
 
 /// A stream combinator which chains a computation onto errors produced by a
 /// stream.
@@ -35,23 +35,21 @@ impl<S, F, U> Stream for OrElse<S, F, U>
     type Item = S::Item;
     type Error = U::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens)
-            -> Option<StreamResult<S::Item, U::Error>> {
+    fn poll(&mut self, mut tokens: &Tokens) -> Poll<Option<S::Item>, U::Error> {
         if self.future.is_none() {
-            let item = match self.stream.poll(tokens) {
-                Some(Ok(e)) => return Some(Ok(e)),
-                Some(Err(e)) => e,
-                None => return None,
+            let item = match try_poll!(self.stream.poll(tokens)) {
+                Ok(e) => return Poll::Ok(e),
+                Err(e) => e,
             };
             self.future = Some((self.f)(item).into_future());
             tokens = &TOKENS_ALL;
         }
         assert!(self.future.is_some());
         let res = self.future.as_mut().unwrap().poll(tokens);
-        if res.is_some() {
+        if res.is_ready() {
             self.future = None;
         }
-        res.map(|r| r.map(Some))
+        res.map(Some)
     }
 
     fn schedule(&mut self, wake: &Arc<Wake>) {
