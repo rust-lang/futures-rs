@@ -9,7 +9,7 @@ use std::time::Instant;
 use mio;
 use mio::channel::SendError;
 use slab::Slab;
-use futures::{Future, Tokens, Wake};
+use futures::{Future, Tokens, Wake, Poll};
 
 use slot::{self, Slot};
 
@@ -465,21 +465,25 @@ impl Future for AddSource {
     type Item = usize;
     type Error = io::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<Result<usize, io::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<usize, io::Error> {
         match self.result {
             Some((ref result, _)) => {
                 if tokens.may_contain(ADD_SOURCE_TOKEN) {
-                    result.try_consume().ok()
+                    match result.try_consume() {
+                        Ok(t) => t.into(),
+                        Err(_) => Poll::NotReady,
+                    }
                 } else {
-                    None
+                    Poll::NotReady
                 }
             }
             None => {
                 let source = &mut self.source;
                 self.loop_handle.with_loop(|lp| {
-                    lp.map(|lp| {
-                        lp.add_source(source.take().unwrap())
-                    })
+                    match lp {
+                        Some(lp) => lp.add_source(source.take().unwrap()).into(),
+                        None => Poll::NotReady,
+                    }
                 })
             }
         }

@@ -9,8 +9,8 @@ use mio;
 use std::io;
 use std::sync::Arc;
 
-use futures::{Future, Tokens, Wake};
-use futures::stream::{Stream, StreamResult};
+use futures::{Future, Tokens, Wake, Poll};
+use futures::stream::Stream;
 
 // TODO: figure out a nicer way to factor this
 mod drop_source {
@@ -76,12 +76,12 @@ impl Stream for ReadinessStream {
     type Item = ();
     type Error = io::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<(), io::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<()>, io::Error> {
         if self.state.ready_on_poll() && tokens.may_contain(self.token_to_test) {
             self.state = State::Polled;
-            Some(Ok(Some(())))
+            Poll::Ok(Some(()))
         } else {
-            None
+            Poll::NotReady
         }
     }
 

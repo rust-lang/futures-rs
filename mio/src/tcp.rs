@@ -80,9 +80,7 @@ impl TcpListener {
 
         inner.ready_read
             .map(move |()| {
-                stream::iter(NonblockingIter {
-                    source: source.clone()
-                }.fuse()).and_then(|e| e)
+                stream::iter(NonblockingIter { source: source.clone() }.fuse())
             })
             .flatten()
             .and_then(move |(tcp, addr)| {

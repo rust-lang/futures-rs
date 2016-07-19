@@ -1,8 +1,8 @@
 use std::io::{self, Read, Write};
 use std::sync::Arc;
 
-use futures::{Future, Wake, Tokens, TOKENS_ALL};
-use futures::stream::{Stream, StreamResult, Fuse};
+use futures::{Future, Wake, Tokens, TOKENS_ALL, Poll};
+use futures::stream::{Stream, Fuse};
 use futuremio::*;
 
 pub trait Parse: Sized + Send + 'static {
@@ -93,16 +93,16 @@ impl<R, P> Stream for ParseStream<R, P>
     type Item = P;
     type Error = P::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<StreamResult<P, P::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<P>, P::Error> {
         loop {
             if self.need_parse {
                 debug!("attempting to parse");
                 match P::parse(&mut self.parser, &self.buf, self.pos) {
                     Some(Ok((i, n))) => {
                         self.pos += n;
-                        return Some(Ok(Some(i)))
+                        return Poll::Ok(Some(i))
                     }
-                    Some(Err(e)) => return Some(Err(e)),
+                    Some(Err(e)) => return Poll::Err(e),
                     None => {
                         self.need_parse = false;
                     }
@@ -127,17 +127,14 @@ impl<R, P> Stream for ParseStream<R, P>
             }
 
             if self.eof {
-                return Some(Ok(None))
+                return Poll::Ok(None)
             }
 
             if !self.read_ready {
-                match self.source_ready.poll(tokens) {
-                    // TODO: consider refactoring `poll` API to make this more
-                    //       readable...
-                    None => return None,
-                    Some(Err(e)) => return Some(Err(e.into())),
-                    Some(Ok(Some(()))) => self.read_ready = true,
-                    _ => unreachable!(),
+                match try_poll!(self.source_ready.poll(tokens)) {
+                    Err(e) => return Poll::Err(e.into()),
+                    Ok(Some(())) => self.read_ready = true,
+                    Ok(None) => unreachable!(),
                 }
             }
 
@@ -148,7 +145,7 @@ impl<R, P> Stream for ParseStream<R, P>
                     self.need_parse = self.need_parse || n > 0;
                     self.read_ready = n > 0;
                 }
-                Err(e) => return Some(Err(e.into())),
+                Err(e) => return Poll::Err(e.into()),
             }
         }
     }
@@ -231,19 +228,19 @@ impl<W, S> Future for StreamWriter<W, S>
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Option<Result<(), S::Error>> {
+    fn poll(&mut self, tokens: &Tokens) -> Poll<(), S::Error> {
         // make sure to pass down `tokens` only on the *first* poll for items
         let mut tokens_for_items = tokens;
         loop {
             match self.items.poll(tokens_for_items) {
-                Some(Err(e)) => return Some(Err(e)),
-                Some(Ok(Some(item))) => {
+                Poll::Err(e) => return Poll::Err(e),
+                Poll::Ok(Some(item)) => {
                     debug!("got an item to serialize!");
                     item.serialize(&mut self.buf);
                     tokens_for_items = &TOKENS_ALL;
                 }
-                Some(Ok(None)) |
-                None => break,
+                Poll::Ok(None) |
+                Poll::NotReady => break,
             }
         }
 
@@ -254,18 +251,19 @@ impl<W, S> Future for StreamWriter<W, S>
 
         while self.buf.len() > 0 {
             if !self.write_ready {
-                match self.sink_ready.poll(tokens) {
-                    Some(Err(e)) => return Some(Err(e.into())),
-                    Some(Ok(Some(()))) => self.write_ready = true,
-                    Some(Ok(None)) | // TODO: this should translate to an error
-                    None => return None,
+                match try_poll!(self.sink_ready.poll(tokens)) {
+                    Err(e) => return Poll::Err(e.into()),
+                    Ok(Some(())) => self.write_ready = true,
+
+                    // TODO: this should translate to an error
+                    Ok(None) => return Poll::NotReady,
                 }
             }
 
             debug!("trying to write some data");
             let before = self.buf.len();
             if let Err(e) = write(&mut self.sink, &mut self.buf) {
-                return Some(Err(e.into()))
+                return Poll::Err(e.into())
             }
             if before == self.buf.len() {
                 self.write_ready = false;
@@ -274,9 +272,9 @@ impl<W, S> Future for StreamWriter<W, S>
 
         if self.items.is_done() {
             // Nothing more to write to sink, and no more incoming items; we're done!
-            Some(Ok(()))
+            Poll::Ok(())
         } else {
-            None
+            Poll::NotReady
         }
     }
 

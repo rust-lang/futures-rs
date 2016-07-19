@@ -1,5 +1,6 @@
 extern crate futuremio;
 extern crate net2;
+#[macro_use]
 extern crate futures;
 extern crate httparse;
 extern crate time;
