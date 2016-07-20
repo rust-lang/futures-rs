@@ -229,7 +229,11 @@ impl<W, S> Future for StreamWriter<W, S>
     type Error = S::Error;
 
     fn poll(&mut self, tokens: &Tokens) -> Poll<(), S::Error> {
-        // make sure to pass down `tokens` only on the *first* poll for items
+        // First up, grab any responses we have and serialize them into our
+        // local buffer. Make sure to pass down `tokens` only on the *first*
+        // poll for items
+        //
+        // TODO: limit this loop on the size of `self.buf`.
         let mut tokens_for_items = tokens;
         loop {
             match self.items.poll(tokens_for_items) {
@@ -249,8 +253,16 @@ impl<W, S> Future for StreamWriter<W, S>
         // write regardless of sink_ready.poll, because we haven't asked for a
         // readiness notifcation. Saves a trip around the event loop.
 
-        while self.buf.len() > 0 {
-            if !self.write_ready {
+        // Now that we might have some responses to write, try to write them.
+        // Note that we always execute at least one iteration of this loop to
+        // attempt to pull out write readiness ASAP. If a response is being
+        // calculated we can learn that we're ready for a write immediately and
+        // write as soon as it's ready when it comes around.
+        //
+        // If, however, we have no data to write and there are no more responses
+        // that will come out, then we don't need to wait for write readiness.
+        loop {
+            if !self.write_ready && (self.buf.len() > 0 || !self.items.is_done()) {
                 match try_poll!(self.sink_ready.poll(tokens)) {
                     Err(e) => return Poll::Err(e.into()),
                     Ok(Some(())) => self.write_ready = true,
@@ -260,21 +272,33 @@ impl<W, S> Future for StreamWriter<W, S>
                 }
             }
 
+            // If we're here then either
+            //
+            // (a) write_ready is true
+            // (b) the response stream is done
+            //
+            // If we have an empty fuffer for either of these cases then we have
+            // nothing left to do, and are either done with iterating or need to
+            // do some more work.
+            if self.buf.len() == 0 {
+                if self.items.is_done() {
+                    return Poll::Ok(())
+                } else {
+                    return Poll::NotReady
+                }
+            }
+
             debug!("trying to write some data");
             let before = self.buf.len();
             if let Err(e) = write(&mut self.sink, &mut self.buf) {
                 return Poll::Err(e.into())
             }
+
+            // If we didn't fail but we also didn't write anything, then we're
+            // no longer ready to write and we may need to poll some more.
             if before == self.buf.len() {
                 self.write_ready = false;
             }
-        }
-
-        if self.items.is_done() {
-            // Nothing more to write to sink, and no more incoming items; we're done!
-            Poll::Ok(())
-        } else {
-            Poll::NotReady
         }
     }
 
