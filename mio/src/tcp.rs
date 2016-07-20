@@ -1,4 +1,4 @@
-use std::io::{self, ErrorKind};
+use std::io::{self, ErrorKind, Read, Write};
 use std::sync::Arc;
 use std::net::{self, SocketAddr};
 
@@ -86,7 +86,7 @@ impl TcpListener {
             .and_then(move |(tcp, addr)| {
                 ReadinessPair::new(loop_handle.clone(), tcp).map(move |pair| {
                     let stream = TcpStream {
-                        source: pair.source,
+                        source: TcpSource(pair.source),
                         ready_read: pair.ready_read,
                         ready_write: pair.ready_write,
                     };
@@ -105,8 +105,14 @@ impl Iterator for NonblockingIter {
 
     fn next(&mut self) -> Option<io::Result<(mio::tcp::TcpStream, SocketAddr)>> {
         match self.source.accept() {
-            Ok(Some(e)) => Some(Ok(e)),
-            Ok(None) => None,
+            Ok(Some(e)) => {
+                debug!("accepted connection");
+                Some(Ok(e))
+            }
+            Ok(None) => {
+                debug!("no connection ready");
+                None
+            }
             Err(e) => Some(Err(e)),
         }
     }
@@ -120,9 +126,43 @@ impl Iterator for NonblockingIter {
 /// notifications on the stream itself.
 #[allow(missing_docs)]
 pub struct TcpStream {
-    pub source: Arc<mio::tcp::TcpStream>,
+    pub source: TcpSource,
     pub ready_read: ReadinessStream,
     pub ready_write: ReadinessStream,
+}
+
+#[derive(Clone)]
+#[allow(missing_docs)]
+pub struct TcpSource(Arc<mio::tcp::TcpStream>);
+
+impl Read for TcpSource {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&*self.0).read(buf)
+    }
+}
+
+impl Write for TcpSource {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&*self.0).write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (&*self.0).flush()
+    }
+}
+
+impl<'a> Read for &'a TcpSource {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&*self.0).read(buf)
+    }
+}
+
+impl<'a> Write for &'a TcpSource {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&*self.0).write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (&*self.0).flush()
+    }
 }
 
 impl TcpStream {
@@ -148,7 +188,7 @@ impl TcpStream {
             let connected = connected.into_future();
             connected.map(move |(_, stream)| {
                 TcpStream {
-                    source: source,
+                    source: TcpSource(source),
                     ready_read: ready_read,
                     ready_write: stream.into_inner()
                 }

@@ -7,7 +7,7 @@ extern crate time;
 #[macro_use]
 extern crate log;
 
-use std::io::{self, Read, Write};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
@@ -79,7 +79,7 @@ impl Server {
         let service = Arc::new(s);
 
         let threads = (0..self.workers - 1).map(|i| {
-            let lp = Loop::new().unwrap();
+            let mut lp = Loop::new().unwrap();
             let service = service.clone();
             let listener = self.listener(lp.handle());
             thread::Builder::new().name(format!("worker{}", i)).spawn(move || {
@@ -92,7 +92,7 @@ impl Server {
             }).unwrap()
         }).collect::<Vec<_>>();
 
-        let lp = Loop::new().unwrap();
+        let mut lp = Loop::new().unwrap();
             let listener = self.listener(lp.handle());
         lp.run(listener.and_then(move |l| {
             l.incoming().for_each(move |(stream, _)| {
@@ -146,38 +146,11 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
           S: Service<Req, Resp>,
           <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>,
 {
-    // hack around lack of Read/Write impl on Arc<...>
-    let read = SourceWrapper(stream.source.clone());
-    let write = SourceWrapper(stream.source);
-
-    let input = ParseStream::new(read, stream.ready_read).map_err(From::from);
+    let input = ParseStream::new(stream.source.clone(), stream.ready_read).map_err(From::from);
     let responses = input.and_then(move |req| service.process(req));
-    let output = StreamWriter::new(write, stream.ready_write, responses);
+    let output = StreamWriter::new(stream.source, stream.ready_write, responses);
 
     // Crucially use `.forget()` here instead of returning the future, allows
     // processing multiple separate connections concurrently.
     output.forget()
-}
-
-// TODO: clean this up
-// Hack around the lack of forwarding Read/Write impls for Arc<TcpStream>
-struct SourceWrapper<S>(Arc<S>);
-
-impl<S> Read for SourceWrapper<S>
-    where for<'a> &'a S: Read
-{
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        (&*self.0).read(buf)
-    }
-}
-
-impl<S> Write for SourceWrapper<S>
-    where for<'a> &'a S: Write
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        (&*self.0).write(buf)
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        (&*self.0).flush()
-    }
 }

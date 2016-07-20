@@ -1,0 +1,19 @@
+[package]
+name = "tokio"
+version = "0.1.0"
+authors = ["Aaron Turon <aturon@mozilla.com>"]
+
+[dependencies]
+futuremio = { path = "../mio" }
+futures = { path = ".." }
+httparse = "1.1"
+time = "0.1"
+env_logger = "0.3"
+log = "0.3"
+net2 = "0.2"
+
+[profile.release]
+debug = true
+
+[replace]
+"time:0.1.35" = { git = "https://github.com/rust-lang-deprecated/time" }

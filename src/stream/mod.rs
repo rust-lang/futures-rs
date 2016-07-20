@@ -9,11 +9,11 @@
 //! A stream may request that it is blocked between values while the next value
 //! is calculated, and provides a way to get notified once the next value is
 //! ready as well.
-// TODO: expand these docs
+//! TODO: expand these docs
 
 use std::sync::Arc;
 
-use {Wake, Tokens, IntoFuture, Poll};
+use {Wake, Tokens, Future, IntoFuture, Poll};
 
 mod channel;
 mod iter;
@@ -85,7 +85,6 @@ mod impls;
 /// for use with other future methods like `join` and `select`.
 // TODO: more here
 pub trait Stream: Send + 'static {
-
     /// The type of item this stream will yield on success.
     type Item: Send + 'static;
 
@@ -170,7 +169,7 @@ pub trait Stream: Send + 'static {
     /// let (_tx, rx) = channel();
     /// let a: Box<Stream<Item=i32, Error=i32>> = rx.boxed();
     /// ```
-    fn boxed(self) -> Box<Stream<Item=Self::Item, Error=Self::Error>>
+    fn boxed(self) -> Box<Stream<Item = Self::Item, Error = Self::Error>>
         where Self: Sized
     {
         Box::new(self)
@@ -380,7 +379,7 @@ pub trait Stream: Send + 'static {
     /// ```
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
         where F: FnMut(Self::Item) -> U + Send + 'static,
-              U: IntoFuture<Error=Self::Error>,
+              U: IntoFuture<Error = Self::Error>,
               Self: Sized
     {
         and_then::new(self, f)
@@ -423,7 +422,7 @@ pub trait Stream: Send + 'static {
     /// ```
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
         where F: FnMut(Self::Error) -> U + Send + 'static,
-              U: IntoFuture<Item=Self::Item>,
+              U: IntoFuture<Item = Self::Item>,
               Self: Sized
     {
         or_else::new(self, f)
@@ -463,7 +462,9 @@ pub trait Stream: Send + 'static {
     /// assert_eq!(result.poll(&Tokens::all()),
     ///            Poll::Ok(vec![5, 4, 3, 2, 1]));
     /// ```
-    fn collect(self) -> Collect<Self> where Self: Sized {
+    fn collect(self) -> Collect<Self>
+        where Self: Sized
+    {
         collect::new(self)
     }
 
@@ -499,16 +500,20 @@ pub trait Stream: Send + 'static {
     ///
     /// send(5, tx).forget();
     ///
-    /// let mut result = rx.fold(0, |a, b| a + b);
+    /// let mut result = rx.fold(0, |a, b| Ok(a + b));
     /// assert_eq!(result.poll(&Tokens::all()), Poll::Ok(15));
     /// ```
-    fn fold<F, T>(self, init: T, f: F) -> Fold<Self, F, T>
-        where F: FnMut(T, Self::Item) -> T + Send + 'static,
+    fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
+        where F: FnMut(T, Self::Item) -> Fut + Send + 'static,
+              Fut: Future<Item = T>,
+              Fut::Error: Into<Self::Error>,
               T: Send + 'static,
               Self: Sized
     {
         fold::new(self, f, init)
     }
+
+
 
     /// Flattens a stream of streams into just one continuous stream.
     ///
@@ -545,7 +550,7 @@ pub trait Stream: Send + 'static {
     #[allow(missing_docs)]
     fn skip_while<P>(self, pred: P) -> SkipWhile<Self, P>
         where P: FnMut(&Self::Item) -> Result<bool, Self::Error> + Send + 'static,
-              Self: Sized,
+              Self: Sized
     {
         skip_while::new(self, pred)
     }
@@ -554,7 +559,7 @@ pub trait Stream: Send + 'static {
     #[allow(missing_docs)]
     fn for_each<F>(self, f: F) -> ForEach<Self, F>
         where F: FnMut(Self::Item) -> Result<(), Self::Error> + Send + 'static,
-              Self: Sized,
+              Self: Sized
     {
         for_each::new(self, f)
     }
@@ -573,7 +578,9 @@ pub trait Stream: Send + 'static {
     ///
     /// Additionally, once a stream has completed, this `Fuse` combinator will
     /// never call `schedule` on the underlying stream.
-    fn fuse(self) -> Fuse<Self> where Self: Sized {
+    fn fuse(self) -> Fuse<Self>
+        where Self: Sized
+    {
         fuse::new(self)
     }
 
@@ -588,8 +595,8 @@ pub trait Stream: Send + 'static {
     /// The returned stream will be a stream of each future's result, with
     /// errors passed through whenever they occur.
     fn buffered(self, amt: usize) -> Buffered<Self>
-        where Self::Item: IntoFuture<Error=<Self as Stream>::Error>,
-              Self: Sized,
+        where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
+              Self: Sized
     {
         buffered::new(self, amt)
     }

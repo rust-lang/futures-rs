@@ -90,6 +90,7 @@ impl Stream for ReadinessStream {
         if self.state != State::Scheduled {
             self.state = State::Scheduled;
             self.loop_handle.schedule(self.token, self.dir, wake)
+        } else {
         }
     }
 }

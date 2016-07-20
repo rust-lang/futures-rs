@@ -25,6 +25,8 @@ use futures::stream::Stream;
 mod readiness_stream;
 mod event_loop;
 mod tcp;
+mod buf_reader;
+mod buf_writer;
 #[path = "../../src/slot.rs"]
 mod slot;
 #[path = "../../src/lock.rs"]
@@ -38,4 +40,6 @@ pub type IoStream<T> = Stream<Item=T, Error=io::Error>;
 
 pub use event_loop::{Loop, LoopHandle, Direction};
 pub use readiness_stream::{ReadinessStream, ReadinessPair};
-pub use tcp::{TcpListener, TcpStream};
+pub use tcp::{TcpListener, TcpStream, TcpSource};
+pub use buf_reader::{BufReader, InputBuf};
+pub use buf_writer::{BufWriter, Flush, Reserve};

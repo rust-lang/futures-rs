@@ -48,7 +48,7 @@ pub struct LoopHandle {
 }
 
 #[allow(missing_docs)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Direction {
     Read,
     Write,
@@ -130,7 +130,7 @@ impl Loop {
     }
 
     #[allow(missing_docs)]
-    pub fn run<F: Future>(self, f: F) -> Result<F::Item, F::Error> {
+    pub fn run<F: Future>(&mut self, f: F) -> Result<F::Item, F::Error> {
         let (tx_res, rx_res) = mpsc::channel();
         let handle = self.handle();
         f.then(move |res| {
@@ -163,6 +163,7 @@ impl Loop {
             for i in 0..amt {
                 let event = self.io.borrow_mut().events().get(i).unwrap();
                 let token = event.token().as_usize();
+
                 if token == 0 {
                     self.consume_queue();
                 } else {
@@ -180,6 +181,8 @@ impl Loop {
                             writer = sched.writer.set();
                             tokens.insert(2 * token + 1);
                         }
+                    } else {
+                        debug!("notified on {} which no longer exists", token);
                     }
 
                     CURRENT_LOOP.set(&self, || {
@@ -232,6 +235,8 @@ impl Loop {
             sched.waiter_for(dir).block(Some(wake))
         };
         if let Some(to_call) = to_call {
+            debug!("immediate wakeup on {:?}", dir);
+
             let mut tokens = Tokens::empty();
             let token = match dir {
                 Direction::Read => 2 * token,
@@ -284,7 +289,9 @@ impl Half {
     fn block(&mut self, waiter: Option<Arc<Wake>>) -> Option<Arc<Wake>> {
         match (&*self, waiter) {
             (&Half::NotReady, None) => {}
-            (&Half::NotReady, Some(other)) => *self = Half::Waiting(other),
+            (&Half::NotReady, Some(other)) => {
+                *self = Half::Waiting(other)
+            }
             (&Half::Ready, None) => {}
             (&Half::Ready, Some(other)) => return Some(other),
             (&Half::Waiting(..), None) => *self = Half::NotReady,
