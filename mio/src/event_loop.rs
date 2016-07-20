@@ -172,12 +172,12 @@ impl Loop {
                     let mut tokens = Tokens::empty();
                     if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
                         if event.kind().is_readable() {
-                            writer = sched.reader.set();
+                            reader = sched.reader.set();
                             tokens.insert(2 * token);
                         }
 
                         if event.kind().is_writable() {
-                            reader = sched.writer.set();
+                            writer = sched.writer.set();
                             tokens.insert(2 * token + 1);
                         }
                     }
