@@ -5,7 +5,7 @@ use std::sync::Arc;
 use mio_server::{Dispatch, Encode, Decode, DecodeStream};
 use Service;
 
-use futures::{Tokens, TOKENS_ALL, Future, Wake, Poll, IntoFuture};
+use futures::{Future, Task, Poll, IntoFuture};
 use futures::stream::{Stream, Fuse};
 use futuremio::{TcpStream, TcpSource, BufWriter, Flush, Reserve};
 
@@ -27,9 +27,9 @@ impl<S> PipelineDispatch<S> {
 
 impl<S> Dispatch for PipelineDispatch<S>
     where S: Service,
-          S::Req: Decode<Error = S::Error>,
-          S::Resp: Encode<TcpSource, Error = S::Error>,
-          S::Error: From<io::Error>
+          S::Req: Decode<Error = <S as Service>::Error>,
+          <S as Service>::Resp: Encode<TcpSource, Error = <S as Service>::Error>,
+          <S as Service>::Error: From<io::Error>
 {
     type Item = ();
     type Error = S::Error;
@@ -59,8 +59,8 @@ struct PipelinedWriter<S, W>
 impl<S, W> PipelinedWriter<S, W>
     where W: Write + Send + 'static,
           S: Stream,
-          S::Item: Encode<W, Error = S::Error>,
-          S::Error: From<io::Error>
+          S::Item: Encode<W, Error = <S as Stream>::Error>,
+          <S as Stream>::Error: From<io::Error>
 {
     fn new(stream: S, writer: BufWriter<W>) -> PipelinedWriter<S, W> {
         PipelinedWriter {
@@ -81,13 +81,13 @@ enum State<Fut, W, Item> {
 impl<S, W> Future for PipelinedWriter<S, W>
     where W: Write + Send + 'static,
           S: Stream,
-          S::Item: Encode<W, Error = S::Error>,
-          S::Error: From<io::Error>
+          S::Item: Encode<W, Error = <S as Stream>::Error>,
+          <S as Stream>::Error: From<io::Error>
 {
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Poll<(), S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<(), S::Error> {
         // "steady state" is always Read or Write
         if let State::Flush(_) = self.state {
             panic!("Attempted to poll a PipelinedWriter in Flush state");
@@ -95,10 +95,11 @@ impl<S, W> Future for PipelinedWriter<S, W>
 
         // First read and write (into a buffer) as many items as we can;
         // then, if possible, try to flush them out.
+        let mut task = task.scoped();
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Read(flush) => {
-                    match self.items.poll(tokens) {
+                    match self.items.poll(&mut task) {
                         Poll::Err(e) => return Poll::Err(e),
                         Poll::Ok(Some(item)) => {
                             let writer = flush.into_inner();
@@ -114,7 +115,7 @@ impl<S, W> Future for PipelinedWriter<S, W>
                     }
                 }
                 State::Reserve(mut res, item) => {
-                    match res.poll(tokens) {
+                    match res.poll(&mut task) {
                         Poll::Err((e, _)) => return Poll::Err(e.into()),
                         Poll::Ok(writer) => {
                             self.state = State::Write(item.encode(writer).into_future())
@@ -126,7 +127,7 @@ impl<S, W> Future for PipelinedWriter<S, W>
                     }
                 }
                 State::Write(mut fut) => {
-                    match fut.poll(tokens) {
+                    match fut.poll(&mut task) {
                         Poll::Err(e) => return Poll::Err(e.into()),
                         Poll::Ok(writer) => self.state = State::Read(writer.flush()),
                         Poll::NotReady => {
@@ -136,7 +137,7 @@ impl<S, W> Future for PipelinedWriter<S, W>
                     }
                 }
                 State::Flush(mut flush) => {
-                    match flush.poll(tokens) {
+                    match flush.poll(&mut task) {
                         Poll::Err((e, _)) => return Poll::Err(e.into()),
                         Poll::Ok(writer) => {
                             if self.items.is_done() {
@@ -157,20 +158,20 @@ impl<S, W> Future for PipelinedWriter<S, W>
                 State::Empty => unreachable!(),
             }
 
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         match self.state {
             State::Read(ref mut flush) => {
-                self.items.schedule(wake);
+                self.items.schedule(task);
                 if flush.is_dirty() {
-                    flush.schedule(wake);
+                    flush.schedule(task);
                 }
             }
-            State::Reserve(ref mut res, _) => res.schedule(wake),
-            State::Write(ref mut fut) => fut.schedule(wake),
+            State::Reserve(ref mut res, _) => res.schedule(task),
+            State::Write(ref mut fut) => fut.schedule(task),
             State::Flush(_) => unreachable!(),
             State::Empty => unreachable!(),
         }

@@ -26,9 +26,9 @@ impl<S> SerialDispatch<S> {
 
 impl<S> Dispatch for SerialDispatch<S>
     where S: Service,
-          S::Req: Decode<Error = S::Error>,
-          S::Resp: Encode<TcpSource, Error = S::Error>,
-          S::Error: From<io::Error>
+          S::Req: Decode<Error = <S as Service>::Error>,
+          S::Resp: Encode<TcpSource, Error = <S as Service>::Error>,
+          <S as Service>::Error: From<io::Error>
 {
     type Item = ();
     type Error = S::Error;
