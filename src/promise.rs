@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Wake, Tokens, Poll};
+use {Future, Task, Poll};
 use slot::{Slot, Token};
-use util;
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
@@ -118,7 +117,7 @@ impl<T: Send + 'static> Future for Promise<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self, _: &Tokens) -> Poll<T, Canceled> {
+    fn poll(&mut self, _: &mut Task) -> Poll<T, Canceled> {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             return Poll::NotReady
         }
@@ -129,7 +128,7 @@ impl<T: Send + 'static> Future for Promise<T> {
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             if let Some(cancel_token) = self.cancel_token.take() {
                 self.inner.slot.cancel(cancel_token);
@@ -137,10 +136,10 @@ impl<T: Send + 'static> Future for Promise<T> {
         }
         self.inner.pending_wake.store(true, Ordering::SeqCst);
         let inner = self.inner.clone();
-        let wake = wake.clone();
+        let handle = task.handle().clone();
         self.cancel_token = Some(self.inner.slot.on_full(move |_| {
             inner.pending_wake.store(false, Ordering::SeqCst);
-            util::done(&wake);
+            handle.notify();
         }));
     }
 }

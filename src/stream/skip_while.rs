@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Wake, Tokens, TOKENS_ALL, Poll};
+use {Task, Poll};
 use stream::Stream;
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -31,13 +29,14 @@ impl<S, P> Stream for SkipWhile<S, P>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
         if self.done_skipping {
-            return self.stream.poll(tokens);
+            return self.stream.poll(task);
         }
 
+        let mut task = task.scoped();
         loop {
-            let item = match try_poll!(self.stream.poll(tokens)) {
+            let item = match try_poll!(self.stream.poll(&mut task)) {
                 Ok(Some(e)) => e,
                 Ok(None) => return Poll::Ok(None),
                 Err(e) => return Poll::Err(e),
@@ -50,12 +49,12 @@ impl<S, P> Stream for SkipWhile<S, P>
                 Ok(true) => {}
                 Err(e) => return Poll::Err(e),
             }
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.stream.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.stream.schedule(task)
     }
 }
 

@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Wake, Tokens, TOKENS_ALL, Poll};
+use {Task, Poll};
 use stream::Stream;
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
@@ -33,30 +31,31 @@ impl<S> Stream for Flatten<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens)
+    fn poll(&mut self, task: &mut Task)
             -> Poll<Option<Self::Item>, Self::Error> {
+        let mut task = task.scoped();
         loop {
             if self.next.is_none() {
-                match try_poll!(self.stream.poll(tokens)) {
+                match try_poll!(self.stream.poll(&mut task)) {
                     Ok(Some(e)) => self.next = Some(e),
                     Ok(None) => return Poll::Ok(None),
                     Err(e) => return Poll::Err(From::from(e)),
                 }
-                tokens = &TOKENS_ALL;
+                task.ready();
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll(tokens) {
+            match self.next.as_mut().unwrap().poll(&mut task) {
                 Poll::Ok(None) => self.next = None,
                 other => return other,
             }
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         match self.next {
-            Some(ref mut s) => s.schedule(wake),
-            None => self.stream.schedule(wake),
+            Some(ref mut s) => s.schedule(task),
+            None => self.stream.schedule(task),
         }
     }
 }

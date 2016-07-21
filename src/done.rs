@@ -1,7 +1,4 @@
-use std::sync::Arc;
-
-use util;
-use {Future, Wake, Tokens, Poll};
+use {Future, Task, Poll};
 
 /// A future representing a value that is immediately ready.
 ///
@@ -38,11 +35,11 @@ impl<T, E> Future for Done<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _tokens: &Tokens) -> Poll<T, E> {
+    fn poll(&mut self, _task: &mut Task) -> Poll<T, E> {
         self.inner.take().expect("cannot poll Done twice").into()
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        util::done(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        task.notify();
     }
 }

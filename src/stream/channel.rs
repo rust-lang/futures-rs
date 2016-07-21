@@ -1,10 +1,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Wake, Tokens, Poll};
+use {Future, Task, Poll};
 use slot::{Slot, Token};
 use stream::Stream;
-use util;
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
 ///
@@ -87,7 +86,7 @@ impl<T, E> Stream for Receiver<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _tokens: &Tokens) -> Poll<Option<T>, E> {
+    fn poll(&mut self, _task: &mut Task) -> Poll<Option<T>, E> {
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Poll::Ok(Some(e)),
@@ -97,14 +96,14 @@ impl<T, E> Stream for Receiver<T, E>
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         if let Some(token) = self.on_full_token.take() {
             self.inner.slot.cancel(token);
         }
 
-        let wake = wake.clone();
+        let handle = task.handle().clone();
         self.on_full_token = Some(self.inner.slot.on_full(move |_| {
-            util::done(&wake);
+            handle.notify();
         }));
     }
 }
@@ -158,7 +157,7 @@ impl<T, E> Future for FutureSender<T, E>
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(&mut self, _tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, _task: &mut Task) -> Poll<Self::Item, Self::Error> {
         let data = self.data.take().expect("cannot poll FutureSender twice");
         let sender = self.sender.take().expect("cannot poll FutureSender twice");
         match sender.inner.slot.try_produce(Message::Data(data)) {
@@ -174,16 +173,16 @@ impl<T, E> Future for FutureSender<T, E>
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         match self.sender {
             Some(ref s) => {
-                let wake = wake.clone();
+                let handle = task.handle().clone();
                 // TODO: don't drop token?
                 s.inner.slot.on_empty(move |_slot| {
-                    util::done(&wake);
+                    handle.notify();
                 });
             }
-            None => util::done(wake),
+            None => task.notify(),
         }
     }
 }

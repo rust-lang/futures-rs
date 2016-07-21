@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Wake, Tokens, Poll};
+use {Task, Poll};
 use stream::Stream;
 
 /// A stream combinator which will change the type of a stream from one
@@ -31,11 +29,11 @@ impl<S, F, U> Stream for Map<S, F>
     type Item = U;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<U>, S::Error> {
-        self.stream.poll(tokens).map(|option| option.map(&mut self.f))
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<U>, S::Error> {
+        self.stream.poll(task).map(|option| option.map(&mut self.f))
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.stream.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.stream.schedule(task)
     }
 }

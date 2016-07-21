@@ -1,6 +1,5 @@
 extern crate futures;
 
-use std::sync::Arc;
 use std::sync::mpsc::channel;
 
 use futures::*;
@@ -40,12 +39,12 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
-        self.future.poll(tokens)
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+        self.future.poll(task)
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.future.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.future.schedule(task)
     }
 }
 

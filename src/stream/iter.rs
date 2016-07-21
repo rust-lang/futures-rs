@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
-use {Tokens, Wake, Poll};
+use {Task, Poll};
 use stream::Stream;
-use util;
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
 ///
@@ -38,7 +35,7 @@ impl<I, T, E> Stream for IterStream<I>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _tokens: &Tokens) -> Poll<Option<T>, E> {
+    fn poll(&mut self, _task: &mut Task) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Poll::Ok(Some(e)),
             Some(Err(e)) => Poll::Err(e),
@@ -46,7 +43,7 @@ impl<I, T, E> Stream for IterStream<I>
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        util::done(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        task.notify()
     }
 }

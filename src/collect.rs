@@ -1,7 +1,6 @@
 use std::mem;
-use std::sync::Arc;
 
-use {Future, IntoFuture, Wake, Tokens, Poll};
+use {Future, IntoFuture, Task, Poll};
 use util::Collapsed;
 
 /// A future which takes a list of futures and resolves with a vector of the
@@ -76,11 +75,12 @@ impl<I> Future for Collect<I>
     type Error = <I::Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+        let mut task = task.scoped();
         loop {
             match self.cur {
                 Some(ref mut cur) => {
-                    match try_poll!(cur.poll(tokens)) {
+                    match try_poll!(cur.poll(&mut task)) {
                         Ok(e) => self.result.push(e),
 
                         // If we hit an error, drop all our associated resources
@@ -101,15 +101,17 @@ impl<I> Future for Collect<I>
                 }
             }
 
+            task.ready();
+
             self.cur = self.remaining.next()
                            .map(IntoFuture::into_future)
                            .map(Collapsed::Start);
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         if let Some(ref mut cur) = self.cur {
-            cur.schedule(wake);
+            cur.schedule(task);
         }
     }
 

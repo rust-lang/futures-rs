@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Wake, Future, Tokens, TOKENS_EMPTY, Poll};
+use {Future, Task, Poll};
 
 pub enum Collapsed<T: Future> {
     Start(T),
@@ -8,17 +6,17 @@ pub enum Collapsed<T: Future> {
 }
 
 impl<T: Future> Collapsed<T> {
-    pub fn poll(&mut self, tokens: &Tokens) -> Poll<T::Item, T::Error> {
+    pub fn poll(&mut self, task: &mut Task) -> Poll<T::Item, T::Error> {
         match *self {
-            Collapsed::Start(ref mut a) => a.poll(tokens),
-            Collapsed::Tail(ref mut a) => a.poll(tokens),
+            Collapsed::Start(ref mut a) => a.poll(task),
+            Collapsed::Tail(ref mut a) => a.poll(task),
         }
     }
 
-    pub fn schedule(&mut self, wake: &Arc<Wake>) {
+    pub fn schedule(&mut self, task: &mut Task) {
         match *self {
-            Collapsed::Start(ref mut a) => a.schedule(wake),
-            Collapsed::Tail(ref mut a) => a.schedule(wake),
+            Collapsed::Start(ref mut a) => a.schedule(task),
+            Collapsed::Tail(ref mut a) => a.schedule(task),
         }
     }
 
@@ -39,8 +37,4 @@ impl<T: Future> Collapsed<T> {
         };
         *self = Collapsed::Tail(a);
     }
-}
-
-pub fn done(wake: &Arc<Wake>) {
-    wake.wake(&TOKENS_EMPTY);
 }

@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Wake, Tokens, Poll};
+use {Task, Poll};
 use stream::Stream;
 
 /// A stream combinator used to filter the results of a stream and only yield
@@ -29,9 +27,10 @@ impl<S, F> Stream for Filter<S, F>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
+        let mut task = task.scoped();
         loop {
-            match try_poll!(self.stream.poll(tokens)) {
+            match try_poll!(self.stream.poll(&mut task)) {
                 Ok(Some(e)) => {
                     if (self.f)(&e) {
                         return Poll::Ok(Some(e))
@@ -40,10 +39,11 @@ impl<S, F> Stream for Filter<S, F>
                 Ok(None) => return Poll::Ok(None),
                 Err(e) => return Poll::Err(e),
             }
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.stream.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.stream.schedule(task)
     }
 }

@@ -1,7 +1,6 @@
 use std::mem;
-use std::sync::Arc;
 
-use {Future, Wake, Tokens, empty, Poll};
+use {Future, empty, Poll, Task};
 
 impl<T, E> Future for Box<Future<Item=T, Error=E>>
     where T: Send + 'static,
@@ -10,12 +9,12 @@ impl<T, E> Future for Box<Future<Item=T, Error=E>>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
-        (**self).poll(tokens)
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+        (**self).poll(task)
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        (**self).schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        (**self).schedule(task)
     }
 
     fn tailcall(&mut self)
@@ -31,12 +30,12 @@ impl<F: Future> Future for Box<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
-        (**self).poll(tokens)
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+        (**self).poll(task)
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        (**self).schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        (**self).schedule(task)
     }
 
     fn tailcall(&mut self)

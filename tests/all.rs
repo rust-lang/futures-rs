@@ -1,7 +1,6 @@
 extern crate futures;
 extern crate support;
 
-use std::sync::{Mutex, Arc};
 use std::sync::mpsc::{channel, TryRecvError};
 
 use futures::*;
@@ -124,13 +123,14 @@ fn smoke_promise() {
 
     let (c, mut p) = promise::<i32>();
     drop(c);
-    assert!(p.poll(&Tokens::all()).unwrap().is_err());
-    let (c, mut p) = promise::<i32>();
+    assert!(p.poll(&mut Task::new()).unwrap().is_err());
+    let (c, p) = promise::<i32>();
     drop(c);
     let (tx, rx) = channel();
-    let tx = Mutex::new(tx);
-    let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
-    p.schedule(&(arc as Arc<Wake>));
+    Task::new().run(p.then(move |_| {
+        tx.send(()).unwrap();
+        Ok(())
+    }).boxed());
     rx.recv().unwrap();
 }
 
@@ -142,12 +142,11 @@ fn select_cancels() {
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let mut f = b.select(d).then(unselect);
-    // assert!(f.poll(&Tokens::all()).is_not_ready());
+    // assert!(f.poll(&mut Task::new()).is_not_ready());
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.complete(1);
-    // f.schedule(|_| ());
-    assert!(f.poll(&Tokens::all()).is_ready());
+    assert!(f.poll(&mut Task::new()).is_ready());
     assert_eq!(brx.recv().unwrap(), 1);
     drop((c, f));
     assert!(drx.recv().is_err());
@@ -157,16 +156,13 @@ fn select_cancels() {
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let (tx, rx) = channel();
-    let tx = Mutex::new(tx);
     let mut f = b.select(d).then(unselect);
-    assert!(f.poll(&Tokens::all()).is_not_ready());
-    let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
-    f.schedule(&(arc as Arc<Wake>));
-    assert!(rx.try_recv().is_err());
+    let mut task = Task::new();
+    assert!(f.poll(&mut task).is_not_ready());
+    f.schedule(&mut task);
+    assert!(f.poll(&mut task).is_not_ready());
     a.complete(1);
-    assert!(rx.recv().is_ok());
-    assert!(f.poll(&Tokens::all()).is_ready());
+    assert!(f.poll(&mut task).is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
 }
@@ -180,7 +176,7 @@ fn join_cancels() {
 
     let mut f = b.join(d);
     drop(a);
-    assert!(f.poll(&Tokens::all()).is_ready());
+    assert!(f.poll(&mut Task::new()).is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
 
@@ -190,14 +186,15 @@ fn join_cancels() {
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let (tx, rx) = channel();
-    let tx = Mutex::new(tx);
-    let mut f = b.join(d);
-    let arc = Arc::new(move |_: &Tokens| tx.lock().unwrap().send(()).unwrap());
-    f.schedule(&(arc as Arc<Wake>));
+    let f = b.join(d);
+    Task::new().run(f.then(move |_| {
+        tx.send(()).unwrap();
+        Ok(())
+    }).boxed());
     assert!(rx.try_recv().is_err());
     drop(a);
-    assert!(f.poll(&Tokens::all()).is_ready());
-    drop((c, f));
+    rx.recv().unwrap();
+    drop(c);
     assert!(drx.recv().is_err());
 }
 
@@ -205,7 +202,7 @@ fn join_cancels() {
 fn join_incomplete() {
     let (a, b) = promise::<i32>();
     let mut f = finished(1).join(b);
-    assert!(f.poll(&Tokens::all()).is_not_ready());
+    assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -214,7 +211,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32>();
     let mut f = b.join(Ok(2));
-    assert!(f.poll(&Tokens::all()).is_not_ready());
+    assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -223,7 +220,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32>();
     let mut f = finished(1).join(b);
-    assert!(f.poll(&Tokens::all()).is_not_ready());
+    assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
     f.map_err(move |_r| tx.send(2).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -232,7 +229,7 @@ fn join_incomplete() {
 
     let (a, b) = promise::<i32>();
     let mut f = b.join(Ok(2));
-    assert!(f.poll(&Tokens::all()).is_not_ready());
+    assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
     f.map_err(move |_r| tx.send(1).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -321,7 +318,7 @@ fn select2() {
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let mut f = b.select(d);
-        f.schedule(&(Arc::new(|_: &Tokens| ()) as Arc<Wake>));
+        f.schedule(&mut Task::new());
         drop(f);
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());

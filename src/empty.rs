@@ -1,7 +1,6 @@
 use std::marker;
-use std::sync::Arc;
 
-use {Future, Wake, Tokens, Poll};
+use {Future, Task, Poll};
 
 /// A future which is never resolved.
 ///
@@ -30,11 +29,11 @@ impl<T, E> Future for Empty<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _: &Tokens) -> Poll<T, E> {
+    fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
         Poll::NotReady
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        drop(wake);
+    fn schedule(&mut self, task: &mut Task) {
+        drop(task);
     }
 }

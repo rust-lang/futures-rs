@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Future, Wake, Tokens, Poll};
+use {Future, Task, Poll};
 use util::Collapsed;
 
 /// Future for the `map_err` combinator, changing the error type of a future.
@@ -28,13 +26,13 @@ impl<U, A, F> Future for MapErr<A, F>
     type Item = A::Item;
     type Error = U;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<A::Item, U> {
-        let result = try_poll!(self.future.poll(tokens));
+    fn poll(&mut self, task: &mut Task) -> Poll<A::Item, U> {
+        let result = try_poll!(self.future.poll(task));
         result.map_err(self.f.take().expect("cannot poll MapErr twice")).into()
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.future.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.future.schedule(task)
     }
 
     fn tailcall(&mut self)

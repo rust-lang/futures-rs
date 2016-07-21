@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Future, Wake, Tokens, TOKENS_ALL, Poll};
+use {Future, Task, Poll};
 use stream::Stream;
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -29,9 +27,10 @@ impl<S, F> Future for ForEach<S, F>
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Poll<(), S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<(), S::Error> {
+        let mut task = task.scoped();
         loop {
-            match try_poll!(self.stream.poll(tokens)) {
+            match try_poll!(self.stream.poll(&mut task)) {
                 Ok(Some(e)) => {
                     match (self.f)(e) {
                         Ok(()) => {}
@@ -41,11 +40,11 @@ impl<S, F> Future for ForEach<S, F>
                 Ok(None) => return Poll::Ok(()),
                 Err(e) => return Poll::Err(e),
             }
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.stream.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.stream.schedule(task)
     }
 }

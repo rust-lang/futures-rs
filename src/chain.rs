@@ -1,8 +1,7 @@
-use std::sync::Arc;
 use std::mem;
 
-use util::{self, Collapsed};
-use {Future, Wake, Tokens, TOKENS_ALL, Poll};
+use util::Collapsed;
+use {Future, Task, Poll};
 
 pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
     First(Collapsed<A>, C),
@@ -19,13 +18,13 @@ impl<A, B, C> Chain<A, B, C>
         Chain::First(Collapsed::Start(a), c)
     }
 
-    pub fn poll<F>(&mut self, tokens: &Tokens, f: F) -> Poll<B::Item, B::Error>
+    pub fn poll<F>(&mut self, task: &mut Task, f: F) -> Poll<B::Item, B::Error>
         where F: FnOnce(Result<A::Item, A::Error>, C)
                         -> Result<Result<B::Item, B>, B::Error> + Send + 'static,
     {
         let a_result = match *self {
-            Chain::First(ref mut a, _) => try_poll!(a.poll(tokens)),
-            Chain::Second(ref mut b) => return b.poll(tokens),
+            Chain::First(ref mut a, _) => try_poll!(a.poll(task)),
+            Chain::Second(ref mut b) => return b.poll(task),
             Chain::Done => panic!("cannot poll a chained future twice"),
         };
         let data = match mem::replace(self, Chain::Done) {
@@ -35,7 +34,7 @@ impl<A, B, C> Chain<A, B, C>
         match f(a_result, data) {
             Ok(Ok(e)) => Poll::Ok(e),
             Ok(Err(mut b)) => {
-                let ret = b.poll(&TOKENS_ALL);
+                let ret = b.poll(task.scoped().ready());
                 *self = Chain::Second(b);
                 ret
             }
@@ -43,11 +42,11 @@ impl<A, B, C> Chain<A, B, C>
         }
     }
 
-    pub fn schedule(&mut self, wake: &Arc<Wake>) {
+    pub fn schedule(&mut self, task: &mut Task) {
         match *self {
-            Chain::First(ref mut a, _) => a.schedule(wake),
-            Chain::Second(ref mut b) => b.schedule(wake),
-            Chain::Done => util::done(wake),
+            Chain::First(ref mut a, _) => a.schedule(task),
+            Chain::Second(ref mut b) => b.schedule(task),
+            Chain::Done => task.notify(),
         }
     }
 

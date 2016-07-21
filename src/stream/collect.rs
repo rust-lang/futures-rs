@@ -1,7 +1,6 @@
 use std::mem;
-use std::sync::Arc;
 
-use {Wake, Tokens, Future, TOKENS_ALL, Poll};
+use {Task, Future, Poll};
 use stream::Stream;
 
 /// A future which collects all of the values of a stream into a vector.
@@ -33,9 +32,10 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Poll<Vec<S::Item>, S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Vec<S::Item>, S::Error> {
+        let mut task = task.scoped();
         loop {
-            match try_poll!(self.stream.poll(tokens)) {
+            match try_poll!(self.stream.poll(&mut task)) {
                 Ok(Some(e)) => self.items.push(e),
                 Ok(None) => return Poll::Ok(self.finish()),
                 Err(e) => {
@@ -43,11 +43,11 @@ impl<S> Future for Collect<S>
                     return Poll::Err(e)
                 }
             }
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.stream.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.stream.schedule(task)
     }
 }

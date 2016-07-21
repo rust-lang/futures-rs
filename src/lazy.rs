@@ -1,7 +1,6 @@
 use std::mem;
-use std::sync::Arc;
 
-use {Future, Wake, IntoFuture, Tokens, Poll};
+use {Future, IntoFuture, Task, Poll};
 
 /// A future which defers creation of the actual future until a callback is
 /// scheduled.
@@ -73,12 +72,12 @@ impl<F, R> Future for Lazy<F, R::Future>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<R::Item, R::Error> {
-        self.get().poll(tokens)
+    fn poll(&mut self, task: &mut Task) -> Poll<R::Item, R::Error> {
+        self.get().poll(task)
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.get().schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.get().schedule(task)
     }
 
     fn tailcall(&mut self) -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {

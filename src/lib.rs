@@ -10,18 +10,19 @@
 
 #![deny(missing_docs)]
 
-use std::sync::Arc;
-
 mod lock;
 mod slot;
 mod util;
 
 mod token;
-pub use token::{Tokens, TOKENS_ALL, TOKENS_EMPTY};
+// pub use token::{TOKENS_ALL, TOKENS_EMPTY};
 
 #[macro_use]
 mod poll;
 pub use poll::Poll;
+
+mod task;
+pub use task::{Task, TaskHandle};
 
 pub mod executor;
 
@@ -125,14 +126,10 @@ pub trait Future: Send + 'static {
     /// should ensure that a call to this **never blocks** as event loops may
     /// not work properly otherwise.
     ///
-    /// Callers of this function may provide an optional set of "interested
-    /// tokens" in the `tokens` argument which indicates which tokens are likely
-    /// ready to be looked at. Tokens are learned about through the `schedule`
-    /// method below and communicated through the callback in that method.
-    ///
-    /// Implementors of the `Future` trait may safely assume that if tokens of
-    /// interest are not in `tokens` then futures may not need to be polled
-    /// (skipping work in `poll` in some cases).
+    /// Callers of this function must provide the "task" in which the future is
+    /// running through the `task` argument. This task contains information like
+    /// task-local variables which the future may have stored references to
+    /// internally.
     ///
     /// # Return value
     ///
@@ -158,42 +155,40 @@ pub trait Future: Send + 'static {
     /// This future may have failed to finish the computation, in which case
     /// the `Poll::Err` variant will be returned with an appropriate payload of
     /// an error.
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error>;
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
 
-    /// Register a callback to be run whenever this future can make progress
-    /// again.
+    /// Schedule a task to be notified when this future is ready.
     ///
     /// Throughout the lifetime of a future it may frequently be `poll`'d on to
     /// test whether the value is ready yet. If `None` is returned, however, the
-    /// caller may then register a callback via this function to get a
+    /// caller may then register interest via this function to get a
     /// notification when the future can indeed make progress.
     ///
-    /// The `wake` argument provided here will receive a notification (get
-    /// called) when this future can make progress. It may also be called
-    /// spuriously when the future may not be able to make progress. Whenever
-    /// called, however, it is recommended to call `poll` next to try to move
-    /// the future forward.
+    /// The `task` argument provided is the same task as provided to `poll`, and
+    /// it's the overall task which is driving this future. The task will be
+    /// notified through the `TaskHandle` type generated from the `handle`
+    /// method, and spurious notifications are allowed. That is, it's ok for a
+    /// notification to be received which when the future is poll'd it still
+    /// isn't complete.
     ///
     /// Implementors of the `Future` trait are recommended to just blindly pass
-    /// around this callback rather than manufacture new callbacks for contained
-    /// futures.
+    /// around this task rather than attempt to manufacture new tasks.
     ///
-    /// When the `wake` callback is invoked it will be provided a set of tokens
-    /// that represent the set of events which have happened since it was last
-    /// called (or the last call to `poll`). These events can then be used to
-    /// pass back into the `poll` function above to ensure the future does not
-    /// unnecessarily `poll` too much.
+    /// When the `task` is notified it will be provided a set of tokens that
+    /// represent the set of events which have happened since it was last called
+    /// (or the last call to `poll`). These events can then be used by the task
+    /// to later inform `poll` calls to not poll too much.
     ///
-    /// # Multiple callbacks
+    /// # Multiple calls to `schedule`
     ///
-    /// This function cannot be used to queue up multiple callbacks to be
-    /// invoked when a future is ready to make progress. Only the most recent
-    /// call to `schedule` is guaranteed to have notifications received when
-    /// `schedule` is called multiple times.
+    /// This function cannot be used to queue up multiple tasks to be notified
+    /// when a future is ready to make progress. Only the most recent call to
+    /// `schedule` is guaranteed to have notifications received when `schedule`
+    /// is called multiple times.
     ///
     /// If this function is called twice, it may be the case that the previous
-    /// callback is never invoked. It is recommended that this function is
-    /// called with the same callback for the entire lifetime of this future.
+    /// task is never notified. It is recommended that this function is called
+    /// with the same task for the entire lifetime of this future.
     ///
     /// # Panics
     ///
@@ -206,7 +201,7 @@ pub trait Future: Send + 'static {
     /// consider using the `fuse` adaptor which defines the behavior of
     /// `schedule` after a successful poll, but comes with a little bit of
     /// extra cost.
-    fn schedule(&mut self, wake: &Arc<Wake>);
+    fn schedule(&mut self, task: &mut Task);
 
     /// Perform tail-call optimization on this future.
     ///
@@ -570,17 +565,17 @@ pub trait Future: Send + 'static {
     /// ```rust
     /// use futures::*;
     ///
-    /// # let tokens = &Tokens::all();
+    /// let mut task = Task::new();
     /// let mut future = finished::<i32, u32>(2);
-    /// assert!(future.poll(&tokens).is_ready());
+    /// assert!(future.poll(&mut task).is_ready());
     ///
     /// // Normally, a call such as this would panic:
-    /// //future.poll(&tokens);
+    /// //future.poll(&mut task);
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = finished::<i32, u32>(2).fuse();
-    /// assert!(future.poll(&tokens).is_ready());
-    /// assert!(future.poll(&tokens).is_not_ready());
+    /// assert!(future.poll(&mut task).is_ready());
+    /// assert!(future.poll(&mut task).is_not_ready());
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
@@ -616,23 +611,6 @@ fn assert_future<A, B, F>(t: F) -> F
           B: Send + 'static,
 {
     t
-}
-
-/// A trait essentially representing `Fn(&Tokens) + Send + Sync + 'static`.
-///
-/// This is used as an argument to the `Future::schedule` function.
-pub trait Wake: Send + Sync + 'static {
-    /// Invokes this callback indicating that the provided set of events have
-    /// activity and the associated futures may make progress.
-    fn wake(&self, tokens: &Tokens);
-}
-
-impl<F> Wake for F
-    where F: Fn(&Tokens) + Send + Sync + 'static
-{
-    fn wake(&self, tokens: &Tokens) {
-        self(tokens)
-    }
 }
 
 /// Class of types which can be converted themselves into a future.

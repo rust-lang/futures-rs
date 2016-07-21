@@ -1,8 +1,7 @@
-use std::sync::Arc;
 use std::mem;
 
-use {Wake, Future, Tokens, empty, Poll};
-use util::{self, Collapsed};
+use {Future, Task, empty, Poll};
+use util::Collapsed;
 
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.
@@ -43,13 +42,13 @@ impl<A, B> Future for Select<A, B>
     type Item = (A::Item, SelectNext<A, B>);
     type Error = (A::Error, SelectNext<A, B>);
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
-                match a.poll(tokens) {
+                match a.poll(task) {
                     Poll::Ok(a) => (Ok(a), true),
                     Poll::Err(a) => (Err(a), true),
-                    Poll::NotReady => (try_poll!(b.poll(tokens)), false),
+                    Poll::NotReady => (try_poll!(b.poll(task)), false),
                 }
             }
             None => panic!("cannot poll select twice"),
@@ -64,13 +63,13 @@ impl<A, B> Future for Select<A, B>
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         match self.inner {
             Some((ref mut a, ref mut b)) => {
-                a.schedule(wake);
-                b.schedule(wake);
+                a.schedule(task);
+                b.schedule(task);
             }
-            None => util::done(wake),
+            None => task.notify(),
         }
     }
 
@@ -91,17 +90,17 @@ impl<A, B> Future for SelectNext<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
         match self.inner {
-            OneOf::A(ref mut a) => a.poll(tokens),
-            OneOf::B(ref mut b) => b.poll(tokens),
+            OneOf::A(ref mut a) => a.poll(task),
+            OneOf::B(ref mut b) => b.poll(task),
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         match self.inner {
-            OneOf::A(ref mut a) => a.schedule(wake),
-            OneOf::B(ref mut b) => b.schedule(wake),
+            OneOf::A(ref mut a) => a.schedule(task),
+            OneOf::B(ref mut b) => b.schedule(task),
         }
     }
 

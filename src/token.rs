@@ -4,91 +4,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// A bloom-filter-like set of "tokens" which is used to prune the amount of
 /// calls to `poll` in a future computation graph.
 pub struct Tokens {
-    repr: Repr,
-}
-
-enum Repr {
-    All,
-    One(usize),
-    Empty,
-    Bloom(AtomicTokens),
-}
-
-// NB. this is not exported currently, that's intentional, just used in forget()
-pub struct AtomicTokens {
     data: [AtomicUsize; 16],
 }
 
-/// A static which corresponds to a set which contains all tokens, useful for
-/// passing around in various combinators.
-pub static TOKENS_ALL: Tokens = Tokens { repr: Repr::All };
-
-/// A static which corresponds to a set of no tokens, useful for passing around
-/// in various combinators.
-pub static TOKENS_EMPTY: Tokens = Tokens { repr: Repr::Empty };
-
 impl Tokens {
-    /// Creates a new set of tokens representing that no events have happened.
-    ///
-    /// The returned set will always return `false` for the `may_contain`
-    /// method.
     pub fn empty() -> Tokens {
-        Tokens { repr: Repr::Empty }
-    }
-
-    /// Creates a new set of tokens representing that all possible events may
-    /// have happened.
-    ///
-    /// The returned set will always return `true` for the `may_contain` method.
-    pub fn all() -> Tokens {
-        Tokens { repr: Repr::All }
-    }
-
-    /// Creates a new set of tokens from the `usize` sentinel provided.
-    ///
-    /// Note that this may be a lossy conversion as `Tokens` may contain more
-    /// bits of information than a `usize`.
-    pub fn one(u: usize) -> Tokens {
-        Tokens { repr: Repr::One(u) }
-    }
-
-    /// Insert a new token into this token set.
-    pub fn insert(&mut self, token: usize) {
-        let other = match self.repr {
-            Repr::Bloom(ref mut b) => return b.insert(token),
-            Repr::All => return,
-            Repr::Empty => None,
-            Repr::One(a) => Some(a),
-        };
-        let mut filter = AtomicTokens::empty();
-        filter.insert(token);
-        if let Some(other) = other {
-            filter.insert(other);
-        }
-        self.repr = Repr::Bloom(filter);
-    }
-
-    /// Returns whether this set of tokens may contain any token contained in
-    /// `other`.
-    ///
-    /// If `false` is returned then it is known with certainty that `self` does
-    /// not contain any events that could be in `other`.
-    ///
-    /// If `true` is returned then events in `other` **may** be contained in
-    /// `self`, and more work must be done to know for sure.
-    pub fn may_contain(&self, token: usize) -> bool {
-        match self.repr {
-            Repr::All => true,
-            Repr::One(a) => a == token,
-            Repr::Empty => false,
-            Repr::Bloom(ref b) => b.may_contain(token),
-        }
-    }
-}
-
-impl AtomicTokens {
-    pub fn empty() -> AtomicTokens {
-        AtomicTokens {
+        Tokens {
             data: [
                 AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0),
                 AtomicUsize::new(0), AtomicUsize::new(0), AtomicUsize::new(0),
@@ -100,8 +21,8 @@ impl AtomicTokens {
         }
     }
 
-    pub fn all() -> AtomicTokens {
-        AtomicTokens {
+    pub fn all() -> Tokens {
+        Tokens {
             data: [
                 AtomicUsize::new(!0), AtomicUsize::new(!0), AtomicUsize::new(!0),
                 AtomicUsize::new(!0), AtomicUsize::new(!0), AtomicUsize::new(!0),
@@ -115,41 +36,18 @@ impl AtomicTokens {
 
     // TODO: document Relaxed here a bunch
 
-    pub fn get_tokens(&self) -> Tokens {
-        let ret = AtomicTokens::empty();
+    pub fn take(&self) -> Tokens {
+        let ret = Tokens::empty();
         for (src, dst) in self.data.iter().zip(ret.data.iter()) {
             let v = src.swap(0, Ordering::Relaxed);
             if v != 0 {
                 dst.store(v, Ordering::Relaxed);
             }
         }
-        Tokens { repr: Repr::Bloom(ret) }
+        return ret
     }
 
-    pub fn add(&self, other: &Tokens) {
-        match other.repr {
-            Repr::Empty => {}
-            Repr::All => {
-                for dst in self.data.iter() {
-                    dst.store(!0, Ordering::Relaxed);
-                }
-            }
-            Repr::One(u) => {
-                let (slot, bit) = self.index(u);
-                slot.fetch_or(bit, Ordering::Relaxed);
-            }
-            Repr::Bloom(ref b) => {
-                for (src, dst) in b.data.iter().zip(self.data.iter()) {
-                    let src = src.load(Ordering::Relaxed);
-                    if src != 0 {
-                        dst.fetch_or(src, Ordering::Relaxed);
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn insert(&mut self, other: usize) {
+    pub fn insert(&self, other: usize) {
         let (slot, bit) = self.index(other);
         // TODO: don't do an atomic here
         slot.fetch_or(bit, Ordering::Relaxed);
@@ -179,11 +77,11 @@ impl AtomicTokens {
 
 #[cfg(test)]
 mod tests {
-    use super::{AtomicTokens, Tokens};
+    use super::{Tokens};
 
     #[test]
     fn all() {
-        let a = AtomicTokens::all();
+        let a = Tokens::all();
         assert!(a.may_contain(3));
         assert!(a.may_contain(!0));
         assert!(a.may_contain(20384));
@@ -192,21 +90,21 @@ mod tests {
 
     #[test]
     fn empty() {
-        let a = AtomicTokens::empty();
+        let a = Tokens::empty();
         assert!(!a.may_contain(3));
         assert!(!a.may_contain(!0));
         assert!(!a.may_contain(20384));
         assert!(!a.any());
 
-        a.add(&Tokens::one(3));
+        a.insert(3);
         assert!(a.may_contain(3));
         assert!(!a.may_contain(4));
     }
 
     #[test]
     fn swap() {
-        let a = AtomicTokens::all();
-        let b = a.get_tokens();
+        let a = Tokens::all();
+        let b = a.take();
         assert!(b.may_contain(3));
         assert!(b.may_contain(!0));
         assert!(b.may_contain(20384));

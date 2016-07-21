@@ -1,7 +1,6 @@
-use std::sync::Arc;
 use std::mem;
 
-use {Wake, Tokens, Future, TOKENS_ALL, Poll};
+use {Task, Future, Poll};
 use stream::Stream;
 
 /// A future used to collect all the results of a stream into one generic type.
@@ -48,12 +47,13 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, mut tokens: &Tokens) -> Poll<T, S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<T, S::Error> {
+        let mut task = task.scoped();
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll(tokens) {
+                    match self.stream.poll(&mut task) {
                         Poll::Ok(Some(e)) => {
                             self.state = State::Processing((self.f)(state, e))
                         }
@@ -66,7 +66,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll(tokens) {
+                    match fut.poll(&mut task) {
                         Poll::Ok(state) => self.state = State::Ready(state),
                         Poll::Err(e) => return Poll::Err(e.into()),
                         Poll::NotReady => {
@@ -77,15 +77,15 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                 }
             }
 
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         match self.state {
             State::Empty => panic!("cannot `schedule` a completed Fold"),
-            State::Ready(_) => self.stream.schedule(wake),
-            State::Processing(ref mut fut) => fut.schedule(wake),
+            State::Ready(_) => self.stream.schedule(task),
+            State::Processing(ref mut fut) => fut.schedule(task),
         }
     }
 }

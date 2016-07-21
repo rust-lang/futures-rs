@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Future, IntoFuture, Wake, Tokens, Poll};
+use {Future, IntoFuture, Task, Poll};
 use chain::Chain;
 
 /// Future for the `or_else` combinator, chaining a computation onto the end of
@@ -29,8 +27,8 @@ impl<A, B, F> Future for OrElse<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<B::Item, B::Error> {
-        self.state.poll(tokens, |a, f| {
+    fn poll(&mut self, task: &mut Task) -> Poll<B::Item, B::Error> {
+        self.state.poll(task, |a, f| {
             match a {
                 Ok(item) => Ok(Ok(item)),
                 Err(e) => Ok(Err(f(e).into_future()))
@@ -38,8 +36,8 @@ impl<A, B, F> Future for OrElse<A, B, F>
         })
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.state.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.state.schedule(task)
     }
 
     fn tailcall(&mut self)

@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use {Future, IntoFuture, Wake, Tokens, Poll};
+use {Future, IntoFuture, Task, Poll};
 use chain::Chain;
 
 /// Future for the `then` combinator, chaining computations on the end of
@@ -29,14 +27,14 @@ impl<A, B, F> Future for Then<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<B::Item, B::Error> {
-        self.state.poll(tokens, |a, f| {
+    fn poll(&mut self, task: &mut Task) -> Poll<B::Item, B::Error> {
+        self.state.poll(task, |a, f| {
             Ok(Err(f(a).into_future()))
         })
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.state.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.state.schedule(task)
     }
 
     fn tailcall(&mut self)
