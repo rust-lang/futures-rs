@@ -9,7 +9,7 @@ use mio;
 use std::io;
 use std::sync::Arc;
 
-use futures::{Future, Tokens, Wake, Poll};
+use futures::{Future, Task, Poll};
 use futures::stream::Stream;
 
 // TODO: figure out a nicer way to factor this
@@ -76,8 +76,8 @@ impl Stream for ReadinessStream {
     type Item = ();
     type Error = io::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<()>, io::Error> {
-        if self.state.ready_on_poll() && tokens.may_contain(self.token_to_test) {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+        if self.state.ready_on_poll() && task.may_contain(self.token_to_test) {
             self.state = State::Polled;
             Poll::Ok(Some(()))
         } else {
@@ -85,12 +85,11 @@ impl Stream for ReadinessStream {
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         // TODO: need to update the wake callback
         if self.state != State::Scheduled {
             self.state = State::Scheduled;
-            self.loop_handle.schedule(self.token, self.dir, wake)
-        } else {
+            self.loop_handle.schedule(self.token, self.dir, task)
         }
     }
 }

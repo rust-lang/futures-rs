@@ -9,7 +9,7 @@ use std::time::Instant;
 use mio;
 use mio::channel::SendError;
 use slab::Slab;
-use futures::{Future, Tokens, Wake, Poll};
+use futures::{Future, Task, TaskHandle, Poll};
 
 use slot::{self, Slot};
 
@@ -30,7 +30,7 @@ const SLAB_CAPACITY: usize = 1024 * 64;
 pub struct Loop {
     id: usize,
     active: Cell<bool>,
-    io: RefCell<mio::Poll>,
+    io: mio::Poll,
     tx: mio::channel::Sender<Message>,
     rx: mio::channel::Receiver<Message>,
     dispatch: RefCell<Slab<Scheduled, usize>>,
@@ -63,7 +63,7 @@ struct Scheduled {
 enum Half {
     NotReady,
     Ready,
-    Waiting(Arc<Wake>),
+    Waiting(TaskHandle),
 }
 
 impl Scheduled {
@@ -78,12 +78,12 @@ impl Scheduled {
 enum Message {
     AddSource(Source, Arc<Slot<io::Result<usize>>>),
     DropSource(usize),
-    Schedule(usize, Direction, Arc<Wake>),
+    Schedule(usize, Direction, TaskHandle),
     Deschedule(usize, Direction),
     Shutdown,
 }
 
-fn register(poll: &mut mio::Poll,
+fn register(poll: &mio::Poll,
             token: usize,
             sched: &Scheduled) -> io::Result<()> {
     poll.register(&*sched.source,
@@ -92,7 +92,7 @@ fn register(poll: &mut mio::Poll,
                   mio::PollOpt::edge())
 }
 
-fn deregister(poll: &mut mio::Poll, sched: &Scheduled) {
+fn deregister(poll: &mio::Poll, sched: &Scheduled) {
     // TODO: handle error
     poll.deregister(&*sched.source).unwrap();
 }
@@ -110,7 +110,7 @@ impl Loop {
         Ok(Loop {
             id: NEXT_LOOP_ID.fetch_add(1, Ordering::Relaxed),
             active: Cell::new(true),
-            io: RefCell::new(io),
+            io: io,
             tx: tx,
             rx: rx,
             dispatch: RefCell::new(Slab::new_starting_at(1, SLAB_CAPACITY)),
@@ -138,6 +138,7 @@ impl Loop {
             tx_res.send(res)
         }).forget();
 
+        let mut events = mio::Events::new();
         while self.active.get() {
             let amt;
             // On Linux, Poll::poll is epoll_wait, which may return EINTR if a
@@ -145,7 +146,7 @@ impl Loop {
             // attaching strace, or similar.
             let start = Instant::now();
             loop {
-                match self.io.borrow_mut().poll(None) {
+                match self.io.poll(&mut events, None) {
                     Ok(a) => {
                         amt = a;
                         break;
@@ -160,9 +161,9 @@ impl Loop {
 
             // TODO: coalesce token sets for a given Wake?
             let start = Instant::now();
-            for i in 0..amt {
-                let event = self.io.borrow_mut().events().get(i).unwrap();
-                let token = event.token().as_usize();
+            for i in 0..events.len() {
+                let event = events.get(i).unwrap();
+                let token = usize::from(event.token());
 
                 if token == 0 {
                     self.consume_queue();
@@ -170,31 +171,40 @@ impl Loop {
                     let mut reader = None;
                     let mut writer = None;
 
-                    let mut tokens = Tokens::empty();
                     if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
                         if event.kind().is_readable() {
                             reader = sched.reader.set();
-                            tokens.insert(2 * token);
                         }
 
                         if event.kind().is_writable() {
                             writer = sched.writer.set();
-                            tokens.insert(2 * token + 1);
                         }
                     } else {
                         debug!("notified on {} which no longer exists", token);
                     }
 
+                    // TODO: encapsulate this logic better
+                    let read_token = 2 * token;
+                    let write_token = 2 * token + 1;
+
                     CURRENT_LOOP.set(&self, || {
                         match (reader, writer) {
                             (Some(r), Some(w)) => {
-                                r.wake(&tokens);
-                                if &*r as *const Wake != &*w as *const Wake {
-                                    w.wake(&tokens);
+                                r.token_ready(read_token);
+                                w.token_ready(write_token);
+                                r.notify();
+                                if !r.equivalent(&w) {
+                                    w.notify();
                                 }
                             }
-                            (Some(r), None) => r.wake(&tokens),
-                            (None, Some(w)) => w.wake(&tokens),
+                            (Some(r), None) => {
+                                r.token_ready(read_token);
+                                r.notify();
+                            }
+                            (None, Some(w)) => {
+                                w.token_ready(write_token);
+                                w.notify();
+                            }
                             (None, None) => {}
                         }
                     });
@@ -219,16 +229,16 @@ impl Loop {
             dispatch.grow(amt);
         }
         let entry = dispatch.vacant_entry().unwrap();
-        try!(register(&mut self.io.borrow_mut(), entry.index(), &sched));
+        try!(register(&self.io, entry.index(), &sched));
         Ok(entry.insert(sched).index())
     }
 
     fn drop_source(&self, token: usize) {
         let sched = self.dispatch.borrow_mut().remove(token).unwrap();
-        deregister(&mut self.io.borrow_mut(), &sched);
+        deregister(&self.io, &sched);
     }
 
-    fn schedule(&self, token: usize, dir: Direction, wake: Arc<Wake>) {
+    fn schedule(&self, token: usize, dir: Direction, wake: TaskHandle) {
         let to_call = {
             let mut dispatch = self.dispatch.borrow_mut();
             let sched = dispatch.get_mut(token).unwrap();
@@ -237,13 +247,12 @@ impl Loop {
         if let Some(to_call) = to_call {
             debug!("immediate wakeup on {:?}", dir);
 
-            let mut tokens = Tokens::empty();
             let token = match dir {
                 Direction::Read => 2 * token,
                 Direction::Write => 2 * token + 1,
             };
-            tokens.insert(token);
-            to_call.wake(&tokens);
+            to_call.token_ready(token);
+            to_call.notify();
         }
     }
 
@@ -275,7 +284,7 @@ impl Loop {
 }
 
 impl Half {
-    fn set(&mut self) -> Option<Arc<Wake>> {
+    fn set(&mut self) -> Option<TaskHandle> {
         match mem::replace(self, Half::Ready) {
             Half::NotReady => None,
             Half::Ready => None,
@@ -286,7 +295,7 @@ impl Half {
         }
     }
 
-    fn block(&mut self, waiter: Option<Arc<Wake>>) -> Option<Arc<Wake>> {
+    fn block(&mut self, waiter: Option<TaskHandle>) -> Option<TaskHandle> {
         match (&*self, waiter) {
             (&Half::NotReady, None) => {}
             (&Half::NotReady, Some(other)) => {
@@ -395,8 +404,9 @@ impl LoopHandle {
     /// This function will panic if the event loop this handle is associated
     /// with has gone away, or if there is an error communicating with the event
     /// loop.
-    pub fn schedule(&self, tok: usize, dir: Direction, wake: &Arc<Wake>) {
-        self.send(Message::Schedule(tok, dir, wake.clone()));
+    pub fn schedule(&self, tok: usize, dir: Direction, task: &mut Task) {
+        // TODO: plumb through `&mut Task` if we're on the event loop
+        self.send(Message::Schedule(tok, dir, task.handle().clone()));
     }
 
     /// Stop listening for events on an event loop.
@@ -472,10 +482,10 @@ impl Future for AddSource {
     type Item = usize;
     type Error = io::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<usize, io::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<usize, io::Error> {
         match self.result {
             Some((ref result, _)) => {
-                if tokens.may_contain(ADD_SOURCE_TOKEN) {
+                if task.may_contain(ADD_SOURCE_TOKEN) {
                     match result.try_consume() {
                         Ok(t) => t.into(),
                         Err(_) => Poll::NotReady,
@@ -496,19 +506,22 @@ impl Future for AddSource {
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        let wake = wake.clone();
+    fn schedule(&mut self, task: &mut Task) {
         if let Some((ref result, ref mut token)) = self.result {
             result.cancel(*token);
+            let handle = task.handle().clone();
             *token = result.on_full(move |_| {
-                wake.wake(&Tokens::one(ADD_SOURCE_TOKEN));
+                handle.token_ready(ADD_SOURCE_TOKEN);
+                handle.notify();
             });
             return
         }
 
+        let handle = task.handle().clone();
         let result = Arc::new(Slot::new(None));
         let token = result.on_full(move |_| {
-            wake.wake(&Tokens::one(ADD_SOURCE_TOKEN));
+            handle.token_ready(ADD_SOURCE_TOKEN);
+            handle.notify();
         });
         self.result = Some((result.clone(), token));
         self.loop_handle.add_source_(self.source.take().unwrap(), result);

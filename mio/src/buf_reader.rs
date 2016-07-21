@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use ReadinessStream;
 
-use futures::{Wake, Tokens, Poll};
+use futures::{Task, Poll};
 use futures::stream::Stream;
 
 const INPUT_BUF_SIZE: usize = 8 * 1024;
@@ -143,9 +143,9 @@ impl<R: Read + Send + 'static> Stream for BufReader<R> {
     type Item = ();
     type Error = io::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<()>, io::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
         if !self.read_ready {
-            match self.source_ready.poll(tokens) {
+            match self.source_ready.poll(task) {
                 Poll::NotReady => return Poll::NotReady,
                 Poll::Err(e) => return Poll::Err(e.into()),
                 Poll::Ok(Some(())) => self.read_ready = true,
@@ -167,7 +167,7 @@ impl<R: Read + Send + 'static> Stream for BufReader<R> {
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
-        self.source_ready.schedule(wake)
+    fn schedule(&mut self, task: &mut Task) {
+        self.source_ready.schedule(task)
     }
 }

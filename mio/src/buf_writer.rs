@@ -1,9 +1,8 @@
 #![allow(missing_docs)]
 
 use std::io::{self, Write};
-use std::sync::Arc;
 
-use futures::{Future, Wake, Tokens, Poll, TOKENS_ALL};
+use futures::{Future, Task, Poll};
 use futures::stream::Stream;
 use ReadinessStream;
 
@@ -43,10 +42,11 @@ impl<W: Write + Send + 'static> BufWriter<W> {
         self.buf.len() > 0
     }
 
-    fn poll_flush(&mut self, mut tokens: &Tokens) -> Poll<(), io::Error> {
+    fn poll_flush(&mut self, task: &mut Task) -> Poll<(), io::Error> {
+        let mut task = task.scoped();
         while self.is_dirty() {
             if !self.write_ready {
-                match self.sink_ready.poll(tokens) {
+                match self.sink_ready.poll(&mut task) {
                     Poll::Err(e) => return Poll::Err(e),
                     Poll::Ok(Some(())) => self.write_ready = true,
                     Poll::Ok(None) | // TODO: this should translate to an error
@@ -62,11 +62,13 @@ impl<W: Write + Send + 'static> BufWriter<W> {
                     // before returning
                     self.buf.drain(..n);
                 }
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => self.write_ready = false,
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    self.write_ready = false;
+                }
                 Err(e) => return Poll::Err(e),
             }
 
-            tokens = &TOKENS_ALL;
+            task.ready();
         }
 
         debug!("fully flushed");
@@ -104,19 +106,20 @@ impl<W: Write + Send + 'static> Future for Flush<W> {
     type Item = BufWriter<W>;
     type Error = (io::Error, BufWriter<W>);
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<BufWriter<W>, (io::Error, BufWriter<W>)> {
-        match self.writer.as_mut().unwrap().poll_flush(tokens) {
+    fn poll(&mut self, task: &mut Task)
+            -> Poll<BufWriter<W>, (io::Error, BufWriter<W>)> {
+        match self.writer.as_mut().unwrap().poll_flush(task) {
             Poll::Ok(()) => Poll::Ok(self.writer.take().unwrap()),
             Poll::Err(e) => Poll::Err((e, self.writer.take().unwrap())),
             Poll::NotReady => Poll::NotReady,
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         let writer = self.writer.as_mut().unwrap();
 
         assert!(!writer.write_ready);
-        writer.sink_ready.schedule(wake)
+        writer.sink_ready.schedule(task)
     }
 }
 
@@ -142,7 +145,8 @@ impl<W: Write + Send + 'static> Future for Reserve<W> {
     type Item = BufWriter<W>;
     type Error = (io::Error, BufWriter<W>);
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<BufWriter<W>, (io::Error, BufWriter<W>)> {
+    fn poll(&mut self, task: &mut Task)
+            -> Poll<BufWriter<W>, (io::Error, BufWriter<W>)> {
         loop {
             let (cap, len) = {
                 let buf = &mut self.writer.as_mut().unwrap().buf;
@@ -157,7 +161,7 @@ impl<W: Write + Send + 'static> Future for Reserve<W> {
                 return Poll::Ok(writer)
             }
 
-            match self.writer.as_mut().unwrap().poll_flush(tokens) {
+            match self.writer.as_mut().unwrap().poll_flush(task) {
                 Poll::Ok(()) => {},
                 Poll::Err(e) => return Poll::Err((e, self.writer.take().unwrap())),
                 Poll::NotReady => return Poll::NotReady,
@@ -165,10 +169,10 @@ impl<W: Write + Send + 'static> Future for Reserve<W> {
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         let writer = self.writer.as_mut().unwrap();
 
         assert!(!writer.write_ready);
-        writer.sink_ready.schedule(wake)
+        writer.sink_ready.schedule(task)
     }
 }
