@@ -1,7 +1,7 @@
 use std::io::{self, Read, Write};
 use std::sync::Arc;
 
-use futures::{Future, Wake, Tokens, TOKENS_ALL, Poll};
+use futures::{Future, Task, Poll};
 use futures::stream::{Stream, Fuse};
 use futuremio::*;
 
@@ -93,7 +93,7 @@ impl<R, P> Stream for ParseStream<R, P>
     type Item = P;
     type Error = P::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<Option<P>, P::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<P>, P::Error> {
         loop {
             if self.need_parse {
                 debug!("attempting to parse");
@@ -131,7 +131,7 @@ impl<R, P> Stream for ParseStream<R, P>
             }
 
             if !self.read_ready {
-                match try_poll!(self.source_ready.poll(tokens)) {
+                match try_poll!(self.source_ready.poll(task)) {
                     Err(e) => return Poll::Err(e.into()),
                     Ok(Some(())) => self.read_ready = true,
                     Ok(None) => unreachable!(),
@@ -150,14 +150,14 @@ impl<R, P> Stream for ParseStream<R, P>
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         // TODO: think through this carefully...
         if self.need_parse {
-            // Empty tokens because in a `need_parse` situation, we'll attempt
-            // to parse regardless of tokens
-            wake.wake(&Tokens::empty())
+            // No tokens because in a `need_parse` situation, we'll attempt to
+            // parse regardless of tokens
+            task.notify();
         } else {
-            self.source_ready.schedule(wake)
+            self.source_ready.schedule(task)
         }
     }
 }
@@ -228,23 +228,25 @@ impl<W, S> Future for StreamWriter<W, S>
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, tokens: &Tokens) -> Poll<(), S::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<(), S::Error> {
         // First up, grab any responses we have and serialize them into our
         // local buffer. Make sure to pass down `tokens` only on the *first*
         // poll for items
         //
         // TODO: limit this loop on the size of `self.buf`.
-        let mut tokens_for_items = tokens;
-        loop {
-            match self.items.poll(tokens_for_items) {
-                Poll::Err(e) => return Poll::Err(e),
-                Poll::Ok(Some(item)) => {
-                    debug!("got an item to serialize!");
-                    item.serialize(&mut self.buf);
-                    tokens_for_items = &TOKENS_ALL;
+        {
+            let mut task = task.scoped();
+            loop {
+                match self.items.poll(&mut task) {
+                    Poll::Err(e) => return Poll::Err(e),
+                    Poll::Ok(Some(item)) => {
+                        debug!("got an item to serialize!");
+                        item.serialize(&mut self.buf);
+                        task.ready();
+                    }
+                    Poll::Ok(None) |
+                    Poll::NotReady => break,
                 }
-                Poll::Ok(None) |
-                Poll::NotReady => break,
             }
         }
 
@@ -263,7 +265,7 @@ impl<W, S> Future for StreamWriter<W, S>
         // that will come out, then we don't need to wait for write readiness.
         loop {
             if !self.write_ready && (self.buf.len() > 0 || !self.items.is_done()) {
-                match try_poll!(self.sink_ready.poll(tokens)) {
+                match try_poll!(self.sink_ready.poll(task)) {
                     Err(e) => return Poll::Err(e.into()),
                     Ok(Some(())) => self.write_ready = true,
 
@@ -302,13 +304,13 @@ impl<W, S> Future for StreamWriter<W, S>
         }
     }
 
-    fn schedule(&mut self, wake: &Arc<Wake>) {
+    fn schedule(&mut self, task: &mut Task) {
         // wake up on writability only if we have something to write
         if self.buf.len() > 0 {
-            self.sink_ready.schedule(wake);
+            self.sink_ready.schedule(task);
         }
 
         // for now, we are always happy to write more items into our unbounded buffer
-        self.items.schedule(wake);
+        self.items.schedule(task);
     }
 }
