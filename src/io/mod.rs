@@ -8,12 +8,25 @@ mod copy;
 pub use self::copy::copy;
 
 mod chain;
+mod read_to_end;
 mod take;
-pub use self::take::Take;
 pub use self::chain::Chain;
+pub use self::read_to_end::ReadToEnd;
+pub use self::take::Take;
+
+mod impls;
 
 pub trait ReadStream: Stream<Item=(), Error=io::Error> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>>;
+
+    // TODO: default method for reading into a vector which pushes bytes?
+
+    // TODO: is this the wrong type signature?
+    fn read_to_end(self, buf: Vec<u8>) -> ReadToEnd<Self>
+        where Self: Sized,
+    {
+        read_to_end::new(self, buf)
+    }
 
     fn chain<R>(self, other: R) -> Chain<Self, R>
         where R: ReadStream,
@@ -33,20 +46,4 @@ pub trait WriteStream: Stream<Item=(), Error=io::Error> {
     fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>>;
 
     fn flush(&mut self) -> io::Result<bool>;
-}
-
-impl<R: ?Sized> ReadStream for Box<R> where R: ReadStream {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>> {
-        (**self).read(buf)
-    }
-}
-
-impl<W: ?Sized> WriteStream for Box<W> where W: WriteStream {
-    fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>> {
-        (**self).write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<bool> {
-        (**self).flush()
-    }
 }
