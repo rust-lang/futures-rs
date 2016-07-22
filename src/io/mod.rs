@@ -7,11 +7,13 @@ use stream::Stream;
 mod copy;
 pub use self::copy::copy;
 
+mod buf_reader;
+mod buf_writer;
 mod chain;
 mod read_to_end;
 mod take;
-mod buf_reader;
 pub use self::buf_reader::BufReader;
+pub use self::buf_writer::BufWriter;
 pub use self::chain::Chain;
 pub use self::read_to_end::ReadToEnd;
 pub use self::take::Take;
