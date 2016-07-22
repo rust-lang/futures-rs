@@ -2,8 +2,9 @@ use std::io::{self, ErrorKind, Read, Write};
 use std::sync::Arc;
 use std::net::{self, SocketAddr};
 
+use futures::io::{ReadStream, WriteStream};
 use futures::stream::{self, Stream};
-use futures::{Future, IntoFuture, failed};
+use futures::{Future, IntoFuture, failed, Task, Poll};
 use mio;
 
 use {IoFuture, IoStream, ReadinessPair, ReadinessStream, LoopHandle};
@@ -135,6 +136,16 @@ pub struct TcpStream {
 #[allow(missing_docs)]
 pub struct TcpSource(Arc<mio::tcp::TcpStream>);
 
+pub struct TcpRead {
+    ready: ReadinessStream,
+    source: TcpSource,
+}
+
+pub struct TcpWrite {
+    ready: ReadinessStream,
+    source: TcpSource,
+}
+
 impl Read for TcpSource {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (&*self.0).read(buf)
@@ -222,6 +233,26 @@ impl TcpStream {
             Err(e) => failed(e).boxed(),
         }
     }
+
+    /// Split up this TCP stream into its read/write halves.
+    ///
+    /// Returns two types which implement the `ReadStream` and `WriteStream`
+    /// traits.
+    pub fn split(self) -> (TcpRead, TcpWrite) {
+        let TcpStream { source, ready_read, ready_write } = self;
+        (TcpRead { ready: ready_read, source: source.clone() },
+         TcpWrite { ready: ready_write, source: source })
+    }
+
+    /// Returns the local address that this stream is bound to.
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.source.0.local_addr()
+    }
+
+    /// Returns the remote address that this stream is connected to.
+    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
+        self.source.0.peer_addr()
+    }
 }
 
 impl LoopHandle {
@@ -249,5 +280,55 @@ impl LoopHandle {
             Ok(tcp) => TcpStream::new(tcp, self),
             Err(e) => failed(e).boxed(),
         }
+    }
+}
+
+impl Stream for TcpRead {
+    type Item = ();
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+        self.ready.poll(task)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.ready.schedule(task)
+    }
+}
+
+impl ReadStream for TcpRead  {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>> {
+        match self.source.read(buf) {
+            Ok(n) => Ok(Some(n)),
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Stream for TcpWrite {
+    type Item = ();
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+        self.ready.poll(task)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.ready.schedule(task)
+    }
+}
+
+impl WriteStream for TcpWrite  {
+    fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>> {
+        match self.source.write(buf) {
+            Ok(n) => Ok(Some(n)),
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<bool> {
+        Ok(true)
     }
 }
