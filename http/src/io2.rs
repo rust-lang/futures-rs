@@ -1,9 +1,9 @@
-use std::io::{self, Read, Write};
+use std::io;
 use std::sync::Arc;
 
 use futures::{Future, Task, Poll};
 use futures::stream::{Stream, Fuse};
-use futuremio::*;
+use futures::io::{ReadStream, WriteStream};
 
 pub trait Parse: Sized + Send + 'static {
     type Parser: Default + Send + 'static;
@@ -19,7 +19,6 @@ pub trait Parse: Sized + Send + 'static {
 /// buffer.
 pub struct ParseStream<R, P: Parse> {
     source: R,
-    source_ready: ReadinessStream,
     read_ready: bool,
     parser: P::Parser,
     buf: Arc<Vec<u8>>,
@@ -35,13 +34,12 @@ pub struct ParseStream<R, P: Parse> {
 }
 
 impl<R, P> ParseStream<R, P>
-    where R: Read + Send + 'static,
+    where R: ReadStream,
           P: Parse
 {
-    pub fn new(source: R, source_ready: ReadinessStream) -> ParseStream<R, P> {
+    pub fn new(source: R) -> ParseStream<R, P> {
         ParseStream {
             source: source,
-            source_ready: source_ready,
             read_ready: false,
             parser: Default::default(),
             buf: Arc::new(Vec::with_capacity(2048)),
@@ -53,14 +51,15 @@ impl<R, P> ParseStream<R, P>
 }
 
 // TODO: move this into method
-fn read<R: Read>(socket: &mut R, input: &mut Vec<u8>) -> io::Result<(usize, bool)> {
+fn read(socket: &mut ReadStream<Item=(), Error=io::Error>,
+        input: &mut Vec<u8>) -> io::Result<(usize, bool)> {
     loop {
-        match socket.read(unsafe { slice_to_end(input) }) {
-            Ok(0) => {
+        match try!(socket.read(unsafe { slice_to_end(input) })) {
+            Some(0) => {
                 trace!("socket EOF");
                 return Ok((0, true))
             }
-            Ok(n) => {
+            Some(n) => {
                 trace!("socket read {} bytes", n);
                 unsafe {
                     let len = input.len();
@@ -68,8 +67,7 @@ fn read<R: Read>(socket: &mut R, input: &mut Vec<u8>) -> io::Result<(usize, bool
                 }
                 return Ok((n, false));
             }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => return Ok((0, false)),
-            Err(e) => return Err(e),
+            None => return Ok((0, false)),
         }
     }
 
@@ -87,7 +85,7 @@ fn read<R: Read>(socket: &mut R, input: &mut Vec<u8>) -> io::Result<(usize, bool
 }
 
 impl<R, P> Stream for ParseStream<R, P>
-    where R: Read + Send + 'static,
+    where R: ReadStream,
           P: Parse
 {
     type Item = P;
@@ -131,7 +129,7 @@ impl<R, P> Stream for ParseStream<R, P>
             }
 
             if !self.read_ready {
-                match try_poll!(self.source_ready.poll(task)) {
+                match try_poll!(self.source.poll(task)) {
                     Err(e) => return Poll::Err(e.into()),
                     Ok(Some(())) => self.read_ready = true,
                     Ok(None) => unreachable!(),
@@ -157,20 +155,21 @@ impl<R, P> Stream for ParseStream<R, P>
             // parse regardless of tokens
             task.notify();
         } else {
-            self.source_ready.schedule(task)
+            self.source.schedule(task)
         }
     }
 }
 
 // TODO: make this a method
-fn write<W: Write>(sink: &mut W, buf: &mut Vec<u8>) -> io::Result<()> {
+fn write(sink: &mut WriteStream<Item=(), Error=io::Error>,
+         buf: &mut Vec<u8>) -> io::Result<()> {
     loop {
-        match sink.write(&buf) {
-            Ok(0) => {
+        match try!(sink.write(&buf)) {
+            Some(0) => {
                 // TODO: copied from mio example, clean up
                 return Err(io::Error::new(io::ErrorKind::Other, "early eof2"));
             }
-            Ok(n) => {
+            Some(n) => {
                 // TODO: consider draining more lazily, i.e. only just before
                 //       returning
                 buf.drain(..n);
@@ -178,8 +177,7 @@ fn write<W: Write>(sink: &mut W, buf: &mut Vec<u8>) -> io::Result<()> {
                     return Ok(());
                 }
             }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => return Ok(()),
-            Err(e) => return Err(e),
+            None => return Ok(()),
         }
     }
 }
@@ -196,22 +194,20 @@ pub trait Serialize: Send + 'static {
 /// error along the way.
 pub struct StreamWriter<W, S> {
     sink: W,
-    sink_ready: ReadinessStream,
     write_ready: bool,
     items: Fuse<S>,
     buf: Vec<u8>,
 }
 
 impl<W, S> StreamWriter<W, S>
-    where W: Write + Send + 'static,
+    where W: WriteStream,
           S: Stream,
           S::Item: Serialize,
           S::Error: From<io::Error>
 {
-    pub fn new(sink: W, sink_ready: ReadinessStream, items: S) -> StreamWriter<W, S> {
+    pub fn new(sink: W, items: S) -> StreamWriter<W, S> {
         StreamWriter {
             sink: sink,
-            sink_ready: sink_ready,
             write_ready: false,
             items: items.fuse(),
             buf: Vec::with_capacity(2048),
@@ -220,7 +216,7 @@ impl<W, S> StreamWriter<W, S>
 }
 
 impl<W, S> Future for StreamWriter<W, S>
-    where W: Write + Send + 'static,
+    where W: WriteStream,
           S: Stream,
           S::Item: Serialize,
           S::Error: From<io::Error>
@@ -265,7 +261,7 @@ impl<W, S> Future for StreamWriter<W, S>
         // that will come out, then we don't need to wait for write readiness.
         loop {
             if !self.write_ready && (self.buf.len() > 0 || !self.items.is_done()) {
-                match try_poll!(self.sink_ready.poll(task)) {
+                match try_poll!(self.sink.poll(task)) {
                     Err(e) => return Poll::Err(e.into()),
                     Ok(Some(())) => self.write_ready = true,
 
@@ -307,7 +303,7 @@ impl<W, S> Future for StreamWriter<W, S>
     fn schedule(&mut self, task: &mut Task) {
         // wake up on writability only if we have something to write
         if self.buf.len() > 0 {
-            self.sink_ready.schedule(task);
+            self.sink.schedule(task);
         }
 
         // for now, we are always happy to write more items into our unbounded buffer

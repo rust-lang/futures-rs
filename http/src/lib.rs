@@ -146,9 +146,10 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
           S: Service<Req, Resp>,
           <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>,
 {
-    let input = ParseStream::new(stream.source.clone(), stream.ready_read).map_err(From::from);
+    let (reader, writer) = stream.split();
+    let input = ParseStream::new(reader).map_err(From::from);
     let responses = input.and_then(move |req| service.process(req));
-    let output = StreamWriter::new(stream.source, stream.ready_write, responses);
+    let output = StreamWriter::new(writer, responses);
 
     // Crucially use `.forget()` here instead of returning the future, allows
     // processing multiple separate connections concurrently.
