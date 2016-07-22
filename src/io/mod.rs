@@ -8,6 +8,8 @@ mod copy;
 pub use self::copy::copy;
 
 mod chain;
+mod take;
+pub use self::take::Take;
 pub use self::chain::Chain;
 
 pub trait ReadStream: Stream<Item=(), Error=io::Error> {
@@ -18,6 +20,12 @@ pub trait ReadStream: Stream<Item=(), Error=io::Error> {
               Self: Sized,
     {
         chain::new(self, other)
+    }
+
+    fn take(self, amt: u64) -> Take<Self>
+        where Self: Sized,
+    {
+        take::new(self, amt)
     }
 }
 
