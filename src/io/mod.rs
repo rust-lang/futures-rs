@@ -17,12 +17,12 @@ mod buf_reader;
 mod buf_writer;
 mod chain;
 mod read_to_end;
-mod take;
+mod limit;
 pub use self::buf_reader::BufReader;
 pub use self::buf_writer::BufWriter;
 pub use self::chain::Chain;
 pub use self::read_to_end::ReadToEnd;
-pub use self::take::Take;
+pub use self::limit::Limit;
 
 mod impls;
 
@@ -45,10 +45,10 @@ pub trait ReadStream: Stream<Item=(), Error=io::Error> {
         chain::new(self, other)
     }
 
-    fn take(self, amt: u64) -> Take<Self>
+    fn limit(self, amt: u64) -> Limit<Self>
         where Self: Sized,
     {
-        take::new(self, amt)
+        limit::new(self, amt)
     }
 }
 

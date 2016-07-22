@@ -5,21 +5,21 @@ use {Poll, Task};
 use stream::Stream;
 use io::ReadStream;
 
-pub struct Take<A> {
+pub struct Limit<A> {
     a: A,
     left: u64,
 }
 
-pub fn new<A>(a: A, amt: u64) -> Take<A>
+pub fn new<A>(a: A, amt: u64) -> Limit<A>
     where A: ReadStream,
 {
-    Take {
+    Limit {
         a: a,
         left: amt,
     }
 }
 
-impl<A> Stream for Take<A>
+impl<A> Stream for Limit<A>
     where A: ReadStream,
 {
     type Item = ();
@@ -42,7 +42,7 @@ impl<A> Stream for Take<A>
     }
 }
 
-impl<A> ReadStream for Take<A>
+impl<A> ReadStream for Limit<A>
     where A: ReadStream,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>> {
@@ -58,4 +58,3 @@ impl<A> ReadStream for Take<A>
         Ok(ret)
     }
 }
-
