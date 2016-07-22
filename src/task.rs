@@ -9,6 +9,7 @@ use std::thread;
 use Future;
 use token::Tokens;
 use slot::Slot;
+use executor::{DEFAULT, Executor};
 
 /// A structure representing one "task", or thread of execution throughout the
 /// lifetime of a set of futures.
@@ -341,7 +342,7 @@ impl TaskHandle {
         self.inner.slot.on_full(|slot| {
             let (task, future) = slot.try_consume().ok().unwrap();
             task.handle.inner.registered.store(false, Ordering::SeqCst);
-            task.run(future)
+            DEFAULT.execute(|| task.run(future))
         });
     }
 }
