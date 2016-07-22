@@ -6,8 +6,10 @@ use io::{ReadStream, WriteStream};
 pub struct Copy<R, W> {
     reader: R,
     read_ready: bool,
+    read_done: bool,
     writer: W,
     write_ready: bool,
+    flush_done: bool,
     pos: usize,
     cap: usize,
     amt: u64,
@@ -21,8 +23,10 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
     Copy {
         reader: reader,
         read_ready: true,
+        read_done: false,
         writer: writer,
         write_ready: true,
+        flush_done: false,
         amt: 0,
         pos: 0,
         cap: 0,
@@ -41,7 +45,7 @@ impl<R, W> Future for Copy<R, W>
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
-            if self.pos == self.cap {
+            if !self.read_done && self.pos == self.cap {
                 if !self.read_ready {
                     match try_poll!(self.reader.poll(task)) {
                         Ok(_) => self.read_ready = true,
@@ -49,7 +53,7 @@ impl<R, W> Future for Copy<R, W>
                     }
                 }
                 match self.reader.read(&mut self.buf) {
-                    Ok(Some(0)) => return Poll::Ok(self.amt),
+                    Ok(Some(0)) => self.read_done = true,
                     Ok(Some(i)) => {
                         self.pos = 0;
                         self.cap = i;
@@ -63,12 +67,20 @@ impl<R, W> Future for Copy<R, W>
             }
 
             // Now that our buffer has some data, let's write it out!
-            while self.pos < self.cap {
+            while self.pos < self.cap || (self.read_done && !self.flush_done) {
                 if !self.write_ready {
                     match try_poll!(self.writer.poll(task)) {
                         Ok(_) => self.write_ready = true,
                         Err(e) => return Poll::Err(e),
                     }
+                }
+                if self.pos == self.cap {
+                    match self.writer.flush() {
+                        Ok(true) => self.flush_done = true,
+                        Ok(false) => return Poll::NotReady,
+                        Err(e) => return Poll::Err(e),
+                    }
+                    break
                 }
                 match self.writer.write(&self.buf[self.pos..self.cap]) {
                     Ok(Some(i)) => {
@@ -82,6 +94,10 @@ impl<R, W> Future for Copy<R, W>
                     Err(e) => return Poll::Err(e),
                 }
             }
+
+            if self.read_done && self.flush_done {
+                return Poll::Ok(self.amt)
+            }
         }
     }
 
@@ -89,10 +105,10 @@ impl<R, W> Future for Copy<R, W>
         if self.read_ready && self.write_ready {
             task.notify();
         }
-        if !self.read_ready {
+        if !self.read_ready && !self.read_done {
             self.reader.schedule(task);
         }
-        if !self.write_ready {
+        if !self.write_ready && !self.flush_done {
             self.writer.schedule(task);
         }
     }
