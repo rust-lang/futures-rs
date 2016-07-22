@@ -32,6 +32,7 @@ mod map;
 mod map_err;
 mod or_else;
 mod skip_while;
+mod take;
 mod then;
 pub use self::and_then::AndThen;
 pub use self::buffered::Buffered;
@@ -47,6 +48,7 @@ pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::or_else::OrElse;
 pub use self::skip_while::SkipWhile;
+pub use self::take::Take;
 pub use self::then::Then;
 
 mod impls;
@@ -513,8 +515,6 @@ pub trait Stream: Send + 'static {
         fold::new(self, f, init)
     }
 
-
-
     /// Flattens a stream of streams into just one continuous stream.
     ///
     /// If this stream's elements are themselves streams then this combinator
@@ -562,6 +562,16 @@ pub trait Stream: Send + 'static {
               Self: Sized
     {
         for_each::new(self, f)
+    }
+
+    /// Creates a new stream of at most `amt` items.
+    ///
+    /// Once `amt` items have been yielded from this stream then it will always
+    /// return that the stream is done.
+    fn take(self, amt: u64) -> Take<Self>
+        where Self: Sized
+    {
+        take::new(self, amt)
     }
 
     /// Fuse a stream such that `poll`/`schedule` will never again be called
