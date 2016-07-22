@@ -79,7 +79,7 @@ impl<A> Stream for BufWriter<A>
     type Error = io::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
-        if self.buf.len() < self.buf.capacity() {
+        if !self.flushing && self.buf.len() < self.buf.capacity() {
             Poll::Ok(Some(()))
         } else {
             self.inner.poll(task)
@@ -90,7 +90,7 @@ impl<A> Stream for BufWriter<A>
         // Notify immediately if we have some capacity, but also ask our
         // underlying stream for readiness so it'll be ready by the time that we
         // need to flush.
-        if self.buf.len() < self.buf.capacity() {
+        if !self.flushing && self.buf.len() < self.buf.capacity() {
             task.notify()
         }
         self.inner.schedule(task)
