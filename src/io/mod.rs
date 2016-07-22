@@ -5,7 +5,13 @@ use std::io;
 use stream::Stream;
 
 mod copy;
+mod empty;
+mod repeat;
+mod sink;
 pub use self::copy::copy;
+pub use self::empty::{empty, Empty};
+pub use self::repeat::{repeat, Repeat};
+pub use self::sink::{sink, Sink};
 
 mod buf_reader;
 mod buf_writer;
