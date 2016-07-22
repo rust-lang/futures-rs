@@ -30,6 +30,7 @@ mod fuse;
 mod future;
 mod map;
 mod map_err;
+mod merge;
 mod or_else;
 mod skip_while;
 mod take;
@@ -46,6 +47,7 @@ pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
+pub use self::merge::{Merge, MergedItem};
 pub use self::or_else::OrElse;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
@@ -609,5 +611,17 @@ pub trait Stream: Send + 'static {
               Self: Sized
     {
         buffered::new(self, amt)
+    }
+
+    /// An adapter for merging the output of two streams.
+    ///
+    /// The merged stream produces items from one or both of the underlying
+    /// streams as they become available. Errors, however, are not merged: you
+    /// get at most one error at a time.
+    fn merge<S>(self, other: S) -> Merge<Self, S>
+        where S: Stream<Error = Self::Error>,
+              Self: Sized,
+    {
+        merge::new(self, other)
     }
 }
