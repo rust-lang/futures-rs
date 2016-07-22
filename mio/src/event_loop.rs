@@ -174,48 +174,49 @@ impl Loop {
 
                 if token == 0 {
                     self.consume_queue();
-                } else {
-                    let mut reader = None;
-                    let mut writer = None;
+                    continue
+                }
 
-                    if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
-                        if event.kind().is_readable() {
-                            reader = sched.reader.set();
-                        }
+                let mut reader = None;
+                let mut writer = None;
 
-                        if event.kind().is_writable() {
-                            writer = sched.writer.set();
-                        }
-                    } else {
-                        debug!("notified on {} which no longer exists", token);
+                if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
+                    if event.kind().is_readable() {
+                        reader = sched.reader.set();
                     }
 
-                    // TODO: encapsulate this logic better
-                    let read_token = 2 * token;
-                    let write_token = 2 * token + 1;
+                    if event.kind().is_writable() {
+                        writer = sched.writer.set();
+                    }
+                } else {
+                    debug!("notified on {} which no longer exists", token);
+                }
 
-                    CURRENT_LOOP.set(&self, || {
-                        match (reader, writer) {
-                            (Some(r), Some(w)) => {
-                                r.token_ready(read_token);
-                                w.token_ready(write_token);
-                                r.notify();
-                                if !r.equivalent(&w) {
-                                    w.notify();
-                                }
-                            }
-                            (Some(r), None) => {
-                                r.token_ready(read_token);
-                                r.notify();
-                            }
-                            (None, Some(w)) => {
-                                w.token_ready(write_token);
+                // TODO: encapsulate this logic better
+                let read_token = 2 * token;
+                let write_token = 2 * token + 1;
+
+                CURRENT_LOOP.set(&self, || {
+                    match (reader, writer) {
+                        (Some(r), Some(w)) => {
+                            r.token_ready(read_token);
+                            w.token_ready(write_token);
+                            r.notify();
+                            if !r.equivalent(&w) {
                                 w.notify();
                             }
-                            (None, None) => {}
                         }
-                    });
-                }
+                        (Some(r), None) => {
+                            r.token_ready(read_token);
+                            r.notify();
+                        }
+                        (None, Some(w)) => {
+                            w.token_ready(write_token);
+                            w.notify();
+                        }
+                        (None, None) => {}
+                    }
+                });
             }
 
             debug!("loop process - {} events, {:?}", amt, start.elapsed());
