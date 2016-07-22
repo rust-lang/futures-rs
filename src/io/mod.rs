@@ -10,6 +10,8 @@ pub use self::copy::copy;
 mod chain;
 mod read_to_end;
 mod take;
+mod buf_reader;
+pub use self::buf_reader::BufReader;
 pub use self::chain::Chain;
 pub use self::read_to_end::ReadToEnd;
 pub use self::take::Take;
@@ -46,4 +48,9 @@ pub trait WriteStream: Stream<Item=(), Error=io::Error> {
     fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>>;
 
     fn flush(&mut self) -> io::Result<bool>;
+}
+
+pub trait BufReadStream: ReadStream {
+    fn fill_buf(&mut self) -> io::Result<Option<&[u8]>>;
+    fn consume(&mut self, amt: usize);
 }
