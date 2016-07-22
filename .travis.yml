@@ -9,7 +9,7 @@ before_script:
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - cargo test
-  - cargo build --manifest-path mio/Cargo.toml
+  - cargo test --manifest-path mio/Cargo.toml
   - cargo build --manifest-path http/Cargo.toml
   - cargo build --manifest-path tokio/Cargo.toml
   - cargo doc --no-deps
