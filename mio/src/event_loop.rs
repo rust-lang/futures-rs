@@ -138,7 +138,14 @@ impl Loop {
             tx_res.send(res)
         }).forget();
 
+        self._run();
+
+        rx_res.recv().unwrap()
+    }
+
+    fn _run(&mut self) {
         let mut events = mio::Events::new();
+        self.active.set(true);
         while self.active.get() {
             let amt;
             // On Linux, Poll::poll is epoll_wait, which may return EINTR if a
@@ -213,8 +220,6 @@ impl Loop {
 
             debug!("loop process - {} events, {:?}", amt, start.elapsed());
         }
-
-        rx_res.recv().unwrap()
     }
 
     fn add_source(&self, source: Source) -> io::Result<usize> {
