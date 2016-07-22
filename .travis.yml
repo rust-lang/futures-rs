@@ -1,7 +1,7 @@
 language: rust
 rust:
   - stable
-  - beta
+  # - beta
   - nightly
 sudo: false
 before_script:
