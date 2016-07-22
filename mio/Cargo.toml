@@ -10,5 +10,8 @@ scoped-tls = "0.1.0"
 slab = "0.2.0"
 log = "0.3"
 
+[dev-dependencies]
+env_logger = "0.3"
+
 [lib]
 test = false
