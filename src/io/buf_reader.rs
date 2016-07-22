@@ -46,7 +46,7 @@ impl<A> Stream for BufReader<A>
     type Error = io::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
-        if self.pos == self.cap {
+        if self.pos < self.cap {
             Poll::Ok(Some(()))
         } else {
             self.inner.poll(task)
@@ -54,7 +54,7 @@ impl<A> Stream for BufReader<A>
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        if self.pos == self.cap {
+        if self.pos < self.cap {
             task.notify()
         } else {
             self.inner.schedule(task)
