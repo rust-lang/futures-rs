@@ -1,0 +1,10 @@
+[package]
+name = "ssl"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+# http = { path = "../http" }
+futures = { path = ".." }
+# futuremio = { path = "../mio" }
+openssl = "0.7"
