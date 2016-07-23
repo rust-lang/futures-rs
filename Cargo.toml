@@ -3,5 +3,8 @@ name = "futures"
 version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 
+[workspace]
+members = ["ssl", "mio", "http", "tokio"]
+
 [dev-dependencies]
 support = { path = "tests/support" }
