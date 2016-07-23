@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use futures::{Future, Task, Poll};
 use futures::stream::{Stream, Fuse};
-use futures::io::{ReadStream, WriteStream};
+use futures::io::{Ready, ReadTask, WriteTask};
 
 pub trait Parse: Sized + Send + 'static {
     type Parser: Default + Send + 'static;
@@ -34,7 +34,7 @@ pub struct ParseStream<R, P: Parse> {
 }
 
 impl<R, P> ParseStream<R, P>
-    where R: ReadStream,
+    where R: ReadTask,
           P: Parse
 {
     pub fn new(source: R) -> ParseStream<R, P> {
@@ -51,10 +51,11 @@ impl<R, P> ParseStream<R, P>
 }
 
 // TODO: move this into method
-fn read(socket: &mut ReadStream<Item=(), Error=io::Error>,
+fn read(socket: &mut ReadTask<Item=Ready, Error=io::Error>,
+        task: &mut Task,
         input: &mut Vec<u8>) -> io::Result<(usize, bool)> {
     loop {
-        match try!(socket.read(unsafe { slice_to_end(input) })) {
+        match try_nb!(socket.read(task, unsafe { slice_to_end(input) })) {
             Some(0) => {
                 trace!("socket EOF");
                 return Ok((0, true))
@@ -85,7 +86,7 @@ fn read(socket: &mut ReadStream<Item=(), Error=io::Error>,
 }
 
 impl<R, P> Stream for ParseStream<R, P>
-    where R: ReadStream,
+    where R: ReadTask,
           P: Parse
 {
     type Item = P;
@@ -131,13 +132,14 @@ impl<R, P> Stream for ParseStream<R, P>
             if !self.read_ready {
                 match try_poll!(self.source.poll(task)) {
                     Err(e) => return Poll::Err(e.into()),
-                    Ok(Some(())) => self.read_ready = true,
+                    Ok(Some(ref r)) if r.is_read() => self.read_ready = true,
+                    Ok(Some(_)) => return Poll::NotReady,
                     Ok(None) => unreachable!(),
                 }
             }
 
             let buf = Arc::get_mut(&mut self.buf).unwrap();
-            match read(&mut self.source, buf) {
+            match read(&mut self.source, task, buf) {
                 Ok((n, eof)) => {
                     self.eof = eof;
                     self.need_parse = self.need_parse || n > 0;
@@ -161,10 +163,11 @@ impl<R, P> Stream for ParseStream<R, P>
 }
 
 // TODO: make this a method
-fn write(sink: &mut WriteStream<Item=(), Error=io::Error>,
+fn write(sink: &mut WriteTask<Item=Ready, Error=io::Error>,
+         task: &mut Task,
          buf: &mut Vec<u8>) -> io::Result<()> {
     loop {
-        match try!(sink.write(&buf)) {
+        match try_nb!(sink.write(task, &buf)) {
             Some(0) => {
                 // TODO: copied from mio example, clean up
                 return Err(io::Error::new(io::ErrorKind::Other, "early eof2"));
@@ -200,7 +203,7 @@ pub struct StreamWriter<W, S> {
 }
 
 impl<W, S> StreamWriter<W, S>
-    where W: WriteStream,
+    where W: WriteTask,
           S: Stream,
           S::Item: Serialize,
           S::Error: From<io::Error>
@@ -216,7 +219,7 @@ impl<W, S> StreamWriter<W, S>
 }
 
 impl<W, S> Future for StreamWriter<W, S>
-    where W: WriteStream,
+    where W: WriteTask,
           S: Stream,
           S::Item: Serialize,
           S::Error: From<io::Error>
@@ -263,7 +266,8 @@ impl<W, S> Future for StreamWriter<W, S>
             if !self.write_ready && (self.buf.len() > 0 || !self.items.is_done()) {
                 match try_poll!(self.sink.poll(task)) {
                     Err(e) => return Poll::Err(e.into()),
-                    Ok(Some(())) => self.write_ready = true,
+                    Ok(Some(ref r)) if r.is_write() => self.write_ready = true,
+                    Ok(Some(_)) => return Poll::NotReady,
 
                     // TODO: this should translate to an error
                     Ok(None) => return Poll::NotReady,
@@ -288,7 +292,7 @@ impl<W, S> Future for StreamWriter<W, S>
 
             debug!("trying to write some data");
             let before = self.buf.len();
-            if let Err(e) = write(&mut self.sink, &mut self.buf) {
+            if let Err(e) = write(&mut self.sink, task, &mut self.buf) {
                 return Poll::Err(e.into())
             }
 

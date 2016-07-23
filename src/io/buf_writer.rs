@@ -3,7 +3,7 @@ use std::cmp;
 
 use {Poll, Task};
 use stream::Stream;
-use io::WriteStream;
+use io::Ready;
 
 pub struct BufWriter<W> {
     inner: W,
@@ -37,24 +37,20 @@ impl<W> BufWriter<W> {
     }
 }
 
-impl<W: WriteStream> BufWriter<W> {
-    fn flush_buf(&mut self) -> io::Result<bool> {
+impl<W: Write> BufWriter<W> {
+    fn flush_buf(&mut self) -> io::Result<()> {
         self.flushing = true;
         let mut written = 0;
         let len = self.buf.len();
-        let mut ret = Ok(true);
+        let mut ret = Ok(());
         while written < len {
             match self.inner.write(&self.buf[written..]) {
-                Ok(Some(0)) => {
+                Ok(0) => {
                     ret = Err(Error::new(ErrorKind::WriteZero,
                                          "failed to write the buffered data"));
                     break;
                 }
-                Ok(Some(n)) => written += n,
-                Ok(None) => {
-                    ret = Ok(false);
-                    break
-                }
+                Ok(n) => written += n,
                 Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
                 Err(e) => {
                     ret = Err(e);
@@ -73,14 +69,14 @@ impl<W: WriteStream> BufWriter<W> {
 }
 
 impl<A> Stream for BufWriter<A>
-    where A: WriteStream,
+    where A: Stream<Item=Ready, Error=io::Error>,
 {
-    type Item = ();
+    type Item = Ready;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         if !self.flushing && self.buf.len() < self.buf.capacity() {
-            Poll::Ok(Some(()))
+            Poll::Ok(Some(Ready::Write))
         } else {
             self.inner.poll(task)
         }
@@ -97,22 +93,22 @@ impl<A> Stream for BufWriter<A>
     }
 }
 
-impl<W: WriteStream> WriteStream for BufWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>> {
+impl<W: Write> Write for BufWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.flushing || self.buf.len() + buf.len() > self.buf.capacity() {
-            if !try!(self.flush_buf()) {
-                return Ok(None)
-            }
+            try!(self.flush_buf());
         }
         if buf.len() >= self.buf.capacity() {
+            assert_eq!(self.buf.len(), 0);
             self.inner.write(buf)
         } else {
             let amt = cmp::min(buf.len(), self.buf.capacity());
-            Write::write(&mut self.buf, &buf[..amt]).map(Some)
+            Write::write(&mut self.buf, &buf[..amt])
         }
     }
 
-    fn flush(&mut self) -> io::Result<bool> {
-        Ok(try!(self.flush_buf()) && try!(self.inner.flush()))
+    fn flush(&mut self) -> io::Result<()> {
+        try!(self.flush_buf());
+        self.inner.flush()
     }
 }

@@ -1,64 +1,147 @@
 #![allow(missing_docs)]
 
 use std::io;
+use std::ops::BitOr;
 
+use {Task, Poll};
 use stream::Stream;
 
-mod copy;
-mod empty;
-mod repeat;
-mod sink;
-pub use self::copy::copy;
-pub use self::empty::{empty, Empty};
-pub use self::repeat::{repeat, Repeat};
-pub use self::sink::{sink, Sink};
+#[macro_export]
+macro_rules! try_nb {
+    ($e:expr) => (match $e {
+        Ok(e) => Some(e),
+        Err(ref e) if e.kind() == ::std::io::ErrorKind::WouldBlock => None,
+        Err(e) => return Err(e),
+    })
+}
 
 mod buf_reader;
 mod buf_writer;
 mod chain;
+mod copy;
 mod read_to_end;
-mod limit;
+mod take;
+mod task;
 pub use self::buf_reader::BufReader;
 pub use self::buf_writer::BufWriter;
-pub use self::chain::Chain;
-pub use self::read_to_end::ReadToEnd;
-pub use self::limit::Limit;
+pub use self::chain::{chain, Chain};
+pub use self::copy::{copy, Copy};
+pub use self::read_to_end::{read_to_end, ReadToEnd};
+pub use self::take::{take, Take};
+pub use self::task::TaskIo;
 
-mod impls;
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum Ready {
+    Read,
+    Write,
+    ReadWrite,
+}
 
-pub trait ReadStream: Stream<Item=(), Error=io::Error> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>>;
+pub trait ReadTask: Stream<Item=Ready, Error=io::Error> {
+    fn read(&mut self, task: &mut Task, buf: &mut [u8]) -> io::Result<usize>;
+    fn read_to_end(&mut self,
+                   task: &mut Task,
+                   buf: &mut Vec<u8>) -> io::Result<usize>;
+}
 
-    // TODO: default method for reading into a vector which pushes bytes?
+pub trait WriteTask: Stream<Item=Ready, Error=io::Error> {
+    fn write(&mut self, task: &mut Task, buf: &[u8]) -> io::Result<usize>;
+    fn flush(&mut self, task: &mut Task) -> io::Result<()>;
+}
 
-    // TODO: is this the wrong type signature?
-    fn read_to_end(self, buf: Vec<u8>) -> ReadToEnd<Self>
-        where Self: Sized,
-    {
-        read_to_end::new(self, buf)
+impl<R: ?Sized> ReadTask for R
+    where R: io::Read + Stream<Item=Ready, Error=io::Error>,
+{
+    fn read(&mut self, _task: &mut Task, buf: &mut [u8]) -> io::Result<usize> {
+        io::Read::read(self, buf)
     }
 
-    fn chain<R>(self, other: R) -> Chain<Self, R>
-        where R: ReadStream,
-              Self: Sized,
-    {
-        chain::new(self, other)
-    }
-
-    fn limit(self, amt: u64) -> Limit<Self>
-        where Self: Sized,
-    {
-        limit::new(self, amt)
+    fn read_to_end(&mut self,
+                   _task: &mut Task,
+                   buf: &mut Vec<u8>) -> io::Result<usize> {
+        io::Read::read_to_end(self, buf)
     }
 }
 
-pub trait WriteStream: Stream<Item=(), Error=io::Error> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>>;
+impl<W: ?Sized> WriteTask for W
+    where W: io::Write + Stream<Item=Ready, Error=io::Error>,
+{
+    fn write(&mut self, _task: &mut Task, buf: &[u8]) -> io::Result<usize> {
+        io::Write::write(self, buf)
+    }
 
-    fn flush(&mut self) -> io::Result<bool>;
+    fn flush(&mut self, _task: &mut Task) -> io::Result<()> {
+        io::Write::flush(self)
+    }
 }
 
-pub trait BufReadStream: ReadStream {
-    fn fill_buf(&mut self) -> io::Result<Option<&[u8]>>;
-    fn consume(&mut self, amt: usize);
+impl Ready {
+    pub fn is_read(&self) -> bool {
+        match *self {
+            Ready::Read | Ready::ReadWrite => true,
+            Ready::Write => false,
+        }
+    }
+
+    pub fn is_write(&self) -> bool {
+        match *self {
+            Ready::Write | Ready::ReadWrite => true,
+            Ready::Read => false,
+        }
+    }
+}
+
+impl BitOr for Ready {
+    type Output = Ready;
+
+    fn bitor(self, other: Ready) -> Ready {
+        match (self, other) {
+            (Ready::ReadWrite, _) |
+            (_, Ready::ReadWrite) |
+            (Ready::Write, Ready::Read) |
+            (Ready::Read, Ready::Write) => Ready::ReadWrite,
+
+            (Ready::Read, Ready::Read) => Ready::Read,
+            (Ready::Write, Ready::Write) => Ready::Write,
+        }
+    }
+}
+
+impl Stream for io::Empty {
+    type Item = Ready;
+    type Error = io::Error;
+
+    fn poll(&mut self, _task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        Poll::Ok(None)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        drop(task);
+    }
+}
+
+impl Stream for io::Repeat {
+    type Item = Ready;
+    type Error = io::Error;
+
+    fn poll(&mut self, _task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        Poll::Ok(Some(Ready::Read))
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        task.notify()
+    }
+}
+
+impl Stream for io::Sink {
+    type Item = Ready;
+    type Error = io::Error;
+
+    fn poll(&mut self, _task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        Poll::Ok(Some(Ready::Write))
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        task.notify()
+    }
 }

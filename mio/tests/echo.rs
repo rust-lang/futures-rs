@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 
 use futures::Future;
 use futures::stream::Stream;
-use futures::io;
+use futures::io::{self, TaskIo};
 
 macro_rules! t {
     ($e:expr) => (match $e {
@@ -37,7 +37,7 @@ fn echo_server() {
 
     let clients = srv.incoming();
     let client = clients.into_future().map(|e| e.0.unwrap()).map_err(|e| e.0);
-    let halves = client.map(|s| s.0.split());
+    let halves = client.and_then(|s| TaskIo::new(s.0)).map(|i| i.split());
     let copied = halves.and_then(|(a, b)| io::copy(a, b));
 
     let amt = t!(l.run(copied));

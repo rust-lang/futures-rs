@@ -2,12 +2,12 @@ use std::io::{self, ErrorKind, Read, Write};
 use std::sync::Arc;
 use std::net::{self, SocketAddr};
 
-use futures::io::{ReadStream, WriteStream};
+use futures::io::Ready;
 use futures::stream::{self, Stream};
 use futures::{Future, IntoFuture, failed, Task, Poll};
 use mio;
 
-use {IoFuture, IoStream, ReadinessPair, ReadinessStream, LoopHandle};
+use {IoFuture, IoStream, ReadinessStream, LoopHandle};
 
 /// An I/O object representing a TCP socket listening for incoming connections.
 ///
@@ -15,14 +15,20 @@ use {IoFuture, IoStream, ReadinessPair, ReadinessStream, LoopHandle};
 /// various forms of processing.
 pub struct TcpListener {
     loop_handle: LoopHandle,
-    inner: ReadinessPair<mio::tcp::TcpListener>,
+    ready: ReadinessStream,
+    listener: Arc<mio::tcp::TcpListener>,
 }
 
 impl TcpListener {
     fn new(listener: mio::tcp::TcpListener,
            handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
-        ReadinessPair::new(handle.clone(), listener).map(|p| {
-            TcpListener { loop_handle: handle, inner: p }
+        let listener = Arc::new(listener);
+        ReadinessStream::new(handle.clone(), listener.clone()).map(|r| {
+            TcpListener {
+                loop_handle: handle,
+                ready: r,
+                listener: listener,
+            }
         }).boxed()
     }
 
@@ -67,7 +73,7 @@ impl TcpListener {
     /// This can be useful, for example, when binding to port 0 to figure out
     /// which port was actually bound.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.inner.source.local_addr()
+        self.listener.local_addr()
     }
 
     /// Consumes this listener, returning a stream of the sockets this listener
@@ -76,20 +82,20 @@ impl TcpListener {
     /// This method returns an implementation of the `Stream` trait which
     /// resolves to the sockets the are accepted on this listener.
     pub fn incoming(self) -> Box<IoStream<(TcpStream, SocketAddr)>> {
-        let TcpListener { loop_handle, inner } = self;
-        let source = inner.source;
+        let TcpListener { loop_handle, listener, ready } = self;
 
-        inner.ready_read
-            .map(move |()| {
-                stream::iter(NonblockingIter { source: source.clone() }.fuse())
+        ready
+            .map(move |_| {
+                stream::iter(NonblockingIter { source: listener.clone() }.fuse())
             })
             .flatten()
             .and_then(move |(tcp, addr)| {
-                ReadinessPair::new(loop_handle.clone(), tcp).map(move |pair| {
+                let tcp = Arc::new(tcp);
+                ReadinessStream::new(loop_handle.clone(),
+                                     tcp.clone()).map(move |ready| {
                     let stream = TcpStream {
-                        source: TcpSource(pair.source),
-                        ready_read: pair.ready_read,
-                        ready_write: pair.ready_write,
+                        source: tcp,
+                        ready: ready,
                     };
                     (stream, addr)
                 })
@@ -119,60 +125,55 @@ impl Iterator for NonblockingIter {
     }
 }
 
+impl Stream for TcpListener {
+    type Item = Ready;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        self.ready.poll(task)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.ready.schedule(task)
+    }
+}
+
 /// An I/O object representing a TCP stream connected to a remote endpoint.
 ///
 /// A TCP stream can either be created by connecting to an endpoint or by
 /// accepting a connection from a listener. Inside the stream is access to the
 /// raw underlying I/O object as well as streams for the read/write
 /// notifications on the stream itself.
-#[allow(missing_docs)]
 pub struct TcpStream {
-    pub source: TcpSource,
-    pub ready_read: ReadinessStream,
-    pub ready_write: ReadinessStream,
-}
-
-#[derive(Clone)]
-#[allow(missing_docs)]
-pub struct TcpSource(Arc<mio::tcp::TcpStream>);
-
-pub struct TcpRead {
+    source: Arc<mio::tcp::TcpStream>,
     ready: ReadinessStream,
-    source: TcpSource,
 }
 
-pub struct TcpWrite {
-    ready: ReadinessStream,
-    source: TcpSource,
-}
+impl LoopHandle {
+    /// Create a new TCP listener associated with this event loop.
+    ///
+    /// The TCP listener will bind to the provided `addr` address, if available,
+    /// and will be returned as a future. The returned future, if resolved
+    /// successfully, can then be used to accept incoming connections.
+    pub fn tcp_listen(self, addr: &SocketAddr) -> Box<IoFuture<TcpListener>> {
+        match mio::tcp::TcpListener::bind(addr) {
+            Ok(l) => TcpListener::new(l, self),
+            Err(e) => failed(e).boxed(),
+        }
+    }
 
-impl Read for TcpSource {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        (&*self.0).read(buf)
-    }
-}
-
-impl Write for TcpSource {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        (&*self.0).write(buf)
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        (&*self.0).flush()
-    }
-}
-
-impl<'a> Read for &'a TcpSource {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        (&*self.0).read(buf)
-    }
-}
-
-impl<'a> Write for &'a TcpSource {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        (&*self.0).write(buf)
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        (&*self.0).flush()
+    /// Create a new TCP stream connected to the specified address.
+    ///
+    /// This function will create a new TCP socket and attempt to connect it to
+    /// the `addr` provided. The returned future will be resolved once the
+    /// stream has successfully connected. If an error happens during the
+    /// connection or during the socket creation, that error will be returned to
+    /// the future instead.
+    pub fn tcp_connect(self, addr: &SocketAddr) -> Box<IoFuture<TcpStream>> {
+        match mio::tcp::TcpStream::connect(addr) {
+            Ok(tcp) => TcpStream::new(tcp, self),
+            Err(e) => failed(e).boxed(),
+        }
     }
 }
 
@@ -186,22 +187,21 @@ impl TcpStream {
         // error or not.
         //
         // If all that succeeded then we ship everything on up.
-        ReadinessPair::new(handle, connected_stream).and_then(|pair| {
-            let ReadinessPair { source, ready_read, ready_write } = pair;
-            let source_for_skip = source.clone(); // TODO: find a better way to do this
-            let connected = ready_write.skip_while(move |&()| {
-                match source_for_skip.take_socket_error() {
+        let connected_stream = Arc::new(connected_stream);
+        ReadinessStream::new(handle, connected_stream.clone()).and_then(|ready| {
+            let source = connected_stream.clone();
+            let connected = ready.skip_while(move |&_| {
+                match source.take_socket_error() {
                     Ok(()) => Ok(false),
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => Ok(true),
                     Err(e) => Err(e),
                 }
             });
             let connected = connected.into_future();
-            connected.map(move |(_, stream)| {
+            connected.map(move |(_, ready)| {
                 TcpStream {
-                    source: TcpSource(source),
-                    ready_read: ready_read,
-                    ready_write: stream.into_inner()
+                    source: connected_stream,
+                    ready: ready.into_inner(),
                 }
             }).map_err(|(e, _)| e)
         }).boxed()
@@ -234,101 +234,56 @@ impl TcpStream {
         }
     }
 
-    /// Split up this TCP stream into its read/write halves.
-    ///
-    /// Returns two types which implement the `ReadStream` and `WriteStream`
-    /// traits.
-    pub fn split(self) -> (TcpRead, TcpWrite) {
-        let TcpStream { source, ready_read, ready_write } = self;
-        (TcpRead { ready: ready_read, source: source.clone() },
-         TcpWrite { ready: ready_write, source: source })
-    }
-
     /// Returns the local address that this stream is bound to.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.source.0.local_addr()
+        self.source.local_addr()
     }
 
     /// Returns the remote address that this stream is connected to.
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        self.source.0.peer_addr()
+        self.source.peer_addr()
     }
 }
 
-impl LoopHandle {
-    /// Create a new TCP listener associated with this event loop.
-    ///
-    /// The TCP listener will bind to the provided `addr` address, if available,
-    /// and will be returned as a future. The returned future, if resolved
-    /// successfully, can then be used to accept incoming connections.
-    pub fn tcp_listen(self, addr: &SocketAddr) -> Box<IoFuture<TcpListener>> {
-        match mio::tcp::TcpListener::bind(addr) {
-            Ok(l) => TcpListener::new(l, self),
-            Err(e) => failed(e).boxed(),
-        }
-    }
-
-    /// Create a new TCP stream connected to the specified address.
-    ///
-    /// This function will create a new TCP socket and attempt to connect it to
-    /// the `addr` provided. The returned future will be resolved once the
-    /// stream has successfully connected. If an error happens during the
-    /// connection or during the socket creation, that error will be returned to
-    /// the future instead.
-    pub fn tcp_connect(self, addr: &SocketAddr) -> Box<IoFuture<TcpStream>> {
-        match mio::tcp::TcpStream::connect(addr) {
-            Ok(tcp) => TcpStream::new(tcp, self),
-            Err(e) => failed(e).boxed(),
-        }
+impl Read for TcpStream {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&*self.source).read(buf)
     }
 }
 
-impl Stream for TcpRead {
-    type Item = ();
+impl Write for TcpStream {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&*self.source).write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (&*self.source).flush()
+    }
+}
+
+impl<'a> Read for &'a TcpStream {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        (&*self.source).read(buf)
+    }
+}
+
+impl<'a> Write for &'a TcpStream {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        (&*self.source).write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        (&*self.source).flush()
+    }
+}
+
+impl Stream for TcpStream {
+    type Item = Ready;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         self.ready.poll(task)
     }
 
     fn schedule(&mut self, task: &mut Task) {
         self.ready.schedule(task)
-    }
-}
-
-impl ReadStream for TcpRead  {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>> {
-        match self.source.read(buf) {
-            Ok(n) => Ok(Some(n)),
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-}
-
-impl Stream for TcpWrite {
-    type Item = ();
-    type Error = io::Error;
-
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
-        self.ready.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.ready.schedule(task)
-    }
-}
-
-impl WriteStream for TcpWrite  {
-    fn write(&mut self, buf: &[u8]) -> io::Result<Option<usize>> {
-        match self.source.write(buf) {
-            Ok(n) => Ok(Some(n)),
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-
-    fn flush(&mut self) -> io::Result<bool> {
-        Ok(true)
     }
 }

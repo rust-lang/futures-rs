@@ -1,9 +1,11 @@
-use std::io::{self, Read};
+// TODO: upstream access to the internal buffer and use libstd BufReader
+
+use std::io::{self, Read, BufRead};
 use std::cmp;
 
 use {Poll, Task};
 use stream::Stream;
-use io::{ReadStream, BufReadStream};
+use io::Ready;
 
 pub struct BufReader<R> {
     inner: R,
@@ -39,15 +41,15 @@ impl<R> BufReader<R> {
     }
 }
 
-impl<A> Stream for BufReader<A>
-    where A: ReadStream,
+impl<R> Stream for BufReader<R>
+    where R: Stream<Item=Ready, Error=io::Error>,
 {
-    type Item = ();
+    type Item = Ready;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         if self.pos < self.cap {
-            Poll::Ok(Some(()))
+            Poll::Ok(Some(Ready::Read))
         } else {
             self.inner.poll(task)
         }
@@ -62,35 +64,32 @@ impl<A> Stream for BufReader<A>
     }
 }
 
-impl<R: ReadStream> ReadStream for BufReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>> {
+impl<R: Read> Read for BufReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         // If we don't have any buffered data and we're doing a massive read
         // (larger than our internal buffer), bypass our internal buffer
         // entirely.
         if self.pos == self.cap && buf.len() >= self.buf.len() {
             return self.inner.read(buf);
         }
-        let nread = match try!(self.fill_buf()) {
-            Some(mut rem) => try!(rem.read(buf)),
-            None => return Ok(None),
+        let nread = {
+            let mut rem = try!(self.fill_buf());
+            try!(rem.read(buf))
         };
         self.consume(nread);
-        Ok(Some(nread))
+        Ok(nread)
     }
 }
 
-impl<R: ReadStream> BufReadStream for BufReader<R> {
-    fn fill_buf(&mut self) -> io::Result<Option<&[u8]>> {
+impl<R: Read> BufRead for BufReader<R> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
         // If we've reached the end of our internal buffer then we need to fetch
         // some more data from the underlying reader.
         if self.pos == self.cap {
-            self.cap = match try!(self.inner.read(&mut self.buf)) {
-                Some(amt) => amt,
-                None => return Ok(None)
-            };
+            self.cap = try!(self.inner.read(&mut self.buf));
             self.pos = 0;
         }
-        Ok(Some(&self.buf[self.pos..self.cap]))
+        Ok(&self.buf[self.pos..self.cap])
     }
 
     fn consume(&mut self, amt: usize) {

@@ -38,8 +38,8 @@ pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
 /// A convenience typedef around a `Stream` whose error component is `io::Error`
 pub type IoStream<T> = Stream<Item=T, Error=io::Error>;
 
-pub use event_loop::{Loop, LoopHandle, Direction};
-pub use readiness_stream::{ReadinessStream, ReadinessPair};
-pub use tcp::{TcpListener, TcpStream, TcpSource};
+pub use event_loop::{Loop, LoopHandle};
+pub use readiness_stream::ReadinessStream;
+pub use tcp::{TcpListener, TcpStream};
 pub use buf_reader::{BufReader, InputBuf};
 pub use buf_writer::{BufWriter, Flush, Reserve};

@@ -1,17 +1,16 @@
 use std::io;
-use std::iter;
 use std::mem;
 
 use {Poll, Task, Future};
-use io::ReadStream;
+use io::ReadTask;
 
 pub struct ReadToEnd<A> {
     a: A,
     buf: Vec<u8>,
 }
 
-pub fn new<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
-    where A: ReadStream,
+pub fn read_to_end<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
+    where A: ReadTask,
 {
     ReadToEnd {
         a: a,
@@ -20,39 +19,28 @@ pub fn new<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
 }
 
 impl<A> Future for ReadToEnd<A>
-    where A: ReadStream,
+    where A: ReadTask,
 {
     type Item = Vec<u8>;
     type Error = io::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Vec<u8>, io::Error> {
-        if let Err(e) = try_poll!(self.a.poll(task)) {
-            return Poll::Err(e)
+        match try_poll!(self.a.poll(task)) {
+            Ok(Some(ref r)) if r.is_read() => {}
+            Ok(Some(_)) => return Poll::NotReady,
+            Ok(None) => return Poll::Ok(mem::replace(&mut self.buf, Vec::new())),
+            Err(e) => return Poll::Err(e)
         }
-        loop {
-            let start = self.buf.len();
-            if self.buf.capacity() == start {
-                self.buf.reserve(1);
-            }
-            let end = self.buf.capacity();
-            // TODO: be smarter about extending with 0, don't keep doing so for
-            //       regions that are already zero'd
-            self.buf.extend(iter::repeat(0).take(end - start));
-            match self.a.read(&mut self.buf[start..]) {
-                Ok(Some(0)) => {
-                    self.buf.truncate(start);
-                    return Poll::Ok(mem::replace(&mut self.buf, Vec::new()))
-                }
-                Ok(Some(amt)) => self.buf.truncate(start + amt),
-                Ok(None) => {
-                    self.buf.truncate(start);
-                    return Poll::NotReady
-                }
-                Err(e) => {
-                    self.buf.truncate(start);
-                    return Poll::Err(e)
-                }
-            }
+
+        match self.a.read_to_end(task, &mut self.buf) {
+            // If we get `Ok`, then we know the stream hit EOF, so we're done
+            Ok(_) => Poll::Ok(mem::replace(&mut self.buf, Vec::new())),
+
+            // If we hit WouldBlock, then the data we read so far is in the
+            // buffer and we just need to wait until we're readable again.
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Poll::NotReady,
+
+            Err(e) => Poll::Err(e)
         }
     }
 

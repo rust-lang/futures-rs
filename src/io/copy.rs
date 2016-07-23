@@ -1,7 +1,7 @@
 use std::io;
 
 use {Future, Poll, Task};
-use io::{ReadStream, WriteStream};
+use io::{ReadTask, WriteTask};
 
 pub struct Copy<R, W> {
     reader: R,
@@ -17,8 +17,8 @@ pub struct Copy<R, W> {
 }
 
 pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
-    where R: ReadStream,
-          W: WriteStream,
+    where R: ReadTask,
+          W: WriteTask,
 {
     Copy {
         reader: reader,
@@ -35,8 +35,8 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
 }
 
 impl<R, W> Future for Copy<R, W>
-    where R: ReadStream,
-          W: WriteStream,
+    where R: ReadTask,
+          W: WriteTask,
 {
     type Item = u64;
     type Error = io::Error;
@@ -48,17 +48,18 @@ impl<R, W> Future for Copy<R, W>
             if !self.read_done && self.pos == self.cap {
                 if !self.read_ready {
                     match try_poll!(self.reader.poll(task)) {
-                        Ok(_) => self.read_ready = true,
+                        Ok(Some(ref r)) if r.is_read() => self.read_ready = true,
+                        Ok(_) => return Poll::NotReady,
                         Err(e) => return Poll::Err(e),
                     }
                 }
-                match self.reader.read(&mut self.buf) {
-                    Ok(Some(0)) => self.read_done = true,
-                    Ok(Some(i)) => {
+                match self.reader.read(task, &mut self.buf) {
+                    Ok(0) => self.read_done = true,
+                    Ok(i) => {
                         self.pos = 0;
                         self.cap = i;
                     }
-                    Ok(None) => {
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                         self.read_ready = false;
                         return Poll::NotReady
                     }
@@ -70,24 +71,27 @@ impl<R, W> Future for Copy<R, W>
             while self.pos < self.cap || (self.read_done && !self.flush_done) {
                 if !self.write_ready {
                     match try_poll!(self.writer.poll(task)) {
-                        Ok(_) => self.write_ready = true,
+                        Ok(Some(ref r)) if r.is_write() => self.write_ready = true,
+                        Ok(_) => return Poll::NotReady,
                         Err(e) => return Poll::Err(e),
                     }
                 }
                 if self.pos == self.cap {
-                    match self.writer.flush() {
-                        Ok(true) => self.flush_done = true,
-                        Ok(false) => return Poll::NotReady,
+                    match self.writer.flush(task) {
+                        Ok(()) => self.flush_done = true,
+                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            return Poll::NotReady
+                        }
                         Err(e) => return Poll::Err(e),
                     }
                     break
                 }
-                match self.writer.write(&self.buf[self.pos..self.cap]) {
-                    Ok(Some(i)) => {
+                match self.writer.write(task, &self.buf[self.pos..self.cap]) {
+                    Ok(i) => {
                         self.pos += i;
                         self.amt += i as u64;
                     }
-                    Ok(None) => {
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                         self.write_ready = false;
                         return Poll::NotReady
                     }

@@ -48,7 +48,8 @@ impl<W: Write + Send + 'static> BufWriter<W> {
             if !self.write_ready {
                 match self.sink_ready.poll(&mut task) {
                     Poll::Err(e) => return Poll::Err(e),
-                    Poll::Ok(Some(())) => self.write_ready = true,
+                    Poll::Ok(Some(ref r)) if !r.is_write() => return Poll::NotReady,
+                    Poll::Ok(Some(_)) => self.write_ready = true,
                     Poll::Ok(None) | // TODO: this should translate to an error
                     Poll::NotReady => return Poll::NotReady,
                 }

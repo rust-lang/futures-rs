@@ -22,7 +22,7 @@ mod poll;
 pub use poll::Poll;
 
 mod task;
-pub use task::{Task, TaskHandle};
+pub use task::{Task, TaskData, TaskHandle};
 
 pub mod executor;
 
@@ -34,6 +34,7 @@ mod failed;
 mod finished;
 mod lazy;
 mod promise;
+mod store;
 pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
@@ -41,6 +42,7 @@ pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 pub use promise::{promise, Promise, Complete, Canceled};
+pub use store::{store, Store};
 
 // combinators
 mod and_then;

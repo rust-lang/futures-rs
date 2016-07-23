@@ -1,8 +1,8 @@
-use std::io;
+use std::io::{self, Read};
 
 use {Poll, Task};
 use stream::Stream;
-use io::ReadStream;
+use io::Ready;
 
 pub struct Chain<A, B> {
     a: A,
@@ -10,9 +10,9 @@ pub struct Chain<A, B> {
     first: bool,
 }
 
-pub fn new<A, B>(a: A, b: B) -> Chain<A, B>
-    where A: ReadStream,
-          B: ReadStream,
+pub fn chain<A, B>(a: A, b: B) -> Chain<A, B>
+    where A: Stream<Item=Ready, Error=io::Error> + Read,
+          B: Stream<Item=Ready, Error=io::Error> + Read,
 {
     Chain {
         a: a,
@@ -22,13 +22,13 @@ pub fn new<A, B>(a: A, b: B) -> Chain<A, B>
 }
 
 impl<A, B> Stream for Chain<A, B>
-    where A: ReadStream,
-          B: ReadStream,
+    where A: Stream<Item=Ready, Error=io::Error> + Read,
+          B: Stream<Item=Ready, Error=io::Error> + Read,
 {
-    type Item = ();
+    type Item = Ready;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         if self.first {
             self.a.poll(task)
         } else {
@@ -45,14 +45,14 @@ impl<A, B> Stream for Chain<A, B>
     }
 }
 
-impl<A, B> ReadStream for Chain<A, B>
-    where A: ReadStream,
-          B: ReadStream,
+impl<A, B> Read for Chain<A, B>
+    where A: Stream<Item=Ready, Error=io::Error> + Read,
+          B: Stream<Item=Ready, Error=io::Error> + Read,
 {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<Option<usize>> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.first {
             match self.a.read(buf) {
-                Ok(Some(0)) => self.first = false,
+                Ok(0) => self.first = false,
                 other => return other,
             }
         }

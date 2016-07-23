@@ -62,10 +62,13 @@ struct Inner {
 ///
 /// This can be used with the `Task::get` and `Task::get_mut` methods to access
 /// data inside of tasks.
-pub struct TaskData<A: Send + 'static> {
+pub struct TaskData<A> {
     id: usize,
     ptr: *mut A,
 }
+
+unsafe impl<A: Send> Send for TaskData<A> {}
+unsafe impl<A: Sync> Sync for TaskData<A> {}
 
 impl Task {
     /// Creates a new task ready to drive a future.
@@ -150,9 +153,7 @@ impl Task {
     /// This method will panic if `data` does not belong to this task. That is,
     /// if another task generated the `data` handle passed in, this method will
     /// panic.
-    pub fn get<A>(&self, data: &TaskData<A>) -> &A
-        where A: Send + 'static,
-    {
+    pub fn get<A>(&self, data: &TaskData<A>) -> &A {
         assert_eq!(data.id, self.id);
         unsafe { &*data.ptr }
     }
@@ -168,9 +169,7 @@ impl Task {
     /// This method will panic if `data` does not belong to this task. That is,
     /// if another task generated the `data` handle passed in, this method will
     /// panic.
-    pub fn get_mut<A>(&mut self, data: &TaskData<A>) -> &mut A
-        where A: Send + 'static,
-    {
+    pub fn get_mut<A>(&mut self, data: &TaskData<A>) -> &mut A {
         assert_eq!(data.id, self.id);
         unsafe { &mut *data.ptr }
     }
@@ -382,7 +381,7 @@ impl<'a> Drop for ScopedTask<'a> {
     }
 }
 
-impl<A: Send + 'static> Clone for TaskData<A> {
+impl<A> Clone for TaskData<A> {
     fn clone(&self) -> TaskData<A> {
         TaskData {
             id: self.id,
@@ -391,4 +390,4 @@ impl<A: Send + 'static> Clone for TaskData<A> {
     }
 }
 
-impl<A: Send + 'static> Copy for TaskData<A> {}
+impl<A> Copy for TaskData<A> {}

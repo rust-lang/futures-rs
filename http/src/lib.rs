@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::thread;
 
 use futures::Future;
+use futures::io::TaskIo;
 use futures::stream::Stream;
 use futuremio::{Loop, LoopHandle, TcpStream, TcpListener, IoFuture};
 
@@ -146,12 +147,15 @@ fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
           S: Service<Req, Resp>,
           <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>,
 {
-    let (reader, writer) = stream.split();
-    let input = ParseStream::new(reader).map_err(From::from);
-    let responses = input.and_then(move |req| service.process(req));
-    let output = StreamWriter::new(writer, responses);
+    let io = TaskIo::new(stream).map_err(From::from).and_then(|io| {
+        let (reader, writer) = io.split();
+
+        let input = ParseStream::new(reader).map_err(From::from);
+        let responses = input.and_then(move |req| service.process(req));
+        StreamWriter::new(writer, responses)
+    });
 
     // Crucially use `.forget()` here instead of returning the future, allows
     // processing multiple separate connections concurrently.
-    output.forget()
+    io.forget();
 }

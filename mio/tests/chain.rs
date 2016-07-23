@@ -7,7 +7,7 @@ use std::io::Write;
 
 use futures::Future;
 use futures::stream::Stream;
-use futures::io::ReadStream;
+use futures::io;
 
 macro_rules! t {
     ($e:expr) => (match $e {
@@ -32,14 +32,16 @@ fn chain() {
         s3.write_all(b"baz").unwrap();
     });
 
-    let clients = srv.incoming().map(|e| e.0).take(3).collect();
-    let copied = clients.and_then(|clients| {
+    let clients = srv.incoming().map(|e| e.0).take(3);
+    let copied = clients.collect().and_then(|clients| {
         let mut clients = clients.into_iter();
-        let a = clients.next().unwrap().split().0;
-        let b = clients.next().unwrap().split().0;
-        let c = clients.next().unwrap().split().0;
+        let a = clients.next().unwrap();
+        let b = clients.next().unwrap();
+        let c = clients.next().unwrap();
 
-        a.chain(b).chain(c).read_to_end(Vec::new())
+        let d = io::chain(a, b);
+        let d = io::chain(d, c);
+        io::read_to_end(d, Vec::new())
     });
 
     let data = t!(l.run(copied));

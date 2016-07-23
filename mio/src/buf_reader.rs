@@ -148,7 +148,8 @@ impl<R: Read + Send + 'static> Stream for BufReader<R> {
             match self.source_ready.poll(task) {
                 Poll::NotReady => return Poll::NotReady,
                 Poll::Err(e) => return Poll::Err(e.into()),
-                Poll::Ok(Some(())) => self.read_ready = true,
+                Poll::Ok(Some(ref r)) if !r.is_read() => return Poll::NotReady,
+                Poll::Ok(Some(_)) => self.read_ready = true,
                 _ => unreachable!(),
             }
         }

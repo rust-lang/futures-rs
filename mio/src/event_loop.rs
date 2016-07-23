@@ -10,6 +10,7 @@ use mio;
 use mio::channel::SendError;
 use slab::Slab;
 use futures::{Future, Task, TaskHandle, Poll};
+use futures::io::Ready;
 
 use slot::{self, Slot};
 
@@ -47,39 +48,22 @@ pub struct LoopHandle {
     tx: mio::channel::Sender<Message>,
 }
 
-#[allow(missing_docs)]
-#[derive(Copy, Clone, Debug)]
-pub enum Direction {
-    Read,
-    Write,
-}
-
 struct Scheduled {
     source: Source,
-    reader: Half,
-    writer: Half,
+    waiter: Waiter,
 }
 
-enum Half {
+enum Waiter {
     NotReady,
-    Ready,
+    Ready(Ready),
     Waiting(TaskHandle),
-}
-
-impl Scheduled {
-    fn waiter_for(&mut self, dir: Direction) -> &mut Half {
-        match dir {
-            Direction::Read => &mut self.reader,
-            Direction::Write => &mut self.writer,
-        }
-    }
 }
 
 enum Message {
     AddSource(Source, Arc<Slot<io::Result<usize>>>),
     DropSource(usize),
-    Schedule(usize, Direction, TaskHandle),
-    Deschedule(usize, Direction),
+    Schedule(usize, TaskHandle),
+    Deschedule(usize),
     Shutdown,
 }
 
@@ -177,44 +161,34 @@ impl Loop {
                     continue
                 }
 
-                let mut reader = None;
-                let mut writer = None;
+                let mut waiter = None;
 
                 if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
-                    if event.kind().is_readable() {
-                        reader = sched.reader.set();
-                    }
-
-                    if event.kind().is_writable() {
-                        writer = sched.writer.set();
-                    }
+                    let ready = if event.kind().is_readable() {
+                        if event.kind().is_writable() {
+                            Ready::ReadWrite
+                        } else {
+                            Ready::Read
+                        }
+                    } else {
+                        // TODO: this is probably a bad assert
+                        assert!(event.kind().is_writable());
+                        Ready::Write
+                    };
+                    waiter = sched.waiter.set(ready);
                 } else {
                     debug!("notified on {} which no longer exists", token);
                 }
 
-                // TODO: encapsulate this logic better
-                let read_token = 2 * token;
-                let write_token = 2 * token + 1;
-
-                CURRENT_LOOP.set(&self, || {
-                    match (reader, writer) {
-                        (Some(r), Some(w)) => {
-                            r.token_ready(read_token);
-                            w.token_ready(write_token);
-                            r.notify();
-                            if !r.equivalent(&w) {
-                                w.notify();
-                            }
+                CURRENT_LOOP.set(&self, move || {
+                    if let Some((waiter, ready)) = waiter {
+                        if ready.is_read() {
+                            waiter.token_ready(2 * token);
                         }
-                        (Some(r), None) => {
-                            r.token_ready(read_token);
-                            r.notify();
+                        if ready.is_write() {
+                            waiter.token_ready(2 * token + 1);
                         }
-                        (None, Some(w)) => {
-                            w.token_ready(write_token);
-                            w.notify();
-                        }
-                        (None, None) => {}
+                        waiter.notify();
                     }
                 });
             }
@@ -226,8 +200,7 @@ impl Loop {
     fn add_source(&self, source: Source) -> io::Result<usize> {
         let sched = Scheduled {
             source: source,
-            reader: Half::NotReady,
-            writer: Half::NotReady,
+            waiter: Waiter::NotReady,
         };
         let mut dispatch = self.dispatch.borrow_mut();
         if dispatch.vacant_entry().is_none() {
@@ -244,28 +217,27 @@ impl Loop {
         deregister(&self.io, &sched);
     }
 
-    fn schedule(&self, token: usize, dir: Direction, wake: TaskHandle) {
+    fn schedule(&self, token: usize, wake: TaskHandle) {
         let to_call = {
             let mut dispatch = self.dispatch.borrow_mut();
             let sched = dispatch.get_mut(token).unwrap();
-            sched.waiter_for(dir).block(Some(wake))
+            sched.waiter.block(Some(wake))
         };
-        if let Some(to_call) = to_call {
-            debug!("immediate wakeup on {:?}", dir);
-
-            let token = match dir {
-                Direction::Read => 2 * token,
-                Direction::Write => 2 * token + 1,
-            };
-            to_call.token_ready(token);
+        if let Some((to_call, ready)) = to_call {
+            if ready.is_read() {
+                to_call.token_ready(2 * token);
+            }
+            if ready.is_write() {
+                to_call.token_ready(2 * token + 1);
+            }
             to_call.notify();
         }
     }
 
-    fn deschedule(&self, token: usize, dir: Direction) {
+    fn deschedule(&self, token: usize) {
         let mut dispatch = self.dispatch.borrow_mut();
         let sched = dispatch.get_mut(token).unwrap();
-        assert!(sched.waiter_for(dir).block(None).is_none());
+        assert!(sched.waiter.block(None).is_none());
     }
 
     fn consume_queue(&self) {
@@ -282,35 +254,37 @@ impl Loop {
                     .ok().expect("interference with try_produce");
             }
             Message::DropSource(tok) => self.drop_source(tok),
-            Message::Schedule(tok, dir, wake) => self.schedule(tok, dir, wake),
-            Message::Deschedule(tok, dir) => self.deschedule(tok, dir),
+            Message::Schedule(tok, wake) => self.schedule(tok, wake),
+            Message::Deschedule(tok) => self.deschedule(tok),
             Message::Shutdown => self.active.set(false),
         }
     }
 }
 
-impl Half {
-    fn set(&mut self) -> Option<TaskHandle> {
-        match mem::replace(self, Half::Ready) {
-            Half::NotReady => None,
-            Half::Ready => None,
-            Half::Waiting(arc) => {
-                *self = Half::NotReady;
-                Some(arc)
+impl Waiter {
+    fn set(&mut self, ready: Ready) -> Option<(TaskHandle, Ready)> {
+        match *self {
+            Waiter::NotReady => *self = Waiter::Ready(ready),
+            Waiter::Ready(ref mut r) => *r = *r | ready,
+            Waiter::Waiting(_) => {
+                match mem::replace(self, Waiter::NotReady) {
+                    Waiter::Waiting(arc) => return Some((arc, ready)),
+                    _ => panic!(),
+                }
             }
         }
+        None
     }
 
-    fn block(&mut self, waiter: Option<TaskHandle>) -> Option<TaskHandle> {
+    fn block(&mut self, waiter: Option<TaskHandle>)
+             -> Option<(TaskHandle, Ready)> {
         match (&*self, waiter) {
-            (&Half::NotReady, None) => {}
-            (&Half::NotReady, Some(other)) => {
-                *self = Half::Waiting(other)
-            }
-            (&Half::Ready, None) => {}
-            (&Half::Ready, Some(other)) => return Some(other),
-            (&Half::Waiting(..), None) => *self = Half::NotReady,
-            (&Half::Waiting(..), Some(other)) => *self = Half::Waiting(other),
+            (&Waiter::NotReady, None) => {}
+            (&Waiter::NotReady, Some(other)) => *self = Waiter::Waiting(other),
+            (&Waiter::Ready(_), None) => {}
+            (&Waiter::Ready(ready), Some(other)) => return Some((other, ready)),
+            (&Waiter::Waiting(..), None) => *self = Waiter::NotReady,
+            (&Waiter::Waiting(..), Some(other)) => *self = Waiter::Waiting(other),
         }
         None
     }
@@ -410,9 +384,9 @@ impl LoopHandle {
     /// This function will panic if the event loop this handle is associated
     /// with has gone away, or if there is an error communicating with the event
     /// loop.
-    pub fn schedule(&self, tok: usize, dir: Direction, task: &mut Task) {
+    pub fn schedule(&self, tok: usize, task: &mut Task) {
         // TODO: plumb through `&mut Task` if we're on the event loop
-        self.send(Message::Schedule(tok, dir, task.handle().clone()));
+        self.send(Message::Schedule(tok, task.handle().clone()));
     }
 
     /// Stop listening for events on an event loop.
@@ -427,8 +401,8 @@ impl LoopHandle {
     /// This function will panic if the event loop this handle is associated
     /// with has gone away, or if there is an error communicating with the event
     /// loop.
-    pub fn deschedule(&self, tok: usize, dir: Direction) {
-        self.send(Message::Deschedule(tok, dir));
+    pub fn deschedule(&self, tok: usize) {
+        self.send(Message::Deschedule(tok));
     }
 
     /// Unregister all information associated with a token on an event loop,

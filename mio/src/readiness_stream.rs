@@ -1,16 +1,16 @@
 #![allow(missing_docs)] // TODO: document this module
 
-use super::event_loop::{Direction, LoopHandle};
-
-use self::drop_source::DropSource;
-
-use mio;
-
 use std::io;
 use std::sync::Arc;
 
-use futures::{Future, Task, Poll};
+use futures::io::Ready;
 use futures::stream::Stream;
+use futures::{Future, Task, Poll};
+
+use IoFuture;
+use event_loop::{LoopHandle, Source};
+use readiness_stream::drop_source::DropSource;
+
 
 // TODO: figure out a nicer way to factor this
 mod drop_source {
@@ -58,28 +58,48 @@ impl State {
 }
 
 pub struct ReadinessStream {
-    dir: Direction,
     state: State,
-    token: usize,
-    token_to_test: usize,
+    io_token: usize,
+    read_token: usize,
+    write_token: usize,
     loop_handle: LoopHandle,
     _drop_source: Arc<DropSource>,
 }
 
 impl ReadinessStream {
-    pub fn dir(&self) -> Direction {
-        self.dir
+    pub fn new(loop_handle: LoopHandle, source: Source)
+               -> Box<IoFuture<ReadinessStream>> {
+        loop_handle.add_source(source).map(|token| {
+            let drop_source = Arc::new(DropSource::new(token, loop_handle.clone()));
+            ReadinessStream {
+                state: State::NeverPolled,
+                io_token: token,
+                read_token: 2 * token,
+                write_token: 2 * token + 1,
+                loop_handle: loop_handle,
+                _drop_source: drop_source,
+            }
+        }).boxed()
     }
 }
 
 impl Stream for ReadinessStream {
-    type Item = ();
+    type Item = Ready;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<()>, io::Error> {
-        if self.state.ready_on_poll() && task.may_contain(self.token_to_test) {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        if !self.state.ready_on_poll() {
+            Poll::NotReady
+        } else if task.may_contain(self.read_token) {
             self.state = State::Polled;
-            Poll::Ok(Some(()))
+            if task.may_contain(self.write_token) {
+                Poll::Ok(Some(Ready::ReadWrite))
+            } else {
+                Poll::Ok(Some(Ready::Read))
+            }
+        } else if task.may_contain(self.write_token) {
+            self.state = State::Polled;
+            Poll::Ok(Some(Ready::Write))
         } else {
             Poll::NotReady
         }
@@ -89,48 +109,13 @@ impl Stream for ReadinessStream {
         // TODO: need to update the wake callback
         if self.state != State::Scheduled {
             self.state = State::Scheduled;
-            self.loop_handle.schedule(self.token, self.dir, task)
+            self.loop_handle.schedule(self.io_token, task)
         }
     }
 }
 
 impl Drop for ReadinessStream {
     fn drop(&mut self) {
-        self.loop_handle.deschedule(self.token, self.dir)
-    }
-}
-
-pub struct ReadinessPair<T> {
-    pub source: Arc<T>,
-    pub ready_read: ReadinessStream,
-    pub ready_write: ReadinessStream,
-}
-
-impl<E> ReadinessPair<E> where E: Send + Sync + mio::Evented + 'static {
-    pub fn new(loop_handle: LoopHandle, event: E)
-               -> Box<Future<Item=ReadinessPair<E>, Error=io::Error>> {
-        let event = Arc::new(event);
-        loop_handle.add_source(event.clone()).and_then(|token| {
-            let drop_source = Arc::new(DropSource::new(token, loop_handle.clone()));
-            Ok(ReadinessPair {
-                source: event,
-                ready_read: ReadinessStream {
-                    dir: Direction::Read,
-                    state: State::NeverPolled,
-                    token: token,
-                    token_to_test: 2 * token,
-                    loop_handle: loop_handle.clone(),
-                    _drop_source: drop_source.clone(),
-                },
-                ready_write: ReadinessStream {
-                    dir: Direction::Write,
-                    state: State::NeverPolled,
-                    token: token,
-                    token_to_test: 2 * token + 1,
-                    loop_handle: loop_handle,
-                    _drop_source: drop_source,
-                },
-            })
-        }).boxed()
+        self.loop_handle.deschedule(self.io_token)
     }
 }

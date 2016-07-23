@@ -3,11 +3,12 @@
 //! There is no concurrency in this server, only one connection is written to at
 //! a time.
 
+#[macro_use]
 extern crate futures;
 extern crate futuremio;
 
 use std::env;
-use std::io::Write;
+use std::io::{self, Write};
 use std::net::SocketAddr;
 
 use futures::Future;
@@ -21,12 +22,7 @@ fn main() {
     let server = l.handle().tcp_listen(&addr).and_then(|socket| {
         socket.incoming().and_then(|(socket, addr)| {
             println!("got a socket: {}", addr);
-            let buf = [0; 64 * 1024];
-            let mut source = socket.source;
-            socket.ready_write.for_each(move |()| {
-                while let Ok(_) = source.write(&buf) {}
-                Ok(())
-            })
+            write(socket)
         }).for_each(|()| {
             println!("lost the socket");
             Ok(())
@@ -34,4 +30,22 @@ fn main() {
     });
     println!("Listenering on: {}", addr);
     l.run(server).unwrap();
+}
+
+fn write(socket: futuremio::TcpStream) -> Box<futuremio::IoFuture<()>> {
+    static BUF: &'static [u8] = &[0; 64 * 1024];
+    socket.into_future().map_err(|e| e.0).and_then(move |(ready, mut socket)| {
+        let ready = match ready {
+            Some(ready) => ready,
+            None => return futures::finished(()).boxed(),
+        };
+        while ready.is_write() {
+            match socket.write(&BUF) {
+                Ok(_) => {}
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => break,
+                Err(e) => return futures::failed(e).boxed(),
+            }
+        }
+        write(socket)
+    }).boxed()
 }

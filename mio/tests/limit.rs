@@ -7,7 +7,7 @@ use std::io::Write;
 
 use futures::Future;
 use futures::stream::Stream;
-use futures::io::ReadStream;
+use futures::io;
 
 macro_rules! t {
     ($e:expr) => (match $e {
@@ -17,7 +17,7 @@ macro_rules! t {
 }
 
 #[test]
-fn chain() {
+fn limit() {
     let mut l = t!(futuremio::Loop::new());
     let srv = l.handle().tcp_listen(&"127.0.0.1:0".parse().unwrap());
     let srv = t!(l.run(srv));
@@ -28,12 +28,12 @@ fn chain() {
         s1.write_all(b"foo bar baz").unwrap();
     });
 
-    let clients = srv.incoming().map(|e| e.0).take(1).collect();
-    let copied = clients.and_then(|clients| {
+    let clients = srv.incoming().map(|e| e.0).take(1);
+    let copied = clients.collect().and_then(|clients| {
         let mut clients = clients.into_iter();
-        let a = clients.next().unwrap().split().0;
+        let a = clients.next().unwrap();
 
-        a.limit(4).read_to_end(Vec::new())
+        io::read_to_end(io::take(a, 4), Vec::new())
     });
 
     let data = t!(l.run(copied));
