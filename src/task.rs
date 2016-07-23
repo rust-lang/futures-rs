@@ -285,7 +285,6 @@ impl Task {
         // will then pick it up once a wake callback has fired.
         future.schedule(&mut me);
 
-        // TODO: don't clone if we've been scheduled immediately
         let inner = me.handle.inner.clone();
         inner.slot.try_produce((me, future)).ok().unwrap();
     }

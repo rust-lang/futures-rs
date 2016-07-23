@@ -374,9 +374,6 @@ impl<T: 'static> Slot<T> {
     ///
     /// This method may cause panics if it is called concurrently with
     /// `on_empty` or `on_full`, depending on which callback is being canceled.
-    // TODO: that restriction about not being able to call concurrently with
-    //       on_empty or on_full was not considered originally, does it void all
-    //       usage?
     pub fn cancel(&self, token: Token) {
         // Tokens with a value of "0" are sentinels which don't actually do
         // anything.
@@ -419,22 +416,16 @@ impl<T: 'static> Slot<T> {
             state.0 = old;
         }
 
-        // TODO: communicate that this is being called as part of a
-        //       cancellation?
-        //
         // Figure out which callback we just canceled, and now that the flag is
         // unset we should own the callback to clear it.
 
-        // TODO: should this actually call the callback
         if state.flag(ON_FULL) {
             let cb = self.on_full.try_lock().expect("on_full interference3")
                                  .take().expect("on_full not full??");
-            // cb.call_box(self);
             drop(cb);
         } else {
             let cb = self.on_empty.try_lock().expect("on_empty interference3")
                                   .take().expect("on_empty not empty??");
-            // cb.call_box(self);
             drop(cb);
         }
     }
