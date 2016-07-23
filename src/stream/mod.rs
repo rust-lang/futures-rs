@@ -32,6 +32,7 @@ mod map;
 mod map_err;
 mod merge;
 mod or_else;
+mod skip;
 mod skip_while;
 mod take;
 mod then;
@@ -49,6 +50,7 @@ pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::merge::{Merge, MergedItem};
 pub use self::or_else::OrElse;
+pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::then::Then;
@@ -580,6 +582,16 @@ pub trait Stream: Send + 'static {
         where Self: Sized
     {
         take::new(self, amt)
+    }
+
+    /// Creates a new stream which skips `amt` items of the underlying stream.
+    ///
+    /// Once `amt` items have been skipped from this stream then it will always
+    /// return the remaining items on this stream.
+    fn skip(self, amt: u64) -> Skip<Self>
+        where Self: Sized
+    {
+        skip::new(self, amt)
     }
 
     /// Fuse a stream such that `poll`/`schedule` will never again be called
