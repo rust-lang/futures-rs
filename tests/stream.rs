@@ -72,6 +72,7 @@ fn adapters() {
 //                Ok(vec![1, 2, 3]));
     assert_done(|| list().skip_while(|e| Ok(*e % 2 == 1)).collect(),
                 Ok(vec![2, 3]));
+    assert_done(|| list().take(2).collect(), Ok(vec![1, 2]));
 }
 
 // #[test]
