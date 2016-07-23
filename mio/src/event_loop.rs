@@ -282,7 +282,10 @@ impl Waiter {
             (&Waiter::NotReady, None) => {}
             (&Waiter::NotReady, Some(other)) => *self = Waiter::Waiting(other),
             (&Waiter::Ready(_), None) => {}
-            (&Waiter::Ready(ready), Some(other)) => return Some((other, ready)),
+            (&Waiter::Ready(ready), Some(other)) => {
+                *self = Waiter::NotReady;
+                return Some((other, ready))
+            }
             (&Waiter::Waiting(..), None) => *self = Waiter::NotReady,
             (&Waiter::Waiting(..), Some(other)) => *self = Waiter::Waiting(other),
         }
@@ -464,14 +467,14 @@ impl Future for AddSource {
 
     fn poll(&mut self, task: &mut Task) -> Poll<usize, io::Error> {
         match self.result {
-            Some((ref result, _)) => {
-                if task.may_contain(ADD_SOURCE_TOKEN) {
-                    match result.try_consume() {
-                        Ok(t) => t.into(),
-                        Err(_) => Poll::NotReady,
-                    }
-                } else {
-                    Poll::NotReady
+            Some((ref result, ref token)) => {
+                if !task.may_contain(ADD_SOURCE_TOKEN) {
+                    return Poll::NotReady
+                }
+                result.cancel(*token);
+                match result.try_consume() {
+                    Ok(t) => t.into(),
+                    Err(_) => Poll::NotReady,
                 }
             }
             None => {
