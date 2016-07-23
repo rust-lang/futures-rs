@@ -11,7 +11,7 @@
 //! ready as well.
 // TODO: expand these docs
 
-use {Task, Future, IntoFuture, Poll};
+use {Task, IntoFuture, Poll};
 
 mod channel;
 mod iter;
@@ -509,7 +509,7 @@ pub trait Stream: Send + 'static {
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut + Send + 'static,
-              Fut: Future<Item = T>,
+              Fut: IntoFuture<Item = T>,
               Fut::Error: Into<Self::Error>,
               T: Send + 'static,
               Self: Sized
