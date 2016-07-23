@@ -70,6 +70,8 @@ fn adapters() {
                 Ok(vec![1, 2, 3, 1, 2, 3, 1, 2, 3]));
 //     assert_eq!(list().map(|i| finished::<_, u32>(i)).flatten().collect(),
 //                Ok(vec![1, 2, 3]));
+    assert_done(|| list().skip_while(|e| Ok(*e % 2 == 1)).collect(),
+                Ok(vec![2, 3]));
 }
 
 // #[test]

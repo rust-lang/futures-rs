@@ -548,10 +548,16 @@ pub trait Stream: Send + 'static {
         flatten::new(self)
     }
 
-    // TODO: should this closure return a Result?
-    #[allow(missing_docs)]
-    fn skip_while<P>(self, pred: P) -> SkipWhile<Self, P>
-        where P: FnMut(&Self::Item) -> Result<bool, Self::Error> + Send + 'static,
+    /// Skip elements on this stream while the predicate provided resolves to
+    /// `true`.
+    ///
+    /// This function, like `Iterator::skip_while`, will skip elements on the
+    /// stream until the `predicate` resolves to `false`. Once one element
+    /// returns false all future elements will be returned from the underlying
+    /// stream.
+    fn skip_while<P, R>(self, pred: P) -> SkipWhile<Self, P, R>
+        where P: FnMut(&Self::Item) -> R + Send + 'static,
+              R: IntoFuture<Item=bool, Error=Self::Error>,
               Self: Sized
     {
         skip_while::new(self, pred)
