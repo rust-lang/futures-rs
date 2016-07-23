@@ -9,7 +9,7 @@
 //! A stream may request that it is blocked between values while the next value
 //! is calculated, and provides a way to get notified once the next value is
 //! ready as well.
-//! TODO: expand these docs
+// TODO: expand these docs
 
 use {Task, Future, IntoFuture, Poll};
 

@@ -78,9 +78,12 @@ impl Task {
     pub fn new() -> Task {
         static NEXT: AtomicUsize = ATOMIC_USIZE_INIT;
 
-        // TODO: what to do if this overflows?
+        // TODO: Handle this overflow not by panicking, but for now also ensure
+        //       that this aborts the process.
         let id = NEXT.fetch_add(1, Ordering::SeqCst);
-        assert!(id != usize::max_value());
+        if id >= usize::max_value() - 50_000 {
+            panic!("overflow in number of tasks created");
+        }
 
         Task {
             id: id,
@@ -321,7 +324,11 @@ impl TaskHandle {
     /// Futures should use this method to ensure that when a future can make
     /// progress as `Task` is notified that it should continue to `poll` the
     /// future at a later date.
-    // TODO: more here
+    ///
+    /// Currently it's guaranteed that if `notify` is called that `poll` will be
+    /// scheduled to get called at some point in the future. A `poll` may
+    /// already be running on another thread, but this will ensure that a poll
+    /// happens again to receive this notification.
     pub fn notify(&self) {
         // First, see if we can actually register an `on_full` callback. The
         // `Slot` requires that only one registration happens, and this flag
@@ -334,9 +341,6 @@ impl TaskHandle {
         // is resolve we allow another registration **before we poll again**.
         // This allows any future which may be somewhat badly behaved to be
         // compatible with this.
-        //
-        // TODO: this store of `false` should *probably* be before the
-        //       `schedule` call in forget above, need to think it through.
         self.inner.slot.on_full(|slot| {
             let (task, future) = slot.try_consume().ok().unwrap();
             task.handle.inner.registered.store(false, Ordering::SeqCst);

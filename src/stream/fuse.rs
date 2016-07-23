@@ -36,8 +36,11 @@ impl<S: Stream> Stream for Fuse<S> {
 }
 
 impl<S> Fuse<S> {
-    // TODO: docs
-    #[allow(missing_docs)]
+    /// Returns whether the underlying stream has finished or not.
+    ///
+    /// If this method returns `true`, then all future calls to poll are
+    /// guaranteed to return `NotReady`. If this returns `false`, then the
+    /// underlying stream is still in use.
     pub fn is_done(&self) -> bool {
         self.stream.is_none()
     }

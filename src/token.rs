@@ -34,7 +34,12 @@ impl Tokens {
         }
     }
 
-    // TODO: document Relaxed here a bunch
+    // Note that the atomics below are all `Relaxed`. None of this should be
+    // relevant for memory safety (these are just "interest bits") and in
+    // general there's other synchronization to ensure that all these writes are
+    // eventually visible to some thread that's reading them.
+    //
+    // That, and this has been seen in profiles before, so...
 
     pub fn take(&self) -> Tokens {
         let ret = Tokens::empty();
@@ -49,7 +54,6 @@ impl Tokens {
 
     pub fn insert(&self, other: usize) {
         let (slot, bit) = self.index(other);
-        // TODO: don't do an atomic here
         slot.fetch_or(bit, Ordering::Relaxed);
     }
 
