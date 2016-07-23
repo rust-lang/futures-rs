@@ -6,6 +6,8 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 [dependencies]
 futuremio = { path = "../mio" }
 futures = { path = ".." }
+ssl = { path = "../ssl" }
+openssl = "0.7"
 httparse = "1.1"
 time = "0.1"
 env_logger = "0.3"

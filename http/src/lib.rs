@@ -6,16 +6,20 @@ extern crate httparse;
 extern crate time;
 #[macro_use]
 extern crate log;
+extern crate ssl;
+extern crate openssl;
 
-use std::io;
+use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
 
-use futures::Future;
-use futures::io::TaskIo;
-use futures::stream::Stream;
 use futuremio::{Loop, LoopHandle, TcpStream, TcpListener, IoFuture};
+use futures::Future;
+use futures::io::{TaskIo, Ready};
+use futures::stream::Stream;
+use openssl::ssl::SslContext;
+use ssl::SslStream;
 
 mod request;
 pub use self::request::{Request, RequestHeaders};
@@ -54,6 +58,7 @@ impl<Req, Resp, Fut, F> Service<Req, Resp> for F
 pub struct Server {
     addr: SocketAddr,
     workers: u32,
+    ssl: Option<SslContext>,
 }
 
 impl Server {
@@ -61,6 +66,7 @@ impl Server {
         Server {
             addr: *addr,
             workers: 1,
+            ssl: None,
         }
     }
 
@@ -68,6 +74,11 @@ impl Server {
         if cfg!(unix) {
             self.workers = workers;
         }
+        self
+    }
+
+    pub fn ssl(&mut self, ssl: SslContext) -> &mut Server {
+        self.ssl = Some(ssl);
         self
     }
 
@@ -79,14 +90,17 @@ impl Server {
     {
         let service = Arc::new(s);
 
+        let ssl = self.ssl.take();
+
         let threads = (0..self.workers - 1).map(|i| {
+            let ssl = ssl.clone();
             let mut lp = Loop::new().unwrap();
             let service = service.clone();
             let listener = self.listener(lp.handle());
             thread::Builder::new().name(format!("worker{}", i)).spawn(move || {
                 lp.run(listener.and_then(move |l| {
                     l.incoming().for_each(move |(stream, _)| {
-                        handle(stream, service.clone());
+                        handle(stream, ssl.as_ref(), service.clone());
                         Ok(()) // TODO: error handling
                     })
                 }))
@@ -97,7 +111,7 @@ impl Server {
             let listener = self.listener(lp.handle());
         lp.run(listener.and_then(move |l| {
             l.incoming().for_each(move |(stream, _)| {
-                handle(stream, service.clone());
+                handle(stream, ssl.as_ref(), service.clone());
                 Ok(()) // TODO: error handling
             })
         })).unwrap();
@@ -141,13 +155,28 @@ impl Server {
     }
 }
 
-fn handle<Req, Resp, S>(stream: TcpStream, service: Arc<S>)
+trait IoStream: Read + Write + Stream<Item=Ready, Error=io::Error> {}
+
+impl<T: ?Sized> IoStream for T
+    where T: Read + Write + Stream<Item=Ready, Error=io::Error>
+{}
+
+fn handle<Req, Resp, S>(stream: TcpStream,
+                        ssl: Option<&SslContext>,
+                        service: Arc<S>)
     where Req: Parse,
           Resp: Serialize,
           S: Service<Req, Resp>,
           <S::Fut as Future>::Error: From<Req::Error> + From<io::Error>,
 {
-    let io = TaskIo::new(stream).map_err(From::from).and_then(|io| {
+    let io = match ssl {
+        Some(ssl) => {
+            Box::new(SslStream::accept(ssl, stream).unwrap()) as
+                Box<IoStream<Item=Ready, Error=io::Error>>
+        }
+        None => Box::new(stream),
+    };
+    let io = TaskIo::new(io).map_err(From::from).and_then(|io| {
         let (reader, writer) = io.split();
 
         let input = ParseStream::new(reader).map_err(From::from);
