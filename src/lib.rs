@@ -10,6 +10,9 @@
 
 #![deny(missing_docs)]
 
+#[macro_use]
+extern crate log;
+
 mod lock;
 mod slot;
 mod util;

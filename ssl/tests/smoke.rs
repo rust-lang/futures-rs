@@ -1,18 +1,16 @@
 extern crate futures;
 extern crate env_logger;
 extern crate futuremio;
-extern crate openssl;
 extern crate ssl;
 
-use futures::Future;
+#[macro_use]
+extern crate cfg_if;
+
+use std::io::{Read, Write};
+
+use futures::{Future, Task, Poll};
 use futures::stream::Stream;
-use futures::io;
-use openssl::ssl::{SslContext, SslMethod};
-use openssl::ssl::{SSL_OP_NO_SSLV2, SSL_OP_NO_SSLV3, SSL_OP_NO_COMPRESSION};
-use openssl::crypto::hash::Type;
-use openssl::x509::X509Generator;
-use openssl::x509::extension::{Extension, KeyUsageOption};
-use ssl::SslStream;
+use futures::io::{self, Ready};
 
 macro_rules! t {
     ($e:expr) => (match $e {
@@ -21,38 +19,93 @@ macro_rules! t {
     })
 }
 
-// returns (client, server)
-fn contexts() -> (SslContext, SslContext) {
-    // Generate the public/private key that we're going to use.
-    //
-    // See docs for X509Generator
-    let extension = Extension::KeyUsage(vec![KeyUsageOption::DigitalSignature]);
-    let gen = X509Generator::new()
-           .set_bitlength(2048)
-           .set_valid_period(365*2)
-           .add_name("CN".to_owned(), "SuperMegaCorp Inc.".to_owned())
-           .set_sign_hash(Type::SHA256)
-           .add_extension(extension);
-    let (cert, pkey) = t!(gen.generate());
+cfg_if! {
+    if #[cfg(any(feature = "force-openssl",
+                 all(not(target_os = "macos"),
+                     not(target_os = "windows"))))] {
+        extern crate openssl;
 
-    // Generate the client and server SSL contexts
-    let mut cx_client = t!(SslContext::new(SslMethod::Sslv23));
-    cx_client.set_options(SSL_OP_NO_SSLV2 | SSL_OP_NO_SSLV3 | SSL_OP_NO_COMPRESSION);
-    t!(cx_client.set_certificate(&cert));
-    t!(cx_client.set_cipher_list("ALL!EXPORT!EXPORT40!EXPORT56!aNULL!LOW!RC4@STRENGTH"));
+        use openssl::x509::X509;
+        use openssl::crypto::pkey::PKey;
 
-    let mut cx_server = t!(SslContext::new(SslMethod::Sslv23));
-    cx_server.set_options(SSL_OP_NO_SSLV2 | SSL_OP_NO_SSLV3 | SSL_OP_NO_COMPRESSION);
-    t!(cx_server.set_certificate(&cert));
-    t!(cx_server.set_private_key(&pkey));
-    t!(cx_server.set_cipher_list("ALL!EXPORT!EXPORT40!EXPORT56!aNULL!LOW!RC4@STRENGTH"));
+        use ssl::backend::openssl::ServerContextExt;
+        use ssl::backend::openssl::ClientContextExt;
 
-    return (cx_client, cx_server)
+        fn server_cx() -> std::io::Result<ssl::ServerContext> {
+            let cert = include_bytes!("server.crt");
+            let cert = t!(X509::from_pem(&mut &cert[..]));
+            let key = include_bytes!("server.key");
+            let key = t!(PKey::private_key_from_pem(&mut &key[..]));
+            ssl::ServerContext::new(&cert, &key)
+        }
+
+        fn configure_client(cx: &mut ssl::ClientContext) {
+            let cert = include_bytes!("server.crt");
+            let cert = t!(X509::from_pem(&mut &cert[..]));
+            let ssl = cx.ssl_context_mut();
+            t!(ssl.set_certificate(&cert));
+        }
+    } else if #[cfg(target_os = "macos")] {
+        extern crate security_framework;
+
+        use std::env;
+        use std::fs;
+        use std::sync::{Once, ONCE_INIT};
+
+        use security_framework::certificate::SecCertificate;
+        use security_framework::import_export::Pkcs12ImportOptions;
+        use security_framework::keychain::SecKeychain;
+        use security_framework::os::macos::import_export::Pkcs12ImportOptionsExt;
+        use security_framework::os::macos::keychain::CreateOptions;
+        use security_framework::os::macos::keychain::SecKeychainExt;
+
+        use ssl::backend::secure_transport::ServerContextExt;
+        use ssl::backend::secure_transport::ClientContextExt;
+
+        static INIT: Once = ONCE_INIT;
+
+        fn server_cx() -> std::io::Result<ssl::ServerContext> {
+            let path = t!(env::current_exe());
+            let path = path.parent().unwrap();
+            let path = path.join("test.keychain");
+
+            INIT.call_once(|| {
+                let _ = fs::remove_file(&path);
+                t!(CreateOptions::new()
+                    .password("test")
+                    .create(&path));
+            });
+
+            let mut keychain = t!(SecKeychain::open(&path));
+            t!(keychain.unlock(Some("test")));
+
+            let mut options = Pkcs12ImportOptions::new();
+            Pkcs12ImportOptionsExt::keychain(&mut options, keychain);
+            let identities = t!(options.passphrase("foobar")
+                                       .import(include_bytes!("server.p12")));
+            assert!(identities.len() == 1);
+            ssl::ServerContext::new(&identities[0].identity, &identities[0].cert_chain)
+        }
+
+        fn configure_client(cx: &mut ssl::ClientContext) {
+            let der = include_bytes!("server.der");
+            let cert = SecCertificate::from_der(der).unwrap();
+            t!(cx.anchor_certificates(&[cert]));
+        }
+    } else {
+    }
 }
+
+fn client_cx() -> std::io::Result<ssl::ClientContext> {
+    let mut cx = try!(ssl::ClientContext::new());
+    configure_client(&mut cx);
+    Ok(cx)
+}
+
+const AMT: u64 = 128 * 1024;
 
 #[test]
 fn client_to_server() {
-    const AMT: u64 = 128 * 1024;
     drop(env_logger::init());
     let mut l = t!(futuremio::Loop::new());
 
@@ -61,15 +114,13 @@ fn client_to_server() {
     let srv = t!(l.run(srv));
     let addr = t!(srv.local_addr());
 
-    let (cx_client, cx_server) = contexts();
-
     // Create a future to accept one socket, connect the ssl stream, and then
     // read all the data from it.
     let socket = srv.incoming().take(1).collect();
     let received = socket.map(|mut socket| {
         socket.remove(0).0
     }).and_then(move |socket| {
-        SslStream::accept(&cx_server, socket)
+        t!(server_cx()).handshake(socket)
     }).and_then(|socket| {
         io::read_to_end(socket, Vec::new())
     });
@@ -78,7 +129,7 @@ fn client_to_server() {
     // then write a bunch of data to it.
     let client = l.handle().tcp_connect(&addr);
     let sent = client.and_then(move |socket| {
-        SslStream::connect(&cx_client, socket)
+        t!(client_cx()).handshake("localhost", socket)
     }).and_then(|socket| {
         io::copy(io::take(std::io::repeat(9), AMT), socket)
     });
@@ -91,7 +142,6 @@ fn client_to_server() {
 
 #[test]
 fn server_to_client() {
-    const AMT: u64 = 128 * 1024;
     drop(env_logger::init());
     let mut l = t!(futuremio::Loop::new());
 
@@ -100,25 +150,88 @@ fn server_to_client() {
     let srv = t!(l.run(srv));
     let addr = t!(srv.local_addr());
 
-    let (cx_client, cx_server) = contexts();
-
     let socket = srv.incoming().take(1).collect();
     let sent = socket.map(|mut socket| {
         socket.remove(0).0
     }).and_then(move |socket| {
-        SslStream::accept(&cx_server, socket)
+        t!(server_cx()).handshake(socket)
     }).and_then(|socket| {
         io::copy(io::take(std::io::repeat(9), AMT), socket)
     });
 
     let client = l.handle().tcp_connect(&addr);
     let received = client.and_then(move |socket| {
-        SslStream::connect(&cx_client, socket)
+        t!(client_cx()).handshake("localhost", socket)
     }).and_then(|socket| {
         io::read_to_end(socket, Vec::new())
     });
 
     // Finally, run everything!
+    let (amt, data) = t!(l.run(sent.join(received)));
+    assert_eq!(amt, AMT);
+    assert!(data == vec![9; amt as usize]);
+}
+
+struct OneByte<S> {
+    inner: S,
+}
+
+impl<S> Stream for OneByte<S>
+    where S: Stream<Item=Ready, Error=std::io::Error>
+{
+    type Item = Ready;
+    type Error = std::io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, std::io::Error> {
+        self.inner.poll(task)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.inner.schedule(task)
+    }
+}
+
+impl<S: Read> Read for OneByte<S> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.inner.read(&mut buf[..1])
+    }
+}
+
+impl<S: Write> Write for OneByte<S> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.inner.write(&buf[..1])
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+#[test]
+fn one_byte_at_a_time() {
+    drop(env_logger::init());
+    let mut l = t!(futuremio::Loop::new());
+
+    let srv = l.handle().tcp_listen(&"127.0.0.1:0".parse().unwrap());
+    let srv = t!(l.run(srv));
+    let addr = t!(srv.local_addr());
+
+    let socket = srv.incoming().take(1).collect();
+    let sent = socket.map(|mut socket| {
+        socket.remove(0).0
+    }).and_then(move |socket| {
+        t!(server_cx()).handshake(OneByte { inner: socket })
+    }).and_then(|socket| {
+        io::copy(io::take(std::io::repeat(9), AMT), socket)
+    });
+
+    let client = l.handle().tcp_connect(&addr);
+    let received = client.and_then(move |socket| {
+        t!(client_cx()).handshake("localhost", OneByte { inner: socket })
+    }).and_then(|socket| {
+        io::read_to_end(socket, Vec::new())
+    });
+
     let (amt, data) = t!(l.run(sent.join(received)));
     assert_eq!(amt, AMT);
     assert!(data == vec![9; amt as usize]);

@@ -22,6 +22,7 @@ mod buf_writer;
 mod chain;
 mod copy;
 mod read_to_end;
+mod ready_tracker;
 mod take;
 mod task;
 pub use self::buf_reader::BufReader;
@@ -29,6 +30,7 @@ pub use self::buf_writer::BufWriter;
 pub use self::chain::{chain, Chain};
 pub use self::copy::{copy, Copy};
 pub use self::read_to_end::{read_to_end, ReadToEnd};
+pub use self::ready_tracker::ReadyTracker;
 pub use self::take::{take, Take};
 pub use self::task::TaskIo;
 

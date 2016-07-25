@@ -1,76 +1,110 @@
-extern crate openssl;
+//! Async SSL streams
+//!
+//! This is an **experimental an insecure** library, not intended for production
+//! use yet. Right now this is largely proof of concept, and soon hopefully it
+//! will be much more fleshed out.
+
 extern crate futures;
+#[macro_use]
+extern crate cfg_if;
+#[macro_use]
+extern crate log;
 
-use std::io::{self, Read, Write, Error, ErrorKind};
+use std::io::{self, Read, Write};
 
-use openssl::ssl;
-use futures::{Poll, Task};
-use futures::stream::Stream;
+use futures::{Task, Poll};
 use futures::io::Ready;
+use futures::stream::Stream;
+
+cfg_if! {
+    if #[cfg(any(feature = "force-openssl",
+                 all(not(target_os = "macos"),
+                     not(target_os = "windows"))))] {
+        mod openssl;
+        use self::openssl as imp;
+
+        pub mod backend {
+            pub mod openssl {
+                pub use openssl::ServerContextExt;
+                pub use openssl::ClientContextExt;
+            }
+        }
+    } else if #[cfg(target_os = "macos")] {
+        mod secure_transport;
+        use self::secure_transport as imp;
+
+        pub mod backend {
+            pub mod secure_transport {
+                pub use secure_transport::ServerContextExt;
+                pub use secure_transport::ClientContextExt;
+            }
+        }
+    } else {
+    }
+}
+
+pub struct ServerContext {
+    inner: imp::ServerContext,
+}
+
+pub struct ClientContext {
+    inner: imp::ClientContext,
+}
 
 pub struct SslStream<S> {
-    inner: ssl::SslStream<S>,
+    inner: imp::SslStream<S>,
 }
 
-impl<S> SslStream<S>
-    where S: Read + Write + Stream<Item=Ready, Error=Error>,
-{
-    pub fn connect<T: ssl::IntoSsl>(ssl: T, stream: S) -> io::Result<SslStream<S>> {
-        ssl::SslStream::connect(ssl, stream)
-            .map(|s| SslStream { inner: s })
-            .map_err(translate_ssl)
+impl ClientContext {
+    pub fn new() -> io::Result<ClientContext> {
+        imp::ClientContext::new().map(|s| ClientContext { inner: s })
     }
 
-    pub fn accept<T: ssl::IntoSsl>(ssl: T, stream: S) -> io::Result<SslStream<S>> {
-        ssl::SslStream::accept(ssl, stream)
-            .map(|s| SslStream { inner: s })
-            .map_err(translate_ssl)
-    }
-
-    pub fn ssl(&self) -> &ssl::Ssl {
-        self.inner.ssl()
+    pub fn handshake<S>(self,
+                        domain: &str,
+                        stream: S) -> io::Result<SslStream<S>>
+        where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+    {
+        self.inner.handshake(domain, stream).map(|s| {
+            SslStream { inner: s }
+        })
     }
 }
 
-fn translate(err: ssl::Error) -> Error {
-    let kind = match err {
-        ssl::Error::WantRead(_) => ErrorKind::WouldBlock,
-        ssl::Error::WantWrite(_) => ErrorKind::WouldBlock,
-        _ => ErrorKind::Other,
-    };
-    Error::new(kind, err)
-}
-
-fn translate_ssl(err: ssl::error::SslError) -> Error {
-    Error::new(io::ErrorKind::Other, err)
+impl ServerContext {
+    pub fn handshake<S>(self, stream: S) -> io::Result<SslStream<S>>
+        where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+    {
+        self.inner.handshake(stream).map(|s| {
+            SslStream { inner: s }
+        })
+    }
 }
 
 impl<S> Stream for SslStream<S>
-    where S: Stream<Item=Ready, Error=Error>,
+    where S: Stream<Item=Ready, Error=io::Error>,
 {
     type Item = Ready;
-    type Error = Error;
+    type Error = io::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        // TODO: be smarter, we know if we need to read or need to write, only
-        //       return once they're satisfied.
-        self.inner.get_mut().poll(task)
+        self.inner.poll(task)
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        self.inner.get_mut().schedule(task)
+        self.inner.schedule(task)
     }
 }
 
 impl<S: Read + Write> Read for SslStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.ssl_read(buf).map_err(translate)
+        self.inner.read(buf)
     }
 }
 
 impl<S: Read + Write> Write for SslStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.inner.ssl_write(buf).map_err(translate)
+        self.inner.write(buf)
     }
 
     fn flush(&mut self) -> io::Result<()> {

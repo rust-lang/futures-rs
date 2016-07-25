@@ -247,13 +247,17 @@ impl TcpStream {
 
 impl Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        (&*self.source).read(buf)
+        let r = (&*self.source).read(buf);
+        trace!("read[{:p}] {:?} on {:?}", self, r, self.source);
+        return r
     }
 }
 
 impl Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        (&*self.source).write(buf)
+        let r = (&*self.source).write(buf);
+        trace!("write[{:p}] {:?} on {:?}", self, r, self.source);
+        return r
     }
     fn flush(&mut self) -> io::Result<()> {
         (&*self.source).flush()

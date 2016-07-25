@@ -47,6 +47,7 @@ impl<R, W> Future for Copy<R, W>
             // continue.
             if !self.read_done && self.pos == self.cap {
                 if !self.read_ready {
+                    debug!("copy waiting for read");
                     match try_poll!(self.reader.poll(task)) {
                         Ok(Some(ref r)) if r.is_read() => self.read_ready = true,
                         Ok(_) => return Poll::NotReady,
@@ -54,12 +55,17 @@ impl<R, W> Future for Copy<R, W>
                     }
                 }
                 match self.reader.read(task, &mut self.buf) {
-                    Ok(0) => self.read_done = true,
+                    Ok(0) => {
+                        debug!("copy at eof");
+                        self.read_done = true;
+                    }
                     Ok(i) => {
+                        debug!("read {} bytes", i);
                         self.pos = 0;
                         self.cap = i;
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        debug!("read is gone");
                         self.read_ready = false;
                         return Poll::NotReady
                     }
@@ -70,6 +76,7 @@ impl<R, W> Future for Copy<R, W>
             // Now that our buffer has some data, let's write it out!
             while self.pos < self.cap || (self.read_done && !self.flush_done) {
                 if !self.write_ready {
+                    debug!("copy waiting for write");
                     match try_poll!(self.writer.poll(task)) {
                         Ok(Some(ref r)) if r.is_write() => self.write_ready = true,
                         Ok(_) => return Poll::NotReady,
@@ -78,8 +85,12 @@ impl<R, W> Future for Copy<R, W>
                 }
                 if self.pos == self.cap {
                     match self.writer.flush(task) {
-                        Ok(()) => self.flush_done = true,
+                        Ok(()) => {
+                            debug!("flush done");
+                            self.flush_done = true;
+                        }
                         Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            debug!("waiting for another flush");
                             return Poll::NotReady
                         }
                         Err(e) => return Poll::Err(e),
@@ -88,10 +99,12 @@ impl<R, W> Future for Copy<R, W>
                 }
                 match self.writer.write(task, &self.buf[self.pos..self.cap]) {
                     Ok(i) => {
+                        debug!("wrote {} bytes", i);
                         self.pos += i;
                         self.amt += i as u64;
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        debug!("write no longer ready");
                         self.write_ready = false;
                         return Poll::NotReady
                     }
