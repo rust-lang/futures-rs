@@ -1,6 +1,6 @@
 use {Future, Task, Poll};
 
-/// A future which "fuse"s an future once it's been resolved.
+/// A future which "fuse"s a future once it's been resolved.
 ///
 /// Normally futures can behave unpredictable once they're used after a future
 /// has been resolved, but `Fuse` is always defined to return `None` from `poll`

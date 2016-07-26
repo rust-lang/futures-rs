@@ -1,7 +1,7 @@
 use {Future, IntoFuture, Task, Poll};
 use chain::Chain;
 
-/// Future for the `flatten` combinator, flattening a future-of-a-future to just
+/// Future for the `flatten` combinator, flattening a future-of-a-future to get just
 /// the result of the final future.
 ///
 /// This is created by this `Future::flatten` method.
