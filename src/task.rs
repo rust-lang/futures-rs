@@ -104,7 +104,7 @@ impl Task {
     ///
     /// As events come in interest in particular tokens can be signaled through
     /// the `TaskHandle::token_ready` method. This method can then be used to
-    /// see whether a token has arrive yet or not.
+    /// see whether a token has arrived yet or not.
     ///
     /// Note that this will never return a false negative, but it can return
     /// false positives. That is, if a token has been passed to `token_ready`,
@@ -242,7 +242,7 @@ impl Task {
     ///
     /// This function will consume the task provided and the task will be used
     /// to execute the `future` provided until it has been completed. The future
-    /// wil be `poll`'d until it is resolved, at which point the `Result<(),
+    /// wil be `poll`'ed until it is resolved, at which point the `Result<(),
     /// ()>` will be discarded.
     ///
     /// The future will be `poll`ed on the threads that events arrive on. That
