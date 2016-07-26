@@ -18,7 +18,7 @@ pub enum Poll<T, E> {
     /// what the future completed with.
     Ok(T),
 
-    /// Indicates that the future has failed, and this error what the future
+    /// Indicates that the future has failed, and this error is what the future
     /// failed with.
     Err(E),
 }
@@ -35,7 +35,7 @@ impl<T, E> Poll<T, E> {
         }
     }
 
-    /// Change the error type of this `Poll` with the closure provided
+    /// Change the error type of this `Poll` value with the closure provided
     pub fn map_err<F, U>(self, f: F) -> Poll<T, U>
         where F: FnOnce(E) -> U
     {

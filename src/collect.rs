@@ -21,7 +21,7 @@ pub struct Collect<I>
 /// given.
 ///
 /// The returned future will execute each underlying future one at a time,
-/// collecting the results into a destincation `Vec<T>`. If any future returns
+/// collecting the results into a destination `Vec<T>`. If any future returns
 /// an error then all other futures will be canceled and an error will be
 /// returned immediately. If all futures complete successfully, however, then
 /// the returned future will succeed with a `Vec` of all the successful results.

@@ -36,7 +36,7 @@ impl<T> Lock<T> {
         }
     }
 
-    /// Attempts to acquire this lock, returning whether the lock as acquired or
+    /// Attempts to acquire this lock, returning whether the lock was acquired or
     /// not.
     ///
     /// If `Some` is returned then the data this lock protects can be accessed
