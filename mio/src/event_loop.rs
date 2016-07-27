@@ -179,6 +179,7 @@ impl Loop {
                 } else {
                     debug!("notified on {} which no longer exists", token);
                 }
+                debug!("dispatching {:?} {:?}", event.token(), event.kind());
 
                 CURRENT_LOOP.set(&self, move || {
                     if let Some((waiter, ready)) = waiter {
@@ -188,7 +189,10 @@ impl Loop {
                         if ready.is_write() {
                             waiter.token_ready(2 * token + 1);
                         }
+                        debug!("notifying");
                         waiter.notify();
+                    } else {
+                        debug!("no waiter");
                     }
                 });
             }
