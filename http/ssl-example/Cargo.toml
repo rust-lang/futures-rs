@@ -1,0 +1,10 @@
+[package]
+name = "ssl-example"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+http = { path = ".." }
+futures = { path = "../.." }
+openssl = "0.7"
+ssl = { path = "../../ssl", features = ["force-openssl"] }
