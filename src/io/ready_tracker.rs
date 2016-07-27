@@ -28,7 +28,7 @@ impl<S> ReadyTracker<S> {
     }
 
     pub fn maybe_write_ready(&self) -> bool {
-        self.read_ready
+        self.write_ready
     }
 }
 
