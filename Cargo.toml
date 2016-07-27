@@ -11,3 +11,7 @@ log = "0.3"
 
 [dev-dependencies]
 support = { path = "tests/support" }
+
+[replace."openssl:0.7.14"]
+git = "https://github.com/alexcrichton/rust-openssl"
+branch = "mid-handshake"

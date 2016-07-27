@@ -12,7 +12,7 @@ extern crate log;
 
 use std::io::{self, Read, Write};
 
-use futures::{Task, Poll};
+use futures::{Task, Poll, Future};
 use futures::io::Ready;
 use futures::stream::Stream;
 
@@ -55,6 +55,14 @@ pub struct SslStream<S> {
     inner: imp::SslStream<S>,
 }
 
+pub struct ClientHandshake<S> {
+    inner: imp::ClientHandshake<S>,
+}
+
+pub struct ServerHandshake<S> {
+    inner: imp::ServerHandshake<S>,
+}
+
 impl ClientContext {
     pub fn new() -> io::Result<ClientContext> {
         imp::ClientContext::new().map(|s| ClientContext { inner: s })
@@ -62,22 +70,49 @@ impl ClientContext {
 
     pub fn handshake<S>(self,
                         domain: &str,
-                        stream: S) -> io::Result<SslStream<S>>
+                        stream: S)
+                        -> ClientHandshake<S>
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
-        self.inner.handshake(domain, stream).map(|s| {
-            SslStream { inner: s }
-        })
+        ClientHandshake { inner: self.inner.handshake(domain, stream) }
     }
 }
 
 impl ServerContext {
-    pub fn handshake<S>(self, stream: S) -> io::Result<SslStream<S>>
+    pub fn handshake<S>(self, stream: S) -> ServerHandshake<S>
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
-        self.inner.handshake(stream).map(|s| {
-            SslStream { inner: s }
-        })
+        ServerHandshake { inner: self.inner.handshake(stream) }
+    }
+}
+
+impl<S> Future for ClientHandshake<S>
+    where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+{
+    type Item = SslStream<S>;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<SslStream<S>, io::Error> {
+        self.inner.poll(task).map(|s| SslStream { inner: s })
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.inner.schedule(task)
+    }
+}
+
+impl<S> Future for ServerHandshake<S>
+    where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+{
+    type Item = SslStream<S>;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<SslStream<S>, io::Error> {
+        self.inner.poll(task).map(|s| SslStream { inner: s })
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.inner.schedule(task)
     }
 }
 
