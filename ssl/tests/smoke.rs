@@ -47,9 +47,9 @@ cfg_if! {
 
         fn configure_client(cx: &mut ssl::ClientContext) {
             let path = t!(env::current_exe());
-            let path = path.parent().unwrap().join("server.crt");
+            let path = path.parent().unwrap().join("custom.crt");
             INIT.call_once(|| {
-                t!(t!(File::create(&path)).write_all(include_bytes!("server.crt")));
+                t!(t!(File::create(&path)).write_all(include_bytes!("schannel-ca.crt")));
             });
             let ssl = cx.ssl_context_mut();
             t!(ssl.set_CA_file(&path));
@@ -102,6 +102,24 @@ cfg_if! {
             t!(cx.anchor_certificates(&[cert]));
         }
     } else {
+        extern crate schannel;
+
+        use schannel::cert_store::CertStore;
+
+        use ssl::backend::schannel::ServerContextExt;
+
+        fn server_cx() -> std::io::Result<ssl::ServerContext> {
+            let mut cx = ssl::ServerContext::new();
+            let pkcs12 = include_bytes!("server.p12");
+            let mut store = CertStore::import_pkcs12(pkcs12, "foobar").unwrap();
+            let cert = store.iter().next().unwrap();
+            cx.schannel_cred().cert(cert);
+            Ok(cx)
+        }
+
+        fn configure_client(cx: &mut ssl::ClientContext) {
+            drop(cx);
+        }
     }
 }
 

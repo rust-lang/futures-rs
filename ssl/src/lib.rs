@@ -40,6 +40,15 @@ cfg_if! {
             }
         }
     } else {
+        mod schannel;
+        use self::schannel as imp;
+
+        pub mod backend {
+            pub mod schannel {
+                pub use schannel::ServerContextExt;
+                pub use schannel::ClientContextExt;
+            }
+        }
     }
 }
 
@@ -117,7 +126,7 @@ impl<S> Future for ServerHandshake<S>
 }
 
 impl<S> Stream for SslStream<S>
-    where S: Stream<Item=Ready, Error=io::Error>,
+    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
 {
     type Item = Ready;
     type Error = io::Error;
@@ -131,13 +140,17 @@ impl<S> Stream for SslStream<S>
     }
 }
 
-impl<S: Read + Write> Read for SslStream<S> {
+impl<S> Read for SslStream<S>
+    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+{
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
 }
 
-impl<S: Read + Write> Write for SslStream<S> {
+impl<S> Write for SslStream<S>
+    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+{
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)
     }

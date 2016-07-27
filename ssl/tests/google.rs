@@ -49,6 +49,12 @@ cfg_if! {
             assert_eq!(err.message().unwrap(), "invalid certificate chain");
         }
     } else {
+        extern crate winapi;
+
+        fn assert_bad_hostname_error(err: &Error) {
+            let code = err.raw_os_error().unwrap();
+            assert_eq!(code as usize, winapi::CERT_E_CN_NO_MATCH as usize);
+        }
     }
 }
 

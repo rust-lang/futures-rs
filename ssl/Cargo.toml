@@ -17,6 +17,12 @@ openssl-verify = "0.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "0.1"
 
+[target.'cfg(windows)'.dependencies]
+schannel = { git = "https://github.com/alexcrichton/schannel-rs", branch = "fixups" }
+
+[target.'cfg(windows)'.dev-dependencies]
+winapi = "0.2"
+
 [dev-dependencies]
 futuremio = { path = "../mio" }
 env_logger = "0.3"
