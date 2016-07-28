@@ -93,6 +93,7 @@ fn wrong_hostname_error() {
     });
 
     let res = l.run(data);
+    assert!(res.is_err());
     assert_bad_hostname_error(&res.err().unwrap());
 }
 
