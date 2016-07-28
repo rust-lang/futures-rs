@@ -1,7 +1,5 @@
 language: rust
 rust:
-  # - stable
-  # - beta
   - nightly
 sudo: false
 before_script:
@@ -10,11 +8,14 @@ script:
   - cargo test
   - cargo test --manifest-path mio/Cargo.toml
   - cargo build --manifest-path http/Cargo.toml
-    #- cargo build --manifest-path tokio/Cargo.toml
+  - cargo build --manifest-path http/ssl-example/Cargo.toml
   - cargo test --manifest-path ssl/Cargo.toml
   - cargo test --manifest-path ssl/Cargo.toml --features force-openssl
-  - cargo build --manifest-path http/ssl-example/Cargo.toml
+
   - cargo doc --no-deps
+  - cargo doc --no-deps --manifest-path mio/Cargo.toml
+  - cargo doc --no-deps --manifest-path http/Cargo.toml
+  - cargo doc --no-deps --manifest-path ssl/Cargo.toml
 after_success:
   - travis-cargo --only nightly doc-upload
   - travis-cargo coveralls --no-sudo
