@@ -173,13 +173,18 @@ fn handle<Req, Resp, S>(stream: TcpStream, data: Arc<ServerData<S>>)
 {
     let io = match data.ssl {
         Some(ref ssl) => {
-            // TODO: don't unwrap here
-            Box::new(ssl().unwrap().handshake(stream).unwrap()) as
-                Box<IoStream<Item=Ready, Error=io::Error>>
+            ssl().unwrap().handshake(stream).map(|b| {
+                Box::new(b) as
+                    Box<IoStream<Item=Ready, Error=io::Error>>
+            }).boxed()
         }
-        None => Box::new(stream),
+        None => {
+            let stream = Box::new(stream) as
+                    Box<IoStream<Item=Ready, Error=io::Error>>;
+            futures::finished(stream).boxed()
+        }
     };
-    let io = TaskIo::new(io).map_err(From::from).and_then(|io| {
+    let io = io.and_then(|io| TaskIo::new(io)).map_err(From::from).and_then(|io| {
         let (reader, writer) = io.split();
 
         let input = ParseStream::new(reader).map_err(From::from);
