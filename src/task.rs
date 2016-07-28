@@ -208,39 +208,8 @@ impl Task {
         &self.handle
     }
 
-    /// Creates a new temporary "scoped task" for setting the ready tokens.
-    ///
-    /// A scoped task is simply a borrowed version of this task with an
-    /// associated destructor that restores the ready set when it goes out of
-    /// scope. This returned object can use the `ScopedTask::ready` method to
-    /// indicate that all further calls to `Task::may_contain` will return true.
-    ///
-    /// This can be useful when one call to `poll` may poll multiple futures or
-    /// streams, but after one has been resolved the others may all immediately
-    /// be ready so they shouldn't use the same readiness token sets as the
-    /// previous one.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use futures::Task;
-    ///
-    /// fn poll(task: &mut Task) {
-    ///     task.may_contain(1); // may return true or false
-    ///
-    ///     {
-    ///         let mut task = task.scoped();
-    ///
-    ///         task.may_contain(1); // returns the same as before
-    ///
-    ///         task.ready();
-    ///         assert!(task.may_contain(1)); // always returns true
-    ///     }
-    ///
-    ///     task.may_contain(1); // returns the same as the first call
-    /// }
-    /// ```
-    // TODO: terrible name
+    /// dox
+    // TODO: terrible name, remove this
     pub fn scoped(&mut self) -> ScopedTask {
         ScopedTask { task: self, reset: false }
     }
