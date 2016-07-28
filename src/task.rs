@@ -7,9 +7,9 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, ATOMIC_USIZE_INIT, Ordering};
 use std::thread;
 
 use Future;
-use token::Tokens;
-use slot::Slot;
 use executor::{DEFAULT, Executor};
+use lock::Lock;
+use slot::Slot;
 
 /// A structure representing one "task", or thread of execution throughout the
 /// lifetime of a set of futures.
@@ -35,7 +35,6 @@ pub struct Task {
     ready: usize,
     list: Box<Any + Send>,
     handle: TaskHandle,
-    tokens: Tokens,
 }
 
 /// A scoped version of a task, returned by the `Task::scoped` method.
@@ -53,9 +52,10 @@ pub struct TaskHandle {
 }
 
 struct Inner {
+    id: usize,
     slot: Slot<(Task, Box<Future<Item=(), Error=()>>)>,
-    tokens: Tokens,
     registered: AtomicBool,
+    list: Lock<Box<Any + Send + Sync>>,
 }
 
 /// A reference to a piece of data that's stored inside of a `Task`.
@@ -70,11 +70,17 @@ pub struct TaskData<A> {
 unsafe impl<A: Send> Send for TaskData<A> {}
 unsafe impl<A: Sync> Sync for TaskData<A> {}
 
+/// dox
+pub struct TaskNotifyData<A> {
+    id: usize,
+    ptr: *mut A,
+}
+
+unsafe impl<A: Send> Send for TaskNotifyData<A> {}
+unsafe impl<A: Sync> Sync for TaskNotifyData<A> {}
+
 impl Task {
     /// Creates a new task ready to drive a future.
-    ///
-    /// The returned task has no internal data stored in it and considers all
-    /// tokens "ready for polling" until informed otherwise.
     pub fn new() -> Task {
         static NEXT: AtomicUsize = ATOMIC_USIZE_INIT;
 
@@ -88,33 +94,16 @@ impl Task {
         Task {
             id: id,
             list: Box::new(()),
-            tokens: Tokens::all(),
             ready: 0,
             handle: TaskHandle {
                 inner: Arc::new(Inner {
+                    id: id,
                     slot: Slot::new(None),
                     registered: AtomicBool::new(false),
-                    tokens: Tokens::all(),
+                    list: Lock::new(Box::new(())),
                 }),
             },
         }
-    }
-
-    /// Tests whether a token may be ready for polling.
-    ///
-    /// As events come in interest in particular tokens can be signaled through
-    /// the `TaskHandle::token_ready` method. This method can then be used to
-    /// see whether a token has arrived yet or not.
-    ///
-    /// Note that this will never return a false negative, but it can return
-    /// false positives. That is, if a token has been passed to `token_ready`,
-    /// that exact token will always return `true`. If a token has not been
-    /// passed to `token_ready`, though, it may still return `true`. (e.g. this
-    /// is a bloom filter).
-    // TODO: probably want an opaque type around usize
-    // TODO: needs a better name
-    pub fn may_contain(&self, token: usize) -> bool {
-        self.ready > 0 || self.tokens.may_contain(token)
     }
 
     /// Inserts a new piece of task-local data into this task, returning a
@@ -142,6 +131,24 @@ impl Task {
         let mut next = Box::new(Node { _next: prev, data: a });
         let ret = TaskData { id: self.id, ptr: &mut next.data };
         self.list = next;
+        return ret
+    }
+
+    /// dox
+    pub fn insert_notify<A>(&mut self, a: A) -> TaskNotifyData<A>
+        where A: Any + Send + Sync + 'static,
+    {
+        // Right now our list of task-local data is just stored as a linked
+        // list, so allocate a new node and insert it into the list.
+        struct Node<T: ?Sized> {
+            _next: Box<Any + Sync + Send>,
+            data: T,
+        }
+        let mut list = self.handle.inner.list.try_lock().unwrap();
+        let prev = mem::replace(&mut *list, Box::new(()));
+        let mut next = Box::new(Node { _next: prev, data: a });
+        let ret = TaskNotifyData { id: self.id, ptr: &mut next.data };
+        *list = next;
         return ret
     }
 
@@ -260,7 +267,7 @@ impl Task {
             // have received an empty set of tokens, but that's still a valid
             // reason to poll a future.
             assert_eq!(me.ready, 0);
-            me.tokens = me.handle.inner.tokens.take();
+            // me.tokens = me.handle.inner.tokens.take();
             let result = catch_unwind(move || {
                 (future.poll(&mut me), future, me)
             });
@@ -277,9 +284,10 @@ impl Task {
                 Some(f) => f,
                 None => future,
             };
-            if !me.handle.inner.tokens.any() {
-                break
-            }
+            break
+            // if !me.handle.inner.tokens.any() {
+            //     break
+            // }
         }
 
         // Ok, we've seen that there are no tokens which show interest in the
@@ -309,15 +317,12 @@ impl TaskHandle {
         &*self.inner as *const _ == &*other.inner as *const _
     }
 
-    /// Inform this handle's associated task that a particular token is ready.
-    ///
-    /// This information will be communicated to the task in question and
-    /// affects the return value of future calls to `Task::may_contain`. This
-    /// can be used to optimize calls to `poll` by avoiding a polling operation
-    /// if `may_contain` returns false.
-    pub fn token_ready(&self, token: usize) {
-        self.inner.tokens.insert(token);
+    /// dox
+    pub fn get<A>(&self, data: &TaskNotifyData<A>) -> &A {
+        assert_eq!(data.id, self.inner.id);
+        unsafe { &*data.ptr }
     }
+
 
     /// Notify the associated task that a future is ready to get polled.
     ///
@@ -394,3 +399,14 @@ impl<A> Clone for TaskData<A> {
 }
 
 impl<A> Copy for TaskData<A> {}
+
+impl<A> Clone for TaskNotifyData<A> {
+    fn clone(&self) -> TaskNotifyData<A> {
+        TaskNotifyData {
+            id: self.id,
+            ptr: self.ptr,
+        }
+    }
+}
+
+impl<A> Copy for TaskNotifyData<A> {}

@@ -17,15 +17,12 @@ mod lock;
 mod slot;
 mod util;
 
-mod token;
-// pub use token::{TOKENS_ALL, TOKENS_EMPTY};
-
 #[macro_use]
 mod poll;
 pub use poll::Poll;
 
 mod task;
-pub use task::{Task, TaskData, TaskHandle};
+pub use task::{Task, TaskData, TaskNotifyData, TaskHandle};
 
 pub mod executor;
 
@@ -45,7 +42,7 @@ pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 pub use promise::{promise, Promise, Complete, Canceled};
-pub use store::{store, Store};
+pub use store::{store, Store, store_notify, StoreNotify};
 
 // combinators
 mod and_then;

@@ -2,10 +2,11 @@
 
 use std::io;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures::io::Ready;
 use futures::stream::Stream;
-use futures::{Future, Task, Poll};
+use futures::{store_notify, Future, Task, Poll, TaskNotifyData};
 
 use IoFuture;
 use event_loop::{LoopHandle, Source};
@@ -40,28 +41,9 @@ mod drop_source {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum State {
-    NeverPolled,
-    Polled,
-    Scheduled,
-}
-
-impl State {
-    fn ready_on_poll(&self) -> bool {
-        match *self {
-            State::NeverPolled => true,
-            State::Scheduled => true,
-            State::Polled => false,
-        }
-    }
-}
-
 pub struct ReadinessStream {
-    state: State,
     io_token: usize,
-    read_token: usize,
-    write_token: usize,
+    data: TaskNotifyData<AtomicUsize>,
     loop_handle: LoopHandle,
     _drop_source: Arc<DropSource>,
 }
@@ -69,13 +51,13 @@ pub struct ReadinessStream {
 impl ReadinessStream {
     pub fn new(loop_handle: LoopHandle, source: Source)
                -> Box<IoFuture<ReadinessStream>> {
-        loop_handle.add_source(source).map(|token| {
+        loop_handle.add_source(source).and_then(|token| {
+            store_notify(AtomicUsize::new(0)).map(move |data| (token, data))
+        }).map(|(token, data)| {
             let drop_source = Arc::new(DropSource::new(token, loop_handle.clone()));
             ReadinessStream {
-                state: State::NeverPolled,
                 io_token: token,
-                read_token: 2 * token,
-                write_token: 2 * token + 1,
+                data: data,
                 loop_handle: loop_handle,
                 _drop_source: drop_source,
             }
@@ -88,29 +70,18 @@ impl Stream for ReadinessStream {
     type Error = io::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        if !self.state.ready_on_poll() {
-            Poll::NotReady
-        } else if task.may_contain(self.read_token) {
-            self.state = State::Polled;
-            if task.may_contain(self.write_token) {
-                Poll::Ok(Some(Ready::ReadWrite))
-            } else {
-                Poll::Ok(Some(Ready::Read))
-            }
-        } else if task.may_contain(self.write_token) {
-            self.state = State::Polled;
-            Poll::Ok(Some(Ready::Write))
-        } else {
-            Poll::NotReady
+        let data = task.handle().get(&self.data).swap(0, Ordering::Relaxed);
+        match data {
+            0 => Poll::NotReady,
+            1 => Poll::Ok(Some(Ready::Read)),
+            2 => Poll::Ok(Some(Ready::Write)),
+            3 => Poll::Ok(Some(Ready::ReadWrite)),
+            _ => panic!(),
         }
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        // TODO: need to update the wake callback
-        if self.state != State::Scheduled {
-            self.state = State::Scheduled;
-            self.loop_handle.schedule(self.io_token, task)
-        }
+        self.loop_handle.schedule(self.io_token, task, self.data)
     }
 }
 

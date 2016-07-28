@@ -1,6 +1,7 @@
 use std::io::{self, ErrorKind, Read, Write};
-use std::sync::Arc;
+use std::mem;
 use std::net::{self, SocketAddr};
+use std::sync::Arc;
 
 use futures::io::Ready;
 use futures::stream::{self, Stream};
@@ -149,6 +150,11 @@ pub struct TcpStream {
     ready: ReadinessStream,
 }
 
+enum TcpStreamNew {
+    Waiting(TcpStream),
+    Empty,
+}
+
 impl LoopHandle {
     /// Create a new TCP listener associated with this event loop.
     ///
@@ -189,21 +195,10 @@ impl TcpStream {
         // If all that succeeded then we ship everything on up.
         let connected_stream = Arc::new(connected_stream);
         ReadinessStream::new(handle, connected_stream.clone()).and_then(|ready| {
-            let source = connected_stream.clone();
-            let connected = ready.skip_while(move |&_| {
-                match source.take_socket_error() {
-                    Ok(()) => Ok(false),
-                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => Ok(true),
-                    Err(e) => Err(e),
-                }
-            });
-            let connected = connected.into_future();
-            connected.map(move |(_, ready)| {
-                TcpStream {
-                    source: connected_stream,
-                    ready: ready.into_inner(),
-                }
-            }).map_err(|(e, _)| e)
+            TcpStreamNew::Waiting(TcpStream {
+                source: connected_stream,
+                ready: ready,
+            })
         }).boxed()
     }
 
@@ -242,6 +237,41 @@ impl TcpStream {
     /// Returns the remote address that this stream is connected to.
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
         self.source.peer_addr()
+    }
+}
+
+impl Future for TcpStreamNew {
+    type Item = TcpStream;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<TcpStream, io::Error> {
+        let mut stream = match mem::replace(self, TcpStreamNew::Empty) {
+            TcpStreamNew::Waiting(s) => s,
+            TcpStreamNew::Empty => panic!("can't poll TCP stream twice"),
+        };
+        match stream.ready.poll(task) {
+            Poll::Ok(None) => panic!(),
+            Poll::Ok(Some(_)) => {
+                match stream.source.take_socket_error() {
+                    Ok(()) => return Poll::Ok(stream),
+                    Err(ref e) if e.kind() == ErrorKind::WouldBlock => {}
+                    Err(e) => return Poll::Err(e),
+                }
+            }
+            Poll::Err(e) => return Poll::Err(e),
+            Poll::NotReady => {}
+        }
+        *self = TcpStreamNew::Waiting(stream);
+        Poll::NotReady
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        match *self {
+            TcpStreamNew::Waiting(ref mut s) => {
+                s.ready.schedule(task);
+            }
+            TcpStreamNew::Empty => task.notify(),
+        }
     }
 }
 

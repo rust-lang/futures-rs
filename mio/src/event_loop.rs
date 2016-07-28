@@ -9,7 +9,7 @@ use std::time::Instant;
 use mio;
 use mio::channel::SendError;
 use slab::Slab;
-use futures::{Future, Task, TaskHandle, Poll};
+use futures::{Future, Task, TaskHandle, TaskNotifyData, Poll};
 use futures::io::Ready;
 
 use slot::{self, Slot};
@@ -56,13 +56,13 @@ struct Scheduled {
 enum Waiter {
     NotReady,
     Ready(Ready),
-    Waiting(TaskHandle),
+    Waiting(TaskHandle, TaskNotifyData<AtomicUsize>),
 }
 
 enum Message {
     AddSource(Source, Arc<Slot<io::Result<usize>>>),
     DropSource(usize),
-    Schedule(usize, TaskHandle),
+    Schedule(usize, TaskHandle, TaskNotifyData<AtomicUsize>),
     Deschedule(usize),
     Shutdown,
 }
@@ -182,12 +182,12 @@ impl Loop {
                 debug!("dispatching {:?} {:?}", event.token(), event.kind());
 
                 CURRENT_LOOP.set(&self, move || {
-                    if let Some((waiter, ready)) = waiter {
+                    if let Some((waiter, data, ready)) = waiter {
                         if ready.is_read() {
-                            waiter.token_ready(2 * token);
+                            waiter.get(&data).fetch_or(1, Ordering::Relaxed);
                         }
                         if ready.is_write() {
-                            waiter.token_ready(2 * token + 1);
+                            waiter.get(&data).fetch_or(2, Ordering::Relaxed);
                         }
                         debug!("notifying");
                         waiter.notify();
@@ -221,18 +221,21 @@ impl Loop {
         deregister(&self.io, &sched);
     }
 
-    fn schedule(&self, token: usize, wake: TaskHandle) {
+    fn schedule(&self,
+                token: usize,
+                wake: TaskHandle,
+                data: TaskNotifyData<AtomicUsize>) {
         let to_call = {
             let mut dispatch = self.dispatch.borrow_mut();
             let sched = dispatch.get_mut(token).unwrap();
-            sched.waiter.block(Some(wake))
+            sched.waiter.block(Some((wake, data)))
         };
-        if let Some((to_call, ready)) = to_call {
+        if let Some((to_call, data, ready)) = to_call {
             if ready.is_read() {
-                to_call.token_ready(2 * token);
+                to_call.get(&data).fetch_or(1, Ordering::Relaxed);
             }
             if ready.is_write() {
-                to_call.token_ready(2 * token + 1);
+                to_call.get(&data).fetch_or(2, Ordering::Relaxed);
             }
             to_call.notify();
         }
@@ -258,7 +261,7 @@ impl Loop {
                     .ok().expect("interference with try_produce");
             }
             Message::DropSource(tok) => self.drop_source(tok),
-            Message::Schedule(tok, wake) => self.schedule(tok, wake),
+            Message::Schedule(tok, wake, data) => self.schedule(tok, wake, data),
             Message::Deschedule(tok) => self.deschedule(tok),
             Message::Shutdown => self.active.set(false),
         }
@@ -266,13 +269,16 @@ impl Loop {
 }
 
 impl Waiter {
-    fn set(&mut self, ready: Ready) -> Option<(TaskHandle, Ready)> {
+    fn set(&mut self, ready: Ready)
+           -> Option<(TaskHandle, TaskNotifyData<AtomicUsize>, Ready)> {
         match *self {
             Waiter::NotReady => *self = Waiter::Ready(ready),
             Waiter::Ready(ref mut r) => *r = *r | ready,
-            Waiter::Waiting(_) => {
+            Waiter::Waiting(..) => {
                 match mem::replace(self, Waiter::NotReady) {
-                    Waiter::Waiting(arc) => return Some((arc, ready)),
+                    Waiter::Waiting(arc, data) => {
+                        return Some((arc, data, ready))
+                    }
                     _ => panic!(),
                 }
             }
@@ -280,18 +286,21 @@ impl Waiter {
         None
     }
 
-    fn block(&mut self, waiter: Option<TaskHandle>)
-             -> Option<(TaskHandle, Ready)> {
+    fn block(&mut self, waiter: Option<(TaskHandle, TaskNotifyData<AtomicUsize>)>)
+             -> Option<(TaskHandle, TaskNotifyData<AtomicUsize>, Ready)> {
         match (&*self, waiter) {
             (&Waiter::NotReady, None) => {}
-            (&Waiter::NotReady, Some(other)) => *self = Waiter::Waiting(other),
             (&Waiter::Ready(_), None) => {}
-            (&Waiter::Ready(ready), Some(other)) => {
+            (&Waiter::Ready(ready), Some((other, data))) => {
                 *self = Waiter::NotReady;
-                return Some((other, ready))
+                return Some((other, data, ready))
             }
             (&Waiter::Waiting(..), None) => *self = Waiter::NotReady,
-            (&Waiter::Waiting(..), Some(other)) => *self = Waiter::Waiting(other),
+
+            (&Waiter::NotReady, Some((other, data))) |
+            (&Waiter::Waiting(..), Some((other, data))) => {
+                *self = Waiter::Waiting(other, data);
+            }
         }
         None
     }
@@ -391,9 +400,12 @@ impl LoopHandle {
     /// This function will panic if the event loop this handle is associated
     /// with has gone away, or if there is an error communicating with the event
     /// loop.
-    pub fn schedule(&self, tok: usize, task: &mut Task) {
+    pub fn schedule(&self,
+                    tok: usize,
+                    task: &mut Task,
+                    data: TaskNotifyData<AtomicUsize>) {
         // TODO: plumb through `&mut Task` if we're on the event loop
-        self.send(Message::Schedule(tok, task.handle().clone()));
+        self.send(Message::Schedule(tok, task.handle().clone(), data));
     }
 
     /// Stop listening for events on an event loop.
@@ -453,8 +465,6 @@ impl LoopHandle {
     }
 }
 
-const ADD_SOURCE_TOKEN: usize = 0;
-
 /// A future which will resolve a unique `tok` token for an I/O object.
 ///
 /// Created through the `LoopHandle::add_source` method, this future can also
@@ -469,12 +479,9 @@ impl Future for AddSource {
     type Item = usize;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<usize, io::Error> {
+    fn poll(&mut self, _task: &mut Task) -> Poll<usize, io::Error> {
         match self.result {
             Some((ref result, ref token)) => {
-                if !task.may_contain(ADD_SOURCE_TOKEN) {
-                    return Poll::NotReady
-                }
                 result.cancel(*token);
                 match result.try_consume() {
                     Ok(t) => t.into(),
@@ -498,7 +505,6 @@ impl Future for AddSource {
             result.cancel(*token);
             let handle = task.handle().clone();
             *token = result.on_full(move |_| {
-                handle.token_ready(ADD_SOURCE_TOKEN);
                 handle.notify();
             });
             return
@@ -507,7 +513,6 @@ impl Future for AddSource {
         let handle = task.handle().clone();
         let result = Arc::new(Slot::new(None));
         let token = result.on_full(move |_| {
-            handle.token_ready(ADD_SOURCE_TOKEN);
             handle.notify();
         });
         self.result = Some((result.clone(), token));
