@@ -9,7 +9,7 @@ use futures::stream::Stream;
 use futures::{store_notify, Future, Task, Poll, TaskNotifyData};
 
 use IoFuture;
-use event_loop::{LoopHandle, Source};
+use event_loop::{IoSource, LoopHandle, Source};
 use readiness_stream::drop_source::DropSource;
 
 
@@ -49,7 +49,8 @@ pub struct ReadinessStream {
 }
 
 impl ReadinessStream {
-    pub fn new(loop_handle: LoopHandle, source: Source)
+    pub fn new(loop_handle: LoopHandle,
+               source: IoSource)
                -> Box<IoFuture<ReadinessStream>> {
         loop_handle.add_source(source).and_then(|token| {
             store_notify(AtomicUsize::new(0)).map(move |data| (token, data))

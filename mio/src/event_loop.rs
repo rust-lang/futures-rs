@@ -14,8 +14,6 @@ use futures::io::Ready;
 
 use slot::{self, Slot};
 
-pub type Source = Arc<mio::Evented + Send + Sync>;
-
 static NEXT_LOOP_ID: AtomicUsize = ATOMIC_USIZE_INIT;
 scoped_thread_local!(static CURRENT_LOOP: Loop);
 
@@ -49,7 +47,7 @@ pub struct LoopHandle {
 }
 
 struct Scheduled {
-    source: Source,
+    source: IoSource,
     waiter: Waiter,
 }
 
@@ -60,17 +58,24 @@ enum Waiter {
 }
 
 enum Message {
-    AddSource(Source, Arc<Slot<io::Result<usize>>>),
+    AddSource(IoSource, Arc<Slot<io::Result<usize>>>),
     DropSource(usize),
     Schedule(usize, TaskHandle, TaskNotifyData<AtomicUsize>),
     Deschedule(usize),
     Shutdown,
 }
 
+pub struct Source<E: ?Sized> {
+    pub readiness: AtomicUsize,
+    pub io: E,
+}
+
+pub type IoSource = Arc<Source<mio::Evented + Sync + Send>>;
+
 fn register(poll: &mio::Poll,
             token: usize,
             sched: &Scheduled) -> io::Result<()> {
-    poll.register(&*sched.source,
+    poll.register(&sched.source.io,
                   mio::Token(token),
                   mio::EventSet::readable() | mio::EventSet::writable(),
                   mio::PollOpt::edge())
@@ -78,7 +83,7 @@ fn register(poll: &mio::Poll,
 
 fn deregister(poll: &mio::Poll, sched: &Scheduled) {
     // TODO: handle error
-    poll.deregister(&*sched.source).unwrap();
+    poll.deregister(&sched.source.io).unwrap();
 }
 
 impl Loop {
@@ -201,7 +206,7 @@ impl Loop {
         }
     }
 
-    fn add_source(&self, source: Source) -> io::Result<usize> {
+    fn add_source(&self, source: IoSource) -> io::Result<usize> {
         let sched = Scheduled {
             source: source,
             waiter: Waiter::NotReady,
@@ -371,7 +376,7 @@ impl LoopHandle {
     /// The returned future will panic if the event loop this handle is
     /// associated with has gone away, or if there is an error communicating
     /// with the event loop.
-    pub fn add_source(&self, source: Source) -> AddSource {
+    pub fn add_source(&self, source: IoSource) -> AddSource {
         AddSource {
             loop_handle: self.clone(),
             source: Some(source),
@@ -379,7 +384,7 @@ impl LoopHandle {
         }
     }
 
-    fn add_source_(&self, source: Source, slot: Arc<Slot<io::Result<usize>>>) {
+    fn add_source_(&self, source: IoSource, slot: Arc<Slot<io::Result<usize>>>) {
         self.send(Message::AddSource(source, slot));
     }
 
@@ -471,7 +476,7 @@ impl LoopHandle {
 /// resolve to an error if there's an issue communicating with the event loop.
 pub struct AddSource {
     loop_handle: LoopHandle,
-    source: Option<Source>,
+    source: Option<IoSource>,
     result: Option<(Arc<Slot<io::Result<usize>>>, slot::Token)>,
 }
 
