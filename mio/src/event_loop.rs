@@ -225,8 +225,7 @@ impl Loop {
 
     fn deschedule(&self, token: usize) {
         let mut dispatch = self.dispatch.borrow_mut();
-        let mut sched = dispatch.get_mut(token).unwrap();
-        assert!(sched.waiter.take().is_none());
+        dispatch.get_mut(token).unwrap();
     }
 
     fn consume_queue(&self) {
