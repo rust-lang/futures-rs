@@ -39,6 +39,15 @@ cfg_if! {
             }), "bad errors: {:?}", errs);
         }
     } else if #[cfg(target_os = "macos")] {
+        extern crate security_framework;
+
+        use security_framework::base::Error as SfError;
+
+        fn assert_bad_hostname_error(err: &Error) {
+            let err = err.get_ref().unwrap();
+            let err = err.downcast_ref::<SfError>().unwrap();
+            assert_eq!(err.message().unwrap(), "invalid certificate chain");
+        }
     } else {
     }
 }

@@ -8,20 +8,14 @@ use self::security_framework::certificate::SecCertificate;
 use self::security_framework::identity::SecIdentity;
 use self::security_framework::secure_transport as st;
 use self::security_framework::trust::TrustResult;
-use futures::{Poll, Task};
+use futures::{Poll, Task, Future};
 use futures::stream::Stream;
 use futures::io::{Ready, ReadyTracker};
 
 pub struct SslStream<S> {
-    state: State<S>,
+    stream: st::SslStream<ReadyTracker<S>>,
     read_wont: Wont,
     write_wont: Wont,
-}
-
-enum State<S> {
-    Handshake(Option<st::MidHandshakeSslStream<ReadyTracker<S>>>,
-              Vec<SecCertificate>),
-    Connected(st::SslStream<ReadyTracker<S>>),
 }
 
 enum Wont {
@@ -56,112 +50,201 @@ impl ClientContext {
         })
     }
 
-    pub fn handshake<S>(mut self,
+    pub fn handshake<S>(self,
                         domain: &str,
-                        stream: S) -> io::Result<SslStream<S>>
+                        stream: S) -> ClientHandshake<S>
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
         let stream = ReadyTracker::new(stream);
-        try!(self.inner.set_peer_domain_name(domain).map_err(translate));
-        SslStream::new(self.inner.handshake(stream), self.certs)
+        let mut inner = self.inner;
+        let res = inner.set_peer_domain_name(domain)
+                       .map_err(st::HandshakeError::Failure)
+                       .and_then(|()| {
+            inner.handshake(stream)
+        });
+        ClientHandshake {
+            inner: Handshake::new(res, self.certs),
+        }
     }
 }
+
 impl ServerContext {
-    pub fn handshake<S>(self, stream: S) -> io::Result<SslStream<S>>
+    pub fn handshake<S>(self, stream: S) -> ServerHandshake<S>
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
         let stream = ReadyTracker::new(stream);
-        SslStream::new(self.inner.handshake(stream), Vec::new())
+        ServerHandshake {
+            inner: Handshake::new(self.inner.handshake(stream), Vec::new()),
+        }
     }
 }
+
+pub struct ClientHandshake<S> {
+    inner: Handshake<S>,
+}
+
+pub struct ServerHandshake<S> {
+    inner: Handshake<S>,
+}
+
+enum Handshake<S> {
+    Error(io::Error),
+    Stream(st::SslStream<ReadyTracker<S>>),
+    Interrupted(st::MidHandshakeSslStream<ReadyTracker<S>>,
+                Vec<SecCertificate>),
+    Empty,
+}
+
+impl<S> Handshake<S> {
+    fn new(res: Result<st::SslStream<ReadyTracker<S>>,
+                       st::HandshakeError<ReadyTracker<S>>>,
+           certs: Vec<SecCertificate>)
+           -> Handshake<S> {
+        match res {
+            Ok(s) => {
+                assert!(certs.len() == 0);
+                Handshake::Stream(s)
+            }
+            Err(st::HandshakeError::Failure(e)) => {
+                Handshake::Error(Error::new(ErrorKind::Other, e))
+            }
+            Err(st::HandshakeError::Interrupted(s)) => {
+                Handshake::Interrupted(s, certs)
+            }
+        }
+    }
+}
+
+impl<S> Future for ClientHandshake<S>
+    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+{
+    type Item = SslStream<S>;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<SslStream<S>, io::Error> {
+        self.inner.poll(task)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.inner.schedule(task)
+    }
+}
+
+impl<S> Future for ServerHandshake<S>
+    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+{
+    type Item = SslStream<S>;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<SslStream<S>, io::Error> {
+        self.inner.poll(task)
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.inner.schedule(task)
+    }
+}
+
+impl<S> Handshake<S> {
+    fn validate_certs(&self,
+                      stream: &st::MidHandshakeSslStream<ReadyTracker<S>>,
+                      certs: &[SecCertificate]) -> io::Result<()> {
+        // Copied from ClientBuilder in secure_transport.rs
+        //
+        // TODO: this should happen when we get an interrupted error during
+        //       read/write.
+        if certs.len() == 0 || !stream.server_auth_completed() {
+            return Ok(())
+        }
+
+        debug!("handshake auth completed, checking for validity");
+        let mut trust = try!(stream.context().peer_trust().map_err(translate));
+        try!(trust.set_anchor_certificates(&certs).map_err(translate));
+        let trusted = try!(trust.evaluate().map_err(translate));
+        match trusted {
+            TrustResult::Proceed |
+            TrustResult::Unspecified => Ok(()),
+            TrustResult::Invalid |
+            TrustResult::OtherError => {
+                Err(Error::new(ErrorKind::Other, "bad ssl request"))
+            }
+            TrustResult::Deny => {
+                Err(Error::new(ErrorKind::Other, "trust setting denied cert"))
+            }
+            TrustResult::RecoverableTrustFailure |
+            TrustResult::FatalTrustFailure => {
+                Err(Error::new(ErrorKind::Other, "not a trusted certificate"))
+            }
+        }
+    }
+}
+
+impl<S> Future for Handshake<S>
+    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+{
+    type Item = SslStream<S>;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<SslStream<S>, io::Error> {
+        let (mut stream, certs) = match mem::replace(self, Handshake::Empty) {
+            Handshake::Error(e) => return Poll::Err(e),
+            Handshake::Empty => panic!("can't poll handshake twice"),
+            Handshake::Stream(s) => return Poll::Ok(SslStream::new(s)),
+            Handshake::Interrupted(s, certs) => (s, certs),
+        };
+
+        if let Err(e) = self.validate_certs(&stream, &certs) {
+            return Poll::Err(e)
+        }
+
+        match stream.get_mut().poll(task) {
+            Poll::Ok(None) => panic!(), // TODO: track this
+            Poll::Err(e) => return Poll::Err(e),
+
+            // We track readiness internally in ReadyTracker, so don't pull it
+            // out, and otherwise just assume we may otherwise be able to make
+            // progress (e.g. we ran the validate certs callback but I/O
+            // otherwise doesn't need to be ready
+            Poll::Ok(Some(_r)) => {}
+            Poll::NotReady => {}
+        }
+
+        // TODO: dedup with Handshake::new
+        match stream.handshake() {
+            Ok(s) => Poll::Ok(SslStream::new(s)),
+            Err(st::HandshakeError::Failure(e)) => {
+                Poll::Err(Error::new(ErrorKind::Other, e))
+            }
+            Err(st::HandshakeError::Interrupted(s)) => {
+                *self = Handshake::Interrupted(s, certs);
+                Poll::NotReady
+            }
+        }
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        match *self {
+            Handshake::Error(_) => task.notify(),
+            Handshake::Empty => task.notify(),
+            Handshake::Stream(_) => task.notify(),
+            // TODO: does this need to take certs and server_auth_completed into
+            //       account?
+            Handshake::Interrupted(ref mut s, _) => s.get_mut().schedule(task),
+        }
+    }
+}
+
 
 fn translate(err: StError) -> Error {
     Error::new(ErrorKind::Other, err)
 }
 
 impl<S> SslStream<S> {
-    fn new(res: Result<st::SslStream<ReadyTracker<S>>,
-                       st::HandshakeError<ReadyTracker<S>>>,
-           certs: Vec<SecCertificate>)
-           -> io::Result<SslStream<S>> {
-        let state = match res {
-            Ok(stream) => State::Connected(stream),
-            Err(st::HandshakeError::Failure(e)) => return Err(translate(e)),
-            Err(st::HandshakeError::Interrupted(s)) => {
-                State::Handshake(Some(s), certs)
-            }
-        };
-        Ok(SslStream {
-            state: state,
+    fn new(stream: st::SslStream<ReadyTracker<S>>) -> SslStream<S> {
+        SslStream {
+            stream: stream,
             read_wont: Wont::Unknown,
             write_wont: Wont::Unknown,
-        })
-    }
-}
-
-impl<S> State<S> {
-    fn get_mut(&mut self) -> Option<&mut ReadyTracker<S>> {
-        match *self {
-            State::Connected(ref mut s) => Some(s.get_mut()),
-            State::Handshake(Some(ref mut s), _) => Some(s.get_mut()),
-            State::Handshake(None, _) => None,
-        }
-    }
-
-    fn handshake(&mut self) -> io::Result<&mut st::SslStream<ReadyTracker<S>>> {
-        let (handshake, certs) = match *self {
-            State::Connected(ref mut s) => return Ok(s),
-            State::Handshake(ref mut s, ref mut certs) => {
-                let s = try!(s.take().ok_or_else(|| {
-                    Error::new(ErrorKind::Other, "handshake failed")
-                }));
-                (s, mem::replace(certs, Vec::new()))
-            }
-        };
-
-        // Copied from ClientBuilder in secure_transport.rs
-        //
-        // TODO: this should happen when we get an interrupted error during
-        //       read/write.
-        if certs.len() > 0 && handshake.server_auth_completed() {
-            debug!("handshake auth completed, checking for validity");
-            let mut trust = try!(handshake.context().peer_trust().map_err(translate));
-            try!(trust.set_anchor_certificates(&certs).map_err(translate));
-            let trusted = try!(trust.evaluate().map_err(translate));
-            match trusted {
-                TrustResult::Proceed |
-                TrustResult::Unspecified => {}
-                TrustResult::Invalid |
-                TrustResult::OtherError => {
-                    return Err(Error::new(ErrorKind::Other, "bad ssl request"))
-                }
-                TrustResult::Deny => {
-                    return Err(Error::new(ErrorKind::Other,
-                                          "trust setting denied cert"))
-                }
-                TrustResult::RecoverableTrustFailure |
-                TrustResult::FatalTrustFailure => {
-                    return Err(Error::new(ErrorKind::Other,
-                                          "not a trusted certificate"))
-                }
-            }
-        }
-
-        match handshake.handshake() {
-            Ok(stream) => {
-                debug!("handshake is now done!");
-                *self = State::Connected(stream);
-                match *self {
-                    State::Connected(ref mut s) => Ok(s),
-                    State::Handshake(_, _) => panic!(),
-                }
-            }
-            Err(st::HandshakeError::Failure(e)) => Err(translate(e)),
-            Err(st::HandshakeError::Interrupted(s)) => {
-                debug!("handshake still not done");
-                *self = State::Handshake(Some(s), certs);
-                Err(Error::new(ErrorKind::WouldBlock, "would block"))
-            }
         }
     }
 }
@@ -185,17 +268,15 @@ impl Wont {
     //       SecureTransport doesn't return that to us we may lose it and poll
     //       too much? Probably needs tests either way in any case.
     fn track<F, S, T>(&mut self,
-                      arg: &mut State<S>,
+                      arg: &mut st::SslStream<ReadyTracker<S>>,
                       f: F) -> io::Result<T>
-        where F: FnOnce(&mut State<S>) -> io::Result<T>,
+        where F: FnOnce(&mut st::SslStream<ReadyTracker<S>>) -> io::Result<T>,
     {
         // First, read the state before we run the operation. If `get_mut`
         // returns `None` then it means the handshake has failed and we just
         // keep going.
-        let (read_before, write_before) = match arg.get_mut() {
-            Some(s) => (s.maybe_read_ready(), s.maybe_write_ready()),
-            None => (false, false),
-        };
+        let read_before = arg.get_ref().maybe_read_ready();
+        let write_before = arg.get_ref().maybe_write_ready();
 
         // Perform the operation, but only extract WouldBlock errors
         let e = match f(arg) {
@@ -207,12 +288,8 @@ impl Wont {
         }
 
         // Look at how the state change, and alter ourselves accordingly.
-        let s = match arg.get_mut() {
-            Some(s) => s,
-            None => return Err(e),
-        };
-        let read_change = read_before != s.maybe_read_ready();
-        let write_change = write_before != s.maybe_write_ready();
+        let read_change = read_before != arg.get_ref().maybe_read_ready();
+        let write_change = write_before != arg.get_ref().maybe_write_ready();
         if read_change && write_change {
             *self = Wont::Both;
         } else if read_change {
@@ -255,10 +332,7 @@ impl<S> Stream for SslStream<S>
     type Error = Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        let inner = match self.state.get_mut() {
-            Some(s) => s,
-            None => return Poll::Ok(Some(Ready::ReadWrite)),
-        };
+        let inner = self.stream.get_mut();
         match inner.poll(task) {
             Poll::Err(e) => return Poll::Err(e),
             Poll::Ok(None) => panic!(),
@@ -281,33 +355,24 @@ impl<S> Stream for SslStream<S>
 
     fn schedule(&mut self, task: &mut Task) {
         if !self.read_wont.notified() || !self.write_wont.notified() {
-            match self.state.get_mut() {
-                Some(s) => s.schedule(task),
-                None => task.notify(),
-            }
+            self.stream.get_mut().schedule(task);
         }
     }
 }
 
 impl<S: Read + Write> Read for SslStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.read_wont.track(&mut self.state, |state| {
-            state.handshake().and_then(|state| state.read(buf))
-        })
+        self.read_wont.track(&mut self.stream, |s| s.read(buf))
     }
 }
 
 impl<S: Read + Write> Write for SslStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.write_wont.track(&mut self.state, |state| {
-            state.handshake().and_then(|state| state.write(buf))
-        })
+        self.write_wont.track(&mut self.stream, |s| s.write(buf))
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.write_wont.track(&mut self.state, |state| {
-            state.handshake().and_then(|state| state.flush())
-        })
+        self.write_wont.track(&mut self.stream, |s| s.flush())
     }
 }
 
@@ -352,25 +417,16 @@ impl ClientContextExt for ::ClientContext {
 }
 
 pub trait SslStreamExt {
-    // returns None on a failed handshake
-    fn ssl_context(&self) -> Option<&st::SslContext>;
-    fn ssl_context_mut(&mut self) -> Option<&mut st::SslContext>;
+    fn ssl_context(&self) -> &st::SslContext;
+    fn ssl_context_mut(&mut self) -> &mut st::SslContext;
 }
 
 impl<S> SslStreamExt for ::SslStream<S> {
-    fn ssl_context(&self) -> Option<&st::SslContext> {
-        match self.inner.state {
-            State::Connected(ref s) => Some(s.context()),
-            State::Handshake(Some(ref s), _) => Some(s.context()),
-            State::Handshake(None, _) => None,
-        }
+    fn ssl_context(&self) -> &st::SslContext {
+        self.inner.stream.context()
     }
 
-    fn ssl_context_mut(&mut self) -> Option<&mut st::SslContext> {
-        match self.inner.state {
-            State::Connected(ref mut s) => Some(s.context_mut()),
-            State::Handshake(Some(ref mut s), _) => Some(s.context_mut()),
-            State::Handshake(None, _) => None,
-        }
+    fn ssl_context_mut(&mut self) -> &mut st::SslContext {
+        self.inner.stream.context_mut()
     }
 }
