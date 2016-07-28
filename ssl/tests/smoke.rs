@@ -25,6 +25,10 @@ cfg_if! {
                      not(target_os = "windows"))))] {
         extern crate openssl;
 
+        use std::fs::File;
+        use std::env;
+        use std::sync::{Once, ONCE_INIT};
+
         use openssl::x509::X509;
         use openssl::crypto::pkey::PKey;
 
@@ -39,11 +43,16 @@ cfg_if! {
             ssl::ServerContext::new(&cert, &key)
         }
 
+        static INIT: Once = ONCE_INIT;
+
         fn configure_client(cx: &mut ssl::ClientContext) {
-            let cert = include_bytes!("server.crt");
-            let cert = t!(X509::from_pem(&mut &cert[..]));
+            let path = t!(env::current_exe());
+            let path = path.parent().unwrap().join("server.crt");
+            INIT.call_once(|| {
+                t!(t!(File::create(&path)).write_all(include_bytes!("server.crt")));
+            });
             let ssl = cx.ssl_context_mut();
-            t!(ssl.set_certificate(&cert));
+            t!(ssl.set_CA_file(&path));
         }
     } else if #[cfg(target_os = "macos")] {
         extern crate security_framework;
