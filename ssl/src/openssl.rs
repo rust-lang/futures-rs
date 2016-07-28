@@ -41,6 +41,7 @@ impl ServerContext {
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
         let res = ssl::SslStream::accept(&self.inner, ReadyTracker::new(stream));
+        debug!("server handshake");
         ServerHandshake {
             inner: Handshake::new(res),
         }
@@ -60,6 +61,7 @@ impl ClientContext {
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
         // see rust-native-tls for the specifics here
+        debug!("client handshake with {:?}", domain);
         let res = self.inner.into_ssl()
                       .map_err(ssl::HandshakeError::SslFailure)
                       .and_then(|mut ssl| {
@@ -145,12 +147,14 @@ impl<S> Future for Handshake<S>
     type Error = io::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<SslStream<S>, io::Error> {
+        debug!("let's see how the handshake went");
         let mut stream = match mem::replace(self, Handshake::Empty) {
             Handshake::Error(e) => return Poll::Err(e),
             Handshake::Empty => panic!("can't poll handshake twice"),
             Handshake::Stream(s) => return Poll::Ok(SslStream::new(s)),
             Handshake::Interrupted(s) => s,
         };
+        debug!("handshake isn't done");
         match stream.get_mut().poll(task) {
             Poll::Ok(None) => panic!(), // TODO: track this
             Poll::Ok(Some(_r)) => {}    // readiness tracked internally
@@ -161,6 +165,7 @@ impl<S> Future for Handshake<S>
             }
         }
 
+        debug!("I/O is ready... somewhere");
         match *stream.error() {
             ssl::Error::WantRead(_) if stream.get_ref().maybe_read_ready() => {}
             ssl::Error::WantWrite(_) if stream.get_ref().maybe_write_ready() => {}
@@ -173,15 +178,19 @@ impl<S> Future for Handshake<S>
         }
 
         // TODO: dedup with Handshake::new
+        debug!("openssl handshake again");
         match stream.handshake() {
             Ok(s) => Poll::Ok(SslStream::new(s)),
             Err(ssl::HandshakeError::Failure(e)) => {
+                debug!("openssl handshake failure: {:?}", e);
                 Poll::Err(Error::new(ErrorKind::Other, e))
             }
             Err(ssl::HandshakeError::SslFailure(e)) => {
+                debug!("openssl handshake ssl failure: {:?}", e);
                 Poll::Err(Error::new(ErrorKind::Other, e))
             }
             Err(ssl::HandshakeError::Interrupted(s)) => {
+                debug!("handshake not completed");
                 *self = Handshake::Interrupted(s);
                 Poll::NotReady
             }
@@ -378,6 +387,7 @@ impl ServerContextExt for ::ServerContext {
         let mut cx = try!(cx_new());
         try!(cx.set_certificate(cert).map_err(translate_ssl));
         try!(cx.set_private_key(key).map_err(translate_ssl));
+        try!(cx.check_private_key().map_err(translate_ssl));
         Ok(::ServerContext { inner: ServerContext { inner: cx } })
     }
 
