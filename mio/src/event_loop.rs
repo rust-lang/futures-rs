@@ -1,6 +1,5 @@
 use std::cell::{Cell, RefCell};
 use std::io::{self, ErrorKind};
-use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::sync::mpsc;
@@ -9,7 +8,7 @@ use std::time::Instant;
 use mio;
 use mio::channel::SendError;
 use slab::Slab;
-use futures::{Future, Task, TaskHandle, TaskNotifyData, Poll};
+use futures::{Future, Task, TaskHandle, Poll};
 use futures::io::Ready;
 
 use slot::{self, Slot};
@@ -48,26 +47,20 @@ pub struct LoopHandle {
 
 struct Scheduled {
     source: IoSource,
-    waiter: Waiter,
-}
-
-enum Waiter {
-    NotReady,
-    Ready(Ready),
-    Waiting(TaskHandle, TaskNotifyData<AtomicUsize>),
+    waiter: Option<TaskHandle>,
 }
 
 enum Message {
     AddSource(IoSource, Arc<Slot<io::Result<usize>>>),
     DropSource(usize),
-    Schedule(usize, TaskHandle, TaskNotifyData<AtomicUsize>),
+    Schedule(usize, TaskHandle),
     Deschedule(usize),
     Shutdown,
 }
 
 pub struct Source<E: ?Sized> {
-    pub readiness: AtomicUsize,
-    pub io: E,
+    readiness: AtomicUsize,
+    io: E,
 }
 
 pub type IoSource = Arc<Source<mio::Evented + Sync + Send>>;
@@ -169,35 +162,22 @@ impl Loop {
                 let mut waiter = None;
 
                 if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
-                    let ready = if event.kind().is_readable() {
-                        if event.kind().is_writable() {
-                            Ready::ReadWrite
-                        } else {
-                            Ready::Read
-                        }
-                    } else {
-                        // TODO: this is probably a bad assert
-                        assert!(event.kind().is_writable());
-                        Ready::Write
-                    };
-                    waiter = sched.waiter.set(ready);
+                    waiter = sched.waiter.take();
+                    if event.kind().is_readable() {
+                        sched.source.readiness.fetch_or(1, Ordering::Relaxed);
+                    }
+                    if event.kind().is_writable() {
+                        sched.source.readiness.fetch_or(2, Ordering::Relaxed);
+                    }
                 } else {
                     debug!("notified on {} which no longer exists", token);
                 }
                 debug!("dispatching {:?} {:?}", event.token(), event.kind());
 
                 CURRENT_LOOP.set(&self, move || {
-                    if let Some((waiter, data, ready)) = waiter {
-                        if ready.is_read() {
-                            waiter.get(&data).fetch_or(1, Ordering::Relaxed);
-                        }
-                        if ready.is_write() {
-                            waiter.get(&data).fetch_or(2, Ordering::Relaxed);
-                        }
-                        debug!("notifying");
-                        waiter.notify();
-                    } else {
-                        debug!("no waiter");
+                    match waiter {
+                        Some(waiter) => waiter.notify(),
+                        None => debug!("no waiter"),
                     }
                 });
             }
@@ -209,7 +189,7 @@ impl Loop {
     fn add_source(&self, source: IoSource) -> io::Result<usize> {
         let sched = Scheduled {
             source: source,
-            waiter: Waiter::NotReady,
+            waiter: None,
         };
         let mut dispatch = self.dispatch.borrow_mut();
         if dispatch.vacant_entry().is_none() {
@@ -226,30 +206,27 @@ impl Loop {
         deregister(&self.io, &sched);
     }
 
-    fn schedule(&self,
-                token: usize,
-                wake: TaskHandle,
-                data: TaskNotifyData<AtomicUsize>) {
+    fn schedule(&self, token: usize, wake: TaskHandle) {
         let to_call = {
             let mut dispatch = self.dispatch.borrow_mut();
             let sched = dispatch.get_mut(token).unwrap();
-            sched.waiter.block(Some((wake, data)))
+            if sched.source.readiness.load(Ordering::Relaxed) != 0 {
+                sched.waiter = None;
+                Some(wake)
+            } else {
+                sched.waiter = Some(wake);
+                None
+            }
         };
-        if let Some((to_call, data, ready)) = to_call {
-            if ready.is_read() {
-                to_call.get(&data).fetch_or(1, Ordering::Relaxed);
-            }
-            if ready.is_write() {
-                to_call.get(&data).fetch_or(2, Ordering::Relaxed);
-            }
+        if let Some(to_call) = to_call {
             to_call.notify();
         }
     }
 
     fn deschedule(&self, token: usize) {
         let mut dispatch = self.dispatch.borrow_mut();
-        let sched = dispatch.get_mut(token).unwrap();
-        assert!(sched.waiter.block(None).is_none());
+        let mut sched = dispatch.get_mut(token).unwrap();
+        assert!(sched.waiter.take().is_none());
     }
 
     fn consume_queue(&self) {
@@ -266,48 +243,10 @@ impl Loop {
                     .ok().expect("interference with try_produce");
             }
             Message::DropSource(tok) => self.drop_source(tok),
-            Message::Schedule(tok, wake, data) => self.schedule(tok, wake, data),
+            Message::Schedule(tok, wake) => self.schedule(tok, wake),
             Message::Deschedule(tok) => self.deschedule(tok),
             Message::Shutdown => self.active.set(false),
         }
-    }
-}
-
-impl Waiter {
-    fn set(&mut self, ready: Ready)
-           -> Option<(TaskHandle, TaskNotifyData<AtomicUsize>, Ready)> {
-        match *self {
-            Waiter::NotReady => *self = Waiter::Ready(ready),
-            Waiter::Ready(ref mut r) => *r = *r | ready,
-            Waiter::Waiting(..) => {
-                match mem::replace(self, Waiter::NotReady) {
-                    Waiter::Waiting(arc, data) => {
-                        return Some((arc, data, ready))
-                    }
-                    _ => panic!(),
-                }
-            }
-        }
-        None
-    }
-
-    fn block(&mut self, waiter: Option<(TaskHandle, TaskNotifyData<AtomicUsize>)>)
-             -> Option<(TaskHandle, TaskNotifyData<AtomicUsize>, Ready)> {
-        match (&*self, waiter) {
-            (&Waiter::NotReady, None) => {}
-            (&Waiter::Ready(_), None) => {}
-            (&Waiter::Ready(ready), Some((other, data))) => {
-                *self = Waiter::NotReady;
-                return Some((other, data, ready))
-            }
-            (&Waiter::Waiting(..), None) => *self = Waiter::NotReady,
-
-            (&Waiter::NotReady, Some((other, data))) |
-            (&Waiter::Waiting(..), Some((other, data))) => {
-                *self = Waiter::Waiting(other, data);
-            }
-        }
-        None
     }
 }
 
@@ -405,12 +344,9 @@ impl LoopHandle {
     /// This function will panic if the event loop this handle is associated
     /// with has gone away, or if there is an error communicating with the event
     /// loop.
-    pub fn schedule(&self,
-                    tok: usize,
-                    task: &mut Task,
-                    data: TaskNotifyData<AtomicUsize>) {
+    pub fn schedule(&self, tok: usize, task: &mut Task) {
         // TODO: plumb through `&mut Task` if we're on the event loop
-        self.send(Message::Schedule(tok, task.handle().clone(), data));
+        self.send(Message::Schedule(tok, task.handle().clone()));
     }
 
     /// Stop listening for events on an event loop.
@@ -522,5 +458,30 @@ impl Future for AddSource {
         });
         self.result = Some((result.clone(), token));
         self.loop_handle.add_source_(self.source.take().unwrap(), result);
+    }
+}
+
+impl<E> Source<E> {
+    pub fn new(e: E) -> Source<E> {
+        Source {
+            readiness: AtomicUsize::new(0),
+            io: e,
+        }
+    }
+}
+
+impl<E: ?Sized> Source<E> {
+    pub fn take_readiness(&self) -> Option<Ready> {
+        match self.readiness.swap(0, Ordering::SeqCst) {
+            0 => None,
+            1 => Some(Ready::Read),
+            2 => Some(Ready::Write),
+            3 => Some(Ready::ReadWrite),
+            _ => panic!(),
+        }
+    }
+
+    pub fn io(&self) -> &E {
+        &self.io
     }
 }

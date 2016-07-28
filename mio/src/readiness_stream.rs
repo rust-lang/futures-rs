@@ -2,14 +2,13 @@
 
 use std::io;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures::io::Ready;
 use futures::stream::Stream;
-use futures::{store_notify, Future, Task, Poll, TaskNotifyData};
+use futures::{Future, Task, Poll};
 
 use IoFuture;
-use event_loop::{IoSource, LoopHandle, Source};
+use event_loop::{IoSource, LoopHandle};
 use readiness_stream::drop_source::DropSource;
 
 
@@ -43,22 +42,19 @@ mod drop_source {
 
 pub struct ReadinessStream {
     io_token: usize,
-    data: TaskNotifyData<AtomicUsize>,
     loop_handle: LoopHandle,
+    source: IoSource,
     _drop_source: Arc<DropSource>,
 }
 
 impl ReadinessStream {
-    pub fn new(loop_handle: LoopHandle,
-               source: IoSource)
+    pub fn new(loop_handle: LoopHandle, source: IoSource)
                -> Box<IoFuture<ReadinessStream>> {
-        loop_handle.add_source(source).and_then(|token| {
-            store_notify(AtomicUsize::new(0)).map(move |data| (token, data))
-        }).map(|(token, data)| {
+        loop_handle.add_source(source.clone()).map(|token| {
             let drop_source = Arc::new(DropSource::new(token, loop_handle.clone()));
             ReadinessStream {
                 io_token: token,
-                data: data,
+                source: source,
                 loop_handle: loop_handle,
                 _drop_source: drop_source,
             }
@@ -70,19 +66,15 @@ impl Stream for ReadinessStream {
     type Item = Ready;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        let data = task.handle().get(&self.data).swap(0, Ordering::Relaxed);
-        match data {
-            0 => Poll::NotReady,
-            1 => Poll::Ok(Some(Ready::Read)),
-            2 => Poll::Ok(Some(Ready::Write)),
-            3 => Poll::Ok(Some(Ready::ReadWrite)),
-            _ => panic!(),
+    fn poll(&mut self, _task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        match self.source.take_readiness() {
+            None => Poll::NotReady,
+            Some(r) => Poll::Ok(Some(r)),
         }
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        self.loop_handle.schedule(self.io_token, task, self.data)
+        self.loop_handle.schedule(self.io_token, task)
     }
 }
 
