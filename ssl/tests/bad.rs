@@ -44,12 +44,6 @@ cfg_if! {
         use verify_failed as assert_wrong_host;
         use verify_failed as assert_self_signed;
         use verify_failed as assert_untrusted_root;
-
-        fn assert_dh_too_small(err: &Error) {
-            assert!(get(err).iter().any(|e| {
-                e.reason() == "dh key too small"
-            }), "bad errors: {:?}", err);
-        }
     } else if #[cfg(target_os = "macos")] {
         extern crate security_framework;
 
@@ -65,12 +59,6 @@ cfg_if! {
         use assert_invalid_cert_chain as assert_wrong_host;
         use assert_invalid_cert_chain as assert_self_signed;
         use assert_invalid_cert_chain as assert_untrusted_root;
-
-        fn assert_dh_too_small(err: &Error) {
-            let err = err.get_ref().unwrap();
-            let err = err.downcast_ref::<SfError>().unwrap();
-            assert_eq!(err.message().unwrap(), "handshake failure");
-        }
     } else {
         extern crate winapi;
 
@@ -92,11 +80,6 @@ cfg_if! {
         fn assert_untrusted_root(err: &Error) {
             let code = err.raw_os_error().unwrap();
             assert_eq!(code as usize, winapi::CERT_E_UNTRUSTEDROOT as usize);
-        }
-
-        fn assert_dh_too_small(err: &Error) {
-            let code = err.raw_os_error().unwrap();
-            assert_eq!(code as usize, winapi::SEC_E_INTERNAL_ERROR as usize);
         }
     }
 }
@@ -136,9 +119,4 @@ fn self_signed() {
 #[test]
 fn untrusted_root() {
     assert_untrusted_root(&get_host("untrusted-root.badssl.com"))
-}
-
-#[test]
-fn dh_too_small() {
-    assert_dh_too_small(&get_host("dh480.badssl.com"))
 }
