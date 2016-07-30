@@ -76,7 +76,7 @@ cfg_if! {
 
         fn assert_expired_error(err: &Error) {
             let code = err.raw_os_error().unwrap();
-            assert_eq!(code as usize, winapi::CERT_E_CN_NO_MATCH as usize);
+            assert_eq!(code as usize, winapi::CERT_E_EXPIRED as usize);
         }
 
         fn assert_wrong_host(err: &Error) {
@@ -86,17 +86,17 @@ cfg_if! {
 
         fn assert_self_signed(err: &Error) {
             let code = err.raw_os_error().unwrap();
-            assert_eq!(code as usize, winapi::CERT_E_CN_NO_MATCH as usize);
+            assert_eq!(code as usize, winapi::CERT_E_UNTRUSTEDROOT as usize);
         }
 
         fn assert_untrusted_root(err: &Error) {
             let code = err.raw_os_error().unwrap();
-            assert_eq!(code as usize, winapi::CERT_E_CN_NO_MATCH as usize);
+            assert_eq!(code as usize, winapi::CERT_E_UNTRUSTEDROOT as usize);
         }
 
         fn assert_dh_too_small(err: &Error) {
             let code = err.raw_os_error().unwrap();
-            assert_eq!(code as usize, winapi::CERT_E_CN_NO_MATCH as usize);
+            assert_eq!(code as usize, winapi::SEC_E_INTERNAL_ERROR as usize);
         }
     }
 }
