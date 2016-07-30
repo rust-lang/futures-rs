@@ -155,6 +155,7 @@ impl Loop {
                 let token = usize::from(event.token());
 
                 if token == 0 {
+                    debug!("consuming notification queue");
                     self.consume_queue();
                     continue
                 }
@@ -184,6 +185,8 @@ impl Loop {
 
             debug!("loop process - {} events, {:?}", amt, start.elapsed());
         }
+
+        debug!("loop is done!");
     }
 
     fn add_source(&self, source: IoSource) -> io::Result<usize> {
