@@ -86,6 +86,8 @@ fn fetch_google() {
     assert!(data.ends_with(b"</html>"));
 }
 
+// see comment in bad.rs for ignore reason
+#[cfg_attr(all(target_os = "macos", feature = "force-openssl"), ignore)]
 #[test]
 fn wrong_hostname_error() {
     drop(env_logger::init());
