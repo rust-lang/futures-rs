@@ -19,6 +19,7 @@ macro_rules! t {
 
 #[test]
 fn echo_server() {
+    const N: usize = 1024;
     drop(env_logger::init());
 
     let mut l = t!(futuremio::Loop::new());
@@ -32,13 +33,13 @@ fn echo_server() {
 
         let t2 = thread::spawn(move || {
             let mut s = t!(TcpStream::connect(&addr));
-            let mut b = Vec::new();
-            t!(s.read_to_end(&mut b));
+            let mut b = vec![0; msg.len() * N];
+            t!(s.read_exact(&mut b));
             b
         });
 
         let mut expected = Vec::<u8>::new();
-        for _i in 0..1024 {
+        for _i in 0..N {
             expected.extend(msg.as_bytes());
             assert_eq!(t!(s.write(msg.as_bytes())), msg.len());
         }
