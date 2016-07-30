@@ -1,8 +1,6 @@
 environment:
   matrix:
   - TARGET: x86_64-pc-windows-msvc
-init:
-- ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 install:
   - ps: Import-Certificate -FilePath ssl/tests/schannel-ca.crt -CertStoreLocation 'Cert:\LocalMachine\Root' -Verbose
   - curl -sSf -o rustup-init.exe https://win.rustup.rs/
@@ -18,5 +16,3 @@ test_script:
   - cargo test --manifest-path mio/Cargo.toml
   - cargo build --manifest-path http/Cargo.toml
   - cargo test --manifest-path ssl/Cargo.toml
-on_finish:
-- ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
