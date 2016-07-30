@@ -7,8 +7,6 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 futures = { path = ".." }
 cfg-if = "0.1"
 log = "0.3"
-openssl = { version = "0.7", optional = true }
-openssl-verify = { version = "0.1", optional = true }
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 openssl = "0.7"
