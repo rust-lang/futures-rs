@@ -55,34 +55,21 @@ cfg_if! {
 
         use security_framework::base::Error as SfError;
 
-        fn assert_expired_error(err: &Error) {
+        fn assert_invalid_cert_chain(err: &Error) {
             let err = err.get_ref().unwrap();
             let err = err.downcast_ref::<SfError>().unwrap();
             assert_eq!(err.message().unwrap(), "invalid certificate chain");
         }
 
-        fn assert_wrong_host(err: &Error) {
-            let err = err.get_ref().unwrap();
-            let err = err.downcast_ref::<SfError>().unwrap();
-            assert_eq!(err.message().unwrap(), "invalid certificate chain");
-        }
-
-        fn assert_self_signed(err: &Error) {
-            let err = err.get_ref().unwrap();
-            let err = err.downcast_ref::<SfError>().unwrap();
-            assert_eq!(err.message().unwrap(), "invalid certificate chain");
-        }
-
-        fn assert_untrusted_root(err: &Error) {
-            let err = err.get_ref().unwrap();
-            let err = err.downcast_ref::<SfError>().unwrap();
-            assert_eq!(err.message().unwrap(), "invalid certificate chain");
-        }
+        use assert_invalid_cert_chain as assert_expired_error;
+        use assert_invalid_cert_chain as assert_wrong_host;
+        use assert_invalid_cert_chain as assert_self_signed;
+        use assert_invalid_cert_chain as assert_untrusted_root;
 
         fn assert_dh_too_small(err: &Error) {
             let err = err.get_ref().unwrap();
             let err = err.downcast_ref::<SfError>().unwrap();
-            assert_eq!(err.message().unwrap(), "invalid certificate chain");
+            assert_eq!(err.message().unwrap(), "handshake failure");
         }
     } else {
         extern crate winapi;
