@@ -133,6 +133,23 @@ pub trait Future: Send + 'static {
     /// task-local variables which the future may have stored references to
     /// internally.
     ///
+    /// # Runtime characteristics
+    ///
+    /// This function, `poll`, is the primary method for 'making progress'
+    /// within a tree of futures. For example this method will be called
+    /// repeatedly as the internal state machine makes its various transitions.
+    /// Additionally, this function may not necessarily have many guarantees
+    /// about *where* it's run (e.g. always on an I/O thread or not). Unless it
+    /// is otherwise arranged to be so, it should be ensured that
+    /// **implementations of this function finish very quickly**.
+    ///
+    /// This prevents unnecessarily clogging up threads and/or event loops while
+    /// a `poll` function call, for example, takes up compute resources to
+    /// perform some expensive computation. If it is known ahead of time that a
+    /// call to `poll` may end up taking awhile, the work should be offloaded to
+    /// a thread pool (or something similar) to ensure that `poll` can return
+    /// quickly.
+    ///
     /// # Return value
     ///
     /// This function returns `Poll::NotReady` if the future is not ready yet,
