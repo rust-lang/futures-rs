@@ -1,0 +1,34 @@
+[package]
+name = "futures-tls"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+cfg-if = "0.1"
+futures = { path = ".." }
+futures-io = { path = "../futures-io" }
+log = "0.3"
+
+# Optional dependency that can be enabled with the `force-openssl` feature
+openssl = { version = "0.7", optional = true }
+openssl-verify = { version = "0.1", optional = true }
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
+openssl = "0.7"
+openssl-verify = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+schannel = { git = "https://github.com/alexcrichton/schannel-rs", branch = "fixups" }
+
+[target.'cfg(windows)'.dev-dependencies]
+winapi = "0.2"
+
+[dev-dependencies]
+futures-mio = { path = "../futures-mio" }
+env_logger = "0.3"
+
+[features]
+force-openssl = ["openssl", "openssl-verify"]

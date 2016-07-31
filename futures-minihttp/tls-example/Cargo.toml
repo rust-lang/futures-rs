@@ -1,0 +1,10 @@
+[package]
+name = "tls-example"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+futures = { path = "../.." }
+futures-minihttp = { path = ".." }
+futures-tls = { path = "../../futures-tls", features = ["force-openssl"] }
+openssl = "0.7"

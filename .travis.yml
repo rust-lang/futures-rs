@@ -6,16 +6,17 @@ before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 script:
   - cargo test
-  - cargo test --manifest-path mio/Cargo.toml
-  - cargo build --manifest-path http/Cargo.toml
-  - cargo build --manifest-path http/ssl-example/Cargo.toml
-  - cargo test --manifest-path ssl/Cargo.toml
-  - cargo test --manifest-path ssl/Cargo.toml --features force-openssl
+  - cargo test --manifest-path futures-io/Cargo.toml
+  - cargo test --manifest-path futures-mio/Cargo.toml
+  - cargo test --manifest-path futures-tls/Cargo.toml
+  - cargo test --manifest-path futures-tls/Cargo.toml --features force-openssl
+  - cargo test --manifest-path futures-minihttp/Cargo.toml
+  - cargo test --manifest-path futures-minihttp/tls-example/Cargo.toml
 
   - cargo doc --no-deps
-  - cargo doc --no-deps --manifest-path mio/Cargo.toml
-  - cargo doc --no-deps --manifest-path http/Cargo.toml
-  - cargo doc --no-deps --manifest-path ssl/Cargo.toml
+  - cargo doc --no-deps --manifest-path futures-io/Cargo.toml
+  - cargo doc --no-deps --manifest-path futures-mio/Cargo.toml
+  - cargo doc --no-deps --manifest-path futures-tls/Cargo.toml
 after_success:
   - travis-cargo --only nightly doc-upload
   - travis-cargo coveralls --no-sudo

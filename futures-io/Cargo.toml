@@ -1,0 +1,8 @@
+[package]
+name = "futures-io"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+futures = { path = ".." }
+log = "0.3"

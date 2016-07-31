@@ -4,7 +4,14 @@ version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 
 [workspace]
-members = ["ssl", "mio", "http", "tokio", "http/ssl-example"]
+members = [
+  "futures-tls",
+  "futures-io",
+  "futures-mio",
+  "futures-minihttp",
+  "futures-minihttp/tls-example",
+  "ferry",
+]
 
 [dependencies]
 log = "0.3"

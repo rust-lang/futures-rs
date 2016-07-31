@@ -13,6 +13,7 @@ build: false
 
 test_script:
   - cargo test
-  - cargo test --manifest-path mio/Cargo.toml
-  - cargo build --manifest-path http/Cargo.toml
-  - cargo test --manifest-path ssl/Cargo.toml
+  - cargo test --manifest-path futures-io/Cargo.toml
+  - cargo test --manifest-path futures-mio/Cargo.toml
+  - cargo test --manifest-path futures-tls/Cargo.toml
+  - cargo test --manifest-path futures-minihttp/Cargo.toml

@@ -67,9 +67,6 @@ pub use then::Then;
 // streams
 pub mod stream;
 
-// io
-pub mod io;
-
 // impl details
 mod chain;
 mod impls;
