@@ -26,9 +26,6 @@ members = [
 [dependencies]
 log = "0.3"
 
-[dev-dependencies]
-support = { path = "tests/support", version = "0.1.0" }
-
 [replace."openssl:0.7.14"]
 git = "https://github.com/alexcrichton/rust-openssl"
 branch = "mid-handshake"

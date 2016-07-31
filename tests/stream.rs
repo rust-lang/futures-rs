@@ -1,8 +1,9 @@
-extern crate support;
 extern crate futures;
 
 use futures::{failed, finished, Future, promise};
 use futures::stream::*;
+
+mod support;
 use support::*;
 
 // #[test]

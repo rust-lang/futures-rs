@@ -1,9 +1,10 @@
 extern crate futures;
-extern crate support;
 
 use std::sync::mpsc::{channel, TryRecvError};
 
 use futures::*;
+
+mod support;
 use support::*;
 
 fn unselect<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {

@@ -1,4 +1,4 @@
-extern crate futures;
+#![allow(dead_code)]
 
 use std::fmt;
 use futures::*;
