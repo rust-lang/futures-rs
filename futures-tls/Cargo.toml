@@ -2,11 +2,20 @@
 name = "futures-tls"
 version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/alexcrichton/futures-rs"
+homepage = "https://github.com/alexcrichton/futures-rs"
+documentation = "http://alexcrichton.com/futures-rs/futures_tls/"
+description = """
+An implementation of TLS/SSL streams on top of the `futures_io` crate giving an
+implementation of TLS for nonblocking I/O streams.
+"""
 
 [dependencies]
 cfg-if = "0.1"
-futures = { path = ".." }
-futures-io = { path = "../futures-io" }
+futures = { path = "..", version = "0.1.0" }
+futures-io = { path = "../futures-io", version = "0.1.0" }
 log = "0.3"
 
 # Optional dependency that can be enabled with the `force-openssl` feature
@@ -27,7 +36,7 @@ schannel = { git = "https://github.com/alexcrichton/schannel-rs", branch = "fixu
 winapi = "0.2"
 
 [dev-dependencies]
-futures-mio = { path = "../futures-mio" }
+futures-mio = { path = "../futures-mio", version = "0.1.0" }
 env_logger = "0.3"
 
 [features]
