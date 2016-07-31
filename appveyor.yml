@@ -2,7 +2,7 @@ environment:
   matrix:
   - TARGET: x86_64-pc-windows-msvc
 install:
-  - ps: Import-Certificate -FilePath ssl/tests/schannel-ca.crt -CertStoreLocation 'Cert:\LocalMachine\Root' -Verbose
+  - ps: Import-Certificate -FilePath futures-tls/tests/schannel-ca.crt -CertStoreLocation 'Cert:\LocalMachine\Root' -Verbose
   - curl -sSf -o rustup-init.exe https://win.rustup.rs/
   - rustup-init.exe -y --default-host %TARGET% --default-toolchain nightly
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
