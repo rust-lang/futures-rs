@@ -48,6 +48,10 @@ impl ServerContext {
     }
 }
 
+fn stack2handshake<S>(err: openssl::error::ErrorStack) -> ssl::HandshakeError<S> {
+    ssl::HandshakeError::Failure(ssl::error::Error::Ssl(err))
+}
+
 impl ClientContext {
     pub fn new() -> io::Result<ClientContext> {
         let mut cx = try!(cx_new());
@@ -63,9 +67,9 @@ impl ClientContext {
         // see rust-native-tls for the specifics here
         debug!("client handshake with {:?}", domain);
         let res = self.inner.into_ssl()
-                      .map_err(ssl::HandshakeError::SslFailure)
+                      .map_err(stack2handshake)
                       .and_then(|mut ssl| {
-            try!(ssl.set_hostname(domain).map_err(ssl::HandshakeError::SslFailure));
+            try!(ssl.set_hostname(domain).map_err(stack2handshake));
             let domain = domain.to_owned();
             ssl.set_verify_callback(SSL_VERIFY_PEER, move |p, x| {
                 verify_callback(&domain, p, x)
@@ -98,9 +102,6 @@ impl<S> Handshake<S> {
         match res {
             Ok(s) => Handshake::Stream(s),
             Err(ssl::HandshakeError::Failure(e)) => {
-                Handshake::Error(Error::new(ErrorKind::Other, e))
-            }
-            Err(ssl::HandshakeError::SslFailure(e)) => {
                 Handshake::Error(Error::new(ErrorKind::Other, e))
             }
             Err(ssl::HandshakeError::Interrupted(s)) => {
@@ -185,10 +186,6 @@ impl<S> Future for Handshake<S>
                 debug!("openssl handshake failure: {:?}", e);
                 Poll::Err(Error::new(ErrorKind::Other, e))
             }
-            Err(ssl::HandshakeError::SslFailure(e)) => {
-                debug!("openssl handshake ssl failure: {:?}", e);
-                Poll::Err(Error::new(ErrorKind::Other, e))
-            }
             Err(ssl::HandshakeError::Interrupted(s)) => {
                 debug!("handshake not completed");
                 *self = Handshake::Interrupted(s);
@@ -207,7 +204,7 @@ impl<S> Future for Handshake<S>
     }
 }
 
-fn translate_ssl(err: ssl::error::SslError) -> Error {
+fn translate_ssl(err: openssl::error::ErrorStack) -> Error {
     Error::new(io::ErrorKind::Other, err)
 }
 

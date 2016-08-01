@@ -36,7 +36,7 @@ cfg_if! {
                 ossl::Error::Ssl(ref v) => v,
                 ref e => panic!("not an ssl eror: {:?}", e),
             };
-            assert!(errs.iter().any(|e| {
+            assert!(errs.errors().iter().any(|e| {
                 e.reason() == "certificate verify failed"
             }), "bad errors: {:?}", errs);
         }

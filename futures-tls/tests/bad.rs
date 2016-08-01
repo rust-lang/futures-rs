@@ -25,9 +25,7 @@ cfg_if! {
                      not(target_os = "windows"))))] {
         extern crate openssl;
 
-        use openssl::ssl as ossl;
-
-        fn get(err: &Error) -> &[ossl::error::OpenSslError] {
+        fn get(err: &Error) -> &openssl::error::ErrorStack {
             let err = err.get_ref().unwrap();
             match *err.downcast_ref::<ossl::error::Error>().unwrap() {
                 ossl::Error::Ssl(ref v) => v,
@@ -36,7 +34,7 @@ cfg_if! {
         }
 
         fn verify_failed(err: &Error) {
-            assert!(get(err).iter().any(|e| {
+            assert!(get(err).errors().iter().any(|e| {
                 e.reason() == "certificate verify failed"
             }), "bad errors: {:?}", err);
         }

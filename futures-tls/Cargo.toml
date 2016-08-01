@@ -29,7 +29,7 @@ openssl-verify = "0.1"
 security-framework = "0.1"
 
 [target.'cfg(windows)'.dependencies]
-schannel = { git = "https://github.com/alexcrichton/schannel-rs", branch = "fixups" }
+schannel = { git = "https://github.com/steffengy/schannel-rs" }
 
 [target.'cfg(windows)'.dev-dependencies]
 winapi = "0.2"
