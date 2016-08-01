@@ -27,5 +27,5 @@ members = [
 log = "0.3"
 
 [replace."openssl:0.7.14"]
-git = "https://github.com/alexcrichton/rust-openssl"
-branch = "mid-handshake"
+git = "https://github.com/sfackler/rust-openssl"
+branch = "breaks"
