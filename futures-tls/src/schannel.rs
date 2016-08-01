@@ -24,11 +24,10 @@ impl ServerContext {
     pub fn handshake<S>(mut self, stream: S) -> ServerHandshake<S>
         where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
     {
-        self.stream.accept(true);
         let res = self.cred.acquire(Direction::Inbound);
         let res = res.map_err(HandshakeError::Failure);
         let res = res.and_then(|cred| {
-            self.stream.initialize(cred, stream)
+            self.stream.accept(cred, stream)
         });
         ServerHandshake { inner: Handshake::new(res) }
     }
@@ -51,7 +50,7 @@ impl ClientContext {
         let res = self.cred.acquire(Direction::Outbound);
         let res = res.map_err(HandshakeError::Failure);
         let res = res.and_then(|cred| {
-            self.stream.domain(domain).initialize(cred, stream)
+            self.stream.domain(domain).connect(cred, stream)
         });
         ClientHandshake { inner: Handshake::new(res) }
     }

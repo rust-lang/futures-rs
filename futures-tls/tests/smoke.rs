@@ -113,8 +113,9 @@ cfg_if! {
         fn server_cx() -> io::Result<ServerContext> {
             let mut cx = ServerContext::new();
             let pkcs12 = include_bytes!("server.p12");
-            let mut store = CertStore::import_pkcs12(pkcs12, "foobar").unwrap();
-            let cert = store.iter().next().unwrap();
+            let mut store = CertStore::import_pkcs12(pkcs12, Some("foobar"))
+                                      .unwrap();
+            let cert = store.certs().next().unwrap();
             cx.schannel_cred().cert(cert);
             Ok(cx)
         }
