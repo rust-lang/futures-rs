@@ -25,10 +25,12 @@ cfg_if! {
                      not(target_os = "windows"))))] {
         extern crate openssl;
 
+        use openssl::ssl;
+
         fn get(err: &Error) -> &openssl::error::ErrorStack {
             let err = err.get_ref().unwrap();
-            match *err.downcast_ref::<ossl::error::Error>().unwrap() {
-                ossl::Error::Ssl(ref v) => v,
+            match *err.downcast_ref::<ssl::error::Error>().unwrap() {
+                ssl::Error::Ssl(ref v) => v,
                 ref e => panic!("not an ssl eror: {:?}", e),
             }
         }
