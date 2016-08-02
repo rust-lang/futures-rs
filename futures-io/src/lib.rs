@@ -35,7 +35,7 @@ macro_rules! try_nb {
     ($e:expr) => (match $e {
         Ok(e) => Some(e),
         Err(ref e) if e.kind() == ::std::io::ErrorKind::WouldBlock => None,
-        Err(e) => return Err(::std::convert::From(e)),
+        Err(e) => return Err(::std::convert::From::from(e)),
     })
 }
 

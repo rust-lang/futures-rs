@@ -17,8 +17,8 @@ use std::thread;
 
 use futures::Future;
 use futures::stream::Stream;
-use futures_io::{TaskIo, Ready};
-use futures_mio::{Loop, LoopHandle, TcpStream, TcpListener, IoFuture};
+use futures_io::{TaskIo, Ready, IoFuture};
+use futures_mio::{Loop, LoopHandle, TcpStream, TcpListener};
 use futures_tls::ServerContext;
 
 mod request;
