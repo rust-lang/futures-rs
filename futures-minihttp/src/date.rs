@@ -62,6 +62,7 @@ impl LastRenderedNow {
         self.amt = 0;
         write!(LocalBuffer(self), "{}", time::at(now).rfc822()).unwrap();
         self.next_update = now + Duration::seconds(1);
+        self.next_update.nsec = 0;
     }
 }
 
