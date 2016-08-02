@@ -70,7 +70,7 @@ pub use self::ready_tracker::ReadyTracker;
 pub use self::repeat::{repeat, Repeat};
 pub use self::sink::{sink, Sink};
 pub use self::take::{take, Take};
-pub use self::task::TaskIo;
+pub use self::task::{TaskIo, TaskIoRead, TaskIoWrite};
 
 /// Readiness notifications that a stream can deliver.
 ///
