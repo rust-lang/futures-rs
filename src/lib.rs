@@ -7,6 +7,10 @@
 //! The documentation of this library is also very much a work in progress, but
 //! if anything is unclear please open an issue and hopefully it'll be
 //! documented quickly!
+//!
+//! For more information, see the [README for now][readme]
+//!
+//! [readme]: https://github.com/alexcrichton/futures-rs#futures-rs
 
 #![deny(missing_docs)]
 

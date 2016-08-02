@@ -5,10 +5,17 @@ use futures::stream::Stream;
 
 use Ready;
 
+/// An I/O object of an infinite stream of bytes that's always ready to read.
+///
+/// Created by the `repeat` function.
 pub struct Repeat {
     byte: u8,
 }
 
+/// Creates an I/O combinator which is always ready for reading, and infinitely
+/// yields a stream of bytes corresopnding to the value provided here.
+///
+/// This is similar to the standard library's `io::repeat` combinator as well.
 pub fn repeat(byte: u8) -> Repeat {
     Repeat { byte: byte }
 }

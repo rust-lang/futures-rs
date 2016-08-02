@@ -5,12 +5,20 @@ use futures::stream::Stream;
 
 use Ready;
 
+/// An I/O combinator which will read all bytes from one stream and then the
+/// next.
+///
+/// Created by the `chain` function.
 pub struct Chain<A, B> {
     a: A,
     b: B,
     first: bool,
 }
 
+/// Chains one I/O stream onto another.
+///
+/// Creates a new I/O object which will read all the bytes from `a` and then all
+/// the bytes from `b` once it's hit EOF.
 pub fn chain<A, B>(a: A, b: B) -> Chain<A, B>
     where A: Stream<Item=Ready, Error=io::Error> + Read,
           B: Stream<Item=Ready, Error=io::Error> + Read,

@@ -5,10 +5,16 @@ use futures::stream::Stream;
 
 use Ready;
 
+/// An I/O combinator which is always ready for a read and is always at EOF.
+///
+/// Created by the `empty` function.
 pub struct Empty {
     _inner: (),
 }
 
+/// An I/O object which is always at EOF and ready for a read.
+///
+/// Similar to the `std::io::empty` combinator.
 pub fn empty() -> Empty {
     Empty { _inner: () }
 }

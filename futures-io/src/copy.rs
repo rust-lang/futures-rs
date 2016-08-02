@@ -4,6 +4,10 @@ use futures::{Future, Poll, Task};
 
 use {ReadTask, WriteTask};
 
+/// A future which will copy all data from a reader into a writer.
+///
+/// Created by the `copy` function, this future will resolve to the number of
+/// bytes copied or an error if one happens.
 pub struct Copy<R, W> {
     reader: R,
     read_ready: bool,
@@ -17,6 +21,17 @@ pub struct Copy<R, W> {
     buf: [u8; 2048],
 }
 
+/// Creates a future which represents copying all the bytes from one object to
+/// another.
+///
+/// The returned future will copy all the bytes read from `reader` into the
+/// `writer` specified. This future will only complete once the `reader` has hit
+/// EOF and all bytes have been written to and flushed from the `writer`
+/// provided.
+///
+/// On success the number of bytes is returned and the `reader` and `writer` are
+/// consumed. On error the error is returned and the I/O objects are consumed as
+/// well.
 pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
     where R: ReadTask,
           W: WriteTask,

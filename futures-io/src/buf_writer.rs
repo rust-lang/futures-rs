@@ -5,6 +5,12 @@ use futures::{Poll, Task};
 use futures::stream::Stream;
 use Ready;
 
+/// An I/O object intended to mirror the `BufWriter` abstraction in the standard
+/// library.
+///
+/// Implements a stream whose writes are amortized by buffering up small writes
+/// into an internal buffer. This ensures that small writes don't all get issued
+/// back to back but instead only a few larger writes are issued.
 pub struct BufWriter<W> {
     inner: W,
     buf: Vec<u8>,
@@ -12,10 +18,12 @@ pub struct BufWriter<W> {
 }
 
 impl<W> BufWriter<W> {
+    /// Creates a new buffered writer with the default internal capacity.
     pub fn new(inner: W) -> BufWriter<W> {
         BufWriter::with_capacity(8 * 1024, inner)
     }
 
+    /// Creates a new buffered writer with the specified capacity.
     pub fn with_capacity(cap: usize, inner: W) -> BufWriter<W> {
         BufWriter {
             inner: inner,
@@ -24,14 +32,27 @@ impl<W> BufWriter<W> {
         }
     }
 
+    /// Gets a shared reference to the internal object in this buffered writer.
     pub fn get_ref(&self) -> &W {
         &self.inner
     }
 
+    /// Gets a mutable reference to the internal object in this buffered
+    /// writer.
+    ///
+    /// Note that care must be taken to not tamper with the I/O stream itself in
+    /// terms of writing more bytes to it as bytes may otherwise then be
+    /// received out of order.
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.inner
     }
 
+    /// Consumes this buffered writer, returning the underlying I/O object.
+    ///
+    /// This function will also consume the internal buffer of bytes, even if
+    /// they haven't been written yet. It is recommended to `flush` this stream
+    /// with the `Flush` combinator before performing this operation to ensure
+    /// that all bytes are written.
     pub fn into_inner(self) -> W {
         self.inner
     }

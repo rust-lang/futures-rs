@@ -6,11 +6,19 @@ use futures::stream::Stream;
 
 use Ready;
 
+/// An I/O combinator which will read at most a fixed number of bytes from an
+/// underlying stream before continually returning that it is at EOF.
+///
+/// Created by the `take` function.
 pub struct Take<A> {
     a: A,
     left: u64,
 }
 
+/// Creates a new I/O object which will read at most `amt` bytes from the
+/// underlying stream, and then continuously return that it is at EOF.
+///
+/// This method is similar to the standard `Read::take` combinator.
 pub fn take<A>(a: A, amt: u64) -> Take<A>
     where A: Stream<Item=Ready, Error=io::Error> + Read,
 {
