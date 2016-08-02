@@ -86,6 +86,10 @@ impl Task {
 
         // TODO: Handle this overflow not by panicking, but for now also ensure
         //       that this aborts the process.
+        //
+        //       Note that we can't trivially just recycle, that would cause an
+        //       older `TaskData<A>` handle to match up against a newer `Task`.
+        //       FIXME(#15)
         let id = NEXT.fetch_add(1, Ordering::SeqCst);
         if id >= usize::max_value() - 50_000 {
             panic!("overflow in number of tasks created");
