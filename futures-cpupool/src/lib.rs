@@ -47,6 +47,7 @@
 
 extern crate crossbeam;
 extern crate futures;
+extern crate num_cpus;
 
 use std::any::Any;
 use std::panic::{self, AssertUnwindSafe};
@@ -124,6 +125,12 @@ impl CpuPool {
         }
 
         return pool
+    }
+
+    /// Creates a new thread pool with a number of workers equal to the number
+    /// of CPUs on the host.
+    pub fn new_num_cpus() -> CpuPool {
+        CpuPool::new(num_cpus::get() as u32)
     }
 
     /// Execute some work on this thread pool, returning a future to the work
