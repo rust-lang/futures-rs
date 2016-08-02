@@ -24,6 +24,12 @@ pub struct TryLock<'a, T: 'a> {
     __ptr: &'a Lock<T>,
 }
 
+// The `Lock` structure is basically just a `Mutex<T>`, and these two impls are
+// intended to mirror the standard library's corresponding impls for `Mutex<T>`.
+//
+// If a `T` is sendable across threads, so is the lock, and `T` must be sendable
+// across threads to be `Sync` because it allows mutable access from multiple
+// threads.
 unsafe impl<T: Send> Send for Lock<T> {}
 unsafe impl<T: Send> Sync for Lock<T> {}
 
@@ -57,12 +63,19 @@ impl<T> Lock<T> {
 impl<'a, T> Deref for TryLock<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
+        // The existence of `TryLock` represents that we own the lock, so we
+        // can safely access the data here.
         unsafe { &*self.__ptr.data.get() }
     }
 }
 
 impl<'a, T> DerefMut for TryLock<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
+        // The existence of `TryLock` represents that we own the lock, so we
+        // can safely access the data here.
+        //
+        // Additionally, we're the *only* `TryLock` in existence so mutable
+        // access should be ok.
         unsafe { &mut *self.__ptr.data.get() }
     }
 }
