@@ -18,6 +18,7 @@ members = [
   "futures-tls",
   "futures-io",
   "futures-mio",
+  "futures-iobuf",
   "futures-cpupool",
   "futures-minihttp",
   "futures-minihttp/tls-example",

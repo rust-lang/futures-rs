@@ -7,6 +7,7 @@ before_script:
 script:
   - cargo test
   - cargo test --manifest-path futures-io/Cargo.toml
+  - cargo test --manifest-path futures-iobuf/Cargo.toml
   - cargo test --manifest-path futures-cpupool/Cargo.toml
   - cargo test --manifest-path futures-mio/Cargo.toml
   - cargo test --manifest-path futures-tls/Cargo.toml
@@ -16,6 +17,7 @@ script:
 
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path futures-io/Cargo.toml
+  - cargo doc --no-deps --manifest-path futures-iobuf/Cargo.toml
   - cargo doc --no-deps --manifest-path futures-cpupool/Cargo.toml
   - cargo doc --no-deps --manifest-path futures-mio/Cargo.toml
   - cargo doc --no-deps --manifest-path futures-tls/Cargo.toml
