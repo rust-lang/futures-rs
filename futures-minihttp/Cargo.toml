@@ -11,5 +11,5 @@ futures-mio = { path = "../futures-mio" }
 futures-tls = { path = "../futures-tls" }
 httparse = "1.1"
 log = "0.3"
-net2 = "0.2"
+net2 = { version = "0.2", default-features = false }
 time = "0.1"
