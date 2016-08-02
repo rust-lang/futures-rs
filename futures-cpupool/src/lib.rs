@@ -43,6 +43,8 @@
 //! # }
 //! ```
 
+#![deny(missing_docs)]
+
 extern crate crossbeam;
 extern crate futures;
 
