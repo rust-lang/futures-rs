@@ -195,9 +195,29 @@ impl<S: Read + Write> Write for TlsStream<S> {
     }
 }
 
+/// Extension trait for servers backed by SChannel.
 pub trait ServerContextExt: Sized {
+    /// Creates a new server which is ready for configuration via
+    /// `schannel_cred` and `tls_stream`.
+    ///
+    /// Note that accepting connections will likely not work unless a public and
+    /// private key are configured via the `schannel_cred` method.
     fn new() -> Self;
+
+    /// Gets a mutable reference to the underlying SChannel credential builder,
+    /// allowing further configuration.
+    ///
+    /// The builder here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn schannel_cred(&mut self) -> &mut schannel_cred::Builder;
+
+    /// Gets a mutable reference to the underlying TLS stream builder, allowing
+    /// further configuration.
+    ///
+    /// The builder here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn tls_stream(&mut self) -> &mut tls_stream::Builder;
 }
 
@@ -220,8 +240,22 @@ impl ServerContextExt for ::ServerContext {
     }
 }
 
+/// Extension trait for clients backed by SChannel.
 pub trait ClientContextExt {
+    /// Gets a mutable reference to the underlying SChannel credential builder,
+    /// allowing further configuration.
+    ///
+    /// The builder here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn schannel_cred(&mut self) -> &mut schannel_cred::Builder;
+
+    /// Gets a mutable reference to the underlying TLS stream builder, allowing
+    /// further configuration.
+    ///
+    /// The builder here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn tls_stream(&mut self) -> &mut tls_stream::Builder;
 }
 
@@ -235,6 +269,7 @@ impl ClientContextExt for ::ClientContext {
     }
 }
 
+/// Extension trait for streams backed by SChannel.
 pub trait TlsStreamExt {
 }
 

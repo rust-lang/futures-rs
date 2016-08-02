@@ -376,9 +376,22 @@ impl<S: Read + Write> Write for TlsStream<S> {
     }
 }
 
+/// Extension trait for servers backed by SecureTransport.
 pub trait ServerContextExt: Sized {
+    /// Creates a new server given the specified `identity` and list of
+    /// certificates supported by the server.
+    ///
+    /// The server will use this identity and certificates for the certificates
+    /// to use when connections are initiated to it.
     fn new(identity: &SecIdentity,
            certs: &[SecCertificate]) -> io::Result<Self>;
+
+    /// Gets a mutable reference to the underlying SSL context, allowing further
+    /// configuration.
+    ///
+    /// The SSL context here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn ssl_context_mut(&mut self) -> &mut st::SslContext;
 }
 
@@ -397,9 +410,22 @@ impl ServerContextExt for ::ServerContext {
     }
 }
 
+/// Extension trait for clients backed by OpenSSL.
 pub trait ClientContextExt {
+    /// Adds a certificate to be used when validating the trust of the remote
+    /// peer.
+    ///
+    /// The certificates provided will be trusted when communicating with the
+    /// remote host.
     fn anchor_certificates(&mut self,
                            certs: &[SecCertificate]) -> io::Result<()>;
+
+    /// Gets a mutable reference to the underlying SSL context, allowing further
+    /// configuration.
+    ///
+    /// The SSL context here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn ssl_context_mut(&mut self) -> &mut st::SslContext;
 }
 
@@ -416,8 +442,14 @@ impl ClientContextExt for ::ClientContext {
     }
 }
 
+/// Extension trait for streams backed by SecureTransport.
 pub trait TlsStreamExt {
+    /// Gets a shared reference to the underlying SSL context, allowing further
+    /// configuration and/or inspection of the SSL/TLS state.
     fn ssl_context(&self) -> &st::SslContext;
+
+    /// Gets a mutable reference to the underlying SSL context, allowing further
+    /// configuration and/or inspection of the SSL/TLS state.
     fn ssl_context_mut(&mut self) -> &mut st::SslContext;
 }
 

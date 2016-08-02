@@ -374,8 +374,20 @@ impl<S: Read + Write> Write for TlsStream<S> {
     }
 }
 
+/// Extension trait for servers backed by OpenSSL.
 pub trait ServerContextExt: Sized {
+    /// Creates a new server context given the public/private key pair.
+    ///
+    /// This will create a new server connection which will send `cert` to
+    /// clients and use `key` as the corresponding private key to encrypt and
+    /// sign communications.
     fn new(cert: &X509, key: &PKey) -> io::Result<Self>;
+
+    /// Gets a mutable reference to the underlying SSL context, allowing further
+    /// configuration.
+    ///
+    /// The SSL context here will eventually get used to initiate the server
+    /// connection.
     fn ssl_context_mut(&mut self) -> &mut ssl::SslContext;
 }
 
@@ -393,7 +405,14 @@ impl ServerContextExt for ::ServerContext {
     }
 }
 
+/// Extension trait for clients backed by OpenSSL.
 pub trait ClientContextExt {
+    /// Gets a mutable reference to the underlying SSL context, allowing further
+    /// configuration.
+    ///
+    /// The SSL context here will eventually get used to initiate the client
+    /// connection, and it will otherwise be configured to validate the hostname
+    /// given to `handshake` by default.
     fn ssl_context_mut(&mut self) -> &mut ssl::SslContext;
 }
 
@@ -403,7 +422,10 @@ impl ClientContextExt for ::ClientContext {
     }
 }
 
+/// Extension trait for streams backed by OpenSSL.
 pub trait TlsStreamExt {
+    /// Gets a shared reference to the underlying SSL context, allowing further
+    /// configuration and/or inspection of the SSL/TLS state.
     fn ssl_context(&self) -> &ssl::Ssl;
 }
 
