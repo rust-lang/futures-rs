@@ -46,7 +46,7 @@ impl IoBuf {
     /// This method will panic if `start` is out of bounds for the underlying
     /// slice or if it comes after the `end` configured in this window.
     fn set_start(&mut self, start: usize) -> &mut IoBuf {
-        assert!(start < self.buf.as_ref().len());
+        assert!(start <= self.buf.as_ref().len());
         assert!(start <= self.end);
         self.start = start;
         self
@@ -61,7 +61,7 @@ impl IoBuf {
     /// This method will panic if `end` is out of bounds for the underlying
     /// slice or if it comes after the `end` configured in this window.
     fn set_end(&mut self, end: usize) -> &mut IoBuf {
-        assert!(end < self.buf.len());
+        assert!(end <= self.buf.len());
         assert!(self.start <= end);
         self.end = end;
         self
