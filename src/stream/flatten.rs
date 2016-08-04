@@ -33,22 +33,19 @@ impl<S> Stream for Flatten<S>
 
     fn poll(&mut self, task: &mut Task)
             -> Poll<Option<Self::Item>, Self::Error> {
-        let mut task = task.scoped();
         loop {
             if self.next.is_none() {
-                match try_poll!(self.stream.poll(&mut task)) {
+                match try_poll!(self.stream.poll(task)) {
                     Ok(Some(e)) => self.next = Some(e),
                     Ok(None) => return Poll::Ok(None),
                     Err(e) => return Poll::Err(From::from(e)),
                 }
-                task.ready();
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll(&mut task) {
+            match self.next.as_mut().unwrap().poll(task) {
                 Poll::Ok(None) => self.next = None,
                 other => return other,
             }
-            task.ready();
         }
     }
 

@@ -25,18 +25,15 @@ impl<S> Stream for Skip<S>
     type Error = S::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
-        let mut task = task.scoped();
-
         while self.remaining > 0 {
-            match try_poll!(self.stream.poll(&mut task)) {
+            match try_poll!(self.stream.poll(task)) {
                 Ok(Some(_)) => self.remaining -= 1,
                 Ok(None) => return Poll::Ok(None),
                 Err(e) => return Poll::Err(e),
             }
-            task.ready();
         }
 
-        self.stream.poll(&mut task)
+        self.stream.poll(task)
     }
 
     fn schedule(&mut self, task: &mut Task) {

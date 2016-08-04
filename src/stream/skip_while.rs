@@ -38,20 +38,18 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
             return self.stream.poll(task);
         }
 
-        let mut task = task.scoped();
         loop {
             if self.pending.is_none() {
-                let item = match try_poll!(self.stream.poll(&mut task)) {
+                let item = match try_poll!(self.stream.poll(task)) {
                     Ok(Some(e)) => e,
                     Ok(None) => return Poll::Ok(None),
                     Err(e) => return Poll::Err(e),
                 };
                 self.pending = Some(((self.pred)(&item).into_future(), item));
-                task.ready();
             }
 
             assert!(self.pending.is_some());
-            match try_poll!(self.pending.as_mut().unwrap().0.poll(&mut task)) {
+            match try_poll!(self.pending.as_mut().unwrap().0.poll(task)) {
                 Ok(true) => self.pending = None,
                 Ok(false) => {
                     let (_, item) = self.pending.take().unwrap();
@@ -63,8 +61,6 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
                     return Poll::Err(e)
                 }
             }
-
-            task.ready();
         }
     }
 

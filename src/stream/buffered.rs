@@ -36,12 +36,10 @@ impl<S> Stream for Buffered<S>
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error> {
         let mut any_some = false;
         for f in self.futures.iter_mut() {
-            let mut task = task.scoped();
-
             // First, if this slot is empty, try to fill it in. If we fill it in
             // we're careful to use TOKENS_ALL for the next poll() below.
             if f.is_none() {
-                match self.stream.poll(&mut task) {
+                match self.stream.poll(task) {
                     Poll::Ok(Some(e)) => {
                         *f = Some(Collapsed::Start(e.into_future()));
                     }
@@ -49,13 +47,12 @@ impl<S> Stream for Buffered<S>
                     Poll::Ok(None) |
                     Poll::NotReady => continue,
                 }
-                task.ready();
             }
 
             // If we're here then our slot is full, so we unwrap it and poll it.
             let ret = {
                 let future = f.as_mut().unwrap();
-                match future.poll(&mut task) {
+                match future.poll(task) {
                     Poll::Ok(e) => Poll::Ok(Some(e)),
                     Poll::Err(e) => Poll::Err(e),
 

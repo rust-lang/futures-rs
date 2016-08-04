@@ -28,9 +28,8 @@ impl<S, F> Stream for Filter<S, F>
     type Error = S::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
-        let mut task = task.scoped();
         loop {
-            match try_poll!(self.stream.poll(&mut task)) {
+            match try_poll!(self.stream.poll(task)) {
                 Ok(Some(e)) => {
                     if (self.f)(&e) {
                         return Poll::Ok(Some(e))
@@ -39,7 +38,6 @@ impl<S, F> Stream for Filter<S, F>
                 Ok(None) => return Poll::Ok(None),
                 Err(e) => return Poll::Err(e),
             }
-            task.ready();
         }
     }
 

@@ -48,12 +48,11 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     type Error = S::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<T, S::Error> {
-        let mut task = task.scoped();
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll(&mut task) {
+                    match self.stream.poll(task) {
                         Poll::Ok(Some(e)) => {
                             let future = (self.f)(state, e);
                             self.state = State::Processing(future.into_future());
@@ -67,7 +66,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll(&mut task) {
+                    match fut.poll(task) {
                         Poll::Ok(state) => self.state = State::Ready(state),
                         Poll::Err(e) => return Poll::Err(e.into()),
                         Poll::NotReady => {
@@ -77,8 +76,6 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
             }
-
-            task.ready();
         }
     }
 

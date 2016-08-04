@@ -34,18 +34,16 @@ impl<S, F, U> Stream for Then<S, F, U>
     type Error = U::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<U::Item>, U::Error> {
-        let mut task = task.scoped();
         if self.future.is_none() {
-            let item = match try_poll!(self.stream.poll(&mut task)) {
+            let item = match try_poll!(self.stream.poll(task)) {
                 Ok(None) => return Poll::Ok(None),
                 Ok(Some(e)) => Ok(e),
                 Err(e) => Err(e),
             };
             self.future = Some((self.f)(item).into_future());
-            task.ready();
         }
         assert!(self.future.is_some());
-        let res = self.future.as_mut().unwrap().poll(&mut task);
+        let res = self.future.as_mut().unwrap().poll(task);
         if res.is_ready() {
             self.future = None;
         }

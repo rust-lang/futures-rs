@@ -33,9 +33,8 @@ impl<S> Future for Collect<S>
     type Error = S::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Vec<S::Item>, S::Error> {
-        let mut task = task.scoped();
         loop {
-            match try_poll!(self.stream.poll(&mut task)) {
+            match try_poll!(self.stream.poll(task)) {
                 Ok(Some(e)) => self.items.push(e),
                 Ok(None) => return Poll::Ok(self.finish()),
                 Err(e) => {
@@ -43,7 +42,6 @@ impl<S> Future for Collect<S>
                     return Poll::Err(e)
                 }
             }
-            task.ready();
         }
     }
 

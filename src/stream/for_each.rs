@@ -28,9 +28,8 @@ impl<S, F> Future for ForEach<S, F>
     type Error = S::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<(), S::Error> {
-        let mut task = task.scoped();
         loop {
-            match try_poll!(self.stream.poll(&mut task)) {
+            match try_poll!(self.stream.poll(task)) {
                 Ok(Some(e)) => {
                     match (self.f)(e) {
                         Ok(()) => {}
@@ -40,7 +39,6 @@ impl<S, F> Future for ForEach<S, F>
                 Ok(None) => return Poll::Ok(()),
                 Err(e) => return Poll::Err(e),
             }
-            task.ready();
         }
     }
 

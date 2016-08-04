@@ -34,17 +34,15 @@ impl<S, F, U> Stream for OrElse<S, F, U>
     type Error = U::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, U::Error> {
-        let mut task = task.scoped();
         if self.future.is_none() {
-            let item = match try_poll!(self.stream.poll(&mut task)) {
+            let item = match try_poll!(self.stream.poll(task)) {
                 Ok(e) => return Poll::Ok(e),
                 Err(e) => e,
             };
             self.future = Some((self.f)(item).into_future());
-            task.ready();
         }
         assert!(self.future.is_some());
-        let res = self.future.as_mut().unwrap().poll(&mut task);
+        let res = self.future.as_mut().unwrap().poll(task);
         if res.is_ready() {
             self.future = None;
         }

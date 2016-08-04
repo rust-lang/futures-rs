@@ -76,11 +76,10 @@ impl<I> Future for Collect<I>
 
 
     fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        let mut task = task.scoped();
         loop {
             match self.cur {
                 Some(ref mut cur) => {
-                    match try_poll!(cur.poll(&mut task)) {
+                    match try_poll!(cur.poll(task)) {
                         Ok(e) => self.result.push(e),
 
                         // If we hit an error, drop all our associated resources
@@ -100,8 +99,6 @@ impl<I> Future for Collect<I>
                     return Poll::Ok(mem::replace(&mut self.result, Vec::new()))
                 }
             }
-
-            task.ready();
 
             self.cur = self.remaining.next()
                            .map(IntoFuture::into_future)

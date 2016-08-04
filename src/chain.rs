@@ -34,7 +34,7 @@ impl<A, B, C> Chain<A, B, C>
         match f(a_result, data) {
             Ok(Ok(e)) => Poll::Ok(e),
             Ok(Err(mut b)) => {
-                let ret = b.poll(task.scoped().ready());
+                let ret = b.poll(task);
                 *self = Chain::Second(b);
                 ret
             }

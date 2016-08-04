@@ -1,6 +1,5 @@
 use std::any::Any;
 use std::mem;
-use std::ops::{Deref, DerefMut};
 use std::panic;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, ATOMIC_USIZE_INIT, Ordering};
@@ -35,12 +34,6 @@ pub struct Task {
     ready: usize,
     list: Box<Any + Send>,
     handle: TaskHandle,
-}
-
-/// A scoped version of a task, returned by the `Task::scoped` method.
-pub struct ScopedTask<'a> {
-    task: &'a mut Task,
-    reset: bool,
 }
 
 /// A handle to a task that can be sent to other threads.
@@ -212,12 +205,6 @@ impl Task {
         &self.handle
     }
 
-    /// dox
-    // TODO: terrible name, remove this
-    pub fn scoped(&mut self) -> ScopedTask {
-        ScopedTask { task: self, reset: false }
-    }
-
     /// Consumes this task to run a future to completion.
     ///
     /// This function will consume the task provided and the task will be used
@@ -324,41 +311,6 @@ impl TaskHandle {
             task.handle.inner.registered.store(false, Ordering::SeqCst);
             DEFAULT.execute(|| task.run(future))
         });
-    }
-}
-
-impl<'a> ScopedTask<'a> {
-    /// Flag this scoped task as "all events are ready".
-    ///
-    /// In other words, once this method is called, all future calls to
-    /// `may_contain` on the associated `Task` will return `true`.
-    pub fn ready(&mut self) -> &mut ScopedTask<'a>{
-        if !self.reset {
-            self.reset = true;
-            self.task.ready += 1;
-        }
-        self
-    }
-}
-
-impl<'a> Deref for ScopedTask<'a> {
-    type Target = Task;
-    fn deref(&self) -> &Task {
-        &*self.task
-    }
-}
-
-impl<'a> DerefMut for ScopedTask<'a> {
-    fn deref_mut(&mut self) -> &mut Task {
-        &mut *self.task
-    }
-}
-
-impl<'a> Drop for ScopedTask<'a> {
-    fn drop(&mut self) {
-        if self.reset {
-            self.task.ready -= 1;
-        }
     }
 }
 
