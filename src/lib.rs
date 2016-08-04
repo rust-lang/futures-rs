@@ -62,7 +62,7 @@ mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
 pub use fuse::Fuse;
-pub use join::Join;
+pub use join::{Join, Join3, Join4, Join5};
 pub use map::Map;
 pub use map_err::MapErr;
 pub use or_else::OrElse;
@@ -77,6 +77,18 @@ pub mod stream;
 mod chain;
 mod impls;
 mod forget;
+
+macro_rules! join {
+    ($(($join:ident, $Join:ident, $new:ident, <$($name:ident: $B:ident),*>),)*) => ($(
+        /// Same as `join`, but with more futures.
+        fn $join<$($B),*>(self, $($name: $B),*) -> $Join<Self, $($B::Future),*>
+            where $($B: IntoFuture<Error=Self::Error>,)*
+                  Self: Sized,
+        {
+            join::$new(self, $($name.into_future()),*)
+        }
+    )*)
+}
 
 /// Trait for types which represent a placeholder of a value that will become
 /// available at possible some later point in time.
@@ -533,6 +545,12 @@ pub trait Future: Send + 'static {
     {
         let f = join::new(self, other.into_future());
         assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
+    }
+
+    join! {
+        (join3, Join3, new3, <b: B, c: C>),
+        (join4, Join4, new4, <b: B, c: C, d: D>),
+        (join5, Join5, new5, <b: B, c: C, d: D, e: E>),
     }
 
     /// Flatten the execution of this future when the successful result of this
