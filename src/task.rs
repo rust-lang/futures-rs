@@ -371,8 +371,6 @@ impl<A> Clone for TaskData<A> {
     }
 }
 
-impl<A> Copy for TaskData<A> {}
-
 impl<A> Clone for TaskNotifyData<A> {
     fn clone(&self) -> TaskNotifyData<A> {
         TaskNotifyData {
@@ -381,5 +379,3 @@ impl<A> Clone for TaskNotifyData<A> {
         }
     }
 }
-
-impl<A> Copy for TaskNotifyData<A> {}

@@ -69,7 +69,7 @@ impl<T> TaskIo<T>
     /// respectively, and can be used to pass around the object to different
     /// combinators if necessary.
     pub fn split(self) -> (TaskIoRead<T>, TaskIoWrite<T>) {
-        (TaskIoRead { handle: self.handle },
+        (TaskIoRead { handle: self.handle.clone() },
          TaskIoWrite { handle: self.handle })
     }
 }
