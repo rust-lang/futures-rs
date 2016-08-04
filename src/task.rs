@@ -31,7 +31,6 @@ use slot::Slot;
 /// time! That is, it's not quite done yet...
 pub struct Task {
     id: usize,
-    ready: usize,
     list: Box<Any + Send>,
     handle: TaskHandle,
 }
@@ -91,7 +90,6 @@ impl Task {
         Task {
             id: id,
             list: Box::new(()),
-            ready: 0,
             handle: TaskHandle {
                 inner: Arc::new(Inner {
                     id: id,
@@ -192,7 +190,7 @@ impl Task {
     /// task that the future which is being scheduled is immediately ready to be
     /// `poll`ed again.
     pub fn notify(&mut self) {
-        // TODO: optimize this
+        // TODO: optimize this, we've got mutable access so no need for atomics
         self.handle().notify()
     }
 
@@ -230,8 +228,6 @@ impl Task {
             // Note that we need to poll at least once as the wake callback may
             // have received an empty set of tokens, but that's still a valid
             // reason to poll a future.
-            assert_eq!(me.ready, 0);
-            // me.tokens = me.handle.inner.tokens.take();
             let result = catch_unwind(move || {
                 (future.poll(&mut me), future, me)
             });
@@ -241,7 +237,9 @@ impl Task {
                     future = f;
                     me = t;
                 }
-                // TODO: do something smarter
+                // TODO: this error probably wants to get communicated to
+                //       another closure in one way or another, or perhaps if
+                //       nothing is registered the panic propagates.
                 Err(e) => panic::resume_unwind(e),
             }
             future = match future.tailcall() {
@@ -249,9 +247,6 @@ impl Task {
                 None => future,
             };
             break
-            // if !me.handle.inner.tokens.any() {
-            //     break
-            // }
         }
 
         // Ok, we've seen that there are no tokens which show interest in the
@@ -281,7 +276,15 @@ impl TaskHandle {
         &*self.inner as *const _ == &*other.inner as *const _
     }
 
-    /// dox
+    /// Like the `Task::get` data, except that only shared access is allowed to
+    /// `TaskNotifyData<A>` handles.
+    ///
+    /// This method will reify a handle to some data to the actual data that
+    /// lies underneath.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `data` was not created from this task.
     pub fn get<A>(&self, data: &TaskNotifyData<A>) -> &A {
         assert_eq!(data.id, self.inner.id);
         unsafe { &*data.ptr }
