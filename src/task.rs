@@ -79,6 +79,7 @@ use slot::Slot;
 /// time! That is, it's not quite done yet...
 pub struct Task {
     handle: TaskHandle,
+    poll_requests: Vec<Arc<Executor>>,
 
     // A `Task` is not `Sync`, see the docs above.
     _marker: marker::PhantomData<Cell<()>>,
@@ -114,6 +115,7 @@ impl Task {
     /// Creates a new task ready to drive a future.
     pub fn new() -> Task {
         Task {
+            poll_requests: Vec::new(),
             handle: TaskHandle {
                 inner: Arc::new(Inner {
                     slot: Slot::new(None),
@@ -207,6 +209,35 @@ impl Task {
         &self.handle
     }
 
+    /// Inform this task that to make progress, it should call `poll` on the
+    /// specified executor.
+    ///
+    /// This function can be useful when implementing a future that must be
+    /// polled on a particular executor. An example of this is that to access
+    /// thread-local data the future needs to get polled on that particular
+    /// thread.
+    ///
+    /// When a future discovers that it's not necessarily in the right place to
+    /// make progress, it can provide this task with an `Executor` to make more
+    /// progress. The Task will ensure that it'll eventually schedule a poll on
+    /// the executor provided in a "prompt" fashion, that is there shohuldn't be
+    /// a long blocking pause between a call to this and when a future is polled
+    /// on the executor.
+    pub fn poll_on(&mut self, executor: Arc<Executor>) {
+        let poll_on = &*executor as *const Executor;
+        for exe in self.poll_requests.iter() {
+            let exe = &*exe as *const Executor;
+            if poll_on == exe {
+                return
+            }
+        }
+
+        // TODO: need to coalesce other `poll_on` requests based on whether the
+        //       executors themselves are equivalent, probably not only on the
+        //       pointer.
+        self.poll_requests.push(executor);
+    }
+
     /// Consumes this task to run a future to completion.
     ///
     /// This function will consume the task provided and the task will be used
@@ -224,37 +255,51 @@ impl Task {
     /// to the thread that `poll` was called on. This is bad and it will change.
     pub fn run(self, mut future: Box<Future<Item=(), Error=()>>) {
         let mut me = self;
-        loop {
-            // Note that we need to poll at least once as the wake callback may
-            // have received an empty set of tokens, but that's still a valid
-            // reason to poll a future.
-            let result = catch_unwind(move || {
-                (future.poll(&mut me), future, me)
-            });
-            match result {
-                Ok((ref r, _, _)) if r.is_ready() => return,
-                Ok((_, f, t)) => {
-                    future = f;
-                    me = t;
-                }
-                // TODO: this error probably wants to get communicated to
-                //       another closure in one way or another, or perhaps if
-                //       nothing is registered the panic propagates.
-                Err(e) => panic::resume_unwind(e),
+
+        // First up, poll the future, but do so in a `catch_unwind` to ensure
+        // that the panic is contained.
+        //
+        // The syntax here is a little odd, but the idea is that if it panics
+        // we've lost access to `self`, `future`, and `me` all in one go.
+        let result = catch_unwind(move || {
+            (future.poll(&mut me), future, me)
+        });
+
+        // See what happened, if the future is ready then we're done entirely,
+        // otherwise we rebind ourselves and the future we're polling and keep
+        // going.
+        match result {
+            Ok((ref r, _, _)) if r.is_ready() => return,
+            Ok((_, f, t)) => {
+                future = f;
+                me = t;
             }
-            future = match future.tailcall() {
-                Some(f) => f,
-                None => future,
-            };
-            break
+            // TODO: this error probably wants to get communicated to
+            //       another closure in one way or another, or perhaps if
+            //       nothing is registered the panic propagates.
+            Err(e) => panic::resume_unwind(e),
         }
 
-        // Ok, we've seen that there are no tokens which show interest in the
-        // future. Schedule interest on the future for when something is ready
-        // and then relinquish the future and the forget back to the slot, which
-        // will then pick it up once a wake callback has fired.
-        future.schedule(&mut me);
+        // Perform tail call optimization on the future, attempting to pull out
+        // a sub-future by pruning those that are already complete.
+        future = match future.tailcall() {
+            Some(f) => f,
+            None => future,
+        };
 
+        // If someone requested that we get polled on a specific executor, then
+        // do that here before we register interest in the future, we may be
+        // able to make more progress somewhere else.
+        if me.poll_requests.len() > 0 {
+            return me.poll_requests.remove(0).execute(|| me.run(future));
+        }
+
+        // So at this point the future is not ready, we've collapsed it, and no
+        // one has a particular request to poll somewhere. Register interest in
+        // the future with our task, and then relinquish ownership of ourselves
+        // and the future to our own internal data structures so we can start
+        // the polling process again when something gets notified.
+        future.schedule(&mut me);
         let inner = me.handle.inner.clone();
         inner.slot.try_produce((me, future)).ok().unwrap();
     }
