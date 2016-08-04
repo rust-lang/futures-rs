@@ -234,14 +234,12 @@ impl<W, S> Future for StreamWriter<W, S>
         //
         // TODO: limit this loop on the size of `self.buf`.
         {
-            let mut task = task.scoped();
             loop {
-                match self.items.poll(&mut task) {
+                match self.items.poll(task) {
                     Poll::Err(e) => return Poll::Err(e),
                     Poll::Ok(Some(item)) => {
                         debug!("got an item to serialize!");
                         item.serialize(&mut self.buf);
-                        task.ready();
                     }
                     Poll::Ok(None) |
                     Poll::NotReady => break,
