@@ -131,7 +131,11 @@ impl Task {
         return ret
     }
 
-    /// dox
+    /// Like `insert`, only requires the `Sync` bound on data as well as `Send`.
+    ///
+    /// The data inserted as part of this method is also accessible through a
+    /// `TaskHandle`, which means that callers invoking the `Task::notify`
+    /// method can also access information inside of a task as well.
     pub fn insert_notify<A>(&mut self, a: A) -> TaskNotifyData<A>
         where A: Any + Send + Sync + 'static,
     {
