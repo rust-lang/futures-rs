@@ -57,6 +57,7 @@ mod map;
 mod map_err;
 mod or_else;
 mod select;
+mod select_all;
 mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
@@ -66,6 +67,7 @@ pub use map::Map;
 pub use map_err::MapErr;
 pub use or_else::OrElse;
 pub use select::{Select, SelectNext};
+pub use select_all::{SelectAll, SelectAllNext, select_all};
 pub use then::Then;
 
 // streams
