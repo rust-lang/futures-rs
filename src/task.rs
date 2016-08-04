@@ -51,7 +51,7 @@ use std::cell::{UnsafeCell, Cell};
 use std::marker;
 use std::panic;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, AtomicBool, ATOMIC_USIZE_INIT, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use Future;
