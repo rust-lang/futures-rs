@@ -47,7 +47,6 @@ struct Inner {
     id: usize,
     slot: Slot<(Task, Box<Future<Item=(), Error=()>>)>,
     registered: AtomicBool,
-    list: Lock<Box<Any + Send + Sync>>,
 }
 
 /// A reference to a piece of data that's stored inside of a `Task`.
@@ -61,15 +60,6 @@ pub struct TaskData<A> {
 
 unsafe impl<A: Send> Send for TaskData<A> {}
 unsafe impl<A: Sync> Sync for TaskData<A> {}
-
-/// dox
-pub struct TaskNotifyData<A> {
-    id: usize,
-    ptr: *mut A,
-}
-
-unsafe impl<A: Send> Send for TaskNotifyData<A> {}
-unsafe impl<A: Sync> Sync for TaskNotifyData<A> {}
 
 impl Task {
     /// Creates a new task ready to drive a future.
@@ -95,7 +85,6 @@ impl Task {
                     id: id,
                     slot: Slot::new(None),
                     registered: AtomicBool::new(false),
-                    list: Lock::new(Box::new(())),
                 }),
             },
         }
@@ -126,28 +115,6 @@ impl Task {
         let mut next = Box::new(Node { _next: prev, data: a });
         let ret = TaskData { id: self.id, ptr: &mut next.data };
         self.list = next;
-        return ret
-    }
-
-    /// Like `insert`, only requires the `Sync` bound on data as well as `Send`.
-    ///
-    /// The data inserted as part of this method is also accessible through a
-    /// `TaskHandle`, which means that callers invoking the `Task::notify`
-    /// method can also access information inside of a task as well.
-    pub fn insert_notify<A>(&mut self, a: A) -> TaskNotifyData<A>
-        where A: Any + Send + Sync + 'static,
-    {
-        // Right now our list of task-local data is just stored as a linked
-        // list, so allocate a new node and insert it into the list.
-        struct Node<T: ?Sized> {
-            _next: Box<Any + Sync + Send>,
-            data: T,
-        }
-        let mut list = self.handle.inner.list.try_lock().unwrap();
-        let prev = mem::replace(&mut *list, Box::new(()));
-        let mut next = Box::new(Node { _next: prev, data: a });
-        let ret = TaskNotifyData { id: self.id, ptr: &mut next.data };
-        *list = next;
         return ret
     }
 
@@ -276,21 +243,6 @@ impl TaskHandle {
         &*self.inner as *const _ == &*other.inner as *const _
     }
 
-    /// Like the `Task::get` data, except that only shared access is allowed to
-    /// `TaskNotifyData<A>` handles.
-    ///
-    /// This method will reify a handle to some data to the actual data that
-    /// lies underneath.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `data` was not created from this task.
-    pub fn get<A>(&self, data: &TaskNotifyData<A>) -> &A {
-        assert_eq!(data.id, self.inner.id);
-        unsafe { &*data.ptr }
-    }
-
-
     /// Notify the associated task that a future is ready to get polled.
     ///
     /// Futures should use this method to ensure that when a future can make
@@ -324,15 +276,6 @@ impl TaskHandle {
 impl<A> Clone for TaskData<A> {
     fn clone(&self) -> TaskData<A> {
         TaskData {
-            id: self.id,
-            ptr: self.ptr,
-        }
-    }
-}
-
-impl<A> Clone for TaskNotifyData<A> {
-    fn clone(&self) -> TaskNotifyData<A> {
-        TaskNotifyData {
             id: self.id,
             ptr: self.ptr,
         }

@@ -26,7 +26,7 @@ mod poll;
 pub use poll::Poll;
 
 mod task;
-pub use task::{Task, TaskData, TaskNotifyData, TaskHandle};
+pub use task::{Task, TaskData, TaskHandle};
 
 pub mod executor;
 
@@ -46,7 +46,7 @@ pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 pub use promise::{promise, Promise, Complete, Canceled};
-pub use store::{store, Store, store_notify, StoreNotify};
+pub use store::{store, Store};
 
 // combinators
 mod and_then;
