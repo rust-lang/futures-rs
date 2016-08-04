@@ -1,5 +1,54 @@
+
+// One critical piece of this module's contents are the `TaskData<A>` handles.
+// The purpose of this is to conceptually be able to store data in a task,
+// allowing it to be accessed within multiple futures at once. For example if
+// you have some concurrent futures working, they may all want mutable access to
+// some data. We already know that when the futures are being poll'd that we're
+// entirely synchronized (aka `&mut Task`), so you shouldn't require an
+// `Arc<Mutex<T>>` to share as the synchronization isn't necessary!
+//
+// So the idea here is that you insert data into a task via `Task::insert`, and
+// a handle to that data is then returned to you. That handle can later get
+// presented to the task itself to actually retrieve the underlying data. The
+// invariant is that the data can only ever be accessed with the task present,
+// and the lifetime of the actual data returned is connected to the lifetime of
+// the task itself.
+//
+// Conceptually I at least like to think of this as "dynamically adding more
+// struct fields to a `Task`". Each call to insert creates a new "name" for the
+// struct field, a `TaskData<A>`, and then you can access the fields of a struct
+// with the struct itself (`Task`) as well as the name of the field
+// (`TaskData<A>`). If that analogy doesn't make sense then oh well, it at least
+// helped me!
+//
+// So anyway, we do some interesting trickery here to actually get it to work.
+// Each `TaskData<A>` handle stores `Arc<UnsafeCell<A>>`. So it turns out, we're
+// not even adding data to the `Task`! Each `TaskData<A>` contains a reference
+// to this `Arc`, and `TaskData` handles can be cloned which just bumps the
+// reference count on the `Arc` itself.
+//
+// As before, though, you can present the `Arc` to a `Task` and if they
+// originated from the same place you're allowed safe access to the internals.
+// We allow but shared and mutable access without the `Sync` bound on the data,
+// crucially noting that a `Task` itself is not `Sync`.
+//
+// So hopefully I've convinced you of this point that the `get` and `get_mut`
+// methods below are indeed safe. The data is always valid as it's stored in an
+// `Arc`, and access is only allowed with the proof of the associated `Task`.
+// One thing you might be asking yourself though is what exactly is this "proof
+// of a task"? Right now it's a `usize` corresponding to the `Task`'s
+// `TaskHandle` arc allocation.
+//
+// Wait a minute, isn't that the ABA problem! That is, we create a task A, add
+// some data to it, destroy task A, do some work, create a task B, and then ask
+// to get the data from task B. In this case though the point of the
+// `task_inner` "proof" field is simply that there's some non-`Sync` token
+// proving that you can get access to the data. So while weird, this case should
+// still be safe, as the data's not stored in the task itself.
+
 use std::any::Any;
-use std::mem;
+use std::cell::{UnsafeCell, Cell};
+use std::marker;
 use std::panic;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, ATOMIC_USIZE_INIT, Ordering};
@@ -7,7 +56,6 @@ use std::thread;
 
 use Future;
 use executor::{DEFAULT, Executor};
-use lock::Lock;
 use slot::Slot;
 
 /// A structure representing one "task", or thread of execution throughout the
@@ -30,9 +78,10 @@ use slot::Slot;
 /// This structure is likely to expand more customizable functionality over
 /// time! That is, it's not quite done yet...
 pub struct Task {
-    id: usize,
-    list: Box<Any + Send>,
     handle: TaskHandle,
+
+    // A `Task` is not `Sync`, see the docs above.
+    _marker: marker::PhantomData<Cell<()>>,
 }
 
 /// A handle to a task that can be sent to other threads.
@@ -44,7 +93,6 @@ pub struct TaskHandle {
 }
 
 struct Inner {
-    id: usize,
     slot: Slot<(Task, Box<Future<Item=(), Error=()>>)>,
     registered: AtomicBool,
 }
@@ -54,39 +102,25 @@ struct Inner {
 /// This can be used with the `Task::get` and `Task::get_mut` methods to access
 /// data inside of tasks.
 pub struct TaskData<A> {
-    id: usize,
-    ptr: *mut A,
+    task_inner: usize,
+    ptr: Arc<UnsafeCell<A>>,
 }
 
+// for safety here, see docs at the top of this module
 unsafe impl<A: Send> Send for TaskData<A> {}
 unsafe impl<A: Sync> Sync for TaskData<A> {}
 
 impl Task {
     /// Creates a new task ready to drive a future.
     pub fn new() -> Task {
-        static NEXT: AtomicUsize = ATOMIC_USIZE_INIT;
-
-        // TODO: Handle this overflow not by panicking, but for now also ensure
-        //       that this aborts the process.
-        //
-        //       Note that we can't trivially just recycle, that would cause an
-        //       older `TaskData<A>` handle to match up against a newer `Task`.
-        //       FIXME(#15)
-        let id = NEXT.fetch_add(1, Ordering::SeqCst);
-        if id >= usize::max_value() - 50_000 {
-            panic!("overflow in number of tasks created");
-        }
-
         Task {
-            id: id,
-            list: Box::new(()),
             handle: TaskHandle {
                 inner: Arc::new(Inner {
-                    id: id,
                     slot: Slot::new(None),
                     registered: AtomicBool::new(false),
                 }),
             },
+            _marker: marker::PhantomData,
         }
     }
 
@@ -105,17 +139,14 @@ impl Task {
     pub fn insert<A>(&mut self, a: A) -> TaskData<A>
         where A: Any + Send + 'static,
     {
-        // Right now our list of task-local data is just stored as a linked
-        // list, so allocate a new node and insert it into the list.
-        struct Node<T: ?Sized> {
-            _next: Box<Any + Send>,
-            data: T,
+        TaskData {
+            task_inner: self.inner_usize(),
+            ptr: Arc::new(UnsafeCell::new(a)),
         }
-        let prev = mem::replace(&mut self.list, Box::new(()));
-        let mut next = Box::new(Node { _next: prev, data: a });
-        let ret = TaskData { id: self.id, ptr: &mut next.data };
-        self.list = next;
-        return ret
+    }
+
+    fn inner_usize(&self) -> usize {
+        &*self.handle.inner as *const Inner as usize
     }
 
     /// Get a reference to the task-local data inside this task.
@@ -130,8 +161,9 @@ impl Task {
     /// if another task generated the `data` handle passed in, this method will
     /// panic.
     pub fn get<A>(&self, data: &TaskData<A>) -> &A {
-        assert_eq!(data.id, self.id);
-        unsafe { &*data.ptr }
+        // for safety here, see docs at the top of this module
+        assert_eq!(data.task_inner, self.inner_usize());
+        unsafe { &*data.ptr.get() }
     }
 
     /// Get a mutable reference to the task-local data inside this task.
@@ -146,8 +178,9 @@ impl Task {
     /// if another task generated the `data` handle passed in, this method will
     /// panic.
     pub fn get_mut<A>(&mut self, data: &TaskData<A>) -> &mut A {
-        assert_eq!(data.id, self.id);
-        unsafe { &mut *data.ptr }
+        // for safety here, see docs at the top of this module
+        assert_eq!(data.task_inner, self.inner_usize());
+        unsafe { &mut *data.ptr.get() }
     }
 
     /// During the `Future::schedule` method, notify to the task that a value is
@@ -276,8 +309,8 @@ impl TaskHandle {
 impl<A> Clone for TaskData<A> {
     fn clone(&self) -> TaskData<A> {
         TaskData {
-            id: self.id,
-            ptr: self.ptr,
+            task_inner: self.task_inner,
+            ptr: self.ptr.clone(),
         }
     }
 }
