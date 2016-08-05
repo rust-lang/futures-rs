@@ -39,8 +39,8 @@ impl<S> ReadyTracker<S>
     pub fn new(s: S) -> ReadyTracker<S> {
         ReadyTracker {
             inner: s,
-            read_ready: false,
-            write_ready: false,
+            read_ready: true,
+            write_ready: true,
         }
     }
 }
