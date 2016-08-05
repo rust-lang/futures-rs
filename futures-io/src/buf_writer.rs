@@ -3,7 +3,7 @@ use std::cmp;
 
 use futures::{Poll, Task};
 use futures::stream::Stream;
-use Ready;
+use {Ready, WriteTask};
 
 /// An I/O object intended to mirror the `BufWriter` abstraction in the standard
 /// library.
@@ -58,14 +58,14 @@ impl<W> BufWriter<W> {
     }
 }
 
-impl<W: Write> BufWriter<W> {
-    fn flush_buf(&mut self) -> io::Result<()> {
+impl<W: WriteTask> BufWriter<W> {
+    fn flush_buf(&mut self, task: &mut Task) -> io::Result<()> {
         self.flushing = true;
         let mut written = 0;
         let len = self.buf.len();
         let mut ret = Ok(());
         while written < len {
-            match self.inner.write(&self.buf[written..]) {
+            match self.inner.write(task, &self.buf[written..]) {
                 Ok(0) => {
                     ret = Err(Error::new(ErrorKind::WriteZero,
                                          "failed to write the buffered data"));
@@ -114,22 +114,22 @@ impl<A> Stream for BufWriter<A>
     }
 }
 
-impl<W: Write> Write for BufWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+impl<W: WriteTask> WriteTask for BufWriter<W> {
+    fn write(&mut self, task: &mut Task, buf: &[u8]) -> io::Result<usize> {
         if self.flushing || self.buf.len() + buf.len() > self.buf.capacity() {
-            try!(self.flush_buf());
+            try!(self.flush_buf(task));
         }
         if buf.len() >= self.buf.capacity() {
             assert_eq!(self.buf.len(), 0);
-            self.inner.write(buf)
+            self.inner.write(task, buf)
         } else {
             let amt = cmp::min(buf.len(), self.buf.capacity());
             Write::write(&mut self.buf, &buf[..amt])
         }
     }
 
-    fn flush(&mut self) -> io::Result<()> {
-        try!(self.flush_buf());
-        self.inner.flush()
+    fn flush(&mut self, task: &mut Task) -> io::Result<()> {
+        try!(self.flush_buf(task));
+        self.inner.flush(task)
     }
 }

@@ -1,11 +1,11 @@
 // TODO: upstream access to the internal buffer and use libstd BufReader
 
-use std::io::{self, Read, BufRead};
+use std::io::{self, Read};
 use std::cmp;
 
 use futures::{Poll, Task};
 use futures::stream::Stream;
-use Ready;
+use {Ready, ReadTask, BufReadTask};
 
 /// An I/O object which amortizes a number of `read` operations by reading many
 /// bytes at once into an internal buffer.
@@ -84,35 +84,46 @@ impl<R> Stream for BufReader<R>
     }
 }
 
-impl<R: Read> Read for BufReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl<R: ReadTask> ReadTask for BufReader<R> {
+    fn read(&mut self, task: &mut Task, buf: &mut [u8]) -> io::Result<usize> {
         // If we don't have any buffered data and we're doing a massive read
         // (larger than our internal buffer), bypass our internal buffer
         // entirely.
         if self.pos == self.cap && buf.len() >= self.buf.len() {
-            return self.inner.read(buf);
+            return self.inner.read(task, buf);
         }
         let nread = {
-            let mut rem = try!(self.fill_buf());
+            let mut rem = try!(self.fill_buf(task));
             try!(rem.read(buf))
         };
-        self.consume(nread);
+        self.consume(task, nread);
         Ok(nread)
+    }
+
+    fn read_to_end(&mut self,
+                   task: &mut Task,
+                   buf: &mut Vec<u8>) -> io::Result<usize> {
+        let buffered = self.cap - self.pos;
+        if self.pos != self.cap {
+            buf.extend_from_slice(&self.buf[self.pos..self.cap]);
+            self.pos = self.cap;
+        }
+        self.inner.read_to_end(task, buf).map(|n| n + buffered)
     }
 }
 
-impl<R: Read> BufRead for BufReader<R> {
-    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+impl<R: ReadTask> BufReadTask for BufReader<R> {
+    fn fill_buf(&mut self, task: &mut Task) -> io::Result<&[u8]> {
         // If we've reached the end of our internal buffer then we need to fetch
         // some more data from the underlying reader.
         if self.pos == self.cap {
-            self.cap = try!(self.inner.read(&mut self.buf));
+            self.cap = try!(self.inner.read(task, &mut self.buf));
             self.pos = 0;
         }
         Ok(&self.buf[self.pos..self.cap])
     }
 
-    fn consume(&mut self, amt: usize) {
+    fn consume(&mut self, _task: &mut Task, amt: usize) {
         self.pos = cmp::min(self.pos + amt, self.cap);
     }
 }

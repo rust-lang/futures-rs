@@ -1,9 +1,9 @@
-use std::io::{self, Read};
+use std::io;
 
 use futures::{Poll, Task};
 use futures::stream::Stream;
 
-use Ready;
+use {Ready, ReadTask};
 
 /// An I/O combinator which will read all bytes from one stream and then the
 /// next.
@@ -20,8 +20,8 @@ pub struct Chain<A, B> {
 /// Creates a new I/O object which will read all the bytes from `a` and then all
 /// the bytes from `b` once it's hit EOF.
 pub fn chain<A, B>(a: A, b: B) -> Chain<A, B>
-    where A: Stream<Item=Ready, Error=io::Error> + Read,
-          B: Stream<Item=Ready, Error=io::Error> + Read,
+    where A: ReadTask,
+          B: ReadTask,
 {
     Chain {
         a: a,
@@ -31,8 +31,8 @@ pub fn chain<A, B>(a: A, b: B) -> Chain<A, B>
 }
 
 impl<A, B> Stream for Chain<A, B>
-    where A: Stream<Item=Ready, Error=io::Error> + Read,
-          B: Stream<Item=Ready, Error=io::Error> + Read,
+    where A: ReadTask,
+          B: ReadTask,
 {
     type Item = Ready;
     type Error = io::Error;
@@ -54,17 +54,33 @@ impl<A, B> Stream for Chain<A, B>
     }
 }
 
-impl<A, B> Read for Chain<A, B>
-    where A: Stream<Item=Ready, Error=io::Error> + Read,
-          B: Stream<Item=Ready, Error=io::Error> + Read,
+impl<A, B> ReadTask for Chain<A, B>
+    where A: ReadTask,
+          B: ReadTask,
 {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, task: &mut Task, buf: &mut [u8]) -> io::Result<usize> {
         if self.first {
-            match self.a.read(buf) {
+            match self.a.read(task, buf) {
                 Ok(0) => self.first = false,
                 other => return other,
             }
         }
-        self.b.read(buf)
+        self.b.read(task, buf)
+    }
+
+    fn read_to_end(&mut self,
+                   task: &mut Task,
+                   buf: &mut Vec<u8>) -> io::Result<usize> {
+        let mut amt = 0;
+        if self.first {
+            match self.a.read_to_end(task, buf) {
+                Ok(n) => {
+                    self.first = false;
+                    amt += n;
+                }
+                other => return other,
+            }
+        }
+        self.b.read_to_end(task, buf).map(|n| n + amt)
     }
 }

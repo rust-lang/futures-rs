@@ -141,6 +141,35 @@ pub trait ReadTask: Stream<Item=Ready, Error=io::Error> {
                    buf: &mut Vec<u8>) -> io::Result<usize>;
 }
 
+/// A trait representing buffered streams that can be read within the context of
+/// a future's `Task`.
+///
+/// This is a trait used to implement some of the "terminal" abstractions
+/// provided by this crate. It is less general than the `Read` trait, and all
+/// types which implement `Read` also implement this trait.
+///
+/// The main purpose of this trait is to allow insertion of I/O objects into
+/// task-local storage but still allow for a `Read` implementation on the
+/// returned handle.
+pub trait BufReadTask: ReadTask {
+    /// Reads bytes into a buffer, optionally using `task` as a source of
+    /// storage to draw from.
+    ///
+    /// Otherwise behaves the same as [`Read::read`][stdread].
+    ///
+    /// [stdread]: https://doc.rust-lang.org/std/io/trait.Read.html#tymethod.read
+    fn fill_buf(&mut self, task: &mut Task) -> io::Result<&[u8]>;
+
+    /// Reads as much information as possible from this underlying stream into
+    /// the vector provided, optionally using the `task` as a source of storage
+    /// to draw from.
+    ///
+    /// Otherwise behaves the same as [`Read::read_to_end`][stdreadtoend].
+    ///
+    /// [stdreadtoend]: https://doc.rust-lang.org/std/io/trait.Read.html#tymethod.read_to_end
+    fn consume(&mut self, task: &mut Task, amt: usize);
+}
+
 /// A trait representing streams that can be written to within the context of a
 /// future's `Task`.
 ///
