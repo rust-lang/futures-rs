@@ -27,17 +27,31 @@ use futures::Future;
 
 And then, use futures!
 
-## Current status
+## What's in this project
 
-This library is currently a work in progress, but it is rapidly progressing to
-the point of stabilization of the internal `Future` and `Stream` traits along
-with a number of surrounding pieces for useful functionality. Some crates are
-available on crates.io but are likely not functional, so the git repo should be
-used for now, but that will hopefully change soon!
+This repository currently houses a number of futures-related crates, all with
+associated documentation:
 
-We're currently targeting a broader announcement and call to action (including
-improved docs, entry points for beginngers, places to contribute, etc) in early
-September, so stay tuned!
+* [`futures`] - the core abstraction of zero-cost futures
+* [`futures-io`] - core zero-cost I/O abstractions expressed with futures and
+                   streams
+* [`futures-mio`] - a concrete implementation of TCP/UDP `futures-io`
+                    abstractions backed by `mio`
+* [`futures-socks5`] - an implementation of an efficient SOCKSv5 proxy server
+                       showcasing `futures`, `futures-io`, and `futures-mio`
+* [`futures-tls`] - TLS/SSL streams built on `futures-io` abstractions
+* [`futures-cpupool`] - a thread pool for compute-bound work in event loops
+* [`futures-minihttp`] - a simple HTTP server with some "hello world" examples
+                         that show the screaming fast performance of the futures
+                         and mio stack
+
+[`futures`]: http://alexcrichton.com/futures-rs/futures
+[`futures-io`]: http://alexcrichton.com/futures-rs/futures_io
+[`futures-mio`]: http://alexcrichton.com/futures-rs/futures_mio
+[`futures-tls`]: http://alexcrichton.com/futures-rs/futures_tls
+[`futures-cpupool`]: http://alexcrichton.com/futures-rs/futures_cpupool
+[`futures-minihttp`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp
+[`futures-socks5`]: https://github.com/alexcrichton/futures-rs/blob/master/futures-socks5/src/main.rs
 
 ## Why Futures?
 
