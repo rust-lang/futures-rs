@@ -108,3 +108,9 @@ impl<T: AsRef<[u8]>> AsRef<[u8]> for Window<T> {
         &self.inner.as_ref()[self.range.start..self.range.end]
     }
 }
+
+impl<T: AsMut<[u8]>> AsMut<[u8]> for Window<T> {
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.inner.as_mut()[self.range.start..self.range.end]
+    }
+}
