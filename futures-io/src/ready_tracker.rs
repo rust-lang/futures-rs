@@ -63,6 +63,16 @@ impl<S> ReadyTracker<S> {
     pub fn maybe_write_ready(&self) -> bool {
         self.write_ready
     }
+
+    /// Get a shared reference to the underlying stream.
+    pub fn get_ref(&self) -> &S {
+        &self.inner
+    }
+
+    /// Get a mutable reference to the underlying stream.
+    pub fn get_mut(&mut self) -> &mut S {
+        &mut self.inner
+    }
 }
 
 impl<S> Stream for ReadyTracker<S>
