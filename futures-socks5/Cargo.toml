@@ -1,0 +1,16 @@
+[package]
+name = "futures-socks5"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+log = "0.3"
+futures = { path = "..", version = "0.1" }
+futures-io = { path = "../futures-io", version = "0.1" }
+futures-mio = { path = "../futures-mio", version = "0.1" }
+futures-cpupool = { path = "../futures-cpupool", version = "0.1" }
+env_logger = "0.3"
+
+[dev-dependencies]
+curl = "0.3"
+hyper = { git = "https://github.com/hyperium/hyper", default-features = false }
