@@ -101,10 +101,11 @@ impl Server {
         });
 
         let threads = (0..self.workers - 1).map(|i| {
-            let mut lp = Loop::new().unwrap();
+            let (addr, workers) = (self.addr, self.workers);
             let data = data.clone();
-            let listener = self.listener(lp.handle());
             thread::Builder::new().name(format!("worker{}", i)).spawn(move || {
+                let mut lp = Loop::new().unwrap();
+                let listener = listener(&addr, workers, lp.handle());
                 lp.run(listener.and_then(move |l| {
                     l.incoming().for_each(move |(stream, _)| {
                         handle(stream, data.clone());
@@ -115,7 +116,7 @@ impl Server {
         }).collect::<Vec<_>>();
 
         let mut lp = Loop::new().unwrap();
-        let listener = self.listener(lp.handle());
+        let listener = listener(&self.addr, self.workers, lp.handle());
         lp.run(listener.and_then(move |l| {
             l.incoming().for_each(move |(stream, _)| {
                 handle(stream, data.clone());
@@ -129,37 +130,39 @@ impl Server {
 
         Ok(())
     }
+}
 
-    fn listener(&self, handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
-        let listener = (|| {
-            let listener = try!(net2::TcpBuilder::new_v4());
-            try!(self.configure_tcp(&listener));
-            try!(listener.reuse_address(true));
-            try!(listener.bind(&self.addr));
-            listener.listen(1024)
-        })();
+fn listener(addr: &SocketAddr,
+            workers: u32,
+            handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
+    let listener = (|| {
+        let listener = try!(net2::TcpBuilder::new_v4());
+        try!(configure_tcp(workers, &listener));
+        try!(listener.reuse_address(true));
+        try!(listener.bind(addr));
+        listener.listen(1024)
+    })();
 
-        match listener {
-            Ok(l) => TcpListener::from_listener(l, &self.addr, handle),
-            Err(e) => futures::failed(e).boxed()
-        }
+    match listener {
+        Ok(l) => TcpListener::from_listener(l, addr, handle),
+        Err(e) => futures::failed(e).boxed()
+    }
+}
+
+#[cfg(unix)]
+fn configure_tcp(workers: u32, tcp: &net2::TcpBuilder) -> io::Result<()> {
+    use net2::unix::*;
+
+    if workers > 1 {
+        try!(tcp.reuse_port(true));
     }
 
-    #[cfg(unix)]
-    fn configure_tcp(&self, tcp: &net2::TcpBuilder) -> io::Result<()> {
-        use net2::unix::*;
+    Ok(())
+}
 
-        if self.workers > 1 {
-            try!(tcp.reuse_port(true));
-        }
-
-        Ok(())
-    }
-
-    #[cfg(windows)]
-    fn configure_tcp(&self, _tcp: &net2::TcpBuilder) -> io::Result<()> {
-        Ok(())
-    }
+#[cfg(windows)]
+fn configure_tcp(workers: u32, _tcp: &net2::TcpBuilder) -> io::Result<()> {
+    Ok(())
 }
 
 trait IoStream: Read + Write + Stream<Item=Ready, Error=io::Error> {}
