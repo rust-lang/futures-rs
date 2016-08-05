@@ -19,3 +19,4 @@ test_script:
   - cargo test --manifest-path futures-mio/Cargo.toml
   - cargo test --manifest-path futures-tls/Cargo.toml
   - cargo test --manifest-path futures-minihttp/Cargo.toml
+  - cargo test --manifest-path futures-socks5/Cargo.toml
