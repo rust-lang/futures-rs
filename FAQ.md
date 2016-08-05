@@ -19,9 +19,11 @@ to say "yes, futures will be both" early on.
 
 Doesn't this impose an extra cost though? Other libraries only require `'static`
 which allows one to use types like `Rc` and `RefCell` liberally. This is true
-that futures themselves cannot contain data like an `Rc`, but it is planned that
-through an *executor* you will be able to access non-`Send` data. This is not
-currently implemented, but is coming soon!
+that futures themselves cannot contain data like an `Rc`, but instead if using
+an event loop you can use an abstraction like `LoopData<T>` which allows storing
+a non-`Send` piece of data but the `LoopData<T>` sentinel itself is sendable.
+This can then be stored in futures and futures can negotiate which thread
+they're polled on to acquire the data.
 
 The final reason is that almost all futures end up being `Send + 'static` in
 practice. This allows for a convenient implementation of driving futures by
