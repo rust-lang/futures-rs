@@ -1,3 +1,14 @@
+//! Tasks used to drive a future computation
+//!
+//! It's intended over time a particular operation (such as servicing an HTTP
+//! request) will involve many futures. This entire operation, however, can be
+//! thought of as one unit, as the entire result is essentially just moving
+//! through one large state machine.
+//!
+//! A "task" is the unit of abstraction for what is driving this state machine
+//! and tree of futures forward. A task is used to poll futures and schedule
+//! futures with, and has utilities for sharing data between tasks and handles
+//! for notifying when a future is ready.
 
 // One critical piece of this module's contents are the `TaskData<A>` handles.
 // The purpose of this is to conceptually be able to store data in a task,
@@ -138,6 +149,30 @@ impl Task {
     /// to other futures which will be associated with the same task. All
     /// futures will then have access to this data when passed the reference
     /// back.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::Task;
+    ///
+    /// let mut task = Task::new();
+    ///
+    /// // Allocate a slot to place `1` into and tie its access to the task
+    /// // itself.
+    /// let slot = task.insert(1);
+    ///
+    /// // We can get and modify the data through our handle
+    /// assert_eq!(*task.get(&slot), 1);
+    /// *task.get_mut(&slot) = 4;
+    /// assert_eq!(*task.get(&slot), 4);
+    ///
+    /// // The handle can be cloned to access the same data
+    /// assert_eq!(*task.get(&slot.clone()), 4);
+    ///
+    /// // Finally, when all handles go out of scope, the data will be
+    /// // deallocated. Here we'll reclaim the memory holding "4" right now
+    /// drop(slot);
+    /// ```
     pub fn insert<A>(&mut self, a: A) -> TaskData<A>
         where A: Any + Send + 'static,
     {
@@ -248,6 +283,9 @@ impl Task {
     /// The future will be `poll`ed on the threads that events arrive on. That
     /// is, this method does not attempt to control which thread a future is
     /// polled on.
+    ///
+    /// Note that this method should normally not be used directly, but rather
+    /// `Future::forget` should be used instead.
     ///
     /// # Panics
     ///

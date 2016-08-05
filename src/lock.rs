@@ -1,8 +1,8 @@
 //! A "mutex" which only supports try_lock
 //!
-//! As a futures library the eventual call to `epoll` should be the only thing
-//! that ever blocks, so this is assisted with a fast user-space implementation
-//! of a lock that can only have a `try_lock` operation.
+//! As a futures library the eventual call to an event loop should be the only
+//! thing that ever blocks, so this is assisted with a fast user-space
+//! implementation of a lock that can only have a `try_lock` operation.
 
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};

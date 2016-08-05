@@ -1,5 +1,11 @@
 use {Future, Task, Poll};
 
+/// A helpful structure for representing a future that is collapsed over time.
+///
+/// This basically implements `Future` without literally implementing the trait,
+/// and the primary `collapse` method will perform tail call optimization
+/// except that it won't propagate upwards, but rather store the result
+/// immediately.
 pub enum Collapsed<T: Future> {
     Start(T),
     Tail(Box<Future<Item=T::Item, Error=T::Error>>),
