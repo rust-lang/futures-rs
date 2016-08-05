@@ -31,7 +31,7 @@ And then, use futures!
 
 This library is currently a work in progress, but it is rapidly progressing to
 the point of stabilization of the internal `Future` and `Stream` traits along
-with a number of sourrounding pieces for useful functionality. Some crates are
+with a number of surrounding pieces for useful functionality. Some crates are
 available on crates.io but are likely not functional, so the git repo should be
 used for now, but that will hopefully change soon!
 
@@ -65,7 +65,7 @@ computations on futures.
 [Future]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
 
 The `Future` trait is driven by two methods, [`poll`][poll] and
-[`schedule`][schedule], which all pulling values out of a future and otherwise
+[`schedule`][schedule], which allow pulling values out of a future and otherwise
 getting notified when a future is complete. More documentation can be found on
 the associated methods themselves.
 
