@@ -1,6 +1,6 @@
-//! Future-based abstractions for dealing with I/O
+//! I/O fused with futures and streams
 //!
-//! Building on top of the `futures` crate the purpose of this crate is to
+//! Building on top of the `futures` crate, the purpose of this crate is to
 //! provide the abstractions necessary for interoperating I/O streams in an
 //! asynchronous fashion.
 //!
@@ -9,8 +9,28 @@
 //! then be used to define a number of combinators and then later define further
 //! abstractions on these streams.
 //!
-//! Note that this library is currently a work in progress, but stay tuned for
-//! updates!
+//! ## Installation
+//!
+//! Currently it's recommended to use the git version of this repository as it's
+//! in active development, but this will be published to crates.io in the near
+//! future!
+//!
+//! ```toml
+//! [dependencies]
+//! futures = { git = "https://github.com/alexcrichton/futures-rs" }
+//! futures-io = { git = "https://github.com/alexcrichton/futures-rs" }
+//! ```
+//!
+//! ## Readiness
+//!
+//! This crate primarily provides adaptors, and traits useful for working with
+//! objects that implement `Stream<Item=Ready, Error=io::Error>`. It's intended
+//! that I/O objects like TCP streams, UDP sockets, TCP listeners, etc, can all
+//! implement this interface and then get composed with one another.
+//!
+//! Many primitives provided in this crate are similar to the ones found in
+//! `std::io`, with the added implementation of the `Stream` trait for
+//! readiness.
 
 #![deny(missing_docs)]
 
