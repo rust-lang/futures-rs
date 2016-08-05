@@ -25,7 +25,7 @@ impl Future for MyFuture {
         }
     }
 
-    fn schedule(&mut self, task: &mut Task) {
+    fn schedule(&mut self, _task: &mut Task) {
         panic!("can't schedule");
     }
 }
