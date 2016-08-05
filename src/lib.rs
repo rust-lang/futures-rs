@@ -78,18 +78,6 @@ mod chain;
 mod impls;
 mod forget;
 
-macro_rules! join {
-    ($(($join:ident, $Join:ident, $new:ident, <$($name:ident: $B:ident),*>),)*) => ($(
-        /// Same as `join`, but with more futures.
-        fn $join<$($B),*>(self, $($name: $B),*) -> $Join<Self, $($B::Future),*>
-            where $($B: IntoFuture<Error=Self::Error>,)*
-                  Self: Sized,
-        {
-            join::$new(self, $($name.into_future()),*)
-        }
-    )*)
-}
-
 /// Trait for types which represent a placeholder of a value that will become
 /// available at possible some later point in time.
 ///
@@ -547,10 +535,37 @@ pub trait Future: Send + 'static {
         assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
     }
 
-    join! {
-        (join3, Join3, new3, <b: B, c: C>),
-        (join4, Join4, new4, <b: B, c: C, d: D>),
-        (join5, Join5, new5, <b: B, c: C, d: D, e: E>),
+    /// Same as `join`, but with more futures.
+    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
+        where B: IntoFuture<Error=Self::Error>,
+              C: IntoFuture<Error=Self::Error>,
+              Self: Sized,
+    {
+        join::new3(self, b.into_future(), c.into_future())
+    }
+
+    /// Same as `join`, but with more futures.
+    fn join4<B, C, D>(self, b: B, c: C, d: D)
+                      -> Join4<Self, B::Future, C::Future, D::Future>
+        where B: IntoFuture<Error=Self::Error>,
+              C: IntoFuture<Error=Self::Error>,
+              D: IntoFuture<Error=Self::Error>,
+              Self: Sized,
+    {
+        join::new4(self, b.into_future(), c.into_future(), d.into_future())
+    }
+
+    /// Same as `join`, but with more futures.
+    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
+                         -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
+        where B: IntoFuture<Error=Self::Error>,
+              C: IntoFuture<Error=Self::Error>,
+              D: IntoFuture<Error=Self::Error>,
+              E: IntoFuture<Error=Self::Error>,
+              Self: Sized,
+    {
+        join::new5(self, b.into_future(), c.into_future(), d.into_future(),
+                   e.into_future())
     }
 
     /// Flatten the execution of this future when the successful result of this
