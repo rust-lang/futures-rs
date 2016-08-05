@@ -1,6 +1,22 @@
 language: rust
+
+# Most tests run nightly for now due to the usage of Cargo workspaces, Cargo
+# overrides, and some performance improvements in the compiler.
 rust:
   - nightly
+
+# We should not, however, break the build on other channels!
+matrix:
+  include:
+    - os: linux
+      rust: stable
+      script: cargo build --manifest-path futures-minihttp/Cargo.toml
+    - os: osx
+      rust: stable
+      script: cargo build --manifest-path futures-minihttp/Cargo.toml
+    - os: linux
+      rust: beta
+      script: cargo build --manifest-path futures-minihttp/Cargo.toml
 sudo: false
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
