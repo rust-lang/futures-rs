@@ -1,13 +1,12 @@
 # futures-rs
 
-This is an **experimental** work in progress library for an implementation of
-futures in Rust.
+This library is an implementation of **zero cost futures** in Rust.
 
 [![Build Status](https://travis-ci.org/alexcrichton/futures-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/futures-rs)
 [![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/alexcrichton/futures-rs)
 [![Coverage Status](https://coveralls.io/repos/github/alexcrichton/futures-rs/badge.svg?branch=master)](https://coveralls.io/github/alexcrichton/futures-rs?branch=master)
 
-[Documentation]: http://alexcrichton.com/futures-rs
+[Documentation](http://alexcrichton.com/futures-rs)
 
 ## Usage
 
