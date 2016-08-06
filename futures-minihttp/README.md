@@ -43,6 +43,11 @@ welcome!
 [go-std]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Go/go-std
 [node]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/JavaScript/nodejs
 
+The pipelined column is where programs are allowed to use however many threads
+they'd like (the default configuration) and pipelined requests are sent. The
+singlethread column is where programs can only use one thread and they're sent
+one request at a time.
+
 The benchmark for minihttp is for the `multithread-unix.rs` script for the first
 column and the `singlethread` for the second. The numbers were all collected on
 Linux Ubuntu 8-core machine. Note that absolute numbers should be taken with a
