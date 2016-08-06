@@ -31,9 +31,9 @@ welcome!
 | [minihttp][multithread-unix]  | 1966297.54 | 127934.89                 |
 | [rapidoid (Java)][rapidoid]   | 1701426.67 |       N/A                 |
 | [fasthttp (Go)][fasthttp]     | 1489868.35 |  92024.56                 |
-| [iron]                        |        N/A | 124592.49                 |
 | [hyper]                       |        N/A |  91475.84                 |
 | [Go][go-std]                  |  191548.57 |  47585.99                 |
+| [iron]                        |        N/A |  31269.84                 |
 | [node]                        |  131511.36 |  12149.08                 |
 
 [fasthttp]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Go/fasthttp
