@@ -7,7 +7,7 @@ of what futures can do.
 
 The "hello world" [available in this repository][singlethread] is an
 implementation of the [TechEmpower "plaintext" benchmark][techem]. It's also
-available in a [multithreaded version][multithread] for those on Unix.
+available in a [multithreaded version][multithread-unix] for those on Unix.
 
 [singlethread]: https://github.com/alexcrichton/futures-rs/blob/master/futures-minihttp/src/bin/singlethread.rs
 [techem]: https://www.techempower.com/benchmarks/#section=data-r12&hw=peak&test=plaintext
