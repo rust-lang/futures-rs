@@ -46,8 +46,8 @@ associated documentation:
 * [`futures-minihttp`] - a simple HTTP server with some "hello world" examples
                          that show the screaming fast performance of the futures
                          and mio stack
-* [`tls-example`] - an HTTP server which accepts TLS connections, currently
-                    this demo requires OpenSSL
+* [`tls-example`] - an HTTP server, built with minihttp, which accepts TLS
+                    connections, currently this demo requires OpenSSL
 
 [`futures`]: http://alexcrichton.com/futures-rs/futures
 [`futures-io`]: http://alexcrichton.com/futures-rs/futures_io
