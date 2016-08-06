@@ -1,8 +1,8 @@
-# ssl-example
+# tls-example
 
 A small example of how to host a server which accepts SSL connections. Currently
 this example is only compiled against OpenSSL, but other SSL libraries (like
-SecureTransport) are also supported.
+SecureTransport) are also supported in the `futures-tls` crate.
 
 First, run the server
 

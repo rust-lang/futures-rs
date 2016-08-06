@@ -40,10 +40,14 @@ associated documentation:
 * [`futures-socks5`] - an implementation of an efficient SOCKSv5 proxy server
                        showcasing `futures`, `futures-io`, and `futures-mio`
 * [`futures-tls`] - TLS/SSL streams built on `futures-io` abstractions
+                    implementing both client and server side connections, with
+                    support for the native system library on all platforms
 * [`futures-cpupool`] - a thread pool for compute-bound work in event loops
 * [`futures-minihttp`] - a simple HTTP server with some "hello world" examples
                          that show the screaming fast performance of the futures
                          and mio stack
+* [`tls-example`] - an HTTP server which accepts TLS connections, currently
+                    this demo requires OpenSSL
 
 [`futures`]: http://alexcrichton.com/futures-rs/futures
 [`futures-io`]: http://alexcrichton.com/futures-rs/futures_io
@@ -52,6 +56,7 @@ associated documentation:
 [`futures-cpupool`]: http://alexcrichton.com/futures-rs/futures_cpupool
 [`futures-minihttp`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp
 [`futures-socks5`]: https://github.com/alexcrichton/futures-rs/blob/master/futures-socks5/src/main.rs
+[`tls-example`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp/tls-example
 
 ## Why Futures?
 
