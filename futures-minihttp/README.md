@@ -33,16 +33,20 @@ welcome!
 | [fasthttp (Go)][fasthttp]     | 1489868.35 |  92024.56                 |
 | [iron]                        |        N/A | 124592.49                 |
 | [hyper]                       |        N/A |  91475.84                 |
+| [Go][go-std]                  |  191548.57 |  47585.99                 |
+| [node]                        |  131511.36 |  12149.08                 |
 
 [fasthttp]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Go/fasthttp
 [hyper]: https://github.com/aturon/async-benches/blob/master/techempower-6/hyper-master/src/main.rs
 [iron]: https://github.com/aturon/async-benches/blob/master/techempower-6/iron/src/main.rs
 [rapidoid]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Java/rapidoid
+[go-std]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Go/go-std
+[node]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/JavaScript/nodejs
 
-The benchmark for minihttp is for the `multithread-unix.rs` script, and numbers
-were all collected on Linux Ubuntu 8-core machine. Note that absolute numbers
-should be taken with a grain of salt, but relative numbers should be fairly
-consistent across setups.
+The benchmark for minihttp is for the `multithread-unix.rs` script for the first
+column and the `singlethread` for the second. The numbers were all collected on
+Linux Ubuntu 8-core machine. Note that absolute numbers should be taken with a
+grain of salt, but relative numbers should be fairly consistent across setups.
 
 The command to generate these numbers was:
 
@@ -54,3 +58,7 @@ wrk --script ./pipelined_get.lua \
 
 For the pipelined column the value of `$pipeline` was 32, and for the
 singlethread no pipeline column it was 1.
+
+Also note that iron/hyper currently have a bug with pipelining, explaining the
+N/A, and I couldn't figure out how to get rapidoid to run on one thread,
+explaining that N/A.
