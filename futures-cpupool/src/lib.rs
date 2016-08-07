@@ -65,7 +65,7 @@ use futures::{Future, promise, Promise, Task, Poll};
 /// composed with other work as part of an overall computation.
 ///
 /// The worker threads associated with a thread pool are kept alive so long as
-/// there is an open handle the `CpuPool` or there is work running on them. Once
+/// there is an open handle to the `CpuPool` or there is work running on them. Once
 /// all work has been drained and all references have gone away the worker
 /// threads will be shut down.
 ///
