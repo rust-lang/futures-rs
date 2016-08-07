@@ -29,10 +29,16 @@ members = [
 [dependencies]
 log = "0.3"
 
+# We depend on the upstream `breaks` branch for the nonblocking support during a
+# handshake. This in turn needs to get propagated to other dependencies like
+# openssl-verify, so we just override to the `breaks` branch for now which
+# should hopefully get published soon.
 [replace."openssl:0.7.14"]
 git = "https://github.com/sfackler/rust-openssl"
 branch = "breaks"
 
+# Right now crossbeam on crates.io segfaults in MsQueue, but it's fixed in a PR
+# that hasn't quite been merged yet.
 [replace."crossbeam:0.2.9"]
 git = "https://github.com/tomaka/crossbeam"
 branch = "patch-1"
