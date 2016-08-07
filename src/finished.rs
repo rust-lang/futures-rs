@@ -45,4 +45,8 @@ impl<T, E> Future for Finished<T, E>
     fn schedule(&mut self, task: &mut Task) {
         task.notify();
     }
+
+    fn wait(mut self) -> Result<T, E> {
+        Ok(self.t.take().expect("cannot wait on already polled Finished"))
+    }
 }
