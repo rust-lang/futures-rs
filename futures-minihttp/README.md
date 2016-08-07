@@ -26,15 +26,15 @@ themselves have as little overhead as possible, and some of them can probably
 still be further optimized! Any PRs to the implementation are of course quite
 welcome!
 
-|   program                     | pipelined  | singlethread, no pipeline |
-|-------------------------------|------------|---------------------------|
-| [minihttp][multithread-unix]  | 1966297.54 | 127934.89                 |
-| [rapidoid (Java)][rapidoid]   | 1701426.67 |       N/A                 |
-| [fasthttp (Go)][fasthttp]     | 1489868.35 |  92024.56                 |
-| [hyper]                       |        N/A |  91475.84                 |
-| [Go][go-std]                  |  191548.57 |  47585.99                 |
-| [iron]                        |        N/A |  31269.84                 |
-| [node]                        |  131511.36 |  12149.08                 |
+|   program                     | pipelined    | singlethread, no pipeline |
+|-------------------------------|-------------:|--------------------------:|
+| [minihttp][multithread-unix]  | 1,966,297.54 |                127,934.89 |
+| [rapidoid (Java)][rapidoid]   | 1,701,426.67 |                       N/A |
+| [fasthttp (Go)][fasthttp]     | 1,489,868.35 |                 92,024.56 |
+| [hyper]                       |          N/A |                 91,475.84 |
+| [Go][go-std]                  |   191,548.57 |                 47,585.99 |
+| [iron]                        |          N/A |                 31,269.84 |
+| [node]                        |   131,511.36 |                 12,149.08 |
 
 [fasthttp]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Go/fasthttp
 [hyper]: https://github.com/aturon/async-benches/blob/master/techempower-6/hyper-master/src/main.rs
