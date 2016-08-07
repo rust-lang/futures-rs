@@ -32,3 +32,7 @@ log = "0.3"
 [replace."openssl:0.7.14"]
 git = "https://github.com/sfackler/rust-openssl"
 branch = "breaks"
+
+[replace."crossbeam:0.2.9"]
+git = "https://github.com/tomaka/crossbeam"
+branch = "patch-1"

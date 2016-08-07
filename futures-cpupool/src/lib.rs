@@ -75,6 +75,13 @@ pub struct CpuPool {
     inner: Arc<Inner>,
 }
 
+fn _assert() {
+    fn _assert_send<T: Send>() {}
+    fn _assert_sync<T: Sync>() {}
+    _assert_send::<CpuPool>();
+    _assert_sync::<CpuPool>();
+}
+
 struct Inner {
     queue: MsQueue<Message>,
     cnt: AtomicUsize,
