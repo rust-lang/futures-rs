@@ -161,20 +161,10 @@ impl CpuPool {
     fn work(self) {
         let mut done = false;
         while !done {
-            // Don't let one unit of work tear down this worker thread, but also
-            // don't have a catch_unwind per unit of work.
-            let res = panic::catch_unwind(AssertUnwindSafe(|| {
-                while !done {
-                    match self.inner.queue.pop() {
-                        Message::Close => done = true,
-                        Message::Run(r) => r.call_box(),
-                    }
-                }
-            }));
-
-            // If a unit of work panics, it'll get notified with a `Panicked`
-            // error, so we just drop the payload of the panic here.
-            drop(res);
+            match self.inner.queue.pop() {
+                Message::Close => done = true,
+                Message::Run(r) => r.call_box(),
+            }
         }
     }
 }
