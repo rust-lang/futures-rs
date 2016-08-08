@@ -1,51 +1,39 @@
 extern crate curl;
-extern crate hyper;
 
 use std::env;
-use std::net::TcpStream;
+use std::io::{Read, Write};
+use std::net::{TcpStream, TcpListener};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Child};
 use std::thread;
 use std::time::Duration;
 
-use hyper::{Decoder, Encoder, Next, HttpStream};
-use hyper::server::{Server, Handler, Request, Response, HttpListener};
 use curl::easy::Easy;
 
 fn bin() -> PathBuf {
     env::current_exe().unwrap().parent().unwrap().join("futures-socks5")
 }
 
-static PHRASE: &'static [u8] = b"Hello World!";
+struct KillOnDrop(Child);
 
-struct Hello;
-
-impl Handler<HttpStream> for Hello {
-    fn on_request(&mut self, _: Request<HttpStream>) -> Next {
-        Next::write()
-    }
-    fn on_request_readable(&mut self, _: &mut Decoder<HttpStream>) -> Next {
-        Next::write()
-    }
-    fn on_response(&mut self, response: &mut Response) -> Next {
-        use hyper::header::ContentLength;
-        response.headers_mut().set(ContentLength(PHRASE.len() as u64));
-        Next::write()
-    }
-    fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-        let n = encoder.write(PHRASE).unwrap();
-        debug_assert_eq!(n, PHRASE.len());
-        Next::end()
+impl Drop for KillOnDrop {
+    fn drop(&mut self) {
+        self.0.kill().unwrap();
+        self.0.wait().unwrap();
     }
 }
 
 #[test]
 fn smoke() {
     let proxy_addr = "127.0.0.1:47564";
-    let server_addr = "127.0.0.1:47565";
-    let mut proxy = Command::new(bin()).arg(proxy_addr)
-                                       .spawn()
-                                       .unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let server_addr = listener.local_addr().unwrap();
+
+    // Spawn our proxy and wait for it to come online
+    let proxy = Command::new(bin()).arg(proxy_addr)
+                                   .spawn()
+                                   .unwrap();
+    let _proxy = KillOnDrop(proxy);
 
     loop {
         match TcpStream::connect(proxy_addr) {
@@ -54,9 +42,20 @@ fn smoke() {
         }
     }
 
-    let listener = HttpListener::bind(&server_addr.parse().unwrap()).unwrap();
     thread::spawn(move || {
-        Server::new(listener).handle(|_| Hello).unwrap();
+        let mut buf = [0; 1024];
+        while let Ok((mut conn, _)) = listener.accept() {
+            let n = conn.read(&mut buf).unwrap();
+            let req = String::from_utf8_lossy(&buf[..n]);
+            assert!(req.starts_with("GET / HTTP/1.1\r\n"));
+
+            conn.write_all(b"\
+                HTTP/1.1 200 OK\r\n\
+                Content-Length: 13\r\n\
+                \r\n\
+                Hello, World!\
+            ").unwrap();
+        }
     });
 
     // Test socks5
@@ -74,7 +73,7 @@ fn smoke() {
         transfer.perform().unwrap();
     }
     assert_eq!(handle.response_code().unwrap(), 200);
-    assert_eq!(resp.as_slice(), PHRASE);
+    assert_eq!(resp.as_slice(), b"Hello, World!");
 
     // Test socks5h
     let mut handle = Easy::new();
@@ -91,8 +90,5 @@ fn smoke() {
         transfer.perform().unwrap();
     }
     assert_eq!(handle.response_code().unwrap(), 200);
-    assert_eq!(resp.as_slice(), PHRASE);
-
-    proxy.kill().unwrap();
-    proxy.wait().unwrap();
+    assert_eq!(resp.as_slice(), b"Hello, World!");
 }

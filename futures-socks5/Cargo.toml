@@ -13,4 +13,3 @@ env_logger = "0.3"
 
 [dev-dependencies]
 curl = "0.3"
-hyper = { git = "https://github.com/hyperium/hyper", default-features = false }
