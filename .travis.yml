@@ -15,7 +15,7 @@ matrix:
       rust: beta
       script: cargo build --manifest-path futures-minihttp/Cargo.toml
 rust:
-  - nightly-2016-08-04
+  - nightly
 sudo: false
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
