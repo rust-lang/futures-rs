@@ -13,7 +13,12 @@ pub struct WriteAll<A, T> {
 }
 
 enum State<A, T> {
-    Writing(A, T, usize),
+    Writing {
+        a: A,
+        buf: T,
+        pos: usize,
+        first: bool,
+    },
     Empty,
 }
 
@@ -36,7 +41,12 @@ pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
           T: AsRef<[u8]> + Send + 'static,
 {
     WriteAll {
-        state: State::Writing(a, buf, 0),
+        state: State::Writing {
+            a: a,
+            buf: buf,
+            pos: 0,
+            first: true,
+        },
     }
 }
 
@@ -53,7 +63,16 @@ impl<A, T> Future for WriteAll<A, T>
 
     fn poll(&mut self, task: &mut Task) -> Poll<(A, T), io::Error> {
         match self.state {
-            State::Writing(ref mut a, ref buf, ref mut pos) => {
+            State::Writing { ref mut a, ref buf, ref mut pos, ref mut first } => {
+                if !*first {
+                    match try_poll!(a.poll(task)) {
+                        Ok(Some(r)) if r.is_write() => {}
+                        Ok(_) => return Poll::NotReady,
+                        Err(e) => return Poll::Err(e),
+                    }
+                }
+                *first = false;
+
                 let buf = buf.as_ref();
                 while *pos < buf.len() {
                     match a.write(task, &buf[*pos..]) {
@@ -70,14 +89,14 @@ impl<A, T> Future for WriteAll<A, T>
         }
 
         match mem::replace(&mut self.state, State::Empty) {
-            State::Writing(a, buf, _) => Poll::Ok((a, buf)),
+            State::Writing { a, buf, .. } => Poll::Ok((a, buf)),
             State::Empty => panic!(),
         }
     }
 
     fn schedule(&mut self, task: &mut Task) {
         match self.state {
-            State::Writing(ref mut a, _, _) => a.schedule(task),
+            State::Writing { ref mut a, .. } => a.schedule(task),
             State::Empty => task.notify(),
         }
     }

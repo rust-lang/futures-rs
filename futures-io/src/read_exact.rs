@@ -14,7 +14,12 @@ pub struct ReadExact<A, T> {
 }
 
 enum State<A, T> {
-    Reading(A, T, usize, bool),
+    Reading {
+        a: A,
+        buf: T,
+        pos: usize,
+        first: bool,
+    },
     Empty,
 }
 
@@ -33,7 +38,12 @@ pub fn read_exact<A, T>(a: A, buf: T) -> ReadExact<A, T>
           T: AsMut<[u8]> + Send + 'static,
 {
     ReadExact {
-        state: State::Reading(a, buf, 0, true),
+        state: State::Reading {
+            a: a,
+            buf: buf,
+            pos: 0,
+            first: true,
+        },
     }
 }
 
@@ -50,7 +60,7 @@ impl<A, T> Future for ReadExact<A, T>
 
     fn poll(&mut self, task: &mut Task) -> Poll<(A, T), io::Error> {
         match self.state {
-            State::Reading(ref mut a, ref mut buf, ref mut pos, ref mut first) => {
+            State::Reading { ref mut a, ref mut buf, ref mut pos, ref mut first } => {
                 if !*first {
                     match try_poll!(a.poll(task)) {
                         Ok(Some(r)) if r.is_read() => {}
@@ -75,14 +85,14 @@ impl<A, T> Future for ReadExact<A, T>
         }
 
         match mem::replace(&mut self.state, State::Empty) {
-            State::Reading(a, buf, _, _) => Poll::Ok((a, buf)),
+            State::Reading { a, buf, .. } => Poll::Ok((a, buf)),
             State::Empty => panic!(),
         }
     }
 
     fn schedule(&mut self, task: &mut Task) {
         match self.state {
-            State::Reading(ref mut a, _, _, _) => a.schedule(task),
+            State::Reading { ref mut a, .. } => a.schedule(task),
             State::Empty => task.notify(),
         }
     }
