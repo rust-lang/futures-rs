@@ -104,24 +104,225 @@ cfg_if! {
             t!(cx.anchor_certificates(&[cert]));
         }
     } else {
+        extern crate advapi32;
+        extern crate crypt32;
         extern crate schannel;
+        extern crate winapi;
+        extern crate kernel32;
 
-        use schannel::cert_store::CertStore;
+        use std::env;
+        use std::io::Error;
+        use std::mem;
+        use std::ptr;
+        use std::sync::{Once, ONCE_INIT};
+
+        use schannel::cert_context::CertContext;
+        use schannel::cert_store::{CertStore, CertAdd};
 
         use futures_tls::backend::schannel::ServerContextExt;
 
+        const FRIENDLY_NAME: &'static str = "futures-tls localhost testing cert";
+
         fn server_cx() -> io::Result<ServerContext> {
             let mut cx = ServerContext::new();
-            let pkcs12 = include_bytes!("server.p12");
-            let mut store = CertStore::import_pkcs12(pkcs12, Some("foobar"))
-                                      .unwrap();
-            let cert = store.certs().next().unwrap();
-            cx.schannel_cred().cert(cert);
+            cx.schannel_cred().cert(localhost_cert());
             Ok(cx)
         }
 
         fn configure_client(cx: &mut ClientContext) {
             drop(cx);
+        }
+
+        // ====================================================================
+        // Magic!
+        //
+        // Lots of magic is happening here to wrangle certificates for running
+        // these tests on Windows. For more information see the test suite
+        // in the schannel-rs crate as this is just coyping that.
+
+        fn localhost_cert() -> CertContext {
+            static INIT: Once = ONCE_INIT;
+            INIT.call_once(|| {
+                for cert in local_root_store().certs() {
+                    let name = match cert.friendly_name() {
+                        Ok(name) => name,
+                        Err(_) => continue,
+                    };
+                    if name != FRIENDLY_NAME {
+                        continue
+                    }
+                    if !cert.is_time_valid().unwrap() {
+                        io::stdout().write_all(br#"
+
+The futures-tls test suite is about to delete an old copy of one of its
+certificates from your root trust store. This certificate was only valid for one
+day and it is no longer needed. The host should be "localhost" and the
+description should mention "futures-tls".
+
+        "#).unwrap();
+                        cert.delete().unwrap();
+                    } else {
+                        return
+                    }
+                }
+
+                install_certificate().unwrap();
+            });
+
+            for cert in local_root_store().certs() {
+                let name = match cert.friendly_name() {
+                    Ok(name) => name,
+                    Err(_) => continue,
+                };
+                if name == FRIENDLY_NAME {
+                    return cert
+                }
+            }
+
+            panic!("couldn't find a cert");
+        }
+
+        fn local_root_store() -> CertStore {
+            if env::var("APPVEYOR").is_ok() {
+                CertStore::open_local_machine("Root").unwrap()
+            } else {
+                CertStore::open_current_user("Root").unwrap()
+            }
+        }
+
+        fn install_certificate() -> io::Result<CertContext> {
+            unsafe {
+                let mut provider = 0;
+                let mut hkey = 0;
+
+                let mut buffer = "futures-tls test suite".encode_utf16()
+                                                         .chain(Some(0))
+                                                         .collect::<Vec<_>>();
+                let res = advapi32::CryptAcquireContextW(&mut provider,
+                                                         buffer.as_ptr(),
+                                                         ptr::null_mut(),
+                                                         winapi::PROV_RSA_FULL,
+                                                         winapi::CRYPT_MACHINE_KEYSET);
+                if res != winapi::TRUE {
+                    // create a new key container (since it does not exist)
+                    let res = advapi32::CryptAcquireContextW(&mut provider,
+                                                             buffer.as_ptr(),
+                                                             ptr::null_mut(),
+                                                             winapi::PROV_RSA_FULL,
+                                                             winapi::CRYPT_NEWKEYSET | winapi::CRYPT_MACHINE_KEYSET);
+                    if res != winapi::TRUE {
+                        return Err(Error::last_os_error())
+                    }
+                }
+
+                // create a new keypair (RSA-2048)
+                let res = advapi32::CryptGenKey(provider,
+                                                winapi::AT_SIGNATURE,
+                                                0x0800<<16 | winapi::CRYPT_EXPORTABLE,
+                                                &mut hkey);
+                if res != winapi::TRUE {
+                    return Err(Error::last_os_error());
+                }
+
+                // start creating the certificate
+                let name = "CN=localhost,O=futures-tls,OU=futures-tls,\
+                            G=futures_tls".encode_utf16()
+                                          .chain(Some(0))
+                                          .collect::<Vec<_>>();
+                let mut cname_buffer: [winapi::WCHAR; winapi::UNLEN as usize + 1] = mem::zeroed();
+                let mut cname_len = cname_buffer.len() as winapi::DWORD;
+                let res = crypt32::CertStrToNameW(winapi::X509_ASN_ENCODING,
+                                                  name.as_ptr(),
+                                                  winapi::CERT_X500_NAME_STR,
+                                                  ptr::null_mut(),
+                                                  cname_buffer.as_mut_ptr() as *mut u8,
+                                                  &mut cname_len,
+                                                  ptr::null_mut());
+                if res != winapi::TRUE {
+                    return Err(Error::last_os_error());
+                }
+
+                let mut subject_issuer = winapi::CERT_NAME_BLOB {
+                    cbData: cname_len,
+                    pbData: cname_buffer.as_ptr() as *mut u8,
+                };
+                let mut key_provider = winapi::CRYPT_KEY_PROV_INFO {
+                    pwszContainerName: buffer.as_mut_ptr(),
+                    pwszProvName: ptr::null_mut(),
+                    dwProvType: winapi::PROV_RSA_FULL,
+                    dwFlags: winapi::CRYPT_MACHINE_KEYSET,
+                    cProvParam: 0,
+                    rgProvParam: ptr::null_mut(),
+                    dwKeySpec: winapi::AT_SIGNATURE,
+                };
+                let mut sig_algorithm = winapi::CRYPT_ALGORITHM_IDENTIFIER {
+                    pszObjId: winapi::szOID_RSA_SHA256RSA.as_ptr() as *mut _,
+                    Parameters: mem::zeroed(),
+                };
+                let mut expiration_date: winapi::SYSTEMTIME = mem::zeroed();
+                kernel32::GetSystemTime(&mut expiration_date);
+                let mut file_time: winapi::FILETIME = mem::zeroed();
+                let res = kernel32::SystemTimeToFileTime(&mut expiration_date,
+                                                         &mut file_time);
+                if res != winapi::TRUE {
+                    return Err(Error::last_os_error());
+                }
+                let mut timestamp: u64 = file_time.dwLowDateTime as u64 |
+                                         (file_time.dwHighDateTime as u64) << 32;
+                // one day, timestamp unit is in 100 nanosecond intervals
+                timestamp += (1E9 as u64) / 100 * (60 * 60 * 24);
+                file_time.dwLowDateTime = timestamp as u32;
+                file_time.dwHighDateTime = (timestamp >> 32) as u32;
+                let res = kernel32::FileTimeToSystemTime(&file_time,
+                                                         &mut expiration_date);
+                if res != winapi::TRUE {
+                    return Err(Error::last_os_error());
+                }
+
+                // create a self signed certificate
+                let cert_context = crypt32::CertCreateSelfSignCertificate(
+                        0 as winapi::ULONG_PTR,
+                        &mut subject_issuer,
+                        0,
+                        &mut key_provider,
+                        &mut sig_algorithm,
+                        ptr::null_mut(),
+                        &mut expiration_date,
+                        ptr::null_mut());
+                if cert_context.is_null() {
+                    return Err(Error::last_os_error());
+                }
+
+                // TODO: this is.. a terrible hack. Right now `schannel`
+                //       doesn't provide a public method to go from a raw
+                //       cert context pointer to the `CertContext` structure it
+                //       has, so we just fake it here with a transmute. This'll
+                //       probably break at some point, but hopefully by then
+                //       it'll have a method to do this!
+                struct MyCertContext<T>(T);
+                impl<T> Drop for MyCertContext<T> {
+                    fn drop(&mut self) {}
+                }
+
+                let cert_context = MyCertContext(cert_context);
+                let cert_context: CertContext = mem::transmute(cert_context);
+
+                try!(cert_context.set_friendly_name(FRIENDLY_NAME));
+
+                // install the certificate to the machine's local store
+                io::stdout().write_all(br#"
+
+The futures-tls test suite is about to add a certificate to your set of root
+and trusted certificates. This certificate should be for the domain "localhost"
+with the description related to "futures-tls". This certificate is only valid
+for one day and will be automatically deleted if you re-run the futures-tls
+test suite later.
+
+        "#).unwrap();
+                try!(local_root_store().add_cert(&cert_context,
+                                                 CertAdd::ReplaceExisting));
+                Ok(cert_context)
+            }
         }
     }
 }

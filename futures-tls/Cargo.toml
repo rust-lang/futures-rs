@@ -32,6 +32,9 @@ security-framework = "0.1"
 schannel = "0.1"
 
 [target.'cfg(windows)'.dev-dependencies]
+advapi32-sys = "0.2"
+crypt32-sys = "0.2"
+kernel32-sys = "0.2"
 winapi = "0.2"
 
 [dev-dependencies]
