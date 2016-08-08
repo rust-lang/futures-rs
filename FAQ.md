@@ -88,7 +88,9 @@ fixes that make compilation much speedier.
 Not yet! A few names are reserved, but they're not functional. I'd use the git
 repository here for now.
 
+### Why both `then` and `and_then`?
 
+TBA (to-be-answered)
 
 
 

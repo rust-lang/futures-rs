@@ -1,0 +1,957 @@
+# Getting started with futures
+[top]: #getting-started-with-futures
+
+This document will help you learn about [`futures`], a Rust crate with a
+zero-cost implementation of [futures] and streams. Futures are available in many
+other languages like [C++][cpp-futures], [Java][java-futures], and
+[Scala][scala-futures], and this crate draws inspiration from these
+libraries. The `futures` crate, however, also stands out as enabling usage of
+futures where previously not thought possible through the goal of zero-cost
+(e.g. zero-allocation) futures. Futures are also intended to be the foundation
+for asynchronous, composable, high performance I/O in Rust.
+
+[`futures`]: https://github.com/alexcrichton/futures-rs
+[futures]: https://en.wikipedia.org/wiki/Futures_and_promises
+[java-futures]: https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html
+[cpp-futures]: http://en.cppreference.com/w/cpp/thread/future
+[scala-futures]: http://docs.scala-lang.org/overviews/core/futures.html
+
+This document is split up into a few sections:
+
+* [Hello, World!][hello-world]
+* [The `Future` trait][future-trait]
+* [The `Stream` trait][stream-trait]
+* [Concrete futures and stream][concrete]
+* [Returning futures][returning-futures]
+* [`Task` and `Future`][task-and-future]
+* [Task local data][task-local-data]
+* [Event loop data][event-loop-data]
+
+If you'd like to help contribute to this document you can find it on
+[GitHub][online-doc].
+
+[online-doc]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md
+
+---
+
+## Hello, World!
+[hello-world]: #hello-world
+
+[Back to top][top]
+
+This project currently requires Rust 1.9.0 or greater, which can be easily
+obtained through [rustup]. Windows, macOS, and Linux are all tested and known to
+work, but PRs for other platforms are always welcome! After that's available,
+you can add this to your project's `Cargo.toml`:
+
+[rustup]: https://www.rustup.rs/
+
+```toml
+[dependencies]
+futures = { git = "https://github.com/alexcrichton/futures-rs" }
+futures-io = { git = "https://github.com/alexcrichton/futures-rs" }
+futures-mio = { git = "https://github.com/alexcrichton/futures-rs" }
+futures-tls = { git = "https://github.com/alexcrichton/futures-rs" }
+```
+
+> **Note**: this library is currently in active development and requires
+>           pulling from git right now, but soon the crates will be published to
+>           crates.io!
+
+Here we're adding a dependency on three crates:
+
+* [`futures`] - the definition and core implementation of [`Future`] and
+  [`Stream`]
+* [`futures-io`] - I/O abstractions built with these two traits
+* [`futures-mio`] - bindings to the [`mio`] crate providing concrete
+  implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
+  with TCP and UDP
+* [`futures-tls`] - an SSL/TLS implementation built on top of [`futures-io`]
+
+[`mio`]: https://crates.io/crates/mio
+[`futures-io`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-io
+[`futures-mio`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-mio
+[`futures-tls`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-tls
+[`Future`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
+[`Stream`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html
+
+The [`futures`] crate itself is a low-level implementation of futures which does
+not assume any particular runtime or I/O layer. For the examples below we'll be
+using the concrete implementations available in [`futures-mio`] and
+[`futures-io`] to show how futures and streams can be used at even the I/O
+layers with zero overhead over what the system provides.
+
+Now that we've got all that set up, let's write our first our first program! As
+a "Hello, World!" for I/O, let's download the Rust home page:
+
+```rust
+extern crate futures;
+extern crate futures_io;
+extern crate futures_mio;
+extern crate futures_tls;
+
+use std::net::ToSocketAddrs;
+
+use futures::Future;
+use futures_mio::Loop;
+use futures_tls::ClientContext;
+
+fn main() {
+    let mut lp = Loop::new().unwrap();
+    let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+
+    let socket = lp.handle().tcp_connect(&addr);
+
+    let tls_handshake = socket.and_then(|socket| {
+        let cx = ClientContext::new().unwrap();
+        cx.handshake("www.rust-lang.org", socket)
+    }).boxed();
+    let request = tls_handshake.and_then(|socket| {
+        futures_io::write_all(socket, "\
+            GET / HTTP/1.0\r\n\
+            Host: www.rust-lang.org\r\n\
+            \r\n\
+        ".as_bytes())
+    }).boxed();
+    let response = request.and_then(|(socket, _)| {
+        futures_io::read_to_end(socket, Vec::new())
+    }).boxed();
+
+    let data = lp.run(response).unwrap();
+    println!("{}", String::from_utf8_lossy(&data));
+}
+```
+
+If you place that file in `src/main.rs`, and then execute `cargo run`, you
+should see the HTML of the Rust home page! There's a lot to digest here, though,
+so let's walk through it line-by-line.
+
+First up in `main()`:
+
+```rust
+let mut lp = Loop::new().unwrap();
+let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+```
+
+Here we [create an event loop][loop-new] which we're going to perform all our
+I/O on. Afterwards we figure out what we're actually connecting to by
+using the standard library's name resolution through [`to_socket_addrs`].
+
+[loop-new]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.new
+[`to_socket_addrs`]: https://doc.rust-lang.org/std/net/trait.ToSocketAddrs.html
+
+Next up:
+
+```rust
+let socket = lp.handle().tcp_connect(&addr);
+```
+
+We [get a handle] to our event loop to issue a TCP connection via
+[`tcp_connect`] to the socket address we just determined. Note, though, that
+`tcp_connect` returns a future! This means that we don't actually have the
+socket yet, but rather it will be fully connected at some later point in time.
+
+[get a handle]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.handle
+[`tcp_connect`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.tcp_connect
+
+Once our socket is available we've got three tasks to perform to download the
+rust-lang.org home page:
+
+1. Perform a TLS handshake. The home page is only served over HTTPS, so we had
+   to connect to port 443 and we'll have to obey the TLS protocol.
+2. An HTTP request needs to be issued. We're currently a very simple
+   "HTTP client", though, so we'll just write out the bare minimum.
+3. Finally, we download the response by reading off all the data on the socket.
+
+Let's take a look at each of these steps in detail, fist being:
+
+```rust
+let tls_handshake = socket.and_then(|socket| {
+    let cx = ClientContext::new().unwrap();
+    cx.handshake("www.rust-lang.org", socket)
+}).boxed();
+```
+
+Here we use the [`and_then`] method on the [`Future`] trait to continue building
+on the future returned by [`tcp_connect`]. The [`and_then`] method takes a
+closure which receives the resolved value of this previous future. In this case
+`socket` will have type [`TcpStream`]. The [`and_then`] closure, however, will
+not run if [`tcp_connect`] returned an error.
+
+[`and_then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.and_then
+[`TcpStream`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpStream.html
+
+Once we have our `socket`, we create a client TLS context via
+[`ClientContext::new`]. This object in the [`futures-tls`] crate will allow us
+to create the client half of a TLS connection. Next we call the [`handshake`]
+method to actually perform the TLS handshake. The first argument is the domain
+name we think we're connecting to, with the I/O object as the second.
+
+[`ClientContext::new`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.new
+[handshake]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
+
+Like with the [`tcp_connect`] from before, however, the [`handshake`] method
+returns a future. The actual TLS handshake may take some time as the client and
+server need to perform some I/O, agree on certificates, etc. When resolved,
+however, the future returned will resolve to a [`TlsStream`], similar to our
+previous [`TcpStream`]
+
+[`TlsStream`]: http://alexcrichton.com/futures-rs/futures_tls/struct.TlsStream.html
+
+The [`and_then`] combinator, is doing some heavy lifting behind the scenes here,
+however, by ensuring that it executes futures in the right order and keeps track
+of the futures in flight. Even better, the value returned from [`and_then`]
+itself implements [`Future`], so we can keep chaining computation!
+
+Next up, we issue our HTTP request:
+
+```rust
+let request = tls_handshake.and_then(|socket| {
+    futures_io::write_all(socket, "\
+        GET / HTTP/1.0\r\n\
+        Host: www.rust-lang.org\r\n\
+        \r\n\
+    ".as_bytes())
+}).boxed();
+```
+
+Here we take the future from the previous step, `tls_handshake`, and use
+[`and_then`] again to chain on another computation. The [`write_all`] combinator
+is used to write the entirety of our HTTP request. Here we're just doing a
+simple HTTP/1.0 request, so there's not much we need to write.
+
+[`write_all`]: http://alexcrichton.com/futures-rs/futures_io/fn.write_all.html
+
+The [`write_all`] future returned will complete once all the data has been
+written to the socket. Note that behind the scenes the [`TlsStream`] will
+actually be encrypting all the data we write to it to the underlying socket.
+
+And the third and final piece of our request looks like:
+
+```rust
+let response = request.and_then(|(socket, _)| {
+    futures_io::read_to_end(socket, Vec::new())
+}).boxed();
+```
+
+The previous `request` future is chained again with [`and_then`] with the final
+future, the [`read_to_end`] combinator. This future will read all data from the
+`socket` provided and place it into the buffer provided (in this case an empty
+one), and resolve to the buffer itself once the underlying connection hits EOF.
+
+[`read_to_end`]: http://alexcrichton.com/futures-rs/futures_io/fn.read_to_end.html
+
+Like before, though, reads from the `socket` are actually decrypting data
+received from the server under the covers, so we're just reading the decrypted
+version!
+
+If we were to return at this point in the program, you might be surprised to see
+that nothing happens when it's run! That's actually be cause all we've done so
+far is construct a future-based computation, we haven't actually run it. Up to
+this point in the program we've done zero I/O, zero requests, etc.
+
+To actually execute our future and drive it to completion we'll need to run the
+event loop:
+
+```rust
+let data = lp.run(response).unwrap();
+println!("{}", String::from_utf8_lossy(&data));
+```
+
+Here we pass our `response` future, our entire HTTP request, and we pass it to
+the event loop, [asking it to resolve the future][`run`]. The event loop will
+then run until the future has been resolved, returning the result of the future
+which in this case is `io::Result<Vec<u8>>`.
+
+[`run`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.run
+
+Note that this `lp.run(..)` call will block the calling thread until the future
+can itself be resolved. This means that `data` here has type `Vec<u8>`. We then
+print it out to stdout as usual.
+
+Phew! At this point we've seen futures in action where [they're
+created][`tcp_connect`] by I/O, [composed together][`and_then`] to create a
+chain of computation, and how I/O [can be expressed][`read_to_end`] with
+futures. This only shows off the tip of the iceberg of what futures can do,
+however, so let's dive more into the traits themselves.
+
+---
+
+## The `Future` trait
+[future-trait]: #the-future-trait
+
+[Back to top][top]
+
+The core trait of the [`futures`] crate is [`Future`].  This trait represents an
+asynchronous computation which will eventually get resolved. Let's take a look:
+
+```rust
+trait Future: Send + 'static {
+    type Item: Send + 'static;
+    type Error: Send + 'static;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
+    fn schedule(&mut self, task: &mut Task);
+
+    // ...
+}
+```
+
+I'm sure quite a few points jump out immediately about this definition, so
+let's go through them all in detail!
+
+* [`Send` and `'static`][send-and-static]
+* [`Item` and `Error`][item-and-error]
+* [`poll` and `schedule`][poll-and-schedule]
+* [`Future` combinators][combinators]
+
+### `Send` and `'static`
+[send-and-static]: #send-and-static
+
+[Back to `Future`][future-trait]
+
+```rust
+trait Future: Send + 'static {
+    // ...
+}
+```
+
+The first part of the `Future` trait you'll probably notice are the `Send +
+'static` bounds. This is Rust's way of saying that a type can be sent to other
+threads and also contains no stack references. This restriction on `Future` as
+well as its associated types provides the guarantee that all futures, and their
+results, can be sent to other threads.
+
+This represents an interesting stance with a trait definition where users of the
+trait are maximally empowered to do what they'd like with futures, but
+implementors of futures may be hindered by these two bounds. The `futures` crate
+has chosen this balance as the consumers of futures are intended to be *far*
+greater than the implementors of futures, and this allows for some [interesting
+optimizations][tailcall] on the trait.
+
+The cause for non-`Send` data being stored in futures is not lost however! More
+discussion on this is available in the section on [event loop
+data][event-loop-data]. Additionally, more technical information about these
+bounds can be found in the [FAQ][faq-why-send].
+
+[faq-why-send]: https://github.com/alexcrichton/futures-rs/blob/tutorial/FAQ.md#why-send--static
+
+### `Item` and `Error`
+[item-and-error]: #send-and-static
+
+[Back to `Future`][future-trait]
+
+```
+type Item: Send + 'static;
+type Error: Send + 'static;
+```
+
+The next property of the [`Future`] trait you'll probably notice are the two
+associated types it contains. These represent the types of values that the
+`Future` can resolve to. Each instance of `Future` can be thought of as
+resolving to a `Result<Self::Item, Self::Error>`.
+
+Each associated type, like the trait, is bound by `Send + 'static`, indicating
+that they must be sendable to other threads and cannot contain stack references.
+
+These two types will show up very frequently in `where` clauses when consuming
+futures generically, and type signatures when futures are returned. For example
+when returning a future you might write:
+
+```rust
+fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
+    // ...
+}
+```
+
+Or when taking a future you might write:
+
+```rust
+fn foo<F>(future: F)
+    where F: Future<Error = io::Error>,
+          F::Item: Future,
+{
+    // ...
+}
+```
+
+### `poll` and `schedule`
+[poll-and-schedule]: #poll-and-schedule
+
+[Back to `Future`][future-trait]
+
+```
+fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
+fn schedule(&mut self, task: &mut Task);
+```
+
+The entire [`Future`] trait is built up around these two methods, and they're
+the only required methods. The [`poll`] method is the sole entry point for
+extracting the resolved value of a future, and the [`schedule`] method is how
+interest is registered in the value of a future, should it become available.
+
+[`poll`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.poll
+[`schedule`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.schedule
+
+These two methods are similar to [`epoll`] or [`kqueue`] in that they embody a
+*readiness* model of computation rather than a *completion*-based model. Futures
+can notify consumers of readiness through the [`schedule`] method, and then
+values are extracted through the nonblocking [`poll`] method. If [`poll`] is
+called and the value isn't ready yet then the `schedule` method can be invoked
+to learn about when the value is itself available.
+
+[`epoll`]: http://man7.org/linux/man-pages/man7/epoll.7.html
+[`kqueue`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
+
+First, let's take a closer look at [`poll`]. One primary point about it is the
+`&mut self` argument, which conveys a number of restrictions and abilities:
+
+* Futures may only be polled by one thread at a time.
+* During a `poll`, futures can mutate their own state.
+* When `poll`'d, futures are owned by another entity.
+
+Next up is the [`Task`] argument, but we'll [talk about that
+later][task-and-future]. Finally we see the [`Poll`] type being returned, which
+looks like.
+
+[`Task`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html
+[`Poll`]: http://alexcrichton.com/futures-rs/futures/enum.Poll.html
+
+```rust
+enum Poll<T, E> {
+    NotReady,
+    Ok(T),
+    Err(E),
+}
+```
+
+Through this `enum` futures can communicate whether the future's value is ready
+to go via `Poll::Ok` or `Poll::Err`. If the value isn't ready yet then
+`Poll::NotReady` is returned.
+
+The [`Future`] trait, like `Iterator`, doesn't specify what happens after
+[`poll`] is called if the future has already resolved. Many implementations will
+panic, some may never resolve again, etc. This means that implementors of the
+[`Future`] trait don't need to maintain state to check if [`poll`] has already
+returned successfully.
+
+If a call to [`poll`] return `Poll::NotReady`, then futures still need to know
+how to figure out when to get poll'd later! This is where the [`schedule`]
+method comes into the picture. Like with [`poll`] this method takes `&mut self`,
+giving us the same guarantees as before. Similarly, it is passed a [`Task`], but
+the relationship between [`schedule`] and [`Task`] is somewhat different that
+that `poll` has.
+
+Each [`Task`] can have a [`TaskHandle`] extracted from it via the
+[`Task::handle`] method. This [`TaskHandle`] implements `Send + 'static` and has
+one primary method, [`notify`]. This method, when called, indicates that a
+future can make progress, and may be able to resolve to a value.
+
+[`Task::handle`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.handle
+[`TaskHandle`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html
+[`notify`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html#method.notify
+
+That is, when [`schedule`] is called, a future must arrange for the [`Task`]
+specified to get notified when progress is ready to be made. It's ok to notify a
+task when the future can't actually get resolved, or just for a spurious
+notification that something is ready. Nevertheless, implementors of [`Future`]
+must guarantee that when the value is ready at least one call to `notify` has
+been made.
+
+More detailed documentation can be found on the [`poll`] and [`schedule`]
+methods themselves.
+
+### `Future` combinators
+[combinators]: #future-combinators
+
+[Back to `Future`][future-trait]
+
+Now that we've seen the [`poll`] and [`schedule`] methods, they seem like they
+may be a bit of a pain to call! What if all you have is a future of `String` and
+you want to convert it to a future of `u32`? For this sort of composition, the
+`Future` trait also provides a large number of **combinators** which can be seen
+on the [`Future`] trait itself.
+
+The combinators are designed to be very similar to the `Iterator` combinators.
+That is, they all consume the receiving future and return a new future. For
+example we could have:
+
+```rust
+fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
+    where F: Future<Item=String>,
+{
+    future.map(|string| {
+        string.parse::<u32>().unwrap()
+    }).boxed()
+}
+```
+
+Here we're using [`map`] to transform a future of `String` to a future of `u32`,
+ignoring errors. This example returns a `Box`, but that's not always necessary,
+and is discussed in the [returning futures][returning-futures] section.
+
+The combinators on futures allow expressing concepts like:
+
+* Change the type of a future ([`map`], [`map_err]`)
+* Run another future after one has completed ([`then`], [`and_then`],
+  [`or_else`])
+* Figuring out which of two futures resolves first ([`select`])
+* Waiting for two futures to both complete ([`join`])
+* Defining the behavior of [`poll`] after resolution ([`fuse`])
+
+[`map`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map
+[`map_err`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map_err
+[`then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.then
+[`and_then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.and_then
+[`or_else`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.or_else
+[`select`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.select
+[`join`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.join
+[`fuse`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.fuse
+
+Usage of the combinators should feel very similar to the `Iterator` trait in
+Rust or futures in [Scala][scala-futures]. Most composition of futures ends up
+being done through these combinators. All combinators are zero-cost which is
+another way of saying no memory is allocated internally and the implementation
+will optimize to what you would have otherwise written by hand.
+
+---
+
+## The `Stream` trait
+[stream-trait]: #the-stream-trait
+
+[Back to top][top]
+
+Previously we've taken a long look at the [`Future`] trait which is useful if
+we're only producing one value over time, but sometimes computations are best
+modeled as a *stream* of values being produced over time. For example a TCP
+listener produces a number of TCP socket connections over its lifetime.  For
+that purpose the [`futures`] crate also includes a [`Stream`] trait:
+
+```rust
+trait Stream: Send + 'static {
+    type Item: Send + 'static;
+    type Error: Send + 'static;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error>;
+    fn schedule(&mut self, task: &mut Task);
+}
+```
+
+You'll notice that the [`Stream`] trait is very similar to the [`Future`] trait.
+It requires `Send + 'static`, has associated types for the item/error, and has a
+`poll` and `schedule` method. The primary difference, however, is that a
+stream's [`poll`][stream-poll] method return `Option<Self::Item>` instead of
+`Self::Item`.
+
+[stream-poll]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#tymethod.poll
+
+A [`Stream`] produces optionally many values over time, signaling termination of
+the stream by returning `Poll::Ok(None)`. At its heart a [`Stream`] represents
+and asynchronous stream of values being produced in order.
+
+A [`Stream`] is actually just a special instance of a [`Future`], and can be
+converted to a future through the [`into_future`] method. The [returned
+future][`StreamFuture`] will resolve to the next value on the stream plus the
+stream itself, allowing more values to later be extracted. This also allows
+composing streams and other arbitrary futures with the core future combinators.
+
+[`into_future`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.into_future
+[`StreamFuture`]: http://alexcrichton.com/futures-rs/futures/stream/struct.StreamFuture.html
+
+Like [`Future`], the [`Stream`] trait provides a large number of combinators.
+Many future-like combinators are provided like [`then`][stream-then], but
+stream-specific combinators like [`fold`] are also provided.
+
+[stream-then]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.then
+[`fold`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.fold
+
+---
+
+## Concrete futures and streams
+[concrete]: #concrete-futures-and-streams
+
+[Back to top][top]
+
+Alright at this point we've got a good idea of the [`Future`] and [`Stream`]
+traits both in how they're implemented as well as how they're composed together.
+But where to all these futures originally come from? Let's take a look at a few
+concrete implementations of futures and streams here.
+
+First, any value already available is trivially a future that is immediately
+ready. For this, the [`done`], [`failed`], [`finished`] suffice. The [`done`]
+variant takes a `Result<T, E>` and returns a `Future<Item=T, Error=E>`. The
+[`failed`] and [`finished`] variants then specify either `T` or `E` and leave
+the other associated type as a wildcard.
+
+[`done`]: http://alexcrichton.com/futures-rs/futures/fn.done.html
+[`finished`]: http://alexcrichton.com/futures-rs/futures/fn.finished.html
+[`failed`]: http://alexcrichton.com/futures-rs/futures/fn.failed.html
+
+For streams the equivalent of an "immediately ready" stream is the [`iter`]
+function which creates a stream that yields the same items as the underlying
+iterator.
+
+[`iter`]: http://alexcrichton.com/futures-rs/futures/stream/fn.iter.html
+
+In situations though where a value isn't immediately ready, there are also much
+more general implementations of [`Future`] and [`Stream`] that are available in
+the [`futures`] crate, the first of which is [`promise`]. Let's first take a
+look:
+
+[`promise`]: http://alexcrichton.com/futures-rs/futures/fn.promise.html
+
+```rust
+extern crate futures;
+
+use std::thread;
+use futures::Future;
+
+fn expensive_computation() -> u32 {
+    // ...
+    200
+}
+
+fn main() {
+    let (tx, rx) = futures::promise();
+
+    thread::spawn(move || {
+        tx.complete(expensive_computation());
+    });
+
+    let rx = rx.map(|x| x + 3);
+}
+```
+
+Here we can see that the [`promise`] function returns two halves (like
+[`mspc::channel`]). The first half, `tx`, is of type [`Complete`] and is used to
+complete the promise, providing a value to the future on the other end. The
+[`Complete::complete`] method will transmit the value to the receiving end.
+
+The second half, `rx`, is of type [`Promise`] which is a type that implements
+the [`Future`] trait. The `Item` type is `T`, the type of the promise. The
+`Error` type is [`Canceled`] which happens when the [`Complete`] half is dropped
+without completing the computation.
+
+[`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
+[`Complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html
+[`Complete::complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html#method.complete
+[`Promise`]: http://alexcrichton.com/futures-rs/futures/struct.Promise.html
+[`Canceled`]: http://alexcrichton.com/futures-rs/futures/struct.Canceled.html
+
+This concrete implementation of `Future` can be used (as shown here) to
+communicate values across threads. Each half implements the `Send` trait and is
+a separately owned entity to get passed around. It's generally not recommended
+to make liberal use of this type of future, however, unless necessary. The
+combinators above or other forms of base futures should be preferred wherever
+possible.
+
+For the [`Stream`] trait, a similar primitive is available, [`channel`]. This
+type also has two halves, where the sending half is used to send messages and
+the receiving half implements `Stream`.
+
+The [`Sender`] type is unique, however, in that when a value is sent to the
+channel it consumes the sender, returning a future that will resolve to the
+original sender when the value is consumed. This is intended to model
+backpressure where a producer won't be able to make progress until the consumer
+has caught up.
+
+[`channel`]: http://alexcrichton.com/futures-rs/futures/stream/fn.channel.html
+[`Sender`]: http://alexcrichton.com/futures-rs/futures/stream/struct.Sender.html
+
+---
+
+## Returning futures
+[returning-futures]: #returning-futures
+
+[Back to top][top]
+
+When working with futures one of the first things you're likely to run into is
+wanting to return a [`Future`]! Like with the `Iterator` trait, however, this
+isn't currently always the easiest thing to do. Let's walk through your options,
+however.
+
+* [Trait objects][return-trait-objects]
+* [Custom types][return-custom-types]
+* [Named types][return-named-types]
+* [`impl Trait`][return-impl-trait]
+
+### Trait objects
+[return-trait-objects]: #trait-objects
+
+[Back to returning future][returning-futures]
+
+First, what you can do is return a [trait object]:
+
+```rust
+fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
+    // ...
+}
+```
+
+The upside of this strategy is that it's easy to write down (just a `Box`) and
+easy to create (through the [`boxed`] method). This is also maximally flexible
+in terms of future changes to the method as *any* future can be returned from
+this method.
+
+The downside of this approach, however, is that it requires a runtime allocation
+when the future is constructed. The `Box` needs to be allocated on the heap and
+the future itself is then placed inside. Note, though that this is the *only*
+allocation here, otherwise while the future is being executed no allocations
+will be made. Furthermore, the cost is not always that high in the end because
+internally there are no boxed futures (e.g. chains of combinators), it's only at
+the fringe that a `Box` comes into effect.
+
+[trait object]: https://doc.rust-lang.org/book/trait-objects.html
+[`boxed`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.boxed
+
+### Custom types
+[return-custom-types]: #custom-types
+
+[Back to returning future][returning-futures]
+
+If you'd like to not return a `Box`, however, another option is to name the
+return type explicitly. For example:
+
+```rust
+struct MyFuture {
+    inner: Promise<i32>,
+}
+
+fn foo() -> MyFuture {
+    let (tx, rx) = promise();
+    // ...
+    MyFuture { inner: tx }
+}
+
+impl Future for MyFuture {
+    // ...
+}
+```
+
+In this example we're returning a custom type, `MyFuture`, and we implement the
+`Future` trait directly for it. This implementation leverages an underlying
+`Promise<i32>`, but any other kind of protocol can also be implemented here as
+well.
+
+The upside to this approach is that it won't require a `Box` allocation and it's
+still maximally flexible. The implementation details of `MyFuture` are hidden to
+the outside world so it can change without breaking others.
+
+The downside to this approach, however, is that it's not always ergonomically
+viable. Defining new types gets cumbersome after awhile, and if you're very
+frequently returning futures it may be too much.
+
+### Named types
+[return-named-types]: #named-types
+
+[Back to returning future][returning-futures]
+
+The next possible alternative is to name the return type directly:
+
+```rust
+fn add_10<F>(f: F) -> Map<F, fn(i32) -> i32>
+    where F: Future<Item = i32>,
+{
+    fn do_map(i: i32) -> i32 { i + 10 }
+    f.map(do_map)
+}
+```
+
+Here we name the return type exactly as the compiler sees it. The [`map`]
+function returns the [`Map`] struct which internally contains the future and the
+function to perform the map.
+
+The upside to this approach is that it's more ergonomic than the custom future
+type above and it also doesn't have the runtime overhead of `Box` from before.
+
+The downside, however, is that it's often quite difficult to name the type.
+Sometimes the types can get quite large or be unnameable altogether. Here we're
+using a function pointer (`fn(i32) -> i32`) but we would ideally use a closure.
+Unfortunately the return type cannot name the closure, for now.
+
+[`Map`]: http://alexcrichton.com/futures-rs/futures/struct.Map.html
+
+### `impl Trait`
+[return-impl-trait]: #impl-trait
+
+[Back to returning future][returning-futures]
+
+In an ideal world, however, we can have our cake and eat it too with a new
+language feature called [`impl Trait`]. This language feature will allow, for
+example:
+
+[`impl Trait`]: https://github.com/rust-lang/rfcs/blob/master/text/1522-conservative-impl-trait.md
+
+```rust
+fn add_10<F>(f: F) -> impl Future<Item = i32, Error = F::Error>
+    where F: Future<Item = i32>,
+{
+    f.map(|i| i + 10)
+}
+```
+
+Here we're indicating that the return type is "something that implements
+`Future`" with the given associated types. Other than that we just use the
+future combinators as we normally would.
+
+The upsides to this approach are that it is zero overhead with no `Box`
+necessary, it's maximally flexible to future implementations as the actual
+return type is hidden, and it's ergonomic to write as it's similar to the nice
+`Box` example above.
+
+The downside to this approach is only that it's not on stable Rust yet. As of
+the time of this writing [`impl Trait`] has a [initial implementation as a
+PR][impl-trait-pr] but it will still take some time to make its way into nightly
+and then finally the stable channel. The good news, however, is that as soon as
+`impl Trait` hits stable Rust all crates using futures can immediately benefit!
+It should be a backwards-compatible extension to change return types especially
+from `Box` to [`impl Trait`]
+
+[impl-trait-pr]: https://github.com/rust-lang/rust/pull/35091
+
+---
+
+## `Task` and `Future`
+[task-and-future]: #task-and-future
+
+[Back to top][top]
+
+Up to this point we've talked a lot about how to build computations by creating
+futures, but we've barely touched on how to actually *run* a future. When
+talking about [`poll` and `schedule`][poll-and-schedule] earlier it was
+mentioned that if `poll` returns `NotReady` then `schedule` is called, but who's
+actually calling `poll` and `schedule`?
+
+Enter, a [`Task`]!
+
+In the [`futures`] crate there is a struct called [`Task`] which is used to
+drive a computation represented by futures. One particular instance of a
+`Future` may be short-lived, and may only be part of one large computations. For
+example in our ["hello world"][hello-world] example we had a number of futures,
+but only one actually existed in memory at a time. For the entire program, we'll
+have one [`Task`] that followed the logical "thread of execution" as the future
+progressed.
+
+In short, a `Task` is the one that's actually orchestrating the top-level calls
+to `poll` and `schedule`. Its main method, [`run`] does exactly this. Internally
+`Task` has synchronization for if [`notify`] is called on multiple threads it'll
+ensure that the calls to [`poll`] are coordinated.
+
+[`run`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.run
+
+Tasks themselves are not typically created manually but rather are manufactured
+through use of the [`forget`] function. This function on the [`Future`] trait
+creates a new [`Task`] and then asks it to run the future. Semantically this
+will drive the future to completion, scheduling callbacks when necessary and
+calling `poll` when a notification comes in. Once the future is completed the
+final value is dropped along with the future and associated task.
+
+[`forget`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.forget
+
+Conceptually a [`Task`] is somewhat similar to an OS thread's stack. Where an OS
+thread runs functions that all have access to the stack which is available
+across blocking I/O calls, an asynchronous computation runs individual futures
+over time which all have access to a [`Task`] that is persisted throughout the
+lifetime of the computation.
+
+---
+
+## Task local data
+[task-local-data]: #task-local-data
+
+[Back to top][top]
+
+In the previous section we've now seen how each individual future is only
+one piece of a larger asynchronous computation. This means that futures come
+and go, but there could also be data that lives for the entire span of a
+computation that many futures need access to.
+
+Futures themselves require `Send + 'static`, so we have two choices to share
+data between futures:
+
+* If the data is only ever used by one future at a time we can thread through
+  ownership of the data between each future.
+* If the data needs to be accessed concurrently, however, then we'd have to
+  naively store data in an `Arc` or worse, in an `Arc<Mutex>` if we wanted
+  to mutate it.
+
+Both of these solutions are relatively heavyweight, though, so let's see if we
+can do better!
+
+In the [`Task` and `Future`][task-and-future] section we saw how an asynchronous
+computation has access to a [`Task`] for its entire lifetime, and from the
+signature of [`poll`] and [`schedule`] we also see that it has mutable access to
+this task. The [`Task`] API leverages these facts and allows you to store
+data inside a `Task`.
+
+Data is stored inside a `Task` with [`insert`] which returns a [`TaskData`]
+handle. This handle can then be cloned regardless of the underlying data. To
+access the data at a later date you can use the [`get`] or [`get_mut`] methods.
+
+[`insert`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.insert
+[`TaskData`]: http://alexcrichton.com/futures-rs/futures/struct.TaskData.html
+[`get`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.get
+[`get_mut`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.get_mut
+
+A [`TaskData`] can also be created with the [`store`] future which will resolve
+to a handle to the data being stored. Currently there is no combinator for
+accessing data from a task and it's primarily used in manual implementations of
+[`Future`], but this may change soon!
+
+[`store`]: http://alexcrichton.com/futures-rs/futures/fn.store.html
+
+---
+
+## Event loop data
+[event-loop-data]: #event-loop-data
+
+[Back to top][top]
+
+We've now seen that we can store data into a [`Task`] with [`TaskData`], but
+this requires that the data inserted is still `Send`. Sometimes data is not
+`Send` or otherwise needs to be persisted yet not tied to a [`Task`]. For this
+purpose the [`futures-mio`] crate provides a similar abstraction, [`LoopData`].
+
+[`LoopData`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html
+
+The [`LoopData`] is similar to [`TaskData`] where it's a handle to data
+conceptually owned by the event loop. The key property of [`LoopData`], however,
+is that it implements the `Send` trait regardless of the underlying data.
+
+A [`LoopData`] handle is a bit easier to access than a [`TaskData`], as you
+don't need to get the data from a task. Instead you can simply attempt to access
+the data with [`get`][loop-get] or [`get_mut`][loop-get-mut]. Both of these
+methods return `Option` where `None` is returned if you're not on the event
+loop.
+
+[loop-get]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html#method.get
+[loop-get-mut]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html#method.get_mut
+
+In the case that `None` is returned, a future may have to return to the event
+loop in order to make progress. In order to guarantee this the [`executor`]
+associated with the data can be acquired and passed to [`Task::poll_on`]. This
+will request that the task poll itself on the specified executor, which in this
+case will run the poll request on the event loop where the data can be accessed.
+
+[`executor`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html#method.executor
+[`Task::poll_on`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.poll_on
+
+A [`LoopData`] can be created through one of two methods:
+
+* If you've got a handle to the [event loop itself][`Loop`] then you can call
+  the [`Loop::add_loop_data`] method. This allows inserting data directly and a
+  handle is immediately returned.
+* If all you have is a [`LoopHandle`] then you can call the
+  [`LoopHandle::add_loop_data`] method. This, unlike [`Loop::add_loop_data`],
+  requires a `Send` closure which will be used to create the relevant data. Also
+  unlike the [`Loop`] method, this function will return a future that resolves
+  to the [`LoopData`] value.
+
+[`Loop`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html
+[`Loop::add_loop_data`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.add_loop_data
+[`LoopHandle`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html
+[`LoopHandle::add_loop_data`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.add_loop_data
+
+Task-local data and event-loop data provide the ability for futures to easily
+share sendable and non-sendable data for sharing amongst many futures.
+
