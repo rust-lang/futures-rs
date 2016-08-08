@@ -31,30 +31,58 @@ cfg_if! {
         use std::env;
         use std::sync::{Once, ONCE_INIT};
 
-        use openssl::x509::X509;
+        use openssl::crypto::hash::Type;
         use openssl::crypto::pkey::PKey;
+        use openssl::crypto::rsa::RSA;
+        use openssl::x509::{X509Generator, X509};
 
         use futures_tls::backend::openssl::ServerContextExt;
         use futures_tls::backend::openssl::ClientContextExt;
 
         fn server_cx() -> io::Result<ServerContext> {
-            let cert = include_bytes!("server.crt");
-            let cert = t!(X509::from_pem(&mut &cert[..]));
-            let key = include_bytes!("server.key");
-            let key = t!(PKey::private_key_from_pem(&mut &key[..]));
-            ServerContext::new(&cert, &key)
+            let (cert, key) = keys();
+            ServerContext::new(cert, key)
         }
 
-        static INIT: Once = ONCE_INIT;
-
         fn configure_client(cx: &mut ClientContext) {
+            // Unfortunately looks like the only way to configure this is
+            // `set_CA_file` file on the client side so we have to actually
+            // emit the certificate to a file. Do so next to our own binary
+            // which is likely ephemeral as well.
             let path = t!(env::current_exe());
             let path = path.parent().unwrap().join("custom.crt");
+            static INIT: Once = ONCE_INIT;
             INIT.call_once(|| {
-                t!(t!(File::create(&path)).write_all(include_bytes!("schannel-ca.crt")));
+                let pem = keys().0.to_pem().unwrap();
+                t!(t!(File::create(&path)).write_all(&pem));
             });
             let ssl = cx.ssl_context_mut();
             t!(ssl.set_CA_file(&path));
+        }
+
+        // Generates a new key on the fly to be used for the entire suite of
+        // tests here.
+        fn keys() -> (&'static X509, &'static PKey) {
+            static INIT: Once = ONCE_INIT;
+            static mut CERT: *mut X509 = 0 as *mut _;
+            static mut KEY: *mut PKey = 0 as *mut _;
+
+            unsafe {
+                INIT.call_once(|| {
+                    let rsa = RSA::generate(1024).unwrap();
+                    let pkey = PKey::from_rsa(rsa).unwrap();
+                    let gen = X509Generator::new()
+                                .set_valid_period(1)
+                                .add_name("CN".to_owned(), "localhost".to_owned())
+                                .set_sign_hash(Type::SHA256);
+                    let cert = gen.sign(&pkey).unwrap();
+
+                    CERT = Box::into_raw(Box::new(cert));
+                    KEY = Box::into_raw(Box::new(pkey));
+                });
+
+                (&*CERT, &*KEY)
+            }
         }
     } else if #[cfg(target_os = "macos")] {
         extern crate security_framework;
@@ -139,6 +167,16 @@ cfg_if! {
         // Lots of magic is happening here to wrangle certificates for running
         // these tests on Windows. For more information see the test suite
         // in the schannel-rs crate as this is just coyping that.
+        //
+        // The general gist of this though is that the only way to add custom
+        // trusted certificates is to add it to the system store of trust. To
+        // do that we go through the whole rigamarole here to generate a new
+        // self-signed certificate and then insert that into the system store.
+        //
+        // This generates some dialogs, so we print what we're doing sometimes,
+        // and otherwise we just manage the ephemeral certificates. Because
+        // they're in the system store we always ensure that they're only valid
+        // for a small period of time (e.g. 1 day).
 
         fn localhost_cert() -> CertContext {
             static INIT: Once = ONCE_INIT;
