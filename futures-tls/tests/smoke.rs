@@ -88,7 +88,9 @@ cfg_if! {
         extern crate security_framework;
 
         use std::env;
-        use std::fs;
+        use std::fs::{self, File};
+        use std::path::PathBuf;
+        use std::process::Command;
         use std::sync::{Once, ONCE_INIT};
 
         use security_framework::certificate::SecCertificate;
@@ -101,35 +103,85 @@ cfg_if! {
         use futures_tls::backend::secure_transport::ServerContextExt;
         use futures_tls::backend::secure_transport::ClientContextExt;
 
-        static INIT: Once = ONCE_INIT;
-
         fn server_cx() -> io::Result<ServerContext> {
-            let path = t!(env::current_exe());
-            let path = path.parent().unwrap();
-            let path = path.join("test.keychain");
-
-            INIT.call_once(|| {
-                let _ = fs::remove_file(&path);
-                t!(CreateOptions::new()
-                    .password("test")
-                    .create(&path));
-            });
-
-            let mut keychain = t!(SecKeychain::open(&path));
+            let (keychain, keyfile, _) = keys();
+            let mut key = Vec::new();
+            t!(t!(File::open(&keyfile)).read_to_end(&mut key));
+            let mut keychain = t!(SecKeychain::open(&keychain));
             t!(keychain.unlock(Some("test")));
 
             let mut options = Pkcs12ImportOptions::new();
             Pkcs12ImportOptionsExt::keychain(&mut options, keychain);
             let identities = t!(options.passphrase("foobar")
-                                       .import(include_bytes!("server.p12")));
+                                       .import(&key));
             assert!(identities.len() == 1);
             ServerContext::new(&identities[0].identity, &identities[0].cert_chain)
         }
 
         fn configure_client(cx: &mut ClientContext) {
-            let der = include_bytes!("server.der");
-            let cert = SecCertificate::from_der(der).unwrap();
+            let (_, _, certfile) = keys();
+            let mut der = Vec::new();
+            t!(t!(File::open(&certfile)).read_to_end(&mut der));
+            let cert = SecCertificate::from_der(&der).unwrap();
             t!(cx.anchor_certificates(&[cert]));
+        }
+
+        // Like OpenSSL we generate certificates on the fly, but for OSX we
+        // also have to put them into a specific keychain. We put both the
+        // certificates and the keychain next to our binary.
+        //
+        // Right now I don't know of a way to programmatically create a
+        // self-signed certificate, so we just fork out to the `openssl` binary.
+        fn keys() -> (PathBuf, PathBuf, PathBuf) {
+            static INIT: Once = ONCE_INIT;
+
+            let path = t!(env::current_exe());
+            let path = path.parent().unwrap();
+            let keychain = path.join("test.keychain");
+            let keyfile = path.join("test.p12");
+            let certfile = path.join("test.der");
+
+            INIT.call_once(|| {
+                let _ = fs::remove_file(&keychain);
+                let _ = fs::remove_file(&keyfile);
+                let _ = fs::remove_file(&certfile);
+                t!(CreateOptions::new()
+                    .password("test")
+                    .create(&keychain));
+
+                let subj = "/C=US/ST=Denial/L=Sprintfield/O=Dis/CN=localhost";
+                let output = t!(Command::new("openssl")
+                                        .arg("req")
+                                        .arg("-nodes")
+                                        .arg("-new")
+                                        .arg("-x509")
+                                        .arg("-subj").arg(subj)
+                                        .arg("-out").arg(&certfile)
+                                        .arg("-keyout").arg(&keyfile)
+                                        .output());
+                assert!(output.status.success());
+
+                let output = t!(Command::new("openssl")
+                                        .arg("pkcs12")
+                                        .arg("-export")
+                                        .arg("-nodes")
+                                        .arg("-inkey").arg(&keyfile)
+                                        .arg("-in").arg(&certfile)
+                                        .arg("-password").arg("pass:foobar")
+                                        .output());
+                assert!(output.status.success());
+                t!(t!(File::create(&keyfile)).write_all(&output.stdout));
+
+                let output = t!(Command::new("openssl")
+                                        .arg("x509")
+                                        .arg("-outform").arg("der")
+                                        .arg("-in").arg(&certfile)
+                                        .output());
+                assert!(output.status.success());
+                t!(t!(File::create(&certfile)).write_all(&output.stdout));
+            });
+
+            (keychain, keyfile, certfile)
         }
     } else {
         extern crate advapi32;
