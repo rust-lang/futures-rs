@@ -105,17 +105,17 @@ fn main() {
     let tls_handshake = socket.and_then(|socket| {
         let cx = ClientContext::new().unwrap();
         cx.handshake("www.rust-lang.org", socket)
-    }).boxed();
+    });
     let request = tls_handshake.and_then(|socket| {
         futures_io::write_all(socket, "\
             GET / HTTP/1.0\r\n\
             Host: www.rust-lang.org\r\n\
             \r\n\
         ".as_bytes())
-    }).boxed();
+    });
     let response = request.and_then(|(socket, _)| {
         futures_io::read_to_end(socket, Vec::new())
-    }).boxed();
+    });
 
     let data = lp.run(response).unwrap();
     println!("{}", String::from_utf8_lossy(&data));
@@ -169,7 +169,7 @@ Let's take a look at each of these steps in detail, first being:
 let tls_handshake = socket.and_then(|socket| {
     let cx = ClientContext::new().unwrap();
     cx.handshake("www.rust-lang.org", socket)
-}).boxed();
+});
 ```
 
 Here we use the [`and_then`] method on the [`Future`] trait to continue building
@@ -212,7 +212,7 @@ let request = tls_handshake.and_then(|socket| {
         Host: www.rust-lang.org\r\n\
         \r\n\
     ".as_bytes())
-}).boxed();
+});
 ```
 
 Here we take the future from the previous step, `tls_handshake`, and use
@@ -231,7 +231,7 @@ And the third and final piece of our request looks like:
 ```rust
 let response = request.and_then(|(socket, _)| {
     futures_io::read_to_end(socket, Vec::new())
-}).boxed();
+});
 ```
 
 The previous `request` future is chained again with [`and_then`] with the final
