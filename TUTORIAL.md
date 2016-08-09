@@ -532,7 +532,7 @@ in the standard library:
 
 | # items | Sync | Async      | Common operations                              |
 | ----- | -----  | ---------- | ---------------------------------------------- |
-| 1 | `Result`   | [`Future`] | [`map`], [`and_then`], [`join`] (a.k.a. `zip`) |
+| 1 | `Result`   | [`Future`] | [`map`], [`and_then`], [`join`][] (a.k.a. `zip`) |
 | ∞ | `Iterator` | [`Stream`] | [`map`][stream-map], [`fold`], [`collect`]     |
 
 Let's take a look at the [`Stream`] trait in the [`futures`] crate:
