@@ -574,22 +574,22 @@ stream-specific combinators like [`fold`] are also provided.
 
 [Back to top][top]
 
-Alright at this point we've got a good idea of the [`Future`] and [`Stream`]
+Alright! At this point we've got a good idea of the [`Future`] and [`Stream`]
 traits both in how they're implemented as well as how they're composed together.
-But where to all these futures originally come from? Let's take a look at a few
+But where do all these futures originally come from? Let's take a look at a few
 concrete implementations of futures and streams here.
 
 First, any value already available is trivially a future that is immediately
-ready. For this, the [`done`], [`failed`], [`finished`] suffice. The [`done`]
-variant takes a `Result<T, E>` and returns a `Future<Item=T, Error=E>`. The
-[`failed`] and [`finished`] variants then specify either `T` or `E` and leave
-the other associated type as a wildcard.
+ready. For this, the [`done`], [`failed`], [`finished`] functions suffice. The
+[`done`] variant takes a `Result<T, E>` and returns a `Future<Item=T, Error=E>`.
+The [`failed`] and [`finished`] variants then specify either `T` or `E` and
+leave the other associated type as a wildcard.
 
 [`done`]: http://alexcrichton.com/futures-rs/futures/fn.done.html
 [`finished`]: http://alexcrichton.com/futures-rs/futures/fn.finished.html
 [`failed`]: http://alexcrichton.com/futures-rs/futures/fn.failed.html
 
-For streams the equivalent of an "immediately ready" stream is the [`iter`]
+For streams, the equivalent of an "immediately ready" stream is the [`iter`]
 function which creates a stream that yields the same items as the underlying
 iterator.
 
@@ -597,8 +597,7 @@ iterator.
 
 In situations though where a value isn't immediately ready, there are also much
 more general implementations of [`Future`] and [`Stream`] that are available in
-the [`futures`] crate, the first of which is [`promise`]. Let's first take a
-look:
+the [`futures`] crate, the first of which is [`promise`]. Let's take a look:
 
 [`promise`]: http://alexcrichton.com/futures-rs/futures/fn.promise.html
 
@@ -625,14 +624,15 @@ fn main() {
 ```
 
 Here we can see that the [`promise`] function returns two halves (like
-[`mspc::channel`]). The first half, `tx`, is of type [`Complete`] and is used to
-complete the promise, providing a value to the future on the other end. The
-[`Complete::complete`] method will transmit the value to the receiving end.
+[`mpsc::channel`]). The first half, `tx` ("transmitter"), is of type [`Complete`]
+and is used to complete the promise, providing a value to the future on the
+other end. The [`Complete::complete`] method will transmit the value to the
+receiving end.
 
-The second half, `rx`, is of type [`Promise`] which is a type that implements
-the [`Future`] trait. The `Item` type is `T`, the type of the promise. The
-`Error` type is [`Canceled`] which happens when the [`Complete`] half is dropped
-without completing the computation.
+The second half, `rx` ("receiver"), is of type [`Promise`] which is a type that
+implements the [`Future`] trait. The `Item` type is `T`, the type of the promise.
+The `Error` type is [`Canceled`], which happens when the [`Complete`] half is
+dropped without completing the computation.
 
 [`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
 [`Complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html
@@ -643,9 +643,8 @@ without completing the computation.
 This concrete implementation of `Future` can be used (as shown here) to
 communicate values across threads. Each half implements the `Send` trait and is
 a separately owned entity to get passed around. It's generally not recommended
-to make liberal use of this type of future, however, unless necessary. The
-combinators above or other forms of base futures should be preferred wherever
-possible.
+to make liberal use of this type of future, however. The combinators above or
+other forms of base futures should be preferred wherever possible.
 
 For the [`Stream`] trait, a similar primitive is available, [`channel`]. This
 type also has two halves, where the sending half is used to send messages and
@@ -667,8 +666,8 @@ has caught up.
 
 [Back to top][top]
 
-When working with futures one of the first things you're likely to run into is
-wanting to return a [`Future`]! Like with the `Iterator` trait, however, this
+When working with futures, one of the first things you're likely to run into is
+wanting to return a [`Future`]! Like with the [`Iterator`] trait, however, this
 isn't currently always the easiest thing to do. Let's walk through your options,
 however.
 
