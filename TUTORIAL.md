@@ -163,7 +163,7 @@ rust-lang.org home page:
    "HTTP client", though, so we'll just write out the bare minimum.
 3. Finally, we download the response by reading off all the data on the socket.
 
-Let's take a look at each of these steps in detail, fist being:
+Let's take a look at each of these steps in detail, first being:
 
 ```rust
 let tls_handshake = socket.and_then(|socket| {
