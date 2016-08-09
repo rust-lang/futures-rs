@@ -535,7 +535,7 @@ in the standard library:
 | 1 | `Result`   | [`Future`] | [`map`], [`and_then`], [`join`] (a.k.a. `zip`) |
 | ∞ | `Iterator` | [`Stream`] | [`map`][stream-map], [`fold`], [`collect`]     |
 
-For that purpose the [`futures`] crate also includes a [`Stream`] trait:
+Let's take a look at the [`Stream`] trait in the [`futures`] crate:
 
 ```rust
 trait Stream: Send + 'static {
@@ -576,6 +576,167 @@ stream-specific combinators like [`fold`] are also provided.
 [stream-map]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.map
 [`fold`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.fold
 [`collect`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.collect
+
+### `Stream` Example
+[stream-example]: #stream-example
+
+[Back to `Stream`][stream-trait]
+
+We saw an example of using futures at the beginning of this tutorial, so let's
+take a look at an example of streams now. We'll take a look concretely at the
+[`incoming`] implementation of [`Stream`] on [`TcpListener`]. This simple server
+below will accept connections, write out the word "Hello!" to them, and then
+close the socket:
+
+[`incoming`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html#method.incoming
+[`TcpListener`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html
+
+```rust
+extern crate futures;
+extern crate futures_io;
+extern crate futures_mio;
+
+use futures::Future;
+use futures::stream::Stream;
+use futures_mio::Loop;
+
+fn main() {
+    let mut lp = Loop::new().unwrap();
+    let address = "127.0.0.1:8080".parse().unwrap();
+    let listener = lp.handle().tcp_listen(&address);
+
+    let server = listener.and_then(|listener| {
+        let addr = listener.local_addr().unwrap();
+        println!("Listening for connections on {}", addr);
+
+        let clients = listener.incoming();
+        let welcomes = clients.and_then(|(socket, _peer_addr)| {
+            futures_io::write_all(socket, b"Hello!\n")
+        });
+        welcomes.for_each(|(_socket, _welcome)| {
+            Ok(())
+        })
+    });
+
+    lp.run(server).unwrap();
+}
+```
+
+Like before, let's walk through this line-by-line:
+
+```rust
+let mut lp = Loop::new().unwrap();
+let address = "127.0.0.1:8080".parse().unwrap();
+let listener = lp.handle().tcp_listen(&address);
+```
+
+Here we initialize our event loop, like before, and then we use the
+[`tcp_listen`] method on [`LoopHandle`] to create a TCP listener which will
+accept sockets.
+
+[`tcp_listen`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.tcp_listen
+
+Next up we see:
+
+```rust
+let server = listener.and_then(|listener| {
+    // ...
+});
+```
+
+Here we see that [`tcp_listen`], like [`tcp_connect`] from before, did not
+return a [`TcpListener`] but rather a future which will resolve to a TCP
+listener. We handle this by using [`and_then`] on [`Future`] to define what
+happens once the TCP listener is available.
+
+Now that we've got the TCP listener we can inspect its state:
+
+```rust
+let addr = listener.local_addr().unwrap();
+println!("Listening for connections on {}", addr);
+```
+
+Here we're just calling the [`local_addr`] method to print out what address we
+ended up binding to. We know that at this point the port is actually bound
+successfully, so clients can now connect.
+
+[`local_addr`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html#method.local_addr
+
+Next up, we actually create our [`Stream`]!
+
+```rust
+let clients = listener.incoming();
+```
+
+Here the [`incoming`] method returns a [`Stream`] of [`TcpListener`] and
+[`SocketAddr`] pairs. This is similar to [libstd's `TcpListener`] and the
+[`accept` method], only we're receiving all of the events as a stream rather
+than having to manually accept sockets.
+
+The stream `clients`, in this case, is an infinite stream. This mirrors how
+socket servers tend to accept clients in a loop and then dispatch them to the
+rest of the system for processing.
+
+[libstd's `TcpListener`]: https://doc.rust-lang.org/std/net/struct.TcpListener.html
+[`SocketAddr`]: https://doc.rust-lang.org/std/net/enum.SocketAddr.html
+[`accept method]: https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.accept
+
+Now that we've got our stream of clients, we can manipulate it via the standard
+methods on the [`Stream`] trait:
+
+```rust
+let welcomes = clients.and_then(|(socket, _peer_addr)| {
+    futures_io::write_all(socket, b"Hello!\n")
+});
+```
+
+Here we use the [`and_then`][stream-and-then] method on [`Stream`] to perform an
+action over each item of the stream. In this case we're chaining on a
+computation for each element of the stream (in this case a `TcpStream`). The
+computation is the same [`write_all`] we saw earlier, where it'll write the
+entire buffer to the socket provided.
+
+[stream-and-then]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.and_then
+
+This block means that `welcomes` is now a stream of sockets which have had
+"Hello!" written to them. For our purposes we're done with the connection at
+that point, so we can collapse the entire `welcomes` stream into a future with
+the [`for_each`] method:
+
+```rust
+welcomes.for_each(|(_socket, _welcome)| {
+    Ok(())
+})
+```
+
+Here we take the results of the previous future, [`write_all`], and discard
+them. The socket at this point is done and we can proceed to the next.
+
+[`for_each`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.for_each
+
+Note that an important aspect of this server is that there is *no concurrency*!
+Streams represent in-order processing of data, and in this case the order of the
+original stream is the order in which sockets are received, which the
+[`and_then`][stream-and-then] and [`for_each`] combinators preserve.
+
+If, instead, we want to handle all clients concurrently, we can use the
+[`forget`] method:
+
+```rust
+let clients = listener.incoming();
+let welcomes = clients.map(|(socket, _peer_addr)| {
+    futures_io::write_all(socket, b"Hello!\n")
+});
+welcomes.for_each(|future| {
+    future.forget();
+    Ok(())
+})
+```
+
+Instead of [`and_then`][stream-and-then] we're using [`map`][stream-map] here
+which changes our stream of clients to a stream of futures. We then change our
+[`for_each`] closure to *[`forget`]* the future, which allows the future to
+execute concurrently.
 
 ---
 

@@ -565,8 +565,17 @@ pub trait Stream: Send + 'static {
         skip_while::new(self, pred)
     }
 
-    // TODO: should this closure return a result?
-    #[allow(missing_docs)]
+    /// Runs this stream to completion, executing the provided closure for each
+    /// element on the stream.
+    ///
+    /// The closure provided will be called for each item this stream resolves
+    /// to successfully, and the closure can optionally fail by returning a
+    /// `Result`.
+    ///
+    /// The returned value is a `Future` where the `Item` type is `()` and
+    /// errors are otherwise threaded through. Any error on the steram or in the
+    /// closure will cause iteration to be halted immediately and the future
+    /// will resolve to that error.
     fn for_each<F>(self, f: F) -> ForEach<Self, F>
         where F: FnMut(Self::Item) -> Result<(), Self::Error> + Send + 'static,
               Self: Sized
