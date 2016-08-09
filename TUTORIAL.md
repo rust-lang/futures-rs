@@ -526,8 +526,16 @@ you would have otherwise written by hand.
 Previously, we've taken a long look at the [`Future`] trait which is useful if
 we're only producing one value over time. But sometimes computations are best
 modeled as a *stream* of values being produced over time. For example, a TCP
-listener produces a number of TCP socket connections over its lifetime. For
-that purpose the [`futures`] crate also includes a [`Stream`] trait:
+listener produces a number of TCP socket connections over its lifetime.
+Let's see how [`Future`] and [`Stream`] relate to their synchronous equivalents
+in the standard library:
+
+| # items | Sync | Async      | Common operations                              |
+| ----- | -----  | ---------- | ---------------------------------------------- |
+| 1 | `Result`   | [`Future`] | [`map`], [`and_then`], [`join`] (a.k.a. `zip`) |
+| ∞ | `Iterator` | [`Stream`] | [`map`][stream-map], [`fold`], [`collect`]     |
+
+For that purpose the [`futures`] crate also includes a [`Stream`] trait:
 
 ```rust
 trait Stream: Send + 'static {
@@ -565,7 +573,9 @@ Many future-like combinators are provided like [`then`][stream-then], but
 stream-specific combinators like [`fold`] are also provided.
 
 [stream-then]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.then
+[stream-map]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.map
 [`fold`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.fold
+[`collect`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.collect
 
 ---
 

@@ -2,6 +2,7 @@ use std::mem;
 
 use {Task, Future, Poll, IntoFuture};
 use stream::Stream;
+use util::Collapsed;
 
 /// A future used to collect all the results of a stream into one generic type.
 ///
@@ -12,7 +13,7 @@ pub struct Fold<S, F, Fut, T> where Fut: IntoFuture {
     state: State<T, Fut::Future>,
 }
 
-enum State<T, Fut> {
+enum State<T, F> where F: Future {
     /// Placeholder state when doing work
     Empty,
 
@@ -20,7 +21,7 @@ enum State<T, Fut> {
     Ready(T),
 
     /// Working on a future the process the previous stream item
-    Processing(Fut),
+    Processing(Collapsed<F>),
 }
 
 pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
@@ -55,7 +56,9 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     match self.stream.poll(task) {
                         Poll::Ok(Some(e)) => {
                             let future = (self.f)(state, e);
-                            self.state = State::Processing(future.into_future());
+                            let future = future.into_future();
+                            let future = Collapsed::Start(future);
+                            self.state = State::Processing(future);
                         }
                         Poll::Ok(None) => return Poll::Ok(state),
                         Poll::Err(e) => return Poll::Err(e),
@@ -85,5 +88,13 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
             State::Ready(_) => self.stream.schedule(task),
             State::Processing(ref mut fut) => fut.schedule(task),
         }
+    }
+
+    fn tailcall(&mut self)
+                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        if let State::Processing(ref mut fut) = self.state {
+            fut.collapse();
+        }
+        None
     }
 }
