@@ -96,7 +96,7 @@ pub trait Stream: Send + 'static {
     type Error: Send + 'static;
 
     /// Attempt to pull out the next value of this stream, returning `None` if
-    /// it's not ready yet.
+    /// the stream is finished.
     ///
     /// This method, like `Future::poll`, is the sole method of pulling out a
     /// value from a stream. The `task` argument is the task of computation that
