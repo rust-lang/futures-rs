@@ -1,5 +1,11 @@
 # futures-minihttp
 
+This library is a proof-of-concept implementation of an HTTP server using
+futures.
+
+[![Build Status](https://travis-ci.org/alexcrichton/futures-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/futures-rs)
+[![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/alexcrichton/futures-rs)
+
 This crate is an implementation of a vastly simplified version of a "server
 framework" to showcase the performance of futures when applied with HTTP. This
 is not intended to be a production-ready HTTP framework, but rather just a demo
@@ -67,3 +73,11 @@ singlethread no pipeline column it was 1.
 Also note that iron/hyper currently have a bug with pipelining, explaining the
 N/A, and I couldn't figure out how to get rapidoid to run on one thread,
 explaining that N/A.
+
+# License
+
+`futures-minihttp` is primarily distributed under the terms of both the MIT
+license and the Apache License (Version 2.0), with portions covered by various
+BSD-like licenses.
+
+See LICENSE-APACHE, and LICENSE-MIT for details.
