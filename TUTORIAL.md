@@ -689,7 +689,7 @@ fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
 }
 ```
 
-The upside of this strategy is that it's easy to write down (just a `Box`) and
+The upside of this strategy is that it's easy to write down (just a [`Box`]) and
 easy to create (through the [`boxed`] method). This is also maximally flexible
 in terms of future changes to the method as *any* future can be returned from
 this method.
@@ -828,13 +828,13 @@ Enter, a [`Task`]!
 In the [`futures`] crate there is a struct called [`Task`] which is used to
 drive a computation represented by futures. One particular instance of a
 `Future` may be short-lived, and may only be part of one large computations. For
-example in our ["hello world"][hello-world] example we had a number of futures,
+example, in our ["hello world"][hello-world] example we had a number of futures,
 but only one actually existed in memory at a time. For the entire program, we'll
 have one [`Task`] that followed the logical "thread of execution" as the future
 progressed.
 
 In short, a `Task` is the one that's actually orchestrating the top-level calls
-to `poll` and `schedule`. Its main method, [`run`] does exactly this. Internally
+to `poll` and `schedule`. Its main method, [`run`] does exactly this. Internally,
 `Task` has synchronization for if [`notify`] is called on multiple threads it'll
 ensure that the calls to [`poll`] are coordinated.
 
@@ -857,7 +857,7 @@ lifetime of the computation.
 
 ---
 
-## Task local data
+## Task-local data
 [task-local-data]: #task-local-data
 
 [Back to top][top]
