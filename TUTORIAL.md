@@ -499,8 +499,8 @@ The combinators on futures allow expressing concepts like:
 * Waiting for two futures to both complete ([`join`])
 * Defining the behavior of [`poll`] after resolution ([`fuse`])
 
-[`Iterator`]: https://doc.rust-lang.org/1.10.0/std/iter/trait.Iterator.html
-[`Box`]: https://doc.rust-lang.org/1.10.0/std/boxed/struct.Box.html
+[`Iterator`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
+[`Box`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
 [`map`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map
 [`map_err`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map_err
 [`then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.then
