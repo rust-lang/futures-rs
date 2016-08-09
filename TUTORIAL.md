@@ -672,7 +672,7 @@ let clients = listener.incoming();
 
 Here the [`incoming`] method returns a [`Stream`] of [`TcpListener`] and
 [`SocketAddr`] pairs. This is similar to [libstd's `TcpListener`] and the
-[`accept` method], only we're receiving all of the events as a stream rather
+[`accept` method][accept], only we're receiving all of the events as a stream rather
 than having to manually accept sockets.
 
 The stream `clients`, in this case, is an infinite stream. This mirrors how
@@ -681,7 +681,7 @@ rest of the system for processing.
 
 [libstd's `TcpListener`]: https://doc.rust-lang.org/std/net/struct.TcpListener.html
 [`SocketAddr`]: https://doc.rust-lang.org/std/net/enum.SocketAddr.html
-[`accept method]: https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.accept
+[accept]: https://doc.rust-lang.org/std/net/struct.TcpListener.html#method.accept
 
 Now that we've got our stream of clients, we can manipulate it via the standard
 methods on the [`Stream`] trait:
