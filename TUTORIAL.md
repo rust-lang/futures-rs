@@ -472,9 +472,9 @@ you want to convert it to a future of `u32`? For this sort of composition, the
 `Future` trait also provides a large number of **combinators** which can be seen
 on the [`Future`] trait itself.
 
-The combinators are designed to be very similar to the `Iterator` combinators.
-That is, they all consume the receiving future and return a new future. For
-example we could have:
+These combinators are designed to be very similar to the [`Iterator`]
+combinators. That is, they all consume the receiving future and return a new
+future. For example, we could have:
 
 ```rust
 fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
@@ -487,18 +487,20 @@ fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
 ```
 
 Here we're using [`map`] to transform a future of `String` to a future of `u32`,
-ignoring errors. This example returns a `Box`, but that's not always necessary,
+ignoring errors. This example returns a [`Box`], but that's not always necessary,
 and is discussed in the [returning futures][returning-futures] section.
 
 The combinators on futures allow expressing concepts like:
 
-* Change the type of a future ([`map`], [`map_err]`)
+* Change the type of a future ([`map`], [`map_err`])
 * Run another future after one has completed ([`then`], [`and_then`],
   [`or_else`])
 * Figuring out which of two futures resolves first ([`select`])
 * Waiting for two futures to both complete ([`join`])
 * Defining the behavior of [`poll`] after resolution ([`fuse`])
 
+[`Iterator`]: https://doc.rust-lang.org/1.10.0/std/iter/trait.Iterator.html
+[`Box`]: https://doc.rust-lang.org/1.10.0/std/boxed/struct.Box.html
 [`map`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map
 [`map_err`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map_err
 [`then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.then
@@ -508,11 +510,11 @@ The combinators on futures allow expressing concepts like:
 [`join`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.join
 [`fuse`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.fuse
 
-Usage of the combinators should feel very similar to the `Iterator` trait in
-Rust or futures in [Scala][scala-futures]. Most composition of futures ends up
-being done through these combinators. All combinators are zero-cost which is
-another way of saying no memory is allocated internally and the implementation
-will optimize to what you would have otherwise written by hand.
+Usage of the combinators should feel very similar to the [`Iterator`] trait in
+Rust or [futures in Scala][scala-futures]. Most composition of futures ends up
+being done through these combinators. All combinators are zero-cost, that means
+no memory is allocated internally and the implementation will optimize to what
+you would have otherwise written by hand.
 
 ---
 
@@ -521,10 +523,10 @@ will optimize to what you would have otherwise written by hand.
 
 [Back to top][top]
 
-Previously we've taken a long look at the [`Future`] trait which is useful if
-we're only producing one value over time, but sometimes computations are best
-modeled as a *stream* of values being produced over time. For example a TCP
-listener produces a number of TCP socket connections over its lifetime.  For
+Previously, we've taken a long look at the [`Future`] trait which is useful if
+we're only producing one value over time. But sometimes computations are best
+modeled as a *stream* of values being produced over time. For example, a TCP
+listener produces a number of TCP socket connections over its lifetime. For
 that purpose the [`futures`] crate also includes a [`Stream`] trait:
 
 ```rust
@@ -547,7 +549,7 @@ stream's [`poll`][stream-poll] method return `Option<Self::Item>` instead of
 
 A [`Stream`] produces optionally many values over time, signaling termination of
 the stream by returning `Poll::Ok(None)`. At its heart a [`Stream`] represents
-and asynchronous stream of values being produced in order.
+an asynchronous stream of values being produced in order.
 
 A [`Stream`] is actually just a special instance of a [`Future`], and can be
 converted to a future through the [`into_future`] method. The [returned
