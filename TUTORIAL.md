@@ -188,7 +188,7 @@ method to actually perform the TLS handshake. The first argument is the domain
 name we think we're connecting to, with the I/O object as the second.
 
 [`ClientContext::new`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.new
-[handshake]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
+[`handshake`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
 
 Like with the [`tcp_connect`] from before, however, the [`handshake`] method
 returns a future. The actual TLS handshake may take some time as the client and
@@ -341,12 +341,12 @@ bounds can be found in the [FAQ][faq-why-send].
 
 [Back to `Future`][future-trait]
 
-```
+```rust
 type Item: Send + 'static;
 type Error: Send + 'static;
 ```
 
-The next property of the [`Future`] trait you'll probably notice are the two
+The next property of the [`Future`] trait you'll probably notice is the two
 associated types it contains. These represent the types of values that the
 `Future` can resolve to. Each instance of `Future` can be thought of as
 resolving to a `Result<Self::Item, Self::Error>`.
@@ -380,7 +380,7 @@ fn foo<F>(future: F)
 
 [Back to `Future`][future-trait]
 
-```
+```rust
 fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
 fn schedule(&mut self, task: &mut Task);
 ```
