@@ -435,11 +435,11 @@ panic, some may never resolve again, etc. This means that implementors of the
 [`Future`] trait don't need to maintain state to check if [`poll`] has already
 returned successfully.
 
-If a call to [`poll`] return `Poll::NotReady`, then futures still need to know
+If a call to [`poll`] returns `Poll::NotReady`, then futures still need to know
 how to figure out when to get poll'd later! This is where the [`schedule`]
-method comes into the picture. Like with [`poll`] this method takes `&mut self`,
+method comes into the picture. Like with [`poll`], this method takes `&mut self`,
 giving us the same guarantees as before. Similarly, it is passed a [`Task`], but
-the relationship between [`schedule`] and [`Task`] is somewhat different that
+the relationship between [`schedule`] and [`Task`] is somewhat different than
 that `poll` has.
 
 Each [`Task`] can have a [`TaskHandle`] extracted from it via the
