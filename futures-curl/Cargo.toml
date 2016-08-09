@@ -1,0 +1,24 @@
+[package]
+name = "futures-curl"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/alexcrichton/futures-rs"
+homepage = "https://github.com/alexcrichton/futures-rs"
+documentation = "http://alexcrichton.com/futures-rs/futures_curl/"
+description = """
+An implementation of an asynchronous HTTP client using futures backed by
+libcurl.
+"""
+
+[dependencies]
+curl = { git = "https://github.com/alexcrichton/curl-rust", branch = "multi-static" }
+futures = { path = "..", version = "0.1" }
+futures-io = { path = "../futures-io", version = "0.1" }
+futures-mio = { path = "../futures-mio", version = "0.1" }
+log = "0.3"
+mio = { git = "https://github.com/carllerche/mio", branch = "dev" }
+scoped-tls = "0.1"
+
+[dev-dependencies]
+env_logger = "0.3"

@@ -23,6 +23,7 @@ members = [
   "futures-minihttp",
   "futures-minihttp/tls-example",
   "futures-socks5",
+  "futures-curl",
 ]
 
 [dependencies]

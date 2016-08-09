@@ -30,6 +30,7 @@ script:
   - cargo test --manifest-path futures-minihttp/Cargo.toml
   - cargo test --manifest-path futures-minihttp/tls-example/Cargo.toml
   - cargo test --manifest-path futures-socks5/Cargo.toml
+  - cargo test --manifest-path futures-curl/Cargo.toml
 
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path futures-io/Cargo.toml
@@ -37,6 +38,7 @@ script:
   - cargo doc --no-deps --manifest-path futures-cpupool/Cargo.toml
   - cargo doc --no-deps --manifest-path futures-mio/Cargo.toml
   - cargo doc --no-deps --manifest-path futures-tls/Cargo.toml
+  - cargo doc --no-deps --manifest-path futures-curl/Cargo.toml
 after_success:
   - travis-cargo --only nightly doc-upload
   - travis-cargo coveralls --no-sudo
