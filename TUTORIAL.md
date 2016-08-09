@@ -188,7 +188,7 @@ method to actually perform the TLS handshake. The first argument is the domain
 name we think we're connecting to, with the I/O object as the second.
 
 [`ClientContext::new`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.new
-[handshake]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
+[`handshake`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
 
 Like with the [`tcp_connect`] from before, however, the [`handshake`] method
 returns a future. The actual TLS handshake may take some time as the client and
@@ -341,12 +341,12 @@ bounds can be found in the [FAQ][faq-why-send].
 
 [Back to `Future`][future-trait]
 
-```
+```rust
 type Item: Send + 'static;
 type Error: Send + 'static;
 ```
 
-The next property of the [`Future`] trait you'll probably notice are the two
+The next property of the [`Future`] trait you'll probably notice is the two
 associated types it contains. These represent the types of values that the
 `Future` can resolve to. Each instance of `Future` can be thought of as
 resolving to a `Result<Self::Item, Self::Error>`.
@@ -380,7 +380,7 @@ fn foo<F>(future: F)
 
 [Back to `Future`][future-trait]
 
-```
+```rust
 fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
 fn schedule(&mut self, task: &mut Task);
 ```
@@ -435,11 +435,11 @@ panic, some may never resolve again, etc. This means that implementors of the
 [`Future`] trait don't need to maintain state to check if [`poll`] has already
 returned successfully.
 
-If a call to [`poll`] return `Poll::NotReady`, then futures still need to know
+If a call to [`poll`] returns `Poll::NotReady`, then futures still need to know
 how to figure out when to get poll'd later! This is where the [`schedule`]
-method comes into the picture. Like with [`poll`] this method takes `&mut self`,
+method comes into the picture. Like with [`poll`], this method takes `&mut self`,
 giving us the same guarantees as before. Similarly, it is passed a [`Task`], but
-the relationship between [`schedule`] and [`Task`] is somewhat different that
+the relationship between [`schedule`] and [`Task`] is somewhat different than
 that `poll` has.
 
 Each [`Task`] can have a [`TaskHandle`] extracted from it via the
@@ -472,9 +472,9 @@ you want to convert it to a future of `u32`? For this sort of composition, the
 `Future` trait also provides a large number of **combinators** which can be seen
 on the [`Future`] trait itself.
 
-The combinators are designed to be very similar to the `Iterator` combinators.
-That is, they all consume the receiving future and return a new future. For
-example we could have:
+These combinators are designed to be very similar to the [`Iterator`]
+combinators. That is, they all consume the receiving future and return a new
+future. For example, we could have:
 
 ```rust
 fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
@@ -487,18 +487,20 @@ fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
 ```
 
 Here we're using [`map`] to transform a future of `String` to a future of `u32`,
-ignoring errors. This example returns a `Box`, but that's not always necessary,
+ignoring errors. This example returns a [`Box`], but that's not always necessary,
 and is discussed in the [returning futures][returning-futures] section.
 
 The combinators on futures allow expressing concepts like:
 
-* Change the type of a future ([`map`], [`map_err]`)
+* Change the type of a future ([`map`], [`map_err`])
 * Run another future after one has completed ([`then`], [`and_then`],
   [`or_else`])
 * Figuring out which of two futures resolves first ([`select`])
 * Waiting for two futures to both complete ([`join`])
 * Defining the behavior of [`poll`] after resolution ([`fuse`])
 
+[`Iterator`]: https://doc.rust-lang.org/1.10.0/std/iter/trait.Iterator.html
+[`Box`]: https://doc.rust-lang.org/1.10.0/std/boxed/struct.Box.html
 [`map`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map
 [`map_err`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.map_err
 [`then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.then
@@ -508,11 +510,11 @@ The combinators on futures allow expressing concepts like:
 [`join`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.join
 [`fuse`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.fuse
 
-Usage of the combinators should feel very similar to the `Iterator` trait in
-Rust or futures in [Scala][scala-futures]. Most composition of futures ends up
-being done through these combinators. All combinators are zero-cost which is
-another way of saying no memory is allocated internally and the implementation
-will optimize to what you would have otherwise written by hand.
+Usage of the combinators should feel very similar to the [`Iterator`] trait in
+Rust or [futures in Scala][scala-futures]. Most composition of futures ends up
+being done through these combinators. All combinators are zero-cost, that means
+no memory is allocated internally and the implementation will optimize to what
+you would have otherwise written by hand.
 
 ---
 
@@ -521,10 +523,10 @@ will optimize to what you would have otherwise written by hand.
 
 [Back to top][top]
 
-Previously we've taken a long look at the [`Future`] trait which is useful if
-we're only producing one value over time, but sometimes computations are best
-modeled as a *stream* of values being produced over time. For example a TCP
-listener produces a number of TCP socket connections over its lifetime.  For
+Previously, we've taken a long look at the [`Future`] trait which is useful if
+we're only producing one value over time. But sometimes computations are best
+modeled as a *stream* of values being produced over time. For example, a TCP
+listener produces a number of TCP socket connections over its lifetime. For
 that purpose the [`futures`] crate also includes a [`Stream`] trait:
 
 ```rust
@@ -547,7 +549,7 @@ stream's [`poll`][stream-poll] method return `Option<Self::Item>` instead of
 
 A [`Stream`] produces optionally many values over time, signaling termination of
 the stream by returning `Poll::Ok(None)`. At its heart a [`Stream`] represents
-and asynchronous stream of values being produced in order.
+an asynchronous stream of values being produced in order.
 
 A [`Stream`] is actually just a special instance of a [`Future`], and can be
 converted to a future through the [`into_future`] method. The [returned
@@ -572,22 +574,22 @@ stream-specific combinators like [`fold`] are also provided.
 
 [Back to top][top]
 
-Alright at this point we've got a good idea of the [`Future`] and [`Stream`]
+Alright! At this point we've got a good idea of the [`Future`] and [`Stream`]
 traits both in how they're implemented as well as how they're composed together.
-But where to all these futures originally come from? Let's take a look at a few
+But where do all these futures originally come from? Let's take a look at a few
 concrete implementations of futures and streams here.
 
 First, any value already available is trivially a future that is immediately
-ready. For this, the [`done`], [`failed`], [`finished`] suffice. The [`done`]
-variant takes a `Result<T, E>` and returns a `Future<Item=T, Error=E>`. The
-[`failed`] and [`finished`] variants then specify either `T` or `E` and leave
-the other associated type as a wildcard.
+ready. For this, the [`done`], [`failed`], [`finished`] functions suffice. The
+[`done`] variant takes a `Result<T, E>` and returns a `Future<Item=T, Error=E>`.
+The [`failed`] and [`finished`] variants then specify either `T` or `E` and
+leave the other associated type as a wildcard.
 
 [`done`]: http://alexcrichton.com/futures-rs/futures/fn.done.html
 [`finished`]: http://alexcrichton.com/futures-rs/futures/fn.finished.html
 [`failed`]: http://alexcrichton.com/futures-rs/futures/fn.failed.html
 
-For streams the equivalent of an "immediately ready" stream is the [`iter`]
+For streams, the equivalent of an "immediately ready" stream is the [`iter`]
 function which creates a stream that yields the same items as the underlying
 iterator.
 
@@ -595,8 +597,7 @@ iterator.
 
 In situations though where a value isn't immediately ready, there are also much
 more general implementations of [`Future`] and [`Stream`] that are available in
-the [`futures`] crate, the first of which is [`promise`]. Let's first take a
-look:
+the [`futures`] crate, the first of which is [`promise`]. Let's take a look:
 
 [`promise`]: http://alexcrichton.com/futures-rs/futures/fn.promise.html
 
@@ -623,14 +624,15 @@ fn main() {
 ```
 
 Here we can see that the [`promise`] function returns two halves (like
-[`mspc::channel`]). The first half, `tx`, is of type [`Complete`] and is used to
-complete the promise, providing a value to the future on the other end. The
-[`Complete::complete`] method will transmit the value to the receiving end.
+[`mpsc::channel`]). The first half, `tx` ("transmitter"), is of type [`Complete`]
+and is used to complete the promise, providing a value to the future on the
+other end. The [`Complete::complete`] method will transmit the value to the
+receiving end.
 
-The second half, `rx`, is of type [`Promise`] which is a type that implements
-the [`Future`] trait. The `Item` type is `T`, the type of the promise. The
-`Error` type is [`Canceled`] which happens when the [`Complete`] half is dropped
-without completing the computation.
+The second half, `rx` ("receiver"), is of type [`Promise`] which is a type that
+implements the [`Future`] trait. The `Item` type is `T`, the type of the promise.
+The `Error` type is [`Canceled`], which happens when the [`Complete`] half is
+dropped without completing the computation.
 
 [`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
 [`Complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html
@@ -641,9 +643,8 @@ without completing the computation.
 This concrete implementation of `Future` can be used (as shown here) to
 communicate values across threads. Each half implements the `Send` trait and is
 a separately owned entity to get passed around. It's generally not recommended
-to make liberal use of this type of future, however, unless necessary. The
-combinators above or other forms of base futures should be preferred wherever
-possible.
+to make liberal use of this type of future, however. The combinators above or
+other forms of base futures should be preferred wherever possible.
 
 For the [`Stream`] trait, a similar primitive is available, [`channel`]. This
 type also has two halves, where the sending half is used to send messages and
@@ -665,8 +666,8 @@ has caught up.
 
 [Back to top][top]
 
-When working with futures one of the first things you're likely to run into is
-wanting to return a [`Future`]! Like with the `Iterator` trait, however, this
+When working with futures, one of the first things you're likely to run into is
+wanting to return a [`Future`]! Like with the [`Iterator`] trait, however, this
 isn't currently always the easiest thing to do. Let's walk through your options,
 however.
 
@@ -688,7 +689,7 @@ fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
 }
 ```
 
-The upside of this strategy is that it's easy to write down (just a `Box`) and
+The upside of this strategy is that it's easy to write down (just a [`Box`]) and
 easy to create (through the [`boxed`] method). This is also maximally flexible
 in terms of future changes to the method as *any* future can be returned from
 this method.
@@ -827,13 +828,13 @@ Enter, a [`Task`]!
 In the [`futures`] crate there is a struct called [`Task`] which is used to
 drive a computation represented by futures. One particular instance of a
 `Future` may be short-lived, and may only be part of one large computations. For
-example in our ["hello world"][hello-world] example we had a number of futures,
+example, in our ["hello world"][hello-world] example we had a number of futures,
 but only one actually existed in memory at a time. For the entire program, we'll
 have one [`Task`] that followed the logical "thread of execution" as the future
 progressed.
 
 In short, a `Task` is the one that's actually orchestrating the top-level calls
-to `poll` and `schedule`. Its main method, [`run`] does exactly this. Internally
+to `poll` and `schedule`. Its main method, [`run`] does exactly this. Internally,
 `Task` has synchronization for if [`notify`] is called on multiple threads it'll
 ensure that the calls to [`poll`] are coordinated.
 
@@ -856,7 +857,7 @@ lifetime of the computation.
 
 ---
 
-## Task local data
+## Task-local data
 [task-local-data]: #task-local-data
 
 [Back to top][top]
