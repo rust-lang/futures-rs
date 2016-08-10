@@ -48,11 +48,14 @@ associated documentation:
                          and mio stack
 * [`tls-example`] - an HTTP server, built with minihttp, which accepts TLS
                     connections, currently this demo requires OpenSSL
+* [`futures-curl`] - an asynchronous HTTP client backed by libcurl exposed
+                     through futures
 
 [`futures`]: http://alexcrichton.com/futures-rs/futures
 [`futures-io`]: http://alexcrichton.com/futures-rs/futures_io
 [`futures-mio`]: http://alexcrichton.com/futures-rs/futures_mio
 [`futures-tls`]: http://alexcrichton.com/futures-rs/futures_tls
+[`futures-curl`]: http://alexcrichton.com/futures-rs/futures_curl
 [`futures-cpupool`]: http://alexcrichton.com/futures-rs/futures_cpupool
 [`futures-minihttp`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp
 [`futures-socks5`]: https://github.com/alexcrichton/futures-rs/blob/master/futures-socks5/src/main.rs
