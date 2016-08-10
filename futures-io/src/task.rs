@@ -2,10 +2,10 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::io;
 
-use futures::{Future, Task, TaskData, Poll, store};
+use futures::{Future, Task, TaskData, Poll, store, Store};
 use futures::stream::Stream;
 
-use {WriteTask, ReadTask, Ready, IoFuture};
+use {WriteTask, ReadTask, Ready};
 
 /// Abstraction that allows inserting an I/O object into task-local storage,
 /// returning a handle that can be split.
@@ -20,6 +20,12 @@ use {WriteTask, ReadTask, Ready, IoFuture};
 /// attempt to read or write the object on other tasks will result in a panic.
 pub struct TaskIo<T> {
     handle: TaskData<RefCell<Option<State<T>>>>,
+}
+
+/// A future returned from `TaskIo::new` which resolves to a new instance of
+/// `TaskIo<T>` when resolved.
+pub struct TaskIoNew<T> {
+    inner: Store<RefCell<Option<State<T>>>, io::Error>,
 }
 
 /// The readable half of a `TaskIo<T>` instance returned from `TaskIo::split`.
@@ -43,19 +49,32 @@ struct State<T> {
     ready: Option<Ready>,
 }
 
-impl<T: Any + Send + 'static> TaskIo<T> {
+impl<T: Any + Send> TaskIo<T> {
     /// Returns a new future which represents the insertion of the I/O object
     /// `T` into task local storage, returning a `TaskIo<T>` handle to it.
     ///
     /// The returned future will never resolve to an error.
-    pub fn new(t: T) -> Box<IoFuture<TaskIo<T>>> {
+    pub fn new(t: T) -> TaskIoNew<T> {
         let state = State {
             object: t,
             ready: None,
         };
-        store(RefCell::new(Some(state))).map(|data| {
-            TaskIo { handle: data }
-        }).boxed()
+        TaskIoNew {
+            inner: store(RefCell::new(Some(state))),
+        }
+    }
+}
+
+impl<T: Any + Send> Future for TaskIoNew<T> {
+    type Item = TaskIo<T>;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<TaskIo<T>, io::Error> {
+        self.inner.poll(task).map(|data| TaskIo { handle: data })
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        self.inner.schedule(task)
     }
 }
 

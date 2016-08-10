@@ -6,7 +6,7 @@ use {Task, TaskData, Poll, Future};
 /// A combinator which will store some data into task-local storage.
 ///
 /// This combinator is created by the `futures::store` method.
-pub struct Store<T: Send + 'static, E> {
+pub struct Store<T, E> {
     item: Option<T>,
     _marker: marker::PhantomData<fn() -> E>,
 }
