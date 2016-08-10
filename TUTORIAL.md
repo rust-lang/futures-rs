@@ -66,8 +66,7 @@ Here we're adding a dependency on three crates:
 * [`futures`] - the definition and core implementation of [`Future`] and
   [`Stream`].
 * [`futures-io`] - I/O abstractions built with these two traits.
-* [`futures-mio`] - bindings to the [`mio`] crate providing concrete.
-  implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
+* [`futures-mio`] - bindings to the [`mio`] crate providing concrete implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
   with TCP and UDP.
 * [`futures-tls`] - an SSL/TLS implementation built on top of [`futures-io`].
 
