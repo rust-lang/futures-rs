@@ -5,10 +5,13 @@ This document will help you learn about [`futures`], a Rust crate with a
 zero-cost implementation of [futures] and streams. Futures are available in many
 other languages like [C++][cpp-futures], [Java][java-futures], and
 [Scala][scala-futures], and this crate draws inspiration from these
-libraries. The `futures` crate, however, also stands out as enabling usage of
-futures where previously not thought possible through the goal of zero-cost
-(e.g. zero-allocation) futures. Futures are also intended to be the foundation
-for asynchronous, composable, high performance I/O in Rust.
+libraries. The `futures` crate, however, distinguishes itself by being
+both ergonomic as well as adhering to the Rust philosophy of zero-cost
+abstractions. More concretely, futures do not require allocations to
+create and compose, and only zero or one allocations to resolve. _This
+is one of highest-performance futures libraries in the world, if not
+the highest_. It is intended to be the foundation for asynchronous,
+composable, high performance I/O in Rust.
 
 [`futures`]: https://github.com/alexcrichton/futures-rs
 [futures]: https://en.wikipedia.org/wiki/Futures_and_promises
@@ -39,10 +42,10 @@ If you'd like to help contribute to this document you can find it on
 
 [Back to top][top]
 
-This project currently requires Rust 1.9.0 or greater, which can be easily
+The `futures` crate requires Rust 1.9.0 or greater, which can be easily
 obtained through [rustup]. Windows, macOS, and Linux are all tested and known to
-work, but PRs for other platforms are always welcome! After that's available,
-you can add this to your project's `Cargo.toml`:
+work, but PRs for other platforms are always welcome! You can add
+futures to your project's `Cargo.toml` like so:
 
 [rustup]: https://www.rustup.rs/
 
@@ -61,12 +64,12 @@ futures-tls = { git = "https://github.com/alexcrichton/futures-rs" }
 Here we're adding a dependency on three crates:
 
 * [`futures`] - the definition and core implementation of [`Future`] and
-  [`Stream`]
-* [`futures-io`] - I/O abstractions built with these two traits
-* [`futures-mio`] - bindings to the [`mio`] crate providing concrete
+  [`Stream`].
+* [`futures-io`] - I/O abstractions built with these two traits.
+* [`futures-mio`] - bindings to the [`mio`] crate providing concrete.
   implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
-  with TCP and UDP
-* [`futures-tls`] - an SSL/TLS implementation built on top of [`futures-io`]
+  with TCP and UDP.
+* [`futures-tls`] - an SSL/TLS implementation built on top of [`futures-io`].
 
 [`mio`]: https://crates.io/crates/mio
 [`futures-io`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-io
@@ -78,8 +81,8 @@ Here we're adding a dependency on three crates:
 The [`futures`] crate itself is a low-level implementation of futures which does
 not assume any particular runtime or I/O layer. For the examples below we'll be
 using the concrete implementations available in [`futures-mio`] and
-[`futures-io`] to show how futures and streams can be used at even the I/O
-layers with zero overhead over what the system provides.
+[`futures-io`] to show how futures and streams can be used to perform
+sophisticated I/O with zero abstraction overhead.
 
 Now that we've got all that set up, let's write our first our first program! As
 a "Hello, World!" for I/O, let's download the Rust home page:
@@ -123,19 +126,22 @@ fn main() {
 ```
 
 If you place that file in `src/main.rs`, and then execute `cargo run`, you
-should see the HTML of the Rust home page! There's a lot to digest here, though,
-so let's walk through it line-by-line.
+should see the HTML of the Rust home page!
 
-First up in `main()`:
+> Note: `rustc` 1.10 compiles this example slowly. With 1.11 it builds
+considerably faster.
+
+There's a lot to digest here, though, so let's walk through it
+line-by-line. First up in `main()`:
 
 ```rust
 let mut lp = Loop::new().unwrap();
 let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
 ```
 
-Here we [create an event loop][loop-new] which we're going to perform all our
-I/O on. Afterwards we figure out what we're actually connecting to by
-using the standard library's name resolution through [`to_socket_addrs`].
+Here we [create an event loop][loop-new] on which we will perform all our
+I/O. Then we resolve the "www.rust-lang.org" host name by using
+the standard library's [`to_socket_addrs`] method.
 
 [loop-new]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.new
 [`to_socket_addrs`]: https://doc.rust-lang.org/std/net/trait.ToSocketAddrs.html
@@ -146,24 +152,25 @@ Next up:
 let socket = lp.handle().tcp_connect(&addr);
 ```
 
-We [get a handle] to our event loop to issue a TCP connection via
-[`tcp_connect`] to the socket address we just determined. Note, though, that
-`tcp_connect` returns a future! This means that we don't actually have the
-socket yet, but rather it will be fully connected at some later point in time.
+We [get a handle] to our event loop and connect to the host with
+`tcp_connect`. Note, though, that `tcp_connect` returns a future! This
+means that we don't actually have the socket yet, but rather it will
+be fully connected at some later point in time.
 
 [get a handle]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.handle
 [`tcp_connect`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.tcp_connect
 
-Once our socket is available we've got three tasks to perform to download the
+Once our socket is available we need to perform three tasks to download the
 rust-lang.org home page:
 
 1. Perform a TLS handshake. The home page is only served over HTTPS, so we had
    to connect to port 443 and we'll have to obey the TLS protocol.
-2. An HTTP request needs to be issued. We're currently a very simple
-   "HTTP client", though, so we'll just write out the bare minimum.
+2. An HTTP 'GET' request needs to be issued. For the purposes of this tutorial
+   we will write the request by hand, though in a serious program you would
+   use an HTTP client built on futures.
 3. Finally, we download the response by reading off all the data on the socket.
 
-Let's take a look at each of these steps in detail, first being:
+Let's take a look at each of these steps in detail, the first being:
 
 ```rust
 let tls_handshake = socket.and_then(|socket| {
@@ -182,26 +189,28 @@ not run if [`tcp_connect`] returned an error.
 [`TcpStream`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpStream.html
 
 Once we have our `socket`, we create a client TLS context via
-[`ClientContext::new`]. This object in the [`futures-tls`] crate will allow us
-to create the client half of a TLS connection. Next we call the [`handshake`]
-method to actually perform the TLS handshake. The first argument is the domain
-name we think we're connecting to, with the I/O object as the second.
+[`ClientContext::new`]. This type from the [`futures-tls`] crate
+represents the client half of a TLS connection. Next we call the
+[`handshake`] method to actually perform the TLS handshake. The first
+argument is the domain name we're connecting to, with the I/O object
+as the second.
 
 [`ClientContext::new`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.new
 [`handshake`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
 
-Like with the [`tcp_connect`] from before, however, the [`handshake`] method
-returns a future. The actual TLS handshake may take some time as the client and
-server need to perform some I/O, agree on certificates, etc. When resolved,
-however, the future returned will resolve to a [`TlsStream`], similar to our
-previous [`TcpStream`]
+Like with [`tcp_connect`] from before, the [`handshake`] method
+returns a future. The actual TLS handshake may take some time as the
+client and server need to perform some I/O, agree on certificates,
+etc. Once resolved, however, the future will become a [`TlsStream`],
+similar to our previous [`TcpStream`]
 
 [`TlsStream`]: http://alexcrichton.com/futures-rs/futures_tls/struct.TlsStream.html
 
-The [`and_then`] combinator, is doing some heavy lifting behind the scenes here,
-however, by ensuring that it executes futures in the right order and keeps track
-of the futures in flight. Even better, the value returned from [`and_then`]
-itself implements [`Future`], so we can keep chaining computation!
+The [`and_then`] combinator is doing some heavy lifting behind the
+scenes here by ensuring that it executes futures in the right order
+and keeping track of the futures in flight. Even better, the value
+returned from [`and_then`] itself implements [`Future`], so we can
+keep chaining computation!
 
 Next up, we issue our HTTP request:
 
@@ -215,16 +224,18 @@ let request = tls_handshake.and_then(|socket| {
 });
 ```
 
-Here we take the future from the previous step, `tls_handshake`, and use
-[`and_then`] again to chain on another computation. The [`write_all`] combinator
-is used to write the entirety of our HTTP request. Here we're just doing a
-simple HTTP/1.0 request, so there's not much we need to write.
+Here we take the future from the previous step, `tls_handshake`, and
+use [`and_then`] again to continue the computation. The [`write_all`]
+combinator writes the entirety of our HTTP request, issueing multiple
+writes as necessary. Here we're just doing a simple HTTP/1.0 request,
+so there's not much we need to write.
 
 [`write_all`]: http://alexcrichton.com/futures-rs/futures_io/fn.write_all.html
 
-The [`write_all`] future returned will complete once all the data has been
-written to the socket. Note that behind the scenes the [`TlsStream`] will
-actually be encrypting all the data we write to it to the underlying socket.
+The future returned by [`write_all`] will complete once all the data
+has been written to the socket. Note that behind the scenes the
+[`TlsStream`] will actually be encrypting all the data we write before
+sending it to the underlying socket.
 
 And the third and final piece of our request looks like:
 
@@ -234,8 +245,8 @@ let response = request.and_then(|(socket, _)| {
 });
 ```
 
-The previous `request` future is chained again with [`and_then`] with the final
-future, the [`read_to_end`] combinator. This future will read all data from the
+The previous `request` future is chained again to the final future,
+the [`read_to_end`] combinator. This future will read all data from the
 `socket` provided and place it into the buffer provided (in this case an empty
 one), and resolve to the buffer itself once the underlying connection hits EOF.
 
@@ -246,9 +257,9 @@ received from the server under the covers, so we're just reading the decrypted
 version!
 
 If we were to return at this point in the program, you might be surprised to see
-that nothing happens when it's run! That's actually be cause all we've done so
+that nothing happens when it's run! That's because all we've done so
 far is construct a future-based computation, we haven't actually run it. Up to
-this point in the program we've done zero I/O, zero requests, etc.
+this point in the program we've done no I/O, issued no HTTP requests, etc.
 
 To actually execute our future and drive it to completion we'll need to run the
 event loop:
@@ -269,11 +280,10 @@ Note that this `lp.run(..)` call will block the calling thread until the future
 can itself be resolved. This means that `data` here has type `Vec<u8>`. We then
 print it out to stdout as usual.
 
-Phew! At this point we've seen futures in action where [they're
-created][`tcp_connect`] by I/O, [composed together][`and_then`] to create a
-chain of computation, and how I/O [can be expressed][`read_to_end`] with
-futures. This only shows off the tip of the iceberg of what futures can do,
-however, so let's dive more into the traits themselves.
+Phew! At this point we've seen futures [initiate a TCP connection][`tcp_connect`] 
+[create a chain of computation][`and_then`], and [read data from a
+socket][`read_to_end`]. But this is only a hint of what futures can
+do, so let's dive more into the traits themselves!
 
 ---
 
@@ -322,17 +332,18 @@ threads and also contains no stack references. This restriction on `Future` as
 well as its associated types provides the guarantee that all futures, and their
 results, can be sent to other threads.
 
-This represents an interesting stance with a trait definition where users of the
-trait are maximally empowered to do what they'd like with futures, but
-implementors of futures may be hindered by these two bounds. The `futures` crate
-has chosen this balance as the consumers of futures are intended to be *far*
-greater than the implementors of futures, and this allows for some [interesting
-optimizations][tailcall] on the trait.
+These bounds on the trait definition make futures maximally useful in
+multithreaded scenarios - one of Rust's core strengths - with the
+tradeoff that implementing futures for _non-`Send`_ data is not
+straightforward (though it is possible). The `futures` crate makes
+this tradeoff to empower consumers of futures, at the expense of
+implementors of futures, as consumers are by far the more common case.
+As a bonus, these bounds allow for some [interesting
+optimizations][tailcall].
 
-The cause for non-`Send` data being stored in futures is not lost however! More
-discussion on this is available in the section on [event loop
+For more discussion on futures of non-`Send` data see the section on [event loop
 data][event-loop-data]. Additionally, more technical information about these
-bounds can be found in the [FAQ][faq-why-send].
+bounds can be found [in the FAQ][faq-why-send].
 
 [faq-why-send]: https://github.com/alexcrichton/futures-rs/blob/tutorial/FAQ.md#why-send--static
 
@@ -346,7 +357,7 @@ type Item: Send + 'static;
 type Error: Send + 'static;
 ```
 
-The next property of the [`Future`] trait you'll probably notice is the two
+The next aspect of the [`Future`] trait you'll probably notice is the two
 associated types it contains. These represent the types of values that the
 `Future` can resolve to. Each instance of `Future` can be thought of as
 resolving to a `Result<Self::Item, Self::Error>`.
@@ -385,25 +396,30 @@ fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
 fn schedule(&mut self, task: &mut Task);
 ```
 
-The entire [`Future`] trait is built up around these two methods, and they're
+The entire [`Future`] trait is built up around these two methods, and they are
 the only required methods. The [`poll`] method is the sole entry point for
 extracting the resolved value of a future, and the [`schedule`] method is how
 interest is registered in the value of a future, should it become available.
+As a consumer of futures you will rarely - if ever - need to call these methods
+directly. Rather, you interact with futures through [combinators] that create
+higher-level abstractions around futures. But it's useful to our understanding
+if we have a sense of how futures work under the hood.
 
 [`poll`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.poll
 [`schedule`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.schedule
 
 These two methods are similar to [`epoll`] or [`kqueue`] in that they embody a
-*readiness* model of computation rather than a *completion*-based model. Futures
-can notify consumers of readiness through the [`schedule`] method, and then
-values are extracted through the nonblocking [`poll`] method. If [`poll`] is
-called and the value isn't ready yet then the `schedule` method can be invoked
-to learn about when the value is itself available.
+*readiness* model of computation rather than a *completion*-based model. That
+is, futures implementations notify their consumers that data is _ready_ through
+the [`schedule`] method, and then values are extracted through the nonblocking
+[`poll`] method. If [`poll`] is called and the value isn't ready yet then the
+`schedule` method can be invoked to learn about when the value is itself
+available.
 
 [`epoll`]: http://man7.org/linux/man-pages/man7/epoll.7.html
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 
-First, let's take a closer look at [`poll`]. One primary point about it is the
+First, let's take a closer look at [`poll`]. Notice the
 `&mut self` argument, which conveys a number of restrictions and abilities:
 
 * Futures may only be polled by one thread at a time.
@@ -455,8 +471,8 @@ That is, when [`schedule`] is called, a future must arrange for the [`Task`]
 specified to get notified when progress is ready to be made. It's ok to notify a
 task when the future can't actually get resolved, or just for a spurious
 notification that something is ready. Nevertheless, implementors of [`Future`]
-must guarantee that when the value is ready at least one call to `notify` has
-been made.
+must guarantee that after the value is ready at least one call to `notify` is
+made.
 
 More detailed documentation can be found on the [`poll`] and [`schedule`]
 methods themselves.
@@ -472,9 +488,9 @@ you want to convert it to a future of `u32`? For this sort of composition, the
 `Future` trait also provides a large number of **combinators** which can be seen
 on the [`Future`] trait itself.
 
-These combinators are designed to be very similar to the [`Iterator`]
-combinators. That is, they all consume the receiving future and return a new
-future. For example, we could have:
+These combinators similar to the [`Iterator`] combinators in that they all
+consume the receiving future and return a new future. For example, we could
+have:
 
 ```rust
 fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
@@ -552,7 +568,7 @@ trait Stream: Send + 'static {
 You'll notice that the [`Stream`] trait is very similar to the [`Future`] trait.
 It requires `Send + 'static`, has associated types for the item/error, and has a
 `poll` and `schedule` method. The primary difference, however, is that a
-stream's [`poll`][stream-poll] method return `Option<Self::Item>` instead of
+stream's [`poll`][stream-poll] method returns `Option<Self::Item>` instead of
 `Self::Item`.
 
 [stream-poll]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#tymethod.poll
@@ -571,8 +587,8 @@ composing streams and other arbitrary futures with the core future combinators.
 [`StreamFuture`]: http://alexcrichton.com/futures-rs/futures/stream/struct.StreamFuture.html
 
 Like [`Future`], the [`Stream`] trait provides a large number of combinators.
-Many future-like combinators are provided like [`then`][stream-then], but
-stream-specific combinators like [`fold`] are also provided.
+Many future-like combinators are provided, like [`then`][stream-then], in
+addition to stream-specific combinators like [`fold`].
 
 [stream-then]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.then
 [stream-map]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.map
@@ -585,10 +601,9 @@ stream-specific combinators like [`fold`] are also provided.
 [Back to `Stream`][stream-trait]
 
 We saw an example of using futures at the beginning of this tutorial, so let's
-take a look at an example of streams now. We'll take a look concretely at the
-[`incoming`] implementation of [`Stream`] on [`TcpListener`]. This simple server
-below will accept connections, write out the word "Hello!" to them, and then
-close the socket:
+take a look at an example of streams now, the [`incoming`] implementation of
+[`Stream`] on [`TcpListener`]. The simple server below will accept connections,
+write out the word "Hello!" to them, and then close the socket:
 
 [`incoming`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html#method.incoming
 [`TcpListener`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html
@@ -648,7 +663,7 @@ let server = listener.and_then(|listener| {
 
 Here we see that [`tcp_listen`], like [`tcp_connect`] from before, did not
 return a [`TcpListener`] but rather a future which will resolve to a TCP
-listener. We handle this by using [`and_then`] on [`Future`] to define what
+listener. We then employ the [`and_then`] method on [`Future`] to define what
 happens once the TCP listener is available.
 
 Now that we've got the TCP listener we can inspect its state:
@@ -675,9 +690,9 @@ Here the [`incoming`] method returns a [`Stream`] of [`TcpListener`] and
 [`accept` method][accept], only we're receiving all of the events as a stream rather
 than having to manually accept sockets.
 
-The stream `clients`, in this case, is an infinite stream. This mirrors how
-socket servers tend to accept clients in a loop and then dispatch them to the
-rest of the system for processing.
+The stream, `clients`, produces sockets forever. This mirrors how socket servers
+tend to accept clients in a loop and then dispatch them to the rest of the
+system for processing.
 
 [libstd's `TcpListener`]: https://doc.rust-lang.org/std/net/struct.TcpListener.html
 [`SocketAddr`]: https://doc.rust-lang.org/std/net/enum.SocketAddr.html
@@ -712,11 +727,11 @@ welcomes.for_each(|(_socket, _welcome)| {
 ```
 
 Here we take the results of the previous future, [`write_all`], and discard
-them. The socket at this point is done and we can proceed to the next.
+them, closing the socket.
 
 [`for_each`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.for_each
 
-Note that an important aspect of this server is that there is *no concurrency*!
+Note that an important limitation of this server is that there is *no concurrency*!
 Streams represent in-order processing of data, and in this case the order of the
 original stream is the order in which sockets are received, which the
 [`and_then`][stream-and-then] and [`for_each`] combinators preserve.
@@ -747,10 +762,10 @@ execute concurrently.
 
 [Back to top][top]
 
-Alright! At this point we've got a good idea of the [`Future`] and [`Stream`]
-traits both in how they're implemented as well as how they're composed together.
+Alright! At this point we've got a good understanding of the [`Future`] and [`Stream`]
+traits, both how they're implemented as well as how they're composed together.
 But where do all these futures originally come from? Let's take a look at a few
-concrete implementations of futures and streams here.
+concrete implementations of futures and streams.
 
 First, any value already available is trivially a future that is immediately
 ready. For this, the [`done`], [`failed`], [`finished`] functions suffice. The
@@ -768,7 +783,7 @@ iterator.
 
 [`iter`]: http://alexcrichton.com/futures-rs/futures/stream/fn.iter.html
 
-In situations though where a value isn't immediately ready, there are also much
+In situations though where a value isn't immediately ready, there are also
 more general implementations of [`Future`] and [`Stream`] that are available in
 the [`futures`] crate, the first of which is [`promise`]. Let's take a look:
 
@@ -816,18 +831,18 @@ dropped without completing the computation.
 This concrete implementation of `Future` can be used (as shown here) to
 communicate values across threads. Each half implements the `Send` trait and is
 a separately owned entity to get passed around. It's generally not recommended
-to make liberal use of this type of future, however. The combinators above or
+to make liberal use of this type of future, however; the combinators above or
 other forms of base futures should be preferred wherever possible.
 
 For the [`Stream`] trait, a similar primitive is available, [`channel`]. This
 type also has two halves, where the sending half is used to send messages and
 the receiving half implements `Stream`.
 
-The [`Sender`] type is unique, however, in that when a value is sent to the
-channel it consumes the sender, returning a future that will resolve to the
-original sender when the value is consumed. This is intended to model
-backpressure where a producer won't be able to make progress until the consumer
-has caught up.
+The channel's [`Sender`] type differs from the standard library's in an
+important way: when a value is sent to the channel it consumes the sender,
+returning a future that will resolve to the original sender only once the sent
+value is consumed. This creates backpressure so that a producer won't be able to
+make progress until the consumer has caught up.
 
 [`channel`]: http://alexcrichton.com/futures-rs/futures/stream/fn.channel.html
 [`Sender`]: http://alexcrichton.com/futures-rs/futures/stream/struct.Sender.html
@@ -839,10 +854,9 @@ has caught up.
 
 [Back to top][top]
 
-When working with futures, one of the first things you're likely to run into is
-wanting to return a [`Future`]! Like with the [`Iterator`] trait, however, this
-isn't currently always the easiest thing to do. Let's walk through your options,
-however.
+When working with futures, one of the first things you're likely to need to do
+is to return a [`Future`]! Like with the [`Iterator`] trait, however, this
+isn't (yet) the easiest thing to do. Let's walk through your options:
 
 * [Trait objects][return-trait-objects]
 * [Custom types][return-custom-types]
@@ -854,7 +868,7 @@ however.
 
 [Back to returning future][returning-futures]
 
-First, what you can do is return a [trait object]:
+First, what you can do is return a boxed [trait object]:
 
 ```rust
 fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
@@ -864,16 +878,17 @@ fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
 
 The upside of this strategy is that it's easy to write down (just a [`Box`]) and
 easy to create (through the [`boxed`] method). This is also maximally flexible
-in terms of future changes to the method as *any* future can be returned from
-this method.
+in terms of future changes to the method as *any* type of future can be returned
+as an opaque, boxed `Future`.
 
-The downside of this approach, however, is that it requires a runtime allocation
+The downside of this approach is that it requires a runtime allocation
 when the future is constructed. The `Box` needs to be allocated on the heap and
 the future itself is then placed inside. Note, though that this is the *only*
 allocation here, otherwise while the future is being executed no allocations
 will be made. Furthermore, the cost is not always that high in the end because
-internally there are no boxed futures (e.g. chains of combinators), it's only at
-the fringe that a `Box` comes into effect.
+internally there are no boxed futures (i.e. chains of combinators do not
+generally introduce allocations), it's only at the fringe that a `Box` comes
+into effect.
 
 [trait object]: https://doc.rust-lang.org/book/trait-objects.html
 [`boxed`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.boxed
@@ -974,11 +989,11 @@ return type is hidden, and it's ergonomic to write as it's similar to the nice
 `Box` example above.
 
 The downside to this approach is only that it's not on stable Rust yet. As of
-the time of this writing [`impl Trait`] has a [initial implementation as a
+the time of this writing [`impl Trait`] has an [initial implementation as a
 PR][impl-trait-pr] but it will still take some time to make its way into nightly
 and then finally the stable channel. The good news, however, is that as soon as
 `impl Trait` hits stable Rust all crates using futures can immediately benefit!
-It should be a backwards-compatible extension to change return types especially
+It should be a backwards-compatible extension to change return types
 from `Box` to [`impl Trait`]
 
 [impl-trait-pr]: https://github.com/rust-lang/rust/pull/35091
@@ -998,27 +1013,33 @@ actually calling `poll` and `schedule`?
 
 Enter, a [`Task`]!
 
-In the [`futures`] crate there is a struct called [`Task`] which is used to
-drive a computation represented by futures. One particular instance of a
-`Future` may be short-lived, and may only be part of one large computations. For
+In the [`futures`] crate the [`Task`] struct
+drives a computation represented by futures. Any particular instance of a
+`Future` may be short-lived, only a part of a larger computation. For
 example, in our ["hello world"][hello-world] example we had a number of futures,
-but only one actually existed in memory at a time. For the entire program, we'll
-have one [`Task`] that followed the logical "thread of execution" as the future
-progressed.
+but only one actually ran at a time. For the entire program, we
+had one [`Task`] that followed the logical "thread of execution" as each
+future resolved and the overall computation progressed.
 
-In short, a `Task` is the one that's actually orchestrating the top-level calls
-to `poll` and `schedule`. Its main method, [`run`] does exactly this. Internally,
-`Task` has synchronization for if [`notify`] is called on multiple threads it'll
-ensure that the calls to [`poll`] are coordinated.
+In short, a `Task` is the entity that actually orchestrates the top-level calls
+to `poll` and `schedule`. Its main method, [`run`], does exactly this. Internally,
+`Task` has synchronization such that if [`notify`] is called on multiple threads
+then the resulting calls to [`poll`] are properly coordinated.
 
 [`run`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.run
 
 Tasks themselves are not typically created manually but rather are manufactured
 through use of the [`forget`] function. This function on the [`Future`] trait
-creates a new [`Task`] and then asks it to run the future. Semantically this
-will drive the future to completion, scheduling callbacks when necessary and
-calling `poll` when a notification comes in. Once the future is completed the
-final value is dropped along with the future and associated task.
+creates a new [`Task`] and then asks it to run the future, resolving the entire
+chain of composed futures in sequence.
+
+_The clever implementation of `Task` is the key to the `futures` crate's
+efficiency: when a `Task` is created, each of the `Future`s in the chain of
+computations is combined into a single state machine structure and moved
+together from the stack into the heap_. This action is the only allocation
+imposed by the futures library. In effect, the `Task` behaves as if you had
+written an efficient state machine by hand while allowing you to express that
+state machine as straight-line sequence of computations.
 
 [`forget`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.forget
 
@@ -1049,7 +1070,7 @@ data between futures:
   naively store data in an `Arc` or worse, in an `Arc<Mutex>` if we wanted
   to mutate it.
 
-Both of these solutions are relatively heavyweight, though, so let's see if we
+But both of these solutions are relatively heavyweight, so let's see if we
 can do better!
 
 In the [`Task` and `Future`][task-and-future] section we saw how an asynchronous
@@ -1060,7 +1081,7 @@ data inside a `Task`.
 
 Data is stored inside a `Task` with [`insert`] which returns a [`TaskData`]
 handle. This handle can then be cloned regardless of the underlying data. To
-access the data at a later date you can use the [`get`] or [`get_mut`] methods.
+access the data at a later time you can use the [`get`] or [`get_mut`] methods.
 
 [`insert`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.insert
 [`TaskData`]: http://alexcrichton.com/futures-rs/futures/struct.TaskData.html
@@ -1127,5 +1148,5 @@ A [`LoopData`] can be created through one of two methods:
 [`LoopHandle::add_loop_data`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.add_loop_data
 
 Task-local data and event-loop data provide the ability for futures to easily
-share sendable and non-sendable data for sharing amongst many futures.
+share sendable and non-sendable data amongst many futures.
 
