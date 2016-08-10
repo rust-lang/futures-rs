@@ -8,6 +8,10 @@ This library is an implementation of **zero cost futures** in Rust.
 
 [Documentation](http://alexcrichton.com/futures-rs)
 
+[Tutorial][tutorial]
+
+[tutorial]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md
+
 ## Usage
 
 First, add this to your `Cargo.toml`:
@@ -25,7 +29,8 @@ extern crate futures;
 use futures::Future;
 ```
 
-And then, use futures!
+And then, use futures! If this is your first time with futures in Rust, or at
+all, check out the [tutorial].
 
 ## What's in this project
 
@@ -93,6 +98,10 @@ the associated methods themselves.
 
 [poll]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.poll
 [schedule]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.schedule
+
+More information can be found in [the tutorial][tutorial-future-trait]
+
+[tutorial-future-trait]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md#the-future-trait
 
 ## I/O with futures
 
