@@ -66,7 +66,8 @@ Here we're adding a dependency on three crates:
 * [`futures`] - the definition and core implementation of [`Future`] and
   [`Stream`].
 * [`futures-io`] - I/O abstractions built with these two traits.
-* [`futures-mio`] - bindings to the [`mio`] crate providing concrete implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
+* [`futures-mio`] - bindings to the [`mio`] crate providing concrete
+  implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
   with TCP and UDP.
 * [`futures-tls`] - an SSL/TLS implementation built on top of [`futures-io`].
 
@@ -152,7 +153,7 @@ let socket = lp.handle().tcp_connect(&addr);
 ```
 
 We [get a handle] to our event loop and connect to the host with
-`tcp_connect`. Note, though, that `tcp_connect` returns a future! This
+[`tcp_connect`]. Note, though, that [`tcp_connect`] returns a future! This
 means that we don't actually have the socket yet, but rather it will
 be fully connected at some later point in time.
 
@@ -279,7 +280,7 @@ Note that this `lp.run(..)` call will block the calling thread until the future
 can itself be resolved. This means that `data` here has type `Vec<u8>`. We then
 print it out to stdout as usual.
 
-Phew! At this point we've seen futures [initiate a TCP connection][`tcp_connect`] 
+Phew! At this point we've seen futures [initiate a TCP connection][`tcp_connect`]
 [create a chain of computation][`and_then`], and [read data from a
 socket][`read_to_end`]. But this is only a hint of what futures can
 do, so let's dive more into the traits themselves!
