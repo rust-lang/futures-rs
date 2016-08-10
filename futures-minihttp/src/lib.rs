@@ -15,11 +15,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
 
-use futures::Future;
+use futures::{Future, Task, Poll};
 use futures::stream::Stream;
 use futures_io::{TaskIo, Ready, IoFuture};
 use futures_mio::{Loop, LoopHandle, TcpStream, TcpListener};
-use futures_tls::ServerContext;
+use futures_tls::{ServerContext, TlsStream};
 
 mod request;
 pub use self::request::{Request, RequestHeaders};
@@ -179,15 +179,13 @@ fn handle<Req, Resp, S>(stream: TcpStream, data: Arc<ServerData<S>>)
 {
     let io = match data.tls {
         Some(ref tls) => {
-            tls().unwrap().handshake(stream).map(|b| {
-                Box::new(b) as
-                    Box<IoStream<Item=Ready, Error=io::Error>>
-            }).boxed()
+            Either::A(tls().unwrap().handshake(stream).map(|b| {
+                MaybeTls::Tls(b)
+            }))
         }
         None => {
-            let stream = Box::new(stream) as
-                    Box<IoStream<Item=Ready, Error=io::Error>>;
-            futures::finished(stream).boxed()
+            let stream = MaybeTls::NotTls(stream);
+            Either::B(futures::finished(stream))
         }
     };
     let io = io.and_then(|io| TaskIo::new(io)).map_err(From::from).and_then(|io| {
@@ -201,4 +199,88 @@ fn handle<Req, Resp, S>(stream: TcpStream, data: Arc<ServerData<S>>)
     // Crucially use `.forget()` here instead of returning the future, allows
     // processing multiple separate connections concurrently.
     io.forget();
+}
+
+/// Temporary adapter for a read/write stream which is either TLS or not.
+enum MaybeTls<S> {
+    Tls(TlsStream<S>),
+    NotTls(S),
+}
+
+impl<S> Stream for MaybeTls<S>
+    where S: Read + Write + Stream<Item = Ready, Error = io::Error>
+{
+    type Item = Ready;
+    type Error = io::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
+        match *self {
+            MaybeTls::Tls(ref mut s) => s.poll(task),
+            MaybeTls::NotTls(ref mut s) => s.poll(task),
+        }
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        match *self {
+            MaybeTls::Tls(ref mut s) => s.schedule(task),
+            MaybeTls::NotTls(ref mut s) => s.schedule(task),
+        }
+    }
+}
+
+impl<S> Read for MaybeTls<S>
+    where S: Read + Write + Stream<Item = Ready, Error = io::Error>
+{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match *self {
+            MaybeTls::Tls(ref mut s) => s.read(buf),
+            MaybeTls::NotTls(ref mut s) => s.read(buf),
+        }
+    }
+}
+
+impl<S> Write for MaybeTls<S>
+    where S: Read + Write + Stream<Item = Ready, Error = io::Error>
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        match *self {
+            MaybeTls::Tls(ref mut s) => s.write(buf),
+            MaybeTls::NotTls(ref mut s) => s.write(buf),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match *self {
+            MaybeTls::Tls(ref mut s) => s.flush(),
+            MaybeTls::NotTls(ref mut s) => s.flush(),
+        }
+    }
+}
+
+/// Temporary adapter for a concrete type that resolves to one of two futures
+enum Either<A, B> {
+    A(A),
+    B(B),
+}
+
+impl<A, B> Future for Either<A, B>
+    where A: Future,
+          B: Future<Item = A::Item, Error = A::Error>,
+{
+    type Item = A::Item;
+    type Error = A::Error;
+
+    fn poll(&mut self, task: &mut Task) -> Poll<A::Item, A::Error> {
+        match *self {
+            Either::A(ref mut s) => s.poll(task),
+            Either::B(ref mut s) => s.poll(task),
+        }
+    }
+
+    fn schedule(&mut self, task: &mut Task) {
+        match *self {
+            Either::A(ref mut s) => s.schedule(task),
+            Either::B(ref mut s) => s.schedule(task),
+        }
+    }
 }
