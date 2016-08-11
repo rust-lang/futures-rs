@@ -8,16 +8,17 @@ other languages like [C++][cpp-futures], [Java][java-futures], and
 libraries. The `futures` crate, however, distinguishes itself by being
 both ergonomic as well as adhering to the Rust philosophy of zero-cost
 abstractions. More concretely, futures do not require allocations to
-create and compose, and only zero or one allocations to resolve. _This
-is one of highest-performance futures libraries in the world, if not
-the highest_. It is intended to be the foundation for asynchronous,
-composable, high performance I/O in Rust.
+create and compose, and only zero or one allocations to resolve. Futures are
+intended to be the foundation for asynchronous, composable, high performance I/O
+in Rust, and [early benchmarks] show that an HTTP server purely using futures is
+one of the fastest servers in the world.
 
 [`futures`]: https://github.com/alexcrichton/futures-rs
 [futures]: https://en.wikipedia.org/wiki/Futures_and_promises
 [java-futures]: https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html
 [cpp-futures]: http://en.cppreference.com/w/cpp/thread/future
 [scala-futures]: http://docs.scala-lang.org/overviews/core/futures.html
+[early benchmarks]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp#futures-minihttp
 
 This document is split up into a few sections:
 
