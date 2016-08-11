@@ -1,6 +1,6 @@
 extern crate futures;
 
-use futures::{failed, finished, Future, promise};
+use futures::{failed, finished, Future, promise, Poll, Task};
 use futures::stream::*;
 
 mod support;
@@ -75,6 +75,18 @@ fn adapters() {
                 Ok(vec![2, 3]));
     assert_done(|| list().take(2).collect(), Ok(vec![1, 2]));
     assert_done(|| list().skip(2).collect(), Ok(vec![3]));
+}
+
+#[test]
+fn fuse() {
+    let mut stream = list().fuse();
+    let mut task = Task::new();
+    assert_eq!(stream.poll(&mut task), Poll::Ok(Some(1)));
+    assert_eq!(stream.poll(&mut task), Poll::Ok(Some(2)));
+    assert_eq!(stream.poll(&mut task), Poll::Ok(Some(3)));
+    assert_eq!(stream.poll(&mut task), Poll::Ok(None));
+    assert_eq!(stream.poll(&mut task), Poll::Ok(None));
+    assert_eq!(stream.poll(&mut task), Poll::Ok(None));
 }
 
 // #[test]
