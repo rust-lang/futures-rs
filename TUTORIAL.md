@@ -342,6 +342,8 @@ implementors of futures, as consumers are by far the more common case.
 As a bonus, these bounds allow for some [interesting
 optimizations][tailcall].
 
+[tailcall]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.tailcall
+
 For more discussion on futures of non-`Send` data see the section on [event loop
 data][event-loop-data]. Additionally, more technical information about these
 bounds can be found [in the FAQ][faq-why-send].
