@@ -820,15 +820,16 @@ and is used to complete the promise, providing a value to the future on the
 other end. The [`Complete::complete`] method will transmit the value to the
 receiving end.
 
-The second half, `rx` ("receiver"), is of type [`Promise`] which is a type that
-implements the [`Future`] trait. The `Item` type is `T`, the type of the promise.
+The second half, `rx` ("receiver"), is of type [`Promise`][promise-type] which is
+a type that implements the [`Future`] trait. The `Item` type is `T`, the type of 
+the promise.
 The `Error` type is [`Canceled`], which happens when the [`Complete`] half is
 dropped without completing the computation.
 
 [`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
 [`Complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html
 [`Complete::complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html#method.complete
-[`Promise`]: http://alexcrichton.com/futures-rs/futures/struct.Promise.html
+[promise-type]: http://alexcrichton.com/futures-rs/futures/struct.Promise.html
 [`Canceled`]: http://alexcrichton.com/futures-rs/futures/struct.Canceled.html
 
 This concrete implementation of `Future` can be used (as shown here) to
