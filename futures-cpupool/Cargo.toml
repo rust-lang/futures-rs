@@ -14,9 +14,4 @@ computation on the threads themselves.
 [dependencies]
 futures = { path = "..", version = "0.1" }
 num_cpus = "1.0"
-
-# Right now there's a segfault on the currently published version of crossbeam,
-# but this PR fixes things.
-[dependencies.crossbeam]
-git = "https://github.com/tomaka/crossbeam"
-branch = "patch-1"
+crossbeam = "0.2.10"
