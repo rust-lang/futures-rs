@@ -430,11 +430,11 @@ First, let's take a closer look at [`poll`]. Notice the
 * When `poll`'d, futures are owned by another entity.
 
 Next up is the [`Task`] argument, but we'll [talk about that
-later][task-and-future]. Finally we see the [`Poll`] type being returned, which
-looks like.
+later][task-and-future]. Finally we see the [`Poll`][poll-type] type being returned,
+which looks like.
 
 [`Task`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html
-[`Poll`]: http://alexcrichton.com/futures-rs/futures/enum.Poll.html
+[poll-type]: http://alexcrichton.com/futures-rs/futures/enum.Poll.html
 
 ```rust
 enum Poll<T, E> {
