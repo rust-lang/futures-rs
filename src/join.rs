@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use {Future, Task, Poll};
+use {Future, Task, Poll, IntoFuture};
 use util::Collapsed;
 
 macro_rules! generate {
@@ -91,6 +91,29 @@ macro_rules! generate {
                 None
             }
         }
+
+        impl<A, $($B),*> IntoFuture for (A, $($B),*)
+            where A: IntoFuture,
+        $(
+            $B: IntoFuture<Error=A::Error>
+        ),*
+        {
+            type Future = $Join<A::Future, $($B::Future),*>;
+            type Item = (A::Item, $($B::Item),*);
+            type Error = A::Error;
+
+            fn into_future(self) -> Self::Future {
+                match self {
+                    (a, $($B),+) => {
+                        $new(
+                            IntoFuture::into_future(a),
+                            $(IntoFuture::into_future($B)),+
+                        )
+                    }
+                }
+            }
+        }
+
     )*)
 }
 
