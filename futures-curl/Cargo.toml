@@ -17,7 +17,7 @@ futures = { path = "..", version = "0.1" }
 futures-io = { path = "../futures-io", version = "0.1" }
 futures-mio = { path = "../futures-mio", version = "0.1" }
 log = "0.3"
-mio = { git = "https://github.com/carllerche/mio", branch = "dev" }
+mio = { git = "https://github.com/carllerche/mio", branch = "049d3ebd" }
 scoped-tls = "0.1"
 
 [dev-dependencies]
