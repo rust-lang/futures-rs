@@ -1,4 +1,6 @@
-use {Task, IntoFuture, Poll};
+use std::mem;
+
+use {Task, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
 use util::Collapsed;
 
@@ -6,14 +8,21 @@ use util::Collapsed;
 /// possible.
 ///
 /// This adaptor will buffer up a list of pending futures, and then return their
-/// results in the order that they're finished. This is created by the
-/// `Stream::buffered` method.
+/// results in the order that they were pulled out of the original stream. This
+/// is created by the `Stream::buffered` method.
 pub struct Buffered<S>
     where S: Stream,
           S::Item: IntoFuture,
 {
     stream: Fuse<S>,
-    futures: Vec<Option<Collapsed<<S::Item as IntoFuture>::Future>>>,
+    futures: Vec<State<<S::Item as IntoFuture>::Future>>,
+    cur: usize,
+}
+
+enum State<S: Future> {
+    Empty,
+    Running(Collapsed<S>),
+    Finished(Result<S::Item, S::Error>),
 }
 
 pub fn new<S>(s: S, amt: usize) -> Buffered<S>
@@ -22,7 +31,8 @@ pub fn new<S>(s: S, amt: usize) -> Buffered<S>
 {
     Buffered {
         stream: super::fuse::new(s),
-        futures: (0..amt).map(|_| None).collect(),
+        futures: (0..amt).map(|_| State::Empty).collect(),
+        cur: 0,
     }
 }
 
@@ -34,66 +44,82 @@ impl<S> Stream for Buffered<S>
     type Error = <S as Stream>::Error;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error> {
-        let mut any_some = false;
-        for f in self.futures.iter_mut() {
-            // First, if this slot is empty, try to fill it in. If we fill it in
-            // we're careful to use TOKENS_ALL for the next poll() below.
-            if f.is_none() {
-                match self.stream.poll(task) {
-                    Poll::Ok(Some(e)) => {
-                        *f = Some(Collapsed::Start(e.into_future()));
-                    }
-                    Poll::Err(e) => return Poll::Err(e),
-                    Poll::Ok(None) |
-                    Poll::NotReady => continue,
-                }
+        // First, try to fill in all the futures
+        for i in 0..self.futures.len() {
+            let mut idx = self.cur + i;
+            if idx >= self.futures.len() {
+                idx -= self.futures.len();
             }
 
-            // If we're here then our slot is full, so we unwrap it and poll it.
-            let ret = {
-                let future = f.as_mut().unwrap();
-                match future.poll(task) {
-                    Poll::Ok(e) => Poll::Ok(Some(e)),
-                    Poll::Err(e) => Poll::Err(e),
+            if let State::Empty = self.futures[idx] {
+                match self.stream.poll(task) {
+                    Poll::Ok(Some(future)) => {
+                        let future = Collapsed::Start(future.into_future());
+                        self.futures[idx] = State::Running(future);
+                    }
+                    Poll::Ok(None) => break,
+                    Poll::Err(e) => return Poll::Err(e),
+                    Poll::NotReady => break,
+                }
+            }
+        }
 
-                    // TODO: should this happen here or elsewhere?
-                    Poll::NotReady => {
-                        future.collapse();
-                        any_some = true;
-                        continue
+        // Next, try and step all the futures forward
+        for future in self.futures.iter_mut() {
+            let result = match *future {
+                State::Running(ref mut s) => {
+                    match s.poll(task) {
+                        Poll::Ok(e) => Ok(e),
+                        Poll::Err(e) => Err(e),
+                        Poll::NotReady => {
+                            s.collapse();
+                            return Poll::NotReady
+                        }
                     }
                 }
+                _ => continue,
             };
-
-            // Ok, that future is done, so we chuck it out and return its value.
-            // Next time we're poll()'d it'll get filled in again.
-            *f = None;
-            return ret
+            *future = State::Finished(result);
         }
 
-        if any_some || !self.stream.is_done() {
-            Poll::NotReady
-        } else {
-            Poll::Ok(None)
+        // Check to see if our current future is done.
+        if let State::Finished(_) = self.futures[self.cur] {
+            let r = match mem::replace(&mut self.futures[self.cur], State::Empty) {
+                State::Finished(r) => r,
+                _ => panic!(),
+            };
+            self.cur += 1;
+            if self.cur >= self.futures.len() {
+                self.cur = 0;
+            }
+            return r.map(Some).into()
         }
+
+        if self.stream.is_done() {
+            if let State::Empty = self.futures[self.cur] {
+                return Poll::Ok(None)
+            }
+        }
+        Poll::NotReady
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        let mut any_none = false;
-        // Primarily we're interested in all our pending futures, so schedule a
-        // callback on all of them.
-        for f in self.futures.iter_mut() {
-            match *f {
-                Some(ref mut f) => f.schedule(task),
-                None => any_none = true,
+        // If we've got an empty slot, then we're immediately ready to go.
+        for slot in self.futures.iter() {
+            if let State::Empty = *slot {
+                return task.notify()
             }
         }
 
-        // If any slot was None, then we're also interested in the stream, but
-        // if all slots were taken we're not actually interested in the stream.
-        if any_none {
-            self.stream.schedule(task);
+        // If the current slot is ready, we're ready to go
+        if let State::Finished(_) = self.futures[self.cur] {
+            return task.notify()
+        }
+
+        for slot in self.futures.iter_mut() {
+            if let State::Running(ref mut s) = *slot {
+                s.schedule(task);
+            }
         }
     }
 }
-

@@ -211,10 +211,10 @@ fn buffered() {
     let mut rx = rx.buffered(2);
     sassert_empty(&mut rx);
     c.complete(3);
-    sassert_next(&mut rx, 3);
     sassert_empty(&mut rx);
     a.complete(5);
     sassert_next(&mut rx, 5);
+    sassert_next(&mut rx, 3);
     sassert_done(&mut rx);
 
     let (tx, rx) = channel::<_, u32>();

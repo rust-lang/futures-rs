@@ -626,8 +626,8 @@ pub trait Stream: Send + 'static {
     /// An adaptor for creating a buffered list of pending futures.
     ///
     /// If this stream's item can be converted into a future, then this adaptor
-    /// will buffer up to `amt` futures and then return results in the order
-    /// that the futures are completed. No more than `amt` futures will be
+    /// will buffer up to `amt` futures and then return results in the same
+    /// order as the underlying stream. No more than `amt` futures will be
     /// buffered at any point in time, and less than `amt` may also be buffered
     /// depending on the state of each future.
     ///
