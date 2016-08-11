@@ -108,8 +108,7 @@ struct Data {
 }
 
 struct State {
-    complete: Vec<(Complete<io::Result<(Easy, Option<Error>)>>,
-                   EasyHandle<'static>)>,
+    complete: Vec<(Complete<io::Result<(Easy, Option<Error>)>>, EasyHandle)>,
     io: HashMap<Socket, SocketState>,
     timeout: Option<Timeout>,
     waiting_task: Option<TaskHandle>,

@@ -12,7 +12,7 @@ libcurl.
 """
 
 [dependencies]
-curl = { git = "https://github.com/alexcrichton/curl-rust", branch = "multi-static" }
+curl = "0.3.3"
 futures = { path = "..", version = "0.1" }
 futures-io = { path = "../futures-io", version = "0.1" }
 futures-mio = { path = "../futures-mio", version = "0.1" }
