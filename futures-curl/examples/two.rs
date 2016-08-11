@@ -1,6 +1,6 @@
 //! A simple program to fetch two HTTP pages in parallel
 //!
-//! This exfample will fetch the rust-lang home page as well as GitHub's home
+//! This example will fetch the rust-lang home page as well as GitHub's home
 //! page. Both transfers are executed in parallel one thread using futures.
 
 extern crate env_logger;
