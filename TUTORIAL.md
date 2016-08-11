@@ -84,7 +84,7 @@ using the concrete implementations available in [`futures-mio`] and
 [`futures-io`] to show how futures and streams can be used to perform
 sophisticated I/O with zero abstraction overhead.
 
-Now that we've got all that set up, let's write our first our first program! As
+Now that we've got all that set up, let's write our first program! As
 a "Hello, World!" for I/O, let's download the Rust home page:
 
 ```rust
