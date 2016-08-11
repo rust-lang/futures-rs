@@ -11,8 +11,7 @@ abstractions. More concretely, futures do not require allocations to
 create and compose, and the per-connection `Task` that drives futures requires
 only one. Futures are intended to be the foundation for asynchronous,
 composable, high performance I/O in Rust, and [early benchmarks] show that a
-simple HTTP server built on futures is one of the fastest servers in the
-world.
+simple HTTP server built on futures is really fast!
 
 [`futures`]: https://github.com/alexcrichton/futures-rs
 [futures]: https://en.wikipedia.org/wiki/Futures_and_promises
