@@ -22,6 +22,7 @@ available in a [multithreaded version][multithread-unix] for those on Unix.
 Current HTTP features implemented by this crate are:
 
 * HTTP/1.1 pipelining
+* Support for server-side TLS
 * Zero-copy parsing of HTTP requests
 * Efficient buffer management of incoming requests and outgoing responses
 
@@ -52,7 +53,7 @@ welcome!
 The pipelined column is where programs are allowed to use however many threads
 they'd like (the default configuration) and pipelined requests are sent. The
 singlethread column is where programs can only use one thread and they're sent
-one request at a time.
+one request at a time without pipelining.
 
 The benchmark for minihttp is for the `multithread-unix.rs` script for the first
 column and the `singlethread` for the second. The numbers were all collected on
@@ -70,9 +71,11 @@ wrk --script ./pipelined_get.lua \
 For the pipelined column the value of `$pipeline` was 32, and for the
 singlethread no pipeline column it was 1.
 
-Also note that iron/hyper currently have a bug with pipelining, explaining the
-N/A, and I couldn't figure out how to get rapidoid to run on one thread,
-explaining that N/A.
+Also note that when these benchmarks were collected hyper/iron had a bug in HTTP
+pipelining that caused those columns to be N/A, but this has been fixed on the
+master branch of hyper! Soon we hope to collect new numbers and update them
+here. Unfortunately I couldn't figure out how to get rapidoid to run on one
+thread, explaining that N/A in the table above.
 
 # License
 
