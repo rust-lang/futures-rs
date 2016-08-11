@@ -63,7 +63,7 @@
 //!     a.join(b).map(|(a, b)| a + b).boxed()
 //! }
 //!
-//! // Futures also allow chaining computations together, starting another afer
+//! // Futures also allow chaining computations together, starting another after
 //! // the previous finishes. Here we wait for the first computation to finish,
 //! // and then decide what to do depending on the result.
 //! fn download_timeout(url: &str,
