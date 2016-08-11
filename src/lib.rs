@@ -297,16 +297,16 @@ pub trait Future: Send + 'static {
     ///
     /// This function returns `Poll::NotReady` if the future is not ready yet,
     /// or `Poll::{Ok,Err}` with the result of this future if it's ready. Once
-    /// a future has returned `Some` it is considered a contract error to
-    /// continue polling it.
+    /// a future has returned `Ok` or `Err` it is considered a contract error
+    /// to continue polling it.
     ///
     /// # Panics
     ///
     /// Once a future has completed (returned `Poll::{Ok, Err}` from `poll`),
     /// then any future calls to `poll` may panic, block forever, or otherwise
     /// cause wrong behavior. The `Future` trait itself provides no guarantees
-    /// about the behavior of `poll` after `Some` has been returned at least
-    /// once.
+    /// about the behavior of `poll` after `Ok` or `Err` has been returned
+    /// at least once.
     ///
     /// Callers who may call `poll` too many times may want to consider using
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
@@ -354,9 +354,9 @@ pub trait Future: Send + 'static {
     ///
     /// # Panics
     ///
-    /// Once a future has returned `Some` (it's been completed) then future
-    /// calls to either `poll` or this function, `schedule`, should not be
-    /// expected to behave well. A call to `schedule` after a poll has succeeded
+    /// Once a future has returned `Poll::Ok` or `Poll::Err` (it's been completed)
+    /// the future calls to either `poll` or this function, `schedule`, should not
+    /// be expected to behave well. A call to `schedule` after a poll has succeeded
     /// may panic, block forever, or otherwise exhibit odd behavior.
     ///
     /// Callers who may call `schedule` after a future is finished may want to
