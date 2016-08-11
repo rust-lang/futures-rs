@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 
 use futures::*;
 use futures_minihttp::{Request, Response, Server};
-use futures_cpupool::CpuPool;
+use futures_cpupool::{CpuPool, CpuFuture};
 use r2d2_postgres::{SslMode, PostgresConnectionManager};
 use rand::Rng;
 
@@ -41,29 +41,30 @@ fn main() {
     let cpupool = CpuPool::new(10);
     let r2d2pool = r2d2::Pool::new(config, manager).unwrap();
 
-    Server::new(&addr).workers(8).serve(move |r| {
-        json(r, &r2d2pool, &cpupool)
+    Server::new(&addr).workers(8).serve(move |r: Request| {
+        assert_eq!(r.path(), "/db");
+        let id = rand::thread_rng().gen_range(0, 10_000) + 1;
+        let row = get_row(&r2d2pool, id, &cpupool);
+        row.then(|res| {
+            match res {
+                Ok(row) => {
+                    let mut r = Response::new();
+                    r.header("Content-Type", "application/json")
+                     .body(&rustc_serialize::json::encode(&row).unwrap());
+                    Ok(r)
+                }
+                Err(_err) => Err(io::Error::new(io::ErrorKind::Other,
+                                                "database panicked")),
+            }
+        })
     }).unwrap()
 }
 
-trait Thunk: Send + 'static {
-    fn call_box(self: Box<Self>);
-}
-
-impl<F: FnOnce() + Send + 'static> Thunk for F {
-    fn call_box(self: Box<Self>) {
-        (*self)()
-    }
-}
-
-fn json(r: Request,
-        r2d2: &r2d2::Pool<PostgresConnectionManager>,
-        pool: &CpuPool)
-        -> Box<Future<Item=Response, Error=io::Error>> {
-    assert_eq!(r.path(), "/db");
-    let id = rand::thread_rng().gen_range(0, 10_000) + 1;
+fn get_row(r2d2: &r2d2::Pool<PostgresConnectionManager>,
+           id: i32,
+           pool: &CpuPool)
+           -> CpuFuture<Row> {
     let r2d2 = r2d2.clone();
-
     pool.execute(move || {
         let conn = r2d2.get().unwrap();
         let query = "SELECT id, randomNumber FROM World WHERE id = $1";
@@ -74,16 +75,5 @@ fn json(r: Request,
             id: row.get(0),
             randomNumber: row.get(1),
         }
-    }).then(|res| {
-        match res {
-            Ok(row) => {
-                let mut r = Response::new();
-                r.header("Content-Type", "application/json")
-                 .body(&rustc_serialize::json::encode(&row).unwrap());
-                Ok(r)
-            }
-            Err(_err) => Err(io::Error::new(io::ErrorKind::Other,
-                                            "thread panicked")),
-        }
-    }).boxed()
+    })
 }
