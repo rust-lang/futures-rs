@@ -322,8 +322,8 @@ pub trait Future: Send + 'static {
     /// Schedule a task to be notified when this future is ready.
     ///
     /// Throughout the lifetime of a future it may frequently be `poll`'d on to
-    /// test whether the value is ready yet. If `None` is returned, however, the
-    /// caller may then register interest via this function to get a
+    /// test whether the value is ready yet. If `Poll::NotReady` is returned,
+    /// however, the caller may then register interest via this function to get a
     /// notification when the future can indeed make progress.
     ///
     /// The `task` argument provided is the same task as provided to `poll`, and
