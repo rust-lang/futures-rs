@@ -346,7 +346,7 @@ For more discussion on futures of non-`Send` data see the section on [event loop
 data][event-loop-data]. Additionally, more technical information about these
 bounds can be found [in the FAQ][faq-why-send].
 
-[faq-why-send]: https://github.com/alexcrichton/futures-rs/blob/tutorial/FAQ.md#why-send--static
+[faq-why-send]: https://github.com/alexcrichton/futures-rs/blob/master/FAQ.md#why-send--static
 
 ### `Item` and `Error`
 [item-and-error]: #send-and-static
