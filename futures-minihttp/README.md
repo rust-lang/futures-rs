@@ -35,6 +35,7 @@ welcome!
 
 |   program                     | pipelined    | singlethread, no pipeline |
 |-------------------------------|-------------:|--------------------------:|
+| [raw mio]                     | 1,973,846.91 |                142,357.90 |
 | [minihttp][multithread-unix]  | 1,966,297.54 |                127,934.89 |
 | [rapidoid (Java)][rapidoid]   | 1,701,426.67 |                       N/A |
 | [fasthttp (Go)][fasthttp]     | 1,489,868.35 |                 92,024.56 |
@@ -43,6 +44,7 @@ welcome!
 | [iron]                        |          N/A |                 31,269.84 |
 | [node]                        |   131,511.36 |                 12,149.08 |
 
+[raw mio]: https://github.com/aturon/async-benches/blob/master/techempower-6/mio-multithread-unix/src/main.rs
 [fasthttp]: https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Go/fasthttp
 [hyper]: https://github.com/aturon/async-benches/blob/master/techempower-6/hyper-master/src/main.rs
 [iron]: https://github.com/aturon/async-benches/blob/master/techempower-6/iron/src/main.rs
@@ -56,9 +58,12 @@ singlethread column is where programs can only use one thread and they're sent
 one request at a time without pipelining.
 
 The benchmark for minihttp is for the `multithread-unix.rs` script for the first
-column and the `singlethread` for the second. The numbers were all collected on
-Linux Ubuntu 8-core machine. Note that absolute numbers should be taken with a
-grain of salt, but relative numbers should be fairly consistent across setups.
+column and the `singlethread` for the second. Note that the "raw mio" row is
+intended to show the absolute maximal performance of a Rust program using `mio`,
+it's not intended to be a full-fledged framework by any means. The numbers were
+all collected on Linux Ubuntu 8-core machine. Note that absolute numbers should
+be taken with a grain of salt, but relative numbers should be fairly consistent
+across setups.
 
 The command to generate these numbers was:
 
