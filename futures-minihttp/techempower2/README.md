@@ -15,7 +15,7 @@ file.
 After, run the server
 
 ```
-$ cargo run
+$ cargo run --release
 ```
 
 Then, make a connection
