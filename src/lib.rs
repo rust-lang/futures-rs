@@ -600,9 +600,6 @@ pub trait Future: Send + 'static {
     /// both the value resolved and a future representing the completion of the
     /// other work. Both futures must have the same item and error type.
     ///
-    /// If either future is canceled or panics, the other is canceled and the
-    /// original error is propagated upwards.
-    ///
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.
     ///
