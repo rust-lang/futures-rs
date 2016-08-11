@@ -7,6 +7,9 @@ libcurl.
 
 [Documentation](http://alexcrichton.com/futures-rs/futures_curl)
 
+> **Note**: this library does not currently work on Windows, but support is
+> planned soon!
+
 ## Usage
 
 First, add this to your `Cargo.toml`:
