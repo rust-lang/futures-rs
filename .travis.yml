@@ -28,9 +28,12 @@ script:
   - cargo test --manifest-path futures-tls/Cargo.toml
   - cargo test --manifest-path futures-tls/Cargo.toml --features force-openssl
   - cargo test --manifest-path futures-minihttp/Cargo.toml
-  - cargo test --manifest-path futures-minihttp/tls-example/Cargo.toml
   - cargo test --manifest-path futures-socks5/Cargo.toml
   - cargo test --manifest-path futures-curl/Cargo.toml
+
+  - cargo build --manifest-path futures-minihttp/tls-example/Cargo.toml
+  - cargo build --manifest-path futures-minihttp/techempower1/Cargo.toml
+  - cargo build --manifest-path futures-minihttp/techempower2/Cargo.toml
 
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path futures-io/Cargo.toml

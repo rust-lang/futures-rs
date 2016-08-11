@@ -19,3 +19,5 @@ test_script:
   - cargo test --manifest-path futures-tls/Cargo.toml
   - cargo test --manifest-path futures-minihttp/Cargo.toml
   - cargo test --manifest-path futures-socks5/Cargo.toml
+  - cargo build --manifest-path futures-minihttp/techempower1/Cargo.toml
+  - cargo build --manifest-path futures-minihttp/techempower2/Cargo.toml

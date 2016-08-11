@@ -22,6 +22,8 @@ members = [
   "futures-cpupool",
   "futures-minihttp",
   "futures-minihttp/tls-example",
+  "futures-minihttp/techempower1",
+  "futures-minihttp/techempower2",
   "futures-socks5",
   "futures-curl",
 ]
