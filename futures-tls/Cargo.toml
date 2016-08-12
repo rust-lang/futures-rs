@@ -18,12 +18,12 @@ futures-io = { path = "../futures-io", version = "0.1.0" }
 log = "0.3"
 
 # Optional dependency that can be enabled with the `force-openssl` feature
-openssl = { git = "https://github.com/alexcrichton/rust-openssl", branch = "tmp", optional = true }
-openssl-verify = { git = "https://github.com/alexcrichton/rust-openssl-verify", branch = "tmp", optional = true }
+openssl = { version = "0.8", optional = true }
+openssl-verify = { version = "0.2", optional = true }
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-openssl = { git = "https://github.com/alexcrichton/rust-openssl", branch = "tmp" }
-openssl-verify = { git = "https://github.com/alexcrichton/rust-openssl-verify", branch = "tmp" }
+openssl = "0.8"
+openssl-verify = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "0.1"
