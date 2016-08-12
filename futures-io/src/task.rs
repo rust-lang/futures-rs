@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::cell::RefCell;
 use std::io;
 
@@ -49,7 +48,7 @@ struct State<T> {
     ready: Option<Ready>,
 }
 
-impl<T: Any + Send> TaskIo<T> {
+impl<T: Send + 'static> TaskIo<T> {
     /// Returns a new future which represents the insertion of the I/O object
     /// `T` into task local storage, returning a `TaskIo<T>` handle to it.
     ///
@@ -65,7 +64,7 @@ impl<T: Any + Send> TaskIo<T> {
     }
 }
 
-impl<T: Any + Send> Future for TaskIoNew<T> {
+impl<T: Send + 'static> Future for TaskIoNew<T> {
     type Item = TaskIo<T>;
     type Error = io::Error;
 

@@ -1,5 +1,4 @@
 use std::marker;
-use std::any::Any;
 
 use {Task, TaskData, Poll, Future};
 
@@ -13,14 +12,14 @@ pub struct Store<T, E> {
 
 /// A combinator to store some data into task-local storage.
 pub fn store<T, E>(t: T) -> Store<T, E>
-    where T: Any + Send + 'static,
+    where T: Send + 'static,
           E: Send + 'static,
 {
     Store { item: Some(t), _marker: marker::PhantomData }
 }
 
 impl<T, E> Future for Store<T, E>
-    where T: Any + Send + 'static,
+    where T: Send + 'static,
           E: Send + 'static,
 {
     type Item = TaskData<T>;

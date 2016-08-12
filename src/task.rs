@@ -57,7 +57,6 @@
 // proving that you can get access to the data. So while weird, this case should
 // still be safe, as the data's not stored in the task itself.
 
-use std::any::Any;
 use std::cell::{UnsafeCell, Cell};
 use std::marker;
 use std::panic;
@@ -174,7 +173,7 @@ impl Task {
     /// drop(slot);
     /// ```
     pub fn insert<A>(&mut self, a: A) -> TaskData<A>
-        where A: Any + Send + 'static,
+        where A: 'static,
     {
         TaskData {
             task_inner: self.inner_usize(),
