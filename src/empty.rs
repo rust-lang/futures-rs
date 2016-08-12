@@ -33,7 +33,5 @@ impl<T, E> Future for Empty<T, E>
         Poll::NotReady
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        drop(task);
-    }
+    fn schedule(&mut self, _task: &mut Task) {}
 }
