@@ -21,11 +21,10 @@ impl<S: Stream> Stream for Fuse<S> {
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
         let ret = self.stream.as_mut().map(|s| s.poll(task));
-        match ret {
-            Some(Poll::Ok(None)) => self.stream = None,
-            _ => {}
+        if let Some(Poll::Ok(None)) = ret {
+            self.stream = None;
         }
-        ret.unwrap_or(Poll::NotReady)
+        ret.unwrap_or(Poll::Ok(None))
     }
 
     fn schedule(&mut self, task: &mut Task) {
