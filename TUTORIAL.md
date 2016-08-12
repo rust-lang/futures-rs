@@ -383,7 +383,7 @@ Or when taking a future you might write:
 ```rust
 fn foo<F>(future: F)
     where F: Future<Error = io::Error>,
-          F::Item: Future,
+          F::Item: u32,
 {
     // ...
 }
