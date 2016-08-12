@@ -15,5 +15,5 @@ $ cargo run --release
 Then, make a connection
 
 ```
-$ curl https://localhost:8080/json
+$ curl http://localhost:8080/json
 ```
