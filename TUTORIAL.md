@@ -490,9 +490,9 @@ have:
 fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
     where F: Future<Item=String>,
 {
-    future.map(|string| {
+    Box::new(future.map(|string| {
         string.parse::<u32>().unwrap()
-    }).boxed()
+    }))
 }
 ```
 
@@ -872,9 +872,17 @@ fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
 ```
 
 The upside of this strategy is that it's easy to write down (just a [`Box`]) and
-easy to create (through the [`boxed`] method). This is also maximally flexible
-in terms of future changes to the method as *any* type of future can be returned
-as an opaque, boxed `Future`.
+easy to create. This is also maximally flexible in terms of future changes to
+the method as *any* type of future can be returned as an opaque, boxed `Future`.
+
+Note that the [`boxed`] method actually returns a `BoxFuture`, but this is just
+a type alias for `Box<Future + Send>`:
+
+```rust
+fn foo() -> BoxFuture<u32, u32> {
+    finished(1).boxed()
+}
+```
 
 The downside of this approach is that it requires a runtime allocation
 when the future is constructed. The `Box` needs to be allocated on the heap and
