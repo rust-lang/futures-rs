@@ -3,9 +3,9 @@ use {Future, Task, Poll};
 /// A future which "fuse"s a future once it's been resolved.
 ///
 /// Normally futures can behave unpredictable once they're used after a future
-/// has been resolved, but `Fuse` is always defined to return `None` from `poll`
-/// after it has succeeded, and after it has succeeded all future calls to
-/// `schedule` will be ignored.
+/// has been resolved, but `Fuse` is always defined to return `Poll::NotReady`
+/// from `poll` after it has succeeded, and after it has succeeded all future
+/// calls to `schedule` will be ignored.
 pub struct Fuse<A> {
     future: Option<A>,
 }

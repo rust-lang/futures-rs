@@ -737,16 +737,17 @@ pub trait Future: Send + 'static {
     }
 
     /// Fuse a future such that `poll` will never again be called once it has
-    /// returned a success.
+    /// completed.
     ///
-    /// Currently once a future has returned `Some` from `poll` any further
-    /// calls could exhibit bad behavior such as block forever, panic, never
-    /// return, etc. If it is known that `poll` may be called too often then
-    /// this method can be used to ensure that it has defined semantics.
+    /// Currently once a future has returned `Poll::Ok` or `Poll::Err` from
+    /// `poll` any further calls could exhibit bad behavior such as blocking
+    /// forever, panicking, never returning, etc. If it is known that `poll`
+    /// may be called too often then this method can be used to ensure that it
+    /// has defined semantics.
     ///
-    /// Once a future has been `fuse`d and it returns success from `poll`, then
-    /// it will forever return `None` from `poll` again (never resolve). This,
-    /// unlike the trait's `poll` method, is guaranteed.
+    /// Once a future has been `fuse`d and it returns a completion from `poll`,
+    /// then it will forever return `Poll::NotReady` from `poll` again (never
+    /// resolve).  This, unlike the trait's `poll` method, is guaranteed.
     ///
     /// Additionally, once a future has completed, this `Fuse` combinator will
     /// ensure that all registered callbacks will not be registered with the
