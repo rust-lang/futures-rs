@@ -1,36 +1,40 @@
 # FAQ
 
 A collection of some commonly asked questions, with responses! If you find any
-of these unsatisfactory feel free to ping me (@alexcrichton) on github,c
+of these unsatisfactory feel free to ping me (@alexcrichton) on github,
 acrichto on IRC, or just by email!
 
-### Why `Send + 'static`?
+### Why `'static`?
 
-The `Future` trait and all of its associated items require `Send + 'static`.
-This expressed the constraint that all futures must be sendable across threads
-as well as not contain any borrowed data. A common question though is why not
-just let this fall out of the types themselves? That is, I'll have `Send +
-'static` futures if they happend to contain `Send + 'static` data.
+The `Future` trait and all of its associated items require `'static`.  This
+expresses the constraint that all futures must not contain any borrowed data. A
+common question though is why not just let this fall out of the types
+themselves? That is, I'll have `'static` futures if they happend to contain
+`'static` data.
 
-On a technical level this is not currently possible. Due to the `tailcall`
-method which flattens a chain of futures, futures commonly may store trait
-objects. As trait objects must decide on `Send` and `'static` early on, we opted
-to say "yes, futures will be both" early on.
+At the fundamental level, futures respresent state machines which are pushed
+forward across turns of an underlying event loop somewhere. References to
+non-`'static` data are typically on the stack, but the stack is not persisted
+across turns of this underlying event loop. That is, the only safe data for a
+future to actually reference is typically data owned above the stack frame of
+the event loop itself. Event loops typically are created near the top of a
+program, though, so there's typically not a whole lot of data that would be
+safely store-able anyway!
 
-Doesn't this impose an extra cost though? Other libraries only require `'static`
-which allows one to use types like `Rc` and `RefCell` liberally. This is true
-that futures themselves cannot contain data like an `Rc`, but instead if using
-an event loop you can use an abstraction like `LoopData<T>` which allows storing
-a non-`Send` piece of data but the `LoopData<T>` sentinel itself is sendable.
-This can then be stored in futures and futures can negotiate which thread
-they're polled on to acquire the data.
+For now, though, we believe that `'static` is a rough approximation for "data
+owned above the event loop" and is the 99% use case of futures anyway. We're
+interested in exploring alternatives though, to relax this constraint!
 
-The final reason is that almost all futures end up being `Send + 'static` in
-practice. This allows for a convenient implementation of driving futures by
-simply polling a future on whichever thread originates an event, ensuring a
-prompt resolution of a future if one is available. This, when combined with the
-technical difficulties and ergonomic concerns of *not* having `Send` and
-`'static`, led to the conclusion that the trait will require both.
+### Why both `Item` and `Error` associated types?
+
+An alternative design of the `Future` trait would be to only have one associated
+type, `Item`, and then most futures would resolve to `Result<T, E>`. The
+intention of futures, the fundamental support for async I/O, typically means
+that errors will be encoded in almost all futures anyway though. By encoding an
+error type in the future as well we're able to provide convenient combinators
+like `and_then` which automatically propagate errors, as well as combinators
+like `join` which can act differently depending on whether a future resolves to
+an error or not.
 
 ### Do futures work with multiple event loops?
 
@@ -85,28 +89,6 @@ fixes that make compilation much speedier.
 
 ### Is it on crates.io?
 
-Not yet! A few names are reserved, but they're not functional. I'd use the git
-repository here for now.
-
-### Why both `then` and `and_then`?
-
-TBA (to-be-answered)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Not yet! A few names are reserved, but crates cannot have dependencies from a
+git repository. Right now we depend on the master branch of `mio`, and crates
+will be published once that's on crates.io as well!

@@ -12,15 +12,15 @@ pub struct Store<T, E> {
 
 /// A combinator to store some data into task-local storage.
 pub fn store<T, E>(t: T) -> Store<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
+    where T: 'static,
+          E: 'static,
 {
     Store { item: Some(t), _marker: marker::PhantomData }
 }
 
 impl<T, E> Future for Store<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
+    where T: 'static,
+          E: 'static,
 {
     type Item = TaskData<T>;
     type Error = E;

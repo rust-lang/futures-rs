@@ -6,7 +6,7 @@ use futures::*;
 
 #[test]
 fn lots() {
-    fn doit(n: usize) -> Box<Future<Item=(), Error=()>> {
+    fn doit(n: usize) -> Box<Future<Item=(), Error=()> + Send> {
         if n == 0 {
             finished(()).boxed()
         } else {

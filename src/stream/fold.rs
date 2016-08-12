@@ -26,10 +26,10 @@ enum State<T, F> where F: Future {
 
 pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
     where S: Stream,
-          F: FnMut(T, S::Item) -> Fut + Send + 'static,
+          F: FnMut(T, S::Item) -> Fut + 'static,
           Fut: IntoFuture<Item = T>,
           Fut::Error: Into<S::Error>,
-          T: Send + 'static
+          T: 'static
 {
     Fold {
         stream: s,
@@ -40,10 +40,10 @@ pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
 
 impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     where S: Stream,
-          F: FnMut(T, S::Item) -> Fut + Send + 'static,
+          F: FnMut(T, S::Item) -> Fut + 'static,
           Fut: IntoFuture<Item = T>,
           Fut::Error: Into<S::Error>,
-          T: Send + 'static
+          T: 'static
 {
     type Item = T;
     type Error = S::Error;
@@ -90,8 +90,8 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
         }
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let State::Processing(ref mut fut) = self.state {
             fut.collapse();
         }

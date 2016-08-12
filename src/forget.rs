@@ -1,9 +1,9 @@
 use {Future, Poll, Task};
 use util::Collapsed;
 
-pub fn forget<T: Future>(t: T) {
-    let thunk = ThunkFuture { inner: Collapsed::Start(t) }.boxed();
-    Task::new().run(thunk)
+pub fn forget<T: Future + Send>(t: T) {
+    let thunk = ThunkFuture { inner: Collapsed::Start(t) };
+    Task::new().run(Box::new(thunk))
 }
 
 // FIXME(rust-lang/rust#34416) should just be able to use map/map_err, but that
@@ -24,7 +24,7 @@ impl<T: Future> Future for ThunkFuture<T> {
         self.inner.schedule(task)
     }
 
-    fn tailcall(&mut self) -> Option<Box<Future<Item=(), Error=()>>> {
+    unsafe fn tailcall(&mut self) -> Option<Box<Future<Item=(), Error=()>>> {
         self.inner.collapse();
         None
     }

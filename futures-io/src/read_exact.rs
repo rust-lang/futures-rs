@@ -35,7 +35,7 @@ enum State<A, T> {
 /// the buffer.
 pub fn read_exact<A, T>(a: A, buf: T) -> ReadExact<A, T>
     where A: ReadTask,
-          T: AsMut<[u8]> + Send + 'static,
+          T: AsMut<[u8]> + 'static,
 {
     ReadExact {
         state: State::Reading {
@@ -53,7 +53,7 @@ fn eof() -> io::Error {
 
 impl<A, T> Future for ReadExact<A, T>
     where A: ReadTask,
-          T: AsMut<[u8]> + Send + 'static,
+          T: AsMut<[u8]> + 'static,
 {
     type Item = (A, T);
     type Error = io::Error;

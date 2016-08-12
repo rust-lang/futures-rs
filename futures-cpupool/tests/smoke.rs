@@ -3,15 +3,19 @@ extern crate futures_cpupool;
 
 use std::sync::mpsc::channel;
 
-use futures::{Future, Task};
+use futures::Future;
 use futures_cpupool::CpuPool;
 
-fn get<F: Future>(f: F) -> Result<F::Item, F::Error> {
+fn get<F>(f: F) -> Result<F::Item, F::Error>
+    where F: Future + Send,
+          F::Item: Send,
+          F::Error: Send,
+{
     let (tx, rx) = channel();
-    Task::new().run(f.then(move |res| {
+    f.then(move |res| {
         tx.send(res).unwrap();
-        Ok(())
-    }).boxed());
+        futures::finished::<(), ()>(())
+    }).forget();
     rx.recv().unwrap()
 }
 

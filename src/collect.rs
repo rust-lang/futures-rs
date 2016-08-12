@@ -8,9 +8,9 @@ use util::Collapsed;
 ///
 /// This future is created with the `collect` method.
 pub struct Collect<I>
-    where I: IntoIterator + Send + 'static,
+    where I: IntoIterator + 'static,
           I::Item: IntoFuture,
-          I::IntoIter: Send + 'static,
+          I::IntoIter: 'static,
 {
     cur: Option<Collapsed<<I::Item as IntoFuture>::Future>>,
     remaining: I::IntoIter,
@@ -54,9 +54,9 @@ pub struct Collect<I>
 /// });
 /// ```
 pub fn collect<I>(i: I) -> Collect<I>
-    where I: IntoIterator + Send + 'static,
+    where I: IntoIterator + 'static,
           I::Item: IntoFuture,
-          I::IntoIter: Send + 'static,
+          I::IntoIter: 'static,
 {
     let mut i = i.into_iter();
     Collect {
@@ -67,8 +67,8 @@ pub fn collect<I>(i: I) -> Collect<I>
 }
 
 impl<I> Future for Collect<I>
-    where I: IntoIterator + Send + 'static,
-          I::IntoIter: Send + 'static,
+    where I: IntoIterator + 'static,
+          I::IntoIter: 'static,
           I::Item: IntoFuture,
 {
     type Item = Vec<<I::Item as IntoFuture>::Item>;
@@ -112,8 +112,8 @@ impl<I> Future for Collect<I>
         }
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let Some(ref mut cur) = self.cur {
             cur.collapse();
         }

@@ -22,15 +22,15 @@ pub struct Done<T, E> {
 /// let future_of_err_2 = done::<u32, u32>(Err(2));
 /// ```
 pub fn done<T, E>(r: Result<T, E>) -> Done<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
+    where T: 'static,
+          E: 'static,
 {
     Done { inner: Some(r) }
 }
 
 impl<T, E> Future for Done<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
+    where T: 'static,
+          E: 'static,
 {
     type Item = T;
     type Error = E;

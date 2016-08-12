@@ -151,7 +151,7 @@ impl Session {
     ///
     /// This function returns a future which will resolve to a `Session` once
     /// it's been initialized.
-    pub fn new(handle: LoopHandle) -> Box<IoFuture<Session>> {
+    pub fn new(handle: LoopHandle) -> IoFuture<Session> {
         let handle2 = handle.clone();
 
         // The core part of a `Session` is its `LoopData`, so we create that

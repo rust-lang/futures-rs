@@ -37,14 +37,14 @@ pub trait Service<Req, Resp>: Send + Sync + 'static
     where Req: Send + 'static,
           Resp: Send + 'static
 {
-    type Fut: Future<Item = Resp>;
+    type Fut: Future<Item = Resp> + Send;
 
     fn process(&self, req: Req) -> Self::Fut;
 }
 
 impl<Req, Resp, Fut, F> Service<Req, Resp> for F
     where F: Fn(Req) -> Fut + Send + Sync + 'static,
-          Fut: Future<Item = Resp>,
+          Fut: Future<Item = Resp> + Send,
           Req: Send + 'static,
           Resp: Send + 'static
 {
@@ -134,7 +134,7 @@ impl Server {
 
 fn listener(addr: &SocketAddr,
             workers: u32,
-            handle: LoopHandle) -> Box<IoFuture<TcpListener>> {
+            handle: LoopHandle) -> IoFuture<TcpListener> {
     let listener = (|| {
         let listener = try!(net2::TcpBuilder::new_v4());
         try!(configure_tcp(workers, &listener));

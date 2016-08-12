@@ -84,8 +84,8 @@ macro_rules! generate {
                 )*
             }
 
-            fn tailcall(&mut self)
-                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+            unsafe fn tailcall(&mut self)
+                               -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
                 self.a.collapse();
                 $(self.$B.collapse();)*
                 None
@@ -154,7 +154,7 @@ impl<A: Future> MaybeDone<A> {
         }
     }
 
-    fn collapse(&mut self) {
+    unsafe fn collapse(&mut self) {
         match *self {
             MaybeDone::NotYet(ref mut a) => a.collapse(),
             _ => {}

@@ -3,7 +3,7 @@ use std::mem;
 use util::Collapsed;
 use {Future, Task, Poll};
 
-pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
+pub enum Chain<A, B, C> where A: Future, B: 'static {
     First(Collapsed<A>, C),
     Second(B),
     Done,
@@ -12,7 +12,7 @@ pub enum Chain<A, B, C> where A: Future, B: Send + 'static {
 impl<A, B, C> Chain<A, B, C>
     where A: Future,
           B: Future,
-          C: Send + 'static,
+          C: 'static,
 {
     pub fn new(a: A, c: C) -> Chain<A, B, C> {
         Chain::First(Collapsed::Start(a), c)
@@ -20,7 +20,7 @@ impl<A, B, C> Chain<A, B, C>
 
     pub fn poll<F>(&mut self, task: &mut Task, f: F) -> Poll<B::Item, B::Error>
         where F: FnOnce(Result<A::Item, A::Error>, C)
-                        -> Result<Result<B::Item, B>, B::Error> + Send + 'static,
+                        -> Result<Result<B::Item, B>, B::Error> + 'static,
     {
         let a_result = match *self {
             Chain::First(ref mut a, _) => try_poll!(a.poll(task)),
@@ -50,8 +50,8 @@ impl<A, B, C> Chain<A, B, C>
         }
     }
 
-    pub fn tailcall(&mut self)
-                    -> Option<Box<Future<Item=B::Item, Error=B::Error>>> {
+    pub unsafe fn tailcall(&mut self)
+                           -> Option<Box<Future<Item=B::Item, Error=B::Error>>> {
         match *self {
             Chain::First(ref mut a, _) => {
                 a.collapse();

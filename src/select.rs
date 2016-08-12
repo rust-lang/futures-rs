@@ -73,8 +73,8 @@ impl<A, B> Future for Select<A, B>
         }
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let Some((ref mut a, ref mut b)) = self.inner {
             a.collapse();
             b.collapse();
@@ -104,8 +104,8 @@ impl<A, B> Future for SelectNext<A, B>
         }
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         match self.inner {
             OneOf::A(ref mut a) => a.collapse(),
             OneOf::B(ref mut b) => b.collapse(),

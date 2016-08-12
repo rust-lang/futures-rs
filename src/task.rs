@@ -104,7 +104,7 @@ pub struct TaskHandle {
 }
 
 struct Inner {
-    slot: Slot<(Task, Box<Future<Item=(), Error=()>>)>,
+    slot: Slot<(Task, Box<Future<Item=(), Error=()> + Send>)>,
     registered: AtomicBool,
 }
 
@@ -290,7 +290,7 @@ impl Task {
     ///
     /// Currently, if `poll` panics, then this method will propagate the panic
     /// to the thread that `poll` was called on. This is bad and it will change.
-    pub fn run(self, mut future: Box<Future<Item=(), Error=()>>) {
+    pub fn run(self, mut future: Box<Future<Item=(), Error=()> + Send>) {
         let mut me = self;
 
         // First up, poll the future, but do so in a `catch_unwind` to ensure
@@ -319,8 +319,8 @@ impl Task {
 
         // Perform tail call optimization on the future, attempting to pull out
         // a sub-future by pruning those that are already complete.
-        future = match future.tailcall() {
-            Some(f) => f,
+        future = match unsafe { future.tailcall() } {
+            Some(f) => unsafe { ::std::mem::transmute(f) },
             None => future,
         };
 

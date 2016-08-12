@@ -12,7 +12,7 @@ pub struct AndThen<A, B, F> where A: Future, B: IntoFuture {
 pub fn new<A, B, F>(future: A, f: F) -> AndThen<A, B, F>
     where A: Future,
           B: IntoFuture,
-          F: Send + 'static,
+          F: 'static,
 {
     AndThen {
         state: Chain::new(future, f),
@@ -22,7 +22,7 @@ pub fn new<A, B, F>(future: A, f: F) -> AndThen<A, B, F>
 impl<A, B, F> Future for AndThen<A, B, F>
     where A: Future,
           B: IntoFuture<Error=A::Error>,
-          F: FnOnce(A::Item) -> B + Send + 'static,
+          F: FnOnce(A::Item) -> B + 'static,
 {
     type Item = B::Item;
     type Error = B::Error;
@@ -39,8 +39,8 @@ impl<A, B, F> Future for AndThen<A, B, F>
         self.state.schedule(task)
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         self.state.tailcall()
     }
 }

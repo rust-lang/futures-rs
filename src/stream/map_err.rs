@@ -12,8 +12,8 @@ pub struct MapErr<S, F> {
 
 pub fn new<S, F, U>(s: S, f: F) -> MapErr<S, F>
     where S: Stream,
-          F: FnMut(S::Error) -> U + Send + 'static,
-          U: Send + 'static,
+          F: FnMut(S::Error) -> U + 'static,
+          U: 'static,
 {
     MapErr {
         stream: s,
@@ -23,8 +23,8 @@ pub fn new<S, F, U>(s: S, f: F) -> MapErr<S, F>
 
 impl<S, F, U> Stream for MapErr<S, F>
     where S: Stream,
-          F: FnMut(S::Error) -> U + Send + 'static,
-          U: Send + 'static,
+          F: FnMut(S::Error) -> U + 'static,
+          U: 'static,
 {
     type Item = S::Item;
     type Error = U;

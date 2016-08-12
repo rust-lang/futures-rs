@@ -12,8 +12,8 @@ pub struct Map<S, F> {
 
 pub fn new<S, F, U>(s: S, f: F) -> Map<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> U + Send + 'static,
-          U: Send + 'static,
+          F: FnMut(S::Item) -> U + 'static,
+          U: 'static,
 {
     Map {
         stream: s,
@@ -23,8 +23,8 @@ pub fn new<S, F, U>(s: S, f: F) -> Map<S, F>
 
 impl<S, F, U> Stream for Map<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> U + Send + 'static,
-          U: Send + 'static,
+          F: FnMut(S::Item) -> U + 'static,
+          U: 'static,
 {
     type Item = U;
     type Error = S::Error;

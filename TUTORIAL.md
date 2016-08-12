@@ -297,9 +297,9 @@ The core trait of the [`futures`] crate is [`Future`].  This trait represents an
 asynchronous computation which will eventually get resolved. Let's take a look:
 
 ```rust
-trait Future: Send + 'static {
-    type Item: Send + 'static;
-    type Error: Send + 'static;
+trait Future: 'static {
+    type Item: 'static;
+    type Error: 'static;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
     fn schedule(&mut self, task: &mut Task);
@@ -311,53 +311,44 @@ trait Future: Send + 'static {
 I'm sure quite a few points jump out immediately about this definition, so
 let's go through them all in detail!
 
-* [`Send` and `'static`][send-and-static]
+* [`'static`][static]
 * [`Item` and `Error`][item-and-error]
 * [`poll` and `schedule`][poll-and-schedule]
 * [`Future` combinators][combinators]
 
-### `Send` and `'static`
-[send-and-static]: #send-and-static
+### `'static`
+[static]: #static
 
 [Back to `Future`][future-trait]
 
 ```rust
-trait Future: Send + 'static {
+trait Future: 'static {
     // ...
 }
 ```
 
-The first part of the `Future` trait you'll probably notice are the `Send +
-'static` bounds. This is Rust's way of saying that a type can be sent to other
-threads and also contains no stack references. This restriction on `Future` as
-well as its associated types provides the guarantee that all futures, and their
-results, can be sent to other threads.
+The first part of the `Future` trait you'll probably notice is the `'static`
+bounds. This is Rust's way of saying that a type contains no stack references.
+This restriction on `Future` as well as its associated types provides the
+guarantee that all futures, and their results, can be persisted beyond any stack
+frame.
 
-These bounds on the trait definition make futures maximally useful in
-multithreaded scenarios - one of Rust's core strengths - with the
-tradeoff that implementing futures for _non-`Send`_ data is not
-straightforward (though it is possible). The `futures` crate makes
-this tradeoff to empower consumers of futures, at the expense of
-implementors of futures, as consumers are by far the more common case.
-As a bonus, these bounds allow for some [interesting
-optimizations][tailcall].
+These bounds on the trait definition make futures maximally useful in most event
+loops with the tradeoff that implementing futures for data that would otherwise
+not be `'static` may require an allocation. This tradeoff is made mainly to
+empower consumers of futures. More technical information about this
+bounds can be found [in the FAQ][faq-why-static].
 
-[tailcall]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.tailcall
-
-For more discussion on futures of non-`Send` data see the section on [event loop
-data][event-loop-data]. Additionally, more technical information about these
-bounds can be found [in the FAQ][faq-why-send].
-
-[faq-why-send]: https://github.com/alexcrichton/futures-rs/blob/master/FAQ.md#why-send--static
+[faq-why-static]: https://github.com/alexcrichton/futures-rs/blob/master/FAQ.md#why--static
 
 ### `Item` and `Error`
-[item-and-error]: #send-and-static
+[item-and-error]: #item-and-error
 
 [Back to `Future`][future-trait]
 
 ```rust
-type Item: Send + 'static;
-type Error: Send + 'static;
+type Item: 'static;
+type Error: 'static;
 ```
 
 The next aspect of the [`Future`] trait you'll probably notice is the two
@@ -365,8 +356,8 @@ associated types it contains. These represent the types of values that the
 `Future` can resolve to. Each instance of `Future` can be thought of as
 resolving to a `Result<Self::Item, Self::Error>`.
 
-Each associated type, like the trait, is bound by `Send + 'static`, indicating
-that they must be sendable to other threads and cannot contain stack references.
+Each associated type, like the trait, is bound by `'static`, indicating that
+they cannot contain stack references.
 
 These two types will show up very frequently in `where` clauses when consuming
 futures generically, and type signatures when futures are returned. For example
@@ -462,8 +453,8 @@ the relationship between [`schedule`] and [`Task`] is somewhat different than
 that `poll` has.
 
 Each [`Task`] can have a [`TaskHandle`] extracted from it via the
-[`Task::handle`] method. This [`TaskHandle`] implements `Send + 'static` and has
-one primary method, [`notify`]. This method, when called, indicates that a
+[`Task::handle`] method. This [`TaskHandle`] implements `Send + 'static` and
+has one primary method, [`notify`]. This method, when called, indicates that a
 future can make progress, and may be able to resolve to a value.
 
 [`Task::handle`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.handle
@@ -559,18 +550,18 @@ in the standard library:
 Let's take a look at the [`Stream`] trait in the [`futures`] crate:
 
 ```rust
-trait Stream: Send + 'static {
-    type Item: Send + 'static;
-    type Error: Send + 'static;
+trait Stream: 'static {
+    type Item: 'static;
+    type Error: 'static;
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error>;
     fn schedule(&mut self, task: &mut Task);
 }
 ```
 
-You'll notice that the [`Stream`] trait is very similar to the [`Future`] trait.
-It requires `Send + 'static`, has associated types for the item/error, and has a
-`poll` and `schedule` method. The primary difference, however, is that a
+You'll notice that the [`Stream`] trait is very similar to the [`Future`]
+trait.  It requires `'static`, has associated types for the item/error, and has
+a `poll` and `schedule` method. The primary difference, however, is that a
 stream's [`poll`][stream-poll] method returns `Option<Self::Item>` instead of
 `Self::Item`.
 
@@ -821,7 +812,7 @@ other end. The [`Complete::complete`] method will transmit the value to the
 receiving end.
 
 The second half, `rx` ("receiver"), is of type [`Promise`][promise-type] which is
-a type that implements the [`Future`] trait. The `Item` type is `T`, the type of 
+a type that implements the [`Future`] trait. The `Item` type is `T`, the type of
 the promise.
 The `Error` type is [`Canceled`], which happens when the [`Complete`] half is
 dropped without completing the computation.
@@ -1065,13 +1056,13 @@ one piece of a larger asynchronous computation. This means that futures come
 and go, but there could also be data that lives for the entire span of a
 computation that many futures need access to.
 
-Futures themselves require `Send + 'static`, so we have two choices to share
-data between futures:
+Futures themselves require `'static`, so we have two choices to share data
+between futures:
 
 * If the data is only ever used by one future at a time we can thread through
   ownership of the data between each future.
 * If the data needs to be accessed concurrently, however, then we'd have to
-  naively store data in an `Arc` or worse, in an `Arc<Mutex>` if we wanted
+  naively store data in an `Arc`/`Rc` or worse, in an `Arc<Mutex>` if we wanted
   to mutate it.
 
 But both of these solutions are relatively heavyweight, so let's see if we
@@ -1107,15 +1098,21 @@ accessing data from a task and it's primarily used in manual implementations of
 [Back to top][top]
 
 We've now seen that we can store data into a [`Task`] with [`TaskData`], but
-this requires that the data inserted is still `Send`. Sometimes data is not
-`Send` or otherwise needs to be persisted yet not tied to a [`Task`]. For this
-purpose the [`futures-mio`] crate provides a similar abstraction, [`LoopData`].
+data is sometimes not `Send` or otherwise needs to be persisted yet not tied to
+a [`Task`]. For this purpose the [`futures-mio`] crate provides a similar
+abstraction, [`LoopData`].
 
 [`LoopData`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html
 
 The [`LoopData`] is similar to [`TaskData`] where it's a handle to data
 conceptually owned by the event loop. The key property of [`LoopData`], however,
 is that it implements the `Send` trait regardless of the underlying data.
+
+One key method on the [`Future`] trait, [`forget`], requires that the future is
+`Send`. This is not always possible for a future itself, but a `LoopData<F:
+Future>` is indeed `Send` and the `Future` trait is implemented directly for
+`LoopData<F>`. This means that if a future is not `Send`, it can trivially be
+made `Send` by "pinning" it to an event loop through `LoopData`.
 
 A [`LoopData`] handle is a bit easier to access than a [`TaskData`], as you
 don't need to get the data from a task. Instead you can simply attempt to access

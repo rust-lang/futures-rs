@@ -60,7 +60,7 @@
 //!     where A: Future<Item=i32>,
 //!           B: Future<Item=i32, Error=A::Error>,
 //! {
-//!     a.join(b).map(|(a, b)| a + b).boxed()
+//!     Box::new(a.join(b).map(|(a, b)| a + b))
 //! }
 //!
 //! // Futures also allow chaining computations together, starting another after
@@ -103,7 +103,7 @@
 //!     let data = data.map(Ok);
 //!     let timeout = timeout(timeout_dur).map(Err);
 //!
-//!     return data.select(timeout).then(|result| {
+//!     let ret = data.select(timeout).then(|result| {
 //!         match result {
 //!             // One future succeeded, and it was the one which was
 //!             // downloading data from the connectionc
@@ -118,7 +118,8 @@
 //!             // A normal I/O error happened, so we pass that on throgh
 //!             Err((e, _other_future)) => Err(e),
 //!         }
-//!     }).boxed();
+//!     });
+//!     return Box::new(ret);
 //!
 //!     fn resolve(url: &str) -> Box<IoFuture<SocketAddr>> {
 //!         // ...
@@ -251,18 +252,18 @@ mod forget;
 /// zero-cost and don't impose any extra layers of indirection you wouldn't
 /// otherwise have to write down.
 // TODO: expand this
-pub trait Future: Send + 'static {
+pub trait Future: 'static {
 
     /// The type of value that this future will resolved with if it is
     /// successful.
-    type Item: Send + 'static;
+    type Item: 'static;
 
     /// The type of error that this future will resolve with if it fails in a
     /// normal fashion.
     ///
     /// Futures may also fail due to panics or cancellation, but that is
     /// expressed through the `PollError` type, not this type.
-    type Error: Send + 'static;
+    type Error: 'static;
 
     /// Query this future to see if its value has become available.
     ///
@@ -384,25 +385,47 @@ pub trait Future: Send + 'static {
     ///
     /// Note that this is a default method which returns `None`, but any future
     /// adaptor should implement it to flatten the underlying future, if any.
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    ///
+    /// # Unsafety
+    ///
+    /// Note that this is an `unsafe` trait method, primarily because it is
+    /// intended to be unsafe to implement. Implementors of this trait typically
+    /// don't need to worry about implementing this method as it defaults to
+    /// `None`.
+    ///
+    /// The return value of this trait `Box<Future>`, does not imply whether the
+    /// underlying type is indeed `Send`. This can be critically important for
+    /// futures, and is often necessary for transmitting through the bound. The
+    /// unsafe portion of this method relies on one core assumption: all
+    /// combinators assume that if a future is `Send` then the value returned by
+    /// `tailcall` **is also `Send`**, despite the type system saying otherwise.
+    ///
+    /// The default implementation for this function is to return `None`, which
+    /// is safe, but if types implement this then they need to be sure that the
+    /// returned value has the same `Send`/`Sync` properties as the implementor
+    /// itself.
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         None
     }
 
     /// Convenience function for turning this future into a trait object.
     ///
     /// This simply avoids the need to write `Box::new` and can often help with
-    /// type inference as well by always returning a trait object.
+    /// type inference as well by always returning a trait object. Note that
+    /// this method requires the `Send` bound and returns a `BoxFuture`, which
+    /// also encodes this. If you'd like to create a `Box<Future>` without the
+    /// `Send` bound, then the `Box::new` function can be used instead.
     ///
     /// # Examples
     ///
     /// ```
     /// use futures::*;
     ///
-    /// let a: Box<Future<Item=i32, Error=i32>> = done(Ok(1)).boxed();
+    /// let a: BoxFuture<i32, i32> = done(Ok(1)).boxed();
     /// ```
-    fn boxed(self) -> Box<Future<Item=Self::Item, Error=Self::Error>>
-        where Self: Sized
+    fn boxed(self) -> BoxFuture<Self::Item, Self::Error>
+        where Self: Sized + Send
     {
         Box::new(self)
     }
@@ -431,8 +454,8 @@ pub trait Future: Send + 'static {
     /// let future_of_4 = future_of_1.map(|x| x + 3);
     /// ```
     fn map<F, U>(self, f: F) -> Map<Self, F>
-        where F: FnOnce(Self::Item) -> U + Send + 'static,
-              U: Send + 'static,
+        where F: FnOnce(Self::Item) -> U + 'static,
+              U: 'static,
               Self: Sized,
     {
         assert_future::<U, Self::Error, _>(map::new(self, f))
@@ -461,8 +484,8 @@ pub trait Future: Send + 'static {
     /// let future_of_err_4 = future_of_err_1.map_err(|x| x + 3);
     /// ```
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
-        where F: FnOnce(Self::Error) -> E + Send + 'static,
-              E: Send + 'static,
+        where F: FnOnce(Self::Error) -> E + 'static,
+              E: 'static,
               Self: Sized,
     {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
@@ -506,7 +529,7 @@ pub trait Future: Send + 'static {
     /// });
     /// ```
     fn then<F, B>(self, f: F) -> Then<Self, B, F>
-        where F: FnOnce(Result<Self::Item, Self::Error>) -> B + Send + 'static,
+        where F: FnOnce(Result<Self::Item, Self::Error>) -> B + 'static,
               B: IntoFuture,
               Self: Sized,
     {
@@ -546,7 +569,7 @@ pub trait Future: Send + 'static {
     /// });
     /// ```
     fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
-        where F: FnOnce(Self::Item) -> B + Send + 'static,
+        where F: FnOnce(Self::Item) -> B + 'static,
               B: IntoFuture<Error = Self::Error>,
               Self: Sized,
     {
@@ -586,7 +609,7 @@ pub trait Future: Send + 'static {
     /// });
     /// ```
     fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
-        where F: FnOnce(Self::Error) -> B + Send + 'static,
+        where F: FnOnce(Self::Error) -> B + 'static,
               B: IntoFuture<Item = Self::Item>,
               Self: Sized,
     {
@@ -610,13 +633,12 @@ pub trait Future: Send + 'static {
     ///
     /// // A poor-man's join implemented on top of select
     ///
-    /// fn join<A>(a: A, b: A)
-    ///            -> Box<Future<Item=(A::Item, A::Item), Error=A::Error>>
-    ///     where A: Future,
+    /// fn join<A>(a: A, b: A) -> BoxFuture<(u32, u32), u32>
+    ///     where A: Future<Item = u32, Error = u32> + Send,
     /// {
     ///     a.select(b).then(|res| {
     ///         match res {
-    ///             Ok((a, b)) => b.map(|b| (a, b)).boxed(),
+    ///             Ok((a, b)) => b.map(move |b| (a, b)).boxed(),
     ///             Err((a, _)) => failed(a).boxed(),
     ///         }
     ///     }).boxed()
@@ -777,30 +799,46 @@ pub trait Future: Send + 'static {
         assert_future::<Self::Item, Self::Error, _>(f)
     }
 
-    /// Consume this future and allow it to execute without cancelling it.
+    /// Consume this future drive it to completion.
     ///
-    /// Normally whenever a future is dropped it signals that the underlying
-    /// computation should be cancelled ASAP. This function, however, will
-    /// consume the future and arrange for the future itself to get dropped only
-    /// when the computation has completed.
+    /// This function is one of the primary methods of driving a future
+    /// forward, and is also one of the primary sources of concurrency in event
+    /// loops. This function will allocate a new `Task` to associate with this
+    /// future, and the task will be paired with the future until it is
+    /// completed.
     ///
-    /// This function can be useful to ensure that futures with side effects can
-    /// run "in the background", but it is discouraged as it doesn't allow any
-    /// control over the future in terms of cancellation.
+    /// This method is also a convenient way of simply "spawning" a future into
+    /// the background. For example this is similar to the `ensure` method in
+    /// Python.
     ///
-    /// Generally applications should retain handles on futures to ensure
-    /// they're properly cleaned up if something unexpected happens.
-    fn forget(self) where Self: Sized {
+    /// # Bounds
+    ///
+    /// Note that this function requires the underlying future to be `Send`, but
+    /// not all futures may implement the `Send` bound. Additionally, the
+    /// underlying `Task` requires that the future is send to be driven to
+    /// completion.
+    ///
+    /// If your type is not `Send`, however, fear not! Most event loops will
+    /// provide an abstraction like `LoopData` in the `futures-mio` crate. This
+    /// allows a future to be "pinned" to an event loop, allowing its handle to
+    /// be `Send` while the underlying data itself is not `Send`.
+    ///
+    /// By using objects like `LoopData`, any future can become `Send` to use
+    /// this method to drive it to completion.
+    fn forget(self) where Self: Sized + Send {
         forget::forget(self);
     }
 }
+
+/// A type alias for `Box<Future + Send>`
+pub type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 fn assert_future<A, B, F>(t: F) -> F
     where F: Future<Item=A, Error=B>,
-          A: Send + 'static,
-          B: Send + 'static,
+          A: 'static,
+          B: 'static,
 {
     t
 }
@@ -809,14 +847,14 @@ fn assert_future<A, B, F>(t: F) -> F
 ///
 /// This trait is very similar to the `IntoIterator` trait and is intended to be
 /// used in a very similar fashion.
-pub trait IntoFuture: Send + 'static {
+pub trait IntoFuture: 'static {
     /// The future that this type can be converted into.
     type Future: Future<Item=Self::Item, Error=Self::Error>;
 
     /// The item that the future may resolve with.
-    type Item: Send + 'static;
+    type Item: 'static;
     /// The error that the future may resolve with.
-    type Error: Send + 'static;
+    type Error: 'static;
 
     /// Consumes this object and produces a future.
     fn into_future(self) -> Self::Future;
@@ -833,8 +871,8 @@ impl<F: Future> IntoFuture for F {
 }
 
 impl<T, E> IntoFuture for Result<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
+    where T: 'static,
+          E: 'static,
 {
     type Future = Done<T, E>;
     type Item = T;

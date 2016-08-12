@@ -17,9 +17,9 @@ pub struct IterStream<I> {
 /// will always be returned upwards as a successful value.
 pub fn iter<I, T, E>(i: I) -> IterStream<I>
     where I: Iterator<Item=Result<T, E>>,
-          I: Send + 'static,
-          T: Send + 'static,
-          E: Send + 'static,
+          I: 'static,
+          T: 'static,
+          E: 'static,
 {
     IterStream {
         iter: i,
@@ -28,9 +28,9 @@ pub fn iter<I, T, E>(i: I) -> IterStream<I>
 
 impl<I, T, E> Stream for IterStream<I>
     where I: Iterator<Item=Result<T, E>>,
-          I: Send + 'static,
-          T: Send + 'static,
-          E: Send + 'static,
+          I: 'static,
+          T: 'static,
+          E: 'static,
 {
     type Item = T;
     type Error = E;

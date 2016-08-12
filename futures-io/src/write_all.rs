@@ -38,7 +38,7 @@ enum State<A, T> {
 /// window into a slice if necessary.
 pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
     where A: WriteTask,
-          T: AsRef<[u8]> + Send + 'static,
+          T: AsRef<[u8]> + 'static,
 {
     WriteAll {
         state: State::Writing {
@@ -56,7 +56,7 @@ fn zero_write() -> io::Error {
 
 impl<A, T> Future for WriteAll<A, T>
     where A: WriteTask,
-          T: AsRef<[u8]> + Send + 'static,
+          T: AsRef<[u8]> + 'static,
 {
     type Item = (A, T);
     type Error = io::Error;

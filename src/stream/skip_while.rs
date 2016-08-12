@@ -14,7 +14,7 @@ pub struct SkipWhile<S, P, R> where S: Stream, R: IntoFuture {
 
 pub fn new<S, P, R>(s: S, p: P) -> SkipWhile<S, P, R>
     where S: Stream,
-          P: FnMut(&S::Item) -> R + Send + 'static,
+          P: FnMut(&S::Item) -> R + 'static,
           R: IntoFuture<Item=bool, Error=S::Error>,
 {
     SkipWhile {
@@ -27,7 +27,7 @@ pub fn new<S, P, R>(s: S, p: P) -> SkipWhile<S, P, R>
 
 impl<S, P, R> Stream for SkipWhile<S, P, R>
     where S: Stream,
-          P: FnMut(&S::Item) -> R + Send + 'static,
+          P: FnMut(&S::Item) -> R + 'static,
           R: IntoFuture<Item=bool, Error=S::Error>,
 {
     type Item = S::Item;
@@ -71,7 +71,7 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
 
 impl<S, P, R> SkipWhile<S, P, R>
     where S: Stream,
-          P: FnMut(&S::Item) -> R + Send + 'static,
+          P: FnMut(&S::Item) -> R + 'static,
           R: IntoFuture<Item=bool, Error=S::Error>,
 {
     /// Consume this adaptor, returning the underlying stream.

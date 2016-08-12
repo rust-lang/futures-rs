@@ -12,7 +12,7 @@ pub struct FilterMap<S, F> {
 
 pub fn new<S, F, B>(s: S, f: F) -> FilterMap<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Option<B> + Send + 'static,
+          F: FnMut(S::Item) -> Option<B> + 'static,
 {
     FilterMap {
         stream: s,
@@ -22,8 +22,8 @@ pub fn new<S, F, B>(s: S, f: F) -> FilterMap<S, F>
 
 impl<S, F, B> Stream for FilterMap<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Option<B> + Send + 'static,
-          B: Send + 'static,
+          F: FnMut(S::Item) -> Option<B> + 'static,
+          B: 'static,
 {
     type Item = B;
     type Error = S::Error;

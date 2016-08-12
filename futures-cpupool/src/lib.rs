@@ -12,7 +12,7 @@
 //!
 //! use std::sync::mpsc::channel;
 //!
-//! use futures::{Future, Task};
+//! use futures::Future;
 //! use futures_cpupool::CpuPool;
 //!
 //! # fn long_running_computation() -> u32 { 2 }
@@ -32,10 +32,9 @@
 //!
 //! // Block the current thread to get the result.
 //! let (tx, rx) = channel();
-//! Task::new().run(c.then(move |res| {
-//!     tx.send(res).unwrap();
-//!     Ok(())
-//! }).boxed());
+//! c.then(move |res| {
+//!     tx.send(res)
+//! }).forget();
 //! let res = rx.recv().unwrap();
 //!
 //! // Print out the result

@@ -20,8 +20,8 @@ pub fn new<A, F>(future: A, f: F) -> Map<A, F>
 
 impl<U, A, F> Future for Map<A, F>
     where A: Future,
-          F: FnOnce(A::Item) -> U + Send + 'static,
-          U: Send + 'static,
+          F: FnOnce(A::Item) -> U + 'static,
+          U: 'static,
 {
     type Item = U;
     type Error = A::Error;
@@ -35,8 +35,8 @@ impl<U, A, F> Future for Map<A, F>
         self.future.schedule(task)
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         self.future.collapse();
         None
     }

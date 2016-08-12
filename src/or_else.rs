@@ -12,7 +12,7 @@ pub struct OrElse<A, B, F> where A: Future, B: IntoFuture {
 pub fn new<A, B, F>(future: A, f: F) -> OrElse<A, B, F>
     where A: Future,
           B: IntoFuture<Item=A::Item>,
-          F: Send + 'static,
+          F: 'static,
 {
     OrElse {
         state: Chain::new(future, f),
@@ -22,7 +22,7 @@ pub fn new<A, B, F>(future: A, f: F) -> OrElse<A, B, F>
 impl<A, B, F> Future for OrElse<A, B, F>
     where A: Future,
           B: IntoFuture<Item=A::Item>,
-          F: FnOnce(A::Error) -> B + Send + 'static,
+          F: FnOnce(A::Error) -> B + 'static,
 {
     type Item = B::Item;
     type Error = B::Error;
@@ -40,8 +40,8 @@ impl<A, B, F> Future for OrElse<A, B, F>
         self.state.schedule(task)
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         self.state.tailcall()
     }
 }

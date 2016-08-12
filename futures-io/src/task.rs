@@ -48,7 +48,7 @@ struct State<T> {
     ready: Option<Ready>,
 }
 
-impl<T: Send + 'static> TaskIo<T> {
+impl<T: 'static> TaskIo<T> {
     /// Returns a new future which represents the insertion of the I/O object
     /// `T` into task local storage, returning a `TaskIo<T>` handle to it.
     ///
@@ -64,7 +64,7 @@ impl<T: Send + 'static> TaskIo<T> {
     }
 }
 
-impl<T: Send + 'static> Future for TaskIoNew<T> {
+impl<T: 'static> Future for TaskIoNew<T> {
     type Item = TaskIo<T>;
     type Error = io::Error;
 
@@ -92,13 +92,13 @@ impl<T> TaskIo<T>
     }
 }
 
-struct TaskIoTake<'a, 'b, T: Send + 'static> {
+struct TaskIoTake<'a, 'b, T: 'static> {
     t: Option<State<T>>,
     task: &'a mut Task,
     handle: &'b TaskData<RefCell<Option<State<T>>>>,
 }
 
-impl<'a, 'b, T: Send + 'static> TaskIoTake<'a, 'b, T> {
+impl<'a, 'b, T: 'static> TaskIoTake<'a, 'b, T> {
     fn new(task: &'a mut Task, handle: &'b TaskData<RefCell<Option<State<T>>>>)
            -> TaskIoTake<'a, 'b, T> {
         let t = task.get(handle).borrow_mut().take().unwrap();
@@ -178,7 +178,7 @@ impl<'a, 'b, T> TaskIoTake<'a, 'b, T>
     }
 }
 
-impl<'a, 'b, T: Send + 'static> Drop for TaskIoTake<'a, 'b, T> {
+impl<'a, 'b, T: 'static> Drop for TaskIoTake<'a, 'b, T> {
     fn drop(&mut self) {
         let t = self.t.take();
         *self.task.get(&self.handle).borrow_mut() = t;

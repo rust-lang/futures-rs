@@ -11,6 +11,9 @@ pub enum Collapsed<T: Future> {
     Tail(Box<Future<Item=T::Item, Error=T::Error>>),
 }
 
+unsafe impl<T: Send + Future> Send for Collapsed<T> {}
+unsafe impl<T: Sync + Future> Sync for Collapsed<T> {}
+
 impl<T: Future> Collapsed<T> {
     pub fn poll(&mut self, task: &mut Task) -> Poll<T::Item, T::Error> {
         match *self {
@@ -26,7 +29,7 @@ impl<T: Future> Collapsed<T> {
         }
     }
 
-    pub fn collapse(&mut self) {
+    pub unsafe fn collapse(&mut self) {
         let a = match *self {
             Collapsed::Start(ref mut a) => {
                 match a.tailcall() {

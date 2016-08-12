@@ -21,7 +21,7 @@ fn sequence() {
     sassert_done(&mut rx);
 
     fn send(n: u32, sender: Sender<u32, u32>)
-            -> Box<Future<Item=(), Error=()>> {
+            -> Box<Future<Item=(), Error=()> + Send> {
         if n == 0 {
             return done(Ok(())).boxed()
         }

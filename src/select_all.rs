@@ -77,8 +77,8 @@ impl<A> Future for SelectAll<A>
         }
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         for f in self.inner.iter_mut() {
             f.inner.collapse();
         }
@@ -100,8 +100,8 @@ impl<A> Future for SelectAllNext<A>
         self.inner.schedule(task)
     }
 
-    fn tailcall(&mut self)
-                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         self.inner.collapse();
         match self.inner {
             Collapsed::Tail(ref mut a) => {

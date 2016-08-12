@@ -88,12 +88,12 @@ mod impls;
 /// `into_future` adaptor can be used here to convert any stream into a future
 /// for use with other future methods like `join` and `select`.
 // TODO: more here
-pub trait Stream: Send + 'static {
+pub trait Stream: 'static {
     /// The type of item this stream will yield on success.
-    type Item: Send + 'static;
+    type Item: 'static;
 
     /// The type of error this stream may generate.
-    type Error: Send + 'static;
+    type Error: 'static;
 
     /// Attempt to pull out the next value of this stream, returning `None` if
     /// the stream is finished.
@@ -165,7 +165,10 @@ pub trait Stream: Send + 'static {
     /// Convenience function for turning this stream into a trait object.
     ///
     /// This simply avoids the need to write `Box::new` and can often help with
-    /// type inference as well by always returning a trait object.
+    /// type inference as well by always returning a trait object. Note that
+    /// this method requires the `Send` bound and returns a `BoxStream`, which
+    /// also encodes this. If you'd like to create a `Box<Stream>` without the
+    /// `Send` bound, then the `Box::new` function can be used instead.
     ///
     /// # Examples
     ///
@@ -173,10 +176,10 @@ pub trait Stream: Send + 'static {
     /// use futures::stream::*;
     ///
     /// let (_tx, rx) = channel();
-    /// let a: Box<Stream<Item=i32, Error=i32>> = rx.boxed();
+    /// let a: BoxStream<i32, i32> = rx.boxed();
     /// ```
-    fn boxed(self) -> Box<Stream<Item = Self::Item, Error = Self::Error>>
-        where Self: Sized
+    fn boxed(self) -> BoxStream<Self::Item, Self::Error>
+        where Self: Sized + Send
     {
         Box::new(self)
     }
@@ -212,8 +215,8 @@ pub trait Stream: Send + 'static {
     /// let rx = rx.map(|x| x + 3);
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
-        where F: FnMut(Self::Item) -> U + Send + 'static,
-              U: Send + 'static,
+        where F: FnMut(Self::Item) -> U + 'static,
+              U: 'static,
               Self: Sized
     {
         map::new(self, f)
@@ -238,8 +241,8 @@ pub trait Stream: Send + 'static {
     /// let rx = rx.map_err(|x| x + 3);
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
-        where F: FnMut(Self::Error) -> U + Send + 'static,
-              U: Send + 'static,
+        where F: FnMut(Self::Error) -> U + 'static,
+              U: 'static,
               Self: Sized
     {
         map_err::new(self, f)
@@ -268,7 +271,7 @@ pub trait Stream: Send + 'static {
     /// let evens = rx.filter(|x| x % 0 == 2);
     /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
-        where F: FnMut(&Self::Item) -> bool + Send + 'static,
+        where F: FnMut(&Self::Item) -> bool + 'static,
               Self: Sized
     {
         filter::new(self, f)
@@ -303,7 +306,7 @@ pub trait Stream: Send + 'static {
     /// });
     /// ```
     fn filter_map<F, B>(self, f: F) -> FilterMap<Self, F>
-        where F: FnMut(Self::Item) -> Option<B> + Send + 'static,
+        where F: FnMut(Self::Item) -> Option<B> + 'static,
               Self: Sized
     {
         filter_map::new(self, f)
@@ -341,7 +344,7 @@ pub trait Stream: Send + 'static {
     /// });
     /// ```
     fn then<F, U>(self, f: F) -> Then<Self, F, U>
-        where F: FnMut(Result<Self::Item, Self::Error>) -> U + Send + 'static,
+        where F: FnMut(Result<Self::Item, Self::Error>) -> U + 'static,
               U: IntoFuture,
               Self: Sized
     {
@@ -384,7 +387,7 @@ pub trait Stream: Send + 'static {
     /// });
     /// ```
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
-        where F: FnMut(Self::Item) -> U + Send + 'static,
+        where F: FnMut(Self::Item) -> U + 'static,
               U: IntoFuture<Error = Self::Error>,
               Self: Sized
     {
@@ -427,7 +430,7 @@ pub trait Stream: Send + 'static {
     /// });
     /// ```
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
-        where F: FnMut(Self::Error) -> U + Send + 'static,
+        where F: FnMut(Self::Error) -> U + 'static,
               U: IntoFuture<Item = Self::Item>,
               Self: Sized
     {
@@ -447,13 +450,12 @@ pub trait Stream: Send + 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll};
+    /// use futures::{finished, Future, Task, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
     ///
-    /// fn send(n: i32, tx: Sender<i32, u32>)
-    ///         -> Box<Future<Item=(), Error=()>> {
+    /// fn send(n: i32, tx: Sender<i32, u32>) -> BoxFuture<(), ()> {
     ///     if n == 0 {
     ///         return finished(()).boxed()
     ///     }
@@ -489,13 +491,12 @@ pub trait Stream: Send + 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll};
+    /// use futures::{finished, Future, Task, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
     ///
-    /// fn send(n: i32, tx: Sender<i32, u32>)
-    ///         -> Box<Future<Item=(), Error=()>> {
+    /// fn send(n: i32, tx: Sender<i32, u32>) -> BoxFuture<(), ()> {
     ///     if n == 0 {
     ///         return finished(()).boxed()
     ///     }
@@ -510,10 +511,10 @@ pub trait Stream: Send + 'static {
     /// assert_eq!(result.poll(&mut Task::new()), Poll::Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
-        where F: FnMut(T, Self::Item) -> Fut + Send + 'static,
+        where F: FnMut(T, Self::Item) -> Fut + 'static,
               Fut: IntoFuture<Item = T>,
               Fut::Error: Into<Self::Error>,
-              T: Send + 'static,
+              T: 'static,
               Self: Sized
     {
         fold::new(self, f, init)
@@ -558,7 +559,7 @@ pub trait Stream: Send + 'static {
     /// returns false all future elements will be returned from the underlying
     /// stream.
     fn skip_while<P, R>(self, pred: P) -> SkipWhile<Self, P, R>
-        where P: FnMut(&Self::Item) -> R + Send + 'static,
+        where P: FnMut(&Self::Item) -> R + 'static,
               R: IntoFuture<Item=bool, Error=Self::Error>,
               Self: Sized
     {
@@ -577,7 +578,7 @@ pub trait Stream: Send + 'static {
     /// closure will cause iteration to be halted immediately and the future
     /// will resolve to that error.
     fn for_each<F>(self, f: F) -> ForEach<Self, F>
-        where F: FnMut(Self::Item) -> Result<(), Self::Error> + Send + 'static,
+        where F: FnMut(Self::Item) -> Result<(), Self::Error> + 'static,
               Self: Sized
     {
         for_each::new(self, f)
@@ -652,3 +653,6 @@ pub trait Stream: Send + 'static {
         merge::new(self, other)
     }
 }
+
+/// A type alias for `Box<Future + Send>`
+pub type BoxStream<T, E> = Box<Stream<Item = T, Error = E> + Send>;

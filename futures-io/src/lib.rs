@@ -42,8 +42,8 @@ extern crate log;
 use std::io;
 use std::ops::BitOr;
 
-use futures::{Task, Future};
-use futures::stream::Stream;
+use futures::{Task, BoxFuture};
+use futures::stream::{Stream, BoxStream};
 
 /// A macro to assist with dealing with `io::Result<T>` types where the error
 /// may have the type `WouldBlock`.
@@ -60,10 +60,10 @@ macro_rules! try_nb {
 }
 
 /// A convenience typedef around a `Future` whose error component is `io::Error`
-pub type IoFuture<T> = Future<Item=T, Error=io::Error>;
+pub type IoFuture<T> = BoxFuture<T, io::Error>;
 
 /// A convenience typedef around a `Stream` whose error component is `io::Error`
-pub type IoStream<T> = Stream<Item=T, Error=io::Error>;
+pub type IoStream<T> = BoxStream<T, io::Error>;
 
 mod impls;
 

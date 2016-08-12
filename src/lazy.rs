@@ -36,7 +36,7 @@ enum _Lazy<F, R> {
 /// drop(b); // closure is never run
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
-    where F: FnOnce() -> R + Send + 'static,
+    where F: FnOnce() -> R + 'static,
           R: IntoFuture
 {
     Lazy {
@@ -45,7 +45,7 @@ pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
 }
 
 impl<F, R> Lazy<F, R::Future>
-    where F: FnOnce() -> R + Send + 'static,
+    where F: FnOnce() -> R + 'static,
           R: IntoFuture,
 {
     fn get(&mut self) -> &mut R::Future {
@@ -66,7 +66,7 @@ impl<F, R> Lazy<F, R::Future>
 }
 
 impl<F, R> Future for Lazy<F, R::Future>
-    where F: FnOnce() -> R + Send + 'static,
+    where F: FnOnce() -> R + 'static,
           R: IntoFuture,
 {
     type Item = R::Item;
@@ -80,7 +80,8 @@ impl<F, R> Future for Lazy<F, R::Future>
         self.get().schedule(task)
     }
 
-    fn tailcall(&mut self) -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {
         self.get().tailcall()
     }
 }

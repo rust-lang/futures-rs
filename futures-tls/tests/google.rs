@@ -7,12 +7,11 @@ extern crate futures_tls;
 #[macro_use]
 extern crate cfg_if;
 
-use std::io::{Write, ErrorKind, Error};
+use std::io::Error;
 use std::net::ToSocketAddrs;
 
 use futures::Future;
-use futures::stream::Stream;
-use futures_io::{flush, read_to_end, Ready};
+use futures_io::{flush, read_to_end, write_all};
 use futures_tls::ClientContext;
 
 macro_rules! t {
@@ -77,7 +76,7 @@ fn fetch_google() {
         t!(ClientContext::new()).handshake("google.com", socket)
     }).and_then(|socket| {
         write_all(socket, b"GET / HTTP/1.0\r\n\r\n")
-    }).and_then(|socket| {
+    }).and_then(|(socket, _)| {
         flush(socket)
     }).and_then(|socket| {
         read_to_end(socket, Vec::new())
@@ -105,27 +104,4 @@ fn wrong_hostname_error() {
     let res = l.run(data);
     assert!(res.is_err());
     assert_bad_hostname_error(&res.err().unwrap());
-}
-
-fn write_all<W>(mut socket: W, mut data: &'static [u8])
-                -> Box<Future<Item=W, Error=Error>>
-    where W: Write + Stream<Item=Ready, Error=Error>,
-{
-    while data.len() > 0 {
-        match socket.write(data) {
-            Ok(n) => {
-                println!("wrote: {}", n);
-                data = &data[n..];
-            }
-            Err(ref e) if e.kind() == ErrorKind::WouldBlock => break,
-            Err(e) => return futures::failed(e).boxed(),
-        }
-    }
-    if data.len() == 0 {
-        futures::finished(socket).boxed()
-    } else {
-        socket.into_future().map_err(|e| e.0).and_then(move |(_, w)| {
-            write_all(w, data)
-        }).boxed()
-    }
 }

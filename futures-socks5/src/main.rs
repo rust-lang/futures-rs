@@ -145,7 +145,7 @@ struct GlobalBuffer {
 }
 
 impl GlobalBuffer {
-    fn new(lp: &Loop, size: usize) -> Box<IoFuture<GlobalBuffer>> {
+    fn new(lp: &Loop, size: usize) -> IoFuture<GlobalBuffer> {
         lp.handle().add_loop_data(move || {
             RefCell::new(vec![0u8; size])
         }).map(|data| {
@@ -178,7 +178,7 @@ impl Client {
     ///
     /// Once we've got the version byte, we then delegate to the below
     /// `serve_vX` methods depending on which version we found.
-    fn serve(self, conn: TcpStream) -> Box<IoFuture<(u64, u64)>> {
+    fn serve(self, conn: TcpStream) -> IoFuture<(u64, u64)> {
         read_exact(conn, [0u8]).and_then(|(conn, buf)| {
             match buf[0] {
                 v5::VERSION => self.serve_v5(conn),
@@ -194,7 +194,7 @@ impl Client {
     }
 
     /// Current SOCKSv4 is not implemented, but v5 below has more fun details!
-    fn serve_v4(self, _conn: TcpStream) -> Box<IoFuture<(u64, u64)>> {
+    fn serve_v4(self, _conn: TcpStream) -> IoFuture<(u64, u64)> {
         futures::failed(other("unimplemented")).boxed()
     }
 
@@ -209,7 +209,7 @@ impl Client {
     /// necessary, but without them the compiler is pessimistically slow!
     /// Essentially, the `.boxed()` annotations here improve compile times, but
     /// are otherwise not necessary.
-    fn serve_v5(self, conn: TcpStream) -> Box<IoFuture<(u64, u64)>> {
+    fn serve_v5(self, conn: TcpStream) -> IoFuture<(u64, u64)> {
         // First part of the SOCKSv5 protocol is to negotiate a number of
         // "methods". These methods can typically be used for various kinds of
         // proxy authentication and such, but for this server we only implement
