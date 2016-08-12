@@ -9,7 +9,7 @@ use std::sync::Arc;
 /// Encapsulation of a value which has the ability to execute arbitrary code.
 ///
 /// This trait is object safe and intended to be used through pointers like
-/// `Box` and `Arc.
+/// `Box` and `Arc`.
 pub trait Executor: Send + Sync + 'static {
     /// Executes the given closure `f`, perhaps on a different thread or
     /// deferred to a later time.
