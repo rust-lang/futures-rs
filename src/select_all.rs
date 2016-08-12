@@ -41,7 +41,7 @@ pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoFuture>::Future>
                    .collect(),
     };
     assert!(ret.inner.len() > 0);
-    return ret
+    ret
 }
 
 impl<A> Future for SelectAll<A>
@@ -72,14 +72,14 @@ impl<A> Future for SelectAll<A>
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        for f in self.inner.iter_mut() {
+        for f in &mut self.inner {
             f.inner.schedule(task);
         }
     }
 
     fn tailcall(&mut self)
                 -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        for f in self.inner.iter_mut() {
+        for f in &mut self.inner {
             f.inner.collapse();
         }
         None

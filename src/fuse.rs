@@ -25,7 +25,7 @@ impl<A: Future> Future for Fuse<A> {
         if ret.as_ref().map(|r| r.is_ready()) == Some(true) {
             self.future = None;
         }
-        return ret.unwrap_or(Poll::NotReady)
+        ret.unwrap_or(Poll::NotReady)
     }
 
     fn schedule(&mut self, task: &mut Task) {

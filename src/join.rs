@@ -155,9 +155,8 @@ impl<A: Future> MaybeDone<A> {
     }
 
     fn collapse(&mut self) {
-        match *self {
-            MaybeDone::NotYet(ref mut a) => a.collapse(),
-            _ => {}
+        if let MaybeDone::NotYet(ref mut a) = *self {
+            a.collapse()
         }
     }
 }

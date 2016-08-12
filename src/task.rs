@@ -328,7 +328,7 @@ impl Task {
         // If someone requested that we get polled on a specific executor, then
         // do that here before we register interest in the future, we may be
         // able to make more progress somewhere else.
-        if me.poll_requests.len() > 0 {
+        if !me.poll_requests.is_empty() {
             return me.poll_requests.remove(0).execute(|| me.run(future));
         }
 

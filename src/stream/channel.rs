@@ -161,7 +161,7 @@ impl<T, E> Future for FutureSender<T, E>
         let data = self.data.take().expect("cannot poll FutureSender twice");
         let sender = self.sender.take().expect("cannot poll FutureSender twice");
         match sender.inner.slot.try_produce(Message::Data(data)) {
-            Ok(()) => return Poll::Ok(sender),
+            Ok(()) => Poll::Ok(sender),
             Err(e) => {
                 self.data = Some(match e.into_inner() {
                     Message::Data(data) => data,
