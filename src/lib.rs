@@ -680,7 +680,7 @@ pub trait Future: 'static {
     ///
     /// pair.map(|(a, b)| {
     ///     assert_eq!(a, 1);
-    ///     assert_eq!(b, 1);
+    ///     assert_eq!(b, 2);
     /// });
     /// ```
     fn join<B>(self, other: B) -> Join<Self, B::Future>
