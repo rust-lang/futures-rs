@@ -72,14 +72,14 @@ impl<A> Future for SelectAll<A>
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        for f in &mut self.inner {
+        for f in self.inner.iter_mut() {
             f.inner.schedule(task);
         }
     }
 
     fn tailcall(&mut self)
                 -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        for f in &mut self.inner {
+        for f in self.inner.iter_mut() {
             f.inner.collapse();
         }
         None

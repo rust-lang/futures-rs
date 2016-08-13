@@ -65,7 +65,7 @@ impl<S> Stream for Buffered<S>
         }
 
         // Next, try and step all the futures forward
-        for future in &mut self.futures {
+        for future in self.futures.iter_mut() {
             let result = match *future {
                 State::Running(ref mut s) => {
                     match s.poll(task) {
@@ -105,7 +105,7 @@ impl<S> Stream for Buffered<S>
 
     fn schedule(&mut self, task: &mut Task) {
         // If we've got an empty slot, then we're immediately ready to go.
-        for slot in &self.futures {
+        for slot in self.futures.iter() {
             if let State::Empty = *slot {
                 return task.notify()
             }
@@ -116,7 +116,7 @@ impl<S> Stream for Buffered<S>
             return task.notify()
         }
 
-        for slot in &mut self.futures {
+        for slot in self.futures.iter_mut() {
             if let State::Running(ref mut s) = *slot {
                 s.schedule(task);
             }
