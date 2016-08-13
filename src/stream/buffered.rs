@@ -72,7 +72,7 @@ impl<S> Stream for Buffered<S>
                         Poll::Ok(e) => Ok(e),
                         Poll::Err(e) => Err(e),
                         Poll::NotReady => {
-                            unsafe { s.collapse(); }
+                            s.collapse();
                             return Poll::NotReady
                         }
                     }

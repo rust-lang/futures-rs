@@ -64,9 +64,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
-use Future;
+use BoxFuture;
 use executor::{DEFAULT, Executor};
 use slot::Slot;
+use util::Collapsed;
 
 /// A structure representing one "task", or thread of execution throughout the
 /// lifetime of a set of futures.
@@ -104,7 +105,7 @@ pub struct TaskHandle {
 }
 
 struct Inner {
-    slot: Slot<(Task, Box<Future<Item=(), Error=()> + Send>)>,
+    slot: Slot<(Task, Collapsed<BoxFuture<(), ()>>)>,
     registered: AtomicBool,
 }
 
@@ -290,7 +291,11 @@ impl Task {
     ///
     /// Currently, if `poll` panics, then this method will propagate the panic
     /// to the thread that `poll` was called on. This is bad and it will change.
-    pub fn run(self, mut future: Box<Future<Item=(), Error=()> + Send>) {
+    pub fn run(self, future: BoxFuture<(), ()>) {
+        self._run(Collapsed::Start(future));
+    }
+
+    fn _run(self, mut future: Collapsed<BoxFuture<(), ()>>) {
         let mut me = self;
 
         // First up, poll the future, but do so in a `catch_unwind` to ensure
@@ -319,16 +324,13 @@ impl Task {
 
         // Perform tail call optimization on the future, attempting to pull out
         // a sub-future by pruning those that are already complete.
-        future = match unsafe { future.tailcall() } {
-            Some(f) => unsafe { ::std::mem::transmute(f) },
-            None => future,
-        };
+        future.collapse();
 
         // If someone requested that we get polled on a specific executor, then
         // do that here before we register interest in the future, we may be
         // able to make more progress somewhere else.
         if me.poll_requests.len() > 0 {
-            return me.poll_requests.remove(0).execute(|| me.run(future));
+            return me.poll_requests.remove(0).execute(|| me._run(future));
         }
 
         // So at this point the future is not ready, we've collapsed it, and no
@@ -383,7 +385,7 @@ impl TaskHandle {
         self.inner.slot.on_full(|slot| {
             let (task, future) = slot.try_consume().ok().unwrap();
             task.handle.inner.registered.store(false, Ordering::SeqCst);
-            DEFAULT.execute(|| task.run(future))
+            DEFAULT.execute(|| task._run(future))
         });
     }
 }

@@ -29,21 +29,23 @@ impl<T: Future> Collapsed<T> {
         }
     }
 
-    pub unsafe fn collapse(&mut self) {
-        let a = match *self {
-            Collapsed::Start(ref mut a) => {
-                match a.tailcall() {
-                    Some(a) => a,
-                    None => return,
+    pub fn collapse(&mut self) {
+        unsafe {
+            let a = match *self {
+                Collapsed::Start(ref mut a) => {
+                    match a.tailcall() {
+                        Some(a) => a,
+                        None => return,
+                    }
                 }
-            }
-            Collapsed::Tail(ref mut a) => {
-                if let Some(b) = a.tailcall() {
-                    *a = b;
+                Collapsed::Tail(ref mut a) => {
+                    if let Some(b) = a.tailcall() {
+                        *a = b;
+                    }
+                    return
                 }
-                return
-            }
-        };
-        *self = Collapsed::Tail(a);
+            };
+            *self = Collapsed::Tail(a);
+        }
     }
 }
