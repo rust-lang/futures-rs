@@ -41,7 +41,7 @@ pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoFuture>::Future>
                    .collect(),
     };
     assert!(ret.inner.len() > 0);
-    return ret
+    ret
 }
 
 impl<A> Future for SelectAll<A>
