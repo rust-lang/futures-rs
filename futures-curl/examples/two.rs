@@ -18,24 +18,22 @@ fn main() {
     env_logger::init().unwrap();
 
     let mut lp = Loop::new().unwrap();
-    let session = Session::new(lp.handle());
+    let session = Session::new(lp.pin());
 
     // Once we've got our session available to us, execute our two requests.
     // Each request will be a GET request and for now we just ignore the actual
     // downloaded data.
-    let requests = session.and_then(|sess| {
-        let mut a = Easy::new();
-        a.get(true).unwrap();
-        a.url("https://www.rust-lang.org").unwrap();
-        a.write_function(|data| Ok(data.len())).unwrap();
+    let mut a = Easy::new();
+    a.get(true).unwrap();
+    a.url("https://www.rust-lang.org").unwrap();
+    a.write_function(|data| Ok(data.len())).unwrap();
 
-        let mut b = Easy::new();
-        b.get(true).unwrap();
-        b.url("https://github.com").unwrap();
-        b.write_function(|data| Ok(data.len())).unwrap();
+    let mut b = Easy::new();
+    b.get(true).unwrap();
+    b.url("https://github.com").unwrap();
+    b.write_function(|data| Ok(data.len())).unwrap();
 
-        sess.perform(a).join(sess.perform(b))
-    });
+    let requests = session.perform(a).join(session.perform(b));
 
     // Run both requests, waiting for them to finish. Once done we print out
     // their response codes and errors.

@@ -27,7 +27,7 @@
 //!     // Create an event loop that we'll run on, as well as an HTTP `Session`
 //!     // which we'll be routing all requests through.
 //!     let mut lp = Loop::new().unwrap();
-//!     let session = Session::new(lp.handle());
+//!     let session = Session::new(lp.pin());
 //!
 //!     // Prepare the HTTP request to be sent.
 //!     let mut req = Easy::new();
@@ -40,9 +40,7 @@
 //!
 //!     // Once we've got our session, issue an HTTP request to download the
 //!     // rust-lang home page
-//!     let request = session.and_then(|sess| {
-//!         sess.perform(req)
-//!     });
+//!     let request = session.perform(req);
 //!
 //!     // Execute the request, and print the response code as well as the error
 //!     // that happened (if any).
@@ -54,8 +52,6 @@
 #![deny(missing_docs)]
 
 // TODO: windows support, should use a separate thread calling select() I guess
-// TODO: kill driver task when session dies, needs a channel
-// TODO: kill HTTP request when `Perform` is dropped, also needs a channel
 // TODO: handle level a bit better by turning the event loop every so often
 
 #[macro_use]
@@ -67,12 +63,14 @@ extern crate futures;
 extern crate futures_io;
 extern crate futures_mio;
 extern crate mio;
+extern crate slab;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::mem;
-use std::sync::Arc;
+use std::rc::Rc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use curl::Error;
@@ -80,9 +78,10 @@ use curl::easy::Easy;
 use curl::multi::{Multi, EasyHandle, Socket, SocketEvents, Events};
 use futures::stream::Stream;
 use futures::{Future, Task, TaskHandle, Poll, promise, Promise, Complete};
-use futures_io::{Ready, IoFuture};
-use futures_mio::{LoopHandle, LoopData, Timeout, Source, ReadinessStream};
+use futures_io::Ready;
+use futures_mio::{LoopPin, LoopData, Timeout, Source, ReadinessStream};
 use mio::unix::EventedFd;
+use slab::Slab;
 
 /// A shared cache for HTTP requests to pool data such as TCP connections
 /// between.
@@ -94,25 +93,52 @@ use mio::unix::EventedFd;
 /// future that will resolve to a session once it's been initialized.
 #[derive(Clone)]
 pub struct Session {
-    data: Arc<LoopData<Data>>,
+    data: Arc<LoopData<Rc<Data>>>,
 }
 
 struct Driver {
-    data: Arc<LoopData<Data>>,
+    data: Weak<LoopData<Rc<Data>>>,
 }
 
 struct Data {
     multi: Multi,
     state: RefCell<State>,
-    handle: LoopHandle,
+    pin: LoopPin,
 }
 
 struct State {
-    complete: Vec<(Complete<io::Result<(Easy, Option<Error>)>>, EasyHandle)>,
+    // List of all pending HTTP requests, also what to do when they're done.
+    complete: Slab<Entry, usize>,
+
+    // Monotonically increasing token which is used to differentiate entries at
+    // the same slab index over time. Primarily used in `PerformData`'s drop impl
+    next_token: usize,
+
+    // Active I/O for each known file descriptor curl is using. This is where we
+    // get readiness notifications from.
     io: HashMap<Socket, SocketState>,
+
+    // Timeout set by libcurl, and this is the handle to the actual timeout in
+    // the event loop itself.
     timeout: Option<Timeout>,
+
+    // If the "driver task" is waiting, then there'll be a handle here to wake
+    // it up. Useful for when a new HTTP request is added or the like.
     waiting_task: Option<TaskHandle>,
+
+    // Dummy task used to poll a few event loop futures immediately to get them
+    // to resolve immediately.
     task: Task,
+}
+
+struct Entry {
+    complete: Complete<io::Result<(Easy, Option<Error>)>>,
+    handle: EasyHandle,
+    // What slab index this entry is at
+    idx: usize,
+    // Our current token, taken from `next_token` above, used to differentiate
+    // two different entries at the same slab index.
+    token: usize,
 }
 
 struct SocketState {
@@ -130,12 +156,19 @@ scoped_thread_local!(static DATA: Data);
 /// complete so metadata about the request can be inspected.
 pub struct Perform {
     state: PerformState,
-    data: Arc<LoopData<Data>>,
+    data: Arc<LoopData<Rc<Data>>>,
+}
+
+struct PerformData {
+    data: Rc<Data>,
+    idx: usize,     // slab index our entry is at
+    token: usize,   // token we expect to see at that slab index
 }
 
 enum PerformState {
     Start(Easy),
-    Scheduled(Promise<io::Result<(Easy, Option<Error>)>>),
+    Scheduled(Promise<io::Result<(Easy, Option<Error>)>>,
+              Option<LoopData<PerformData>>),
     Empty,
 }
 
@@ -151,44 +184,40 @@ impl Session {
     ///
     /// This function returns a future which will resolve to a `Session` once
     /// it's been initialized.
-    pub fn new(handle: LoopHandle) -> IoFuture<Session> {
-        let handle2 = handle.clone();
-
+    pub fn new(pin: LoopPin) -> Session {
         // The core part of a `Session` is its `LoopData`, so we create that
         // here. The data itself is just a `Multi`, and to kick it off we
         // configure the timer/socket functions will receive notifications on
         // new timeouts and new events to listen for on sockets.
-        let data = handle.add_loop_data(move || {
-            let mut m = Multi::new();
+        let mut m = Multi::new();
 
-            m.timer_function(move |dur| {
-                DATA.with(|d| d.schedule_timeout(dur))
-            }).unwrap();
+        m.timer_function(move |dur| {
+            DATA.with(|d| d.schedule_timeout(dur))
+        }).unwrap();
 
-            m.socket_function(move |socket, events, token| {
-                DATA.with(|d| d.schedule_socket(socket, events, token))
-            }).unwrap();
+        m.socket_function(move |socket, events, token| {
+            DATA.with(|d| d.schedule_socket(socket, events, token))
+        }).unwrap();
 
-            Data {
-                multi: m,
-                handle: handle2,
-                state: RefCell::new(State {
-                    complete: Vec::new(),
-                    task: Task::new(),
-                    timeout: None,
-                    waiting_task: None,
-                    io: HashMap::new(),
-                }),
-            }
-        });
+        let pin2 = pin.clone();
+        let data = pin.add_loop_data(Rc::new(Data {
+            multi: m,
+            pin: pin2,
+            state: RefCell::new(State {
+                next_token: 0,
+                complete: Slab::new(128),
+                task: Task::new(),
+                timeout: None,
+                waiting_task: None,
+                io: HashMap::new(),
+            }),
+        }));
 
         // Once we've got the data stick the `LoopData` reference in an `Arc` so
         // we can share it amongst futures.
-        data.map(|data| {
-            let data = Arc::new(data);
-            Driver { data: data.clone() }.forget();
-            Session { data: data }
-        }).boxed()
+        let data = Arc::new(data);
+        Driver { data: Arc::downgrade(&data) }.forget();
+        Session { data: data }
     }
 
     /// Execute and HTTP request asynchronously, returning a future representing
@@ -219,12 +248,6 @@ impl Session {
     }
 }
 
-impl Drop for Session {
-    fn drop(&mut self) {
-        // TODO: kill driver task
-    }
-}
-
 impl Data {
     /// Function called whenever a new timeout is requested from libcurl.
     ///
@@ -243,7 +266,7 @@ impl Data {
         // here to pull out the actual timeout future.
         if let Some(dur) = dur {
             debug!("scheduling a new timeout in {:?}", dur);
-            let mut timeout = self.handle.clone().timeout(dur);
+            let mut timeout = self.pin.handle().clone().timeout(dur);
             match timeout.poll(&mut state.task) {
                 Poll::Ok(timeout) => state.timeout = Some(timeout),
                 _ => panic!("event loop should finish poll immediately"),
@@ -292,7 +315,7 @@ impl Data {
         // the event loop.
         debug!("schedule socket {}", socket);
         let source = Arc::new(Source::new(MioSocket { inner: socket }));
-        let mut ready = ReadinessStream::new(self.handle.clone(), source);
+        let mut ready = ReadinessStream::new(self.pin.handle().clone(), source);
         let stream = match ready.poll(&mut state.task) {
             Poll::Ok(stream) => stream,
             _ => panic!("event loop should finish poll immediately"),
@@ -309,7 +332,9 @@ impl Data {
     ///
     /// This promise can migrate to other threads safely and we'll ensure that
     /// it gets filled in appropriately on the event loop thread.
-    fn execute(&self, req: Easy) -> Promise<io::Result<(Easy, Option<Error>)>> {
+    fn execute(me: &Rc<Data>, req: Easy)
+               -> (Promise<io::Result<(Easy, Option<Error>)>>,
+                   Option<LoopData<PerformData>>) {
         // This is pretty straightforward, the intention being to call the
         // `Multi::add` function which adds the handle to the libcurl multi
         // handle.
@@ -319,21 +344,44 @@ impl Data {
         // the new request.
         debug!("executing a new request");
         let (tx, rx) = promise();
-        match DATA.set(self, || self.multi.add(req)) {
-            Ok(handle) => {
-                debug!("handle added");
-                let mut state = self.state.borrow_mut();
-                state.complete.push((tx, handle));
-                let task = state.waiting_task.take();
-                drop(state);
-                if let Some(t) = task {
-                    debug!("notifying task");
-                    t.notify();
-                }
+        let handle = match DATA.set(me, || me.multi.add(req)) {
+            Ok(handle) => handle,
+            Err(e) => {
+                tx.complete(Err(e.into()));
+                return (rx, None)
             }
-            Err(e) => tx.complete(Err(e.into())),
+        };
+        debug!("handle added");
+        let mut state = me.state.borrow_mut();
+        if state.complete.vacant_entry().is_none() {
+            let amt = state.complete.count();
+            state.complete.grow(amt);
         }
-        return rx
+        let idx;
+        let token = state.next_token;
+        state.next_token += 1;
+        {
+            let entry = state.complete.vacant_entry().unwrap();
+            idx = entry.index();
+            entry.insert(Entry {
+                complete: tx,
+                handle: handle,
+                idx: idx,
+                token: token,
+            });
+        }
+        let task = state.waiting_task.take();
+        drop(state);
+        if let Some(t) = task {
+            debug!("notifying task");
+            t.notify();
+        }
+        let data = me.pin.add_loop_data(PerformData {
+            data: me.clone(),
+            idx: idx,
+            token: token,
+        });
+        (rx, Some(data))
     }
 
     /// Polls the internal state of this `Multi` handle, attempting to move the
@@ -440,9 +488,11 @@ impl Data {
             self.multi.messages(|m| {
                 let mut state = self.state.borrow_mut();
                 let transfer_err = m.result().unwrap();
-                let idx = state.complete.iter().position(|&(_, ref h)| m.is_for(h));
-                let idx = idx.expect("complete but handle not here");
-                let (complete, handle) = state.complete.remove(idx);
+                let idx = state.complete.iter()
+                                        .find(|e| m.is_for(&e.handle))
+                                        .expect("complete but handle not here")
+                                        .idx;
+                let entry = state.complete.remove(idx).unwrap();
                 drop(state);
 
                 // If `remove_err` fails then that's super fatal, so that'll end
@@ -450,14 +500,27 @@ impl Data {
                 // transfer just failed, then that's communicated through
                 // `transfer_err`, so we just put that next to the handle if we
                 // get it out successfully.
-                let remove_err = self.multi.remove(handle);
+                let remove_err = self.multi.remove(entry.handle);
                 let res = remove_err.map(|e| (e, transfer_err.err()))
                                     .map_err(|e| e.into());
-                complete.complete(res);
+                entry.complete.complete(res);
             });
         });
 
         Poll::NotReady
+    }
+
+    fn cancel(&self, idx: usize, token: usize) {
+        let mut state = self.state.borrow_mut();
+        match state.complete.get(idx) {
+            Some(e) if e.token == token => {}
+            _ => return,
+        }
+        let entry = state.complete.remove(idx).unwrap();
+        drop(state);
+        DATA.set(self, move || {
+            drop(self.multi.remove(entry.handle));
+        });
     }
 
     /// Registers interest in the state for next opportunity to make progress.
@@ -481,6 +544,16 @@ impl Data {
     }
 }
 
+// When a session is being destroyed, be sure to wake up the corresponding task
+// if any is sleeping to ensure that it gets deallocated as well.
+impl Drop for State {
+    fn drop(&mut self) {
+        if let Some(task) = self.waiting_task.take() {
+            task.notify();
+        }
+    }
+}
+
 impl Future for Perform {
     type Item = (Easy, Option<Error>);
     type Error = io::Error;
@@ -500,16 +573,17 @@ impl Future for Perform {
 
                 // Once we're on the event loop execute the request and store
                 // off the saved future.
-                self.state = PerformState::Scheduled(data.execute(easy));
+                let (handle, dtor) = Data::execute(data, easy);
+                self.state = PerformState::Scheduled(handle, dtor);
                 return Poll::NotReady
             }
-            PerformState::Scheduled(mut s) => {
+            PerformState::Scheduled(mut s, dtor) => {
                 match s.poll(task) {
                     Poll::Ok(Ok(e)) => Poll::Ok(e),
                     Poll::Ok(Err(e)) => Poll::Err(e),
                     Poll::Err(_) => panic!("complete canceled?"),
                     Poll::NotReady => {
-                        self.state = PerformState::Scheduled(s);
+                        self.state = PerformState::Scheduled(s, dtor);
                         Poll::NotReady
                     }
                 }
@@ -521,15 +595,15 @@ impl Future for Perform {
     fn schedule(&mut self, task: &mut Task) {
         match self.state {
             PerformState::Start(_) => task.notify(),
-            PerformState::Scheduled(ref mut p) => p.schedule(task),
+            PerformState::Scheduled(ref mut p, _) => p.schedule(task),
             PerformState::Empty => panic!("schedule on empty Perform"),
         }
     }
 }
 
-impl Drop for Perform {
+impl Drop for PerformData {
     fn drop(&mut self) {
-        // TODO: cancel the HTTP request
+        self.data.cancel(self.idx, self.token);
     }
 }
 
@@ -538,11 +612,30 @@ impl Future for Driver {
     type Error = ();
 
     fn poll(&mut self, task: &mut Task) -> Poll<(), ()> {
-        self.data.get().unwrap().poll(task)
+        match self.data.upgrade() {
+            Some(arc) => {
+                match arc.get() {
+                    Some(data) => data.poll(task),
+                    None => {
+                        task.poll_on(arc.executor());
+                        Poll::NotReady
+                    }
+                }
+            }
+            None => Poll::Ok(()),
+        }
     }
 
     fn schedule(&mut self, task: &mut Task) {
-        self.data.get().unwrap().schedule(task)
+        match self.data.upgrade() {
+            Some(arc) => {
+                match arc.get() {
+                    Some(data) => data.schedule(task),
+                    None => task.notify(),
+                }
+            }
+            None => task.notify(),
+        }
     }
 }
 
