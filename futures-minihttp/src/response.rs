@@ -75,4 +75,3 @@ fn extend(dst: &mut Vec<u8>, data: &[u8]) {
         dst.set_len(prev + data.len());
     }
 }
-
