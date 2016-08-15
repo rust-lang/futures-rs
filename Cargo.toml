@@ -26,6 +26,7 @@ members = [
   "futures-minihttp/techempower2",
   "futures-socks5",
   "futures-curl",
+  "futures-uds",
 ]
 
 [dependencies]

@@ -1,0 +1,11 @@
+[package]
+name = "futures-uds"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+mio-uds = { git = "https://github.com/alexcrichton/mio-uds" }
+futures = { path = "..", version = "0.1" }
+futures-io = { path = "../futures-io", version = "0.1" }
+futures-mio = { path = "../futures-mio", version = "0.1" }
+log = "0.3"
