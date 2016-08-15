@@ -126,7 +126,7 @@ impl CpuPool {
         };
 
         for _ in 0..size {
-            let pool = pool.clone();
+            let pool = CpuPool { inner: pool.inner.clone() };
             thread::spawn(|| pool.work());
         }
 
