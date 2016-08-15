@@ -32,9 +32,4 @@ impl<A, B, F> Future for Then<A, B, F>
             Ok(Err(f(a).into_future()))
         })
     }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        self.state.tailcall()
-    }
 }

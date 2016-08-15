@@ -32,9 +32,4 @@ impl<A> Future for Flatten<A>
             Ok(Err(future))
         })
     }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        self.state.tailcall()
-    }
 }

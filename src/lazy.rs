@@ -75,9 +75,4 @@ impl<F, R> Future for Lazy<F, R>
     fn poll(&mut self) -> Poll<R::Item, R::Error> {
         self.get().poll()
     }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {
-        self.get().tailcall()
-    }
 }

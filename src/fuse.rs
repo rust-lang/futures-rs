@@ -1,5 +1,4 @@
 use {Future, Poll};
-use util::Collapsed;
 
 /// A future which "fuse"s a future once it's been resolved.
 ///
@@ -8,12 +7,12 @@ use util::Collapsed;
 /// from `poll` after it has succeeded, and after it has succeeded all future
 /// calls to `schedule` will be ignored.
 pub struct Fuse<A: Future> {
-    future: Option<Collapsed<A>>,
+    future: Option<A>,
 }
 
 pub fn new<A: Future>(f: A) -> Fuse<A> {
     Fuse {
-        future: Some(Collapsed::Start(f)),
+        future: Some(f),
     }
 }
 
@@ -27,13 +26,5 @@ impl<A: Future> Future for Fuse<A> {
             self.future = None;
         }
         ret.unwrap_or(Poll::NotReady)
-    }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        if let Some(f) = self.future.as_mut() {
-            f.collapse();
-        }
-        None
     }
 }

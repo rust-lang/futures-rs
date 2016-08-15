@@ -1,7 +1,6 @@
 use std::mem;
 
 use {Future, IntoFuture, Poll};
-use util::Collapsed;
 
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
@@ -12,7 +11,7 @@ pub struct Collect<I>
           I::Item: IntoFuture,
           I::IntoIter: 'static,
 {
-    cur: Option<Collapsed<<I::Item as IntoFuture>::Future>>,
+    cur: Option<<I::Item as IntoFuture>::Future>,
     remaining: I::IntoIter,
     result: Vec<<I::Item as IntoFuture>::Item>,
 }
@@ -60,7 +59,7 @@ pub fn collect<I>(i: I) -> Collect<I>
 {
     let mut i = i.into_iter();
     Collect {
-        cur: i.next().map(IntoFuture::into_future).map(Collapsed::Start),
+        cur: i.next().map(IntoFuture::into_future),
         remaining: i,
         result: Vec::new(),
     }
@@ -101,17 +100,7 @@ impl<I> Future for Collect<I>
             }
 
             self.cur = self.remaining.next()
-                           .map(IntoFuture::into_future)
-                           .map(Collapsed::Start);
+                           .map(IntoFuture::into_future);
         }
     }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        if let Some(ref mut cur) = self.cur {
-            cur.collapse();
-        }
-        None
-    }
-
 }

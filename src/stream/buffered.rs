@@ -2,7 +2,6 @@ use std::mem;
 
 use {IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
-use util::Collapsed;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible.
@@ -21,7 +20,7 @@ pub struct Buffered<S>
 
 enum State<S: Future> {
     Empty,
-    Running(Collapsed<S>),
+    Running(S),
     Finished(Result<S::Item, S::Error>),
 }
 
@@ -54,7 +53,7 @@ impl<S> Stream for Buffered<S>
             if let State::Empty = self.futures[idx] {
                 match self.stream.poll() {
                     Poll::Ok(Some(future)) => {
-                        let future = Collapsed::Start(future.into_future());
+                        let future = future.into_future();
                         self.futures[idx] = State::Running(future);
                     }
                     Poll::Ok(None) => break,
@@ -71,10 +70,7 @@ impl<S> Stream for Buffered<S>
                     match s.poll() {
                         Poll::Ok(e) => Ok(e),
                         Poll::Err(e) => Err(e),
-                        Poll::NotReady => {
-                            s.collapse();
-                            continue
-                        }
+                        Poll::NotReady => continue,
                     }
                 }
                 _ => continue,

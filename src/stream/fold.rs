@@ -2,7 +2,6 @@ use std::mem;
 
 use {Future, Poll, IntoFuture};
 use stream::Stream;
-use util::Collapsed;
 
 /// A future used to collect all the results of a stream into one generic type.
 ///
@@ -21,7 +20,7 @@ enum State<T, F> where F: Future {
     Ready(T),
 
     /// Working on a future the process the previous stream item
-    Processing(Collapsed<F>),
+    Processing(F),
 }
 
 pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
@@ -57,7 +56,6 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                         Poll::Ok(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();
-                            let future = Collapsed::Start(future);
                             self.state = State::Processing(future);
                         }
                         Poll::Ok(None) => return Poll::Ok(state),
@@ -80,13 +78,5 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                 }
             }
         }
-    }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        if let State::Processing(ref mut fut) = self.state {
-            fut.collapse();
-        }
-        None
     }
 }

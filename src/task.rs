@@ -67,7 +67,6 @@ use std::thread;
 use BoxFuture;
 use executor::{DEFAULT, Executor};
 use slot::Slot;
-use util::Collapsed;
 
 /// A structure representing one "task", or thread of execution throughout the
 /// lifetime of a set of futures.
@@ -105,7 +104,7 @@ pub struct TaskHandle {
 }
 
 struct Inner {
-    slot: Slot<(Task, Collapsed<BoxFuture<(), ()>>)>,
+    slot: Slot<(Task, BoxFuture<(), ()>)>,
     registered: AtomicBool,
 }
 
@@ -216,11 +215,7 @@ impl Task {
     ///
     /// Currently, if `poll` panics, then this method will propagate the panic
     /// to the thread that `poll` was called on. This is bad and it will change.
-    pub fn run(self, future: BoxFuture<(), ()>) {
-        self._run(Collapsed::Start(future));
-    }
-
-    fn _run(self, mut future: Collapsed<BoxFuture<(), ()>>) {
+    pub fn run(self, mut future: BoxFuture<(), ()>) {
         let mut me = self;
 
         // First up, poll the future, but do so in a `catch_unwind` to ensure
@@ -248,16 +243,12 @@ impl Task {
             Err(e) => panic::resume_unwind(e),
         }
 
-        // Perform tail call optimization on the future, attempting to pull out
-        // a sub-future by pruning those that are already complete.
-        future.collapse();
-
         // If someone requested that we get polled on a specific executor, then
         // do that here before we register interest in the future, we may be
         // able to make more progress somewhere else.
         if !me.poll_requests.borrow().is_empty() {
             let executor = me.poll_requests.borrow_mut().remove(0);
-            return executor.execute(|| me._run(future));
+            return executor.execute(|| me.run(future));
         }
 
         // So at this point the future is not ready, we've collapsed it, and no
@@ -340,7 +331,7 @@ impl TaskHandle {
         self.inner.slot.on_full(|slot| {
             let (task, future) = slot.try_consume().ok().unwrap();
             task.handle.inner.registered.store(false, Ordering::SeqCst);
-            DEFAULT.execute(|| task._run(future))
+            DEFAULT.execute(|| task.run(future))
         });
     }
 }
