@@ -73,7 +73,7 @@ impl<S> Stream for Buffered<S>
                         Poll::Err(e) => Err(e),
                         Poll::NotReady => {
                             s.collapse();
-                            return Poll::NotReady
+                            continue
                         }
                     }
                 }
