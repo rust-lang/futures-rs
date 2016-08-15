@@ -781,9 +781,9 @@ iterator.
 
 In situations though where a value isn't immediately ready, there are also
 more general implementations of [`Future`] and [`Stream`] that are available in
-the [`futures`] crate, the first of which is [`promise`]. Let's take a look:
+the [`futures`] crate, the first of which is [`oneshot`]. Let's take a look:
 
-[`promise`]: http://alexcrichton.com/futures-rs/futures/fn.promise.html
+[`oneshot`]: http://alexcrichton.com/futures-rs/futures/fn.oneshot.html
 
 ```rust
 extern crate futures;
@@ -797,7 +797,7 @@ fn expensive_computation() -> u32 {
 }
 
 fn main() {
-    let (tx, rx) = futures::promise();
+    let (tx, rx) = futures::oneshot();
 
     thread::spawn(move || {
         tx.complete(expensive_computation());
@@ -807,22 +807,21 @@ fn main() {
 }
 ```
 
-Here we can see that the [`promise`] function returns two halves (like
+Here we can see that the [`oneshot`] function returns two halves (like
 [`mpsc::channel`]). The first half, `tx` ("transmitter"), is of type [`Complete`]
-and is used to complete the promise, providing a value to the future on the
+and is used to complete the oneshot, providing a value to the future on the
 other end. The [`Complete::complete`] method will transmit the value to the
 receiving end.
 
-The second half, `rx` ("receiver"), is of type [`Promise`][promise-type] which is
-a type that implements the [`Future`] trait. The `Item` type is `T`, the type of
-the promise.
-The `Error` type is [`Canceled`], which happens when the [`Complete`] half is
-dropped without completing the computation.
+The second half, `rx` ("receiver"), is of type [`Oneshot`][oneshot-type] which is
+a type that implements the [`Future`] trait. The `Item` type is `T`, the type
+of the oneshot.  The `Error` type is [`Canceled`], which happens when the
+[`Complete`] half is dropped without completing the computation.
 
 [`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
 [`Complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html
 [`Complete::complete`]: http://alexcrichton.com/futures-rs/futures/struct.Complete.html#method.complete
-[promise-type]: http://alexcrichton.com/futures-rs/futures/struct.Promise.html
+[oneshot-type]: http://alexcrichton.com/futures-rs/futures/struct.Oneshot.html
 [`Canceled`]: http://alexcrichton.com/futures-rs/futures/struct.Canceled.html
 
 This concrete implementation of `Future` can be used (as shown here) to
@@ -908,11 +907,11 @@ return type explicitly. For example:
 
 ```rust
 struct MyFuture {
-    inner: Promise<i32>,
+    inner: Oneshot<i32>,
 }
 
 fn foo() -> MyFuture {
-    let (tx, rx) = promise();
+    let (tx, rx) = oneshot();
     // ...
     MyFuture { inner: tx }
 }
@@ -924,7 +923,7 @@ impl Future for MyFuture {
 
 In this example we're returning a custom type, `MyFuture`, and we implement the
 `Future` trait directly for it. This implementation leverages an underlying
-`Promise<i32>`, but any other kind of protocol can also be implemented here as
+`Oneshot<i32>`, but any other kind of protocol can also be implemented here as
 well.
 
 The upside to this approach is that it won't require a `Box` allocation and it's

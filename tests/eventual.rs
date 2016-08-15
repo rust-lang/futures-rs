@@ -40,8 +40,8 @@ fn and_then2() {
 }
 
 #[test]
-fn promise1() {
-    let (c, p) = promise::<i32>();
+fn oneshot1() {
+    let (c, p) = oneshot::<i32>();
     let t = thread::spawn(|| c.complete(1));
 
     let (tx, rx) = channel();
@@ -51,8 +51,8 @@ fn promise1() {
 }
 
 #[test]
-fn promise2() {
-    let (c, p) = promise::<i32>();
+fn oneshot2() {
+    let (c, p) = oneshot::<i32>();
     let t = thread::spawn(|| c.complete(1));
     t.join().unwrap();
 
@@ -62,8 +62,8 @@ fn promise2() {
 }
 
 #[test]
-fn promise3() {
-    let (c, p) = promise::<i32>();
+fn oneshot3() {
+    let (c, p) = oneshot::<i32>();
     let (tx, rx) = channel();
     p.map(move |e| tx.send(e).unwrap()).forget();
 
@@ -74,8 +74,8 @@ fn promise3() {
 }
 
 #[test]
-fn promise4() {
-    let (c, p) = promise::<i32>();
+fn oneshot4() {
+    let (c, p) = oneshot::<i32>();
     drop(c);
 
     let (tx, rx) = channel();
@@ -85,14 +85,14 @@ fn promise4() {
 
 #[test]
 fn proimse5() {
-    let (c, p) = promise::<i32>();
+    let (c, p) = oneshot::<i32>();
     drop(p);
     c.complete(2);
 }
 
 #[test]
-fn promise5() {
-    let (c, p) = promise::<i32>();
+fn oneshot5() {
+    let (c, p) = oneshot::<i32>();
     let t = thread::spawn(|| drop(c));
     let (tx, rx) = channel();
     p.map(move |t| tx.send(t).unwrap()).forget();
@@ -102,7 +102,7 @@ fn promise5() {
 
 #[test]
 fn cancel1() {
-    let (c, p) = promise::<i32>();
+    let (c, p) = oneshot::<i32>();
     drop(c);
     p.map(|_| panic!()).forget();
 }
@@ -122,15 +122,15 @@ fn map_err2() {
 
 #[test]
 fn map_err3() {
-    let (c, p) = promise::<i32>();
+    let (c, p) = oneshot::<i32>();
     p.map_err(|_| {}).forget();
     drop(c);
 }
 
 #[test]
 fn or_else1() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
 
     let (tx, rx) = channel();
     let tx2 = tx.clone();
@@ -151,7 +151,7 @@ fn or_else1() {
 
 #[test]
 fn or_else2() {
-    let (c1, p1) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
 
     let (tx, rx) = channel();
 
@@ -176,8 +176,8 @@ fn join1() {
 
 #[test]
 fn join2() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -190,8 +190,8 @@ fn join2() {
 
 #[test]
 fn join3() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).map_err(move |_v| tx.send(1).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -203,8 +203,8 @@ fn join3() {
 
 #[test]
 fn join4() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).map_err(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -216,9 +216,9 @@ fn join4() {
 
 #[test]
 fn join5() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
-    let (c3, p3) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
+    let (c3, p3) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.join(p2).join(p3).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -233,8 +233,8 @@ fn join5() {
 
 #[test]
 fn select1() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.select(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -252,8 +252,8 @@ fn select1() {
 
 #[test]
 fn select2() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.select(p2).map_err(move |v| tx.send((1, v.1)).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -271,8 +271,8 @@ fn select2() {
 
 #[test]
 fn select3() {
-    let (c1, p1) = promise::<i32>();
-    let (c2, p2) = promise::<i32>();
+    let (c1, p1) = oneshot::<i32>();
+    let (c2, p2) = oneshot::<i32>();
     let (tx, rx) = channel();
     p1.select(p2).map_err(move |v| tx.send((1, v.1)).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -300,8 +300,8 @@ fn select4() {
 
     let (tx2, rx2) = channel();
     for _ in 0..10000 {
-        let (c1, p1) = promise::<i32>();
-        let (c2, p2) = promise::<i32>();
+        let (c1, p1) = oneshot::<i32>();
+        let (c2, p2) = oneshot::<i32>();
 
         let tx3 = tx2.clone();
         p1.select(p2).map(move |_| tx3.send(()).unwrap()).forget();

@@ -1,6 +1,6 @@
 extern crate futures;
 
-use futures::{failed, finished, Future, promise, Poll, Task};
+use futures::{failed, finished, Future, oneshot, Poll, Task};
 use futures::stream::*;
 
 mod support;
@@ -103,7 +103,7 @@ fn fuse() {
 //                Ok(vec![1, 2, 3]));
 //
 //     let (tx, rx) = channel::<i32, u32>();
-//     let (rx2, tx2) = promise::pair();
+//     let (rx2, tx2) = oneshot::pair();
 //     let mut rx2 = Some(rx2);
 //     let mut rx = rx.and_then(move |_a| rx2.take().unwrap());
 //     match rx.poll() {
@@ -165,7 +165,7 @@ fn fuse() {
 // fn bufstream_smoke() {
 //     let (tx, mut rx) = bufstream::<i32, u32>(4);
 //     let (vrx, mut vtx): (Vec<_>, Vec<_>) = (0..4).map(|_| {
-//         let (a, b) = promise::pair::<i32, u32>();
+//         let (a, b) = oneshot::pair::<i32, u32>();
 //         (a, Some(b))
 //     }).unzip();
 //     for (a, b) in tx.zip(vrx) {
@@ -191,7 +191,7 @@ fn fuse() {
 // fn bufstream_concurrent() {
 //     let (tx, rx) = bufstream::<i32, u32>(4);
 //     let (vrx, vtx): (Vec<_>, Vec<_>) = (0..4).map(|_| {
-//         promise::pair::<i32, u32>()
+//         oneshot::pair::<i32, u32>()
 //     }).unzip();
 //     for (a, b) in tx.zip(vrx) {
 //         b.schedule(|val| a.send(val));
@@ -213,8 +213,8 @@ fn fuse() {
 #[test]
 fn buffered() {
     let (tx, rx) = channel::<_, u32>();
-    let (a, b) = promise::<u32>();
-    let (c, d) = promise::<u32>();
+    let (a, b) = oneshot::<u32>();
+    let (c, d) = oneshot::<u32>();
 
     tx.send(Ok(b.map_err(|_| 2).boxed()))
       .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
@@ -230,8 +230,8 @@ fn buffered() {
     sassert_done(&mut rx);
 
     let (tx, rx) = channel::<_, u32>();
-    let (a, b) = promise::<u32>();
-    let (c, d) = promise::<u32>();
+    let (a, b) = oneshot::<u32>();
+    let (c, d) = oneshot::<u32>();
 
     tx.send(Ok(b.map_err(|_| 2).boxed()))
       .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))

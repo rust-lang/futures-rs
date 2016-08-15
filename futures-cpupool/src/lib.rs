@@ -55,7 +55,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use crossbeam::sync::MsQueue;
-use futures::{Future, promise, Promise, Task, Poll};
+use futures::{Future, oneshot, Oneshot, Task, Poll};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -92,7 +92,7 @@ struct Inner {
 /// This future will either resolve to `R`, the completed value, or
 /// `Box<Any+Send>` if the computation panics (with the payload of the panic).
 pub struct CpuFuture<R: Send + 'static> {
-    inner: Promise<thread::Result<R>>,
+    inner: Oneshot<thread::Result<R>>,
 }
 
 trait Thunk: Send + 'static {
@@ -150,7 +150,7 @@ impl CpuPool {
         where F: FnOnce() -> R + Send + 'static,
               R: Send + 'static,
     {
-        let (tx, rx) = promise();
+        let (tx, rx) = oneshot();
         self.inner.queue.push(Message::Run(Box::new(|| {
             tx.complete(panic::catch_unwind(AssertUnwindSafe(f)));
         })));

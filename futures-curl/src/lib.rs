@@ -77,7 +77,7 @@ use curl::Error;
 use curl::easy::Easy;
 use curl::multi::{Multi, EasyHandle, Socket, SocketEvents, Events};
 use futures::stream::Stream;
-use futures::{Future, Task, TaskHandle, Poll, promise, Promise, Complete};
+use futures::{Future, Task, TaskHandle, Poll, oneshot, Oneshot, Complete};
 use futures_io::Ready;
 use futures_mio::{LoopPin, LoopData, Timeout, Source, ReadinessStream};
 use mio::unix::EventedFd;
@@ -167,7 +167,7 @@ struct PerformData {
 
 enum PerformState {
     Start(Easy),
-    Scheduled(Promise<io::Result<(Easy, Option<Error>)>>,
+    Scheduled(Oneshot<io::Result<(Easy, Option<Error>)>>,
               Option<LoopData<PerformData>>),
     Empty,
 }
@@ -327,13 +327,13 @@ impl Data {
         });
     }
 
-    /// Executes a new request, returning half of a promise that'll get filled
+    /// Executes a new request, returning half of a oneshot that'll get filled
     /// in when the future is done.
     ///
-    /// This promise can migrate to other threads safely and we'll ensure that
+    /// This oneshot can migrate to other threads safely and we'll ensure that
     /// it gets filled in appropriately on the event loop thread.
     fn execute(me: &Rc<Data>, req: Easy)
-               -> (Promise<io::Result<(Easy, Option<Error>)>>,
+               -> (Oneshot<io::Result<(Easy, Option<Error>)>>,
                    Option<LoopData<PerformData>>) {
         // This is pretty straightforward, the intention being to call the
         // `Multi::add` function which adds the handle to the libcurl multi
@@ -343,7 +343,7 @@ impl Data {
         // have to be sure to wake it up or otherwise it may never otherwise see
         // the new request.
         debug!("executing a new request");
-        let (tx, rx) = promise();
+        let (tx, rx) = oneshot();
         let handle = match DATA.set(me, || me.multi.add(req)) {
             Ok(handle) => handle,
             Err(e) => {

@@ -7,18 +7,22 @@ use slot::{Slot, Token};
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
 ///
-/// This is created by the `promise` function.
-pub struct Promise<T>
+/// This is created by the `oneshot` function.
+pub struct Oneshot<T>
     where T: Send + 'static,
 {
     inner: Arc<Inner<T>>,
     cancel_token: Option<Token>,
 }
 
-/// Represents the completion half of a promise through which the result of a
+#[doc(hidden)]
+#[deprecated(note = "renamed to `oneshot`")]
+pub type Promise<T> = Oneshot<T>;
+
+/// Represents the completion half of a oneshot through which the result of a
 /// computation is signaled.
 ///
-/// This is created by the `promise` function.
+/// This is created by the `oneshot` function.
 pub struct Complete<T>
     where T: Send + 'static,
 {
@@ -31,14 +35,14 @@ struct Inner<T> {
     pending_wake: AtomicBool,
 }
 
-/// Creates a new in-memory promise used to represent completing a computation.
+/// Creates a new in-memory oneshot used to represent completing a computation.
 ///
-/// A promise in this library is a concrete implementation of the `Future` trait
+/// A oneshot in this library is a concrete implementation of the `Future` trait
 /// used to complete a computation from one location with a future representing
 /// what to do in another.
 ///
 /// This function is similar to Rust's channels found in the standard library.
-/// Two halves are returned, the first of which is a `Promise` which implements
+/// Two halves are returned, the first of which is a `Oneshot` which implements
 /// the `Future` trait. The second half is a `Complete` handle which is used to
 /// signal the end of a computation.
 ///
@@ -49,7 +53,7 @@ struct Inner<T> {
 /// ```
 /// use futures::*;
 ///
-/// let (c, p) = promise::<i32>();
+/// let (c, p) = oneshot::<i32>();
 ///
 /// p.map(|i| {
 ///     println!("got: {}", i);
@@ -57,14 +61,14 @@ struct Inner<T> {
 ///
 /// c.complete(3);
 /// ```
-pub fn promise<T>() -> (Complete<T>, Promise<T>)
+pub fn oneshot<T>() -> (Complete<T>, Oneshot<T>)
     where T: Send + 'static,
 {
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
         pending_wake: AtomicBool::new(false),
     });
-    let promise = Promise {
+    let oneshot = Oneshot {
         inner: inner.clone(),
         cancel_token: None,
     };
@@ -72,16 +76,24 @@ pub fn promise<T>() -> (Complete<T>, Promise<T>)
         inner: inner,
         completed: false,
     };
-    (complete, promise)
+    (complete, oneshot)
+}
+
+#[doc(hidden)]
+#[deprecated(note = "renamed to `oneshot`")]
+pub fn promise<T>() -> (Complete<T>, Oneshot<T>)
+    where T: Send + 'static,
+{
+    oneshot()
 }
 
 impl<T> Complete<T>
     where T: Send + 'static,
 {
-    /// Completes this promise with a successful result.
+    /// Completes this oneshot with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the
-    /// `Promise`, that the error provided is the result of the computation this
+    /// `Oneshot`, that the error provided is the result of the computation this
     /// represents.
     pub fn complete(mut self, t: T) {
         self.completed = true;
@@ -108,12 +120,12 @@ impl<T> Drop for Complete<T>
     }
 }
 
-/// Error returned from a `Promise<T>` whenever the correponding `Complete<T>`
+/// Error returned from a `Oneshot<T>` whenever the correponding `Complete<T>`
 /// is dropped.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Canceled;
 
-impl<T: Send + 'static> Future for Promise<T> {
+impl<T: Send + 'static> Future for Oneshot<T> {
     type Item = T;
     type Error = Canceled;
 
@@ -144,7 +156,7 @@ impl<T: Send + 'static> Future for Promise<T> {
     }
 }
 
-impl<T> Drop for Promise<T>
+impl<T> Drop for Oneshot<T>
     where T: Send + 'static,
 {
     fn drop(&mut self) {

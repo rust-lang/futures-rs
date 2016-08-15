@@ -104,28 +104,28 @@ fn flatten() {
 }
 
 #[test]
-fn smoke_promise() {
+fn smoke_oneshot() {
     assert_done(|| {
-        let (c, p) = promise();
+        let (c, p) = oneshot();
         c.complete(1);
         p
     }, Ok(1));
     assert_done(|| {
-        let (c, p) = promise::<i32>();
+        let (c, p) = oneshot::<i32>();
         drop(c);
         p
     }, Err(Canceled));
     let mut completes = Vec::new();
     assert_empty(|| {
-        let (a, b) = promise::<i32>();
+        let (a, b) = oneshot::<i32>();
         completes.push(a);
         b
     });
 
-    let (c, mut p) = promise::<i32>();
+    let (c, mut p) = oneshot::<i32>();
     drop(c);
     assert!(p.poll(&mut Task::new()).unwrap().is_err());
-    let (c, p) = promise::<i32>();
+    let (c, p) = oneshot::<i32>();
     drop(c);
     let (tx, rx) = channel();
     Task::new().run(p.then(move |_| {
@@ -137,7 +137,7 @@ fn smoke_promise() {
 
 #[test]
 fn select_cancels() {
-    let ((a, b), (c, d)) = (promise::<i32>(), promise::<i32>());
+    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
     let ((btx, brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
@@ -152,7 +152,7 @@ fn select_cancels() {
     drop((c, f));
     assert!(drx.recv().is_err());
 
-    let ((a, b), (c, d)) = (promise::<i32>(), promise::<i32>());
+    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
     let ((btx, _brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
@@ -170,7 +170,7 @@ fn select_cancels() {
 
 #[test]
 fn join_cancels() {
-    let ((a, b), (c, d)) = (promise::<i32>(), promise::<i32>());
+    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
     let ((btx, _brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
@@ -181,7 +181,7 @@ fn join_cancels() {
     drop((c, f));
     assert!(drx.recv().is_err());
 
-    let ((a, b), (c, d)) = (promise::<i32>(), promise::<i32>());
+    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
     let ((btx, _brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
@@ -201,7 +201,7 @@ fn join_cancels() {
 
 #[test]
 fn join_incomplete() {
-    let (a, b) = promise::<i32>();
+    let (a, b) = oneshot::<i32>();
     let mut f = finished(1).join(b);
     assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
@@ -210,7 +210,7 @@ fn join_incomplete() {
     a.complete(2);
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
-    let (a, b) = promise::<i32>();
+    let (a, b) = oneshot::<i32>();
     let mut f = b.join(Ok(2));
     assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
@@ -219,7 +219,7 @@ fn join_incomplete() {
     a.complete(1);
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
-    let (a, b) = promise::<i32>();
+    let (a, b) = oneshot::<i32>();
     let mut f = finished(1).join(b);
     assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
@@ -228,7 +228,7 @@ fn join_incomplete() {
     drop(a);
     assert_eq!(rx.recv().unwrap(), 2);
 
-    let (a, b) = promise::<i32>();
+    let (a, b) = oneshot::<i32>();
     let mut f = b.join(Ok(2));
     assert!(f.poll(&mut Task::new()).is_not_ready());
     let (tx, rx) = channel();
@@ -270,7 +270,7 @@ fn select2() {
     // Finish one half of a select and then fail the second, ensuring that we
     // get the notification of the second one.
     {
-        let ((a, b), (c, d)) = (promise::<i32>(), promise::<i32>());
+        let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
         let f = b.select(d);
         let (tx, rx) = channel();
         f.map(move |r| tx.send(r).unwrap()).forget();
@@ -286,7 +286,7 @@ fn select2() {
 
     // Fail the second half and ensure that we see the first one finish
     {
-        let ((a, b), (c, d)) = (promise::<i32>(), promise::<i32>());
+        let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
         let f = b.select(d);
         let (tx, rx) = channel();
         f.map_err(move |r| tx.send((1, r.1)).unwrap()).forget();
@@ -302,7 +302,7 @@ fn select2() {
 
     // Cancelling the first half should cancel the second
     {
-        let ((_a, b), (_c, d)) = (promise::<i32>(), promise::<i32>());
+        let ((_a, b), (_c, d)) = (oneshot::<i32>(), oneshot::<i32>());
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
@@ -314,7 +314,7 @@ fn select2() {
 
     // Cancel after a schedule
     {
-        let ((_a, b), (_c, d)) = (promise::<i32>(), promise::<i32>());
+        let ((_a, b), (_c, d)) = (oneshot::<i32>(), oneshot::<i32>());
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
@@ -327,7 +327,7 @@ fn select2() {
 
     // Cancel propagates
     {
-        let ((a, b), (_c, d)) = (promise::<i32>(), promise::<i32>());
+        let ((a, b), (_c, d)) = (oneshot::<i32>(), oneshot::<i32>());
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });

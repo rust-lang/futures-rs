@@ -175,7 +175,7 @@ mod empty;
 mod failed;
 mod finished;
 mod lazy;
-mod promise;
+mod oneshot;
 mod store;
 pub use collect::{collect, Collect};
 pub use done::{done, Done};
@@ -183,7 +183,8 @@ pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
-pub use promise::{promise, Promise, Complete, Canceled};
+#[allow(deprecated)]
+pub use oneshot::{oneshot, promise, Oneshot, Promise, Complete, Canceled};
 pub use store::{store, Store};
 
 // combinators
