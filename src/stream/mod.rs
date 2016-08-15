@@ -354,7 +354,7 @@ pub trait Stream: 'static {
     /// Chain on a computation for when a value is ready, passing the successful
     /// results to the provided closure `f`.
     ///
-    /// This function can be used run a unit of work when the next successful
+    /// This function can be used to run a unit of work when the next successful
     /// value on a stream is ready. The closure provided will be yielded a value
     /// when ready, and the returned future will then be run to completion to
     /// produce the next value on this stream.
@@ -397,7 +397,7 @@ pub trait Stream: 'static {
     /// Chain on a computation for when an error happens, passing the
     /// erroneous result to the provided closure `f`.
     ///
-    /// This function can be used run a unit of work and attempt to recover from
+    /// This function can be used to run a unit of work and attempt to recover from
     /// an error if one happens. The closure provided will be yielded an error
     /// when one appears, and the returned future will then be run to completion
     /// to produce the next value on this stream.
@@ -574,7 +574,7 @@ pub trait Stream: 'static {
     /// `Result`.
     ///
     /// The returned value is a `Future` where the `Item` type is `()` and
-    /// errors are otherwise threaded through. Any error on the steram or in the
+    /// errors are otherwise threaded through. Any error on the stream or in the
     /// closure will cause iteration to be halted immediately and the future
     /// will resolve to that error.
     fn for_each<F>(self, f: F) -> ForEach<Self, F>

@@ -728,7 +728,9 @@ them, closing the socket.
 Note that an important limitation of this server is that there is *no concurrency*!
 Streams represent in-order processing of data, and in this case the order of the
 original stream is the order in which sockets are received, which the
-[`and_then`][stream-and-then] and [`for_each`] combinators preserve.
+[`and_then`][stream-and-then] and [`for_each`] combinators preserve. Chaining
+these therefore has the effect of taking each socket from the stream and
+processing all chained operations on it before taking the next socket.
 
 If, instead, we want to handle all clients concurrently, we can use the
 [`forget`] method:
