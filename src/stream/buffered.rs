@@ -107,7 +107,8 @@ impl<S> Stream for Buffered<S>
         // If we've got an empty slot, then we're immediately ready to go.
         for slot in self.futures.iter() {
             if let State::Empty = *slot {
-                return task.notify()
+                self.stream.schedule(task);
+                break
             }
         }
 
