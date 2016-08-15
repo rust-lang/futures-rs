@@ -43,7 +43,7 @@ If you'd like to help contribute to this document you can find it on
 
 [Back to top][top]
 
-The `futures` crate requires Rust 1.9.0 or greater, which can be easily
+The `futures` crate requires Rust 1.10.0 or greater, which can be easily
 obtained through [rustup]. Windows, macOS, and Linux are all tested and known to
 work, but PRs for other platforms are always welcome! You can add
 futures to your project's `Cargo.toml` like so:
