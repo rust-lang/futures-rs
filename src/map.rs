@@ -19,8 +19,7 @@ pub fn new<A, F>(future: A, f: F) -> Map<A, F>
 
 impl<U, A, F> Future for Map<A, F>
     where A: Future,
-          F: FnOnce(A::Item) -> U + 'static,
-          U: 'static,
+          F: FnOnce(A::Item) -> U,
 {
     type Item = U;
     type Error = A::Error;

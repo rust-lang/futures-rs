@@ -20,7 +20,7 @@ pub struct ClientContext {
 
 impl ServerContext {
     pub fn handshake<S>(mut self, stream: S) -> ServerHandshake<S>
-        where S: Read + Write + 'static,
+        where S: Read + Write,
     {
         let res = self.cred.acquire(Direction::Inbound);
         let res = res.map_err(HandshakeError::Failure);
@@ -43,7 +43,7 @@ impl ClientContext {
     pub fn handshake<S>(mut self,
                         domain: &str,
                         stream: S) -> ClientHandshake<S>
-        where S: Read + Write + 'static,
+        where S: Read + Write,
     {
         let res = self.cred.acquire(Direction::Outbound);
         let res = res.map_err(HandshakeError::Failure);
@@ -70,7 +70,7 @@ enum Handshake<S> {
 }
 
 impl<S> Future for ClientHandshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
@@ -81,7 +81,7 @@ impl<S> Future for ClientHandshake<S>
 }
 
 impl<S> Future for ServerHandshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
@@ -103,7 +103,7 @@ impl<S> Handshake<S> {
 }
 
 impl<S> Future for Handshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;

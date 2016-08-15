@@ -109,7 +109,7 @@ fn _assert() {
     _is_sync::<Slot<u32>>();
 }
 
-impl<T: 'static> Slot<T> {
+impl<T> Slot<T> {
     /// Creates a new `Slot` containing `val`, which may be `None` to create an
     /// empty `Slot`.
     pub fn new(val: Option<T>) -> Slot<T> {
@@ -438,13 +438,12 @@ impl<T> TryProduceError<T> {
     }
 }
 
-trait FnBox<T: 'static>: Send + 'static {
+trait FnBox<T>: Send {
     fn call_box(self: Box<Self>, other: &Slot<T>);
 }
 
 impl<T, F> FnBox<T> for F
-    where F: FnOnce(&Slot<T>) + Send + 'static,
-          T: 'static,
+    where F: FnOnce(&Slot<T>) + Send,
 {
     fn call_box(self: Box<F>, other: &Slot<T>) {
         (*self)(other)

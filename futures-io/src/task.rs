@@ -34,7 +34,7 @@ pub struct TaskIoWrite<T> {
     handle: TaskData<RefCell<T>>,
 }
 
-impl<T: 'static> TaskIo<T> {
+impl<T> TaskIo<T> {
     /// Returns a new future which represents the insertion of the I/O object
     /// `T` into task local storage, returning a `TaskIo<T>` handle to it.
     ///
@@ -47,7 +47,7 @@ impl<T: 'static> TaskIo<T> {
 }
 
 impl<T> TaskIo<T>
-    where T: Read + Write + 'static,
+    where T: Read + Write,
 {
     /// For an I/O object which is both readable and writable, this method can
     /// be used to split the handle into two independently owned halves.
@@ -62,7 +62,7 @@ impl<T> TaskIo<T>
 }
 
 impl<T> Read for TaskIo<T>
-    where T: io::Read + 'static,
+    where T: io::Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.handle.with(|t| t.borrow_mut().read(buf))
@@ -70,7 +70,7 @@ impl<T> Read for TaskIo<T>
 }
 
 impl<T> Write for TaskIo<T>
-    where T: io::Write + 'static,
+    where T: io::Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.handle.with(|t| t.borrow_mut().write(buf))
@@ -82,7 +82,7 @@ impl<T> Write for TaskIo<T>
 }
 
 impl<T> Read for TaskIoRead<T>
-    where T: io::Read + 'static,
+    where T: io::Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.handle.with(|t| t.borrow_mut().read(buf))
@@ -90,7 +90,7 @@ impl<T> Read for TaskIoRead<T>
 }
 
 impl<T> Write for TaskIoWrite<T>
-    where T: io::Write + 'static,
+    where T: io::Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.handle.with(|t| t.borrow_mut().write(buf))

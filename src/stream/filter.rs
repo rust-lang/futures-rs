@@ -12,7 +12,7 @@ pub struct Filter<S, F> {
 
 pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
     where S: Stream,
-          F: FnMut(&S::Item) -> bool + 'static,
+          F: FnMut(&S::Item) -> bool,
 {
     Filter {
         stream: s,
@@ -22,7 +22,7 @@ pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
 
 impl<S, F> Stream for Filter<S, F>
     where S: Stream,
-          F: FnMut(&S::Item) -> bool + 'static,
+          F: FnMut(&S::Item) -> bool,
 {
     type Item = S::Item;
     type Error = S::Error;

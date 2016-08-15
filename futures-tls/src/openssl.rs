@@ -36,7 +36,7 @@ fn cx_new() -> io::Result<ssl::SslContext> {
 
 impl ServerContext {
     pub fn handshake<S>(self, stream: S) -> ServerHandshake<S>
-        where S: Read + Write + 'static,
+        where S: Read + Write,
     {
         let res = ssl::SslStream::accept(&self.inner, stream);
         debug!("server handshake");
@@ -60,7 +60,7 @@ impl ClientContext {
     pub fn handshake<S>(self,
                         domain: &str,
                         stream: S) -> ClientHandshake<S>
-        where S: Read + Write + 'static,
+        where S: Read + Write,
     {
         // see rust-native-tls for the specifics here
         debug!("client handshake with {:?}", domain);
@@ -109,7 +109,7 @@ impl<S> Handshake<S> {
 }
 
 impl<S> Future for ClientHandshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
@@ -120,7 +120,7 @@ impl<S> Future for ClientHandshake<S>
 }
 
 impl<S> Future for ServerHandshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
@@ -131,7 +131,7 @@ impl<S> Future for ServerHandshake<S>
 }
 
 impl<S> Future for Handshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;

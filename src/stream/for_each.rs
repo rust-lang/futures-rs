@@ -12,7 +12,7 @@ pub struct ForEach<S, F> {
 
 pub fn new<S, F>(s: S, f: F) -> ForEach<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Result<(), S::Error> + 'static
+          F: FnMut(S::Item) -> Result<(), S::Error>,
 {
     ForEach {
         stream: s,
@@ -22,7 +22,7 @@ pub fn new<S, F>(s: S, f: F) -> ForEach<S, F>
 
 impl<S, F> Future for ForEach<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Result<(), S::Error> + 'static
+          F: FnMut(S::Item) -> Result<(), S::Error>,
 {
     type Item = ();
     type Error = S::Error;

@@ -15,7 +15,7 @@ pub struct OrElse<S, F, U>
 
 pub fn new<S, F, U>(s: S, f: F) -> OrElse<S, F, U>
     where S: Stream,
-          F: FnMut(S::Error) -> U + 'static,
+          F: FnMut(S::Error) -> U,
           U: IntoFuture<Item=S::Item>,
 {
     OrElse {
@@ -27,7 +27,7 @@ pub fn new<S, F, U>(s: S, f: F) -> OrElse<S, F, U>
 
 impl<S, F, U> Stream for OrElse<S, F, U>
     where S: Stream,
-          F: FnMut(S::Error) -> U + 'static,
+          F: FnMut(S::Error) -> U,
           U: IntoFuture<Item=S::Item>,
 {
     type Item = S::Item;

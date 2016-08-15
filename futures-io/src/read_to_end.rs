@@ -20,7 +20,7 @@ pub struct ReadToEnd<A> {
 /// the buffer will be returned, with all data read from the stream appended to
 /// the buffer.
 pub fn read_to_end<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
-    where A: Read + 'static,
+    where A: Read,
 {
     ReadToEnd {
         a: a,
@@ -29,7 +29,7 @@ pub fn read_to_end<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
 }
 
 impl<A> Future for ReadToEnd<A>
-    where A: Read + 'static,
+    where A: Read,
 {
     type Item = Vec<u8>;
     type Error = io::Error;

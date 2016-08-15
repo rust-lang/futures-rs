@@ -2,7 +2,7 @@ use std::mem;
 
 use {Future, Poll};
 
-pub enum Chain<A, B, C> where A: Future, B: 'static {
+pub enum Chain<A, B, C> where A: Future {
     First(A, C),
     Second(B),
     Done,
@@ -11,7 +11,6 @@ pub enum Chain<A, B, C> where A: Future, B: 'static {
 impl<A, B, C> Chain<A, B, C>
     where A: Future,
           B: Future,
-          C: 'static,
 {
     pub fn new(a: A, c: C) -> Chain<A, B, C> {
         Chain::First(a, c)
@@ -19,7 +18,7 @@ impl<A, B, C> Chain<A, B, C>
 
     pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, B::Error>
         where F: FnOnce(Result<A::Item, A::Error>, C)
-                        -> Result<Result<B::Item, B>, B::Error> + 'static,
+                        -> Result<Result<B::Item, B>, B::Error>,
     {
         let a_result = match *self {
             Chain::First(ref mut a, _) => try_poll!(a.poll()),

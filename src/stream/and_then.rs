@@ -15,7 +15,7 @@ pub struct AndThen<S, F, U>
 
 pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
     where S: Stream,
-          F: FnMut(S::Item) -> U + 'static,
+          F: FnMut(S::Item) -> U,
           U: IntoFuture<Error=S::Error>,
 {
     AndThen {
@@ -27,7 +27,7 @@ pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
 
 impl<S, F, U> Stream for AndThen<S, F, U>
     where S: Stream,
-          F: FnMut(S::Item) -> U + 'static,
+          F: FnMut(S::Item) -> U,
           U: IntoFuture<Error=S::Error>,
 {
     type Item = U::Item;

@@ -5,10 +5,7 @@ use {Future, Poll};
 /// A future which is never resolved.
 ///
 /// This future can be created with the `empty` function.
-pub struct Empty<T, E>
-    where T: 'static,
-          E: 'static,
-{
+pub struct Empty<T, E> {
     _data: marker::PhantomData<(T, E)>,
 }
 
@@ -18,14 +15,11 @@ pub struct Empty<T, E>
 /// The returned future will never resolve with a success but is still
 /// susceptible to cancellation. That is, if a callback is scheduled on the
 /// returned future, it is only run once the future is dropped (canceled).
-pub fn empty<T: 'static, E: 'static>() -> Empty<T, E> {
+pub fn empty<T, E>() -> Empty<T, E> {
     Empty { _data: marker::PhantomData }
 }
 
-impl<T, E> Future for Empty<T, E>
-    where T: 'static,
-          E: 'static,
-{
+impl<T, E> Future for Empty<T, E> {
     type Item = T;
     type Error = E;
 

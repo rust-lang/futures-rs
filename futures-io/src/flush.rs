@@ -18,7 +18,7 @@ pub struct Flush<A> {
 /// otherwise it will repeatedly call `flush` until it sees `Ok(())`, scheduling
 /// a retry if `WouldBlock` is seen along the way.
 pub fn flush<A>(a: A) -> Flush<A>
-    where A: Write + 'static,
+    where A: Write,
 {
     Flush {
         a: Some(a),
@@ -26,7 +26,7 @@ pub fn flush<A>(a: A) -> Flush<A>
 }
 
 impl<A> Future for Flush<A>
-    where A: Write + 'static,
+    where A: Write,
 {
     type Item = A;
     type Error = io::Error;

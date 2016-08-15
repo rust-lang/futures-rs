@@ -7,9 +7,8 @@ use {Future, IntoFuture, Poll};
 ///
 /// This future is created with the `collect` method.
 pub struct Collect<I>
-    where I: IntoIterator + 'static,
+    where I: IntoIterator,
           I::Item: IntoFuture,
-          I::IntoIter: 'static,
 {
     cur: Option<<I::Item as IntoFuture>::Future>,
     remaining: I::IntoIter,
@@ -53,9 +52,8 @@ pub struct Collect<I>
 /// });
 /// ```
 pub fn collect<I>(i: I) -> Collect<I>
-    where I: IntoIterator + 'static,
+    where I: IntoIterator,
           I::Item: IntoFuture,
-          I::IntoIter: 'static,
 {
     let mut i = i.into_iter();
     Collect {
@@ -66,8 +64,7 @@ pub fn collect<I>(i: I) -> Collect<I>
 }
 
 impl<I> Future for Collect<I>
-    where I: IntoIterator + 'static,
-          I::IntoIter: 'static,
+    where I: IntoIterator,
           I::Item: IntoFuture,
 {
     type Item = Vec<<I::Item as IntoFuture>::Item>;

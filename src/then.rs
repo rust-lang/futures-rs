@@ -12,7 +12,6 @@ pub struct Then<A, B, F> where A: Future, B: IntoFuture {
 pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
     where A: Future,
           B: IntoFuture,
-          F: 'static,
 {
     Then {
         state: Chain::new(future, f),
@@ -22,7 +21,7 @@ pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
 impl<A, B, F> Future for Then<A, B, F>
     where A: Future,
           B: IntoFuture,
-          F: FnOnce(Result<A::Item, A::Error>) -> B + 'static,
+          F: FnOnce(Result<A::Item, A::Error>) -> B,
 {
     type Item = B::Item;
     type Error = B::Error;

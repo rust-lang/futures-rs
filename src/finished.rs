@@ -23,17 +23,11 @@ pub struct Finished<T, E> {
 ///
 /// let future_of_1 = finished::<u32, u32>(1);
 /// ```
-pub fn finished<T, E>(t: T) -> Finished<T, E>
-    where T: 'static,
-          E: 'static,
-{
+pub fn finished<T, E>(t: T) -> Finished<T, E> {
     Finished { t: Some(t), _e: marker::PhantomData }
 }
 
-impl<T, E> Future for Finished<T, E>
-    where T: 'static,
-          E: 'static,
-{
+impl<T, E> Future for Finished<T, E> {
     type Item = T;
     type Error = E;
 

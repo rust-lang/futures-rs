@@ -29,8 +29,8 @@ pub struct Copy<R, W> {
 /// consumed. On error the error is returned and the I/O objects are consumed as
 /// well.
 pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
-    where R: Read + 'static,
-          W: Write + 'static,
+    where R: Read,
+          W: Write,
 {
     Copy {
         reader: reader,
@@ -45,8 +45,8 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
 }
 
 impl<R, W> Future for Copy<R, W>
-    where R: Read + 'static,
-          W: Write + 'static,
+    where R: Read,
+          W: Write,
 {
     type Item = u64;
     type Error = io::Error;

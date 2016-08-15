@@ -15,7 +15,7 @@ pub struct Then<S, F, U>
 
 pub fn new<S, F, U>(s: S, f: F) -> Then<S, F, U>
     where S: Stream,
-          F: FnMut(Result<S::Item, S::Error>) -> U + 'static,
+          F: FnMut(Result<S::Item, S::Error>) -> U,
           U: IntoFuture,
 {
     Then {
@@ -27,7 +27,7 @@ pub fn new<S, F, U>(s: S, f: F) -> Then<S, F, U>
 
 impl<S, F, U> Stream for Then<S, F, U>
     where S: Stream,
-          F: FnMut(Result<S::Item, S::Error>) -> U + 'static,
+          F: FnMut(Result<S::Item, S::Error>) -> U,
           U: IntoFuture,
 {
     type Item = U::Item;

@@ -155,7 +155,7 @@ impl ClientContext {
                         domain: &str,
                         stream: S)
                         -> ClientHandshake<S>
-        where S: Read + Write + 'static,
+        where S: Read + Write,
     {
         ClientHandshake { inner: self.inner.handshake(domain, stream) }
     }
@@ -173,14 +173,14 @@ impl ServerContext {
     /// The given I/O stream should be an accepted client of this server which
     /// is ready to negotiate the TLS connection.
     pub fn handshake<S>(self, stream: S) -> ServerHandshake<S>
-        where S: Read + Write + 'static,
+        where S: Read + Write,
     {
         ServerHandshake { inner: self.inner.handshake(stream) }
     }
 }
 
 impl<S> Future for ClientHandshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
@@ -191,7 +191,7 @@ impl<S> Future for ClientHandshake<S>
 }
 
 impl<S> Future for ServerHandshake<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
@@ -202,7 +202,7 @@ impl<S> Future for ServerHandshake<S>
 }
 
 impl<S> Read for TlsStream<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
@@ -210,7 +210,7 @@ impl<S> Read for TlsStream<S>
 }
 
 impl<S> Write for TlsStream<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)

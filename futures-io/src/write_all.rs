@@ -34,8 +34,8 @@ enum State<A, T> {
 /// The `Window` struct is also available in this crate to provide a different
 /// window into a slice if necessary.
 pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
-    where A: Write + 'static,
-          T: AsRef<[u8]> + 'static,
+    where A: Write,
+          T: AsRef<[u8]>,
 {
     WriteAll {
         state: State::Writing {
@@ -51,8 +51,8 @@ fn zero_write() -> io::Error {
 }
 
 impl<A, T> Future for WriteAll<A, T>
-    where A: Write + 'static,
-          T: AsRef<[u8]> + 'static,
+    where A: Write,
+          T: AsRef<[u8]>,
 {
     type Item = (A, T);
     type Error = io::Error;

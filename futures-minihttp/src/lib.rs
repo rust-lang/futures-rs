@@ -208,7 +208,7 @@ enum MaybeTls<S> {
 }
 
 impl<S> Read for MaybeTls<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match *self {
@@ -219,7 +219,7 @@ impl<S> Read for MaybeTls<S>
 }
 
 impl<S> Write for MaybeTls<S>
-    where S: Read + Write + 'static,
+    where S: Read + Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match *self {

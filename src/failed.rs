@@ -22,17 +22,11 @@ pub struct Failed<T, E> {
 ///
 /// let future_of_err_1 = failed::<u32, u32>(1);
 /// ```
-pub fn failed<T, E>(e: E) -> Failed<T, E>
-    where T: 'static,
-          E: 'static,
-{
+pub fn failed<T, E>(e: E) -> Failed<T, E> {
     Failed { _t: marker::PhantomData, e: Some(e) }
 }
 
-impl<T, E> Future for Failed<T, E>
-    where T: 'static,
-          E: 'static,
-{
+impl<T, E> Future for Failed<T, E> {
     type Item = T;
     type Error = E;
 

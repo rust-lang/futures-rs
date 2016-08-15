@@ -336,7 +336,7 @@ impl TaskHandle {
     }
 }
 
-impl<A: 'static> TaskData<A> {
+impl<A> TaskData<A> {
     /// Inserts a new piece of task-local data into this task, returning a
     /// reference to it.
     ///
@@ -353,9 +353,7 @@ impl<A: 'static> TaskData<A> {
     /// # Panics
     ///
     /// This function will panic if a task is not currently running.
-    pub fn new(a: A) -> TaskData<A>
-        where A: 'static,
-    {
+    pub fn new(a: A) -> TaskData<A> {
         CURRENT_TASK.with(|task| {
             TaskData {
                 task_inner: task.inner_usize(),
