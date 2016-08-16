@@ -188,10 +188,13 @@ pub trait Stream: 'static {
 
     /// Converts this stream into a `Future`.
     ///
-    /// A stream can be viewed as simply a future which will resolve to the next
-    /// element of the stream as well as the stream itself. The returned future
-    /// can be used to compose streams and futures together by placing
-    /// everything into the "world of futures".
+    /// A stream can be viewed as a future which will resolve to a pair containing
+    /// the next element of the stream plus the remaining stream. If the stream
+    /// terminates, then the next element is `None` and the remaining stream is
+    /// still passed back, to allow reclamation of its resources.
+    ///
+    /// The returned future can be used to compose streams and futures together by
+    /// placing everything into the "world of futures".
     fn into_future(self) -> StreamFuture<Self>
         where Self: Sized
     {
