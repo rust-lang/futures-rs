@@ -41,8 +41,4 @@ impl<S, F> Future for ForEach<S, F>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
-    }
 }

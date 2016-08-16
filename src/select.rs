@@ -63,16 +63,6 @@ impl<A, B> Future for Select<A, B>
         }
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        match self.inner {
-            Some((ref mut a, ref mut b)) => {
-                a.schedule(task);
-                b.schedule(task);
-            }
-            None => task.notify(),
-        }
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let Some((ref mut a, ref mut b)) = self.inner {
@@ -94,13 +84,6 @@ impl<A, B> Future for SelectNext<A, B>
         match self.inner {
             OneOf::A(ref mut a) => a.poll(task),
             OneOf::B(ref mut b) => b.poll(task),
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.inner {
-            OneOf::A(ref mut a) => a.schedule(task),
-            OneOf::B(ref mut b) => b.schedule(task),
         }
     }
 

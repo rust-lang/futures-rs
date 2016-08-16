@@ -160,7 +160,6 @@ fn select_cancels() {
     let mut f = b.select(d).then(unselect);
     let mut task = Task::new();
     assert!(f.poll(&mut task).is_not_ready());
-    f.schedule(&mut task);
     assert!(f.poll(&mut task).is_not_ready());
     a.complete(1);
     assert!(f.poll(&mut task).is_ready());
@@ -319,7 +318,7 @@ fn select2() {
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let mut f = b.select(d);
-        f.schedule(&mut Task::new());
+        f.poll(&mut Task::new());
         drop(f);
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());

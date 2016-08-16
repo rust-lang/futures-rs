@@ -52,6 +52,7 @@ pub struct FutureSender<T, E>
 {
     sender: Option<Sender<T, E>>,
     data: Option<Result<T, E>>,
+    on_empty_token: Option<Token>,
 }
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -86,25 +87,24 @@ impl<T, E> Stream for Receiver<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<Option<T>, E> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Option<T>, E> {
+        if let Some(token) = self.on_full_token.take() {
+            self.inner.slot.cancel(token);
+        }
+
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Poll::Ok(Some(e)),
             Ok(Message::Data(Err(e))) => Poll::Err(e),
             Ok(Message::Done) => Poll::Ok(None),
-            Err(..) => Poll::NotReady,
+            Err(..) => {
+                let handle = task.handle().clone();
+                self.on_full_token = Some(self.inner.slot.on_full(move |_| {
+                    handle.notify();
+                }));
+                Poll::NotReady
+            }
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(token) = self.on_full_token.take() {
-            self.inner.slot.cancel(token);
-        }
-
-        let handle = task.handle().clone();
-        self.on_full_token = Some(self.inner.slot.on_full(move |_| {
-            handle.notify();
-        }));
     }
 }
 
@@ -135,6 +135,7 @@ impl<T, E> Sender<T, E>
         FutureSender {
             sender: Some(self),
             data: Some(t),
+            on_empty_token: None,
         }
     }
 }
@@ -157,12 +158,19 @@ impl<T, E> Future for FutureSender<T, E>
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
         let data = self.data.take().expect("cannot poll FutureSender twice");
         let sender = self.sender.take().expect("cannot poll FutureSender twice");
+        if let Some(token) = self.on_empty_token.take() {
+            sender.inner.slot.cancel(token);
+        }
         match sender.inner.slot.try_produce(Message::Data(data)) {
             Ok(()) => Poll::Ok(sender),
             Err(e) => {
+                let handle = task.handle().clone();
+                self.on_empty_token = Some(sender.inner.slot.on_empty(move |_slot| {
+                    handle.notify();
+                }));
                 self.data = Some(match e.into_inner() {
                     Message::Data(data) => data,
                     Message::Done => panic!(),
@@ -170,19 +178,6 @@ impl<T, E> Future for FutureSender<T, E>
                 self.sender = Some(sender);
                 Poll::NotReady
             }
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.sender {
-            Some(ref s) => {
-                let handle = task.handle().clone();
-                // TODO: don't drop token?
-                s.inner.slot.on_empty(move |_slot| {
-                    handle.notify();
-                });
-            }
-            None => task.notify(),
         }
     }
 }

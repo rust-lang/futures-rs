@@ -41,14 +41,6 @@ impl<A> Stream for Take<A>
             self.a.poll(task)
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.left == 0 {
-            task.notify()
-        } else {
-            self.a.schedule(task)
-        }
-    }
 }
 
 impl<A> Read for Take<A>

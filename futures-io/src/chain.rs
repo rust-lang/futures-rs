@@ -44,14 +44,6 @@ impl<A, B> Stream for Chain<A, B>
             self.b.poll(task)
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.first {
-            self.a.schedule(task)
-        } else {
-            self.b.schedule(task)
-        }
-    }
 }
 
 impl<A, B> ReadTask for Chain<A, B>

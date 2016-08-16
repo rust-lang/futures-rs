@@ -48,11 +48,4 @@ impl<S> Stream for Flatten<S>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.next {
-            Some(ref mut s) => s.schedule(task),
-            None => self.stream.schedule(task),
-        }
-    }
 }

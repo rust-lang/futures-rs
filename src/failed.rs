@@ -39,8 +39,4 @@ impl<T, E> Future for Failed<T, E>
     fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
         Poll::Err(self.e.take().expect("cannot poll Failed twice"))
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify();
-    }
 }

@@ -40,8 +40,4 @@ impl<S, F> Stream for Filter<S, F>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
-    }
 }

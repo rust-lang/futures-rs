@@ -82,14 +82,6 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
         }
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        match self.state {
-            State::Empty => panic!("cannot `schedule` a completed Fold"),
-            State::Ready(_) => self.stream.schedule(task),
-            State::Processing(ref mut fut) => fut.schedule(task),
-        }
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let State::Processing(ref mut fut) = self.state {

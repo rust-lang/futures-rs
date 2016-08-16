@@ -190,10 +190,6 @@ impl<S> Future for ClientHandshake<S>
     fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
         self.inner.poll(task).map(|s| TlsStream { inner: s })
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }
 
 impl<S> Future for ServerHandshake<S>
@@ -205,10 +201,6 @@ impl<S> Future for ServerHandshake<S>
     fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
         self.inner.poll(task).map(|s| TlsStream { inner: s })
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }
 
 impl<S> Stream for TlsStream<S>
@@ -219,10 +211,6 @@ impl<S> Stream for TlsStream<S>
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
     }
 }
 

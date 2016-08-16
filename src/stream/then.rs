@@ -49,11 +49,4 @@ impl<S, F, U> Stream for Then<S, F, U>
         }
         res.map(Some)
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.future {
-            Some(ref mut s) => s.schedule(task),
-            None => self.stream.schedule(task),
-        }
-    }
 }

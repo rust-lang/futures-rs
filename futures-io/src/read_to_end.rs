@@ -80,8 +80,4 @@ impl<A> Future for ReadToEnd<A>
             Err(e) => Poll::Err(e)
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.a.schedule(task)
-    }
 }

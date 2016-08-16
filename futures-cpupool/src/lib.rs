@@ -197,8 +197,4 @@ impl<R: Send + 'static> Future for CpuFuture<R> {
             Poll::NotReady => Poll::NotReady,
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }

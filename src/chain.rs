@@ -42,14 +42,6 @@ impl<A, B, C> Chain<A, B, C>
         }
     }
 
-    pub fn schedule(&mut self, task: &mut Task) {
-        match *self {
-            Chain::First(ref mut a, _) => a.schedule(task),
-            Chain::Second(ref mut b) => b.schedule(task),
-            Chain::Done => task.notify(),
-        }
-    }
-
     pub unsafe fn tailcall(&mut self)
                            -> Option<Box<Future<Item=B::Item, Error=B::Error>>> {
         match *self {

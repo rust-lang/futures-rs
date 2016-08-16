@@ -120,10 +120,6 @@ impl<S> Future for ClientHandshake<S>
     fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
         self.inner.poll(task)
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }
 
 impl<S> Future for ServerHandshake<S>
@@ -134,10 +130,6 @@ impl<S> Future for ServerHandshake<S>
 
     fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
         self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
     }
 }
 
@@ -193,15 +185,15 @@ impl<S> Future for Handshake<S>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match *self {
-            Handshake::Error(_) => task.notify(),
-            Handshake::Empty => task.notify(),
-            Handshake::Stream(_) => task.notify(),
-            Handshake::Interrupted(ref mut s) => s.get_mut().schedule(task),
-        }
-    }
+    //
+    // fn schedule(&mut self, task: &mut Task) {
+    //     match *self {
+    //         Handshake::Error(_) => task.notify(),
+    //         Handshake::Empty => task.notify(),
+    //         Handshake::Stream(_) => task.notify(),
+    //         Handshake::Interrupted(ref mut s) => s.get_mut().schedule(task),
+    //     }
+    // }
 }
 
 fn translate_ssl(err: openssl::error::ErrorStack) -> Error {
@@ -268,21 +260,21 @@ impl<S> Stream for TlsStream<S>
         debug!("got {:?}", ret);
         return ret
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        // If we've already notified about both the read and write halves of
-        // this stream, then there's no need to schedule anything. It's up to
-        // the caller to drain us until we receive EAGAIN.
-        //
-        // Otherwise, some half needs data of *some* form to make progress, so
-        // schedule the task.
-        if !self.read_wont.notified() || !self.write_wont.notified() {
-            debug!("scheduling");
-            self.inner.get_mut().schedule(task)
-        } else {
-            debug!("skipping a schedule");
-        }
-    }
+    //
+    // fn schedule(&mut self, task: &mut Task) {
+    //     // If we've already notified about both the read and write halves of
+    //     // this stream, then there's no need to schedule anything. It's up to
+    //     // the caller to drain us until we receive EAGAIN.
+    //     //
+    //     // Otherwise, some half needs data of *some* form to make progress, so
+    //     // schedule the task.
+    //     if !self.read_wont.notified() || !self.write_wont.notified() {
+    //         debug!("scheduling");
+    //         self.inner.get_mut().schedule(task)
+    //     } else {
+    //         debug!("skipping a schedule");
+    //     }
+    // }
 }
 
 impl Wont {

@@ -32,8 +32,4 @@ impl<S, F, U> Stream for MapErr<S, F>
     fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, U> {
         self.stream.poll(task).map_err(&mut self.f)
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
-    }
 }

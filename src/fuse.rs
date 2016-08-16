@@ -1,4 +1,5 @@
 use {Future, Task, Poll};
+use util::Collapsed;
 
 /// A future which "fuse"s a future once it's been resolved.
 ///
@@ -6,13 +7,13 @@ use {Future, Task, Poll};
 /// has been resolved, but `Fuse` is always defined to return `Poll::NotReady`
 /// from `poll` after it has succeeded, and after it has succeeded all future
 /// calls to `schedule` will be ignored.
-pub struct Fuse<A> {
-    future: Option<A>,
+pub struct Fuse<A: Future> {
+    future: Option<Collapsed<A>>,
 }
 
 pub fn new<A: Future>(f: A) -> Fuse<A> {
     Fuse {
-        future: Some(f),
+        future: Some(Collapsed::Start(f)),
     }
 }
 
@@ -28,9 +29,11 @@ impl<A: Future> Future for Fuse<A> {
         ret.unwrap_or(Poll::NotReady)
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut f) = self.future {
-            f.schedule(task);
+    unsafe fn tailcall(&mut self)
+                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
+        if let Some(f) = self.future.as_mut() {
+            f.collapse();
         }
+        None
     }
 }

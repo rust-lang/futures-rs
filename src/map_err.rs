@@ -31,10 +31,6 @@ impl<U, A, F> Future for MapErr<A, F>
         result.map_err(self.f.take().expect("cannot poll MapErr twice")).into()
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        self.future.schedule(task)
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         self.future.collapse();

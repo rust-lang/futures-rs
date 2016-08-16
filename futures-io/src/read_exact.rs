@@ -89,12 +89,5 @@ impl<A, T> Future for ReadExact<A, T>
             State::Empty => panic!(),
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.state {
-            State::Reading { ref mut a, .. } => a.schedule(task),
-            State::Empty => task.notify(),
-        }
-    }
 }
 

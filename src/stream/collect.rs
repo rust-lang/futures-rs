@@ -44,8 +44,4 @@ impl<S> Future for Collect<S>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
-    }
 }

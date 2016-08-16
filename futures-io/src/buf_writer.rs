@@ -102,16 +102,6 @@ impl<A> Stream for BufWriter<A>
             self.inner.poll(task)
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        // Notify immediately if we have some capacity, but also ask our
-        // underlying stream for readiness so it'll be ready by the time that we
-        // need to flush.
-        if !self.flushing && self.buf.len() < self.buf.capacity() {
-            task.notify()
-        }
-        self.inner.schedule(task)
-    }
 }
 
 impl<W: WriteTask> WriteTask for BufWriter<W> {

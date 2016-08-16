@@ -321,52 +321,6 @@ pub trait Future: 'static {
     /// an error.
     fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
 
-    /// Schedule a task to be notified when this future is ready.
-    ///
-    /// Throughout the lifetime of a future it may frequently be `poll`'d on to
-    /// test whether the value is ready yet. If `Poll::NotReady` is returned,
-    /// however, the caller may then register interest via this function to get a
-    /// notification when the future can indeed make progress.
-    ///
-    /// The `task` argument provided is the same task as provided to `poll`, and
-    /// it's the overall task which is driving this future. The task will be
-    /// notified through the `TaskHandle` type generated from the `handle`
-    /// method, and spurious notifications are allowed. That is, it's ok for a
-    /// notification to be received which when the future is poll'd it still
-    /// isn't complete.
-    ///
-    /// Implementors of the `Future` trait are recommended to just blindly pass
-    /// around this task rather than attempt to manufacture new tasks.
-    ///
-    /// When the `task` is notified it will be provided a set of tokens that
-    /// represent the set of events which have happened since it was last called
-    /// (or the last call to `poll`). These events can then be used by the task
-    /// to later inform `poll` calls to not poll too much.
-    ///
-    /// # Multiple calls to `schedule`
-    ///
-    /// This function cannot be used to queue up multiple tasks to be notified
-    /// when a future is ready to make progress. Only the most recent call to
-    /// `schedule` is guaranteed to have notifications received when `schedule`
-    /// is called multiple times.
-    ///
-    /// If this function is called twice, it may be the case that the previous
-    /// task is never notified. It is recommended that this function is called
-    /// with the same task for the entire lifetime of this future.
-    ///
-    /// # Panics
-    ///
-    /// Once a future has returned `Poll::Ok` or `Poll::Err` (it's been completed)
-    /// the future calls to either `poll` or this function, `schedule`, should not
-    /// be expected to behave well. A call to `schedule` after a poll has succeeded
-    /// may panic, block forever, or otherwise exhibit odd behavior.
-    ///
-    /// Callers who may call `schedule` after a future is finished may want to
-    /// consider using the `fuse` adaptor which defines the behavior of
-    /// `schedule` after a successful poll, but comes with a little bit of
-    /// extra cost.
-    fn schedule(&mut self, task: &mut Task);
-
     /// Perform tail-call optimization on this future.
     ///
     /// A particular future may actually represent a large tree of computation,

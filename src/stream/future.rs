@@ -28,10 +28,4 @@ impl<S: Stream> Future for StreamFuture<S> {
             Err(e) => Poll::Err((e, stream)),
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(s) = self.stream.as_mut() {
-            s.schedule(task)
-        }
-    }
 }

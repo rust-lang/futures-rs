@@ -20,10 +20,6 @@ impl<T: Future> Future for ThunkFuture<T> {
         self.inner.poll(task).map(|_| ()).map_err(|_| ())
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
-
     unsafe fn tailcall(&mut self) -> Option<Box<Future<Item=(), Error=()>>> {
         self.inner.collapse();
         None

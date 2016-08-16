@@ -13,10 +13,6 @@ impl<T, E> Future for Box<Future<Item=T, Error=E>>
         (**self).poll(task)
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        (**self).schedule(task)
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let Some(f) = (**self).tailcall() {
@@ -37,10 +33,6 @@ impl<T, E> Future for Box<Future<Item=T, Error=E> + Send>
         (**self).poll(task)
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        (**self).schedule(task)
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let Some(f) = (**self).tailcall() {
@@ -58,10 +50,6 @@ impl<F: Future> Future for Box<F> {
 
     fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
         (**self).poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        (**self).schedule(task)
     }
 
     unsafe fn tailcall(&mut self)

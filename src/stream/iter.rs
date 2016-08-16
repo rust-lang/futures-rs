@@ -42,8 +42,4 @@ impl<I, T, E> Stream for IterStream<I>
             None => Poll::Ok(None),
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify()
-    }
 }

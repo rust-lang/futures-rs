@@ -26,12 +26,6 @@ impl<S: Stream> Stream for Fuse<S> {
         }
         ret.unwrap_or(Poll::Ok(None))
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut stream) = self.stream {
-            stream.schedule(task)
-        }
-    }
 }
 
 impl<S> Fuse<S> {

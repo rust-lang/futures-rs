@@ -334,11 +334,11 @@ impl Task {
         }
 
         // So at this point the future is not ready, we've collapsed it, and no
-        // one has a particular request to poll somewhere. Register interest in
-        // the future with our task, and then relinquish ownership of ourselves
-        // and the future to our own internal data structures so we can start
-        // the polling process again when something gets notified.
-        future.schedule(&mut me);
+        // one has a particular request to poll somewhere. Interest is
+        // registered on the future from the `poll` call above as well.
+        // Relinquish ownership of ourselves and the future to our own internal
+        // data structures so we can start the polling process again when
+        // something gets notified.
         let inner = me.handle.inner.clone();
         inner.slot.try_produce((me, future)).ok().unwrap();
     }

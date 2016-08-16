@@ -38,8 +38,4 @@ impl<T, E> Future for Done<T, E>
     fn poll(&mut self, _task: &mut Task) -> Poll<T, E> {
         self.inner.take().expect("cannot poll Done twice").into()
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify();
-    }
 }

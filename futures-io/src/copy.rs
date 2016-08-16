@@ -133,16 +133,4 @@ impl<R, W> Future for Copy<R, W>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.read_ready && self.write_ready {
-            task.notify();
-        }
-        if !self.read_ready && !self.read_done {
-            self.reader.schedule(task);
-        }
-        if !self.write_ready && !self.flush_done {
-            self.writer.schedule(task);
-        }
-    }
 }

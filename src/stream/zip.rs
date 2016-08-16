@@ -58,13 +58,4 @@ impl<S1, S2> Stream for Zip<S1, S2>
             Poll::NotReady
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.queued1.is_none() {
-            self.stream1.schedule(task);
-        }
-        if self.queued2.is_none() {
-            self.stream2.schedule(task);
-        }
-    }
 }

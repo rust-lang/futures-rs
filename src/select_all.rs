@@ -71,12 +71,6 @@ impl<A> Future for SelectAll<A>
         }
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        for f in self.inner.iter_mut() {
-            f.inner.schedule(task);
-        }
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         for f in self.inner.iter_mut() {
@@ -94,10 +88,6 @@ impl<A> Future for SelectAllNext<A>
 
     fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
         self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
     }
 
     unsafe fn tailcall(&mut self)

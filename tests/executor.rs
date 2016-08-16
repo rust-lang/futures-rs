@@ -24,10 +24,6 @@ impl Future for MyFuture {
             Poll::NotReady
         }
     }
-
-    fn schedule(&mut self, _task: &mut Task) {
-        panic!("can't schedule");
-    }
 }
 
 struct MyExecutor;

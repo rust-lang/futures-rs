@@ -26,10 +26,6 @@ impl Stream for Empty {
     fn poll(&mut self, _task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         Poll::Ok(Some(Ready::Read))
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify();
-    }
 }
 
 impl Read for Empty {

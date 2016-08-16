@@ -25,7 +25,6 @@ pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
 
     let mut a = f();
     let mut task = Task::new();
-    a.schedule(&mut task);
     assert!(a.poll(&mut task).is_not_ready());
     drop(a);
 }

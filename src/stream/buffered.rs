@@ -102,25 +102,4 @@ impl<S> Stream for Buffered<S>
         }
         Poll::NotReady
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        // If we've got an empty slot, then we're immediately ready to go.
-        for slot in self.futures.iter() {
-            if let State::Empty = *slot {
-                self.stream.schedule(task);
-                break
-            }
-        }
-
-        // If the current slot is ready, we're ready to go
-        if let State::Finished(_) = self.futures[self.cur] {
-            return task.notify()
-        }
-
-        for slot in self.futures.iter_mut() {
-            if let State::Running(ref mut s) = *slot {
-                s.schedule(task);
-            }
-        }
-    }
 }

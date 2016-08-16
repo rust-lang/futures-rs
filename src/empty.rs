@@ -32,6 +32,4 @@ impl<T, E> Future for Empty<T, E>
     fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
         Poll::NotReady
     }
-
-    fn schedule(&mut self, _task: &mut Task) {}
 }

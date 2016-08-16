@@ -74,14 +74,6 @@ impl<R> Stream for BufReader<R>
             self.inner.poll(task)
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.pos < self.cap {
-            task.notify()
-        } else {
-            self.inner.schedule(task)
-        }
-    }
 }
 
 impl<R: ReadTask> ReadTask for BufReader<R> {

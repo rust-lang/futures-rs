@@ -69,9 +69,4 @@ impl<S1, S2> Stream for Merge<S1, S2>
             },
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream1.schedule(task);
-        self.stream2.schedule(task);
-    }
 }

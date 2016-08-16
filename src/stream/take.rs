@@ -37,12 +37,4 @@ impl<S> Stream for Take<S>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.remaining == 0 {
-            task.notify()
-        } else {
-            self.stream.schedule(task)
-        }
-    }
 }

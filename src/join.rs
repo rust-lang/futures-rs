@@ -73,17 +73,6 @@ macro_rules! generate {
                 }
             }
 
-            fn schedule(&mut self, task: &mut Task) {
-                if let MaybeDone::NotYet(ref mut a) = self.a {
-                    a.schedule(task);
-                }
-                $(
-                    if let MaybeDone::NotYet(ref mut a) = self.$B {
-                        a.schedule(task);
-                    }
-                )*
-            }
-
             unsafe fn tailcall(&mut self)
                                -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
                 self.a.collapse();

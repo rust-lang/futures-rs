@@ -93,11 +93,4 @@ impl<A, T> Future for WriteAll<A, T>
             State::Empty => panic!(),
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.state {
-            State::Writing { ref mut a, .. } => a.schedule(task),
-            State::Empty => task.notify(),
-        }
-    }
 }

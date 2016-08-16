@@ -106,12 +106,6 @@ impl<I> Future for Collect<I>
         }
     }
 
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut cur) = self.cur {
-            cur.schedule(task);
-        }
-    }
-
     unsafe fn tailcall(&mut self)
                        -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
         if let Some(ref mut cur) = self.cur {

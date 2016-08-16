@@ -130,40 +130,6 @@ pub trait Stream: 'static {
     //       item? basically just says "please make more progress internally"
     //       seems crucial for buffering to actually make any sense.
 
-    /// Schedule a task to be notified when this future is ready.
-    ///
-    /// This is very similar to the `Future::schedule` method which registers
-    /// interest. The task provided will only be notified once for the next
-    /// value on a stream. If an application is interested in more values on a
-    /// stream, then a task needs to be re-scheduled.
-    ///
-    /// Multiple calls to `schedule` while waiting for one value to be produced
-    /// will only result in the final `task` getting notified. Consumers must
-    /// take care that if `schedule` is called twice the previous task does not
-    /// need to be invoked.
-    ///
-    /// Implementors of the `Stream` trait are recommended to just blindly pass
-    /// around this task rather than manufacture new tasks for contained
-    /// futures.
-    ///
-    /// When the task is notified it will be provided a set of tokens that
-    /// represent the set of events which have happened since it was last called
-    /// (or the last call to `poll`). These events can later be read during the
-    /// `poll` phase to prevent polling too much.
-    ///
-    /// # Panics
-    ///
-    /// Once a stream has returned `Ok(None)` (it's been completed) then further
-    /// calls to either `poll` or this function, `schedule`, should not be
-    /// expected to behave well. A call to `schedule` after a poll has succeeded
-    /// may panic, block forever, or otherwise exhibit odd behavior.
-    ///
-    /// Callers who may call `schedule` after a stream is finished may want to
-    /// consider using the `fuse` adaptor which defines the behavior of
-    /// `schedule` after a successful poll, but comes with a little bit of
-    /// extra cost.
-    fn schedule(&mut self, task: &mut Task);
-
     /// Convenience function for turning this stream into a trait object.
     ///
     /// This simply avoids the need to write `Box::new` and can often help with

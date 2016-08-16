@@ -35,8 +35,4 @@ impl<S> Stream for Skip<S>
 
         self.stream.poll(task)
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
-    }
 }

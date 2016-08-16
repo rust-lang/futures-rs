@@ -29,8 +29,4 @@ impl<T, E> Future for Store<T, E>
         let item = self.item.take().expect("cannot poll Store twice");
         Poll::Ok(task.insert(item))
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify()
-    }
 }

@@ -71,10 +71,6 @@ impl<T: 'static> Future for TaskIoNew<T> {
     fn poll(&mut self, task: &mut Task) -> Poll<TaskIo<T>, io::Error> {
         self.inner.poll(task).map(|data| TaskIo { handle: data })
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }
 
 impl<T> TaskIo<T>
@@ -159,23 +155,6 @@ impl<'a, 'b, T> TaskIoTake<'a, 'b, T>
             }
         }
     }
-
-    fn schedule(&mut self, ready: Ready) {
-        let state = self.t.as_mut().unwrap();
-        if let Some(cur) = state.ready {
-            match (ready, cur) {
-                (_, Ready::ReadWrite) |
-                (Ready::Read, Ready::Read) |
-                (Ready::Write, Ready::Write) => return self.task.notify(),
-
-                (Ready::ReadWrite, Ready::Read) |
-                (Ready::ReadWrite, Ready::Write) |
-                (Ready::Read, Ready::Write) |
-                (Ready::Write, Ready::Read) => {}
-            }
-        }
-        state.object.schedule(self.task)
-    }
 }
 
 impl<'a, 'b, T: 'static> Drop for TaskIoTake<'a, 'b, T> {
@@ -193,10 +172,6 @@ impl<T> Stream for TaskIo<T>
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         TaskIoTake::new(task, &self.handle).poll(Ready::ReadWrite)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        TaskIoTake::new(task, &self.handle).schedule(Ready::ReadWrite)
     }
 }
 
@@ -239,10 +214,6 @@ impl<T> Stream for TaskIoRead<T>
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         TaskIoTake::new(task, &self.handle).poll(Ready::Read)
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        TaskIoTake::new(task, &self.handle).schedule(Ready::Read)
-    }
 }
 
 impl<T> ReadTask for TaskIoRead<T>
@@ -269,10 +240,6 @@ impl<T> Stream for TaskIoWrite<T>
 
     fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
         TaskIoTake::new(task, &self.handle).poll(Ready::Write)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        TaskIoTake::new(task, &self.handle).schedule(Ready::Write)
     }
 }
 

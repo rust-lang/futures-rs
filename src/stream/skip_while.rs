@@ -63,10 +63,6 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
-    }
 }
 
 impl<S, P, R> SkipWhile<S, P, R>

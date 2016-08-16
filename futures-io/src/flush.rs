@@ -54,11 +54,5 @@ impl<A> Future for Flush<A>
             Err(e) => Poll::Err(e),
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut a) = self.a {
-            a.schedule(task);
-        }
-    }
 }
 

@@ -22,13 +22,6 @@ impl<T: Future> Collapsed<T> {
         }
     }
 
-    pub fn schedule(&mut self, task: &mut Task) {
-        match *self {
-            Collapsed::Start(ref mut a) => a.schedule(task),
-            Collapsed::Tail(ref mut a) => a.schedule(task),
-        }
-    }
-
     pub fn collapse(&mut self) {
         unsafe {
             let a = match *self {

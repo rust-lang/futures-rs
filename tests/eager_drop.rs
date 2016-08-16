@@ -42,10 +42,6 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
         self.future.poll(task)
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.future.schedule(task)
-    }
 }
 
 #[test]

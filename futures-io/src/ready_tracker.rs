@@ -91,10 +91,6 @@ impl<S> Stream for ReadyTracker<S>
             other => other,
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }
 
 fn is_wouldblock<T>(res: &io::Result<T>) -> bool {
