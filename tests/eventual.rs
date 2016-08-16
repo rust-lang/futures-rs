@@ -84,13 +84,6 @@ fn oneshot4() {
 }
 
 #[test]
-fn proimse5() {
-    let (c, p) = oneshot::<i32>();
-    drop(p);
-    c.complete(2);
-}
-
-#[test]
 fn oneshot5() {
     let (c, p) = oneshot::<i32>();
     let t = thread::spawn(|| drop(c));
@@ -98,6 +91,13 @@ fn oneshot5() {
     p.map(move |t| tx.send(t).unwrap()).forget();
     t.join().unwrap();
     assert!(rx.recv().is_err());
+}
+
+#[test]
+fn oneshot6() {
+    let (c, p) = oneshot::<i32>();
+    drop(p);
+    c.complete(2);
 }
 
 #[test]
