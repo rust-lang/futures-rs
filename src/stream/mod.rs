@@ -658,7 +658,7 @@ pub trait Stream: 'static {
     /// An adapter for zipping two streams together.
     ///
     /// The zipped stream waits for both streams to produce an item, and then
-    /// returns that pair. If an error happens that than error will be returned
+    /// returns that pair. If an error happens, then that error will be returned
     /// immediately. If either stream ends then the zipped stream will also end.
     fn zip<S>(self, other: S) -> Zip<Self, S>
         where S: Stream<Error = Self::Error>,
