@@ -177,7 +177,7 @@ impl Clone for CpuPool {
 
 impl Drop for CpuPool {
     fn drop(&mut self) {
-        if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) != 0 {
+        if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) > 1 {
             return
         }
         for _ in 0..self.inner.size {
