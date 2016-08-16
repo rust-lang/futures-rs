@@ -36,6 +36,7 @@ mod skip;
 mod skip_while;
 mod take;
 mod then;
+mod zip;
 pub use self::and_then::AndThen;
 pub use self::buffered::Buffered;
 pub use self::collect::Collect;
@@ -54,6 +55,7 @@ pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::then::Then;
+pub use self::zip::Zip;
 
 mod impls;
 
@@ -651,6 +653,18 @@ pub trait Stream: 'static {
               Self: Sized,
     {
         merge::new(self, other)
+    }
+
+    /// An adapter for zipping two streams together.
+    ///
+    /// The zipped stream waits for both streams to produce an item, and then
+    /// returns that pair. If an error happens that than error will be returned
+    /// immediately. If either stream ends then the zipped stream will also end.
+    fn zip<S>(self, other: S) -> Zip<Self, S>
+        where S: Stream<Error = Self::Error>,
+              Self: Sized,
+    {
+        zip::new(self, other)
     }
 }
 
