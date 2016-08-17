@@ -76,6 +76,7 @@ fn adapters() {
                 Ok(vec![2, 3]));
     assert_done(|| list().take(2).collect(), Ok(vec![1, 2]));
     assert_done(|| list().skip(2).collect(), Ok(vec![3]));
+    assert_done(|| list().peekable().collect(), Ok(vec![1, 2, 3]));
 }
 
 #[test]
@@ -260,4 +261,12 @@ fn zip() {
     assert_done(|| err_list().zip(list()).collect(), Err(3));
     assert_done(|| list().zip(list().map(|x| x + 1)).collect(),
                 Ok(vec![(1, 2), (2, 3), (3, 4)]));
+}
+
+#[test]
+fn peek() {
+    let mut peekable = list().peekable();
+    assert_eq!(peekable.peek(&mut Task::new()).unwrap(), Ok(Some(&1)));
+    assert_eq!(peekable.peek(&mut Task::new()).unwrap(), Ok(Some(&1)));
+    assert_eq!(peekable.poll(&mut Task::new()).unwrap(), Ok(Some(1)));
 }
