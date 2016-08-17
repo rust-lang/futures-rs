@@ -49,17 +49,17 @@ extern crate futures_cpupool;
 
 use std::cell::RefCell;
 use std::env;
-use std::io;
+use std::io::{self, Read, Write};
 use std::net::{SocketAddr, Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
 use std::str;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::{Future, Task, Poll};
+use futures::{Future, Poll};
+use futures::task;
 use futures::stream::Stream;
 use futures_cpupool::CpuPool;
 use futures_io::{IoFuture, read_exact, write_all, Window};
-use futures_io::{TaskIo, TaskIoRead, TaskIoWrite, ReadTask, WriteTask};
 use futures_mio::{Loop, LoopData, LoopHandle, TcpStream};
 
 fn main() {
@@ -499,27 +499,18 @@ impl Client {
         // and for between the two connections. That is, data is read from `c1`
         // and written to `c2`, and vice versa.
         //
-        // To accomplish this, we use the `TaskIo` abstraction so "split" both
-        // of these connections into their read/write halves. This
-        // simultaneously associates the I/O with whatever task performed the
-        // split, and also gives separately owned pieces that can be moved into
-        // independent futures.
-        //
-        // After the split, we create two of our custom `Transfer` futures
-        // (defined below) which will be responsible for one half of the
-        // read/write connection. The final step of this method is to then join
-        // the completion of these two futures together. That is, the proxied
-        // connection isn't done until both halves have complete their transfer.
+        // To accomplish this, we put both sockets into their own `Arc` and then
+        // create two independent `Transfer` futures representing each half of
+        // the connection. These two futures are `join`ed together to represent
+        // the proxy operation happening.
         let buffer = self.buffer.clone();
         pair.and_then(|(c1, c2)| {
-            TaskIo::new(c1).join(TaskIo::new(c2)).and_then(move |(c1, c2)| {
-                let (c1r, c1w) = c1.split();
-                let (c2r, c2w) = c2.split();
+            let c1 = Arc::new(c1);
+            let c2 = Arc::new(c2);
 
-                let half1 = Transfer::new(c1r, c2w, buffer.clone());
-                let half2 = Transfer::new(c2r, c1w, buffer.clone());
-                half1.join(half2)
-            })
+            let half1 = Transfer::new(c1.clone(), c2.clone(), buffer.clone());
+            let half2 = Transfer::new(c2, c1, buffer);
+            half1.join(half2)
         }).boxed()
     }
 }
@@ -534,30 +525,25 @@ impl Client {
 /// be implemented with just a trait impl!
 struct Transfer {
     // The two I/O objects we'll be reading.
-    reader: TaskIoRead<TcpStream>,
-    writer: TaskIoWrite<TcpStream>,
+    reader: Arc<TcpStream>,
+    writer: Arc<TcpStream>,
 
     // The shared global buffer that all connections on our server are using.
     buf: GlobalBuffer,
 
-    // The number of bytes we've written so far, along with whether the
-    // reader/writer halves are ready for I/O.
+    // The number of bytes we've written so far.
     amt: u64,
-    read_ready: bool,
-    write_ready: bool,
 }
 
 impl Transfer {
-    fn new(reader: TaskIoRead<TcpStream>,
-           writer: TaskIoWrite<TcpStream>,
+    fn new(reader: Arc<TcpStream>,
+           writer: Arc<TcpStream>,
            buffer: GlobalBuffer) -> Transfer {
         Transfer {
             reader: reader,
             writer: writer,
             buf: buffer,
             amt: 0,
-            read_ready: true,
-            write_ready: true,
         }
     }
 }
@@ -585,7 +571,7 @@ impl Future for Transfer {
     /// after a future resolves (e.g. in this case returns an error or how many
     /// bytes were transferred), so we don't need to maintain state beyond that
     /// point.
-    fn poll(&mut self, task: &mut Task) -> Poll<u64, io::Error> {
+    fn poll(&mut self) -> Poll<u64, io::Error> {
         // First up, let's get access to our buffer we're going to read/write
         // into. This is actually a nontrivial operation as the buffer is not
         // owned by this future!
@@ -608,7 +594,7 @@ impl Future for Transfer {
         let buffer = match self.buf.inner.get() {
             Some(buf) => buf,
             None => {
-                task.poll_on(self.buf.inner.executor());
+                task::poll_on(self.buf.inner.executor());
                 return Poll::NotReady
             }
         };
@@ -625,18 +611,14 @@ impl Future for Transfer {
         // the write half are ready on the connection, allowing the buffer to
         // only be temporarily used in a small window for all connections.
         loop {
-            if !self.read_ready {
-                match try_poll!(self.reader.poll(task)) {
-                    Ok(_) => self.read_ready = true,
-                    Err(e) => return Poll::Err(e),
-                }
+            match try_poll!(self.reader.poll_read()) {
+                Ok(_) => {}
+                Err(e) => return Poll::Err(e),
             }
 
-            if !self.write_ready {
-                match try_poll!(self.writer.poll(task)) {
-                    Ok(_) => self.write_ready = true,
-                    Err(e) => return Poll::Err(e),
-                }
+            match try_poll!(self.writer.poll_write()) {
+                Ok(_) => {}
+                Err(e) => return Poll::Err(e),
             }
 
             // TODO: This exact logic for reading/writing amounts may need an
@@ -667,10 +649,9 @@ impl Future for Transfer {
             // This means that we may trip the assert below, but it should be
             // relatively easily fixable with the strategy above!
 
-            let n = match self.reader.read(task, &mut buffer) {
+            let n = match (&*self.reader).read(&mut buffer) {
                 Ok(n) => n,
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    self.read_ready = false;
                     return Poll::NotReady
                 }
                 Err(e) => return Poll::Err(e),
@@ -685,29 +666,10 @@ impl Future for Transfer {
             // that would play into the logic mentioned above (tracking read
             // rates and write rates), so we just ferry along that error for
             // now.
-            match self.writer.write(task, &buffer[..n]) {
+            match (&*self.writer).write(&buffer[..n]) {
                 Ok(m) => assert_eq!(n, m),
                 Err(e) => return Poll::Err(e),
             }
-        }
-    }
-
-    /// The `schedule` method is responsible for alerting a task when it's ready
-    /// to make progress.
-    ///
-    /// For us, that means that we may be ready to make progress whenever our
-    /// reader or writer is available for I/O. If they're both ready for I/O
-    /// then we notify the task that we're immediately ready, and otherwise we
-    /// schedule the task to get notified when either half becomes available.
-    fn schedule(&mut self, task: &mut Task) {
-        if self.read_ready && self.write_ready {
-            return task.notify()
-        }
-        if !self.read_ready {
-            self.reader.schedule(task);
-        }
-        if !self.write_ready {
-            self.writer.schedule(task);
         }
     }
 }
