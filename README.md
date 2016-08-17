@@ -86,8 +86,8 @@ they can all compose with one another.
 ## The `Future` trait
 
 At the heart of this crate is [the `Future` trait][Future], which in true Rust
-style, is an interface for **zero allocation futures**. Like iterators in Rust
-the are a wide variety of helpful combinators associated with this trait which
+style, is an interface for **zero allocation futures**. Like iterators in Rust,
+there are a wide variety of helpful combinators associated with this trait which
 are also zero allocation and serve as a succinct and powerful way to compose
 computations on futures.
 
