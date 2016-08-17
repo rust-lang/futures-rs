@@ -15,9 +15,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
 
-use futures::{Future, Task, Poll};
+use futures::{Future, Poll};
 use futures::stream::Stream;
-use futures_io::{TaskIo, Ready, IoFuture};
+use futures_io::{IoFuture, TaskIo};
 use futures_mio::{Loop, LoopHandle, TcpStream, TcpListener};
 use futures_tls::{ServerContext, TlsStream};
 
@@ -165,10 +165,10 @@ fn configure_tcp(workers: u32, _tcp: &net2::TcpBuilder) -> io::Result<()> {
     Ok(())
 }
 
-trait IoStream: Read + Write + Stream<Item=Ready, Error=io::Error> {}
+trait IoStream: Read + Write + 'static {}
 
 impl<T: ?Sized> IoStream for T
-    where T: Read + Write + Stream<Item=Ready, Error=io::Error>
+    where T: Read + Write + 'static
 {}
 
 fn handle<Req, Resp, S>(stream: TcpStream, data: Arc<ServerData<S>>)
@@ -188,8 +188,8 @@ fn handle<Req, Resp, S>(stream: TcpStream, data: Arc<ServerData<S>>)
             Either::B(futures::finished(stream))
         }
     };
-    let io = io.and_then(|io| TaskIo::new(io)).map_err(From::from).and_then(|io| {
-        let (reader, writer) = io.split();
+    let io = io.map_err(From::from).and_then(|io| {
+        let (reader, writer) = TaskIo::new(io).split();
 
         let input = ParseStream::new(reader).map_err(From::from);
         let responses = input.and_then(move |req| data.service.process(req));
@@ -207,29 +207,8 @@ enum MaybeTls<S> {
     NotTls(S),
 }
 
-impl<S> Stream for MaybeTls<S>
-    where S: Read + Write + Stream<Item = Ready, Error = io::Error>
-{
-    type Item = Ready;
-    type Error = io::Error;
-
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        match *self {
-            MaybeTls::Tls(ref mut s) => s.poll(task),
-            MaybeTls::NotTls(ref mut s) => s.poll(task),
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match *self {
-            MaybeTls::Tls(ref mut s) => s.schedule(task),
-            MaybeTls::NotTls(ref mut s) => s.schedule(task),
-        }
-    }
-}
-
 impl<S> Read for MaybeTls<S>
-    where S: Read + Write + Stream<Item = Ready, Error = io::Error>
+    where S: Read + Write + 'static,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match *self {
@@ -240,7 +219,7 @@ impl<S> Read for MaybeTls<S>
 }
 
 impl<S> Write for MaybeTls<S>
-    where S: Read + Write + Stream<Item = Ready, Error = io::Error>
+    where S: Read + Write + 'static,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match *self {
@@ -270,17 +249,10 @@ impl<A, B> Future for Either<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<A::Item, A::Error> {
+    fn poll(&mut self) -> Poll<A::Item, A::Error> {
         match *self {
-            Either::A(ref mut s) => s.poll(task),
-            Either::B(ref mut s) => s.poll(task),
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match *self {
-            Either::A(ref mut s) => s.schedule(task),
-            Either::B(ref mut s) => s.schedule(task),
+            Either::A(ref mut s) => s.poll(),
+            Either::B(ref mut s) => s.poll(),
         }
     }
 }

@@ -6,8 +6,8 @@ use {Future, IntoFuture, Poll};
 /// scheduled.
 ///
 /// This is created by the `lazy` function.
-pub struct Lazy<F, R> {
-    inner: _Lazy<F, R>,
+pub struct Lazy<F, R: IntoFuture> {
+    inner: _Lazy<F, R::Future>,
 }
 
 enum _Lazy<F, R> {
@@ -35,7 +35,7 @@ enum _Lazy<F, R> {
 /// });
 /// drop(b); // closure is never run
 /// ```
-pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
+pub fn lazy<F, R>(f: F) -> Lazy<F, R>
     where F: FnOnce() -> R + 'static,
           R: IntoFuture
 {
@@ -44,7 +44,7 @@ pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
     }
 }
 
-impl<F, R> Lazy<F, R::Future>
+impl<F, R> Lazy<F, R>
     where F: FnOnce() -> R + 'static,
           R: IntoFuture,
 {
@@ -65,7 +65,7 @@ impl<F, R> Lazy<F, R::Future>
     }
 }
 
-impl<F, R> Future for Lazy<F, R::Future>
+impl<F, R> Future for Lazy<F, R>
     where F: FnOnce() -> R + 'static,
           R: IntoFuture,
 {

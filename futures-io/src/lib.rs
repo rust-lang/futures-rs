@@ -44,20 +44,6 @@ use std::io;
 use futures::BoxFuture;
 use futures::stream::BoxStream;
 
-/// A macro to assist with dealing with `io::Result<T>` types where the error
-/// may have the type `WouldBlock`.
-///
-/// Converts all `Ok` values to `Some`, `WouldBlock` errors to `None`, and
-/// otherwise returns all other errors upwards the stack.
-#[macro_export]
-macro_rules! try_nb {
-    ($e:expr) => (match $e {
-        Ok(e) => Some(e),
-        Err(ref e) if e.kind() == ::std::io::ErrorKind::WouldBlock => None,
-        Err(e) => return Err(::std::convert::From::from(e)),
-    })
-}
-
 /// A convenience typedef around a `Future` whose error component is `io::Error`
 pub type IoFuture<T> = BoxFuture<T, io::Error>;
 
@@ -68,11 +54,13 @@ mod copy;
 mod flush;
 mod read_exact;
 mod read_to_end;
+mod task;
 mod window;
 mod write_all;
 pub use copy::{copy, Copy};
 pub use flush::{flush, Flush};
 pub use read_exact::{read_exact, ReadExact};
 pub use read_to_end::{read_to_end, ReadToEnd};
+pub use task::{TaskIo, TaskIoRead, TaskIoWrite};
 pub use window::Window;
 pub use write_all::{write_all, WriteAll};
