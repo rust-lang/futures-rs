@@ -1,14 +1,12 @@
 extern crate schannel;
 
-use std::io::{self, Read, Write, Error};
+use std::io::{self, Read, Write};
 use std::mem;
 
 use self::schannel::tls_stream::{self, HandshakeError};
 use self::schannel::tls_stream::MidHandshakeTlsStream;
 use self::schannel::schannel_cred::{self, Direction};
-use futures::{Poll, Task, Future};
-use futures::stream::Stream;
-use futures_io::Ready;
+use futures::{Poll, Future};
 
 pub struct ServerContext {
     cred: schannel_cred::Builder,
@@ -22,7 +20,7 @@ pub struct ClientContext {
 
 impl ServerContext {
     pub fn handshake<S>(mut self, stream: S) -> ServerHandshake<S>
-        where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+        where S: Read + Write + 'static,
     {
         let res = self.cred.acquire(Direction::Inbound);
         let res = res.map_err(HandshakeError::Failure);
@@ -45,7 +43,7 @@ impl ClientContext {
     pub fn handshake<S>(mut self,
                         domain: &str,
                         stream: S) -> ClientHandshake<S>
-        where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+        where S: Read + Write + 'static,
     {
         let res = self.cred.acquire(Direction::Outbound);
         let res = res.map_err(HandshakeError::Failure);
@@ -72,32 +70,24 @@ enum Handshake<S> {
 }
 
 impl<S> Future for ClientHandshake<S>
-    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+    where S: Read + Write + 'static,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
-        self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
+    fn poll(&mut self) -> Poll<TlsStream<S>, io::Error> {
+        self.inner.poll()
     }
 }
 
 impl<S> Future for ServerHandshake<S>
-    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+    where S: Read + Write + 'static,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
-        self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
+    fn poll(&mut self) -> Poll<TlsStream<S>, io::Error> {
+        self.inner.poll()
     }
 }
 
@@ -113,25 +103,18 @@ impl<S> Handshake<S> {
 }
 
 impl<S> Future for Handshake<S>
-    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+    where S: Read + Write + 'static,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
-        let mut stream = match mem::replace(self, Handshake::Empty) {
+    fn poll(&mut self) -> Poll<TlsStream<S>, io::Error> {
+        let stream = match mem::replace(self, Handshake::Empty) {
             Handshake::Error(e) => return Poll::Err(e),
             Handshake::Empty => panic!("can't poll handshake twice"),
             Handshake::Stream(s) => return Poll::Ok(TlsStream::new(s)),
             Handshake::Interrupted(s) => s,
         };
-
-        match stream.get_mut().poll(task) {
-            Poll::Ok(None) => panic!(), // TODO: track this
-            Poll::Err(e) => return Poll::Err(e),
-            Poll::Ok(Some(_r)) => {}
-            Poll::NotReady => {}
-        }
 
         // TODO: dedup with Handshake::new
         match stream.handshake() {
@@ -143,15 +126,6 @@ impl<S> Future for Handshake<S>
             }
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match *self {
-            Handshake::Error(_) => task.notify(),
-            Handshake::Empty => task.notify(),
-            Handshake::Stream(_) => task.notify(),
-            Handshake::Interrupted(ref mut s) => s.get_mut().schedule(task),
-        }
-    }
 }
 
 pub struct TlsStream<S> {
@@ -161,21 +135,6 @@ pub struct TlsStream<S> {
 impl<S> TlsStream<S> {
     fn new(s: tls_stream::TlsStream<S>) -> TlsStream<S> {
         TlsStream { inner: s }
-    }
-}
-
-impl<S> Stream for TlsStream<S>
-    where S: Stream<Item=Ready, Error=Error> + Read + Write,
-{
-    type Item = Ready;
-    type Error = Error;
-
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        self.inner.get_mut().poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.get_mut().schedule(task)
     }
 }
 

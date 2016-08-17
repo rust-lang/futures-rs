@@ -55,7 +55,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use crossbeam::sync::MsQueue;
-use futures::{Future, oneshot, Oneshot, Task, Poll};
+use futures::{Future, oneshot, Oneshot, Poll};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -190,8 +190,8 @@ impl<R: Send + 'static> Future for CpuFuture<R> {
     type Item = R;
     type Error = Box<Any + Send>;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<R, Box<Any + Send>> {
-        match self.inner.poll(task) {
+    fn poll(&mut self) -> Poll<R, Box<Any + Send>> {
+        match self.inner.poll() {
             Poll::Ok(res) => res.into(),
             Poll::Err(_) => panic!("shouldn't be canceled"),
             Poll::NotReady => Poll::NotReady,

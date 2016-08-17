@@ -1,9 +1,7 @@
-use std::io;
+use std::io::{self, Read};
 use std::mem;
 
-use futures::{Poll, Task, Future};
-
-use ReadTask;
+use futures::{Poll, Future};
 
 /// A future which can be used to easily read the entire contents of a stream
 /// into a vector.
@@ -18,7 +16,6 @@ enum State<A, T> {
         a: A,
         buf: T,
         pos: usize,
-        first: bool,
     },
     Empty,
 }
@@ -34,7 +31,7 @@ enum State<A, T> {
 /// the buffer will be returned, with all data read from the stream appended to
 /// the buffer.
 pub fn read_exact<A, T>(a: A, buf: T) -> ReadExact<A, T>
-    where A: ReadTask,
+    where A: Read + 'static,
           T: AsMut<[u8]> + 'static,
 {
     ReadExact {
@@ -42,7 +39,6 @@ pub fn read_exact<A, T>(a: A, buf: T) -> ReadExact<A, T>
             a: a,
             buf: buf,
             pos: 0,
-            first: true,
         },
     }
 }
@@ -52,26 +48,18 @@ fn eof() -> io::Error {
 }
 
 impl<A, T> Future for ReadExact<A, T>
-    where A: ReadTask,
+    where A: Read + 'static,
           T: AsMut<[u8]> + 'static,
 {
     type Item = (A, T);
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(A, T), io::Error> {
+    fn poll(&mut self) -> Poll<(A, T), io::Error> {
         match self.state {
-            State::Reading { ref mut a, ref mut buf, ref mut pos, ref mut first } => {
-                if !*first {
-                    match try_poll!(a.poll(task)) {
-                        Ok(Some(r)) if r.is_read() => {}
-                        Ok(_) => return Poll::NotReady,
-                        Err(e) => return Poll::Err(e),
-                    }
-                }
-                *first = false;
+            State::Reading { ref mut a, ref mut buf, ref mut pos } => {
                 let buf = buf.as_mut();
                 while *pos < buf.len() {
-                    match a.read(task, &mut buf[*pos..]) {
+                    match a.read(&mut buf[*pos..]) {
                         Ok(0) => return Poll::Err(eof()),
                         Ok(n) => *pos += n,
                         Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -90,4 +78,3 @@ impl<A, T> Future for ReadExact<A, T>
         }
     }
 }
-

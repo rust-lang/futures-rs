@@ -1,9 +1,7 @@
-use std::io;
+use std::io::{self, Write};
 use std::mem;
 
-use futures::{Poll, Task, Future};
-
-use WriteTask;
+use futures::{Poll, Future};
 
 /// A future used to write the entire contents of some data to a stream.
 ///
@@ -17,7 +15,6 @@ enum State<A, T> {
         a: A,
         buf: T,
         pos: usize,
-        first: bool,
     },
     Empty,
 }
@@ -37,7 +34,7 @@ enum State<A, T> {
 /// The `Window` struct is also available in this crate to provide a different
 /// window into a slice if necessary.
 pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
-    where A: WriteTask,
+    where A: Write + 'static,
           T: AsRef<[u8]> + 'static,
 {
     WriteAll {
@@ -45,7 +42,6 @@ pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
             a: a,
             buf: buf,
             pos: 0,
-            first: true,
         },
     }
 }
@@ -55,27 +51,18 @@ fn zero_write() -> io::Error {
 }
 
 impl<A, T> Future for WriteAll<A, T>
-    where A: WriteTask,
+    where A: Write + 'static,
           T: AsRef<[u8]> + 'static,
 {
     type Item = (A, T);
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(A, T), io::Error> {
+    fn poll(&mut self) -> Poll<(A, T), io::Error> {
         match self.state {
-            State::Writing { ref mut a, ref buf, ref mut pos, ref mut first } => {
-                if !*first {
-                    match try_poll!(a.poll(task)) {
-                        Ok(Some(r)) if r.is_write() => {}
-                        Ok(_) => return Poll::NotReady,
-                        Err(e) => return Poll::Err(e),
-                    }
-                }
-                *first = false;
-
+            State::Writing { ref mut a, ref buf, ref mut pos } => {
                 let buf = buf.as_ref();
                 while *pos < buf.len() {
-                    match a.write(task, &buf[*pos..]) {
+                    match a.write(&buf[*pos..]) {
                         Ok(0) => return Poll::Err(zero_write()),
                         Ok(n) => *pos += n,
                         Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {

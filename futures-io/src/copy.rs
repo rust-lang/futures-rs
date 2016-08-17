@@ -1,8 +1,6 @@
-use std::io;
+use std::io::{self, Read, Write};
 
-use futures::{Future, Poll, Task};
-
-use {ReadTask, WriteTask};
+use futures::{Future, Poll};
 
 /// A future which will copy all data from a reader into a writer.
 ///
@@ -10,10 +8,8 @@ use {ReadTask, WriteTask};
 /// bytes copied or an error if one happens.
 pub struct Copy<R, W> {
     reader: R,
-    read_ready: bool,
     read_done: bool,
     writer: W,
-    write_ready: bool,
     flush_done: bool,
     pos: usize,
     cap: usize,
@@ -33,15 +29,13 @@ pub struct Copy<R, W> {
 /// consumed. On error the error is returned and the I/O objects are consumed as
 /// well.
 pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
-    where R: ReadTask,
-          W: WriteTask,
+    where R: Read + 'static,
+          W: Write + 'static,
 {
     Copy {
         reader: reader,
-        read_ready: true,
         read_done: false,
         writer: writer,
-        write_ready: true,
         flush_done: false,
         amt: 0,
         pos: 0,
@@ -51,26 +45,18 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
 }
 
 impl<R, W> Future for Copy<R, W>
-    where R: ReadTask,
-          W: WriteTask,
+    where R: Read + 'static,
+          W: Write + 'static,
 {
     type Item = u64;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<u64, io::Error> {
+    fn poll(&mut self) -> Poll<u64, io::Error> {
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
             if !self.read_done && self.pos == self.cap {
-                if !self.read_ready {
-                    debug!("copy waiting for read");
-                    match try_poll!(self.reader.poll(task)) {
-                        Ok(Some(ref r)) if r.is_read() => self.read_ready = true,
-                        Ok(_) => return Poll::NotReady,
-                        Err(e) => return Poll::Err(e),
-                    }
-                }
-                match self.reader.read(task, &mut self.buf) {
+                match self.reader.read(&mut self.buf) {
                     Ok(0) => {
                         debug!("copy at eof");
                         self.read_done = true;
@@ -82,7 +68,6 @@ impl<R, W> Future for Copy<R, W>
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                         debug!("read is gone");
-                        self.read_ready = false;
                         return Poll::NotReady
                     }
                     Err(e) => return Poll::Err(e),
@@ -91,16 +76,8 @@ impl<R, W> Future for Copy<R, W>
 
             // Now that our buffer has some data, let's write it out!
             while self.pos < self.cap || (self.read_done && !self.flush_done) {
-                if !self.write_ready {
-                    debug!("copy waiting for write");
-                    match try_poll!(self.writer.poll(task)) {
-                        Ok(Some(ref r)) if r.is_write() => self.write_ready = true,
-                        Ok(_) => return Poll::NotReady,
-                        Err(e) => return Poll::Err(e),
-                    }
-                }
                 if self.pos == self.cap {
-                    match self.writer.flush(task) {
+                    match self.writer.flush() {
                         Ok(()) => {
                             debug!("flush done");
                             self.flush_done = true;
@@ -113,7 +90,7 @@ impl<R, W> Future for Copy<R, W>
                     }
                     break
                 }
-                match self.writer.write(task, &self.buf[self.pos..self.cap]) {
+                match self.writer.write(&self.buf[self.pos..self.cap]) {
                     Ok(i) => {
                         debug!("wrote {} bytes", i);
                         self.pos += i;
@@ -121,7 +98,6 @@ impl<R, W> Future for Copy<R, W>
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                         debug!("write no longer ready");
-                        self.write_ready = false;
                         return Poll::NotReady
                     }
                     Err(e) => return Poll::Err(e),
