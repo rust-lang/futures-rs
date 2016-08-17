@@ -3,7 +3,8 @@ extern crate futures;
 use std::cell::Cell;
 use std::sync::Arc;
 
-use futures::{Future, Task, Poll};
+use futures::{Future, Poll};
+use futures::task;
 use futures::executor::{Executor, ExecuteCallback};
 
 thread_local!(static EXECUTOR_HIT: Cell<bool> = Cell::new(false));
@@ -16,11 +17,11 @@ impl Future for MyFuture {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(), ()> {
+    fn poll(&mut self) -> Poll<(), ()> {
         if EXECUTOR_HIT.with(|p| p.get()) {
             Poll::Ok(())
         } else {
-            task.poll_on(self.executor.clone());
+            task::poll_on(self.executor.clone());
             Poll::NotReady
         }
     }

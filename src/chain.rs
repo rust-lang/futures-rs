@@ -1,7 +1,7 @@
 use std::mem;
 
 use util::Collapsed;
-use {Future, Task, Poll};
+use {Future, Poll};
 
 pub enum Chain<A, B, C> where A: Future, B: 'static {
     First(Collapsed<A>, C),
@@ -18,13 +18,13 @@ impl<A, B, C> Chain<A, B, C>
         Chain::First(Collapsed::Start(a), c)
     }
 
-    pub fn poll<F>(&mut self, task: &mut Task, f: F) -> Poll<B::Item, B::Error>
+    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, B::Error>
         where F: FnOnce(Result<A::Item, A::Error>, C)
                         -> Result<Result<B::Item, B>, B::Error> + 'static,
     {
         let a_result = match *self {
-            Chain::First(ref mut a, _) => try_poll!(a.poll(task)),
-            Chain::Second(ref mut b) => return b.poll(task),
+            Chain::First(ref mut a, _) => try_poll!(a.poll()),
+            Chain::Second(ref mut b) => return b.poll(),
             Chain::Done => panic!("cannot poll a chained future twice"),
         };
         let data = match mem::replace(self, Chain::Done) {
@@ -34,7 +34,7 @@ impl<A, B, C> Chain<A, B, C>
         match f(a_result, data) {
             Ok(Ok(e)) => Poll::Ok(e),
             Ok(Err(mut b)) => {
-                let ret = b.poll(task);
+                let ret = b.poll();
                 *self = Chain::Second(b);
                 ret
             }

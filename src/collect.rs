@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Future, IntoFuture, Task, Poll};
+use {Future, IntoFuture, Poll};
 use util::Collapsed;
 
 /// A future which takes a list of futures and resolves with a vector of the
@@ -75,11 +75,11 @@ impl<I> Future for Collect<I>
     type Error = <I::Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         loop {
             match self.cur {
                 Some(ref mut cur) => {
-                    match try_poll!(cur.poll(task)) {
+                    match try_poll!(cur.poll()) {
                         Ok(e) => self.result.push(e),
 
                         // If we hit an error, drop all our associated resources

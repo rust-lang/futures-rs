@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, Task, Poll};
+use {Future, Poll};
 
 /// A future which is never resolved.
 ///
@@ -29,7 +29,7 @@ impl<T, E> Future for Empty<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
+    fn poll(&mut self) -> Poll<T, E> {
         Poll::NotReady
     }
 }

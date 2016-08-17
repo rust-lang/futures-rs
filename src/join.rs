@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use {Future, Task, Poll, IntoFuture};
+use {Future, Poll, IntoFuture};
 use util::Collapsed;
 
 macro_rules! generate {
@@ -48,8 +48,8 @@ macro_rules! generate {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-                let mut all_done = match self.a.poll(task) {
+            fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+                let mut all_done = match self.a.poll() {
                     Ok(done) => done,
                     Err(e) => {
                         self.erase();
@@ -57,7 +57,7 @@ macro_rules! generate {
                     }
                 };
                 $(
-                    all_done = match self.$B.poll(task) {
+                    all_done = match self.$B.poll() {
                         Ok(done) => all_done && done,
                         Err(e) => {
                             self.erase();
@@ -120,9 +120,9 @@ enum MaybeDone<A: Future> {
 }
 
 impl<A: Future> MaybeDone<A> {
-    fn poll(&mut self, task: &mut Task) -> Result<bool, A::Error> {
+    fn poll(&mut self) -> Result<bool, A::Error> {
         let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll(task),
+            MaybeDone::NotYet(ref mut a) => a.poll(),
             MaybeDone::Done(_) => return Ok(true),
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };

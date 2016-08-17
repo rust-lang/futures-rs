@@ -57,7 +57,7 @@
 // proving that you can get access to the data. So while weird, this case should
 // still be safe, as the data's not stored in the task itself.
 
-use std::cell::{UnsafeCell, Cell};
+use std::cell::{UnsafeCell, Cell, RefCell};
 use std::marker;
 use std::panic;
 use std::sync::Arc;
@@ -90,7 +90,7 @@ use util::Collapsed;
 /// time! That is, it's not quite done yet...
 pub struct Task {
     handle: TaskHandle,
-    poll_requests: Vec<Arc<Executor>>,
+    poll_requests: RefCell<Vec<Arc<Executor>>>,
 
     // A `Task` is not `Sync`, see the docs above.
     _marker: marker::PhantomData<Cell<()>>,
@@ -122,11 +122,13 @@ pub struct TaskData<A> {
 unsafe impl<A: Send> Send for TaskData<A> {}
 unsafe impl<A: Sync> Sync for TaskData<A> {}
 
+scoped_thread_local!(static CURRENT_TASK: Task);
+
 impl Task {
     /// Creates a new task ready to drive a future.
     pub fn new() -> Task {
         Task {
-            poll_requests: Vec::new(),
+            poll_requests: RefCell::new(Vec::new()),
             handle: TaskHandle {
                 inner: Arc::new(Inner {
                     slot: Slot::new(None),
@@ -137,98 +139,8 @@ impl Task {
         }
     }
 
-    /// Inserts a new piece of task-local data into this task, returning a
-    /// reference to it.
-    ///
-    /// Ownership of the data will be transferred to the task, and the data will
-    /// be destroyed when the task itself is destroyed. The returned value can
-    /// be passed to the `Task::{get, get_mut}` methods to get a reference back
-    /// to the original data.
-    ///
-    /// Note that the returned handle is cloneable and copyable and can be sent
-    /// to other futures which will be associated with the same task. All
-    /// futures will then have access to this data when passed the reference
-    /// back.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::Task;
-    ///
-    /// let mut task = Task::new();
-    ///
-    /// // Allocate a slot to place `1` into and tie its access to the task
-    /// // itself.
-    /// let slot = task.insert(1);
-    ///
-    /// // We can get and modify the data through our handle
-    /// assert_eq!(*task.get(&slot), 1);
-    /// *task.get_mut(&slot) = 4;
-    /// assert_eq!(*task.get(&slot), 4);
-    ///
-    /// // The handle can be cloned to access the same data
-    /// assert_eq!(*task.get(&slot.clone()), 4);
-    ///
-    /// // Finally, when all handles go out of scope, the data will be
-    /// // deallocated. Here we'll reclaim the memory holding "4" right now
-    /// drop(slot);
-    /// ```
-    pub fn insert<A>(&mut self, a: A) -> TaskData<A>
-        where A: 'static,
-    {
-        TaskData {
-            task_inner: self.inner_usize(),
-            ptr: Arc::new(UnsafeCell::new(a)),
-        }
-    }
-
     fn inner_usize(&self) -> usize {
         &*self.handle.inner as *const Inner as usize
-    }
-
-    /// Get a reference to the task-local data inside this task.
-    ///
-    /// This method should be passed a handle previously returned by
-    /// `Task::insert`. That handle, when passed back into this method, will
-    /// retrieve a reference to the original data.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `data` does not belong to this task. That is,
-    /// if another task generated the `data` handle passed in, this method will
-    /// panic.
-    pub fn get<A>(&self, data: &TaskData<A>) -> &A {
-        // for safety here, see docs at the top of this module
-        assert_eq!(data.task_inner, self.inner_usize());
-        unsafe { &*data.ptr.get() }
-    }
-
-    /// Get a mutable reference to the task-local data inside this task.
-    ///
-    /// This method should be passed a handle previously returned by
-    /// `Task::insert`. That handle, when passed back into this method, will
-    /// retrieve a reference to the original data.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `data` does not belong to this task. That is,
-    /// if another task generated the `data` handle passed in, this method will
-    /// panic.
-    pub fn get_mut<A>(&mut self, data: &TaskData<A>) -> &mut A {
-        // for safety here, see docs at the top of this module
-        assert_eq!(data.task_inner, self.inner_usize());
-        unsafe { &mut *data.ptr.get() }
-    }
-
-    /// During the `Future::schedule` method, notify to the task that a value is
-    /// immediately ready.
-    ///
-    /// This method, more optimized than `TaskHandle::notify`, will inform the
-    /// task that the future which is being scheduled is immediately ready to be
-    /// `poll`ed again.
-    pub fn notify(&mut self) {
-        // TODO: optimize this, we've got mutable access so no need for atomics
-        self.handle().notify()
     }
 
     /// Gets a handle to this task which can be cloned to a piece of
@@ -258,9 +170,9 @@ impl Task {
     /// the executor provided in a "prompt" fashion, that is there shohuldn't be
     /// a long blocking pause between a call to this and when a future is polled
     /// on the executor.
-    pub fn poll_on(&mut self, executor: Arc<Executor>) {
+    pub fn poll_on(&self, executor: Arc<Executor>) {
         let poll_on = &*executor as *const Executor;
-        for exe in self.poll_requests.iter() {
+        for exe in self.poll_requests.borrow().iter() {
             let exe = &*exe as *const Executor;
             if poll_on == exe {
                 return
@@ -270,7 +182,20 @@ impl Task {
         // TODO: need to coalesce other `poll_on` requests based on whether the
         //       executors themselves are equivalent, probably not only on the
         //       pointer.
-        self.poll_requests.push(executor);
+        self.poll_requests.borrow_mut().push(executor);
+    }
+
+    /// Sets the global running task to the task provided for the duration of
+    /// the provided closure.
+    ///
+    /// This function will configure the current task to be this task itself and
+    /// then call the closure provided. For the duration of the closure the
+    /// "current task" will be set to this task, and then after the closure
+    /// returns the current task will be reset to what it was before.
+    pub fn enter<F, R>(&self, f: F) -> R
+        where F: FnOnce() -> R,
+    {
+        CURRENT_TASK.set(self, f)
     }
 
     /// Consumes this task to run a future to completion.
@@ -304,7 +229,8 @@ impl Task {
         // The syntax here is a little odd, but the idea is that if it panics
         // we've lost access to `self`, `future`, and `me` all in one go.
         let result = catch_unwind(move || {
-            (future.poll(&mut me), future, me)
+            let res = CURRENT_TASK.set(&mut me, || future.poll());
+            (res, future, me)
         });
 
         // See what happened, if the future is ready then we're done entirely,
@@ -329,8 +255,9 @@ impl Task {
         // If someone requested that we get polled on a specific executor, then
         // do that here before we register interest in the future, we may be
         // able to make more progress somewhere else.
-        if !me.poll_requests.is_empty() {
-            return me.poll_requests.remove(0).execute(|| me._run(future));
+        if !me.poll_requests.borrow().is_empty() {
+            let executor = me.poll_requests.borrow_mut().remove(0);
+            return executor.execute(|| me._run(future));
         }
 
         // So at this point the future is not ready, we've collapsed it, and no
@@ -350,16 +277,44 @@ fn catch_unwind<F, U>(f: F) -> thread::Result<U>
     panic::catch_unwind(panic::AssertUnwindSafe(f))
 }
 
-impl TaskHandle {
-    /// Returns whether this task handle and another point to the same task.
-    ///
-    /// In other words, this method returns whether `notify` would end up
-    /// notifying the same task. If two task handles need to be notified but
-    /// they are equivalent, then only one needs to be actually notified.
-    pub fn equivalent(&self, other: &TaskHandle) -> bool {
-        &*self.inner as *const _ == &*other.inner as *const _
-    }
+/// Returns a handle to the current task to call `unpark` at a later date.
+///
+/// This function is similar to the standard library's `thread::park` function
+/// except that it won't block the current thread but rather the current future
+/// that is being executed.
+///
+/// # Panics
+///
+/// This function will panic if a future is not currently being executed. It's
+/// recommended to use `Task::poll` or `Task::run` to ensure that a future is
+/// being executed so this function can be called.
+pub fn park() -> TaskHandle {
+    CURRENT_TASK.with(|task| task.handle().clone())
+}
 
+/// Inform the current task that to make progress, it should call `poll` on the
+/// specified executor.
+///
+/// This function can be useful when implementing a future that must be
+/// polled on a particular executor. An example of this is that to access
+/// thread-local data the future needs to get polled on that particular
+/// thread.
+///
+/// When a future discovers that it's not necessarily in the right place to
+/// make progress, it can provide this task with an `Executor` to make more
+/// progress. The Task will ensure that it'll eventually schedule a poll on
+/// the executor provided in a "prompt" fashion, that is there shohuldn't be
+/// a long blocking pause between a call to this and when a future is polled
+/// on the executor.
+///
+/// # Panics
+///
+/// This function will panic if a future is not currently being executed.
+pub fn poll_on(e: Arc<Executor>) {
+    CURRENT_TASK.with(|task| task.poll_on(e))
+}
+
+impl TaskHandle {
     /// Notify the associated task that a future is ready to get polled.
     ///
     /// Futures should use this method to ensure that when a future can make
@@ -370,7 +325,7 @@ impl TaskHandle {
     /// scheduled to get called at some point in the future. A `poll` may
     /// already be running on another thread, but this will ensure that a poll
     /// happens again to receive this notification.
-    pub fn notify(&self) {
+    pub fn unpark(&self) {
         // First, see if we can actually register an `on_full` callback. The
         // `Slot` requires that only one registration happens, and this flag
         // guards that.
@@ -387,6 +342,57 @@ impl TaskHandle {
             task.handle.inner.registered.store(false, Ordering::SeqCst);
             DEFAULT.execute(|| task._run(future))
         });
+    }
+}
+
+impl<A: 'static> TaskData<A> {
+    /// Inserts a new piece of task-local data into this task, returning a
+    /// reference to it.
+    ///
+    /// Ownership of the data will be transferred to the task, and the data will
+    /// be destroyed when the task itself is destroyed. The returned value can
+    /// be passed to the `with` method to get a reference back to the original
+    /// data.
+    ///
+    /// Note that the returned handle is cloneable and copyable and can be sent
+    /// to other futures which will be associated with the same task. All
+    /// futures will then have access to this data when passed the reference
+    /// back.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if a task is not currently running.
+    pub fn new(a: A) -> TaskData<A>
+        where A: 'static,
+    {
+        CURRENT_TASK.with(|task| {
+            TaskData {
+                task_inner: task.inner_usize(),
+                ptr: Arc::new(UnsafeCell::new(a)),
+            }
+        })
+    }
+
+    /// Get a reference to the task-local data inside this task.
+    ///
+    /// This method should be passed a handle previously returned by
+    /// `Task::insert`. That handle, when passed back into this method, will
+    /// retrieve a reference to the original data.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if a task is not currently running or if `self`
+    /// does not belong to the task that is currently running. That is, if
+    /// another task generated the `data` handle passed in, this method will
+    /// panic.
+    pub fn with<F, R>(&self, f: F) -> R
+        where F: FnOnce(&A) -> R
+    {
+        // for safety here, see docs at the top of this module
+        CURRENT_TASK.with(|task| {
+            assert_eq!(self.task_inner, task.inner_usize());
+            f(unsafe { &*self.ptr.get() })
+        })
     }
 }
 

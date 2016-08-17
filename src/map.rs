@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 use util::Collapsed;
 
 /// Future for the `map` combinator, changing the type of a future.
@@ -26,8 +26,8 @@ impl<U, A, F> Future for Map<A, F>
     type Item = U;
     type Error = A::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<U, A::Error> {
-        let result = try_poll!(self.future.poll(task));
+    fn poll(&mut self) -> Poll<U, A::Error> {
+        let result = try_poll!(self.future.poll());
         result.map(self.f.take().expect("cannot poll Map twice")).into()
     }
 

@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Task, Future, Poll, IntoFuture};
+use {Future, Poll, IntoFuture};
 use stream::Stream;
 use util::Collapsed;
 
@@ -48,12 +48,12 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<T, S::Error> {
+    fn poll(&mut self) -> Poll<T, S::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll(task) {
+                    match self.stream.poll() {
                         Poll::Ok(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();
@@ -69,7 +69,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll(task) {
+                    match fut.poll() {
                         Poll::Ok(state) => self.state = State::Ready(state),
                         Poll::Err(e) => return Poll::Err(e.into()),
                         Poll::NotReady => {

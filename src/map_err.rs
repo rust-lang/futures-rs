@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 use util::Collapsed;
 
 /// Future for the `map_err` combinator, changing the error type of a future.
@@ -26,8 +26,8 @@ impl<U, A, F> Future for MapErr<A, F>
     type Item = A::Item;
     type Error = U;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<A::Item, U> {
-        let result = try_poll!(self.future.poll(task));
+    fn poll(&mut self) -> Poll<A::Item, U> {
+        let result = try_poll!(self.future.poll());
         result.map_err(self.f.take().expect("cannot poll MapErr twice")).into()
     }
 

@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Future, IntoFuture, Task, Poll};
+use {Future, IntoFuture, Poll};
 
 /// A future which defers creation of the actual future until a callback is
 /// scheduled.
@@ -72,8 +72,8 @@ impl<F, R> Future for Lazy<F, R::Future>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<R::Item, R::Error> {
-        self.get().poll(task)
+    fn poll(&mut self) -> Poll<R::Item, R::Error> {
+        self.get().poll()
     }
 
     unsafe fn tailcall(&mut self)

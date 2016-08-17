@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Task, Poll};
+use {Future, Poll};
 use slot::{Slot, Token};
+use task;
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
@@ -14,10 +15,6 @@ pub struct Oneshot<T>
     inner: Arc<Inner<T>>,
     cancel_token: Option<Token>,
 }
-
-#[doc(hidden)]
-#[deprecated(note = "renamed to `oneshot`")]
-pub type Promise<T> = Oneshot<T>;
 
 /// Represents the completion half of a oneshot through which the result of a
 /// computation is signaled.
@@ -79,14 +76,6 @@ pub fn oneshot<T>() -> (Complete<T>, Oneshot<T>)
     (complete, oneshot)
 }
 
-#[doc(hidden)]
-#[deprecated(note = "renamed to `oneshot`")]
-pub fn promise<T>() -> (Complete<T>, Oneshot<T>)
-    where T: Send + 'static,
-{
-    oneshot()
-}
-
 impl<T> Complete<T>
     where T: Send + 'static,
 {
@@ -129,7 +118,7 @@ impl<T: Send + 'static> Future for Oneshot<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<T, Canceled> {
+    fn poll(&mut self) -> Poll<T, Canceled> {
         if self.inner.pending_wake.load(Ordering::SeqCst) {
             if let Some(cancel_token) = self.cancel_token.take() {
                 self.inner.slot.cancel(cancel_token);
@@ -141,10 +130,10 @@ impl<T: Send + 'static> Future for Oneshot<T> {
             Err(_) => {
                 self.inner.pending_wake.store(true, Ordering::SeqCst);
                 let inner = self.inner.clone();
-                let handle = task.handle().clone();
+                let task = task::park();
                 self.cancel_token = Some(self.inner.slot.on_full(move |_| {
                     inner.pending_wake.store(false, Ordering::SeqCst);
-                    handle.notify();
+                    task.unpark();
                 }));
                 Poll::NotReady
             }

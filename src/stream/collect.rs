@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Task, Future, Poll};
+use {Future, Poll};
 use stream::Stream;
 
 /// A future which collects all of the values of a stream into a vector.
@@ -32,9 +32,9 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Vec<S::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Vec<S::Item>, S::Error> {
         loop {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(e)) => self.items.push(e),
                 Ok(None) => return Poll::Ok(self.finish()),
                 Err(e) => {

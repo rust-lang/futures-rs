@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Future, Task, empty, Poll};
+use {Future, empty, Poll};
 use util::Collapsed;
 
 /// Future for the `select` combinator, waiting for one of two futures to
@@ -42,13 +42,13 @@ impl<A, B> Future for Select<A, B>
     type Item = (A::Item, SelectNext<A, B>);
     type Error = (A::Error, SelectNext<A, B>);
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
-                match a.poll(task) {
+                match a.poll() {
                     Poll::Ok(a) => (Ok(a), true),
                     Poll::Err(a) => (Err(a), true),
-                    Poll::NotReady => (try_poll!(b.poll(task)), false),
+                    Poll::NotReady => (try_poll!(b.poll()), false),
                 }
             }
             None => panic!("cannot poll select twice"),
@@ -80,10 +80,10 @@ impl<A, B> Future for SelectNext<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner {
-            OneOf::A(ref mut a) => a.poll(task),
-            OneOf::B(ref mut b) => b.poll(task),
+            OneOf::A(ref mut a) => a.poll(),
+            OneOf::B(ref mut b) => b.poll(),
         }
     }
 

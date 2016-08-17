@@ -1,4 +1,4 @@
-use {Task, IntoFuture, Future, Poll};
+use {IntoFuture, Future, Poll};
 use stream::Stream;
 
 /// A stream combinator which chains a computation onto values produced by a
@@ -33,9 +33,9 @@ impl<S, F, U> Stream for AndThen<S, F, U>
     type Item = U::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<U::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<U::Item>, S::Error> {
         if self.future.is_none() {
-            let item = match try_poll!(self.stream.poll(task)) {
+            let item = match try_poll!(self.stream.poll()) {
                 Ok(None) => return Poll::Ok(None),
                 Ok(Some(e)) => e,
                 Err(e) => return Poll::Err(e),
@@ -43,7 +43,7 @@ impl<S, F, U> Stream for AndThen<S, F, U>
             self.future = Some((self.f)(item).into_future());
         }
         assert!(self.future.is_some());
-        let res = self.future.as_mut().unwrap().poll(task);
+        let res = self.future.as_mut().unwrap().poll();
         if res.is_ready() {
             self.future = None;
         }

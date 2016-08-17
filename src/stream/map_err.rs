@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream combinator which will change the error type of a stream from one
@@ -29,7 +29,7 @@ impl<S, F, U> Stream for MapErr<S, F>
     type Item = S::Item;
     type Error = U;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, U> {
-        self.stream.poll(task).map_err(&mut self.f)
+    fn poll(&mut self) -> Poll<Option<S::Item>, U> {
+        self.stream.poll().map_err(&mut self.f)
     }
 }

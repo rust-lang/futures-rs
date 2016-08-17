@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 
 /// A future representing a value that is immediately ready.
 ///
@@ -35,7 +35,7 @@ impl<T, E> Future for Done<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<T, E> {
+    fn poll(&mut self) -> Poll<T, E> {
         self.inner.take().expect("cannot poll Done twice").into()
     }
 }

@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Task, IntoFuture, Poll, Future};
+use {IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
 use util::Collapsed;
 
@@ -43,7 +43,7 @@ impl<S> Stream for Buffered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         // First, try to fill in all the futures
         for i in 0..self.futures.len() {
             let mut idx = self.cur + i;
@@ -52,7 +52,7 @@ impl<S> Stream for Buffered<S>
             }
 
             if let State::Empty = self.futures[idx] {
-                match self.stream.poll(task) {
+                match self.stream.poll() {
                     Poll::Ok(Some(future)) => {
                         let future = Collapsed::Start(future.into_future());
                         self.futures[idx] = State::Running(future);
@@ -68,7 +68,7 @@ impl<S> Stream for Buffered<S>
         for future in self.futures.iter_mut() {
             let result = match *future {
                 State::Running(ref mut s) => {
-                    match s.poll(task) {
+                    match s.poll() {
                         Poll::Ok(e) => Ok(e),
                         Poll::Err(e) => Err(e),
                         Poll::NotReady => {

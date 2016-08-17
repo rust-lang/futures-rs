@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 
 /// A helpful structure for representing a future that is collapsed over time.
 ///
@@ -15,10 +15,10 @@ unsafe impl<T: Send + Future> Send for Collapsed<T> {}
 unsafe impl<T: Sync + Future> Sync for Collapsed<T> {}
 
 impl<T: Future> Collapsed<T> {
-    pub fn poll(&mut self, task: &mut Task) -> Poll<T::Item, T::Error> {
+    pub fn poll(&mut self) -> Poll<T::Item, T::Error> {
         match *self {
-            Collapsed::Start(ref mut a) => a.poll(task),
-            Collapsed::Tail(ref mut a) => a.poll(task),
+            Collapsed::Start(ref mut a) => a.poll(),
+            Collapsed::Tail(ref mut a) => a.poll(),
         }
     }
 

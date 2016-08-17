@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Future, IntoFuture, Task, empty, Poll};
+use {Future, IntoFuture, empty, Poll};
 use util::Collapsed;
 
 /// Future for the `select_all` combinator, waiting for one of any of a list of
@@ -50,9 +50,9 @@ impl<A> Future for SelectAll<A>
     type Item = (A::Item, usize, Vec<SelectAllNext<A>>);
     type Error = (A::Error, usize, Vec<SelectAllNext<A>>);
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-            match f.poll(task) {
+            match f.poll() {
                 Poll::NotReady => None,
                 Poll::Ok(e) => Some((i, Ok(e))),
                 Poll::Err(e) => Some((i, Err(e))),
@@ -86,8 +86,8 @@ impl<A> Future for SelectAllNext<A>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(task)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll()
     }
 
     unsafe fn tailcall(&mut self)

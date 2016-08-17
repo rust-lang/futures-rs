@@ -39,8 +39,8 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        self.future.poll(task)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.future.poll()
     }
 }
 

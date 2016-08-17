@@ -154,6 +154,9 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate scoped_tls;
+
 // internal utilities
 mod lock;
 mod slot;
@@ -163,9 +166,7 @@ mod util;
 mod poll;
 pub use poll::Poll;
 
-mod task;
-pub use task::{Task, TaskData, TaskHandle};
-
+pub mod task;
 pub mod executor;
 
 // Primitive futures
@@ -176,16 +177,13 @@ mod failed;
 mod finished;
 mod lazy;
 mod oneshot;
-mod store;
 pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
-#[allow(deprecated)]
-pub use oneshot::{oneshot, promise, Oneshot, Promise, Complete, Canceled};
-pub use store::{store, Store};
+pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
 
 // combinators
 mod and_then;
@@ -319,7 +317,7 @@ pub trait Future: 'static {
     /// This future may have failed to finish the computation, in which case
     /// the `Poll::Err` variant will be returned with an appropriate payload of
     /// an error.
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 
     /// Perform tail-call optimization on this future.
     ///
@@ -735,17 +733,16 @@ pub trait Future: 'static {
     /// ```rust
     /// use futures::*;
     ///
-    /// let mut task = Task::new();
     /// let mut future = finished::<i32, u32>(2);
-    /// assert!(future.poll(&mut task).is_ready());
+    /// assert!(future.poll().is_ready());
     ///
     /// // Normally, a call such as this would panic:
-    /// //future.poll(&mut task);
+    /// //future.poll();
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = finished::<i32, u32>(2).fuse();
-    /// assert!(future.poll(&mut task).is_ready());
-    /// assert!(future.poll(&mut task).is_not_ready());
+    /// assert!(future.poll().is_ready());
+    /// assert!(future.poll().is_not_ready());
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized

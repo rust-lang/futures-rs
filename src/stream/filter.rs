@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream combinator used to filter the results of a stream and only yield
@@ -27,9 +27,9 @@ impl<S, F> Stream for Filter<S, F>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         loop {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(e)) => {
                     if (self.f)(&e) {
                         return Poll::Ok(Some(e))

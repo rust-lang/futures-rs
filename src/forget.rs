@@ -1,4 +1,5 @@
-use {Future, Poll, Task};
+use {Future, Poll};
+use task::Task;
 use util::Collapsed;
 
 pub fn forget<T: Future + Send>(t: T) {
@@ -16,8 +17,8 @@ impl<T: Future> Future for ThunkFuture<T> {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(), ()> {
-        self.inner.poll(task).map(|_| ()).map_err(|_| ())
+    fn poll(&mut self) -> Poll<(), ()> {
+        self.inner.poll().map(|_| ()).map_err(|_| ())
     }
 
     unsafe fn tailcall(&mut self) -> Option<Box<Future<Item=(), Error=()>>> {

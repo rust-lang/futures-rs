@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
@@ -31,18 +31,17 @@ impl<S> Stream for Flatten<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self, task: &mut Task)
-            -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             if self.next.is_none() {
-                match try_poll!(self.stream.poll(task)) {
+                match try_poll!(self.stream.poll()) {
                     Ok(Some(e)) => self.next = Some(e),
                     Ok(None) => return Poll::Ok(None),
                     Err(e) => return Poll::Err(From::from(e)),
                 }
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll(task) {
+            match self.next.as_mut().unwrap().poll() {
                 Poll::Ok(None) => self.next = None,
                 other => return other,
             }

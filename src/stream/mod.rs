@@ -11,7 +11,7 @@
 //! ready as well.
 // TODO: expand these docs
 
-use {Task, IntoFuture, Poll};
+use {IntoFuture, Poll};
 
 mod channel;
 mod iter;
@@ -124,7 +124,7 @@ pub trait Stream: 'static {
     /// If this is difficult to guard against then the `fuse` adapter can be
     /// used to ensure that `poll` always has well-defined semantics.
     // TODO: more here
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error>;
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error>;
 
     // TODO: should there also be a method like `poll` but doesn't return an
     //       item? basically just says "please make more progress internally"
@@ -421,7 +421,7 @@ pub trait Stream: 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll, BoxFuture};
+    /// use futures::{finished, Future, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
@@ -438,8 +438,7 @@ pub trait Stream: 'static {
     /// send(5, tx).forget();
     ///
     /// let mut result = rx.collect();
-    /// assert_eq!(result.poll(&mut Task::new()),
-    ///            Poll::Ok(vec![5, 4, 3, 2, 1]));
+    /// assert_eq!(result.poll(), Poll::Ok(vec![5, 4, 3, 2, 1]));
     /// ```
     fn collect(self) -> Collect<Self>
         where Self: Sized
@@ -462,7 +461,7 @@ pub trait Stream: 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll, BoxFuture};
+    /// use futures::{finished, Future, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
@@ -479,7 +478,7 @@ pub trait Stream: 'static {
     /// send(5, tx).forget();
     ///
     /// let mut result = rx.fold(0, |a, b| finished::<i32, u32>(a + b));
-    /// assert_eq!(result.poll(&mut Task::new()), Poll::Ok(15));
+    /// assert_eq!(result.poll(), Poll::Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut + 'static,
@@ -499,7 +498,7 @@ pub trait Stream: 'static {
     /// individual stream will get exhausted before moving on to the next.
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll};
+    /// use futures::{finished, Future, Poll};
     /// use futures::stream::*;
     ///
     /// let (tx1, rx1) = channel::<i32, u32>();
@@ -512,7 +511,7 @@ pub trait Stream: 'static {
     /// tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).forget();
     ///
     /// let mut result = rx3.flatten().collect();
-    /// assert_eq!(result.poll(&mut Task::new()), Poll::Ok(vec![1, 2, 3, 4]));
+    /// assert_eq!(result.poll(), Poll::Ok(vec![1, 2, 3, 4]));
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream,

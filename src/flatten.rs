@@ -1,4 +1,4 @@
-use {Future, IntoFuture, Task, Poll};
+use {Future, IntoFuture, Poll};
 use chain::Chain;
 
 /// Future for the `flatten` combinator, flattening a future-of-a-future to get just
@@ -26,8 +26,8 @@ impl<A> Future for Flatten<A>
     type Item = <<A as Future>::Item as IntoFuture>::Item;
     type Error = <<A as Future>::Item as IntoFuture>::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        self.state.poll(task, |a, ()| {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.state.poll(|a, ()| {
             let future = try!(a).into_future();
             Ok(Err(future))
         })

@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 use stream::Stream;
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -27,9 +27,9 @@ impl<S, F> Future for ForEach<S, F>
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(), S::Error> {
+    fn poll(&mut self) -> Poll<(), S::Error> {
         loop {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(e)) => {
                     match (self.f)(e) {
                         Ok(()) => {}

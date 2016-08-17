@@ -1,4 +1,4 @@
-use {Task, Poll, IntoFuture, Future};
+use {Poll, IntoFuture, Future};
 use stream::Stream;
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -33,14 +33,14 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         if self.done_skipping {
-            return self.stream.poll(task);
+            return self.stream.poll();
         }
 
         loop {
             if self.pending.is_none() {
-                let item = match try_poll!(self.stream.poll(task)) {
+                let item = match try_poll!(self.stream.poll()) {
                     Ok(Some(e)) => e,
                     Ok(None) => return Poll::Ok(None),
                     Err(e) => return Poll::Err(e),
@@ -49,7 +49,7 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
             }
 
             assert!(self.pending.is_some());
-            match try_poll!(self.pending.as_mut().unwrap().0.poll(task)) {
+            match try_poll!(self.pending.as_mut().unwrap().0.poll()) {
                 Ok(true) => self.pending = None,
                 Ok(false) => {
                     let (_, item) = self.pending.take().unwrap();

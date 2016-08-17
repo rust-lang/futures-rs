@@ -1,6 +1,6 @@
 use std::mem;
 
-use {Future, empty, Poll, Task};
+use {Future, empty, Poll};
 
 impl<T, E> Future for Box<Future<Item=T, Error=E>>
     where T: 'static,
@@ -9,8 +9,8 @@ impl<T, E> Future for Box<Future<Item=T, Error=E>>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        (**self).poll(task)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        (**self).poll()
     }
 
     unsafe fn tailcall(&mut self)
@@ -29,8 +29,8 @@ impl<T, E> Future for Box<Future<Item=T, Error=E> + Send>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        (**self).poll(task)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        (**self).poll()
     }
 
     unsafe fn tailcall(&mut self)
@@ -48,8 +48,8 @@ impl<F: Future> Future for Box<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-        (**self).poll(task)
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        (**self).poll()
     }
 
     unsafe fn tailcall(&mut self)

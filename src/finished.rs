@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, Task, Poll};
+use {Future, Poll};
 
 /// A future representing a finished successful computation.
 ///
@@ -38,7 +38,7 @@ impl<T, E> Future for Finished<T, E>
     type Error = E;
 
 
-    fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
+    fn poll(&mut self) -> Poll<T, E> {
         Poll::Ok(self.t.take().expect("cannot poll Finished twice"))
     }
 }

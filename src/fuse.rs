@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 use util::Collapsed;
 
 /// A future which "fuse"s a future once it's been resolved.
@@ -21,8 +21,8 @@ impl<A: Future> Future for Fuse<A> {
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<A::Item, A::Error> {
-        let ret = self.future.as_mut().map(|f| f.poll(task));
+    fn poll(&mut self) -> Poll<A::Item, A::Error> {
+        let ret = self.future.as_mut().map(|f| f.poll());
         if ret.as_ref().map(|r| r.is_ready()) == Some(true) {
             self.future = None;
         }
