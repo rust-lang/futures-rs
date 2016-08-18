@@ -37,6 +37,7 @@ mod skip_while;
 mod take;
 mod then;
 mod zip;
+mod peek;
 pub use self::and_then::AndThen;
 pub use self::buffered::Buffered;
 pub use self::collect::Collect;
@@ -56,6 +57,7 @@ pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::then::Then;
 pub use self::zip::Zip;
+pub use self::peek::Peekable;
 
 mod impls;
 
@@ -668,6 +670,15 @@ pub trait Stream: 'static {
               Self: Sized,
     {
         zip::new(self, other)
+    }
+
+    /// Creates a new stream witch exposes a `peek` method.
+    ///
+    /// Calling `peek` returns a reference to the next item in the stream.
+    fn peekable(self) -> Peekable<Self>
+        where Self: Sized
+    {
+        peek::new(self)
     }
 }
 
