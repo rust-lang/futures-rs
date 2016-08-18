@@ -71,18 +71,6 @@ mod impls;
 /// Like futures a stream has basic combinators to transform the stream, perform
 /// more work on each item, etc.
 ///
-/// # Basic methods
-///
-/// Like futures, a `Stream` has two core methods which drive processing of data
-/// and notifications of when new data might be ready. The `poll` method checks
-/// the status of a stream and the `schedule` method is used to receive
-/// notifications for when it may be ready to call `poll` again.
-///
-/// Also like future, a stream has an associated error type to represent that an
-/// element of the computation failed for some reason. Errors, however, do not
-/// signal the end of the stream.
-// TODO: is that last clause correct?
-///
 /// # Streams as Futures
 ///
 /// Any instance of `Stream` can also be viewed as a `Future` where the resolved
@@ -101,21 +89,19 @@ pub trait Stream {
     /// the stream is finished.
     ///
     /// This method, like `Future::poll`, is the sole method of pulling out a
-    /// value from a stream. The `task` argument is the task of computation that
-    /// this stream is running within, and it contains information like
-    /// task-local data and tokens of interest.
-    ///
-    /// Implementors of this trait must ensure that implementations of this
-    /// method do not block, as it may cause consumers to behave badly.
+    /// value from a stream. This method must also be run within the context of
+    /// a task typically and implementors of this trait must ensure that
+    /// implementations of this method do not block, as it may cause consumers
+    /// to behave badly.
     ///
     /// # Return value
     ///
     /// If `Poll::NotReady` is returned then this stream's next value is not
-    /// ready yet, and `schedule` can be used to receive a notification for when
-    /// the value may become ready in the future. If `Some` is returned then the
-    /// returned value represents the next value on the stream. `Err` indicates
-    /// an error happened, while `Ok` indicates whether there was a new item on
-    /// the stream or whether the stream has terminated.
+    /// ready yet, then implementations will ensure that the current task will
+    /// be notified when the next value may be ready. If `Some` is returned then
+    /// the returned value represents the next value on the stream. `Err`
+    /// indicates an error happened, while `Ok` indicates whether there was a
+    /// new item on the stream or whether the stream has terminated.
     ///
     /// # Panics
     ///

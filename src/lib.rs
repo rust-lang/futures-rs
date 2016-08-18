@@ -56,9 +56,9 @@
 //! // performance isn't always critical and sometimes it's more ergonomic to
 //! // return a trait object like we do here. Note though that there's only one
 //! // allocation here, not any for the intermediate futures.
-//! fn add<A, B>(a: A, b: B) -> Box<Future<Item=i32, Error=A::Error>>
-//!     where A: Future<Item=i32> + 'static,
-//!           B: Future<Item=i32, Error=A::Error> + 'static,
+//! fn add<'a, A, B>(a: A, b: B) -> Box<Future<Item=i32, Error=A::Error> + 'a>
+//!     where A: Future<Item=i32> + 'a,
+//!           B: Future<Item=i32, Error=A::Error> + 'a,
 //! {
 //!     Box::new(a.join(b).map(|(a, b)| a + b))
 //! }
@@ -72,7 +72,7 @@
 //!     use std::io;
 //!     use std::net::{SocketAddr, TcpStream};
 //!
-//!     type IoFuture<T> = Future<Item=T, Error=io::Error>;
+//!     type IoFuture<T> = Box<Future<Item=T, Error=io::Error>>;
 //!
 //!     // First thing to do is we need to resolve our URL to an address. This
 //!     // will likely perform a DNS lookup which may take some time.
@@ -121,22 +121,22 @@
 //!     });
 //!     return Box::new(ret);
 //!
-//!     fn resolve(url: &str) -> Box<IoFuture<SocketAddr>> {
+//!     fn resolve(url: &str) -> IoFuture<SocketAddr> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
 //!
-//!     fn connect(hostname: &SocketAddr) -> Box<IoFuture<TcpStream>> {
+//!     fn connect(hostname: &SocketAddr) -> IoFuture<TcpStream> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
 //!
-//!     fn download(stream: TcpStream) -> Box<IoFuture<Vec<u8>>> {
+//!     fn download(stream: TcpStream) -> IoFuture<Vec<u8>> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
 //!
-//!     fn timeout(stream: Duration) -> Box<IoFuture<()>> {
+//!     fn timeout(stream: Duration) -> IoFuture<()> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
@@ -214,27 +214,25 @@ mod chain;
 mod impls;
 mod forget;
 
-/// Trait for types which represent a placeholder of a value that will become
+/// Trait for types which are a placeholder of a value that will become
 /// available at possible some later point in time.
 ///
 /// Futures are used to provide a sentinel through which a value can be
-/// referenced. They crucially allow chaining operations through consumption
-/// which allows expressing entire trees of computation as one sentinel value.
+/// referenced. They crucially allow chaining and composing operations through
+/// consumption which allows expressing entire trees of computation as one
+/// sentinel value.
 ///
 /// The ergonomics and implementation of the `Future` trait are very similar to
 /// the `Iterator` trait in Rust which is where there is a small handful of
 /// methods to implement and a load of default methods that consume a `Future`,
 /// producing a new value.
 ///
-/// # Core methods
+/// # The `poll` method
 ///
-/// The core methods of futures, currently `poll`, and `schedule`, are not
-/// intended to be called in general. These are used to drive an entire task of
-/// many futures composed together only from the top level.
-///
-/// More documentation can be found on each method about what its purpose is,
-/// but in general all of the combinators are the main methods that should be
-/// used.
+/// The core method of future, `poll`, is not intended to be called in general.
+/// The `poll` method is typically called in the context of a "task" which
+/// drives a future to completion. For more information on this see the `task`
+/// module.
 ///
 /// # Combinators
 ///
@@ -263,17 +261,18 @@ pub trait Future {
     /// expressed through the `PollError` type, not this type.
     type Error;
 
-    /// Query this future to see if its value has become available.
+    /// Query this future to see if its value has become available, registering
+    /// interest if it is not.
     ///
     /// This function will check the internal state of the future and assess
     /// whether the value is ready to be produced. Implementors of this function
     /// should ensure that a call to this **never blocks** as event loops may
     /// not work properly otherwise.
     ///
-    /// Callers of this function must provide the "task" in which the future is
-    /// running through the `task` argument. This task contains information like
-    /// task-local variables which the future may have stored references to
-    /// internally.
+    /// When a future is not ready yet, the `Poll::NotReady` value will be
+    /// returned. In this situation the future will *also* register interest of
+    /// the current task in the value being produced. That is, once the value is
+    /// ready it will notify the current task that progress can be made.
     ///
     /// # Runtime characteristics
     ///
@@ -299,6 +298,11 @@ pub trait Future {
     /// a future has returned `Ok` or `Err` it is considered a contract error
     /// to continue polling it.
     ///
+    /// If `NotReady` is returned, then the future will internally register
+    /// interest in the value being produced for the current task. In other
+    /// words, the current task will receive a notification once the value is
+    /// ready to be produced or the future can make progress.
+    ///
     /// # Panics
     ///
     /// Once a future has completed (returned `Poll::{Ok, Err}` from `poll`),
@@ -310,6 +314,10 @@ pub trait Future {
     /// Callers who may call `poll` too many times may want to consider using
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
+    ///
+    /// Additionally, calls to `poll` must always be made from within the
+    /// context of a task. If a current task is not set then this method will
+    /// likely panic.
     ///
     /// # Errors
     ///
@@ -719,18 +727,22 @@ pub trait Future {
     ///
     /// # Bounds
     ///
-    /// Note that this function requires the underlying future to be `Send`, but
-    /// not all futures may implement the `Send` bound. Additionally, the
-    /// underlying `Task` requires that the future is send to be driven to
-    /// completion.
+    /// Note that this function requires the underlying future to be `Send +
+    /// 'static`, but not all futures may implement these bounds.
     ///
     /// If your type is not `Send`, however, fear not! Most event loops will
     /// provide an abstraction like `LoopData` in the `futures-mio` crate. This
     /// allows a future to be "pinned" to an event loop, allowing its handle to
-    /// be `Send` while the underlying data itself is not `Send`.
+    /// be `Send` while the underlying data itself is not `Send`. By using
+    /// objects like `LoopData`, any future can become `Send` to use this method
+    /// to drive it to completion.
     ///
-    /// By using objects like `LoopData`, any future can become `Send` to use
-    /// this method to drive it to completion.
+    /// If your type is not `'static` then this method cannot be used. Instead
+    /// most event loops should provide a method which resolves the value of a
+    /// future, driving the event loop in the meantime. For example the
+    /// `futures-mio` crate provides a `Loop::run` method which pins the future
+    /// to the stack frame of that functionc all, allowing it to have a
+    /// non-`'static` lifetime.
     fn forget(self) where Self: Sized + Send + 'static {
         forget::forget(self);
     }

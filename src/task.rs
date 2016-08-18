@@ -9,53 +9,24 @@
 //! and tree of futures forward. A task is used to poll futures and schedule
 //! futures with, and has utilities for sharing data between tasks and handles
 //! for notifying when a future is ready.
-
-// One critical piece of this module's contents are the `TaskData<A>` handles.
-// The purpose of this is to conceptually be able to store data in a task,
-// allowing it to be accessed within multiple futures at once. For example if
-// you have some concurrent futures working, they may all want mutable access to
-// some data. We already know that when the futures are being poll'ed that we're
-// entirely synchronized (aka `&mut Task`), so you shouldn't require an
-// `Arc<Mutex<T>>` to share as the synchronization isn't necessary!
-//
-// So the idea here is that you insert data into a task via `Task::insert`, and
-// a handle to that data is then returned to you. That handle can later get
-// presented to the task itself to actually retrieve the underlying data. The
-// invariant is that the data can only ever be accessed with the task present,
-// and the lifetime of the actual data returned is connected to the lifetime of
-// the task itself.
-//
-// Conceptually I at least like to think of this as "dynamically adding more
-// struct fields to a `Task`". Each call to insert creates a new "name" for the
-// struct field, a `TaskData<A>`, and then you can access the fields of a struct
-// with the struct itself (`Task`) as well as the name of the field
-// (`TaskData<A>`). If that analogy doesn't make sense then oh well, it at least
-// helped me!
-//
-// So anyway, we do some interesting trickery here to actually get it to work.
-// Each `TaskData<A>` handle stores `Arc<UnsafeCell<A>>`. So it turns out, we're
-// not even adding data to the `Task`! Each `TaskData<A>` contains a reference
-// to this `Arc`, and `TaskData` handles can be cloned which just bumps the
-// reference count on the `Arc` itself.
-//
-// As before, though, you can present the `Arc` to a `Task` and if they
-// originated from the same place you're allowed safe access to the internals.
-// We allow but shared and mutable access without the `Sync` bound on the data,
-// crucially noting that a `Task` itself is not `Sync`.
-//
-// So hopefully I've convinced you of this point that the `get` and `get_mut`
-// methods below are indeed safe. The data is always valid as it's stored in an
-// `Arc`, and access is only allowed with the proof of the associated `Task`.
-// One thing you might be asking yourself though is what exactly is this "proof
-// of a task"? Right now it's a `usize` corresponding to the `Task`'s
-// `TaskHandle` arc allocation.
-//
-// Wait a minute, isn't that the ABA problem! That is, we create a task A, add
-// some data to it, destroy task A, do some work, create a task B, and then ask
-// to get the data from task B. In this case though the point of the
-// `task_inner` "proof" field is simply that there's some non-`Sync` token
-// proving that you can get access to the data. So while weird, this case should
-// still be safe, as the data's not stored in the task itself.
+//!
+//! Note that libraries typically should not manage tasks themselves, but rather
+//! leave that to event loops at the top level. The `forget` function should be
+//! used to "spawn" a future, or an event loop should be used to run a specific
+//! future to completion.
+//!
+//! ## Functions
+//!
+//! There are two primary functions in this module, `park` and `poll_on`. The
+//! `park` method is similar to the standard library's `thread::park` method
+//! where it returns a handle to wake up a task at a later date (via an `unpark`
+//! method).
+//!
+//! The `poll_on` method, however, is a little more subtle. This method is used
+//! for futures which can migrate across threads, and requests that a future is
+//! polled on a particular thread. Note that this function needs to be used with
+//! care because if used improperly it can easily cause a panic. For more
+//! information, see the documentation on the function itself.
 
 use std::cell::{UnsafeCell, Cell, RefCell};
 use std::marker;
@@ -67,6 +38,61 @@ use std::thread;
 use BoxFuture;
 use executor::{DEFAULT, Executor};
 use slot::Slot;
+
+scoped_thread_local!(static CURRENT_TASK: Task);
+
+/// Returns a handle to the current task to call `unpark` at a later date.
+///
+/// This function is similar to the standard library's `thread::park` function
+/// except that it won't block the current thread but rather the current future
+/// that is being executed.
+///
+/// The returned handle implements the `Send` and `'static` bounds and may also
+/// be cheaply cloned. This is useful for squirreling away the handle into a
+/// location which is then later signaled that a future can make progress.
+///
+/// Implementations of the `Future` trait typically use this function if they
+/// would otherwise perform a blocking operation. When something isn't ready
+/// yet, this `park` function is called to acquire a handle to the current
+/// task, and then the future arranges it such that when the block operation
+/// otherwise finishes (perhaps in the background) it will `unpark` the returned
+/// handle.
+///
+/// # Panics
+///
+/// This function will panic if a future is not currently being executed. That
+/// is, this method can be dangerous to call outside of an implementation of
+/// `poll`.
+pub fn park() -> TaskHandle {
+    CURRENT_TASK.with(|task| task.handle().clone())
+}
+
+/// Inform the current task that to make progress, it should call `poll` on the
+/// specified executor.
+///
+/// This function can be useful when implementing a future that must be polled
+/// on a particular executor. An example of this is that to access thread-local
+/// data the future needs to get polled on that particular thread.
+///
+/// When a future discovers that it's not necessarily in the right place to make
+/// progress, it can provide this task with an `Executor` to make more progress.
+/// The Task will ensure that it'll eventually schedule a poll on the executor
+/// provided in a "prompt" fashion, that is there shohuldn't be a long blocking
+/// pause between a call to this and when a future is polled on the executor.
+///
+/// # Panics
+///
+/// This function will panic if a future is not currently being executed. That
+/// is, this method can be dangerous to call outside of an implementation of
+/// `poll`.
+///
+/// This function will also panic if the current task was created with
+/// `Task::new_notify`. In other words, if a future is pinned to a particular
+/// stack frame (e.g. via the `futures-mio` crate's `Loop::run` function), then
+/// a call to this function will panic.
+pub fn poll_on(e: Arc<Executor>) {
+    CURRENT_TASK.with(|task| task.poll_on(e))
+}
 
 /// A structure representing one "task", or thread of execution throughout the
 /// lifetime of a set of futures.
@@ -91,13 +117,13 @@ pub struct Task {
     handle: TaskHandle,
     poll_requests: RefCell<Vec<Arc<Executor>>>,
 
-    // A `Task` is not `Sync`, see the docs above.
+    // A `Task` is not `Sync`, see the TaskData docs below above.
     _marker: marker::PhantomData<Cell<()>>,
 }
 
 /// A handle to a task that can be sent to other threads.
 ///
-/// Created by the `Task::handle` method.
+/// Created by the `task::park` function.
 #[derive(Clone)]
 pub struct TaskHandle {
     inner: HandleInner,
@@ -113,21 +139,6 @@ struct Inner {
     slot: Slot<(Task, BoxFuture<(), ()>)>,
     registered: AtomicBool,
 }
-
-/// A reference to a piece of data that's stored inside of a `Task`.
-///
-/// This can be used with the `Task::get` and `Task::get_mut` methods to access
-/// data inside of tasks.
-pub struct TaskData<A> {
-    task_inner: usize,
-    ptr: Arc<UnsafeCell<A>>,
-}
-
-// for safety here, see docs at the top of this module
-unsafe impl<A: Send> Send for TaskData<A> {}
-unsafe impl<A: Sync> Sync for TaskData<A> {}
-
-scoped_thread_local!(static CURRENT_TASK: Task);
 
 impl Task {
     /// Creates a new task ready to drive a future.
@@ -148,6 +159,10 @@ impl Task {
     ///
     /// Requests to `TaskHandle::unpark` will be routed to the `notify` argument
     /// provided.
+    // TODO: this function should take `Arc<Notify>` rather than `N: Notify` to
+    //       avoid an allocation possibly. We need a unique handle for
+    //       `inner_usize` below, however, to ensure that task local data is all
+    //       synchronized correctly.
     pub fn new_notify<N: Notify>(notify: N) -> Task {
         Task {
             poll_requests: RefCell::new(Vec::new()),
@@ -176,7 +191,7 @@ impl Task {
     ///
     /// Note that if data is immediately ready then the `Task::unpark` method
     /// should be preferred.
-    pub fn handle(&self) -> &TaskHandle {
+    fn handle(&self) -> &TaskHandle {
         &self.handle
     }
 
@@ -194,7 +209,11 @@ impl Task {
     /// the executor provided in a "prompt" fashion, that is there shohuldn't be
     /// a long blocking pause between a call to this and when a future is polled
     /// on the executor.
-    pub fn poll_on(&self, executor: Arc<Executor>) {
+    fn poll_on(&self, executor: Arc<Executor>) {
+        if let HandleInner::Notify(_) = self.handle.inner {
+            panic!("cannot request a pinned future is polled on another task");
+        }
+
         let poll_on = &*executor as *const Executor;
         for exe in self.poll_requests.borrow().iter() {
             let exe = &*exe as *const Executor;
@@ -296,6 +315,9 @@ impl Task {
     }
 }
 
+// AssertUnwindSafe is applied here as `Send + 'static` is typically sufficient
+// for "this is exception safe". For another example of this, see
+// `thread::spawn` which has the same bounds.
 fn catch_unwind<F, U>(f: F) -> thread::Result<U>
     where F: FnOnce() -> U + Send + 'static,
 {
@@ -316,43 +338,6 @@ pub trait Notify: Send + Sync + 'static {
     fn notify(&self);
 }
 
-/// Returns a handle to the current task to call `unpark` at a later date.
-///
-/// This function is similar to the standard library's `thread::park` function
-/// except that it won't block the current thread but rather the current future
-/// that is being executed.
-///
-/// # Panics
-///
-/// This function will panic if a future is not currently being executed. It's
-/// recommended to use `Task::poll` or `Task::run` to ensure that a future is
-/// being executed so this function can be called.
-pub fn park() -> TaskHandle {
-    CURRENT_TASK.with(|task| task.handle().clone())
-}
-
-/// Inform the current task that to make progress, it should call `poll` on the
-/// specified executor.
-///
-/// This function can be useful when implementing a future that must be
-/// polled on a particular executor. An example of this is that to access
-/// thread-local data the future needs to get polled on that particular
-/// thread.
-///
-/// When a future discovers that it's not necessarily in the right place to
-/// make progress, it can provide this task with an `Executor` to make more
-/// progress. The Task will ensure that it'll eventually schedule a poll on
-/// the executor provided in a "prompt" fashion, that is there shohuldn't be
-/// a long blocking pause between a call to this and when a future is polled
-/// on the executor.
-///
-/// # Panics
-///
-/// This function will panic if a future is not currently being executed.
-pub fn poll_on(e: Arc<Executor>) {
-    CURRENT_TASK.with(|task| task.poll_on(e))
-}
-
 impl TaskHandle {
     /// Notify the associated task that a future is ready to get polled.
     ///
@@ -365,31 +350,91 @@ impl TaskHandle {
     /// already be running on another thread, but this will ensure that a poll
     /// happens again to receive this notification.
     pub fn unpark(&self) {
-        match self.inner {
-            HandleInner::Notify(ref n) => n.notify(),
-            HandleInner::Static(ref inner) => {
-                // First, see if we can actually register an `on_full` callback.
-                // The `Slot` requires that only one registration happens, and
-                // this flag guards that.
-                if inner.registered.swap(true, Ordering::SeqCst) {
-                    return
-                }
+        let inner = match self.inner {
+            HandleInner::Notify(ref n) => return n.notify(),
+            HandleInner::Static(ref inner) => inner,
+        };
 
-                // If we won the race to register a callback, do so now. Once
-                // the slot is resolve we allow another registration **before we
-                // poll again**.  This allows any future which may be somewhat
-                // badly behaved to be compatible with this.
-                inner.slot.on_full(|slot| {
-                    let (task, future) = slot.try_consume().ok().unwrap();
-                    if let HandleInner::Static(ref s) = task.handle.inner {
-                        s.registered.store(false, Ordering::SeqCst);
-                    }
-                    DEFAULT.execute(|| task.run(future))
-                });
-            }
+        // First, see if we can actually register an `on_full` callback.
+        // The `Slot` requires that only one registration happens, and
+        // this flag guards that.
+        if inner.registered.swap(true, Ordering::SeqCst) {
+            return
         }
+
+        // If we won the race to register a callback, do so now. Once
+        // the slot is resolve we allow another registration **before we
+        // poll again**.  This allows any future which may be somewhat
+        // badly behaved to be compatible with this.
+        inner.slot.on_full(|slot| {
+            let (task, future) = slot.try_consume().ok().unwrap();
+            if let HandleInner::Static(ref s) = task.handle.inner {
+                s.registered.store(false, Ordering::SeqCst);
+            }
+            DEFAULT.execute(|| task.run(future))
+        });
     }
 }
+
+// One critical piece of this module's contents are the `TaskData<A>` handles.
+// The purpose of this is to conceptually be able to store data in a task,
+// allowing it to be accessed within multiple futures at once. For example if
+// you have some concurrent futures working, they may all want mutable access to
+// some data. We already know that when the futures are being poll'ed that we're
+// entirely synchronized (aka `&mut Task`), so you shouldn't require an
+// `Arc<Mutex<T>>` to share as the synchronization isn't necessary!
+//
+// So the idea here is that you insert data into a task via `Task::insert`, and
+// a handle to that data is then returned to you. That handle can later get
+// presented to the task itself to actually retrieve the underlying data. The
+// invariant is that the data can only ever be accessed with the task present,
+// and the lifetime of the actual data returned is connected to the lifetime of
+// the task itself.
+//
+// Conceptually I at least like to think of this as "dynamically adding more
+// struct fields to a `Task`". Each call to insert creates a new "name" for the
+// struct field, a `TaskData<A>`, and then you can access the fields of a struct
+// with the struct itself (`Task`) as well as the name of the field
+// (`TaskData<A>`). If that analogy doesn't make sense then oh well, it at least
+// helped me!
+//
+// So anyway, we do some interesting trickery here to actually get it to work.
+// Each `TaskData<A>` handle stores `Arc<UnsafeCell<A>>`. So it turns out, we're
+// not even adding data to the `Task`! Each `TaskData<A>` contains a reference
+// to this `Arc`, and `TaskData` handles can be cloned which just bumps the
+// reference count on the `Arc` itself.
+//
+// As before, though, you can present the `Arc` to a `Task` and if they
+// originated from the same place you're allowed safe access to the internals.
+// We allow but shared and mutable access without the `Sync` bound on the data,
+// crucially noting that a `Task` itself is not `Sync`.
+//
+// So hopefully I've convinced you of this point that the `get` and `get_mut`
+// methods below are indeed safe. The data is always valid as it's stored in an
+// `Arc`, and access is only allowed with the proof of the associated `Task`.
+// One thing you might be asking yourself though is what exactly is this "proof
+// of a task"? Right now it's a `usize` corresponding to the `Task`'s
+// `TaskHandle` arc allocation.
+//
+// Wait a minute, isn't that the ABA problem! That is, we create a task A, add
+// some data to it, destroy task A, do some work, create a task B, and then ask
+// to get the data from task B. In this case though the point of the
+// `task_inner` "proof" field is simply that there's some non-`Sync` token
+// proving that you can get access to the data. So while weird, this case should
+// still be safe, as the data's not stored in the task itself.
+
+/// A reference to a piece of data that's stored inside of a `Task`.
+///
+/// This can be used with the `Task::get` and `Task::get_mut` methods to access
+/// data inside of tasks.
+pub struct TaskData<A> {
+    task_inner: usize,
+    ptr: Arc<UnsafeCell<A>>,
+}
+
+// for safety here, see docs at the top of this module
+unsafe impl<A: Send> Send for TaskData<A> {}
+unsafe impl<A: Sync> Sync for TaskData<A> {}
 
 impl<A> TaskData<A> {
     /// Inserts a new piece of task-local data into this task, returning a
