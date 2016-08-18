@@ -100,7 +100,13 @@ pub struct Task {
 /// Created by the `Task::handle` method.
 #[derive(Clone)]
 pub struct TaskHandle {
-    inner: Arc<Inner>,
+    inner: HandleInner,
+}
+
+#[derive(Clone)]
+enum HandleInner {
+    Notify(Arc<Notify>),
+    Static(Arc<Inner>),
 }
 
 struct Inner {
@@ -129,17 +135,36 @@ impl Task {
         Task {
             poll_requests: RefCell::new(Vec::new()),
             handle: TaskHandle {
-                inner: Arc::new(Inner {
+                inner: HandleInner::Static(Arc::new(Inner {
                     slot: Slot::new(None),
                     registered: AtomicBool::new(false),
-                }),
+                })),
+            },
+            _marker: marker::PhantomData,
+        }
+    }
+
+    /// Creates a new task backed by the provided `Notify` instance.
+    ///
+    /// Requests to `TaskHandle::unpark` will be routed to the `notify` argument
+    /// provided.
+    pub fn new_notify<N: Notify>(notify: N) -> Task {
+        Task {
+            poll_requests: RefCell::new(Vec::new()),
+            handle: TaskHandle {
+                inner: HandleInner::Notify(Arc::new(notify)),
             },
             _marker: marker::PhantomData,
         }
     }
 
     fn inner_usize(&self) -> usize {
-        &*self.handle.inner as *const Inner as usize
+        match self.handle.inner {
+            HandleInner::Notify(ref a) => {
+                &**a as *const Notify as *const () as usize
+            }
+            HandleInner::Static(ref a) => &**a as *const Inner as usize,
+        }
     }
 
     /// Gets a handle to this task which can be cloned to a piece of
@@ -149,7 +174,7 @@ impl Task {
     /// ready to get polled again. The returned handle implements the `Clone`
     /// trait and all clones will refer to this same task.
     ///
-    /// Note that if data is immediately ready then the `Task::notify` method
+    /// Note that if data is immediately ready then the `Task::unpark` method
     /// should be preferred.
     pub fn handle(&self) -> &TaskHandle {
         &self.handle
@@ -191,7 +216,7 @@ impl Task {
     /// then call the closure provided. For the duration of the closure the
     /// "current task" will be set to this task, and then after the closure
     /// returns the current task will be reset to what it was before.
-    pub fn enter<F, R>(&self, f: F) -> R
+    pub fn enter<F, R>(&mut self, f: F) -> R
         where F: FnOnce() -> R,
     {
         CURRENT_TASK.set(self, f)
@@ -216,6 +241,10 @@ impl Task {
     /// Currently, if `poll` panics, then this method will propagate the panic
     /// to the thread that `poll` was called on. This is bad and it will change.
     pub fn run(self, mut future: BoxFuture<(), ()>) {
+        if let HandleInner::Notify(_) = self.handle.inner {
+            println!("can't run a task created with new_notify");
+        }
+
         let mut me = self;
 
         // First up, poll the future, but do so in a `catch_unwind` to ensure
@@ -258,7 +287,12 @@ impl Task {
         // data structures so we can start the polling process again when
         // something gets notified.
         let inner = me.handle.inner.clone();
-        inner.slot.try_produce((me, future)).ok().unwrap();
+        match inner {
+            HandleInner::Static(ref inner) => {
+                inner.slot.try_produce((me, future)).ok().unwrap();
+            }
+            HandleInner::Notify(_) => panic!(),
+        }
     }
 }
 
@@ -266,6 +300,20 @@ fn catch_unwind<F, U>(f: F) -> thread::Result<U>
     where F: FnOnce() -> U + Send + 'static,
 {
     panic::catch_unwind(panic::AssertUnwindSafe(f))
+}
+
+/// A trait for types that can receive a notification that a future needs to get
+/// polled and arrange for it to be polled.
+pub trait Notify: Send + Sync + 'static {
+    /// Indicate that the task that this `Notify` is associated with should
+    /// attempt to poll the associated future in a timely fashion.
+    ///
+    /// This function is called by `TaskHandle::unpark` for tasks which are
+    /// backed by an instance of `Notify`. A call to this method means that a
+    /// future is likely ready to make progress, but may not necessarily be
+    /// ready to complete. In order to figure this out the future needs to be
+    /// polled.
+    fn notify(&self);
 }
 
 /// Returns a handle to the current task to call `unpark` at a later date.
@@ -317,22 +365,29 @@ impl TaskHandle {
     /// already be running on another thread, but this will ensure that a poll
     /// happens again to receive this notification.
     pub fn unpark(&self) {
-        // First, see if we can actually register an `on_full` callback. The
-        // `Slot` requires that only one registration happens, and this flag
-        // guards that.
-        if self.inner.registered.swap(true, Ordering::SeqCst) {
-            return
-        }
+        match self.inner {
+            HandleInner::Notify(ref n) => n.notify(),
+            HandleInner::Static(ref inner) => {
+                // First, see if we can actually register an `on_full` callback.
+                // The `Slot` requires that only one registration happens, and
+                // this flag guards that.
+                if inner.registered.swap(true, Ordering::SeqCst) {
+                    return
+                }
 
-        // If we won the race to register a callback, do so now. Once the slot
-        // is resolve we allow another registration **before we poll again**.
-        // This allows any future which may be somewhat badly behaved to be
-        // compatible with this.
-        self.inner.slot.on_full(|slot| {
-            let (task, future) = slot.try_consume().ok().unwrap();
-            task.handle.inner.registered.store(false, Ordering::SeqCst);
-            DEFAULT.execute(|| task.run(future))
-        });
+                // If we won the race to register a callback, do so now. Once
+                // the slot is resolve we allow another registration **before we
+                // poll again**.  This allows any future which may be somewhat
+                // badly behaved to be compatible with this.
+                inner.slot.on_full(|slot| {
+                    let (task, future) = slot.try_consume().ok().unwrap();
+                    if let HandleInner::Static(ref s) = task.handle.inner {
+                        s.registered.store(false, Ordering::SeqCst);
+                    }
+                    DEFAULT.execute(|| task.run(future))
+                });
+            }
+        }
     }
 }
 
