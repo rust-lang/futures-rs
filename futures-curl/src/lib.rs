@@ -266,7 +266,10 @@ impl Data {
                 Poll::Ok(timeout) => timeout,
                 _ => panic!("event loop should finish poll immediately"),
             };
-            match timeout.poll() {
+            drop(state);
+            let res = timeout.poll();
+            state = self.state.borrow_mut();
+            match res {
                 Poll::NotReady => state.timeout = Some(timeout),
                 Poll::Ok(()) => panic!("timeout done immediately?"),
                 Poll::Err(e) => panic!("timeout poll error: {}", e),
