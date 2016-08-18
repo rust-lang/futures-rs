@@ -59,13 +59,10 @@ impl<A, T> Future for ReadExact<A, T>
             State::Reading { ref mut a, ref mut buf, ref mut pos } => {
                 let buf = buf.as_mut();
                 while *pos < buf.len() {
-                    match a.read(&mut buf[*pos..]) {
-                        Ok(0) => return Poll::Err(eof()),
-                        Ok(n) => *pos += n,
-                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                            return Poll::NotReady
-                        }
-                        Err(e) => return Poll::Err(e),
+                    let n = try_nb!(a.read(&mut buf[*pos..]));
+                    *pos += n;
+                    if n == 0 {
+                        return Poll::Err(eof())
                     }
                 }
             }

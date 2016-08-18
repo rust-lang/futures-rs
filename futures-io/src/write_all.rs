@@ -62,13 +62,10 @@ impl<A, T> Future for WriteAll<A, T>
             State::Writing { ref mut a, ref buf, ref mut pos } => {
                 let buf = buf.as_ref();
                 while *pos < buf.len() {
-                    match a.write(&buf[*pos..]) {
-                        Ok(0) => return Poll::Err(zero_write()),
-                        Ok(n) => *pos += n,
-                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                            return Poll::NotReady
-                        }
-                        Err(e) => return Poll::Err(e),
+                    let n = try_nb!(a.write(&buf[*pos..]));
+                    *pos += n;
+                    if n == 0 {
+                        return Poll::Err(zero_write())
                     }
                 }
             }

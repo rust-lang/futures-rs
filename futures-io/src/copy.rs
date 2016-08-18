@@ -10,7 +10,6 @@ pub struct Copy<R, W> {
     reader: R,
     read_done: bool,
     writer: W,
-    flush_done: bool,
     pos: usize,
     cap: usize,
     amt: u64,
@@ -36,7 +35,6 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
         reader: reader,
         read_done: false,
         writer: writer,
-        flush_done: false,
         amt: 0,
         pos: 0,
         cap: 0,
@@ -55,56 +53,28 @@ impl<R, W> Future for Copy<R, W>
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
-            if !self.read_done && self.pos == self.cap {
-                match self.reader.read(&mut self.buf) {
-                    Ok(0) => {
-                        debug!("copy at eof");
-                        self.read_done = true;
-                    }
-                    Ok(i) => {
-                        debug!("read {} bytes", i);
-                        self.pos = 0;
-                        self.cap = i;
-                    }
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        debug!("read is gone");
-                        return Poll::NotReady
-                    }
-                    Err(e) => return Poll::Err(e),
+            if self.pos == self.cap && !self.read_done {
+                let n = try_nb!(self.reader.read(&mut self.buf));
+                if n == 0 {
+                    self.read_done = true;
+                } else {
+                    self.pos = 0;
+                    self.cap = n;
                 }
             }
 
-            // Now that our buffer has some data, let's write it out!
-            while self.pos < self.cap || (self.read_done && !self.flush_done) {
-                if self.pos == self.cap {
-                    match self.writer.flush() {
-                        Ok(()) => {
-                            debug!("flush done");
-                            self.flush_done = true;
-                        }
-                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                            debug!("waiting for another flush");
-                            return Poll::NotReady
-                        }
-                        Err(e) => return Poll::Err(e),
-                    }
-                    break
-                }
-                match self.writer.write(&self.buf[self.pos..self.cap]) {
-                    Ok(i) => {
-                        debug!("wrote {} bytes", i);
-                        self.pos += i;
-                        self.amt += i as u64;
-                    }
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        debug!("write no longer ready");
-                        return Poll::NotReady
-                    }
-                    Err(e) => return Poll::Err(e),
-                }
+            // If our buffer has some data, let's write it out!
+            while self.pos < self.cap {
+                let i = try_nb!(self.writer.write(&self.buf[self.pos..self.cap]));
+                self.pos += i;
+                self.amt += i as u64;
             }
 
-            if self.read_done && self.flush_done {
+            // If we've written al the data and we've seen EOF, flush out the
+            // data and finish the transfer.
+            // done with the entire transfer.
+            if self.pos == self.cap && self.read_done {
+                try_nb!(self.writer.flush());
                 return Poll::Ok(self.amt)
             }
         }

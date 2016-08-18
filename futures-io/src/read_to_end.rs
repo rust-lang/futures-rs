@@ -35,21 +35,10 @@ impl<A> Future for ReadToEnd<A>
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Vec<u8>, io::Error> {
-        debug!("attempting a read to end");
-        let start = self.buf.len();
-        match self.a.read_to_end(&mut self.buf) {
-            // If we get `Ok`, then we know the stream hit EOF, so we're done
-            Ok(_) => Poll::Ok(mem::replace(&mut self.buf, Vec::new())),
-
-            // If we hit WouldBlock, then the data we read so far is in the
-            // buffer and we just need to wait until we're readable again.
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                debug!("read {} bytes, waiting for more",
-                       self.buf.len() - start);
-                Poll::NotReady
-            }
-
-            Err(e) => Poll::Err(e)
-        }
+        // If we get `Ok`, then we know the stream hit EOF and we're done. If we
+        // hit "would block" then all the read data so far is in our buffer, and
+        // otherwise we propagate errors.
+        try_nb!(self.a.read_to_end(&mut self.buf));
+        Poll::Ok(mem::replace(&mut self.buf, Vec::new()))
     }
 }

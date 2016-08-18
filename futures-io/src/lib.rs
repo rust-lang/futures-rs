@@ -4,11 +4,6 @@
 //! provide the abstractions necessary for interoperating I/O streams in an
 //! asynchronous fashion.
 //!
-//! At its core is the abstraction of I/O objects as a collection of `Read`,
-//! `Write`, and `Stream<Item=Ready, Error=io::Error>` implementations. This can
-//! then be used to define a number of combinators and then later define further
-//! abstractions on these streams.
-//!
 //! ## Installation
 //!
 //! Currently it's recommended to use the git version of this repository as it's
@@ -21,16 +16,20 @@
 //! futures-io = { git = "https://github.com/alexcrichton/futures-rs" }
 //! ```
 //!
-//! ## Readiness
+//! ## Core abstraction
 //!
-//! This crate primarily provides adaptors, and traits useful for working with
-//! objects that implement `Stream<Item=Ready, Error=io::Error>`. It's intended
-//! that I/O objects like TCP streams, UDP sockets, TCP listeners, etc, can all
-//! implement this interface and then get composed with one another.
+//! At its core this crate doesn't actually provide any traits, but rather
+//! dictates particular semantics when working with I/O to easily interoperate
+//! with futures. Like the `Future::poll` method, the intention is that you
+//! simply perform the I/O as you normally would, and if `WouldBlock` is
+//! returned then the task will automatically try again once the data is
+//! available.
 //!
-//! Many primitives provided in this crate are similar to the ones found in
-//! `std::io`, with the added implementation of the `Stream` trait for
-//! readiness.
+//! Otherwise this crate is intended to be generally interoperable with the
+//! standard library's `Read` and `Write` trait. All of the combinators provided
+//! here work with `Read` and `Write` generics, but they assume that if
+//! `WouldBlock` is returned that the current task associated with the future
+//! will get notified once the I/O is ready to proceed again.
 
 #![deny(missing_docs)]
 
@@ -49,6 +48,23 @@ pub type IoFuture<T> = BoxFuture<T, io::Error>;
 
 /// A convenience typedef around a `Stream` whose error component is `io::Error`
 pub type IoStream<T> = BoxStream<T, io::Error>;
+
+/// A convenience macro for working with `io::Result<T>` from the `Read` and
+/// `Write` traits.
+///
+/// This macro takes `io::Result<T>` as input, and returns `T` as the output. If
+/// the input type is of the `Err` variant, then `Poll::NotReady` is returned if
+/// it indicates `WouldBlock` or otherwise `Err` is returned.
+#[macro_export]
+macro_rules! try_nb {
+    ($e:expr) => (match $e {
+        Ok(t) => t,
+        Err(ref e) if e.kind() == ::std::io::ErrorKind::WouldBlock => {
+            return ::futures::Poll::NotReady
+        }
+        Err(e) => return ::futures::Poll::Err(e.into()),
+    })
+}
 
 mod copy;
 mod flush;
