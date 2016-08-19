@@ -297,12 +297,11 @@ The core trait of the [`futures`] crate is [`Future`].  This trait represents an
 asynchronous computation which will eventually get resolved. Let's take a look:
 
 ```rust
-trait Future: 'static {
-    type Item: 'static;
-    type Error: 'static;
+trait Future {
+    type Item;
+    type Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
-    fn schedule(&mut self, task: &mut Task);
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 
     // ...
 }
@@ -311,35 +310,9 @@ trait Future: 'static {
 I'm sure quite a few points jump out immediately about this definition, so
 let's go through them all in detail!
 
-* [`'static`][static]
 * [`Item` and `Error`][item-and-error]
-* [`poll` and `schedule`][poll-and-schedule]
+* [`poll`][poll]
 * [`Future` combinators][combinators]
-
-### `'static`
-[static]: #static
-
-[Back to `Future`][future-trait]
-
-```rust
-trait Future: 'static {
-    // ...
-}
-```
-
-The first part of the `Future` trait you'll probably notice is the `'static`
-bounds. This is Rust's way of saying that a type contains no stack references.
-This restriction on `Future` as well as its associated types provides the
-guarantee that all futures, and their results, can be persisted beyond any stack
-frame.
-
-These bounds on the trait definition make futures maximally useful in most event
-loops with the tradeoff that implementing futures for data that would otherwise
-not be `'static` may require an allocation. This tradeoff is made mainly to
-empower consumers of futures. More technical information about this
-bounds can be found [in the FAQ][faq-why-static].
-
-[faq-why-static]: https://github.com/alexcrichton/futures-rs/blob/master/FAQ.md#why--static
 
 ### `Item` and `Error`
 [item-and-error]: #item-and-error
@@ -347,17 +320,14 @@ bounds can be found [in the FAQ][faq-why-static].
 [Back to `Future`][future-trait]
 
 ```rust
-type Item: 'static;
-type Error: 'static;
+type Item;
+type Error;
 ```
 
-The next aspect of the [`Future`] trait you'll probably notice is the two
+The first aspect of the [`Future`] trait you'll probably notice is the two
 associated types it contains. These represent the types of values that the
 `Future` can resolve to. Each instance of `Future` can be thought of as
 resolving to a `Result<Self::Item, Self::Error>`.
-
-Each associated type, like the trait, is bound by `'static`, indicating that
-they cannot contain stack references.
 
 These two types will show up very frequently in `where` clauses when consuming
 futures generically, and type signatures when futures are returned. For example
@@ -380,49 +350,33 @@ fn foo<F>(future: F)
 }
 ```
 
-### `poll` and `schedule`
-[poll-and-schedule]: #poll-and-schedule
+### `poll`
+[poll]: #poll
 
 [Back to `Future`][future-trait]
 
 ```rust
-fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
-fn schedule(&mut self, task: &mut Task);
+fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 ```
 
-The entire [`Future`] trait is built up around these two methods, and they are
-the only required methods. The [`poll`] method is the sole entry point for
-extracting the resolved value of a future, and the [`schedule`] method is how
-interest is registered in the value of a future, should it become available.
-As a consumer of futures you will rarely - if ever - need to call these methods
-directly. Rather, you interact with futures through [combinators] that create
-higher-level abstractions around futures. But it's useful to our understanding
-if we have a sense of how futures work under the hood.
+The entire [`Future`] trait is built up around this one method, and it's the
+only required method. The [`poll`] method is the sole entry point for extracting
+the resolved value of a future as well as registering interest in the future
+itself. As a consumer of futures you will rarely - if ever - need to call this
+method directly. Rather, you interact with futures through [combinators] that
+create higher-level abstractions around futures. But it's useful to our
+understanding if we have a sense of how futures work under the hood.
 
 [`poll`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.poll
-[`schedule`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.schedule
 
-These two methods are similar to [`epoll`] or [`kqueue`] in that they embody a
-*readiness* model of computation rather than a *completion*-based model. That
-is, futures implementations notify their consumers that data is _ready_ through
-the [`schedule`] method, and then values are extracted through the nonblocking
-[`poll`] method. If [`poll`] is called and the value isn't ready yet then the
-`schedule` method can be invoked to learn about when the value is itself
-available.
-
-[`epoll`]: http://man7.org/linux/man-pages/man7/epoll.7.html
-[`kqueue`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
-
-First, let's take a closer look at [`poll`]. Notice the
-`&mut self` argument, which conveys a number of restrictions and abilities:
+Let's take a closer look at [`poll`]. Notice the `&mut self` argument, which
+conveys a number of restrictions and abilities:
 
 * Futures may only be polled by one thread at a time.
 * During a `poll`, futures can mutate their own state.
 * When `poll`'d, futures are owned by another entity.
 
-Next up is the [`Task`] argument, but we'll [talk about that
-later][task-and-future]. Finally we see the [`Poll`][poll-type] type being returned,
-which looks like.
+Next we see the [`Poll`][poll-type] type being returned, which looks like:
 
 [`Task`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html
 [poll-type]: http://alexcrichton.com/futures-rs/futures/enum.Poll.html
@@ -446,41 +400,34 @@ panic, some may never resolve again, etc. This means that implementors of the
 returned successfully.
 
 If a call to [`poll`] returns `Poll::NotReady`, then futures still need to know
-how to figure out when to get poll'd later! This is where the [`schedule`]
-method comes into the picture. Like with [`poll`], this method takes `&mut self`,
-giving us the same guarantees as before. Similarly, it is passed a [`Task`], but
-the relationship between [`schedule`] and [`Task`] is somewhat different than
-that `poll` has.
+how to figure out when to get poll'd later! To accomplish this, a future must
+ensure that when `NotReady` is returned the *current task* is arranged to
+receive a notification when the value may be available. We'll [talk more about
+tasks later][task-and-future], and it's a sufficient mental model to understand
+that `NotReady` means not only the item isn't ready, but you're now registered
+to receive a notification when it is ready.
 
-Each [`Task`] can have a [`TaskHandle`] extracted from it via the
-[`Task::handle`] method. This [`TaskHandle`] implements `Send + 'static` and
-has one primary method, [`notify`]. This method, when called, indicates that a
-future can make progress, and may be able to resolve to a value.
+To actually deliver notifications, the `task::park` method is the primary entry
+point. This function returns a [`TaskHandle`] which implements `Send + 'static`
+and has one primary method, [`unpark`]. The `unpark` method, when called,
+indicates that a future can make progress, and may be able to resolve to a
+value.
 
-[`Task::handle`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.handle
 [`TaskHandle`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html
-[`notify`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html#method.notify
+[`unpark`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html#method.unpark
 
-That is, when [`schedule`] is called, a future must arrange for the [`Task`]
-specified to get notified when progress is ready to be made. It's ok to notify a
-task when the future can't actually get resolved, or just for a spurious
-notification that something is ready. Nevertheless, implementors of [`Future`]
-must guarantee that after the value is ready at least one call to `notify` is
-made.
-
-More detailed documentation can be found on the [`poll`] and [`schedule`]
-methods themselves.
+More detailed documentation can be found on the [`poll`] methods itself.
 
 ### `Future` combinators
 [combinators]: #future-combinators
 
 [Back to `Future`][future-trait]
 
-Now that we've seen the [`poll`] and [`schedule`] methods, they seem like they
-may be a bit of a pain to call! What if all you have is a future of `String` and
-you want to convert it to a future of `u32`? For this sort of composition, the
-`Future` trait also provides a large number of **combinators** which can be seen
-on the [`Future`] trait itself.
+Now that we've seen the [`poll`] method, it seems like it may be a bit of a
+pain to call! What if all you have is a future of `String` and you want to
+convert it to a future of `u32`? For this sort of composition, the `Future`
+trait also provides a large number of **combinators** which can be seen on the
+[`Future`] trait itself.
 
 These combinators similar to the [`Iterator`] combinators in that they all
 consume the receiving future and return a new future. For example, we could
@@ -488,7 +435,7 @@ have:
 
 ```rust
 fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
-    where F: Future<Item=String>,
+    where F: Future<Item=String> + 'static,
 {
     Box::new(future.map(|string| {
         string.parse::<u32>().unwrap()
@@ -550,20 +497,17 @@ in the standard library:
 Let's take a look at the [`Stream`] trait in the [`futures`] crate:
 
 ```rust
-trait Stream: 'static {
-    type Item: 'static;
-    type Error: 'static;
+trait Stream {
+    type Item;
+    type Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error>;
-    fn schedule(&mut self, task: &mut Task);
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error>;
 }
 ```
 
 You'll notice that the [`Stream`] trait is very similar to the [`Future`]
-trait.  It requires `'static`, has associated types for the item/error, and has
-a `poll` and `schedule` method. The primary difference, however, is that a
-stream's [`poll`][stream-poll] method returns `Option<Self::Item>` instead of
-`Self::Item`.
+trait. The primary difference is that a stream's [`poll`][stream-poll] method
+returns `Option<Self::Item>` instead of `Self::Item`.
 
 [stream-poll]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#tymethod.poll
 
@@ -1011,24 +955,23 @@ from `Box` to [`impl Trait`]
 
 Up to this point we've talked a lot about how to build computations by creating
 futures, but we've barely touched on how to actually *run* a future. When
-talking about [`poll` and `schedule`][poll-and-schedule] earlier it was
-mentioned that if `poll` returns `NotReady` then `schedule` is called, but who's
-actually calling `poll` and `schedule`?
+talking about [`poll`][poll] earlier it was mentioned that if `poll` returns
+`NotReady` then it's arranged for a task to be notified, but where did this task
+come from? Additionally, where'd [`poll`] get called from in the first place?
 
 Enter, a [`Task`]!
 
-In the [`futures`] crate the [`Task`] struct
-drives a computation represented by futures. Any particular instance of a
-`Future` may be short-lived, only a part of a larger computation. For
-example, in our ["hello world"][hello-world] example we had a number of futures,
-but only one actually ran at a time. For the entire program, we
-had one [`Task`] that followed the logical "thread of execution" as each
-future resolved and the overall computation progressed.
+In the [`futures`] crate the [`Task`] struct drives a computation represented by
+futures. Any particular instance of a `Future` may be short-lived, only a part
+of a larger computation. For example, in our ["hello world"][hello-world]
+example we had a number of futures, but only one actually ran at a time. For the
+entire program, we had one [`Task`] that followed the logical "thread of
+execution" as each future resolved and the overall computation progressed.
 
 In short, a `Task` is the entity that actually orchestrates the top-level calls
-to `poll` and `schedule`. Its main method, [`run`], does exactly this. Internally,
-`Task` has synchronization such that if [`notify`] is called on multiple threads
-then the resulting calls to [`poll`] are properly coordinated.
+to `poll`. Its main method, [`run`], does exactly this.  Internally, `Task` has
+synchronization such that if [`unpark`] is called on multiple threads then the
+resulting calls to [`poll`] are properly coordinated.
 
 [`run`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.run
 
@@ -1077,9 +1020,9 @@ between futures:
 But both of these solutions are relatively heavyweight, so let's see if we
 can do better!
 
-In the [`Task` and `Future`][task-and-future] section we saw how an asynchronous
-computation has access to a [`Task`] for its entire lifetime, and from the
-signature of [`poll`] and [`schedule`] we also see that it has mutable access to
+In the [`Task` and `Future`][task-and-future] section we saw how an
+asynchronous computation has access to a [`Task`] for its entire lifetime, and
+from the signature of [`poll`] we also see that it has mutable access to
 this task. The [`Task`] API leverages these facts and allows you to store
 data inside a `Task`.
 

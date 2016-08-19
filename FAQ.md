@@ -4,27 +4,6 @@ A collection of some commonly asked questions, with responses! If you find any
 of these unsatisfactory feel free to ping me (@alexcrichton) on github,
 acrichto on IRC, or just by email!
 
-### Why `'static`?
-
-The `Future` trait and all of its associated items require `'static`.  This
-expresses the constraint that all futures must not contain any borrowed data. A
-common question though is why not just let this fall out of the types
-themselves? That is, I'll have `'static` futures if they happend to contain
-`'static` data.
-
-At the fundamental level, futures respresent state machines which are pushed
-forward across turns of an underlying event loop somewhere. References to
-non-`'static` data are typically on the stack, but the stack is not persisted
-across turns of this underlying event loop. That is, the only safe data for a
-future to actually reference is typically data owned above the stack frame of
-the event loop itself. Event loops typically are created near the top of a
-program, though, so there's typically not a whole lot of data that would be
-safely store-able anyway!
-
-For now, though, we believe that `'static` is a rough approximation for "data
-owned above the event loop" and is the 99% use case of futures anyway. We're
-interested in exploring alternatives though, to relax this constraint!
-
 ### Why both `Item` and `Error` associated types?
 
 An alternative design of the `Future` trait would be to only have one associated
@@ -55,7 +34,7 @@ repository, where you can execute work on a thread pool and receive a future to
 the value generated. This future is then composable with `and_then`, for
 example, to mesh in with the rest of a future's computation.
 
-### How do I call `poll` and `schedule`?
+### How do I call `poll`?
 
 Right now, call `.forget()`. That method will drive a future to completion and
 drop all associated resources as soon as it's completed.
@@ -77,15 +56,17 @@ computation can be constructed *without boxing* and only the final step actually
 places a `Box` around the entire future. In that sense you're only paying the
 allocation at the very end, not for any of the intermediate futures.
 
+More information can be found [in the tutorial][return-future].
+
+[return-future]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md#returning-futures
+
 ### Does it work on Windows?
 
 Yes! This library builds on top of mio, which works on Windows.
 
 ### What version of Rust should I use?
 
-While the library compiles on stable and beta (as of 2016-08-02), the nightly
-release (1.13.0-nightly) is recommended due to Cargo workspaces and compiler bug
-fixes that make compilation much speedier.
+Rust 1.10 or later.
 
 ### Is it on crates.io?
 
