@@ -273,7 +273,7 @@ fn zip() {
 #[test]
 fn peek() {
     let mut peekable = list().peekable();
-    assert_eq!(peekable.peek(&mut Task::new()).unwrap(), Ok(Some(&1)));
-    assert_eq!(peekable.peek(&mut Task::new()).unwrap(), Ok(Some(&1)));
-    assert_eq!(peekable.poll(&mut Task::new()).unwrap(), Ok(Some(1)));
+    assert_eq!(peekable.peek().unwrap(), Ok(Some(&1)));
+    assert_eq!(peekable.peek().unwrap(), Ok(Some(&1)));
+    assert_eq!(peekable.poll().unwrap(), Ok(Some(1)));
 }
