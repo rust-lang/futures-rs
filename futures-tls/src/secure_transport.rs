@@ -163,26 +163,30 @@ impl<S> Future for Handshake<S>
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<TlsStream<S>, io::Error> {
-        let (stream, certs) = match mem::replace(self, Handshake::Empty) {
+        let (mut stream, certs) = match mem::replace(self, Handshake::Empty) {
             Handshake::Error(e) => return Poll::Err(e),
             Handshake::Empty => panic!("can't poll handshake twice"),
             Handshake::Stream(s) => return Poll::Ok(TlsStream::new(s)),
             Handshake::Interrupted(s, certs) => (s, certs),
         };
 
-        if let Err(e) = self.validate_certs(&stream, &certs) {
-            return Poll::Err(e)
-        }
-
-        // TODO: dedup with Handshake::new
-        match stream.handshake() {
-            Ok(s) => Poll::Ok(TlsStream::new(s)),
-            Err(st::HandshakeError::Failure(e)) => {
-                Poll::Err(Error::new(ErrorKind::Other, e))
+        loop {
+            if let Err(e) = self.validate_certs(&stream, &certs) {
+                return Poll::Err(e)
             }
-            Err(st::HandshakeError::Interrupted(s)) => {
-                *self = Handshake::Interrupted(s, certs);
-                Poll::NotReady
+
+            // TODO: dedup with Handshake::new
+            stream = match stream.handshake() {
+                Ok(s) => return Poll::Ok(TlsStream::new(s)),
+                Err(st::HandshakeError::Failure(e)) => {
+                    return Poll::Err(Error::new(ErrorKind::Other, e))
+                }
+                Err(st::HandshakeError::Interrupted(s)) => s,
+            };
+
+            if stream.would_block() {
+                *self = Handshake::Interrupted(stream, certs);
+                return Poll::NotReady
             }
         }
     }
