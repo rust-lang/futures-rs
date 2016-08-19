@@ -1,13 +1,13 @@
 use std::mem;
 
-use {Future, IntoFuture, Task, Poll};
+use {Future, IntoFuture, Poll};
 
 /// A future which defers creation of the actual future until a callback is
 /// scheduled.
 ///
 /// This is created by the `lazy` function.
-pub struct Lazy<F, R> {
-    inner: _Lazy<F, R>,
+pub struct Lazy<F, R: IntoFuture> {
+    inner: _Lazy<F, R::Future>,
 }
 
 enum _Lazy<F, R> {
@@ -35,8 +35,8 @@ enum _Lazy<F, R> {
 /// });
 /// drop(b); // closure is never run
 /// ```
-pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
-    where F: FnOnce() -> R + 'static,
+pub fn lazy<F, R>(f: F) -> Lazy<F, R>
+    where F: FnOnce() -> R,
           R: IntoFuture
 {
     Lazy {
@@ -44,8 +44,8 @@ pub fn lazy<F, R>(f: F) -> Lazy<F, R::Future>
     }
 }
 
-impl<F, R> Lazy<F, R::Future>
-    where F: FnOnce() -> R + 'static,
+impl<F, R> Lazy<F, R>
+    where F: FnOnce() -> R,
           R: IntoFuture,
 {
     fn get(&mut self) -> &mut R::Future {
@@ -65,23 +65,14 @@ impl<F, R> Lazy<F, R::Future>
     }
 }
 
-impl<F, R> Future for Lazy<F, R::Future>
-    where F: FnOnce() -> R + 'static,
+impl<F, R> Future for Lazy<F, R>
+    where F: FnOnce() -> R,
           R: IntoFuture,
 {
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<R::Item, R::Error> {
-        self.get().poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.get().schedule(task)
-    }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=R::Item, Error=R::Error>>> {
-        self.get().tailcall()
+    fn poll(&mut self) -> Poll<R::Item, R::Error> {
+        self.get().poll()
     }
 }

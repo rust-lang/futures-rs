@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Task, Poll};
+use {Future, Poll};
 use slot::{Slot, Token};
 use stream::Stream;
+use task;
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
 ///
@@ -16,10 +17,7 @@ use stream::Stream;
 ///
 /// The `Receiver` returned implements the `Stream` trait and has access to any
 /// number of the associated combinators for transforming the result.
-pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
     let inner = Arc::new(Inner {
         slot: Slot::new(None),
         receiver_gone: AtomicBool::new(false),
@@ -37,21 +35,16 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>)
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `channel` method in the `stream` module.
-pub struct Sender<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+pub struct Sender<T, E> {
     inner: Arc<Inner<T, E>>,
 }
 
 /// A future returned by the `Sender::send` method which will resolve to the
 /// sender once it's available to send another message.
-pub struct FutureSender<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+pub struct FutureSender<T, E> {
     sender: Option<Sender<T, E>>,
     data: Option<Result<T, E>>,
+    on_empty_token: Option<Token>,
 }
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -59,10 +52,7 @@ pub struct FutureSender<T, E>
 /// This is a concrete implementation of a stream which can be used to represent
 /// a stream of values being computed elsewhere. This is created by the
 /// `channel` method in the `stream` module.
-pub struct Receiver<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+pub struct Receiver<T, E> {
     inner: Arc<Inner<T, E>>,
     on_full_token: Option<Token>,
 }
@@ -79,39 +69,32 @@ enum Message<T> {
 
 pub struct SendError<T, E>(Result<T, E>);
 
-impl<T, E> Stream for Receiver<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+impl<T, E> Stream for Receiver<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<Option<T>, E> {
+    fn poll(&mut self) -> Poll<Option<T>, E> {
+        if let Some(token) = self.on_full_token.take() {
+            self.inner.slot.cancel(token);
+        }
+
         // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Poll::Ok(Some(e)),
             Ok(Message::Data(Err(e))) => Poll::Err(e),
             Ok(Message::Done) => Poll::Ok(None),
-            Err(..) => Poll::NotReady,
+            Err(..) => {
+                let task = task::park();
+                self.on_full_token = Some(self.inner.slot.on_full(move |_| {
+                    task.unpark();
+                }));
+                Poll::NotReady
+            }
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(token) = self.on_full_token.take() {
-            self.inner.slot.cancel(token);
-        }
-
-        let handle = task.handle().clone();
-        self.on_full_token = Some(self.inner.slot.on_full(move |_| {
-            handle.notify();
-        }));
     }
 }
 
-impl<T, E> Drop for Receiver<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+impl<T, E> Drop for Receiver<T, E> {
     fn drop(&mut self) {
         self.inner.receiver_gone.store(true, Ordering::SeqCst);
         if let Some(token) = self.on_full_token.take() {
@@ -123,10 +106,7 @@ impl<T, E> Drop for Receiver<T, E>
     }
 }
 
-impl<T, E> Sender<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+impl<T, E> Sender<T, E> {
     /// Sends a new value along this channel to the receiver.
     ///
     /// This method consumes the sender and returns a future which will resolve
@@ -135,34 +115,37 @@ impl<T, E> Sender<T, E>
         FutureSender {
             sender: Some(self),
             data: Some(t),
+            on_empty_token: None,
         }
     }
 }
 
-impl<T, E> Drop for Sender<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+impl<T, E> Drop for Sender<T, E> {
     fn drop(&mut self) {
-        self.inner.slot.on_empty(|slot| {
+        self.inner.slot.on_empty(None, |slot, _none| {
             slot.try_produce(Message::Done).ok().unwrap();
         });
     }
 }
 
-impl<T, E> Future for FutureSender<T, E>
-    where T: Send + 'static,
-          E: Send + 'static,
-{
+impl<T, E> Future for FutureSender<T, E> {
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let data = self.data.take().expect("cannot poll FutureSender twice");
         let sender = self.sender.take().expect("cannot poll FutureSender twice");
+        if let Some(token) = self.on_empty_token.take() {
+            sender.inner.slot.cancel(token);
+        }
         match sender.inner.slot.try_produce(Message::Data(data)) {
             Ok(()) => Poll::Ok(sender),
             Err(e) => {
+                let task = task::park();
+                let token = sender.inner.slot.on_empty(None, move |_slot, _item| {
+                    task.unpark();
+                });
+                self.on_empty_token = Some(token);
                 self.data = Some(match e.into_inner() {
                     Message::Data(data) => data,
                     Message::Done => panic!(),
@@ -170,19 +153,6 @@ impl<T, E> Future for FutureSender<T, E>
                 self.sender = Some(sender);
                 Poll::NotReady
             }
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.sender {
-            Some(ref s) => {
-                let handle = task.handle().clone();
-                // TODO: don't drop token?
-                s.inner.slot.on_empty(move |_slot| {
-                    handle.notify();
-                });
-            }
-            None => task.notify(),
         }
     }
 }

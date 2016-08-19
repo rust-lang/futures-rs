@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, Task, Poll};
+use {Future, Poll};
 
 /// A future representing a finished but erroneous computation.
 ///
@@ -22,25 +22,15 @@ pub struct Failed<T, E> {
 ///
 /// let future_of_err_1 = failed::<u32, u32>(1);
 /// ```
-pub fn failed<T, E>(e: E) -> Failed<T, E>
-    where T: 'static,
-          E: 'static,
-{
+pub fn failed<T, E>(e: E) -> Failed<T, E> {
     Failed { _t: marker::PhantomData, e: Some(e) }
 }
 
-impl<T, E> Future for Failed<T, E>
-    where T: 'static,
-          E: 'static,
-{
+impl<T, E> Future for Failed<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
+    fn poll(&mut self) -> Poll<T, E> {
         Poll::Err(self.e.take().expect("cannot poll Failed twice"))
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify();
     }
 }

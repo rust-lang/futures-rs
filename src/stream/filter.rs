@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream combinator used to filter the results of a stream and only yield
@@ -12,7 +12,7 @@ pub struct Filter<S, F> {
 
 pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
     where S: Stream,
-          F: FnMut(&S::Item) -> bool + 'static,
+          F: FnMut(&S::Item) -> bool,
 {
     Filter {
         stream: s,
@@ -22,14 +22,14 @@ pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
 
 impl<S, F> Stream for Filter<S, F>
     where S: Stream,
-          F: FnMut(&S::Item) -> bool + 'static,
+          F: FnMut(&S::Item) -> bool,
 {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         loop {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(e)) => {
                     if (self.f)(&e) {
                         return Poll::Ok(Some(e))
@@ -39,9 +39,5 @@ impl<S, F> Stream for Filter<S, F>
                 Err(e) => return Poll::Err(e),
             }
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
     }
 }

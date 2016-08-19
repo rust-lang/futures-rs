@@ -1,6 +1,6 @@
 use std::marker;
 
-use {Future, Task, Poll};
+use {Future, Poll};
 
 /// A future representing a finished successful computation.
 ///
@@ -23,26 +23,16 @@ pub struct Finished<T, E> {
 ///
 /// let future_of_1 = finished::<u32, u32>(1);
 /// ```
-pub fn finished<T, E>(t: T) -> Finished<T, E>
-    where T: 'static,
-          E: 'static,
-{
+pub fn finished<T, E>(t: T) -> Finished<T, E> {
     Finished { t: Some(t), _e: marker::PhantomData }
 }
 
-impl<T, E> Future for Finished<T, E>
-    where T: 'static,
-          E: 'static,
-{
+impl<T, E> Future for Finished<T, E> {
     type Item = T;
     type Error = E;
 
 
-    fn poll(&mut self, _: &mut Task) -> Poll<T, E> {
+    fn poll(&mut self) -> Poll<T, E> {
         Poll::Ok(self.t.take().expect("cannot poll Finished twice"))
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify();
     }
 }

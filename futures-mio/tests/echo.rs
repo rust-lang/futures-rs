@@ -1,10 +1,11 @@
+extern crate env_logger;
 extern crate futures;
 extern crate futures_io;
 extern crate futures_mio;
 
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;
-use std::io::{Read, Write};
 
 use futures::Future;
 use futures::stream::Stream;
@@ -19,6 +20,8 @@ macro_rules! t {
 
 #[test]
 fn echo_server() {
+    drop(env_logger::init());
+
     let mut l = t!(futures_mio::Loop::new());
     let srv = l.handle().tcp_listen(&"127.0.0.1:0".parse().unwrap());
     let srv = t!(l.run(srv));
@@ -38,7 +41,7 @@ fn echo_server() {
 
     let clients = srv.incoming();
     let client = clients.into_future().map(|e| e.0.unwrap()).map_err(|e| e.0);
-    let halves = client.and_then(|s| TaskIo::new(s.0)).map(|i| i.split());
+    let halves = client.map(|s| TaskIo::new(s.0).split());
     let copied = halves.and_then(|(a, b)| copy(a, b));
 
     let amt = t!(l.run(copied));

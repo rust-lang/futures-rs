@@ -10,7 +10,7 @@ use futures::Future;
 use futures_cpupool::CpuPool;
 
 fn get<F>(f: F) -> Result<F::Item, F::Error>
-    where F: Future + Send,
+    where F: Future + Send + 'static,
           F::Item: Send,
           F::Error: Send,
 {

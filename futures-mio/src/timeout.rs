@@ -1,7 +1,7 @@
 use std::io;
 use std::time::{Duration, Instant};
 
-use futures::{Future, Task, Poll};
+use futures::{Future, Poll};
 use futures_io::IoFuture;
 
 use LoopHandle;
@@ -15,7 +15,6 @@ use event_loop::TimeoutToken;
 /// they will likely fire some granularity after the exact instant that they're
 /// otherwise indicated to fire at.
 pub struct Timeout {
-    at: Instant,
     token: TimeoutToken,
     handle: LoopHandle,
 }
@@ -38,7 +37,6 @@ impl LoopHandle {
     pub fn timeout_at(self, at: Instant) -> IoFuture<Timeout> {
         self.add_timeout(at).map(move |token| {
             Timeout {
-                at: at,
                 token: token,
                 handle: self,
             }
@@ -50,17 +48,15 @@ impl Future for Timeout {
     type Item = ();
     type Error = io::Error;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<(), io::Error> {
+    fn poll(&mut self) -> Poll<(), io::Error> {
         // TODO: is this fast enough?
-        if self.at <= Instant::now() {
+        let now = Instant::now();
+        if *self.token.when() <= now {
             Poll::Ok(())
         } else {
+            self.handle.update_timeout(&self.token);
             Poll::NotReady
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.handle.update_timeout(&self.token, task);
     }
 }
 

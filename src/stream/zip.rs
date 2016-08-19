@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::{Stream, Fuse};
 
 /// An adapter for merging the output of two streams.
@@ -30,9 +30,9 @@ impl<S1, S2> Stream for Zip<S1, S2>
     type Item = (S1::Item, S2::Item);
     type Error = S1::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         if self.queued1.is_none() {
-            match self.stream1.poll(task) {
+            match self.stream1.poll() {
                 Poll::Err(e) => return Poll::Err(e),
                 Poll::NotReady => {}
                 Poll::Ok(Some(item1)) => self.queued1 = Some(item1),
@@ -40,7 +40,7 @@ impl<S1, S2> Stream for Zip<S1, S2>
             }
         }
         if self.queued2.is_none() {
-            match self.stream2.poll(task) {
+            match self.stream2.poll() {
                 Poll::Err(e) => return Poll::Err(e),
                 Poll::NotReady => {}
                 Poll::Ok(Some(item2)) => self.queued2 = Some(item2),
@@ -56,15 +56,6 @@ impl<S1, S2> Stream for Zip<S1, S2>
             Poll::Ok(None)
         } else {
             Poll::NotReady
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.queued1.is_none() {
-            self.stream1.schedule(task);
-        }
-        if self.queued2.is_none() {
-            self.stream2.schedule(task);
         }
     }
 }

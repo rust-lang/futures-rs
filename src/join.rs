@@ -2,8 +2,7 @@
 
 use std::mem;
 
-use {Future, Task, Poll, IntoFuture};
-use util::Collapsed;
+use {Future, Poll, IntoFuture};
 
 macro_rules! generate {
     ($(($Join:ident, $new:ident, <A, $($B:ident),*>),)*) => ($(
@@ -23,8 +22,6 @@ macro_rules! generate {
             where A: Future,
                   $($B: Future<Error=A::Error>),*
         {
-            let a = Collapsed::Start(a);
-            $(let $B = Collapsed::Start($B);)*
             $Join {
                 a: MaybeDone::NotYet(a),
                 $($B: MaybeDone::NotYet($B)),*
@@ -48,8 +45,8 @@ macro_rules! generate {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
-                let mut all_done = match self.a.poll(task) {
+            fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+                let mut all_done = match self.a.poll() {
                     Ok(done) => done,
                     Err(e) => {
                         self.erase();
@@ -57,7 +54,7 @@ macro_rules! generate {
                     }
                 };
                 $(
-                    all_done = match self.$B.poll(task) {
+                    all_done = match self.$B.poll() {
                         Ok(done) => all_done && done,
                         Err(e) => {
                             self.erase();
@@ -71,24 +68,6 @@ macro_rules! generate {
                 } else {
                     Poll::NotReady
                 }
-            }
-
-            fn schedule(&mut self, task: &mut Task) {
-                if let MaybeDone::NotYet(ref mut a) = self.a {
-                    a.schedule(task);
-                }
-                $(
-                    if let MaybeDone::NotYet(ref mut a) = self.$B {
-                        a.schedule(task);
-                    }
-                )*
-            }
-
-            unsafe fn tailcall(&mut self)
-                               -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-                self.a.collapse();
-                $(self.$B.collapse();)*
-                None
             }
         }
 
@@ -125,15 +104,15 @@ generate! {
 }
 
 enum MaybeDone<A: Future> {
-    NotYet(Collapsed<A>),
+    NotYet(A),
     Done(A::Item),
     Gone,
 }
 
 impl<A: Future> MaybeDone<A> {
-    fn poll(&mut self, task: &mut Task) -> Result<bool, A::Error> {
+    fn poll(&mut self) -> Result<bool, A::Error> {
         let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll(task),
+            MaybeDone::NotYet(ref mut a) => a.poll(),
             MaybeDone::Done(_) => return Ok(true),
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };
@@ -151,12 +130,6 @@ impl<A: Future> MaybeDone<A> {
         match mem::replace(self, MaybeDone::Gone) {
             MaybeDone::Done(a) => a,
             _ => panic!(),
-        }
-    }
-
-    unsafe fn collapse(&mut self) {
-        if let MaybeDone::NotYet(ref mut a) = *self {
-            a.collapse()
         }
     }
 }

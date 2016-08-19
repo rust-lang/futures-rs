@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
@@ -17,9 +17,6 @@ pub struct IterStream<I> {
 /// will always be returned upwards as a successful value.
 pub fn iter<I, T, E>(i: I) -> IterStream<I>
     where I: Iterator<Item=Result<T, E>>,
-          I: 'static,
-          T: 'static,
-          E: 'static,
 {
     IterStream {
         iter: i,
@@ -28,22 +25,15 @@ pub fn iter<I, T, E>(i: I) -> IterStream<I>
 
 impl<I, T, E> Stream for IterStream<I>
     where I: Iterator<Item=Result<T, E>>,
-          I: 'static,
-          T: 'static,
-          E: 'static,
 {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _task: &mut Task) -> Poll<Option<T>, E> {
+    fn poll(&mut self) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Poll::Ok(Some(e)),
             Some(Err(e)) => Poll::Err(e),
             None => Poll::Ok(None),
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        task.notify()
     }
 }

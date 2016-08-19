@@ -1,18 +1,16 @@
 use std::mem;
 
-use {Future, IntoFuture, Task, Poll};
-use util::Collapsed;
+use {Future, IntoFuture, Poll};
 
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
 ///
 /// This future is created with the `collect` method.
 pub struct Collect<I>
-    where I: IntoIterator + 'static,
+    where I: IntoIterator,
           I::Item: IntoFuture,
-          I::IntoIter: 'static,
 {
-    cur: Option<Collapsed<<I::Item as IntoFuture>::Future>>,
+    cur: Option<<I::Item as IntoFuture>::Future>,
     remaining: I::IntoIter,
     result: Vec<<I::Item as IntoFuture>::Item>,
 }
@@ -54,32 +52,30 @@ pub struct Collect<I>
 /// });
 /// ```
 pub fn collect<I>(i: I) -> Collect<I>
-    where I: IntoIterator + 'static,
+    where I: IntoIterator,
           I::Item: IntoFuture,
-          I::IntoIter: 'static,
 {
     let mut i = i.into_iter();
     Collect {
-        cur: i.next().map(IntoFuture::into_future).map(Collapsed::Start),
+        cur: i.next().map(IntoFuture::into_future),
         remaining: i,
         result: Vec::new(),
     }
 }
 
 impl<I> Future for Collect<I>
-    where I: IntoIterator + 'static,
-          I::IntoIter: 'static,
+    where I: IntoIterator,
           I::Item: IntoFuture,
 {
     type Item = Vec<<I::Item as IntoFuture>::Item>;
     type Error = <I::Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         loop {
             match self.cur {
                 Some(ref mut cur) => {
-                    match try_poll!(cur.poll(task)) {
+                    match try_poll!(cur.poll()) {
                         Ok(e) => self.result.push(e),
 
                         // If we hit an error, drop all our associated resources
@@ -101,23 +97,7 @@ impl<I> Future for Collect<I>
             }
 
             self.cur = self.remaining.next()
-                           .map(IntoFuture::into_future)
-                           .map(Collapsed::Start);
+                           .map(IntoFuture::into_future);
         }
     }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut cur) = self.cur {
-            cur.schedule(task);
-        }
-    }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        if let Some(ref mut cur) = self.cur {
-            cur.collapse();
-        }
-        None
-    }
-
 }

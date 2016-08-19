@@ -56,9 +56,9 @@
 //! // performance isn't always critical and sometimes it's more ergonomic to
 //! // return a trait object like we do here. Note though that there's only one
 //! // allocation here, not any for the intermediate futures.
-//! fn add<A, B>(a: A, b: B) -> Box<Future<Item=i32, Error=A::Error>>
-//!     where A: Future<Item=i32>,
-//!           B: Future<Item=i32, Error=A::Error>,
+//! fn add<'a, A, B>(a: A, b: B) -> Box<Future<Item=i32, Error=A::Error> + 'a>
+//!     where A: Future<Item=i32> + 'a,
+//!           B: Future<Item=i32, Error=A::Error> + 'a,
 //! {
 //!     Box::new(a.join(b).map(|(a, b)| a + b))
 //! }
@@ -72,7 +72,7 @@
 //!     use std::io;
 //!     use std::net::{SocketAddr, TcpStream};
 //!
-//!     type IoFuture<T> = Future<Item=T, Error=io::Error>;
+//!     type IoFuture<T> = Box<Future<Item=T, Error=io::Error>>;
 //!
 //!     // First thing to do is we need to resolve our URL to an address. This
 //!     // will likely perform a DNS lookup which may take some time.
@@ -121,22 +121,22 @@
 //!     });
 //!     return Box::new(ret);
 //!
-//!     fn resolve(url: &str) -> Box<IoFuture<SocketAddr>> {
+//!     fn resolve(url: &str) -> IoFuture<SocketAddr> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
 //!
-//!     fn connect(hostname: &SocketAddr) -> Box<IoFuture<TcpStream>> {
+//!     fn connect(hostname: &SocketAddr) -> IoFuture<TcpStream> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
 //!
-//!     fn download(stream: TcpStream) -> Box<IoFuture<Vec<u8>>> {
+//!     fn download(stream: TcpStream) -> IoFuture<Vec<u8>> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
 //!
-//!     fn timeout(stream: Duration) -> Box<IoFuture<()>> {
+//!     fn timeout(stream: Duration) -> IoFuture<()> {
 //!         // ...
 //! #       panic!("unimplemented");
 //!     }
@@ -154,18 +154,18 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate scoped_tls;
+
 // internal utilities
 mod lock;
 mod slot;
-mod util;
 
 #[macro_use]
 mod poll;
 pub use poll::Poll;
 
-mod task;
-pub use task::{Task, TaskData, TaskHandle};
-
+pub mod task;
 pub mod executor;
 
 // Primitive futures
@@ -176,16 +176,13 @@ mod failed;
 mod finished;
 mod lazy;
 mod oneshot;
-mod store;
 pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
-#[allow(deprecated)]
-pub use oneshot::{oneshot, promise, Oneshot, Promise, Complete, Canceled};
-pub use store::{store, Store};
+pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
 
 // combinators
 mod and_then;
@@ -217,27 +214,25 @@ mod chain;
 mod impls;
 mod forget;
 
-/// Trait for types which represent a placeholder of a value that will become
+/// Trait for types which are a placeholder of a value that will become
 /// available at possible some later point in time.
 ///
 /// Futures are used to provide a sentinel through which a value can be
-/// referenced. They crucially allow chaining operations through consumption
-/// which allows expressing entire trees of computation as one sentinel value.
+/// referenced. They crucially allow chaining and composing operations through
+/// consumption which allows expressing entire trees of computation as one
+/// sentinel value.
 ///
 /// The ergonomics and implementation of the `Future` trait are very similar to
 /// the `Iterator` trait in Rust which is where there is a small handful of
 /// methods to implement and a load of default methods that consume a `Future`,
 /// producing a new value.
 ///
-/// # Core methods
+/// # The `poll` method
 ///
-/// The core methods of futures, currently `poll`, `schedule`, and `tailcall`,
-/// are not intended to be called in general. These are used to drive an entire
-/// task of many futures composed together only from the top level.
-///
-/// More documentation can be found on each method about what its purpose is,
-/// but in general all of the combinators are the main methods that should be
-/// used.
+/// The core method of future, `poll`, is not intended to be called in general.
+/// The `poll` method is typically called in the context of a "task" which
+/// drives a future to completion. For more information on this see the `task`
+/// module.
 ///
 /// # Combinators
 ///
@@ -253,30 +248,31 @@ mod forget;
 /// zero-cost and don't impose any extra layers of indirection you wouldn't
 /// otherwise have to write down.
 // TODO: expand this
-pub trait Future: 'static {
+pub trait Future {
 
     /// The type of value that this future will resolved with if it is
     /// successful.
-    type Item: 'static;
+    type Item;
 
     /// The type of error that this future will resolve with if it fails in a
     /// normal fashion.
     ///
     /// Futures may also fail due to panics or cancellation, but that is
     /// expressed through the `PollError` type, not this type.
-    type Error: 'static;
+    type Error;
 
-    /// Query this future to see if its value has become available.
+    /// Query this future to see if its value has become available, registering
+    /// interest if it is not.
     ///
     /// This function will check the internal state of the future and assess
     /// whether the value is ready to be produced. Implementors of this function
     /// should ensure that a call to this **never blocks** as event loops may
     /// not work properly otherwise.
     ///
-    /// Callers of this function must provide the "task" in which the future is
-    /// running through the `task` argument. This task contains information like
-    /// task-local variables which the future may have stored references to
-    /// internally.
+    /// When a future is not ready yet, the `Poll::NotReady` value will be
+    /// returned. In this situation the future will *also* register interest of
+    /// the current task in the value being produced. That is, once the value is
+    /// ready it will notify the current task that progress can be made.
     ///
     /// # Runtime characteristics
     ///
@@ -302,6 +298,11 @@ pub trait Future: 'static {
     /// a future has returned `Ok` or `Err` it is considered a contract error
     /// to continue polling it.
     ///
+    /// If `NotReady` is returned, then the future will internally register
+    /// interest in the value being produced for the current task. In other
+    /// words, the current task will receive a notification once the value is
+    /// ready to be produced or the future can make progress.
+    ///
     /// # Panics
     ///
     /// Once a future has completed (returned `Poll::{Ok, Err}` from `poll`),
@@ -314,101 +315,16 @@ pub trait Future: 'static {
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
     ///
+    /// Additionally, calls to `poll` must always be made from within the
+    /// context of a task. If a current task is not set then this method will
+    /// likely panic.
+    ///
     /// # Errors
     ///
     /// This future may have failed to finish the computation, in which case
     /// the `Poll::Err` variant will be returned with an appropriate payload of
     /// an error.
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, Self::Error>;
-
-    /// Schedule a task to be notified when this future is ready.
-    ///
-    /// Throughout the lifetime of a future it may frequently be `poll`'d on to
-    /// test whether the value is ready yet. If `Poll::NotReady` is returned,
-    /// however, the caller may then register interest via this function to get a
-    /// notification when the future can indeed make progress.
-    ///
-    /// The `task` argument provided is the same task as provided to `poll`, and
-    /// it's the overall task which is driving this future. The task will be
-    /// notified through the `TaskHandle` type generated from the `handle`
-    /// method, and spurious notifications are allowed. That is, it's ok for a
-    /// notification to be received which when the future is poll'd it still
-    /// isn't complete.
-    ///
-    /// Implementors of the `Future` trait are recommended to just blindly pass
-    /// around this task rather than attempt to manufacture new tasks.
-    ///
-    /// When the `task` is notified it will be provided a set of tokens that
-    /// represent the set of events which have happened since it was last called
-    /// (or the last call to `poll`). These events can then be used by the task
-    /// to later inform `poll` calls to not poll too much.
-    ///
-    /// # Multiple calls to `schedule`
-    ///
-    /// This function cannot be used to queue up multiple tasks to be notified
-    /// when a future is ready to make progress. Only the most recent call to
-    /// `schedule` is guaranteed to have notifications received when `schedule`
-    /// is called multiple times.
-    ///
-    /// If this function is called twice, it may be the case that the previous
-    /// task is never notified. It is recommended that this function is called
-    /// with the same task for the entire lifetime of this future.
-    ///
-    /// # Panics
-    ///
-    /// Once a future has returned `Poll::Ok` or `Poll::Err` (it's been completed)
-    /// the future calls to either `poll` or this function, `schedule`, should not
-    /// be expected to behave well. A call to `schedule` after a poll has succeeded
-    /// may panic, block forever, or otherwise exhibit odd behavior.
-    ///
-    /// Callers who may call `schedule` after a future is finished may want to
-    /// consider using the `fuse` adaptor which defines the behavior of
-    /// `schedule` after a successful poll, but comes with a little bit of
-    /// extra cost.
-    fn schedule(&mut self, task: &mut Task);
-
-    /// Perform tail-call optimization on this future.
-    ///
-    /// A particular future may actually represent a large tree of computation,
-    /// the structure of which can be optimized periodically after some of the
-    /// work has completed. This function is intended to be called after an
-    /// unsuccessful `poll` to ensure that the computation graph of a future
-    /// remains at a reasonable size.
-    ///
-    /// This function is intended to be idempotent. If `None` is returned then
-    /// the internal structure may have been optimized, but this future itself
-    /// must stick around to represent the computation at hand.
-    ///
-    /// If `Some` is returned then the returned future will be realized with the
-    /// same value that this future *would* have been had this method not been
-    /// called. Essentially, if `Some` is returned, then this future can be
-    /// forgotten and instead the returned value is used.
-    ///
-    /// Note that this is a default method which returns `None`, but any future
-    /// adaptor should implement it to flatten the underlying future, if any.
-    ///
-    /// # Unsafety
-    ///
-    /// Note that this is an `unsafe` trait method, primarily because it is
-    /// intended to be unsafe to implement. Implementors of this trait typically
-    /// don't need to worry about implementing this method as it defaults to
-    /// `None`.
-    ///
-    /// The return value of this trait `Box<Future>`, does not imply whether the
-    /// underlying type is indeed `Send`. This can be critically important for
-    /// futures, and is often necessary for transmitting through the bound. The
-    /// unsafe portion of this method relies on one core assumption: all
-    /// combinators assume that if a future is `Send` then the value returned by
-    /// `tailcall` **is also `Send`**, despite the type system saying otherwise.
-    ///
-    /// The default implementation for this function is to return `None`, which
-    /// is safe, but if types implement this then they need to be sure that the
-    /// returned value has the same `Send`/`Sync` properties as the implementor
-    /// itself.
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        None
-    }
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 
     /// Convenience function for turning this future into a trait object.
     ///
@@ -426,7 +342,7 @@ pub trait Future: 'static {
     /// let a: BoxFuture<i32, i32> = done(Ok(1)).boxed();
     /// ```
     fn boxed(self) -> BoxFuture<Self::Item, Self::Error>
-        where Self: Sized + Send
+        where Self: Sized + Send + 'static
     {
         Box::new(self)
     }
@@ -455,8 +371,7 @@ pub trait Future: 'static {
     /// let future_of_4 = future_of_1.map(|x| x + 3);
     /// ```
     fn map<F, U>(self, f: F) -> Map<Self, F>
-        where F: FnOnce(Self::Item) -> U + 'static,
-              U: 'static,
+        where F: FnOnce(Self::Item) -> U,
               Self: Sized,
     {
         assert_future::<U, Self::Error, _>(map::new(self, f))
@@ -485,8 +400,7 @@ pub trait Future: 'static {
     /// let future_of_err_4 = future_of_err_1.map_err(|x| x + 3);
     /// ```
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
-        where F: FnOnce(Self::Error) -> E + 'static,
-              E: 'static,
+        where F: FnOnce(Self::Error) -> E,
               Self: Sized,
     {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
@@ -530,7 +444,7 @@ pub trait Future: 'static {
     /// });
     /// ```
     fn then<F, B>(self, f: F) -> Then<Self, B, F>
-        where F: FnOnce(Result<Self::Item, Self::Error>) -> B + 'static,
+        where F: FnOnce(Result<Self::Item, Self::Error>) -> B,
               B: IntoFuture,
               Self: Sized,
     {
@@ -570,7 +484,7 @@ pub trait Future: 'static {
     /// });
     /// ```
     fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
-        where F: FnOnce(Self::Item) -> B + 'static,
+        where F: FnOnce(Self::Item) -> B,
               B: IntoFuture<Error = Self::Error>,
               Self: Sized,
     {
@@ -610,7 +524,7 @@ pub trait Future: 'static {
     /// });
     /// ```
     fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
-        where F: FnOnce(Self::Error) -> B + 'static,
+        where F: FnOnce(Self::Error) -> B,
               B: IntoFuture<Item = Self::Item>,
               Self: Sized,
     {
@@ -635,7 +549,7 @@ pub trait Future: 'static {
     /// // A poor-man's join implemented on top of select
     ///
     /// fn join<A>(a: A, b: A) -> BoxFuture<(u32, u32), u32>
-    ///     where A: Future<Item = u32, Error = u32> + Send,
+    ///     where A: Future<Item = u32, Error = u32> + Send + 'static,
     /// {
     ///     a.select(b).then(|res| {
     ///         match res {
@@ -781,17 +695,16 @@ pub trait Future: 'static {
     /// ```rust
     /// use futures::*;
     ///
-    /// let mut task = Task::new();
     /// let mut future = finished::<i32, u32>(2);
-    /// assert!(future.poll(&mut task).is_ready());
+    /// assert!(future.poll().is_ready());
     ///
     /// // Normally, a call such as this would panic:
-    /// //future.poll(&mut task);
+    /// //future.poll();
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = finished::<i32, u32>(2).fuse();
-    /// assert!(future.poll(&mut task).is_ready());
-    /// assert!(future.poll(&mut task).is_not_ready());
+    /// assert!(future.poll().is_ready());
+    /// assert!(future.poll().is_not_ready());
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
@@ -814,19 +727,23 @@ pub trait Future: 'static {
     ///
     /// # Bounds
     ///
-    /// Note that this function requires the underlying future to be `Send`, but
-    /// not all futures may implement the `Send` bound. Additionally, the
-    /// underlying `Task` requires that the future is send to be driven to
-    /// completion.
+    /// Note that this function requires the underlying future to be `Send +
+    /// 'static`, but not all futures may implement these bounds.
     ///
     /// If your type is not `Send`, however, fear not! Most event loops will
     /// provide an abstraction like `LoopData` in the `futures-mio` crate. This
     /// allows a future to be "pinned" to an event loop, allowing its handle to
-    /// be `Send` while the underlying data itself is not `Send`.
+    /// be `Send` while the underlying data itself is not `Send`. By using
+    /// objects like `LoopData`, any future can become `Send` to use this method
+    /// to drive it to completion.
     ///
-    /// By using objects like `LoopData`, any future can become `Send` to use
-    /// this method to drive it to completion.
-    fn forget(self) where Self: Sized + Send {
+    /// If your type is not `'static` then this method cannot be used. Instead
+    /// most event loops should provide a method which resolves the value of a
+    /// future, driving the event loop in the meantime. For example the
+    /// `futures-mio` crate provides a `Loop::run` method which pins the future
+    /// to the stack frame of that functionc all, allowing it to have a
+    /// non-`'static` lifetime.
+    fn forget(self) where Self: Sized + Send + 'static {
         forget::forget(self);
     }
 }
@@ -838,8 +755,6 @@ pub type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
 // right implementations.
 fn assert_future<A, B, F>(t: F) -> F
     where F: Future<Item=A, Error=B>,
-          A: 'static,
-          B: 'static,
 {
     t
 }
@@ -848,14 +763,14 @@ fn assert_future<A, B, F>(t: F) -> F
 ///
 /// This trait is very similar to the `IntoIterator` trait and is intended to be
 /// used in a very similar fashion.
-pub trait IntoFuture: 'static {
+pub trait IntoFuture {
     /// The future that this type can be converted into.
     type Future: Future<Item=Self::Item, Error=Self::Error>;
 
     /// The item that the future may resolve with.
-    type Item: 'static;
+    type Item;
     /// The error that the future may resolve with.
-    type Error: 'static;
+    type Error;
 
     /// Consumes this object and produces a future.
     fn into_future(self) -> Self::Future;
@@ -871,10 +786,7 @@ impl<F: Future> IntoFuture for F {
     }
 }
 
-impl<T, E> IntoFuture for Result<T, E>
-    where T: 'static,
-          E: 'static,
-{
+impl<T, E> IntoFuture for Result<T, E> {
     type Future = Done<T, E>;
     type Item = T;
     type Error = E;

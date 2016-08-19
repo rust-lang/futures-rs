@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream combinator which skips a number of elements before continuing.
@@ -24,19 +24,15 @@ impl<S> Stream for Skip<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         while self.remaining > 0 {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(_)) => self.remaining -= 1,
                 Ok(None) => return Poll::Ok(None),
                 Err(e) => return Poll::Err(e),
             }
         }
 
-        self.stream.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
+        self.stream.poll()
     }
 }

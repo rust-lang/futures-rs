@@ -62,6 +62,7 @@ extern crate curl;
 extern crate futures;
 extern crate futures_io;
 extern crate futures_mio;
+extern crate libc;
 extern crate mio;
 extern crate slab;
 
@@ -76,9 +77,8 @@ use std::time::Duration;
 use curl::Error;
 use curl::easy::Easy;
 use curl::multi::{Multi, EasyHandle, Socket, SocketEvents, Events};
-use futures::stream::Stream;
-use futures::{Future, Task, TaskHandle, Poll, oneshot, Oneshot, Complete};
-use futures_io::Ready;
+use futures::{Future, Poll, oneshot, Oneshot, Complete};
+use futures::task::{self, TaskHandle};
 use futures_mio::{LoopPin, LoopData, Timeout, Source, ReadinessStream};
 use mio::unix::EventedFd;
 use slab::Slab;
@@ -125,10 +125,6 @@ struct State {
     // If the "driver task" is waiting, then there'll be a handle here to wake
     // it up. Useful for when a new HTTP request is added or the like.
     waiting_task: Option<TaskHandle>,
-
-    // Dummy task used to poll a few event loop futures immediately to get them
-    // to resolve immediately.
-    task: Task,
 }
 
 struct Entry {
@@ -142,9 +138,9 @@ struct Entry {
 }
 
 struct SocketState {
-    stream: ReadinessStream,
-    ready: Option<Ready>,
     want: Option<SocketEvents>,
+    changed: bool,
+    stream: ReadinessStream,
 }
 
 scoped_thread_local!(static DATA: Data);
@@ -206,7 +202,6 @@ impl Session {
             state: RefCell::new(State {
                 next_token: 0,
                 complete: Slab::new(128),
-                task: Task::new(),
                 timeout: None,
                 waiting_task: None,
                 io: HashMap::new(),
@@ -267,9 +262,17 @@ impl Data {
         if let Some(dur) = dur {
             debug!("scheduling a new timeout in {:?}", dur);
             let mut timeout = self.pin.handle().clone().timeout(dur);
-            match timeout.poll(&mut state.task) {
-                Poll::Ok(timeout) => state.timeout = Some(timeout),
+            let mut timeout = match timeout.poll() {
+                Poll::Ok(timeout) => timeout,
                 _ => panic!("event loop should finish poll immediately"),
+            };
+            drop(state);
+            let res = timeout.poll();
+            state = self.state.borrow_mut();
+            match res {
+                Poll::NotReady => state.timeout = Some(timeout),
+                Poll::Ok(()) => panic!("timeout done immediately?"),
+                Poll::Err(e) => panic!("timeout poll error: {}", e),
             }
         }
 
@@ -297,14 +300,6 @@ impl Data {
             return
         }
 
-        // Next, if this socket has already been registered, then we just
-        // updated the events that it's waiting for.
-        if let Some(state) = state.io.get_mut(&socket) {
-            debug!("socket already registered: {}", socket);
-            state.want = Some(events);
-            return
-        }
-
         // If this is the first time we've seen the socket then we register a
         // new source with the event loop. Currently that's done through
         // `ReadinessStream` which handles registration and deregistration of
@@ -313,18 +308,29 @@ impl Data {
         // Like above with timeouts, the future returned from `ReadinessStream`
         // should be immediately resolve-able because we're guaranteed to be on
         // the event loop.
-        debug!("schedule socket {}", socket);
-        let source = Arc::new(Source::new(MioSocket { inner: socket }));
-        let mut ready = ReadinessStream::new(self.pin.handle().clone(), source);
-        let stream = match ready.poll(&mut state.task) {
-            Poll::Ok(stream) => stream,
-            _ => panic!("event loop should finish poll immediately"),
-        };
-        state.io.insert(socket, SocketState {
-            stream: stream,
-            ready: None,
-            want: Some(events),
-        });
+        if !state.io.contains_key(&socket) {
+            debug!("schedule new socket {}", socket);
+            let source = Arc::new(Source::new(MioSocket { inner: socket }));
+            let mut ready = ReadinessStream::new(self.pin.handle().clone(),
+                                                 source);
+            let stream = match ready.poll() {
+                Poll::Ok(stream) => stream,
+                _ => panic!("event loop should finish poll immediately"),
+            };
+            state.io.insert(socket, SocketState {
+                stream: stream,
+                want: None,
+                changed: false,
+            });
+        } else {
+            debug!("socket already registered: {}", socket);
+        }
+
+        let state = state.io.get_mut(&socket).unwrap();
+        state.stream.need_read();
+        state.stream.need_write();
+        state.want = Some(events);
+        state.changed = true;
     }
 
     /// Executes a new request, returning half of a oneshot that'll get filled
@@ -374,7 +380,7 @@ impl Data {
         drop(state);
         if let Some(t) = task {
             debug!("notifying task");
-            t.notify();
+            t.unpark();
         }
         let data = me.pin.add_loop_data(PerformData {
             data: me.clone(),
@@ -386,7 +392,9 @@ impl Data {
 
     /// Polls the internal state of this `Multi` handle, attempting to move the
     /// world forward.
-    fn poll(&self, task: &mut Task) -> Poll<(), ()> {
+    fn poll(&self) -> Poll<(), ()> {
+        debug!("-------------------------- driver poll start");
+
         // First up, process socket events. We take a look at all our registered
         // streams to see which ones of them became ready.
         //
@@ -394,44 +402,26 @@ impl Data {
         //       double-checking it's not too expensive
         let mut events = Vec::new();
         for (socket, state) in self.state.borrow_mut().io.iter_mut() {
-            let want = match state.want.take() {
-                Some(w) => w,
-                None => continue,
-            };
-            let ready = match state.stream.poll(task) {
-                Poll::NotReady => {
-                    state.want = Some(want);
-                    continue
-                }
-                Poll::Err(_) => panic!("ready streams can't return error"),
-                Poll::Ok(None) => panic!("ready streams can't end"),
-                Poll::Ok(Some(r)) => r,
-            };
+            trace!("curl[{}] checking socket", socket);
 
-            // If our desires (`want`) do not coincide with the stream readiness
-            // itself (`ready`) then we just cache the readiness and move on.
-            let ready = state.ready.unwrap_or(ready) | ready;
-            if !want.input_and_output() &&
-               ((want.input() && !ready.is_read()) ||
-                (want.output() && !ready.is_write())) {
-                state.ready = Some(ready);
-                state.want = Some(want);
-                continue
-            }
-
-            // Otherwise we figure out what we're going to tell libcurl, and we
-            // save off what we're going to do. This array is stored on the
-            // stack as we need to inform libcurl of events while we're *not*
-            // iterating over the `state` map as informing libcurl may modify
-            // this map.
             let mut e = Events::new();
-            if ready.is_read() {
+            let mut set = false;
+            if let Poll::Ok(()) = state.stream.poll_read() {
+                debug!("\treadable");
                 e.input(true);
+                set = true;
             }
-            if ready.is_write() {
+            if let Poll::Ok(()) = state.stream.poll_write() {
+                debug!("\twritable");
                 e.output(true);
+                set = true;
             }
-            events.push((*socket, e));
+
+            // If something was set then we'll tell libcurl about it in a
+            // moment.
+            if set {
+                events.push((*socket, e));
+            }
         }
 
         DATA.set(self, || {
@@ -439,24 +429,77 @@ impl Data {
             // libcurl of all these events.
             //
             // libcurl wants "level" behavior instead of edge which we have
-            // by default, so do that "translation" here by just performing
-            // all we can for one socket. We're guaranteed that `events`
-            // coincides with what libcurl actually wants off the socket, so we
-            // just keep giving it to libcurl until it asks us it wants
-            // something else.
+            // by default, so we have to do a bit of translation here to work
+            // around that. Our `poll_read` and `poll_write` calls above will
+            // get *set* on an edge basis, and then we have to decide when to
+            // turn them off. Normally EAGAIN does this but we aren't in a
+            // position to listen for that unfortunately.
             //
-            // TODO: after some time we should defer back to the event loop
-            //       to allow other connections to make progress.
+            // To handle this we do a few things:
+            //
+            // 1. If libcurl calls our socket callback for this socket as part
+            //    of the call to `action` below, then it'll flag the `changed`
+            //    field and we assume that we don't need to schedule another
+            //    call to `action`. The socket callback calls `need_read` and
+            //    `need_write` as well, clearing their readiness until epoll
+            //    tells us again.
+            //
+            // 2. If libcurl *didn't* update us through the socket callback,
+            //    then it means that libcurl has the same "want" as before. We
+            //    don't actually know if the socket itself is readable or
+            //    writable, unfortunately, and we don't really have any way of
+            //    finding out unless we test it ourselves. For that reason we
+            //    call `libc::poll` manually.
+            //
+            // Once the call to `poll` returns we look at the `revents` field
+            // the kernel should have filled in. If something about that and our
+            // `want` set disagrees, we flag the readiness stream with `need_*`
+            // and then go to the next event.
+            //
+            // If, however, `poll` returns that the socket is still in the
+            // appropriate state to hand to libcurl (e.g. the level
+            // notification) then we enqueue a poll of the socket for another
+            // turn of the event loop through the `poll_on` method.
             for &(socket, ref events) in events.iter() {
-                loop {
-                    self.multi.action(socket, events).expect("action error");
+                self.state.borrow_mut().io.get_mut(&socket).unwrap().changed = false;
+                self.multi.action(socket, events).expect("action error");
 
-                    match self.state.borrow_mut().io.get(&socket) {
-                        Some(s) if s.want.is_some() => break,
-                        Some(_) => {}
-                        None => break,
-                    }
+                let mut state = self.state.borrow_mut();
+                let state = match state.io.get_mut(&socket) {
+                    Some(state) => state,
+                    None => continue,
+                };
+                if state.changed {
+                    continue
                 }
+                let want = match state.want {
+                    Some(ref want) => want,
+                    None => continue,
+                };
+
+                let mut fd = libc::pollfd {
+                    fd: socket,
+                    events: 0,
+                    revents: 0,
+                };
+                if want.input() {
+                    fd.events |= libc::POLLIN;
+                }
+                if want.output() {
+                    fd.events |= libc::POLLOUT;
+                }
+                unsafe {
+                    libc::poll(&mut fd, 1, 0);
+                }
+                if want.input() && (fd.revents & libc::POLLIN) == 0 {
+                    state.stream.need_read();
+                    continue
+                }
+                if want.output() && (fd.revents & libc::POLLOUT) == 0 {
+                    state.stream.need_write();
+                    continue
+                }
+                task::poll_on(self.pin.executor());
             }
 
             // Process a timeout, if one ocurred.
@@ -465,18 +508,14 @@ impl Data {
             // it fires then we destroy it and inform libcurl that a timeout has
             // happened.
             let mut timeout = false;
-            {
-                let mut state = self.state.borrow_mut();
-                if let Some(ref mut t) = state.timeout {
-                    if let Poll::Ok(()) = t.poll(task) {
-                        timeout = true;
-                    }
-                }
-                if timeout {
-                    state.timeout = None;
+            if let Some(ref mut t) = self.state.borrow_mut().timeout {
+                if let Poll::Ok(()) = t.poll() {
+                    timeout = true;
                 }
             }
             if timeout {
+                debug!("timeout fired");
+                self.state.borrow_mut().timeout = None;
                 self.multi.timeout().expect("timeout error");
             }
 
@@ -486,6 +525,7 @@ impl Data {
             // This function is where we'll actually complete the associated
             // futures.
             self.multi.messages(|m| {
+                debug!("a request is done!");
                 let mut state = self.state.borrow_mut();
                 let transfer_err = m.result().unwrap();
                 let idx = state.complete.iter()
@@ -507,6 +547,10 @@ impl Data {
             });
         });
 
+        if self.state.borrow().waiting_task.is_none() {
+            self.state.borrow_mut().waiting_task = Some(task::park());
+        }
+
         Poll::NotReady
     }
 
@@ -522,26 +566,6 @@ impl Data {
             drop(self.multi.remove(entry.handle));
         });
     }
-
-    /// Registers interest in the state for next opportunity to make progress.
-    ///
-    /// Progress can be made through one of three vectors right now:
-    ///
-    /// 1. A socket which we want activity for has activity on it.
-    /// 2. A timeout happens
-    /// 3. A new request comes in.
-    fn schedule(&self, task: &mut Task) {
-        let mut state = self.state.borrow_mut();
-        for (_socket, state) in state.io.iter_mut() {
-            if state.want.is_some() {
-                state.stream.schedule(task);
-            }
-        }
-        if let Some(ref mut t) = state.timeout {
-            t.schedule(task);
-        }
-        state.waiting_task = Some(task.handle().clone());
-    }
 }
 
 // When a session is being destroyed, be sure to wake up the corresponding task
@@ -549,7 +573,7 @@ impl Data {
 impl Drop for State {
     fn drop(&mut self) {
         if let Some(task) = self.waiting_task.take() {
-            task.notify();
+            task.unpark();
         }
     }
 }
@@ -558,45 +582,39 @@ impl Future for Perform {
     type Item = (Easy, Option<Error>);
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Self::Item, io::Error> {
-        match mem::replace(&mut self.state, PerformState::Empty) {
-            PerformState::Start(easy) => {
-                // Home back to the event loop to figure out if we're done yet.
-                let data = match self.data.get() {
-                    Some(data) => data,
-                    None => {
-                        task.poll_on(self.data.executor());
-                        self.state = PerformState::Start(easy);
-                        return Poll::NotReady
-                    }
-                };
+    fn poll(&mut self) -> Poll<Self::Item, io::Error> {
+        loop {
+            match mem::replace(&mut self.state, PerformState::Empty) {
+                PerformState::Start(easy) => {
+                    // Home back to the event loop to figure out if we're done yet.
+                    let data = match self.data.get() {
+                        Some(data) => data,
+                        None => {
+                            task::poll_on(self.data.executor());
+                            self.state = PerformState::Start(easy);
+                            return Poll::NotReady
+                        }
+                    };
 
-                // Once we're on the event loop execute the request and store
-                // off the saved future.
-                let (handle, dtor) = Data::execute(data, easy);
-                self.state = PerformState::Scheduled(handle, dtor);
-                return Poll::NotReady
-            }
-            PerformState::Scheduled(mut s, dtor) => {
-                match s.poll(task) {
-                    Poll::Ok(Ok(e)) => Poll::Ok(e),
-                    Poll::Ok(Err(e)) => Poll::Err(e),
-                    Poll::Err(_) => panic!("complete canceled?"),
-                    Poll::NotReady => {
-                        self.state = PerformState::Scheduled(s, dtor);
-                        Poll::NotReady
+                    // Once we're on the event loop execute the request and store
+                    // off the saved future.
+                    let (handle, dtor) = Data::execute(data, easy);
+                    self.state = PerformState::Scheduled(handle, dtor);
+                }
+                PerformState::Scheduled(mut s, dtor) => {
+                    debug!("polling a scheduled request");
+                    match s.poll() {
+                        Poll::Ok(Ok(e)) => return Poll::Ok(e),
+                        Poll::Ok(Err(e)) => return Poll::Err(e),
+                        Poll::Err(_) => panic!("complete canceled?"),
+                        Poll::NotReady => {
+                            self.state = PerformState::Scheduled(s, dtor);
+                            return Poll::NotReady
+                        }
                     }
                 }
+                PerformState::Empty => panic!("poll on empty Perform"),
             }
-            PerformState::Empty => panic!("poll on empty Perform"),
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.state {
-            PerformState::Start(_) => task.notify(),
-            PerformState::Scheduled(ref mut p, _) => p.schedule(task),
-            PerformState::Empty => panic!("schedule on empty Perform"),
         }
     }
 }
@@ -611,30 +629,18 @@ impl Future for Driver {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(), ()> {
+    fn poll(&mut self) -> Poll<(), ()> {
         match self.data.upgrade() {
             Some(arc) => {
                 match arc.get() {
-                    Some(data) => data.poll(task),
+                    Some(data) => data.poll(),
                     None => {
-                        task.poll_on(arc.executor());
+                        task::poll_on(arc.executor());
                         Poll::NotReady
                     }
                 }
             }
             None => Poll::Ok(()),
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.data.upgrade() {
-            Some(arc) => {
-                match arc.get() {
-                    Some(data) => data.schedule(task),
-                    None => task.notify(),
-                }
-            }
-            None => task.notify(),
         }
     }
 }

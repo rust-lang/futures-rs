@@ -61,7 +61,7 @@ pub struct Slot<T> {
     state: AtomicUsize,
     slot: Lock<Option<T>>,
     on_full: Lock<Option<Box<FnBox<T>>>>,
-    on_empty: Lock<Option<Box<FnBox<T>>>>,
+    on_empty: Lock<Option<(Box<FnBox2<T>>, Option<T>)>>,
 }
 
 /// Error value returned from erroneous calls to `try_produce`, which contains
@@ -109,7 +109,7 @@ fn _assert() {
     _is_sync::<Slot<u32>>();
 }
 
-impl<T: 'static> Slot<T> {
+impl<T> Slot<T> {
     /// Creates a new `Slot` containing `val`, which may be `None` to create an
     /// empty `Slot`.
     pub fn new(val: Option<T>) -> Slot<T> {
@@ -204,8 +204,8 @@ impl<T: 'static> Slot<T> {
     /// Panics if another callback was already registered via `on_empty` or
     /// `on_full`, or if this value is called concurrently with other producer
     /// methods.
-    pub fn on_empty<F>(&self, f: F) -> Token
-        where F: FnOnce(&Slot<T>) + Send + 'static
+    pub fn on_empty<F>(&self, item: Option<T>, f: F) -> Token
+        where F: FnOnce(&Slot<T>, Option<T>) + Send + 'static
     {
         // First up, as usual, take a look at our state. Of the three flags we
         // check two:
@@ -221,7 +221,7 @@ impl<T: 'static> Slot<T> {
         let mut state = State(self.state.load(Ordering::SeqCst));
         assert!(!state.flag(ON_EMPTY));
         if !state.flag(DATA) {
-            f(self);
+            f(self, item);
             return Token(0)
         }
         assert!(!state.flag(ON_FULL));
@@ -231,7 +231,7 @@ impl<T: 'static> Slot<T> {
         // the `on_empty` slot so we store our callback here.
         let mut slot = self.on_empty.try_lock().expect("on_empty interference");
         assert!(slot.is_none());
-        *slot = Some(Box::new(f));
+        *slot = Some((Box::new(f), item));
         drop(slot);
 
         // In this loop, we transition ourselves from the `DATA` state to a
@@ -261,7 +261,8 @@ impl<T: 'static> Slot<T> {
             if !state.flag(DATA) {
                 let cb = self.on_empty.try_lock().expect("on_empty interference2")
                                       .take().expect("on_empty not empty??");
-                cb.call_box(self);
+                let (cb, item) = cb;
+                cb.call_box(self, item);
                 return Token(0)
             }
         }
@@ -307,7 +308,8 @@ impl<T: 'static> Slot<T> {
         if state.flag(ON_EMPTY) {
             let cb = self.on_empty.try_lock().expect("interference3")
                                   .take().expect("ON_EMPTY but no callback");
-            cb.call_box(self);
+            let (cb, item) = cb;
+            cb.call_box(self, item);
         }
         Ok(val)
     }
@@ -438,16 +440,27 @@ impl<T> TryProduceError<T> {
     }
 }
 
-trait FnBox<T: 'static>: Send + 'static {
+trait FnBox<T>: Send {
     fn call_box(self: Box<Self>, other: &Slot<T>);
 }
 
 impl<T, F> FnBox<T> for F
-    where F: FnOnce(&Slot<T>) + Send + 'static,
-          T: 'static,
+    where F: FnOnce(&Slot<T>) + Send,
 {
     fn call_box(self: Box<F>, other: &Slot<T>) {
         (*self)(other)
+    }
+}
+
+trait FnBox2<T>: Send {
+    fn call_box(self: Box<Self>, other: &Slot<T>, Option<T>);
+}
+
+impl<T, F> FnBox2<T> for F
+    where F: FnOnce(&Slot<T>, Option<T>) + Send,
+{
+    fn call_box(self: Box<F>, other: &Slot<T>, item: Option<T>) {
+        (*self)(other, item)
     }
 }
 
@@ -529,7 +542,7 @@ mod tests {
 
         // on empty should fire immediately for an empty slot
         let hit2 = hit.clone();
-        slot.on_empty(move |_| {
+        slot.on_empty(None, move |_, _| {
             hit2.fetch_add(1, Ordering::SeqCst);
         });
         assert_eq!(hit.load(Ordering::SeqCst), 4);
@@ -557,7 +570,7 @@ mod tests {
                 let me = thread::current();
                 self.hit.store(0, Ordering::SeqCst);
                 let hit = self.hit.clone();
-                self.slot.on_empty(move |_slot| {
+                self.slot.on_empty(None, move |_slot, _| {
                     hit.store(1, Ordering::SeqCst);
                     me.unpark();
                 });
@@ -616,6 +629,12 @@ mod tests {
             let hits = hits.clone();
             move |_: &Slot<u32>| { hits.fetch_add(1, Ordering::SeqCst); }
         };
+        let add_empty = || {
+            let hits = hits.clone();
+            move |_: &Slot<u32>, _: Option<u32>| {
+                hits.fetch_add(1, Ordering::SeqCst);
+            }
+        };
 
         // cancel on_full
         let n = hits.load(Ordering::SeqCst);
@@ -633,7 +652,7 @@ mod tests {
         let n = hits.load(Ordering::SeqCst);
         assert_eq!(hits.load(Ordering::SeqCst), n);
         slot.try_produce(1).unwrap();
-        let token = slot.on_empty(add());
+        let token = slot.on_empty(None, add_empty());
         assert_eq!(hits.load(Ordering::SeqCst), n);
         slot.cancel(token);
         assert_eq!(hits.load(Ordering::SeqCst), n);
@@ -647,7 +666,7 @@ mod tests {
         slot.cancel(token);
         assert_eq!(hits.load(Ordering::SeqCst), n + 1);
         assert!(slot.try_consume().is_ok());
-        let token = slot.on_empty(add());
+        let token = slot.on_empty(None, add_empty());
         assert_eq!(hits.load(Ordering::SeqCst), n + 2);
         slot.cancel(token);
         assert_eq!(hits.load(Ordering::SeqCst), n + 2);

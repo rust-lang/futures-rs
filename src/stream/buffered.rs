@@ -1,8 +1,7 @@
 use std::mem;
 
-use {Task, IntoFuture, Poll, Future};
+use {IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
-use util::Collapsed;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible.
@@ -21,7 +20,7 @@ pub struct Buffered<S>
 
 enum State<S: Future> {
     Empty,
-    Running(Collapsed<S>),
+    Running(S),
     Finished(Result<S::Item, S::Error>),
 }
 
@@ -43,7 +42,7 @@ impl<S> Stream for Buffered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         // First, try to fill in all the futures
         for i in 0..self.futures.len() {
             let mut idx = self.cur + i;
@@ -52,9 +51,9 @@ impl<S> Stream for Buffered<S>
             }
 
             if let State::Empty = self.futures[idx] {
-                match self.stream.poll(task) {
+                match self.stream.poll() {
                     Poll::Ok(Some(future)) => {
-                        let future = Collapsed::Start(future.into_future());
+                        let future = future.into_future();
                         self.futures[idx] = State::Running(future);
                     }
                     Poll::Ok(None) => break,
@@ -68,13 +67,10 @@ impl<S> Stream for Buffered<S>
         for future in self.futures.iter_mut() {
             let result = match *future {
                 State::Running(ref mut s) => {
-                    match s.poll(task) {
+                    match s.poll() {
                         Poll::Ok(e) => Ok(e),
                         Poll::Err(e) => Err(e),
-                        Poll::NotReady => {
-                            s.collapse();
-                            continue
-                        }
+                        Poll::NotReady => continue,
                     }
                 }
                 _ => continue,
@@ -101,26 +97,5 @@ impl<S> Stream for Buffered<S>
             }
         }
         Poll::NotReady
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        // If we've got an empty slot, then we're immediately ready to go.
-        for slot in self.futures.iter() {
-            if let State::Empty = *slot {
-                self.stream.schedule(task);
-                break
-            }
-        }
-
-        // If the current slot is ready, we're ready to go
-        if let State::Finished(_) = self.futures[self.cur] {
-            return task.notify()
-        }
-
-        for slot in self.futures.iter_mut() {
-            if let State::Running(ref mut s) = *slot {
-                s.schedule(task);
-            }
-        }
     }
 }

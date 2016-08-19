@@ -31,3 +31,4 @@ members = [
 
 [dependencies]
 log = "0.3"
+scoped-tls = "0.1"

@@ -1,8 +1,7 @@
 use std::mem;
 
-use {Task, Future, Poll, IntoFuture};
+use {Future, Poll, IntoFuture};
 use stream::Stream;
-use util::Collapsed;
 
 /// A future used to collect all the results of a stream into one generic type.
 ///
@@ -21,15 +20,14 @@ enum State<T, F> where F: Future {
     Ready(T),
 
     /// Working on a future the process the previous stream item
-    Processing(Collapsed<F>),
+    Processing(F),
 }
 
 pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
     where S: Stream,
-          F: FnMut(T, S::Item) -> Fut + 'static,
+          F: FnMut(T, S::Item) -> Fut,
           Fut: IntoFuture<Item = T>,
           Fut::Error: Into<S::Error>,
-          T: 'static
 {
     Fold {
         stream: s,
@@ -40,24 +38,22 @@ pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
 
 impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     where S: Stream,
-          F: FnMut(T, S::Item) -> Fut + 'static,
+          F: FnMut(T, S::Item) -> Fut,
           Fut: IntoFuture<Item = T>,
           Fut::Error: Into<S::Error>,
-          T: 'static
 {
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<T, S::Error> {
+    fn poll(&mut self) -> Poll<T, S::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll(task) {
+                    match self.stream.poll() {
                         Poll::Ok(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();
-                            let future = Collapsed::Start(future);
                             self.state = State::Processing(future);
                         }
                         Poll::Ok(None) => return Poll::Ok(state),
@@ -69,7 +65,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll(task) {
+                    match fut.poll() {
                         Poll::Ok(state) => self.state = State::Ready(state),
                         Poll::Err(e) => return Poll::Err(e.into()),
                         Poll::NotReady => {
@@ -80,21 +76,5 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                 }
             }
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        match self.state {
-            State::Empty => panic!("cannot `schedule` a completed Fold"),
-            State::Ready(_) => self.stream.schedule(task),
-            State::Processing(ref mut fut) => fut.schedule(task),
-        }
-    }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        if let State::Processing(ref mut fut) = self.state {
-            fut.collapse();
-        }
-        None
     }
 }

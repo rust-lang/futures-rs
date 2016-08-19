@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::{Stream, Fuse};
 
 /// A `Stream` that implements a `peek` method.
@@ -24,18 +24,11 @@ impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(item) = self.peeked.take() {
             return Poll::Ok(Some(item));
         }
-        self.stream.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.peeked.is_some() {
-            return task.notify();
-        }
-        self.stream.schedule(task)
+        self.stream.poll()
     }
 }
 
@@ -44,12 +37,12 @@ impl<S: Stream> Peekable<S> {
     /// Peek retrieves a reference to the next item in the stream.
     ///
     /// This method polls the underlying stream and return either a reference
-    /// to the next item if the stream is ready or passes through any errors. 
-    pub fn peek(&mut self, task: &mut Task) -> Poll<Option<&S::Item>, S::Error> {
+    /// to the next item if the stream is ready or passes through any errors.
+    pub fn peek(&mut self) -> Poll<Option<&S::Item>, S::Error> {
         if self.peeked.is_some() {
             return Poll::Ok(self.peeked.as_ref());
         }
-        match self.poll(task) {
+        match self.poll() {
             Poll::NotReady => Poll::NotReady,
             Poll::Err(e) => Poll::Err(e),
             Poll::Ok(None) => Poll::Ok(None),

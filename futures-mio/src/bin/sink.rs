@@ -9,11 +9,11 @@ extern crate futures_io;
 extern crate futures_mio;
 
 use std::env;
-use std::io::{self, Write};
+use std::iter;
 use std::net::SocketAddr;
 
 use futures::Future;
-use futures::stream::Stream;
+use futures::stream::{self, Stream};
 use futures_io::IoFuture;
 
 fn main() {
@@ -24,7 +24,7 @@ fn main() {
     let server = l.handle().tcp_listen(&addr).and_then(|socket| {
         socket.incoming().and_then(|(socket, addr)| {
             println!("got a socket: {}", addr);
-            write(socket)
+            write(socket).or_else(|_| Ok(()))
         }).for_each(|()| {
             println!("lost the socket");
             Ok(())
@@ -36,18 +36,8 @@ fn main() {
 
 fn write(socket: futures_mio::TcpStream) -> IoFuture<()> {
     static BUF: &'static [u8] = &[0; 64 * 1024];
-    socket.into_future().map_err(|e| e.0).and_then(move |(ready, mut socket)| {
-        let ready = match ready {
-            Some(ready) => ready,
-            None => return futures::finished(()).boxed(),
-        };
-        while ready.is_write() {
-            match socket.write(&BUF) {
-                Ok(_) => {}
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => break,
-                Err(e) => return futures::failed(e).boxed(),
-            }
-        }
-        write(socket)
-    }).boxed()
+    let iter = iter::repeat(()).map(|()| Ok(()));
+    stream::iter(iter).fold(socket, |socket, ()| {
+        futures_io::write_all(socket, BUF).map(|(socket, _)| socket)
+    }).map(|_| ()).boxed()
 }

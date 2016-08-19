@@ -8,8 +8,8 @@ use std::env;
 use std::net::SocketAddr;
 
 use futures::Future;
-use futures_io::{copy, TaskIo};
 use futures::stream::Stream;
+use futures_io::{copy, TaskIo};
 
 fn main() {
     let addr = env::args().nth(1).unwrap_or("127.0.0.1:8080".to_string());
@@ -27,17 +27,15 @@ fn main() {
 
         // Pull out the stream of incoming connections and then for each new
         // one spin up a new task copying data. We put the `socket` into a
-        // `TaskIo` structure which then allows us to `split` it into the read
-        // and write halves of the socket.
+        // `Arc` structure which then allows us to share it across the
+        // read/write halves with a small shim.
         //
         // Finally we use the `io::copy` future to copy all data from the
         // reading half onto the writing half.
         socket.incoming().for_each(|(socket, addr)| {
-            let io = TaskIo::new(socket);
-            let pair = io.map(|io| io.split());
-            let amt = pair.and_then(|(reader, writer)| {
-                copy(reader, writer)
-            });
+            let socket = futures::lazy(|| futures::finished(TaskIo::new(socket)));
+            let pair = socket.map(|s| s.split());
+            let amt = pair.and_then(|(reader, writer)| copy(reader, writer));
 
             // Once all that is done we print out how much we wrote, and then
             // critically we *forget* this future which allows it to run

@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream combinator which returns a maximum number of elements.
@@ -24,25 +24,17 @@ impl<S> Stream for Take<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         if self.remaining == 0 {
             Poll::Ok(None)
         } else {
-            match self.stream.poll(task) {
+            match self.stream.poll() {
                 Poll::Ok(Some(e)) => {
                     self.remaining -= 1;
                     Poll::Ok(Some(e))
                 }
                 other => other,
             }
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if self.remaining == 0 {
-            task.notify()
-        } else {
-            self.stream.schedule(task)
         }
     }
 }

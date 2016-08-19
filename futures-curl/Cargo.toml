@@ -16,6 +16,7 @@ curl = "0.3.3"
 futures = { path = "..", version = "0.1" }
 futures-io = { path = "../futures-io", version = "0.1" }
 futures-mio = { path = "../futures-mio", version = "0.1" }
+libc = "0.2"
 log = "0.3"
 mio = { git = "https://github.com/carllerche/mio" }
 scoped-tls = "0.1"

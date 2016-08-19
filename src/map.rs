@@ -1,11 +1,10 @@
-use {Future, Task, Poll};
-use util::Collapsed;
+use {Future, Poll};
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
 /// This is created by this `Future::map` method.
 pub struct Map<A, F> where A: Future {
-    future: Collapsed<A>,
+    future: A,
     f: Option<F>,
 }
 
@@ -13,31 +12,20 @@ pub fn new<A, F>(future: A, f: F) -> Map<A, F>
     where A: Future,
 {
     Map {
-        future: Collapsed::Start(future),
+        future: future,
         f: Some(f),
     }
 }
 
 impl<U, A, F> Future for Map<A, F>
     where A: Future,
-          F: FnOnce(A::Item) -> U + 'static,
-          U: 'static,
+          F: FnOnce(A::Item) -> U,
 {
     type Item = U;
     type Error = A::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<U, A::Error> {
-        let result = try_poll!(self.future.poll(task));
+    fn poll(&mut self) -> Poll<U, A::Error> {
+        let result = try_poll!(self.future.poll());
         result.map(self.f.take().expect("cannot poll Map twice")).into()
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.future.schedule(task)
-    }
-
-    unsafe fn tailcall(&mut self)
-                       -> Option<Box<Future<Item=Self::Item, Error=Self::Error>>> {
-        self.future.collapse();
-        None
     }
 }

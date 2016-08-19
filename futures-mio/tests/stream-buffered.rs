@@ -3,9 +3,9 @@ extern crate futures_io;
 extern crate futures_mio;
 extern crate env_logger;
 
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::thread;
-use std::io::{Read, Write};
 
 use futures::Future;
 use futures::stream::Stream;
@@ -42,9 +42,8 @@ fn echo_server() {
     });
 
     let future = srv.incoming()
-                    .and_then(|s| TaskIo::new(s.0))
-                    .map(|i| i.split())
-                    .map(|(a,b)| copy(a,b).map(|_| ()))
+                    .map(|s| TaskIo::new(s.0).split())
+                    .map(|(a, b)| copy(a, b).map(|_| ()))
                     .buffered(10)
                     .take(2)
                     .collect();

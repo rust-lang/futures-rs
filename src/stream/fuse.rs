@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream which "fuse"s a stream once it's terminated.
@@ -19,18 +19,12 @@ impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<S::Item>, S::Error> {
-        let ret = self.stream.as_mut().map(|s| s.poll(task));
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+        let ret = self.stream.as_mut().map(|s| s.poll());
         if let Some(Poll::Ok(None)) = ret {
             self.stream = None;
         }
         ret.unwrap_or(Poll::Ok(None))
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut stream) = self.stream {
-            stream.schedule(task)
-        }
     }
 }
 

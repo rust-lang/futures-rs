@@ -11,7 +11,7 @@
 //! ready as well.
 // TODO: expand these docs
 
-use {Task, IntoFuture, Poll};
+use {IntoFuture, Poll};
 
 mod channel;
 mod iter;
@@ -73,18 +73,6 @@ mod impls;
 /// Like futures a stream has basic combinators to transform the stream, perform
 /// more work on each item, etc.
 ///
-/// # Basic methods
-///
-/// Like futures, a `Stream` has two core methods which drive processing of data
-/// and notifications of when new data might be ready. The `poll` method checks
-/// the status of a stream and the `schedule` method is used to receive
-/// notifications for when it may be ready to call `poll` again.
-///
-/// Also like future, a stream has an associated error type to represent that an
-/// element of the computation failed for some reason. Errors, however, do not
-/// signal the end of the stream.
-// TODO: is that last clause correct?
-///
 /// # Streams as Futures
 ///
 /// Any instance of `Stream` can also be viewed as a `Future` where the resolved
@@ -92,32 +80,30 @@ mod impls;
 /// `into_future` adaptor can be used here to convert any stream into a future
 /// for use with other future methods like `join` and `select`.
 // TODO: more here
-pub trait Stream: 'static {
+pub trait Stream {
     /// The type of item this stream will yield on success.
-    type Item: 'static;
+    type Item;
 
     /// The type of error this stream may generate.
-    type Error: 'static;
+    type Error;
 
     /// Attempt to pull out the next value of this stream, returning `None` if
     /// the stream is finished.
     ///
     /// This method, like `Future::poll`, is the sole method of pulling out a
-    /// value from a stream. The `task` argument is the task of computation that
-    /// this stream is running within, and it contains information like
-    /// task-local data and tokens of interest.
-    ///
-    /// Implementors of this trait must ensure that implementations of this
-    /// method do not block, as it may cause consumers to behave badly.
+    /// value from a stream. This method must also be run within the context of
+    /// a task typically and implementors of this trait must ensure that
+    /// implementations of this method do not block, as it may cause consumers
+    /// to behave badly.
     ///
     /// # Return value
     ///
     /// If `Poll::NotReady` is returned then this stream's next value is not
-    /// ready yet, and `schedule` can be used to receive a notification for when
-    /// the value may become ready in the future. If `Some` is returned then the
-    /// returned value represents the next value on the stream. `Err` indicates
-    /// an error happened, while `Ok` indicates whether there was a new item on
-    /// the stream or whether the stream has terminated.
+    /// ready yet, then implementations will ensure that the current task will
+    /// be notified when the next value may be ready. If `Some` is returned then
+    /// the returned value represents the next value on the stream. `Err`
+    /// indicates an error happened, while `Ok` indicates whether there was a
+    /// new item on the stream or whether the stream has terminated.
     ///
     /// # Panics
     ///
@@ -126,45 +112,11 @@ pub trait Stream: 'static {
     /// If this is difficult to guard against then the `fuse` adapter can be
     /// used to ensure that `poll` always has well-defined semantics.
     // TODO: more here
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Self::Item>, Self::Error>;
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error>;
 
     // TODO: should there also be a method like `poll` but doesn't return an
     //       item? basically just says "please make more progress internally"
     //       seems crucial for buffering to actually make any sense.
-
-    /// Schedule a task to be notified when this future is ready.
-    ///
-    /// This is very similar to the `Future::schedule` method which registers
-    /// interest. The task provided will only be notified once for the next
-    /// value on a stream. If an application is interested in more values on a
-    /// stream, then a task needs to be re-scheduled.
-    ///
-    /// Multiple calls to `schedule` while waiting for one value to be produced
-    /// will only result in the final `task` getting notified. Consumers must
-    /// take care that if `schedule` is called twice the previous task does not
-    /// need to be invoked.
-    ///
-    /// Implementors of the `Stream` trait are recommended to just blindly pass
-    /// around this task rather than manufacture new tasks for contained
-    /// futures.
-    ///
-    /// When the task is notified it will be provided a set of tokens that
-    /// represent the set of events which have happened since it was last called
-    /// (or the last call to `poll`). These events can later be read during the
-    /// `poll` phase to prevent polling too much.
-    ///
-    /// # Panics
-    ///
-    /// Once a stream has returned `Ok(None)` (it's been completed) then further
-    /// calls to either `poll` or this function, `schedule`, should not be
-    /// expected to behave well. A call to `schedule` after a poll has succeeded
-    /// may panic, block forever, or otherwise exhibit odd behavior.
-    ///
-    /// Callers who may call `schedule` after a stream is finished may want to
-    /// consider using the `fuse` adaptor which defines the behavior of
-    /// `schedule` after a successful poll, but comes with a little bit of
-    /// extra cost.
-    fn schedule(&mut self, task: &mut Task);
 
     /// Convenience function for turning this stream into a trait object.
     ///
@@ -183,7 +135,7 @@ pub trait Stream: 'static {
     /// let a: BoxStream<i32, i32> = rx.boxed();
     /// ```
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
-        where Self: Sized + Send
+        where Self: Sized + Send + 'static,
     {
         Box::new(self)
     }
@@ -222,8 +174,7 @@ pub trait Stream: 'static {
     /// let rx = rx.map(|x| x + 3);
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
-        where F: FnMut(Self::Item) -> U + 'static,
-              U: 'static,
+        where F: FnMut(Self::Item) -> U,
               Self: Sized
     {
         map::new(self, f)
@@ -248,8 +199,7 @@ pub trait Stream: 'static {
     /// let rx = rx.map_err(|x| x + 3);
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
-        where F: FnMut(Self::Error) -> U + 'static,
-              U: 'static,
+        where F: FnMut(Self::Error) -> U,
               Self: Sized
     {
         map_err::new(self, f)
@@ -278,7 +228,7 @@ pub trait Stream: 'static {
     /// let evens = rx.filter(|x| x % 0 == 2);
     /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
-        where F: FnMut(&Self::Item) -> bool + 'static,
+        where F: FnMut(&Self::Item) -> bool,
               Self: Sized
     {
         filter::new(self, f)
@@ -313,7 +263,7 @@ pub trait Stream: 'static {
     /// });
     /// ```
     fn filter_map<F, B>(self, f: F) -> FilterMap<Self, F>
-        where F: FnMut(Self::Item) -> Option<B> + 'static,
+        where F: FnMut(Self::Item) -> Option<B>,
               Self: Sized
     {
         filter_map::new(self, f)
@@ -351,7 +301,7 @@ pub trait Stream: 'static {
     /// });
     /// ```
     fn then<F, U>(self, f: F) -> Then<Self, F, U>
-        where F: FnMut(Result<Self::Item, Self::Error>) -> U + 'static,
+        where F: FnMut(Result<Self::Item, Self::Error>) -> U,
               U: IntoFuture,
               Self: Sized
     {
@@ -394,7 +344,7 @@ pub trait Stream: 'static {
     /// });
     /// ```
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
-        where F: FnMut(Self::Item) -> U + 'static,
+        where F: FnMut(Self::Item) -> U,
               U: IntoFuture<Error = Self::Error>,
               Self: Sized
     {
@@ -437,7 +387,7 @@ pub trait Stream: 'static {
     /// });
     /// ```
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
-        where F: FnMut(Self::Error) -> U + 'static,
+        where F: FnMut(Self::Error) -> U,
               U: IntoFuture<Item = Self::Item>,
               Self: Sized
     {
@@ -457,7 +407,7 @@ pub trait Stream: 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll, BoxFuture};
+    /// use futures::{finished, Future, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
@@ -474,8 +424,7 @@ pub trait Stream: 'static {
     /// send(5, tx).forget();
     ///
     /// let mut result = rx.collect();
-    /// assert_eq!(result.poll(&mut Task::new()),
-    ///            Poll::Ok(vec![5, 4, 3, 2, 1]));
+    /// assert_eq!(result.poll(), Poll::Ok(vec![5, 4, 3, 2, 1]));
     /// ```
     fn collect(self) -> Collect<Self>
         where Self: Sized
@@ -498,7 +447,7 @@ pub trait Stream: 'static {
     /// # Examples
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll, BoxFuture};
+    /// use futures::{finished, Future, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
     /// let (tx, rx) = channel::<i32, u32>();
@@ -515,13 +464,12 @@ pub trait Stream: 'static {
     /// send(5, tx).forget();
     ///
     /// let mut result = rx.fold(0, |a, b| finished::<i32, u32>(a + b));
-    /// assert_eq!(result.poll(&mut Task::new()), Poll::Ok(15));
+    /// assert_eq!(result.poll(), Poll::Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
-        where F: FnMut(T, Self::Item) -> Fut + 'static,
+        where F: FnMut(T, Self::Item) -> Fut,
               Fut: IntoFuture<Item = T>,
               Fut::Error: Into<Self::Error>,
-              T: 'static,
               Self: Sized
     {
         fold::new(self, f, init)
@@ -535,7 +483,7 @@ pub trait Stream: 'static {
     /// individual stream will get exhausted before moving on to the next.
     ///
     /// ```
-    /// use futures::{finished, Future, Task, Poll};
+    /// use futures::{finished, Future, Poll};
     /// use futures::stream::*;
     ///
     /// let (tx1, rx1) = channel::<i32, u32>();
@@ -548,7 +496,7 @@ pub trait Stream: 'static {
     /// tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).forget();
     ///
     /// let mut result = rx3.flatten().collect();
-    /// assert_eq!(result.poll(&mut Task::new()), Poll::Ok(vec![1, 2, 3, 4]));
+    /// assert_eq!(result.poll(), Poll::Ok(vec![1, 2, 3, 4]));
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream,
@@ -566,7 +514,7 @@ pub trait Stream: 'static {
     /// returns false all future elements will be returned from the underlying
     /// stream.
     fn skip_while<P, R>(self, pred: P) -> SkipWhile<Self, P, R>
-        where P: FnMut(&Self::Item) -> R + 'static,
+        where P: FnMut(&Self::Item) -> R,
               R: IntoFuture<Item=bool, Error=Self::Error>,
               Self: Sized
     {
@@ -585,7 +533,7 @@ pub trait Stream: 'static {
     /// closure will cause iteration to be halted immediately and the future
     /// will resolve to that error.
     fn for_each<F>(self, f: F) -> ForEach<Self, F>
-        where F: FnMut(Self::Item) -> Result<(), Self::Error> + 'static,
+        where F: FnMut(Self::Item) -> Result<(), Self::Error>,
               Self: Sized
     {
         for_each::new(self, f)

@@ -70,4 +70,3 @@ fn timeout_download_rust_lang() {
 
     lp.run(result).unwrap();
 }
-

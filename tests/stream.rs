@@ -1,7 +1,8 @@
 extern crate futures;
 
-use futures::{failed, finished, Future, oneshot, Poll, Task};
+use futures::{failed, finished, Future, oneshot, Poll};
 use futures::stream::*;
+use futures::task::Task;
 
 mod support;
 use support::*;
@@ -101,13 +102,14 @@ fn peekable () {
 #[test]
 fn fuse() {
     let mut stream = list().fuse();
-    let mut task = Task::new();
-    assert_eq!(stream.poll(&mut task), Poll::Ok(Some(1)));
-    assert_eq!(stream.poll(&mut task), Poll::Ok(Some(2)));
-    assert_eq!(stream.poll(&mut task), Poll::Ok(Some(3)));
-    assert_eq!(stream.poll(&mut task), Poll::Ok(None));
-    assert_eq!(stream.poll(&mut task), Poll::Ok(None));
-    assert_eq!(stream.poll(&mut task), Poll::Ok(None));
+    Task::new().enter(|| {
+        assert_eq!(stream.poll(), Poll::Ok(Some(1)));
+        assert_eq!(stream.poll(), Poll::Ok(Some(2)));
+        assert_eq!(stream.poll(), Poll::Ok(Some(3)));
+        assert_eq!(stream.poll(), Poll::Ok(None));
+        assert_eq!(stream.poll(), Poll::Ok(None));
+        assert_eq!(stream.poll(), Poll::Ok(None));
+    });
 }
 
 #[test]
@@ -163,7 +165,7 @@ fn zip() {
 #[test]
 fn peek() {
     let mut peekable = list().peekable();
-    assert_eq!(peekable.peek(&mut Task::new()).unwrap(), Ok(Some(&1)));
-    assert_eq!(peekable.peek(&mut Task::new()).unwrap(), Ok(Some(&1)));
-    assert_eq!(peekable.poll(&mut Task::new()).unwrap(), Ok(Some(1)));
+    assert_eq!(peekable.peek().unwrap(), Ok(Some(&1)));
+    assert_eq!(peekable.peek().unwrap(), Ok(Some(&1)));
+    assert_eq!(peekable.poll().unwrap(), Ok(Some(1)));
 }

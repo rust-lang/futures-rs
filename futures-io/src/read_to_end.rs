@@ -1,9 +1,7 @@
-use std::io;
+use std::io::{self, Read};
 use std::mem;
 
-use futures::{Poll, Task, Future};
-
-use ReadTask;
+use futures::{Poll, Future};
 
 /// A future which can be used to easily read the entire contents of a stream
 /// into a vector.
@@ -12,7 +10,6 @@ use ReadTask;
 pub struct ReadToEnd<A> {
     a: A,
     buf: Vec<u8>,
-    first: bool,
 }
 
 /// Creates a future which will read all the bytes associated with the I/O
@@ -23,65 +20,25 @@ pub struct ReadToEnd<A> {
 /// the buffer will be returned, with all data read from the stream appended to
 /// the buffer.
 pub fn read_to_end<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
-    where A: ReadTask,
+    where A: Read,
 {
     ReadToEnd {
         a: a,
         buf: buf,
-        first: true,
     }
 }
 
 impl<A> Future for ReadToEnd<A>
-    where A: ReadTask,
+    where A: Read,
 {
     type Item = Vec<u8>;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Vec<u8>, io::Error> {
-        // Right now I/O streams are all "edge ready" in the sense that once
-        // they emit a readable notification, we may never get another readable
-        // notification until all the data there was read out.
-        //
-        // We don't know what the state of the I/O object passed to this
-        // combinator is, so the first time we `poll` we *must* perform a
-        // `read`. After we've learned that there's nothing else to read though
-        // we can wait for readable notifications from the underlying stream.
-        if self.first {
-            self.first = false;
-        } else {
-            match try_poll!(self.a.poll(task)) {
-                Ok(Some(ref r)) if r.is_read() => {}
-                Ok(Some(r)) => {
-                    debug!("notification but not readable {:?}", r);
-                    return Poll::NotReady
-                }
-                Ok(None) => {
-                    return Poll::Ok(mem::replace(&mut self.buf, Vec::new()))
-                }
-                Err(e) => return Poll::Err(e)
-            }
-        }
-
-        debug!("attempting a read to end");
-        let start = self.buf.len();
-        match self.a.read_to_end(task, &mut self.buf) {
-            // If we get `Ok`, then we know the stream hit EOF, so we're done
-            Ok(_) => Poll::Ok(mem::replace(&mut self.buf, Vec::new())),
-
-            // If we hit WouldBlock, then the data we read so far is in the
-            // buffer and we just need to wait until we're readable again.
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                debug!("read {} bytes, waiting for more",
-                       self.buf.len() - start);
-                Poll::NotReady
-            }
-
-            Err(e) => Poll::Err(e)
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.a.schedule(task)
+    fn poll(&mut self) -> Poll<Vec<u8>, io::Error> {
+        // If we get `Ok`, then we know the stream hit EOF and we're done. If we
+        // hit "would block" then all the read data so far is in our buffer, and
+        // otherwise we propagate errors.
+        try_nb!(self.a.read_to_end(&mut self.buf));
+        Poll::Ok(mem::replace(&mut self.buf, Vec::new()))
     }
 }

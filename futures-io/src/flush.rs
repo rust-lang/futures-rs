@@ -1,8 +1,6 @@
-use std::io;
+use std::io::{self, Write};
 
-use futures::{Poll, Task, Future};
-
-use WriteTask;
+use futures::{Poll, Future};
 
 /// A future used to fully flush an I/O object.
 ///
@@ -11,7 +9,6 @@ use WriteTask;
 /// Created by the `flush` function.
 pub struct Flush<A> {
     a: Option<A>,
-    first: bool,
 }
 
 /// Creates a future which will entirely flush an I/O object and then yield the
@@ -21,44 +18,22 @@ pub struct Flush<A> {
 /// otherwise it will repeatedly call `flush` until it sees `Ok(())`, scheduling
 /// a retry if `WouldBlock` is seen along the way.
 pub fn flush<A>(a: A) -> Flush<A>
-    where A: WriteTask,
+    where A: Write,
 {
     Flush {
         a: Some(a),
-        first: true,
     }
 }
 
 impl<A> Future for Flush<A>
-    where A: WriteTask,
+    where A: Write,
 {
     type Item = A;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<A, io::Error> {
-        if self.first {
-            self.first = false;
-        } else {
-            match try_poll!(self.a.as_mut().unwrap().poll(task)) {
-                Ok(Some(ref r)) if r.is_write() => {}
-                Ok(Some(_)) => return Poll::NotReady,
-                Ok(None) => panic!("need flush but can't write"),
-                Err(e) => return Poll::Err(e)
-            }
-        }
-        match self.a.as_mut().unwrap().flush(task) {
-            Ok(()) => Poll::Ok(self.a.take().unwrap()),
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                Poll::NotReady
-            }
-            Err(e) => Poll::Err(e),
-        }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        if let Some(ref mut a) = self.a {
-            a.schedule(task);
-        }
+    fn poll(&mut self) -> Poll<A, io::Error> {
+        try_nb!(self.a.as_mut().unwrap().flush());
+        Poll::Ok(self.a.take().unwrap())
     }
 }
 

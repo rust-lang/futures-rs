@@ -9,9 +9,9 @@ extern crate cfg_if;
 
 use std::io::{self, Read, Write};
 
-use futures::{Future, Task, Poll};
+use futures::Future;
 use futures::stream::Stream;
-use futures_io::{read_to_end, take, repeat, copy, Ready};
+use futures_io::{read_to_end, copy};
 use futures_tls::{ServerContext, ClientContext};
 
 macro_rules! t {
@@ -452,7 +452,7 @@ fn client_to_server() {
     let sent = client.and_then(move |socket| {
         t!(client_cx()).handshake("localhost", socket)
     }).and_then(|socket| {
-        copy(take(repeat(9), AMT), socket)
+        copy(io::repeat(9).take(AMT), socket)
     });
 
     // Finally, run everything!
@@ -477,7 +477,7 @@ fn server_to_client() {
     }).and_then(move |socket| {
         t!(server_cx()).handshake(socket)
     }).and_then(|socket| {
-        copy(take(repeat(9), AMT), socket)
+        copy(io::repeat(9).take(AMT), socket)
     });
 
     let client = l.handle().tcp_connect(&addr);
@@ -495,21 +495,6 @@ fn server_to_client() {
 
 struct OneByte<S> {
     inner: S,
-}
-
-impl<S> Stream for OneByte<S>
-    where S: Stream<Item=Ready, Error=io::Error>
-{
-    type Item = Ready;
-    type Error = io::Error;
-
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
 }
 
 impl<S: Read> Read for OneByte<S> {
@@ -543,7 +528,7 @@ fn one_byte_at_a_time() {
     }).and_then(move |socket| {
         t!(server_cx()).handshake(OneByte { inner: socket })
     }).and_then(|socket| {
-        copy(take(repeat(9), AMT), socket)
+        copy(io::repeat(9).take(AMT), socket)
     });
 
     let client = l.handle().tcp_connect(&addr);

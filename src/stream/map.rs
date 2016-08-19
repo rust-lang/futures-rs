@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A stream combinator which will change the type of a stream from one
@@ -12,8 +12,7 @@ pub struct Map<S, F> {
 
 pub fn new<S, F, U>(s: S, f: F) -> Map<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> U + 'static,
-          U: 'static,
+          F: FnMut(S::Item) -> U,
 {
     Map {
         stream: s,
@@ -23,17 +22,12 @@ pub fn new<S, F, U>(s: S, f: F) -> Map<S, F>
 
 impl<S, F, U> Stream for Map<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> U + 'static,
-          U: 'static,
+          F: FnMut(S::Item) -> U,
 {
     type Item = U;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<U>, S::Error> {
-        self.stream.poll(task).map(|option| option.map(&mut self.f))
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
+    fn poll(&mut self) -> Poll<Option<U>, S::Error> {
+        self.stream.poll().map(|option| option.map(&mut self.f))
     }
 }

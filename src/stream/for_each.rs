@@ -1,4 +1,4 @@
-use {Future, Task, Poll};
+use {Future, Poll};
 use stream::Stream;
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -12,7 +12,7 @@ pub struct ForEach<S, F> {
 
 pub fn new<S, F>(s: S, f: F) -> ForEach<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Result<(), S::Error> + 'static
+          F: FnMut(S::Item) -> Result<(), S::Error>,
 {
     ForEach {
         stream: s,
@@ -22,14 +22,14 @@ pub fn new<S, F>(s: S, f: F) -> ForEach<S, F>
 
 impl<S, F> Future for ForEach<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Result<(), S::Error> + 'static
+          F: FnMut(S::Item) -> Result<(), S::Error>,
 {
     type Item = ();
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<(), S::Error> {
+    fn poll(&mut self) -> Poll<(), S::Error> {
         loop {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(e)) => {
                     match (self.f)(e) {
                         Ok(()) => {}
@@ -40,9 +40,5 @@ impl<S, F> Future for ForEach<S, F>
                 Err(e) => return Poll::Err(e),
             }
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
     }
 }

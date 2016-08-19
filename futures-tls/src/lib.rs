@@ -22,9 +22,7 @@ extern crate log;
 
 use std::io::{self, Read, Write};
 
-use futures::stream::Stream;
-use futures::{Task, Poll, Future};
-use futures_io::Ready;
+use futures::{Poll, Future};
 
 cfg_if! {
     if #[cfg(any(feature = "force-openssl",
@@ -157,7 +155,7 @@ impl ClientContext {
                         domain: &str,
                         stream: S)
                         -> ClientHandshake<S>
-        where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+        where S: Read + Write,
     {
         ClientHandshake { inner: self.inner.handshake(domain, stream) }
     }
@@ -175,59 +173,36 @@ impl ServerContext {
     /// The given I/O stream should be an accepted client of this server which
     /// is ready to negotiate the TLS connection.
     pub fn handshake<S>(self, stream: S) -> ServerHandshake<S>
-        where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+        where S: Read + Write,
     {
         ServerHandshake { inner: self.inner.handshake(stream) }
     }
 }
 
 impl<S> Future for ClientHandshake<S>
-    where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
-        self.inner.poll(task).map(|s| TlsStream { inner: s })
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
+    fn poll(&mut self) -> Poll<TlsStream<S>, io::Error> {
+        self.inner.poll().map(|s| TlsStream { inner: s })
     }
 }
 
 impl<S> Future for ServerHandshake<S>
-    where S: Read + Write + Stream<Item=Ready, Error=io::Error>,
+    where S: Read + Write,
 {
     type Item = TlsStream<S>;
     type Error = io::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<TlsStream<S>, io::Error> {
-        self.inner.poll(task).map(|s| TlsStream { inner: s })
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
-    }
-}
-
-impl<S> Stream for TlsStream<S>
-    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
-{
-    type Item = Ready;
-    type Error = io::Error;
-
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<Ready>, io::Error> {
-        self.inner.poll(task)
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.inner.schedule(task)
+    fn poll(&mut self) -> Poll<TlsStream<S>, io::Error> {
+        self.inner.poll().map(|s| TlsStream { inner: s })
     }
 }
 
 impl<S> Read for TlsStream<S>
-    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+    where S: Read + Write,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
@@ -235,7 +210,7 @@ impl<S> Read for TlsStream<S>
 }
 
 impl<S> Write for TlsStream<S>
-    where S: Stream<Item=Ready, Error=io::Error> + Read + Write,
+    where S: Read + Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.inner.write(buf)

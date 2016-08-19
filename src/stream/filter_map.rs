@@ -1,4 +1,4 @@
-use {Task, Poll};
+use Poll;
 use stream::Stream;
 
 /// A combinator used to filter the results of a stream and simultaneously map
@@ -12,7 +12,7 @@ pub struct FilterMap<S, F> {
 
 pub fn new<S, F, B>(s: S, f: F) -> FilterMap<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Option<B> + 'static,
+          F: FnMut(S::Item) -> Option<B>,
 {
     FilterMap {
         stream: s,
@@ -22,15 +22,14 @@ pub fn new<S, F, B>(s: S, f: F) -> FilterMap<S, F>
 
 impl<S, F, B> Stream for FilterMap<S, F>
     where S: Stream,
-          F: FnMut(S::Item) -> Option<B> + 'static,
-          B: 'static,
+          F: FnMut(S::Item) -> Option<B>,
 {
     type Item = B;
     type Error = S::Error;
 
-    fn poll(&mut self, task: &mut Task) -> Poll<Option<B>, S::Error> {
+    fn poll(&mut self) -> Poll<Option<B>, S::Error> {
         loop {
-            match try_poll!(self.stream.poll(task)) {
+            match try_poll!(self.stream.poll()) {
                 Ok(Some(e)) => {
                     if let Some(e) = (self.f)(e) {
                         return Poll::Ok(Some(e))
@@ -40,9 +39,5 @@ impl<S, F, B> Stream for FilterMap<S, F>
                 Err(e) => return Poll::Err(e),
             }
         }
-    }
-
-    fn schedule(&mut self, task: &mut Task) {
-        self.stream.schedule(task)
     }
 }
