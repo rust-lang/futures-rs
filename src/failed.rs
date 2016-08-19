@@ -43,4 +43,8 @@ impl<T, E> Future for Failed<T, E>
     fn schedule(&mut self, task: &mut Task) {
         task.notify();
     }
+
+    fn wait(mut self) -> Result<T, E> {
+        Err(self.e.take().expect("cannot wait on already polled Failed"))
+    }
 }

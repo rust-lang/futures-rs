@@ -154,6 +154,8 @@
 #[macro_use]
 extern crate log;
 
+use std::sync::mpsc::channel;
+
 // internal utilities
 mod lock;
 mod slot;
@@ -828,6 +830,17 @@ pub trait Future: 'static {
     /// this method to drive it to completion.
     fn forget(self) where Self: Sized + Send {
         forget::forget(self);
+    }
+
+    /// Consume this future and block until its value is available.
+    ///
+    /// Beware that some future implementations may require some sort of event loop to be executed
+    /// in order to progress. Before you call this function, make sure that it will not result in
+    /// a deadlock.
+    fn wait(self) -> Result<Self::Item, Self::Error> where Self: Sized {
+        let (tx, rx) = channel();
+        self.then(move |r| -> Result<(), ()> { let _ = tx.send(r); Ok(()) }).forget();
+        rx.recv().unwrap()
     }
 }
 
