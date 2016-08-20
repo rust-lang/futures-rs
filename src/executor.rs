@@ -27,7 +27,7 @@ pub trait Executor: Send + Sync + 'static {
     /// Object-safe method of the above interface used when implementing trait
     /// objects.
     ///
-    /// This should not be called direclty and instead `execute` should be used.
+    /// This should not be called directly and instead `execute` should be used.
     fn execute_boxed(&self, f: Box<ExecuteCallback>);
 }
 
