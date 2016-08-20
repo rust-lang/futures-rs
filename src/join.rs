@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::mem;
+use core::mem;
 
 use {Future, Poll, IntoFuture};
 

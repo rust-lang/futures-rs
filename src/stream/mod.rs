@@ -13,15 +13,10 @@
 
 use {IntoFuture, Poll};
 
-mod channel;
 mod iter;
-pub use self::channel::{channel, Sender, Receiver};
 pub use self::iter::{iter, IterStream};
 
 mod and_then;
-mod await;
-mod buffered;
-mod collect;
 mod filter;
 mod filter_map;
 mod flatten;
@@ -40,9 +35,6 @@ mod take;
 mod then;
 mod zip;
 pub use self::and_then::AndThen;
-pub use self::await::Await;
-pub use self::buffered::Buffered;
-pub use self::collect::Collect;
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
@@ -61,7 +53,28 @@ pub use self::then::Then;
 pub use self::zip::Zip;
 pub use self::peek::Peekable;
 
-mod impls;
+if_std! {
+    mod await;
+    mod buffered;
+    mod channel;
+    mod collect;
+    pub use self::await::Await;
+    pub use self::buffered::Buffered;
+    pub use self::channel::{channel, Sender, Receiver};
+    pub use self::collect::Collect;
+
+    /// A type alias for `Box<Future + Send>`
+    pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
+
+    impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
+        type Item = S::Item;
+        type Error = S::Error;
+
+        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+            (**self).poll()
+        }
+    }
+}
 
 /// A stream of values, not all of which have been produced yet.
 ///
@@ -144,6 +157,7 @@ pub trait Stream {
     ///
     /// The returned iterator does not attempt to catch panics. If the `poll`
     /// function panics, panics will be propagated to the caller of `next`.
+    #[cfg(feature = "use_std")]
     fn await(self) -> Await<Self>
         where Self: Sized
     {
@@ -166,10 +180,11 @@ pub trait Stream {
     /// let (_tx, rx) = channel();
     /// let a: BoxStream<i32, i32> = rx.boxed();
     /// ```
+    #[cfg(feature = "use_std")]
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
         where Self: Sized + Send + 'static,
     {
-        Box::new(self)
+        ::std::boxed::Box::new(self)
     }
 
     /// Converts this stream into a `Future`.
@@ -458,6 +473,7 @@ pub trait Stream {
     /// let mut result = rx.collect();
     /// assert_eq!(result.poll(), Poll::Ok(vec![5, 4, 3, 2, 1]));
     /// ```
+    #[cfg(feature = "use_std")]
     fn collect(self) -> Collect<Self>
         where Self: Sized
     {
@@ -621,6 +637,7 @@ pub trait Stream {
     ///
     /// The returned stream will be a stream of each future's result, with
     /// errors passed through whenever they occur.
+    #[cfg(feature = "use_std")]
     fn buffered(self, amt: usize) -> Buffered<Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
@@ -662,5 +679,11 @@ pub trait Stream {
     }
 }
 
-/// A type alias for `Box<Future + Send>`
-pub type BoxStream<T, E> = Box<Stream<Item = T, Error = E> + Send>;
+impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
+    type Item = S::Item;
+    type Error = S::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        (**self).poll()
+    }
+}

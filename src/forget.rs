@@ -1,3 +1,5 @@
+use std::prelude::v1::*;
+
 use {Future, Poll};
 use task::Task;
 

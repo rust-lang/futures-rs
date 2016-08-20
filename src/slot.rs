@@ -7,6 +7,7 @@
 
 #![allow(dead_code)] // imported in a few places
 
+use std::prelude::v1::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use lock::Lock;

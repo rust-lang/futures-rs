@@ -30,5 +30,9 @@ members = [
 ]
 
 [dependencies]
-log = "0.3"
-scoped-tls = "0.1"
+log = { version = "0.3", default-features = true }
+scoped-tls = { version = "0.1", optional = true }
+
+[features]
+use_std = ["scoped-tls"]
+default = ["use_std"]

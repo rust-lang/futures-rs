@@ -20,6 +20,8 @@ sudo: false
 before_script:
   - pip install git+https://github.com/euclio/travis-cargo@kcov --user && export PATH=$HOME/.local/bin:$PATH
 script:
+  - cargo build
+  - cargo build --no-default-features
   - cargo test
   - cargo test --manifest-path futures-io/Cargo.toml
   - cargo test --manifest-path futures-iobuf/Cargo.toml

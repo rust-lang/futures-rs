@@ -28,6 +28,8 @@
 //! care because if used improperly it can easily cause a panic. For more
 //! information, see the documentation on the function itself.
 
+use std::prelude::v1::*;
+
 use std::cell::{UnsafeCell, Cell, RefCell};
 use std::marker;
 use std::panic;

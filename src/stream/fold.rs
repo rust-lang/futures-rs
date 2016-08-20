@@ -1,4 +1,4 @@
-use std::mem;
+use core::mem;
 
 use {Future, Poll, IntoFuture};
 use stream::Stream;

@@ -149,42 +149,41 @@
 //!
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
+#![no_std]
 #![deny(missing_docs)]
 
-use std::thread;
+#[macro_use]
+#[cfg(feature = "use_std")]
+extern crate scoped_tls;
+#[macro_use]
+#[cfg(feature = "use_std")]
+extern crate std;
 
 #[macro_use]
 extern crate log;
 
-#[macro_use]
-extern crate scoped_tls;
-
-// internal utilities
-mod lock;
-mod slot;
+macro_rules! if_std {
+    ($($i:item)*) => ($(
+        #[cfg(feature = "use_std")]
+        $i
+    )*)
+}
 
 #[macro_use]
 mod poll;
 pub use poll::Poll;
 
-pub mod task;
-pub mod executor;
-
 // Primitive futures
-mod collect;
 mod done;
 mod empty;
 mod failed;
 mod finished;
 mod lazy;
-mod oneshot;
-pub use collect::{collect, Collect};
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
 pub use failed::{failed, Failed};
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
-pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
 
 // combinators
 mod and_then;
@@ -195,7 +194,6 @@ mod map;
 mod map_err;
 mod or_else;
 mod select;
-mod select_all;
 mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
@@ -205,16 +203,49 @@ pub use map::Map;
 pub use map_err::MapErr;
 pub use or_else::OrElse;
 pub use select::{Select, SelectNext};
-pub use select_all::{SelectAll, SelectAllNext, select_all};
 pub use then::Then;
+
+if_std! {
+    mod lock;
+    mod slot;
+    pub mod task;
+    pub mod executor;
+
+    mod collect;
+    mod oneshot;
+    mod select_all;
+    pub use collect::{collect, Collect};
+    pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
+    pub use select_all::{SelectAll, SelectAllNext, select_all};
+
+    mod forget;
+
+    struct ThreadNotify(std::thread::Thread);
+
+    impl task::Notify for ThreadNotify {
+        fn notify(&self) {
+            self.0.unpark();
+        }
+    }
+
+    /// A type alias for `Box<Future + Send>`
+    pub type BoxFuture<T, E> = std::boxed::Box<Future<Item = T, Error = E> + Send>;
+
+    impl<F: ?Sized + Future> Future for std::boxed::Box<F> {
+        type Item = F::Item;
+        type Error = F::Error;
+
+        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+            (**self).poll()
+        }
+    }
+}
 
 // streams
 pub mod stream;
 
 // impl details
 mod chain;
-mod impls;
-mod forget;
 
 /// Trait for types which are a placeholder of a value that will become
 /// available at possible some later point in time.
@@ -351,9 +382,12 @@ pub trait Future {
     ///
     /// This function does not attempt to catch panics. If the `poll` function
     /// panics, panics will be propagated to the caller.
+    #[cfg(feature = "use_std")]
     fn await(mut self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
+        use std::thread;
+
         let notify = ThreadNotify(thread::current());
         let mut task = task::Task::new_notify(notify);
         loop {
@@ -380,10 +414,11 @@ pub trait Future {
     ///
     /// let a: BoxFuture<i32, i32> = done(Ok(1)).boxed();
     /// ```
+    #[cfg(feature = "use_std")]
     fn boxed(self) -> BoxFuture<Self::Item, Self::Error>
         where Self: Sized + Send + 'static
     {
-        Box::new(self)
+        ::std::boxed::Box::new(self)
     }
 
     /// Map this future's result to a different type, returning a new future of
@@ -782,13 +817,20 @@ pub trait Future {
     /// `futures-mio` crate provides a `Loop::run` method which pins the future
     /// to the stack frame of that functionc all, allowing it to have a
     /// non-`'static` lifetime.
+    #[cfg(feature = "use_std")]
     fn forget(self) where Self: Sized + Send + 'static {
         forget::forget(self);
     }
 }
 
-/// A type alias for `Box<Future + Send>`
-pub type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send>;
+impl<'a, F: ?Sized + Future> Future for &'a mut F {
+    type Item = F::Item;
+    type Error = F::Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        (**self).poll()
+    }
+}
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
@@ -832,13 +874,5 @@ impl<T, E> IntoFuture for Result<T, E> {
 
     fn into_future(self) -> Done<T, E> {
         done(self)
-    }
-}
-
-struct ThreadNotify(thread::Thread);
-
-impl task::Notify for ThreadNotify {
-    fn notify(&self) {
-        self.0.unpark();
     }
 }

@@ -1,4 +1,4 @@
-use std::marker;
+use core::marker;
 
 use {Future, Poll};
 

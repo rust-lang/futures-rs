@@ -4,6 +4,7 @@
 //! is not currently used much by futures beyond `DEFAULT`.
 
 use std::cell::{Cell, RefCell};
+use std::prelude::v1::*;
 use std::sync::Arc;
 
 /// Encapsulation of a value which has the ability to execute arbitrary code.
