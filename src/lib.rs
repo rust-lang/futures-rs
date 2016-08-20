@@ -151,6 +151,8 @@
 
 #![deny(missing_docs)]
 
+use std::thread;
+
 #[macro_use]
 extern crate log;
 
@@ -325,6 +327,43 @@ pub trait Future {
     /// the `Poll::Err` variant will be returned with an appropriate payload of
     /// an error.
     fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
+
+    /// Block the current thread until this future is resolved.
+    ///
+    /// This method will consume ownership of this future, driving it to
+    /// completion via `poll` and blocking the current thread while it's waiting
+    /// for the value to become available. Once the future is resolved the
+    /// result of this future is returned.
+    ///
+    /// > **Note:** This method is not appropriate to call on event loops or
+    /// >           similar I/O situations because it will prevent the event
+    /// >           loop from making progress (this blocks the thread). This
+    /// >           method should only be called when it's guaranteed that the
+    /// >           blocking work associated with this future will be completed
+    /// >           by another thread.
+    ///
+    /// # Behavior
+    ///
+    /// This function will *pin* this future to the current thread. The future
+    /// will only be polled by this thread.
+    ///
+    /// # Panics
+    ///
+    /// This function does not attempt to catch panics. If the `poll` function
+    /// panics, panics will be propagated to the caller.
+    fn await(mut self) -> Result<Self::Item, Self::Error>
+        where Self: Sized
+    {
+        let notify = ThreadNotify(thread::current());
+        let mut task = task::Task::new_notify(notify);
+        loop {
+            match task.enter(|| self.poll()) {
+                Poll::Ok(e) => return Ok(e),
+                Poll::Err(e) => return Err(e),
+                Poll::NotReady => thread::park(),
+            }
+        }
+    }
 
     /// Convenience function for turning this future into a trait object.
     ///
@@ -793,5 +832,13 @@ impl<T, E> IntoFuture for Result<T, E> {
 
     fn into_future(self) -> Done<T, E> {
         done(self)
+    }
+}
+
+struct ThreadNotify(thread::Thread);
+
+impl task::Notify for ThreadNotify {
+    fn notify(&self) {
+        self.0.unpark();
     }
 }

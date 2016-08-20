@@ -19,6 +19,7 @@ pub use self::channel::{channel, Sender, Receiver};
 pub use self::iter::{iter, IterStream};
 
 mod and_then;
+mod await;
 mod buffered;
 mod collect;
 mod filter;
@@ -32,13 +33,14 @@ mod map;
 mod map_err;
 mod merge;
 mod or_else;
+mod peek;
 mod skip;
 mod skip_while;
 mod take;
 mod then;
 mod zip;
-mod peek;
 pub use self::and_then::AndThen;
+pub use self::await::Await;
 pub use self::buffered::Buffered;
 pub use self::collect::Collect;
 pub use self::filter::Filter;
@@ -117,6 +119,36 @@ pub trait Stream {
     // TODO: should there also be a method like `poll` but doesn't return an
     //       item? basically just says "please make more progress internally"
     //       seems crucial for buffering to actually make any sense.
+
+    /// Creates an iterator which blocks the current thread until each item of
+    /// this stream is resolved.
+    ///
+    /// This method will consume ownership of this stream, returning an
+    /// implementation of a standard iterator. This iterator will *block the
+    /// current thread* on each call to `next` if the item in the future isn't
+    /// ready yet.
+    ///
+    /// > **Note:** This method is not appropriate to call on event loops or
+    /// >           similar I/O situations because it will prevent the event
+    /// >           loop from making progress (this blocks the thread). This
+    /// >           method should only be called when it's guaranteed that the
+    /// >           blocking work associated with this future will be completed
+    /// >           by another thread.
+    ///
+    /// # Behavior
+    ///
+    /// This function will *pin* this stream to the thread that calls `next`.
+    /// The stream will only be polled by this thread.
+    ///
+    /// # Panics
+    ///
+    /// The returned iterator does not attempt to catch panics. If the `poll`
+    /// function panics, panics will be propagated to the caller of `next`.
+    fn await(self) -> Await<Self>
+        where Self: Sized
+    {
+        await::new(self)
+    }
 
     /// Convenience function for turning this stream into a trait object.
     ///
