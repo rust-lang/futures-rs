@@ -26,11 +26,9 @@ fn main() {
         println!("Listening on: {}", addr);
 
         // Pull out the stream of incoming connections and then for each new
-        // one spin up a new task copying data. We put the `socket` into a
-        // `Arc` structure which then allows us to share it across the
-        // read/write halves with a small shim.
+        // one spin up a new task copying data.
         //
-        // Finally we use the `io::copy` future to copy all data from the
+        // We use the `io::copy` future to copy all data from the
         // reading half onto the writing half.
         socket.incoming().for_each(|(socket, addr)| {
             let socket = futures::lazy(|| futures::finished(TaskIo::new(socket)));
