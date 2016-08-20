@@ -17,7 +17,7 @@ pub fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
           T::Error: Eq + fmt::Debug,
           F: FnMut() -> T,
 {
-    assert_eq!(f().await(), result);
+    assert_eq!(f().wait(), result);
 }
 
 pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {

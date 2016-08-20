@@ -383,7 +383,7 @@ pub trait Future {
     /// This function does not attempt to catch panics. If the `poll` function
     /// panics, panics will be propagated to the caller.
     #[cfg(feature = "use_std")]
-    fn await(mut self) -> Result<Self::Item, Self::Error>
+    fn wait(mut self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
         use std::thread;

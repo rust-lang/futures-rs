@@ -54,14 +54,14 @@ pub use self::zip::Zip;
 pub use self::peek::Peekable;
 
 if_std! {
-    mod await;
     mod buffered;
     mod channel;
     mod collect;
-    pub use self::await::Await;
+    mod wait;
     pub use self::buffered::Buffered;
     pub use self::channel::{channel, Sender, Receiver};
     pub use self::collect::Collect;
+    pub use self::wait::Wait;
 
     /// A type alias for `Box<Future + Send>`
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
@@ -158,10 +158,10 @@ pub trait Stream {
     /// The returned iterator does not attempt to catch panics. If the `poll`
     /// function panics, panics will be propagated to the caller of `next`.
     #[cfg(feature = "use_std")]
-    fn await(self) -> Await<Self>
+    fn wait(self) -> Wait<Self>
         where Self: Sized
     {
-        await::new(self)
+        wait::new(self)
     }
 
     /// Convenience function for turning this stream into a trait object.

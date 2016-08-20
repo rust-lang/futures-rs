@@ -177,7 +177,7 @@ fn peek() {
 }
 
 #[test]
-fn await() {
-    assert_eq!(list().await().collect::<Result<Vec<_>, _>>(),
+fn wait() {
+    assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
 }
