@@ -815,7 +815,7 @@ pub trait Future {
     /// most event loops should provide a method which resolves the value of a
     /// future, driving the event loop in the meantime. For example the
     /// `futures-mio` crate provides a `Loop::run` method which pins the future
-    /// to the stack frame of that functionc all, allowing it to have a
+    /// to the stack frame of that function call, allowing it to have a
     /// non-`'static` lifetime.
     #[cfg(feature = "use_std")]
     fn forget(self) where Self: Sized + Send + 'static {
