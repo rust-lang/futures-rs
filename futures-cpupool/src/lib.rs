@@ -152,6 +152,8 @@ impl CpuPool {
     {
         let (tx, rx) = oneshot();
         self.inner.queue.push(Message::Run(Box::new(|| {
+            // TODO: should check to see if `tx` is canceled by the time we're
+            //       running, and if so we just skip the entire computation.
             tx.complete(panic::catch_unwind(AssertUnwindSafe(f)));
         })));
         CpuFuture { inner: rx }
