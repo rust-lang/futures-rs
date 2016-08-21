@@ -456,7 +456,7 @@ fn client_to_server() {
     });
 
     // Finally, run everything!
-    let (amt, data) = t!(l.run(sent.join(received)));
+    let (amt, (_, data)) = t!(l.run(sent.join(received)));
     assert_eq!(amt, AMT);
     assert!(data == vec![9; amt as usize]);
 }
@@ -488,7 +488,7 @@ fn server_to_client() {
     });
 
     // Finally, run everything!
-    let (amt, data) = t!(l.run(sent.join(received)));
+    let (amt, (_, data)) = t!(l.run(sent.join(received)));
     assert_eq!(amt, AMT);
     assert!(data == vec![9; amt as usize]);
 }
@@ -538,7 +538,7 @@ fn one_byte_at_a_time() {
         read_to_end(socket, Vec::new())
     });
 
-    let (amt, data) = t!(l.run(sent.join(received)));
+    let (amt, (_, data)) = t!(l.run(sent.join(received)));
     assert_eq!(amt, AMT);
     assert!(data == vec![9; amt as usize]);
 }

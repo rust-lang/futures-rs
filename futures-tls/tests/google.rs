@@ -82,7 +82,7 @@ fn fetch_google() {
         read_to_end(socket, Vec::new())
     });
 
-    let data = t!(l.run(data));
+    let (_, data) = t!(l.run(data));
     assert!(data.starts_with(b"HTTP/1.0 200 OK"));
     assert!(data.ends_with(b"</html>"));
 }
