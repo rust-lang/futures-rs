@@ -79,7 +79,7 @@ use curl::easy::Easy;
 use curl::multi::{Multi, EasyHandle, Socket, SocketEvents, Events};
 use futures::{Future, Poll, oneshot, Oneshot, Complete};
 use futures::task::{self, TaskHandle};
-use futures_mio::{LoopPin, LoopData, Timeout, Source, ReadinessStream};
+use futures_mio::{LoopPin, LoopData, Timeout, ReadinessStream};
 use mio::unix::EventedFd;
 use slab::Slab;
 
@@ -140,7 +140,7 @@ struct Entry {
 struct SocketState {
     want: Option<SocketEvents>,
     changed: bool,
-    stream: ReadinessStream,
+    stream: ReadinessStream<MioSocket>,
 }
 
 scoped_thread_local!(static DATA: Data);
@@ -310,7 +310,7 @@ impl Data {
         // the event loop.
         if !state.io.contains_key(&socket) {
             debug!("schedule new socket {}", socket);
-            let source = Arc::new(Source::new(MioSocket { inner: socket }));
+            let source = MioSocket { inner: socket };
             let mut ready = ReadinessStream::new(self.pin.handle().clone(),
                                                  source);
             let stream = match ready.poll() {

@@ -24,18 +24,15 @@ use std::net::Shutdown;
 use std::os::unix::net::SocketAddr;
 use std::os::unix::prelude::*;
 use std::path::Path;
-use std::sync::Arc;
 
 use futures::stream::Stream;
 use futures::{Future, Poll};
 use futures_io::{IoFuture, IoStream};
-use futures_mio::{ReadinessStream, LoopHandle, Source};
+use futures_mio::{ReadinessStream, LoopHandle};
 
 /// A Unix socket which can accept connections from other unix sockets.
 pub struct UnixListener {
-    loop_handle: LoopHandle,
-    ready: ReadinessStream,
-    listener: Arc<Source<mio_uds::UnixListener>>,
+    io: ReadinessStream<mio_uds::UnixListener>,
 }
 
 impl UnixListener {
@@ -55,24 +52,19 @@ impl UnixListener {
 
     fn new(listener: mio_uds::UnixListener,
            handle: LoopHandle) -> IoFuture<UnixListener> {
-        let listener = Arc::new(Source::new(listener));
-        ReadinessStream::new(handle.clone(), listener.clone()).map(|r| {
-            UnixListener {
-                loop_handle: handle,
-                ready: r,
-                listener: listener,
-            }
+        ReadinessStream::new(handle, listener).map(|io| {
+            UnixListener { io: io }
         }).boxed()
     }
 
     /// Returns the local socket address of this listener.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.listener.io().local_addr()
+        self.io.get_ref().local_addr()
     }
 
     /// Returns the value of the `SO_ERROR` option.
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.listener.io().take_error()
+        self.io.get_ref().take_error()
     }
 
     /// Consumes this listener, returning a stream of the sockets this listener
@@ -90,12 +82,12 @@ impl UnixListener {
             type Error = io::Error;
 
             fn poll(&mut self) -> Poll<Option<Self::Item>, io::Error> {
-                match self.inner.listener.io().accept() {
+                match self.inner.io.get_ref().accept() {
                     Ok(Some(pair)) => {
                         Poll::Ok(Some(pair))
                     }
                     Ok(None) => {
-                        self.inner.ready.need_read();
+                        self.inner.io.need_read();
                         Poll::NotReady
                     }
                     Err(e) => Poll::Err(e),
@@ -103,17 +95,11 @@ impl UnixListener {
             }
         }
 
-        let loop_handle = self.loop_handle.clone();
+        let loop_handle = self.io.loop_handle().clone();
         Incoming { inner: self }
-            .and_then(move |(tcp, addr)| {
-                let tcp = Arc::new(Source::new(tcp));
-                ReadinessStream::new(loop_handle.clone(),
-                                     tcp.clone()).map(move |ready| {
-                    let stream = UnixStream {
-                        source: tcp,
-                        ready: ready,
-                    };
-                    (stream, addr)
+            .and_then(move |(client, addr)| {
+                ReadinessStream::new(loop_handle.clone(), client).map(move |io| {
+                    (UnixStream { io: io }, addr)
                 })
             }).boxed()
     }
@@ -121,13 +107,13 @@ impl UnixListener {
 
 impl fmt::Debug for UnixListener {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.listener.io().fmt(f)
+        self.io.get_ref().fmt(f)
     }
 }
 
 impl AsRawFd for UnixListener {
     fn as_raw_fd(&self) -> RawFd {
-        self.listener.io().as_raw_fd()
+        self.io.get_ref().as_raw_fd()
     }
 }
 
@@ -137,8 +123,7 @@ impl AsRawFd for UnixListener {
 /// from a listener with `UnixListener::incoming`. Additionally, a pair of
 /// anonymous Unix sockets can be created with `UnixStream::pair`.
 pub struct UnixStream {
-    source: Arc<Source<mio_uds::UnixStream>>,
-    ready: ReadinessStream,
+    io: ReadinessStream<mio_uds::UnixStream>,
 }
 
 enum UnixStreamNew {
@@ -184,41 +169,36 @@ impl UnixStream {
         }
     }
 
-    fn new(connected_stream: mio_uds::UnixStream,
-           handle: LoopHandle)
+    fn new(stream: mio_uds::UnixStream, handle: LoopHandle)
            -> IoFuture<UnixStream> {
-        let connected_stream = Arc::new(Source::new(connected_stream));
-        ReadinessStream::new(handle, connected_stream.clone()).and_then(|ready| {
-            UnixStreamNew::Waiting(UnixStream {
-                source: connected_stream,
-                ready: ready,
-            })
+        ReadinessStream::new(handle, stream).and_then(|io| {
+            UnixStreamNew::Waiting(UnixStream { io: io })
         }).boxed()
     }
 
     /// Test whether this socket is ready to be read or not.
     pub fn poll_read(&self) -> Poll<(), io::Error> {
-        self.ready.poll_read()
+        self.io.poll_read()
     }
 
     /// Test whether this socket is writey to be written to or not.
     pub fn poll_write(&self) -> Poll<(), io::Error> {
-        self.ready.poll_write()
+        self.io.poll_write()
     }
 
     /// Returns the socket address of the local half of this connection.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.source.io().local_addr()
+        self.io.get_ref().local_addr()
     }
 
     /// Returns the socket address of the remote half of this connection.
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        self.source.io().peer_addr()
+        self.io.get_ref().peer_addr()
     }
 
     /// Returns the value of the `SO_ERROR` option.
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.source.io().take_error()
+        self.io.get_ref().take_error()
     }
 
     /// Shuts down the read, write, or both halves of this connection.
@@ -227,7 +207,7 @@ impl UnixStream {
     /// specified portions to immediately return with an appropriate value
     /// (see the documentation of `Shutdown`).
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
-        self.source.io().shutdown(how)
+        self.io.get_ref().shutdown(how)
     }
 }
 
@@ -240,9 +220,9 @@ impl Future for UnixStreamNew {
             UnixStreamNew::Waiting(s) => s,
             UnixStreamNew::Empty => panic!("can't poll Unix stream twice"),
         };
-        match stream.ready.poll_write() {
+        match stream.io.poll_write() {
             Poll::Ok(()) => {
-                match stream.source.io().take_error() {
+                match stream.io.get_ref().take_error() {
                     Ok(None) => return Poll::Ok(stream),
                     Ok(Some(e)) => return Poll::Err(e),
                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => {}
@@ -259,9 +239,9 @@ impl Future for UnixStreamNew {
 
 impl Read for UnixStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let r = self.source.io().read(buf);
+        let r = self.io.get_ref().read(buf);
         if is_wouldblock(&r) {
-            self.ready.need_read();
+            self.io.need_read();
         }
         return r
     }
@@ -269,17 +249,17 @@ impl Read for UnixStream {
 
 impl Write for UnixStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let r = self.source.io().write(buf);
+        let r = self.io.get_ref().write(buf);
         if is_wouldblock(&r) {
-            self.ready.need_write();
+            self.io.need_write();
         }
         return r
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        let r = self.source.io().flush();
+        let r = self.io.get_ref().flush();
         if is_wouldblock(&r) {
-            self.ready.need_write();
+            self.io.need_write();
         }
         return r
     }
@@ -287,9 +267,9 @@ impl Write for UnixStream {
 
 impl<'a> Read for &'a UnixStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let r = self.source.io().read(buf);
+        let r = self.io.get_ref().read(buf);
         if is_wouldblock(&r) {
-            self.ready.need_read();
+            self.io.need_read();
         }
         return r
     }
@@ -297,17 +277,17 @@ impl<'a> Read for &'a UnixStream {
 
 impl<'a> Write for &'a UnixStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let r = self.source.io().write(buf);
+        let r = self.io.get_ref().write(buf);
         if is_wouldblock(&r) {
-            self.ready.need_write();
+            self.io.need_write();
         }
         return r
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        let r = self.source.io().flush();
+        let r = self.io.get_ref().flush();
         if is_wouldblock(&r) {
-            self.ready.need_write();
+            self.io.need_write();
         }
         return r
     }
@@ -315,20 +295,19 @@ impl<'a> Write for &'a UnixStream {
 
 impl fmt::Debug for UnixStream {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.source.io().fmt(f)
+        self.io.get_ref().fmt(f)
     }
 }
 
 impl AsRawFd for UnixStream {
     fn as_raw_fd(&self) -> RawFd {
-        self.source.io().as_raw_fd()
+        self.io.get_ref().as_raw_fd()
     }
 }
 
 /// An I/O object representing a Unix datagram socket.
 pub struct UnixDatagram {
-    source: Arc<Source<mio_uds::UnixDatagram>>,
-    ready: ReadinessStream,
+    io: ReadinessStream<mio_uds::UnixDatagram>,
 }
 
 impl UnixDatagram {
@@ -365,12 +344,8 @@ impl UnixDatagram {
 
     fn new(socket: mio_uds::UnixDatagram, handle: LoopHandle)
            -> IoFuture<UnixDatagram> {
-        let socket = Arc::new(Source::new(socket));
-        ReadinessStream::new(handle, socket.clone()).map(|ready| {
-            UnixDatagram {
-                source: socket,
-                ready: ready,
-            }
+        ReadinessStream::new(handle, socket).map(|io| {
+            UnixDatagram { io: io }
         }).boxed()
     }
 
@@ -379,29 +354,29 @@ impl UnixDatagram {
     /// The `send` method may be used to send data to the specified address.
     /// `recv` and `recv_from` will only receive data from that address.
     pub fn connect<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
-        self.source.io().connect(path)
+        self.io.get_ref().connect(path)
     }
 
     /// Test whether this socket is ready to be read or not.
     pub fn poll_read(&self) -> Poll<(), io::Error> {
-        self.ready.poll_read()
+        self.io.poll_read()
     }
 
     /// Test whether this socket is writey to be written to or not.
     pub fn poll_write(&self) -> Poll<(), io::Error> {
-        self.ready.poll_write()
+        self.io.poll_write()
     }
 
     /// Returns the local address that this socket is bound to.
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.source.io().local_addr()
+        self.io.get_ref().local_addr()
     }
 
     /// Returns the address of this socket's peer.
     ///
     /// The `connect` method will connect the socket to a peer.
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        self.source.io().peer_addr()
+        self.io.get_ref().peer_addr()
     }
 
     /// Receives data from the socket.
@@ -409,9 +384,9 @@ impl UnixDatagram {
     /// On success, returns the number of bytes read and the address from
     /// whence the data came.
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        let r = self.source.io().recv_from(buf);
+        let r = self.io.get_ref().recv_from(buf);
         if is_wouldblock(&r) {
-            self.ready.need_read();
+            self.io.need_read();
         }
         return r
     }
@@ -420,9 +395,9 @@ impl UnixDatagram {
     ///
     /// On success, returns the number of bytes read.
     pub fn recv(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let r = self.source.io().recv(buf);
+        let r = self.io.get_ref().recv(buf);
         if is_wouldblock(&r) {
-            self.ready.need_read();
+            self.io.need_read();
         }
         return r
     }
@@ -433,9 +408,9 @@ impl UnixDatagram {
     pub fn send_to<P>(&self, buf: &[u8], path: P) -> io::Result<usize>
         where P: AsRef<Path>
     {
-        let r = self.source.io().send_to(buf, path);
+        let r = self.io.get_ref().send_to(buf, path);
         if is_wouldblock(&r) {
-            self.ready.need_write();
+            self.io.need_write();
         }
         return r
     }
@@ -447,16 +422,16 @@ impl UnixDatagram {
     ///
     /// On success, returns the number of bytes written.
     pub fn send(&self, buf: &[u8]) -> io::Result<usize> {
-        let r = self.source.io().send(buf);
+        let r = self.io.get_ref().send(buf);
         if is_wouldblock(&r) {
-            self.ready.need_write();
+            self.io.need_write();
         }
         return r
     }
 
     /// Returns the value of the `SO_ERROR` option.
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.source.io().take_error()
+        self.io.get_ref().take_error()
     }
 
     /// Shut down the read, write, or both halves of this connection.
@@ -465,19 +440,19 @@ impl UnixDatagram {
     /// specified portions to immediately return with an appropriate value
     /// (see the documentation of `Shutdown`).
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
-        self.source.io().shutdown(how)
+        self.io.get_ref().shutdown(how)
     }
 }
 
 impl fmt::Debug for UnixDatagram {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.source.io().fmt(f)
+        self.io.get_ref().fmt(f)
     }
 }
 
 impl AsRawFd for UnixDatagram {
     fn as_raw_fd(&self) -> RawFd {
-        self.source.io().as_raw_fd()
+        self.io.get_ref().as_raw_fd()
     }
 }
 
