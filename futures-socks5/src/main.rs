@@ -51,6 +51,7 @@ use std::cell::RefCell;
 use std::env;
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
+use std::net::Shutdown;
 use std::str;
 use std::sync::Arc;
 use std::time::Duration;
@@ -656,9 +657,9 @@ impl Future for Transfer {
                 }
                 Err(e) => return Poll::Err(e),
             };
-
             if n == 0 {
-                return Poll::Ok(self.amt)
+                let res = self.writer.shutdown(Shutdown::Write);
+                return res.map(|()| self.amt).into()
             }
             self.amt += n as u64;
 
