@@ -271,11 +271,11 @@ println!("{}", String::from_utf8_lossy(&data));
 ```
 
 Here we pass our `response` future, our entire HTTP request, and we pass it to
-the event loop, [asking it to resolve the future][`run`]. The event loop will
+the event loop, [asking it to resolve the future][`loop_run`]. The event loop will
 then run until the future has been resolved, returning the result of the future
 which in this case is `io::Result<Vec<u8>>`.
 
-[`run`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.run
+[`loop_run`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.run
 
 Note that this `lp.run(..)` call will block the calling thread until the future
 can itself be resolved. This means that `data` here has type `Vec<u8>`. We then
