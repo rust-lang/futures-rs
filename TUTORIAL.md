@@ -121,7 +121,7 @@ fn main() {
         futures_io::read_to_end(socket, Vec::new())
     });
 
-    let (_, data) = lp.run(response).unwrap();
+    let data = lp.run(response).unwrap();
     println!("{}", String::from_utf8_lossy(&data));
 }
 ```
