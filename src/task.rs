@@ -17,20 +17,13 @@
 //!
 //! ## Functions
 //!
-//! There are two primary functions in this module, `park` and `poll_on`. The
-//! `park` method is similar to the standard library's `thread::park` method
-//! where it returns a handle to wake up a task at a later date (via an `unpark`
-//! method).
-//!
-//! The `poll_on` method, however, is a little more subtle. This method is used
-//! for futures which can migrate across threads, and requests that a future is
-//! polled on a particular thread. Note that this function needs to be used with
-//! care because if used improperly it can easily cause a panic. For more
-//! information, see the documentation on the function itself.
+//! There is an important bare function in this module: `park`. The `park`
+//! function is similar to the standard library's `thread::park` method where it
+//! returns a handle to wake up a task at a later date (via an `unpark` method).
 
 use std::prelude::v1::*;
 
-use std::cell::{UnsafeCell, Cell, RefCell};
+use std::cell::{UnsafeCell, Cell};
 use std::marker;
 use std::panic;
 use std::sync::Arc;
@@ -69,33 +62,6 @@ pub fn park() -> TaskHandle {
     CURRENT_TASK.with(|task| task.handle().clone())
 }
 
-/// Inform the current task that to make progress, it should call `poll` on the
-/// specified executor.
-///
-/// This function can be useful when implementing a future that must be polled
-/// on a particular executor. An example of this is that to access thread-local
-/// data the future needs to get polled on that particular thread.
-///
-/// When a future discovers that it's not necessarily in the right place to make
-/// progress, it can provide this task with an `Executor` to make more progress.
-/// The Task will ensure that it'll eventually schedule a poll on the executor
-/// provided in a "prompt" fashion, that is there shohuldn't be a long blocking
-/// pause between a call to this and when a future is polled on the executor.
-///
-/// # Panics
-///
-/// This function will panic if a future is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-///
-/// This function will also panic if the current task was created with
-/// `Task::new_notify`. In other words, if a future is pinned to a particular
-/// stack frame (e.g. via the `futures-mio` crate's `Loop::run` function), then
-/// a call to this function will panic.
-pub fn poll_on(e: Arc<Executor>) {
-    CURRENT_TASK.with(|task| task.poll_on(e))
-}
-
 /// A structure representing one "task", or thread of execution throughout the
 /// lifetime of a set of futures.
 ///
@@ -117,7 +83,6 @@ pub fn poll_on(e: Arc<Executor>) {
 /// time! That is, it's not quite done yet...
 pub struct Task {
     handle: TaskHandle,
-    poll_requests: RefCell<Vec<Arc<Executor>>>,
 
     // A `Task` is not `Sync`, see the TaskData docs below above.
     _marker: marker::PhantomData<Cell<()>>,
@@ -146,7 +111,6 @@ impl Task {
     /// Creates a new task ready to drive a future.
     pub fn new() -> Task {
         Task {
-            poll_requests: RefCell::new(Vec::new()),
             handle: TaskHandle {
                 inner: HandleInner::Static(Arc::new(Inner {
                     slot: Slot::new(None),
@@ -167,7 +131,6 @@ impl Task {
     //       synchronized correctly.
     pub fn new_notify<N: Notify>(notify: N) -> Task {
         Task {
-            poll_requests: RefCell::new(Vec::new()),
             handle: TaskHandle {
                 inner: HandleInner::Notify(Arc::new(notify)),
             },
@@ -195,39 +158,6 @@ impl Task {
     /// should be preferred.
     fn handle(&self) -> &TaskHandle {
         &self.handle
-    }
-
-    /// Inform this task that to make progress, it should call `poll` on the
-    /// specified executor.
-    ///
-    /// This function can be useful when implementing a future that must be
-    /// polled on a particular executor. An example of this is that to access
-    /// thread-local data the future needs to get polled on that particular
-    /// thread.
-    ///
-    /// When a future discovers that it's not necessarily in the right place to
-    /// make progress, it can provide this task with an `Executor` to make more
-    /// progress. The Task will ensure that it'll eventually schedule a poll on
-    /// the executor provided in a "prompt" fashion, that is there shohuldn't be
-    /// a long blocking pause between a call to this and when a future is polled
-    /// on the executor.
-    fn poll_on(&self, executor: Arc<Executor>) {
-        if let HandleInner::Notify(_) = self.handle.inner {
-            panic!("cannot request a pinned future is polled on another task");
-        }
-
-        let poll_on = &*executor as *const Executor;
-        for exe in self.poll_requests.borrow().iter() {
-            let exe = &*exe as *const Executor;
-            if poll_on == exe {
-                return
-            }
-        }
-
-        // TODO: need to coalesce other `poll_on` requests based on whether the
-        //       executors themselves are equivalent, probably not only on the
-        //       pointer.
-        self.poll_requests.borrow_mut().push(executor);
     }
 
     /// Sets the global running task to the task provided for the duration of
@@ -293,20 +223,10 @@ impl Task {
             Err(e) => panic::resume_unwind(e),
         }
 
-        // If someone requested that we get polled on a specific executor, then
-        // do that here before we register interest in the future, we may be
-        // able to make more progress somewhere else.
-        if !me.poll_requests.borrow().is_empty() {
-            let executor = me.poll_requests.borrow_mut().remove(0);
-            return executor.execute(|| me.run(future));
-        }
-
-        // So at this point the future is not ready, we've collapsed it, and no
-        // one has a particular request to poll somewhere. Interest is
-        // registered on the future from the `poll` call above as well.
-        // Relinquish ownership of ourselves and the future to our own internal
-        // data structures so we can start the polling process again when
-        // something gets notified.
+        // So at this point the future is not ready and Interest is registered
+        // on the future from the `poll` call above.  Relinquish ownership of
+        // ourselves and the future to our own internal data structures so we
+        // can start the polling process again when something gets notified.
         let inner = me.handle.inner.clone();
         match inner {
             HandleInner::Static(ref inner) => {

@@ -17,10 +17,8 @@ use slot::{self, Slot};
 use timer_wheel::{TimerWheel, Timeout};
 
 mod channel;
-mod loop_data;
 mod source;
 mod timeout;
-pub use self::loop_data::{LoopData, AddLoopData};
 pub use self::source::{AddSource, IoToken};
 pub use self::timeout::{AddTimeout, TimeoutToken};
 use self::channel::{Sender, Receiver, channel};
@@ -110,7 +108,6 @@ enum Message {
     UpdateTimeout(usize, TaskHandle),
     CancelTimeout(usize),
     Run(Box<ExecuteCallback>),
-    Drop(loop_data::Opaque),
 }
 
 impl Loop {
@@ -455,10 +452,6 @@ impl Loop {
             Message::Run(f) => {
                 debug!("running a closure");
                 f.call()
-            }
-            Message::Drop(data) => {
-                debug!("dropping some data");
-                drop(data);
             }
         }
     }
