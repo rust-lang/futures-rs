@@ -1,0 +1,8 @@
+[package]
+name = "futures-dns"
+version = "0.1.0"
+authors = ["Simon Bernier St-Pierre <sbernierstpierre@gmail.com>"]
+
+[dependencies]
+futures = { path = "..", version = "0.1" }
+futures-cpupool = { path = "../futures-cpupool", version = "0.1" }
