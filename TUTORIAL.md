@@ -1017,31 +1017,6 @@ between futures:
   naively store data in an `Arc`/`Rc` or worse, in an `Arc<Mutex>` if we wanted
   to mutate it.
 
-But both of these solutions are relatively heavyweight, so let's see if we
-can do better!
-
-In the [`Task` and `Future`][task-and-future] section we saw how an
-asynchronous computation has access to a [`Task`] for its entire lifetime, and
-from the signature of [`poll`] we also see that it has mutable access to
-this task. The [`Task`] API leverages these facts and allows you to store
-data inside a `Task`.
-
-Data is stored inside a `Task` with [`insert`] which returns a [`TaskData`]
-handle. This handle can then be cloned regardless of the underlying data. To
-access the data at a later time you can use the [`get`] or [`get_mut`] methods.
-
-[`insert`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.insert
-[`TaskData`]: http://alexcrichton.com/futures-rs/futures/struct.TaskData.html
-[`get`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.get
-[`get_mut`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.get_mut
-
-A [`TaskData`] can also be created with the [`store`] future which will resolve
-to a handle to the data being stored. Currently there is no combinator for
-accessing data from a task and it's primarily used in manual implementations of
-[`Future`], but this may change soon!
-
-[`store`]: http://alexcrichton.com/futures-rs/futures/fn.store.html
-
 ---
 
 ## Event loop data
@@ -1054,6 +1029,7 @@ data is sometimes not `Send` or otherwise needs to be persisted yet not tied to
 a [`Task`]. For this purpose the [`futures-mio`] crate provides a similar
 abstraction, [`LoopData`].
 
+[`TaskData`]: http://alexcrichton.com/futures-rs/futures/task/struct.TaskData.html
 [`LoopData`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html
 
 The [`LoopData`] is similar to [`TaskData`] where it's a handle to data
