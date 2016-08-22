@@ -84,7 +84,7 @@ fn _assert() {
 struct Inner {
     queue: MsQueue<Message>,
     cnt: AtomicUsize,
-    size: u32,
+    size: usize,
 }
 
 /// The type of future returned from the `CpuPool::execute` function.
@@ -116,7 +116,7 @@ impl CpuPool {
     /// The returned handle can use `execute` to run work on this thread pool,
     /// and clones can be made of it to get multiple references to the same
     /// thread pool.
-    pub fn new(size: u32) -> CpuPool {
+    pub fn new(size: usize) -> CpuPool {
         let pool = CpuPool {
             inner: Arc::new(Inner {
                 queue: MsQueue::new(),
@@ -136,7 +136,7 @@ impl CpuPool {
     /// Creates a new thread pool with a number of workers equal to the number
     /// of CPUs on the host.
     pub fn new_num_cpus() -> CpuPool {
-        CpuPool::new(num_cpus::get() as u32)
+        CpuPool::new(num_cpus::get())
     }
 
     /// Execute some work on this thread pool, returning a future to the work
