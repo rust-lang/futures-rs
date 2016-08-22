@@ -194,6 +194,7 @@ mod map;
 mod map_err;
 mod or_else;
 mod select;
+mod spawn;
 mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
@@ -203,13 +204,16 @@ pub use map::Map;
 pub use map_err::MapErr;
 pub use or_else::OrElse;
 pub use select::{Select, SelectNext};
+pub use spawn::{Spawn, SpawnWrap};
 pub use then::Then;
 
 if_std! {
     mod lock;
     mod slot;
+    mod inline;
+    pub use inline::Inline;
+
     pub mod task;
-    pub mod executor;
 
     mod collect;
     mod oneshot;
@@ -218,12 +222,10 @@ if_std! {
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
     pub use select_all::{SelectAll, SelectAllNext, select_all};
 
-    mod forget;
-
     struct ThreadNotify(std::thread::Thread);
 
-    impl task::Notify for ThreadNotify {
-        fn notify(&self) {
+    impl task::Unpark for ThreadNotify {
+        fn unpark(&self) {
             self.0.unpark();
         }
     }
@@ -389,9 +391,10 @@ pub trait Future {
         use std::thread;
 
         let notify = ThreadNotify(thread::current());
-        let mut task = task::Task::new_notify(notify);
+        let unpark: std::sync::Arc<task::Unpark> = std::sync::Arc::new(notify);
+        let mut task = task::Task::new();
         loop {
-            match task.enter(|| self.poll()) {
+            match task.enter(&unpark, || self.poll()) {
                 Poll::Ok(e) => return Ok(e),
                 Poll::Err(e) => return Err(e),
                 Poll::NotReady => thread::park(),
@@ -787,39 +790,19 @@ pub trait Future {
         assert_future::<Self::Item, Self::Error, _>(f)
     }
 
-    /// Consume this future drive it to completion.
+    /// Consume this future drive it to completion in a new subtask, on the
+    /// given executor.
     ///
-    /// This function is one of the primary methods of driving a future
-    /// forward, and is also one of the primary sources of concurrency in event
-    /// loops. This function will allocate a new `Task` to associate with this
-    /// future, and the task will be paired with the future until it is
-    /// completed.
-    ///
-    /// This method is also a convenient way of simply "spawning" a future into
-    /// the background. For example this is similar to the `ensure` method in
-    /// Python.
-    ///
-    /// # Bounds
-    ///
-    /// Note that this function requires the underlying future to be `Send +
-    /// 'static`, but not all futures may implement these bounds.
-    ///
-    /// If your type is not `Send`, however, fear not! Most event loops will
-    /// provide an abstraction like `LoopData` in the `futures-mio` crate. This
-    /// allows a future to be "pinned" to an event loop, allowing its handle to
-    /// be `Send` while the underlying data itself is not `Send`. By using
-    /// objects like `LoopData`, any future can become `Send` to use this method
-    /// to drive it to completion.
-    ///
-    /// If your type is not `'static` then this method cannot be used. Instead
-    /// most event loops should provide a method which resolves the value of a
-    /// future, driving the event loop in the meantime. For example the
-    /// `futures-mio` crate provides a `Loop::run` method which pins the future
-    /// to the stack frame of that function call, allowing it to have a
-    /// non-`'static` lifetime.
+    /// Returns a future that represents the completion of the subtask. By
+    /// default, the subtask is "daemonized", meaning that even if the returned
+    /// future is dropped, the subtask will continue executing until completion.
+    /// To instead cancel the subtask, call the `cancel` method on the returned
+    /// future.
     #[cfg(feature = "use_std")]
-    fn forget(self) where Self: Sized + Send + 'static {
-        forget::forget(self);
+    fn spawn<E>(self, exec: E) -> Spawn<Self>
+        where Self: Sized, E: Executor<SpawnWrap<Self>>,
+    {
+        spawn::new(self, exec)
     }
 }
 
@@ -874,5 +857,21 @@ impl<T, E> IntoFuture for Result<T, E> {
 
     fn into_future(self) -> Done<T, E> {
         done(self)
+    }
+}
+
+/// Encapsulation of a value which has the ability to execute arbitrary code.
+pub trait Executor<F> {
+    /// Executes the given closure `f`, perhaps on a different thread or
+    /// deferred to a later time.
+    ///
+    /// This method may not execute `f` immediately, but it will arrange for the
+    /// callback to be invoked "in the near future".
+    fn spawn(&self, f: F);
+}
+
+impl<'a, T, F> Executor<F> for &'a T where T: Executor<F> {
+    fn spawn(&self, f: F) {
+        <T as Executor<F>>::spawn(*self, f)
     }
 }

@@ -25,16 +25,11 @@ use std::prelude::v1::*;
 
 use std::cell::{UnsafeCell, Cell};
 use std::marker;
-use std::panic;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-
-use BoxFuture;
-use executor::{DEFAULT, Executor};
-use slot::Slot;
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 
 scoped_thread_local!(static CURRENT_TASK: Task);
+scoped_thread_local!(static CURRENT_UNPARK: Arc<Unpark>);
 
 /// Returns a handle to the current task to call `unpark` at a later date.
 ///
@@ -58,8 +53,8 @@ scoped_thread_local!(static CURRENT_TASK: Task);
 /// This function will panic if a future is not currently being executed. That
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
-pub fn park() -> TaskHandle {
-    CURRENT_TASK.with(|task| task.handle().clone())
+pub fn park() -> Arc<Unpark> {
+    CURRENT_UNPARK.with(|handle| handle.clone())
 }
 
 /// A structure representing one "task", or thread of execution throughout the
@@ -82,82 +77,25 @@ pub fn park() -> TaskHandle {
 /// This structure is likely to expand more customizable functionality over
 /// time! That is, it's not quite done yet...
 pub struct Task {
-    handle: TaskHandle,
+    id: usize,
 
     // A `Task` is not `Sync`, see the TaskData docs below above.
     _marker: marker::PhantomData<Cell<()>>,
 }
 
-/// A handle to a task that can be sent to other threads.
-///
-/// Created by the `task::park` function.
-#[derive(Clone)]
-pub struct TaskHandle {
-    inner: HandleInner,
-}
-
-#[derive(Clone)]
-enum HandleInner {
-    Notify(Arc<Notify>),
-    Static(Arc<Inner>),
-}
-
-struct Inner {
-    slot: Slot<(Task, BoxFuture<(), ()>)>,
-    registered: AtomicBool,
-}
+static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
 
 impl Task {
-    /// Creates a new task ready to drive a future.
+    /// Creates a new task.
     pub fn new() -> Task {
         Task {
-            handle: TaskHandle {
-                inner: HandleInner::Static(Arc::new(Inner {
-                    slot: Slot::new(None),
-                    registered: AtomicBool::new(false),
-                })),
-            },
-            _marker: marker::PhantomData,
-        }
-    }
-
-    /// Creates a new task backed by the provided `Notify` instance.
-    ///
-    /// Requests to `TaskHandle::unpark` will be routed to the `notify` argument
-    /// provided.
-    // TODO: this function should take `Arc<Notify>` rather than `N: Notify` to
-    //       avoid an allocation possibly. We need a unique handle for
-    //       `inner_usize` below, however, to ensure that task local data is all
-    //       synchronized correctly.
-    pub fn new_notify<N: Notify>(notify: N) -> Task {
-        Task {
-            handle: TaskHandle {
-                inner: HandleInner::Notify(Arc::new(notify)),
-            },
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             _marker: marker::PhantomData,
         }
     }
 
     fn inner_usize(&self) -> usize {
-        match self.handle.inner {
-            HandleInner::Notify(ref a) => {
-                &**a as *const Notify as *const () as usize
-            }
-            HandleInner::Static(ref a) => &**a as *const Inner as usize,
-        }
-    }
-
-    /// Gets a handle to this task which can be cloned to a piece of
-    /// `Send+'static` data.
-    ///
-    /// This handle returned can be used to notify the task that a future is
-    /// ready to get polled again. The returned handle implements the `Clone`
-    /// trait and all clones will refer to this same task.
-    ///
-    /// Note that if data is immediately ready then the `Task::unpark` method
-    /// should be preferred.
-    fn handle(&self) -> &TaskHandle {
-        &self.handle
+        self.id
     }
 
     /// Sets the global running task to the task provided for the duration of
@@ -167,135 +105,29 @@ impl Task {
     /// then call the closure provided. For the duration of the closure the
     /// "current task" will be set to this task, and then after the closure
     /// returns the current task will be reset to what it was before.
-    pub fn enter<F, R>(&mut self, f: F) -> R
+    pub fn enter<F, R>(&mut self, handle: &Arc<Unpark>, f: F) -> R
         where F: FnOnce() -> R,
     {
-        CURRENT_TASK.set(self, f)
+        CURRENT_TASK.set(self, || {
+            CURRENT_UNPARK.set(&handle, f)
+        })
     }
-
-    /// Consumes this task to run a future to completion.
-    ///
-    /// This function will consume the task provided and the task will be used
-    /// to execute the `future` provided until it has been completed. The future
-    /// wil be `poll`'ed until it is resolved, at which point the `Result<(),
-    /// ()>` will be discarded.
-    ///
-    /// The future will be `poll`ed on the threads that events arrive on. That
-    /// is, this method does not attempt to control which thread a future is
-    /// polled on.
-    ///
-    /// Note that this method should normally not be used directly, but rather
-    /// `Future::forget` should be used instead.
-    ///
-    /// # Panics
-    ///
-    /// Currently, if `poll` panics, then this method will propagate the panic
-    /// to the thread that `poll` was called on. This is bad and it will change.
-    pub fn run(self, mut future: BoxFuture<(), ()>) {
-        if let HandleInner::Notify(_) = self.handle.inner {
-            println!("can't run a task created with new_notify");
-        }
-
-        let mut me = self;
-
-        // First up, poll the future, but do so in a `catch_unwind` to ensure
-        // that the panic is contained.
-        //
-        // The syntax here is a little odd, but the idea is that if it panics
-        // we've lost access to `self`, `future`, and `me` all in one go.
-        let result = catch_unwind(move || {
-            let res = CURRENT_TASK.set(&mut me, || future.poll());
-            (res, future, me)
-        });
-
-        // See what happened, if the future is ready then we're done entirely,
-        // otherwise we rebind ourselves and the future we're polling and keep
-        // going.
-        match result {
-            Ok((ref r, _, _)) if r.is_ready() => return,
-            Ok((_, f, t)) => {
-                future = f;
-                me = t;
-            }
-            // TODO: this error probably wants to get communicated to
-            //       another closure in one way or another, or perhaps if
-            //       nothing is registered the panic propagates.
-            Err(e) => panic::resume_unwind(e),
-        }
-
-        // So at this point the future is not ready and Interest is registered
-        // on the future from the `poll` call above.  Relinquish ownership of
-        // ourselves and the future to our own internal data structures so we
-        // can start the polling process again when something gets notified.
-        let inner = me.handle.inner.clone();
-        match inner {
-            HandleInner::Static(ref inner) => {
-                inner.slot.try_produce((me, future)).ok().unwrap();
-            }
-            HandleInner::Notify(_) => panic!(),
-        }
-    }
-}
-
-// AssertUnwindSafe is applied here as `Send + 'static` is typically sufficient
-// for "this is exception safe". For another example of this, see
-// `thread::spawn` which has the same bounds.
-fn catch_unwind<F, U>(f: F) -> thread::Result<U>
-    where F: FnOnce() -> U + Send + 'static,
-{
-    panic::catch_unwind(panic::AssertUnwindSafe(f))
 }
 
 /// A trait for types that can receive a notification that a future needs to get
 /// polled and arrange for it to be polled.
-pub trait Notify: Send + Sync + 'static {
-    /// Indicate that the task that this `Notify` is associated with should
-    /// attempt to poll the associated future in a timely fashion.
-    ///
-    /// This function is called by `TaskHandle::unpark` for tasks which are
-    /// backed by an instance of `Notify`. A call to this method means that a
-    /// future is likely ready to make progress, but may not necessarily be
-    /// ready to complete. In order to figure this out the future needs to be
-    /// polled.
-    fn notify(&self);
-}
-
-impl TaskHandle {
+pub trait Unpark: Send + Sync + 'static {
     /// Notify the associated task that a future is ready to get polled.
     ///
     /// Futures should use this method to ensure that when a future can make
     /// progress as `Task` is notified that it should continue to `poll` the
     /// future at a later date.
     ///
-    /// Currently it's guaranteed that if `notify` is called that `poll` will be
+    /// Currently it's guaranteed that if `unpark` is called that `poll` will be
     /// scheduled to get called at some point in the future. A `poll` may
     /// already be running on another thread, but this will ensure that a poll
     /// happens again to receive this notification.
-    pub fn unpark(&self) {
-        let inner = match self.inner {
-            HandleInner::Notify(ref n) => return n.notify(),
-            HandleInner::Static(ref inner) => inner,
-        };
-
-        // First, see if we can actually register an `on_full` callback.
-        // The `Slot` requires that only one registration happens, and
-        // this flag guards that.
-        if inner.registered.swap(true, Ordering::SeqCst) {
-            return
-        }
-
-        // If we won the race to register a callback, do so now. Once
-        // the slot is resolve we allow another registration **before we
-        // poll again**.  This allows any future which may be somewhat
-        // badly behaved to be compatible with this.
-        inner.slot.on_full(|slot| {
-            let (task, future) = slot.try_consume().ok().unwrap();
-            if let HandleInner::Static(ref s) = task.handle.inner {
-                s.registered.store(false, Ordering::SeqCst);
-            }
-            DEFAULT.execute(|| task.run(future))
-        });
-    }
+    fn unpark(&self);
 }
 
 // One critical piece of this module's contents are the `TaskData<A>` handles.

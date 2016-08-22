@@ -4,13 +4,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use {Future, Poll};
 use slot::{Slot, Token};
 use lock::Lock;
-use task::{self, TaskHandle};
+use task::{self, Unpark};
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
 ///
 /// This is created by the `oneshot` function.
 pub struct Oneshot<T> {
+    /// Determines whether to signal cancellation when the receiver side is
+    /// dropped. Defaults to `true`.
+    pub cancel_on_drop: bool,
     inner: Arc<Inner<T>>,
     cancel_token: Option<Token>,
 }
@@ -27,7 +30,7 @@ pub struct Complete<T> {
 struct Inner<T> {
     slot: Slot<Option<T>>,
     oneshot_gone: AtomicBool,
-    notify_cancel: Lock<Option<TaskHandle>>,
+    notify_cancel: Lock<Option<Arc<Unpark>>>,
 }
 
 /// Creates a new in-memory oneshot used to represent completing a computation.
@@ -63,6 +66,7 @@ pub fn oneshot<T>() -> (Complete<T>, Oneshot<T>) {
         notify_cancel: Lock::new(None),
     });
     let oneshot = Oneshot {
+        cancel_on_drop: true,
         inner: inner.clone(),
         cancel_token: None,
     };
@@ -189,6 +193,8 @@ impl<T> Drop for Oneshot<T> {
         if let Some(cancel_token) = self.cancel_token.take() {
             self.inner.slot.cancel(cancel_token)
         }
+
+        if !self.cancel_on_drop { return }
 
         // Next up, inform the `Complete` half that we're going away. First up
         // we flag ourselves as gone, and next we'll attempt to wake up any
