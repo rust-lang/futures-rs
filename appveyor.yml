@@ -18,6 +18,7 @@ test_script:
   - cargo test --manifest-path futures-iobuf/Cargo.toml
   - cargo test --manifest-path futures-cpupool/Cargo.toml
   - cargo test --manifest-path futures-mio/Cargo.toml
+  - cargo test --manifest-path futures-dns/Cargo.toml
   - cargo test --manifest-path futures-tls/Cargo.toml
   - cargo test --manifest-path futures-minihttp/Cargo.toml
   - cargo test --manifest-path futures-socks5/Cargo.toml
