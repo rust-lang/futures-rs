@@ -27,7 +27,7 @@ pub struct CpuPoolResolver {
 
 impl CpuPoolResolver {
     /// Create a new CpuPoolResolver with the given number of threads.
-    pub fn new(num_threads: u32) -> Self {
+    pub fn new(num_threads: usize) -> Self {
         CpuPoolResolver {
             pool: CpuPool::new(num_threads),
         }
