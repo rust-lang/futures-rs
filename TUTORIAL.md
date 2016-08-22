@@ -121,7 +121,7 @@ fn main() {
         futures_io::read_to_end(socket, Vec::new())
     });
 
-    let data = lp.run(response).unwrap();
+    let (_, data) = lp.run(response).unwrap();
     println!("{}", String::from_utf8_lossy(&data));
 }
 ```
@@ -266,14 +266,14 @@ To actually execute our future and drive it to completion we'll need to run the
 event loop:
 
 ```rust
-let data = lp.run(response).unwrap();
+let (_, data) = lp.run(response).unwrap();
 println!("{}", String::from_utf8_lossy(&data));
 ```
 
 Here we pass our `response` future, our entire HTTP request, and we pass it to
 the event loop, [asking it to resolve the future][`loop_run`]. The event loop will
 then run until the future has been resolved, returning the result of the future
-which in this case is `io::Result<Vec<u8>>`.
+which in this case is `io::Result<(TcpStream, Vec<u8>)>`.
 
 [`loop_run`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.run
 
@@ -1102,4 +1102,3 @@ A [`LoopData`] can be created through one of two methods:
 
 Task-local data and event-loop data provide the ability for futures to easily
 share sendable and non-sendable data amongst many futures.
-
