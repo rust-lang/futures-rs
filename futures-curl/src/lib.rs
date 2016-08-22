@@ -77,6 +77,7 @@ use curl::easy::Easy;
 use curl::multi::{Multi, EasyHandle, Socket, SocketEvents, Events};
 use futures::{Future, Poll, Oneshot, Complete};
 use futures::task;
+use futures::stream::{Stream, Fuse};
 use futures_mio::{LoopPin, Timeout, ReadinessStream, Sender, Receiver};
 use mio::unix::EventedFd;
 use slab::Slab;
@@ -102,8 +103,7 @@ struct Data {
     multi: Multi,
     state: RefCell<State>,
     pin: LoopPin,
-    rx: Receiver<Message>,
-    rx_done: bool,
+    rx: Fuse<Receiver<Message>>,
 }
 
 struct State {
@@ -173,10 +173,9 @@ impl Session {
         }).unwrap();
 
         let pin2 = pin.clone();
-        pin.add_loop_data(rx.map_err(|_| ()).and_then(|rx| {
+        pin.add_loop_data(rx.and_then(|rx| {
             Data {
-                rx: rx,
-                rx_done: false,
+                rx: rx.fuse(),
                 multi: m,
                 pin: pin2,
                 state: RefCell::new(State {
@@ -311,20 +310,18 @@ impl Data {
 
 impl Future for Data {
     type Item = ();
-    type Error = ();
+    type Error = io::Error;
 
-    fn poll(&mut self) -> Poll<(), ()> {
+    fn poll(&mut self) -> Poll<(), io::Error> {
         debug!("-------------------------- driver poll start");
 
         // First up, process anything in our message queue. This is where we
         // field new incoming requests and schedule them on our `multi` handle.
-        while !self.rx_done {
-            let msg = match self.rx.recv() {
-                Poll::Ok(msg) => msg,
-                Poll::Err(_) => {
-                    self.rx_done = true;
-                    break
-                }
+        loop {
+            let msg = match self.rx.poll() {
+                Poll::Ok(Some(msg)) => msg,
+                Poll::Ok(None) => break,
+                Poll::Err(e) => return Poll::Err(e),
                 Poll::NotReady => break,
             };
             match msg {
@@ -537,7 +534,7 @@ impl Future for Data {
             });
         });
 
-        if self.rx_done && self.state.borrow().complete.is_empty() {
+        if self.rx.is_done() && self.state.borrow().complete.is_empty() {
             Poll::Ok(())
         } else {
             Poll::NotReady
