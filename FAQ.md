@@ -73,3 +73,29 @@ Rust 1.10 or later.
 Not yet! A few names are reserved, but crates cannot have dependencies from a
 git repository. Right now we depend on the master branch of `mio`, and crates
 will be published once that's on crates.io as well!
+
+### Does this implement tail call optimization?
+
+One aspect of many existing futures libraries is whether or not a tail call
+optimization is implemented. The exact meaning of this varies from framework to
+framework, but it typically boils down to whether common patterns can be
+implemented in such a way that prevents blowing the stack if the system is
+overloaded for a moment or leaking memory for the entire lifetime of a
+future/server.
+
+For the prior case, blowing the stack, this typically arises as loops are often
+implemented through recursion with futures. This recursion can end up proceeding
+too quickly if the "loop" makes lots of turns very quickly. At this time neither
+the `Future` nor `Stream` traits handle tail call optimizations in this case,
+but rather combinators are patterns are provided to avoid recursion. For example
+a `Stream` implements `fold`, `for_each`, etc. These combinators can often be
+used to implement an asynchronous loop to avoid recursion, and they all execute
+in constant stack space. Note that we're very interested in exploring more
+generalized loop combinators, so PRs are always welcome!
+
+For the latter case, leaking memory, this can happen where a future accidentally
+"remembers" all of its previous states when it'll never use them again. This
+also can arise through recursion or otherwise manufacturing of futures of
+infinite length. Like above, however, these also tend to show up in situations
+that would otherwise be expressed with a loop, so the same solutions should
+apply there regardless.
