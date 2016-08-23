@@ -15,7 +15,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::thread;
 
-use futures::{Future, Poll};
+use futures::{Future, Poll, Inline};
 use futures::stream::Stream;
 use futures_io::{IoFuture, TaskIo};
 use futures_mio::{Loop, LoopHandle, TcpStream, TcpListener};
@@ -35,7 +35,7 @@ mod date;
 
 pub trait Service<Req, Resp>: Send + Sync + 'static
     where Req: Send + 'static,
-          Resp: Send + 'static
+          Resp: Send + 'static,
 {
     type Fut: Future<Item = Resp> + Send;
 
@@ -196,9 +196,9 @@ fn handle<Req, Resp, S>(stream: TcpStream, data: Arc<ServerData<S>>)
         StreamWriter::new(writer, responses)
     });
 
-    // Crucially use `.forget()` here instead of returning the future, allows
+    // Crucially spawn here instead of returning the future, allows
     // processing multiple separate connections concurrently.
-    io.forget();
+    io.spawn(Inline);
 }
 
 /// Temporary adapter for a read/write stream which is either TLS or not.

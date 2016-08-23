@@ -860,13 +860,10 @@ impl<T, E> IntoFuture for Result<T, E> {
     }
 }
 
-/// Encapsulation of a value which has the ability to execute arbitrary code.
+/// Executes a future in a new task.
 pub trait Executor<F> {
-    /// Executes the given closure `f`, perhaps on a different thread or
-    /// deferred to a later time.
-    ///
-    /// This method may not execute `f` immediately, but it will arrange for the
-    /// callback to be invoked "in the near future".
+    /// Executes the given future `f` in a new task, perhaps on a different
+    /// thread or deferred to a later time.
     fn spawn(&self, f: F);
 }
 

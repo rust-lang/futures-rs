@@ -24,25 +24,25 @@ use event_loop::{IoToken, LoopHandle, AddSource};
 /// any scheduling necessary to get notified when the event is ready again.
 pub struct ReadinessStream<E> {
     token: IoToken,
-    handle: LoopHandle,
+    handle: LoopHandle<'static>,
     readiness: AtomicUsize,
     io: E,
 }
 
-pub struct ReadinessStreamNew<E> {
-    inner: AddSource<E>,
-    handle: LoopHandle,
+pub struct ReadinessStreamNew<'a, E: 'a> {
+    inner: AddSource<'a, E>,
+    handle: LoopHandle<'a>,
 }
 
-impl<E> ReadinessStream<E>
-    where E: mio::Evented + Send + 'static,
-{
+impl<E> ReadinessStream<E> {
     /// Creates a new readiness stream associated with the provided
     /// `loop_handle` and for the given `source`.
     ///
     /// This method returns a future which will resolve to the readiness stream
     /// when it's ready.
-    pub fn new(loop_handle: LoopHandle, source: E) -> ReadinessStreamNew<E> {
+    pub fn new<'a>(loop_handle: LoopHandle<'a>, source: E) -> ReadinessStreamNew<'a, E>
+        where E: mio::Evented + Send + 'a,
+    {
         ReadinessStreamNew {
             inner: loop_handle.add_source(source),
             handle: loop_handle,
@@ -125,7 +125,7 @@ impl<E> ReadinessStream<E> {
 
     /// Returns a reference to the event loop handle that this readiness stream
     /// is associated with.
-    pub fn loop_handle(&self) -> &LoopHandle {
+    pub fn loop_handle(&self) -> &LoopHandle<'static> {
         &self.handle
     }
 
@@ -142,8 +142,8 @@ impl<E> ReadinessStream<E> {
     }
 }
 
-impl<E> Future for ReadinessStreamNew<E>
-    where E: mio::Evented + Send + 'static,
+impl<'a, E> Future for ReadinessStreamNew<'a, E>
+    where E: mio::Evented + Send + 'a,
 {
     type Item = ReadinessStream<E>;
     type Error = io::Error;
@@ -152,7 +152,7 @@ impl<E> Future for ReadinessStreamNew<E>
         self.inner.poll().map(|(io, token)| {
             ReadinessStream {
                 token: token,
-                handle: self.handle.clone(),
+                handle: self.handle.clone().into_static(),
                 io: io,
                 readiness: AtomicUsize::new(0),
             }

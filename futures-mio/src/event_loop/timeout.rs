@@ -4,15 +4,15 @@ use std::time::Instant;
 use futures::{Future, Poll};
 use futures::task;
 
-use event_loop::{Message, Loop, LoopHandle, LoopFuture};
+use event_loop::{Message, LoopHandle, LoopFuture};
 
-impl LoopHandle {
+impl<'a> LoopHandle<'a> {
     /// Adds a new timeout to get fired at the specified instant, notifying the
     /// specified task.
     pub fn add_timeout(&self, at: Instant) -> AddTimeout {
         AddTimeout {
             inner: LoopFuture {
-                loop_handle: self.clone(),
+                loop_handle: self.clone().into_static(),
                 data: Some(at),
                 result: None,
             },
@@ -44,7 +44,7 @@ impl LoopHandle {
 /// Return value from the `LoopHandle::add_timeout` method, a future that will
 /// resolve to a `TimeoutToken` to configure the behavior of that timeout.
 pub struct AddTimeout {
-    inner: LoopFuture<(usize, Instant), Instant>,
+    inner: LoopFuture<'static, (usize, Instant), Instant>,
 }
 
 /// A token that identifies an active timeout.
@@ -58,7 +58,7 @@ impl Future for AddTimeout {
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<TimeoutToken, io::Error> {
-        self.inner.poll(Loop::add_timeout, Message::AddTimeout).map(|(t, i)| {
+        self.inner.poll(|lp, at| lp.add_timeout(at), Message::AddTimeout).map(|(t, i)| {
             TimeoutToken {
                 token: t,
                 when: i,
@@ -78,4 +78,3 @@ impl TimeoutToken {
         &self.when
     }
 }
-

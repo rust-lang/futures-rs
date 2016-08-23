@@ -7,7 +7,7 @@ extern crate futures_mio;
 use std::env;
 use std::net::SocketAddr;
 
-use futures::Future;
+use futures::{Future, Inline};
 use futures::stream::Stream;
 use futures_io::{copy, TaskIo};
 
@@ -40,7 +40,7 @@ fn main() {
             // concurrently with other connections.
             amt.map(move |amt| {
                 println!("wrote {} bytes to {}", amt, addr)
-            }).forget();
+            }).spawn(Inline);
 
             Ok(())
         })

@@ -35,7 +35,7 @@ impl<F: Future + Send + 'static> Executor<F> for Inline {
     }
 }
 
-// A running task on the inline executor, with future type `F`
+/// A running task on the inline executor, with future type `F`
 struct InlineTask<F> {
     // The state of task execution (state machine described below)
     status: AtomicUsize,
@@ -73,6 +73,13 @@ const COMPLETE: usize = 3;      // No transitions out
 
 // The guts of a InlineTask: the generic task data and the future
 struct Inner<F> {
+    // When we want to run the task, we'll need an `Arc<Unpark>` to set on
+    // entry. We can't use the one used to wake the task in the first place,
+    // because `Unpark` itself works by reference. And we can't use a full
+    // `Arc<Unpark>` here, or we'd have a cycle. A weak reference works well,
+    // however: there will always be at least one strong reference as long as
+    // the task is either running or scheduled to be polled somewhere -- and if
+    // neither of those things is true, then the task *should* be dropped.
     unpark: Weak<Unpark>,
     task: Task,
     fut: F,

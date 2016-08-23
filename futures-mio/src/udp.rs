@@ -13,7 +13,7 @@ pub struct UdpSocket {
     io: ReadinessStream<mio::udp::UdpSocket>,
 }
 
-impl LoopHandle {
+impl<'a> LoopHandle<'a> {
     /// Create a new UDP socket bound to the specified address.
     ///
     /// This function will create a new UDP socket and attempt to bind it to the
@@ -31,7 +31,7 @@ impl LoopHandle {
 impl UdpSocket {
     fn new(socket: mio::udp::UdpSocket, handle: LoopHandle)
            -> IoFuture<UdpSocket> {
-        ReadinessStream::new(handle, socket).map(|io| {
+        ReadinessStream::new(handle.into_static(), socket).map(|io| {
             UdpSocket { io: io }
         }).boxed()
     }

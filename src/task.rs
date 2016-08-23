@@ -11,7 +11,7 @@
 //! for notifying when a future is ready.
 //!
 //! Note that libraries typically should not manage tasks themselves, but rather
-//! leave that to event loops at the top level. The `forget` function should be
+//! leave that to event loops at the top level. The `spawn` function should be
 //! used to "spawn" a future, or an event loop should be used to run a specific
 //! future to completion.
 //!
@@ -57,25 +57,17 @@ pub fn park() -> Arc<Unpark> {
     CURRENT_UNPARK.with(|handle| handle.clone())
 }
 
-/// A structure representing one "task", or thread of execution throughout the
-/// lifetime of a set of futures.
+/// A structure representing one "task", or lightweight thread of execution
+/// throughout the lifetime of a set of futures.
 ///
 /// It's intended that futures are composed together to form a large "task" of
 /// futures which is driven as a whole throughout its lifetime. This task is
-/// persistent for the entire lifetime of the future until its completion,
-/// carrying any local data and such.
+/// persistent for the entire lifetime of the future until its completion. It
+/// specifies *how* and *where* the task is executed, e.g. on a thread pool, an
+/// event loop or wherever it happens to be woken (via `Inline`).
 ///
-/// Currently tasks serve two primary purposes:
-///
-/// * They're used to drive futures to completion, e.g. executors (more to be
-///   changed here soon).
-/// * They store task local data. That is, any task can contain any number of
-///   pieces of arbitrary data which can be accessed at a later date. The data
-///   is owned and carried in the task itself, and `TaskData` handles are used
-///   to access the internals.
-///
-/// This structure is likely to expand more customizable functionality over
-/// time! That is, it's not quite done yet...
+/// Tasks also provide a place to store arbitrary data, through `TaskData`,
+/// which can be shared freely amongst the futures making up the task.
 pub struct Task {
     id: usize,
 
@@ -98,7 +90,7 @@ impl Task {
         self.id
     }
 
-    /// Sets the global running task to the task provided for the duration of
+    /// Sets the global running task and unpark handle for the duration of
     /// the provided closure.
     ///
     /// This function will configure the current task to be this task itself and
@@ -114,19 +106,21 @@ impl Task {
     }
 }
 
-/// A trait for types that can receive a notification that a future needs to get
-/// polled and arrange for it to be polled.
-pub trait Unpark: Send + Sync + 'static {
+/// A trait for notifying a task that it should "wake up" and poll its future.
+///
+/// This is a trait because the mechanism for wakeup will vary by task executor.
+pub trait Unpark: Send + Sync {
     /// Notify the associated task that a future is ready to get polled.
     ///
     /// Futures should use this method to ensure that when a future can make
-    /// progress as `Task` is notified that it should continue to `poll` the
+    /// progress its `Task` is notified that it should continue to `poll` the
     /// future at a later date.
     ///
-    /// Currently it's guaranteed that if `unpark` is called that `poll` will be
-    /// scheduled to get called at some point in the future. A `poll` may
-    /// already be running on another thread, but this will ensure that a poll
-    /// happens again to receive this notification.
+    /// It must be guaranteed that if `unpark` is called that `poll` will be
+    /// called at some later point by the task (unless the task's future is
+    /// complete). If the task is currently polling its future, it must poll the
+    /// future *again*, ensuring that all relevant events are eventually
+    /// observed by the future.
     fn unpark(&self);
 }
 

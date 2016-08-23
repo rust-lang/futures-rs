@@ -21,6 +21,7 @@ pub struct TcpListener {
 impl TcpListener {
     fn new(listener: mio::tcp::TcpListener,
            handle: LoopHandle) -> IoFuture<TcpListener> {
+        let handle = handle.into_static();
         ReadinessStream::new(handle, listener).map(|io| {
             TcpListener {
                 io: io,
@@ -58,6 +59,7 @@ impl TcpListener {
     pub fn from_listener(listener: net::TcpListener,
                          addr: &SocketAddr,
                          handle: LoopHandle) -> IoFuture<TcpListener> {
+        let handle = handle.into_static();
         mio::tcp::TcpListener::from_listener(listener, addr)
             .into_future()
             .and_then(|l| TcpListener::new(l, handle))
@@ -138,7 +140,7 @@ enum TcpStreamNew {
     Empty,
 }
 
-impl LoopHandle {
+impl<'a> LoopHandle<'a> {
     /// Create a new TCP listener associated with this event loop.
     ///
     /// The TCP listener will bind to the provided `addr` address, if available,
@@ -170,7 +172,7 @@ impl TcpStream {
     fn new(connected_stream: mio::tcp::TcpStream,
            handle: LoopHandle)
            -> IoFuture<TcpStream> {
-        ReadinessStream::new(handle, connected_stream).and_then(|io| {
+        ReadinessStream::new(handle.into_static(), connected_stream).and_then(|io| {
             TcpStreamNew::Waiting(TcpStream { io: io })
         }).boxed()
     }

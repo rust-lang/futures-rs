@@ -18,6 +18,6 @@ fn main() {
         let mut r = Response::new();
         r.header("Content-Type", "text/plain")
          .body("Hello, World!");
-        finished::<_, std::io::Error>(r)
+        finished::<_, ()>(r)
     }).unwrap()
 }

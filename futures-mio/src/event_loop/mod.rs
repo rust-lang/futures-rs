@@ -3,13 +3,12 @@ use std::io::{self, ErrorKind};
 use std::marker;
 use std::mem;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Mutex, Arc};
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::time::{Instant, Duration};
 
 use futures::{Future, Poll};
-use futures::task::{self, Task, Notify, TaskHandle};
-use futures::executor::{ExecuteCallback, Executor};
+use futures::task::{self, Task, Unpark};
 use mio;
 use slab::Slab;
 
@@ -17,14 +16,16 @@ use slot::{self, Slot};
 use timer_wheel::{TimerWheel, Timeout};
 
 mod channel;
+mod loop_task;
 mod source;
 mod timeout;
 pub use self::source::{AddSource, IoToken};
 pub use self::timeout::{AddTimeout, TimeoutToken};
 use self::channel::{Sender, Receiver, channel};
+use self::loop_task::LoopTask;
 
 static NEXT_LOOP_ID: AtomicUsize = ATOMIC_USIZE_INIT;
-scoped_thread_local!(static CURRENT_LOOP: Loop);
+scoped_thread_local!(static CURRENT_LOOP_DATA: LoopData);
 
 const SLAB_CAPACITY: usize = 1024 * 64;
 
@@ -35,15 +36,26 @@ const SLAB_CAPACITY: usize = 1024 * 64;
 /// multiple handles pointing to it, each of which can then be used to create
 /// various I/O objects to interact with the event loop in interesting ways.
 // TODO: expand this
-pub struct Loop {
+pub struct Loop<'a> {
+    data: Arc<LoopData>,
+
+    // A `Loop` cannot be sent to other threads as it's used as a proxy for data
+    // that belongs to the thread the loop was running on at some point.
+    // Also, be invariant over 'a.
+    _marker: marker::PhantomData<(Rc<u32>, *mut &'a ())>,
+}
+
+/// The inner data of an event loop, which is also accessible from loop handles.
+struct LoopData {
     id: usize,
     io: mio::Poll,
-    events: mio::Events,
-    tx: Arc<MioSender>,
-    rx: Receiver<Message>,
+    events: RefCell<mio::Events>,
     dispatch: RefCell<Slab<Scheduled, usize>>,
     _future_registration: mio::Registration,
     future_readiness: Arc<mio::SetReadiness>,
+
+    tx: Arc<Sender<Message>>,
+    rx: Receiver<Message>,
 
     // Timer wheel keeping track of all timeouts. The `usize` stored in the
     // timer wheel is an index into the slab below.
@@ -53,16 +65,6 @@ pub struct Loop {
     // `timeouts` slab.
     timer_wheel: RefCell<TimerWheel<usize>>,
     timeouts: RefCell<Slab<(Timeout, TimeoutState), usize>>,
-
-    // A `Loop` cannot be sent to other threads as it's used as a proxy for data
-    // that belongs to the thread the loop was running on at some point. In
-    // other words, the safety of `DropBox` below relies on loops not crossing
-    // threads.
-    _marker: marker::PhantomData<Rc<u32>>,
-}
-
-struct MioSender {
-    inner: Sender<Message>,
 }
 
 /// Handle to an event loop, used to construct I/O objects, send messages, and
@@ -71,29 +73,35 @@ struct MioSender {
 /// Handles can be cloned, and when cloned they will still refer to the
 /// same underlying event loop.
 #[derive(Clone)]
-pub struct LoopHandle {
+pub struct LoopHandle<'a> {
     id: usize,
-    tx: Arc<MioSender>,
+    tx: Arc<Sender<Message>>,
+    // Invariant over 'a
+    _marker: marker::PhantomData<Mutex<&'a ()>>,
 }
 
-/// A non-sendable handle to an event loop, useful for manufacturing instances
-/// of `LoopData`.
+/// A non-sendable, cloneable handle to an event loop, useful for executing
+/// non-send Futures that live on the event loop.
 #[derive(Clone)]
-pub struct LoopPin {
-    handle: LoopHandle,
-    _marker: marker::PhantomData<Box<Drop>>,
+pub struct LoopPin<'a> {
+    data: Arc<LoopData>,
+
+    // A `LoopPin` cannot be sent to other threads as it's used as a proxy for
+    // data that belongs to the thread the loop was running on at some point.
+    // Also, be invariant over 'a.
+    _marker: marker::PhantomData<(Rc<u32>, Mutex<&'a ()>)>,
 }
 
 struct Scheduled {
     readiness: Arc<AtomicUsize>,
-    reader: Option<TaskHandle>,
-    writer: Option<TaskHandle>,
+    reader: Option<Arc<Unpark>>,
+    writer: Option<Arc<Unpark>>,
 }
 
 enum TimeoutState {
     NotFired,
     Fired,
-    Waiting(TaskHandle),
+    Waiting(Arc<Unpark>),
 }
 
 enum Direction {
@@ -103,17 +111,30 @@ enum Direction {
 
 enum Message {
     DropSource(usize),
-    Schedule(usize, TaskHandle, Direction),
+    Schedule(usize, Arc<Unpark>, Direction),
     AddTimeout(Instant, Arc<Slot<io::Result<(usize, Instant)>>>),
-    UpdateTimeout(usize, TaskHandle),
+    UpdateTimeout(usize, Arc<Unpark>),
     CancelTimeout(usize),
     Run(Box<ExecuteCallback>),
+    RunTask(Arc<LoopTask>),
 }
 
-impl Loop {
+/// Essentially `Box<FnOnce() + Send>`, just as a trait.
+trait ExecuteCallback: Send {
+    #[allow(missing_docs)]
+    fn call(self: Box<Self>);
+}
+
+impl<F: FnOnce() + Send> ExecuteCallback for F {
+    fn call(self: Box<F>) {
+        (*self)()
+    }
+}
+
+impl<'a> Loop<'a> {
     /// Creates a new event loop, returning any error that happened during the
     /// creation.
-    pub fn new() -> io::Result<Loop> {
+    pub fn new() -> io::Result<Loop<'a>> {
         let (tx, rx) = channel();
         let io = try!(mio::Poll::new());
         try!(io.register(&rx,
@@ -125,17 +146,20 @@ impl Loop {
                                           mio::EventSet::readable(),
                                           mio::PollOpt::level());
         let (registration, readiness) = pair;
-        Ok(Loop {
+        let data = LoopData {
             id: NEXT_LOOP_ID.fetch_add(1, Ordering::Relaxed),
             io: io,
-            events: mio::Events::new(),
-            tx: Arc::new(MioSender { inner: tx }),
+            events: RefCell::new(mio::Events::new()),
+            tx: Arc::new(tx),
             rx: rx,
             _future_registration: registration,
             future_readiness: Arc::new(readiness),
             dispatch: RefCell::new(Slab::new_starting_at(2, SLAB_CAPACITY)),
             timeouts: RefCell::new(Slab::new_starting_at(0, SLAB_CAPACITY)),
             timer_wheel: RefCell::new(TimerWheel::new()),
+        };
+        Ok(Loop {
+            data: Arc::new(data),
             _marker: marker::PhantomData,
         })
     }
@@ -145,22 +169,23 @@ impl Loop {
     ///
     /// Handles to an event loop are cloneable as well and clones will always
     /// refer to the same event loop.
-    pub fn handle(&self) -> LoopHandle {
+    pub fn handle(&self) -> LoopHandle<'a> {
         LoopHandle {
-            id: self.id,
-            tx: self.tx.clone(),
+            id: self.data.id,
+            tx: self.data.tx.clone(),
+            _marker: marker::PhantomData,
         }
     }
 
     /// Returns a "pin" of this event loop which cannot be sent across threads
     /// but can be used as a proxy to the event loop itself.
     ///
-    /// Currently the primary use for this is to use as a handle to add data
-    /// to the event loop directly. The `LoopPin::add_loop_data` method can
-    /// be used to immediately create instances of `LoopData` structures.
-    pub fn pin(&self) -> LoopPin {
+    /// Currently the primary use for this is as an executor that handles
+    /// non-`Send`, non-`'static` futures that are pinned to the event loop
+    /// thread.
+    pub fn pin(&self) -> LoopPin<'a> {
         LoopPin {
-            handle: self.handle(),
+            data: self.data.clone(),
             _marker: marker::PhantomData,
         }
     }
@@ -193,8 +218,8 @@ impl Loop {
     {
         struct MyNotify(Arc<mio::SetReadiness>);
 
-        impl Notify for MyNotify {
-            fn notify(&self) {
+        impl Unpark for MyNotify {
+            fn unpark(&self) {
                 self.0.set_readiness(mio::EventSet::readable())
                       .expect("failed to set readiness");
             }
@@ -206,8 +231,9 @@ impl Loop {
         //
         // We translate readiness notifications to a `set_readiness` of our
         // `future_readiness` structure we have stored internally.
-        let mut task = Task::new_notify(MyNotify(self.future_readiness.clone()));
-        let ready = self.future_readiness.clone();
+        let mut task = Task::new();
+        let notify: Arc<Unpark> = Arc::new(MyNotify(self.data.future_readiness.clone()));
+        let ready = self.data.future_readiness.clone();
 
         // Next, move all that data into a dynamically dispatched closure to cut
         // down on monomorphization costs. Inside this closure we unset the
@@ -218,7 +244,7 @@ impl Loop {
             ready.set_readiness(mio::EventSet::none())
                  .expect("failed to set readiness");
             assert!(res.is_none());
-            match task.enter(|| f.poll()) {
+            match task.enter(&notify, || f.poll()) {
                 Poll::NotReady => {}
                 Poll::Ok(e) => res = Some(Ok(e)),
                 Poll::Err(e) => res = Some(Err(e)),
@@ -231,7 +257,7 @@ impl Loop {
     fn _run(&mut self, done: &mut FnMut() -> bool) {
         // Check to see if we're done immediately, if so we shouldn't do any
         // work.
-        if CURRENT_LOOP.set(self, || done()) {
+        if CURRENT_LOOP_DATA.set(&self.data, || done()) {
             return
         }
 
@@ -242,14 +268,14 @@ impl Loop {
             // attaching strace, or similar.
             let start = Instant::now();
             loop {
-                let timeout = self.timer_wheel.borrow().next_timeout().map(|t| {
+                let timeout = self.data.timer_wheel.borrow().next_timeout().map(|t| {
                     if t < start {
                         Duration::new(0, 0)
                     } else {
                         t - start
                     }
                 });
-                match self.io.poll(&mut self.events, timeout) {
+                match self.data.io.poll(&mut self.data.events.borrow_mut(), timeout) {
                     Ok(a) => {
                         amt = a;
                         break;
@@ -268,8 +294,8 @@ impl Loop {
             self.consume_timeouts(start);
 
             // Next, process all the events that came in.
-            for i in 0..self.events.len() {
-                let event = self.events.get(i).unwrap();
+            for i in 0..self.data.events.borrow().len() {
+                let event = self.data.events.borrow().get(i).unwrap();
                 let token = usize::from(event.token());
 
                 // Token 0 == our incoming message queue, so this means we
@@ -279,12 +305,12 @@ impl Loop {
                 // after we get through the rest of this tick of the event loop.
                 if token == 0 {
                     debug!("consuming notification queue");
-                    CURRENT_LOOP.set(&self, || {
-                        self.consume_queue();
+                    CURRENT_LOOP_DATA.set(&self.data, || {
+                        self.data.consume_queue();
                     });
                     continue
                 } else if token == 1 {
-                    if CURRENT_LOOP.set(self, || done()) {
+                    if CURRENT_LOOP_DATA.set(&self.data, || done()) {
                         return
                     }
                     continue
@@ -298,7 +324,7 @@ impl Loop {
                 // happened (currently read/write events).
                 let mut reader = None;
                 let mut writer = None;
-                if let Some(sched) = self.dispatch.borrow_mut().get_mut(token) {
+                if let Some(sched) = self.data.dispatch.borrow_mut().get_mut(token) {
                     if event.kind().is_readable() {
                         reader = sched.reader.take();
                         sched.readiness.fetch_or(1, Ordering::Relaxed);
@@ -315,10 +341,10 @@ impl Loop {
                 //
                 // TODO: don't notify the same task twice
                 if let Some(reader) = reader {
-                    self.notify_handle(reader);
+                    self.data.notify_handle(reader);
                 }
                 if let Some(writer) = writer {
-                    self.notify_handle(writer);
+                    self.data.notify_handle(writer);
                 }
             }
 
@@ -328,25 +354,27 @@ impl Loop {
 
     fn consume_timeouts(&mut self, now: Instant) {
         loop {
-            let idx = match self.timer_wheel.borrow_mut().poll(now) {
+            let idx = match self.data.timer_wheel.borrow_mut().poll(now) {
                 Some(idx) => idx,
                 None => break,
             };
             trace!("firing timeout: {}", idx);
-            let handle = self.timeouts.borrow_mut()[idx].1.fire();
+            let handle = self.data.timeouts.borrow_mut()[idx].1.fire();
             if let Some(handle) = handle {
-                self.notify_handle(handle);
+                self.data.notify_handle(handle);
             }
         }
     }
+}
 
+impl LoopData {
     /// Method used to notify a task handle.
     ///
     /// Note that this should be used instead fo `handle.unpark()` to ensure
-    /// that the `CURRENT_LOOP` variable is set appropriately.
-    fn notify_handle(&self, handle: TaskHandle) {
+    /// that the `CURRENT_LOOP_ID` variable is set appropriately.
+    pub fn notify_handle(&self, handle: Arc<Unpark>) {
         debug!("notifying a task handle");
-        CURRENT_LOOP.set(&self, || handle.unpark());
+        CURRENT_LOOP_DATA.set(self, || handle.unpark());
     }
 
     fn add_source(&self, source: &mio::Evented)
@@ -366,7 +394,7 @@ impl Loop {
         try!(self.io.register(source,
                               mio::Token(entry.index()),
                               mio::EventSet::readable() |
-                                mio::EventSet::writable(),
+                              mio::EventSet::writable(),
                               mio::PollOpt::edge()));
         Ok((sched.readiness.clone(), entry.insert(sched).index()))
     }
@@ -376,7 +404,7 @@ impl Loop {
         self.dispatch.borrow_mut().remove(token).unwrap();
     }
 
-    fn schedule(&self, token: usize, wake: TaskHandle, dir: Direction) {
+    fn schedule(&self, token: usize, wake: Arc<Unpark>, dir: Direction) {
         debug!("scheduling direction for: {}", token);
         let to_call = {
             let mut dispatch = self.dispatch.borrow_mut();
@@ -415,7 +443,7 @@ impl Loop {
         Ok((entry.index(), when))
     }
 
-    fn update_timeout(&self, token: usize, handle: TaskHandle) {
+    fn update_timeout(&self, token: usize, handle: Arc<Unpark>) {
         debug!("updating a timeout: {}", token);
         let to_wake = self.timeouts.borrow_mut()[token].1.block(handle);
         if let Some(to_wake) = to_wake {
@@ -431,18 +459,10 @@ impl Loop {
         }
     }
 
-    fn consume_queue(&self) {
-        // TODO: can we do better than `.unwrap()` here?
-        while let Some(msg) = self.rx.recv().unwrap() {
-            self.notify(msg);
-        }
-    }
-
     fn notify(&self, msg: Message) {
         match msg {
             Message::DropSource(tok) => self.drop_source(tok),
             Message::Schedule(tok, wake, dir) => self.schedule(tok, wake, dir),
-
             Message::AddTimeout(at, slot) => {
                 slot.try_produce(self.add_timeout(at))
                     .ok().expect("interference with try_produce on timeout");
@@ -453,11 +473,23 @@ impl Loop {
                 debug!("running a closure");
                 f.call()
             }
+            Message::RunTask(t) => {
+                // TODO: is running on the spot the best thing to do?
+                unsafe { loop_task::run(t) }
+            }
+        }
+    }
+
+    fn consume_queue(&self) {
+        // TODO: can we do better than `.unwrap()` here?
+        while let Some(msg) = self.rx.recv().unwrap() {
+            self.notify(msg);
         }
     }
 }
 
-impl LoopHandle {
+
+impl<'a> LoopHandle<'a> {
     fn send(&self, msg: Message) {
         self.with_loop(|lp| {
             match lp {
@@ -468,7 +500,7 @@ impl LoopHandle {
                     lp.notify(msg);
                 }
                 None => {
-                    match self.tx.inner.send(msg) {
+                    match self.tx.send(msg) {
                         Ok(()) => {}
 
                         // This should only happen when there was an error
@@ -483,11 +515,12 @@ impl LoopHandle {
         })
     }
 
+
     fn with_loop<F, R>(&self, f: F) -> R
-        where F: FnOnce(Option<&Loop>) -> R
+        where F: FnOnce(Option<&LoopData>) -> R
     {
-        if CURRENT_LOOP.is_set() {
-            CURRENT_LOOP.with(|lp| {
+        if CURRENT_LOOP_DATA.is_set() {
+            CURRENT_LOOP_DATA.with(|lp| {
                 if lp.id == self.id {
                     f(Some(lp))
                 } else {
@@ -498,31 +531,41 @@ impl LoopHandle {
             f(None)
         }
     }
+
+    /// Erases the ability to execute tasks with a non-`'static`
+    /// lifetime. Occasionally useful when you need to uniformly work with a
+    /// `'static` version of the type.
+    pub fn into_static(self) -> LoopHandle<'static> {
+        // This is justified by the fact that the LoopHandle *is* actually
+        // 'static internally; the 'a is a phantom parameter that is intended to
+        // limit what futures can be executed by it.
+        unsafe { ::std::mem::transmute(self) }
+    }
+
 }
 
-impl LoopPin {
+impl<'a> LoopPin<'a> {
     /// Returns a reference to the underlying handle to the event loop.
-    pub fn handle(&self) -> &LoopHandle {
-        &self.handle
-    }
-
-    /// TODO: dox
-    pub fn executor(&self) -> Arc<Executor> {
-        self.handle.tx.clone()
+    pub fn handle(&self) -> LoopHandle<'a> {
+        LoopHandle {
+            id: self.data.id,
+            tx: self.data.tx.clone(),
+            _marker: marker::PhantomData,
+        }
     }
 }
 
-struct LoopFuture<T, U> {
-    loop_handle: LoopHandle,
+struct LoopFuture<'a, T, U> {
+    loop_handle: LoopHandle<'a>,
     data: Option<U>,
     result: Option<(Arc<Slot<io::Result<T>>>, slot::Token)>,
 }
 
-impl<T, U> LoopFuture<T, U>
-    where T: 'static,
+impl<'a, T, U> LoopFuture<'a, T, U>
+    where T: 'a,
 {
     fn poll<F, G>(&mut self, f: F, g: G) -> Poll<T, io::Error>
-        where F: FnOnce(&Loop, U) -> io::Result<T>,
+        where F: FnOnce(&LoopData, U) -> io::Result<T>,
               G: FnOnce(U, Arc<Slot<io::Result<T>>>) -> Message,
     {
         match self.result {
@@ -563,7 +606,7 @@ impl<T, U> LoopFuture<T, U>
 }
 
 impl TimeoutState {
-    fn block(&mut self, handle: TaskHandle) -> Option<TaskHandle> {
+    fn block(&mut self, handle: Arc<Unpark>) -> Option<Arc<Unpark>> {
         match *self {
             TimeoutState::Fired => return Some(handle),
             _ => {}
@@ -572,18 +615,11 @@ impl TimeoutState {
         None
     }
 
-    fn fire(&mut self) -> Option<TaskHandle> {
+    fn fire(&mut self) -> Option<Arc<Unpark>> {
         match mem::replace(self, TimeoutState::Fired) {
             TimeoutState::NotFired => None,
             TimeoutState::Fired => panic!("fired twice?"),
             TimeoutState::Waiting(handle) => Some(handle),
         }
-    }
-}
-
-impl Executor for MioSender {
-    fn execute_boxed(&self, callback: Box<ExecuteCallback>) {
-        self.inner.send(Message::Run(callback))
-            .expect("error sending a message to the event loop")
     }
 }

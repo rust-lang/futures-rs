@@ -1,19 +1,22 @@
-use std::sync::Arc;
+use std::sync::{Mutex, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::io;
+use std::marker::PhantomData;
 
 use futures::{Future, Poll};
 use futures::task;
 use mio;
 
-use event_loop::{Message, LoopHandle, LoopFuture, Direction};
+use event_loop::{Message, LoopHandle, LoopFuture, Direction, ExecuteCallback};
 
 /// A future which will resolve a unique `tok` token for an I/O object.
 ///
 /// Created through the `LoopHandle::add_source` method, this future can also
 /// resolve to an error if there's an issue communicating with the event loop.
-pub struct AddSource<E> {
-    inner: LoopFuture<(E, (Arc<AtomicUsize>, usize)), E>,
+pub struct AddSource<'a, E: 'a> {
+    inner: LoopFuture<'a, (E, (Arc<AtomicUsize>, usize)), E>,
+    // Invariant over 'a
+    _marker: PhantomData<Mutex<&'a ()>>,
 }
 
 /// A token that identifies an active timeout.
@@ -23,7 +26,7 @@ pub struct IoToken {
     readiness: Arc<AtomicUsize>,
 }
 
-impl LoopHandle {
+impl<'a> LoopHandle<'a> {
     /// Add a new source to an event loop, returning a future which will resolve
     /// to the token that can be used to identify this source.
     ///
@@ -40,15 +43,16 @@ impl LoopHandle {
     /// The returned future will panic if the event loop this handle is
     /// associated with has gone away, or if there is an error communicating
     /// with the event loop.
-    pub fn add_source<E>(&self, source: E) -> AddSource<E>
-        where E: mio::Evented + Send + 'static,
+    pub fn add_source<E>(&self, source: E) -> AddSource<'a, E>
+        where E: mio::Evented + Send + 'a,
     {
         AddSource {
             inner: LoopFuture {
                 loop_handle: self.clone(),
                 data: Some(source),
                 result: None,
-            }
+            },
+            _marker: PhantomData,
         }
     }
 
@@ -133,17 +137,17 @@ impl LoopHandle {
 }
 
 impl IoToken {
-	/// Consumes the last readiness notification the token this source is for
+    /// Consumes the last readiness notification the token this source is for
     /// registered.
-	///
-	/// Currently sources receive readiness notifications on an edge-basis. That
-	/// is, once you receive a notification that an object can be read, you
-	/// won't receive any more notifications until all of that data has been
-	/// read.
-	///
-	/// The event loop will fill in this information and then inform futures
-	/// that they're ready to go with the `schedule` method, and then the `poll`
-	/// method can use this to figure out what happened.
+    ///
+    /// Currently sources receive readiness notifications on an edge-basis. That
+    /// is, once you receive a notification that an object can be read, you
+    /// won't receive any more notifications until all of that data has been
+    /// read.
+    ///
+    /// The event loop will fill in this information and then inform futures
+    /// that they're ready to go with the `schedule` method, and then the `poll`
+    /// method can use this to figure out what happened.
     ///
     /// > **Note**: This method should generally not be used directly, but
     /// >           rather the `ReadinessStream` type should be used instead.
@@ -153,8 +157,8 @@ impl IoToken {
     }
 }
 
-impl<E> Future for AddSource<E>
-    where E: mio::Evented + Send + 'static,
+impl<'a, E> Future for AddSource<'a, E>
+    where E: mio::Evented + Send + 'a,
 {
     type Item = (E, IoToken);
     type Error = io::Error;
@@ -165,7 +169,7 @@ impl<E> Future for AddSource<E>
             let pair = try!(lp.add_source(&io));
             Ok((io, pair))
         }, |io, slot| {
-            Message::Run(Box::new(move || {
+            let closure = Box::new(move || {
                 let res = handle.with_loop(|lp| {
                     let lp = lp.unwrap();
                     let pair = try!(lp.add_source(&io));
@@ -173,7 +177,16 @@ impl<E> Future for AddSource<E>
                 });
                 slot.try_produce(res).ok()
                     .expect("add source try_produce intereference");
-            }))
+            });
+            let closure: Box<ExecuteCallback + 'a> = closure;
+            let closure: Box<ExecuteCallback> = unsafe {
+                // Just like with LoopTask, we have to erase the lifetime here,
+                // but safety is guaranteed by the fact that the closure will
+                // only be executed by the event loop, which is guaranteed to
+                // outlife 'a.
+                ::std::mem::transmute(closure)
+            };
+            Message::Run(closure)
         });
 
         res.map(|(io, (ready, token))| {

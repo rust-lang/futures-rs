@@ -16,10 +16,10 @@ use event_loop::TimeoutToken;
 /// otherwise indicated to fire at.
 pub struct Timeout {
     token: TimeoutToken,
-    handle: LoopHandle,
+    handle: LoopHandle<'static>,
 }
 
-impl LoopHandle {
+impl<'a> LoopHandle<'a> {
     /// Creates a new timeout which will fire at `dur` time into the future.
     ///
     /// This function will return a future that will resolve to the actual
@@ -35,10 +35,11 @@ impl LoopHandle {
     /// timeout object. The timeout object itself is then a future which will be
     /// set to fire at the specified point in the future.
     pub fn timeout_at(self, at: Instant) -> IoFuture<Timeout> {
-        self.add_timeout(at).map(move |token| {
+        let handle = self.into_static();
+        handle.add_timeout(at).map(move |token| {
             Timeout {
                 token: token,
-                handle: self,
+                handle: handle,
             }
         }).boxed()
     }

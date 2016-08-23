@@ -2,7 +2,6 @@ use std::io;
 use std::sync::mpsc::TryRecvError;
 
 use futures::{Future, Poll};
-use futures_io::IoFuture;
 use mio::channel;
 
 use {ReadinessStream, LoopHandle};
@@ -28,7 +27,7 @@ pub struct Receiver<T> {
     rx: ReadinessStream<channel::Receiver<T>>,
 }
 
-impl LoopHandle {
+impl<'a> LoopHandle<'a> {
     /// Creates a new in-memory channel used for sending data across `Send +
     /// 'static` boundaries, frequently threads.
     ///
@@ -41,12 +40,13 @@ impl LoopHandle {
     /// The returned `Sender` can be used to send messages that are processed by
     /// the returned `Receiver`. The `Sender` can be cloned to send messages
     /// from multiple sources simultaneously.
-    pub fn channel<T>(self) -> (Sender<T>, IoFuture<Receiver<T>>)
-        where T: Send + 'static,
+    pub fn channel<T>(self) -> (Sender<T>,
+                                Box<Future<Item = Receiver<T>, Error = io::Error> + Send + 'a>)
+        where T: Send + 'static, // TODO: can the 'static here be loosened?
     {
         let (tx, rx) = channel::channel();
         let rx = ReadinessStream::new(self, rx).map(|rx| Receiver { rx: rx });
-        (Sender { tx: tx }, rx.boxed())
+        (Sender { tx: tx }, Box::new(rx))
     }
 }
 
