@@ -100,10 +100,14 @@ impl<F: Future + Send + 'static> InlineTask<F> {
             }));
 
             if let Ok(Poll::NotReady) = res {
+                let repoll = task.should_repoll();
                 *self.inner.get() = Some(Inner { task: task, fut: fut, unpark: unpark });
 
-                // check whether we need to re-poll
-                if self.status.compare_exchange(POLLING, WAITING, SeqCst, SeqCst).is_ok() {
+                if repoll {
+                    // the future yielded
+                    continue;
+                } else if self.status.compare_exchange(POLLING, WAITING, SeqCst, SeqCst).is_ok() {
+                    // no unparks came in while we were running
                     return
                 } else {
                     // guaranteed to be in REPOLL state; just clobber the state and run again.

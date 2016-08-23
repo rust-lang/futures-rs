@@ -57,6 +57,21 @@ pub fn park() -> Arc<Unpark> {
     CURRENT_UNPARK.with(|handle| handle.clone())
 }
 
+/// Marks the current task as ready to be polled again immediately, even if the
+/// current `poll` returns `NotReady`.
+///
+/// Useful for cooperative scheduling: you can give the executor a chance to
+/// make progress on other tasks, then poll this task again later.
+///
+/// # Panics
+///
+/// This function will panic if a future is not currently being executed. That
+/// is, this method can be dangerous to call outside of an implementation of
+/// `poll`.
+pub fn yield_now() {
+    CURRENT_TASK.with(|task| task.should_repoll.set(true))
+}
+
 /// A structure representing one "task", or lightweight thread of execution
 /// throughout the lifetime of a set of futures.
 ///
@@ -70,6 +85,7 @@ pub fn park() -> Arc<Unpark> {
 /// which can be shared freely amongst the futures making up the task.
 pub struct Task {
     id: usize,
+    should_repoll: Cell<bool>,
 
     // A `Task` is not `Sync`, see the TaskRc docs below above.
     _marker: marker::PhantomData<Cell<()>>,
@@ -82,8 +98,14 @@ impl Task {
     pub fn new() -> Task {
         Task {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            should_repoll: Cell::new(false),
             _marker: marker::PhantomData,
         }
+    }
+
+    /// Did the underlying future request to yield?
+    pub fn should_repoll(&self) -> bool {
+        self.should_repoll.get()
     }
 
     fn inner_usize(&self) -> usize {

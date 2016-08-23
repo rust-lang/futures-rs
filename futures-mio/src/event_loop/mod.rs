@@ -53,6 +53,7 @@ struct LoopData {
     dispatch: RefCell<Slab<Scheduled, usize>>,
     _future_registration: mio::Registration,
     future_readiness: Arc<mio::SetReadiness>,
+    queued_tasks: RefCell<Vec<Arc<LoopTask>>>,
 
     tx: Arc<Sender<Message>>,
     rx: Receiver<Message>,
@@ -150,6 +151,7 @@ impl<'a> Loop<'a> {
             id: NEXT_LOOP_ID.fetch_add(1, Ordering::Relaxed),
             io: io,
             events: RefCell::new(mio::Events::new()),
+            queued_tasks: RefCell::new(Vec::new()),
             tx: Arc::new(tx),
             rx: rx,
             _future_registration: registration,
@@ -348,6 +350,14 @@ impl<'a> Loop<'a> {
                 }
             }
 
+            // Finally, process any queued tasks
+            while let Some(task) = self.data.queued_tasks.borrow_mut().pop() {
+                CURRENT_LOOP_DATA.set(&self.data, || unsafe {
+                    // safe because we *are* the event loop
+                    loop_task::run(task)
+                });
+            }
+
             debug!("loop process - {} events, {:?}", amt, start.elapsed());
         }
     }
@@ -474,8 +484,7 @@ impl LoopData {
                 f.call()
             }
             Message::RunTask(t) => {
-                // TODO: is running on the spot the best thing to do?
-                unsafe { loop_task::run(t) }
+                self.queued_tasks.borrow_mut().push(t)
             }
         }
     }

@@ -65,10 +65,15 @@ pub unsafe fn run(loop_task: Arc<LoopTask>) {
         let res = catch_unwind(AssertUnwindSafe(|| {
             task.enter(&unpark, || fut.poll())
         }));
+        let repoll = task.should_repoll();
 
         // if we have more polling to do, reinstall our guts for the next round
         if let Ok(Poll::NotReady) = res {
             *inner = Some(Inner { task: task, fut: fut });
+        }
+
+        if repoll {
+            unpark.unpark()
         }
     }
 }
