@@ -3,7 +3,7 @@ use std::cell::UnsafeCell;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::mem;
 
-use futures::{Future, Poll, Executor, BoxFuture};
+use futures::{Future, Poll, Executor};
 use futures::task::{Task, Unpark};
 
 use super::{Message, LoopHandle, LoopPin};

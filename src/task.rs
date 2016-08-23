@@ -66,12 +66,12 @@ pub fn park() -> Arc<Unpark> {
 /// specifies *how* and *where* the task is executed, e.g. on a thread pool, an
 /// event loop or wherever it happens to be woken (via `Inline`).
 ///
-/// Tasks also provide a place to store arbitrary data, through `TaskData`,
+/// Tasks also provide a place to store arbitrary data, through `TaskRc`,
 /// which can be shared freely amongst the futures making up the task.
 pub struct Task {
     id: usize,
 
-    // A `Task` is not `Sync`, see the TaskData docs below above.
+    // A `Task` is not `Sync`, see the TaskRc docs below above.
     _marker: marker::PhantomData<Cell<()>>,
 }
 
@@ -124,7 +124,7 @@ pub trait Unpark: Send + Sync {
     fn unpark(&self);
 }
 
-// One critical piece of this module's contents are the `TaskData<A>` handles.
+// One critical piece of this module's contents are the `TaskRc<A>` handles.
 // The purpose of this is to conceptually be able to store data in a task,
 // allowing it to be accessed within multiple futures at once. For example if
 // you have some concurrent futures working, they may all want mutable access to
@@ -141,15 +141,15 @@ pub trait Unpark: Send + Sync {
 //
 // Conceptually I at least like to think of this as "dynamically adding more
 // struct fields to a `Task`". Each call to insert creates a new "name" for the
-// struct field, a `TaskData<A>`, and then you can access the fields of a struct
+// struct field, a `TaskRc<A>`, and then you can access the fields of a struct
 // with the struct itself (`Task`) as well as the name of the field
-// (`TaskData<A>`). If that analogy doesn't make sense then oh well, it at least
+// (`TaskRc<A>`). If that analogy doesn't make sense then oh well, it at least
 // helped me!
 //
 // So anyway, we do some interesting trickery here to actually get it to work.
-// Each `TaskData<A>` handle stores `Arc<UnsafeCell<A>>`. So it turns out, we're
-// not even adding data to the `Task`! Each `TaskData<A>` contains a reference
-// to this `Arc`, and `TaskData` handles can be cloned which just bumps the
+// Each `TaskRc<A>` handle stores `Arc<UnsafeCell<A>>`. So it turns out, we're
+// not even adding data to the `Task`! Each `TaskRc<A>` contains a reference
+// to this `Arc`, and `TaskRc` handles can be cloned which just bumps the
 // reference count on the `Arc` itself.
 //
 // As before, though, you can present the `Arc` to a `Task` and if they
@@ -171,20 +171,22 @@ pub trait Unpark: Send + Sync {
 // proving that you can get access to the data. So while weird, this case should
 // still be safe, as the data's not stored in the task itself.
 
-/// A reference to a piece of data that's stored inside of a `Task`.
+/// A reference to a piece of data that's accessible only within a specific
+/// `Task`.
 ///
-/// This can be used with the `Task::get` and `Task::get_mut` methods to access
-/// data inside of tasks.
-pub struct TaskData<A> {
+/// This data is `Send` even when `A` is not `Sync`, because the data stored
+/// within is accessed in a single-threaded way. The thread accessing it may
+/// change over time, if the task migrates, so `A` must be `Send`.
+pub struct TaskRc<A> {
     task_inner: usize,
     ptr: Arc<UnsafeCell<A>>,
 }
 
 // for safety here, see docs at the top of this module
-unsafe impl<A: Send> Send for TaskData<A> {}
-unsafe impl<A: Sync> Sync for TaskData<A> {}
+unsafe impl<A: Send> Send for TaskRc<A> {}
+unsafe impl<A: Sync> Sync for TaskRc<A> {}
 
-impl<A> TaskData<A> {
+impl<A> TaskRc<A> {
     /// Inserts a new piece of task-local data into this task, returning a
     /// reference to it.
     ///
@@ -201,16 +203,16 @@ impl<A> TaskData<A> {
     /// # Panics
     ///
     /// This function will panic if a task is not currently running.
-    pub fn new(a: A) -> TaskData<A> {
+    pub fn new(a: A) -> TaskRc<A> {
         CURRENT_TASK.with(|task| {
-            TaskData {
+            TaskRc {
                 task_inner: task.inner_usize(),
                 ptr: Arc::new(UnsafeCell::new(a)),
             }
         })
     }
 
-    /// Get a reference to the task-local data inside this task.
+    /// Operate with a reference to the underlying data.
     ///
     /// This method should be passed a handle previously returned by
     /// `Task::insert`. That handle, when passed back into this method, will
@@ -233,9 +235,9 @@ impl<A> TaskData<A> {
     }
 }
 
-impl<A> Clone for TaskData<A> {
-    fn clone(&self) -> TaskData<A> {
-        TaskData {
+impl<A> Clone for TaskRc<A> {
+    fn clone(&self) -> TaskRc<A> {
+        TaskRc {
             task_inner: self.task_inner,
             ptr: self.ptr.clone(),
         }
