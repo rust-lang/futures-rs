@@ -11,7 +11,7 @@
 //! ready as well.
 // TODO: expand these docs
 
-use {IntoFuture, Poll};
+use {IntoFuture, Poll, Executor};
 
 mod iter;
 pub use self::iter::{iter, IterStream};
@@ -31,6 +31,7 @@ mod or_else;
 mod peek;
 mod skip;
 mod skip_while;
+mod spawn;
 mod take;
 mod then;
 mod zip;
@@ -48,6 +49,7 @@ pub use self::merge::{Merge, MergedItem};
 pub use self::or_else::OrElse;
 pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
+pub use self::spawn::{Spawn, SpawnWrap};
 pub use self::take::Take;
 pub use self::then::Then;
 pub use self::zip::Zip;
@@ -59,7 +61,7 @@ if_std! {
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
-    pub use self::channel::{channel, Sender, Receiver};
+    pub use self::channel::{channel, Sender, Receiver, FutureSender};
     pub use self::collect::Collect;
     pub use self::wait::Wait;
 
@@ -162,6 +164,19 @@ pub trait Stream {
         where Self: Sized
     {
         wait::new(self)
+    }
+
+    /// Consume this stream, running it on a new subtask on the
+    /// given executor.
+    ///
+    /// Returns a stream that proxies to the subtask. The subtask will execute
+    /// only as items are requested from this proxy stream; there is no built-in
+    /// buffering.
+    #[cfg(feature = "use_std")]
+    fn spawn<E>(self, exec: E) -> Spawn<Self>
+        where Self: Sized, E: Executor<SpawnWrap<Self>>,
+    {
+        spawn::new(self, exec)
     }
 
     /// Convenience function for turning this stream into a trait object.

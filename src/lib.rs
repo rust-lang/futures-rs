@@ -790,7 +790,7 @@ pub trait Future {
         assert_future::<Self::Item, Self::Error, _>(f)
     }
 
-    /// Consume this future drive it to completion in a new subtask, on the
+    /// Consume this future and drive it to completion in a new subtask, on the
     /// given executor.
     ///
     /// Returns a future that represents the completion of the subtask. By
