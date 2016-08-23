@@ -103,16 +103,20 @@ impl<'a> ToEndpoint<'a> for (&'a str, u16) {
 
 impl<'a> ToEndpoint<'a> for &'a str {
     fn to_endpoint(self) -> io::Result<Endpoint<'a>> {
+        // try to parse as a socket address first
+        if let Ok(addr) = self.parse() {
+            return Ok(Endpoint::SocketAddr(addr));
+        }
+
         fn parse_port(port: &str) -> io::Result<u16> {
-            u16::from_str(port)
-                .map_err(|_| io::Error::new(io::ErrorKind::Other, "invalid port"))
+            u16::from_str(port).map_err(|_| io::Error::new(io::ErrorKind::Other, "invalid port"))
         }
 
         match self.rfind(":") {
             Some(idx) => {
                 let host = &self[..idx];
                 let port = try!(parse_port(&self[idx+1..]));
-                (host, port).to_endpoint()
+                Ok(Endpoint::Host(host, port))
             }
             None => {
                 Err(io::Error::new(io::ErrorKind::Other, "invalid endpoint"))
@@ -125,7 +129,7 @@ impl<'a> ToEndpoint<'a> for &'a str {
 fn test_endpoint_str_port() {
     use std::net::Ipv4Addr;
 
-    let ep = "0.0.0.0:1227".to_endpoint().unwrap();
+    let ep = ("0.0.0.0", 1227).to_endpoint().unwrap();
     match ep {
         Endpoint::SocketAddr(addr) => {
             assert_eq!(addr.ip(), IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
@@ -142,6 +146,33 @@ fn test_endpoint_str() {
         Endpoint::Host(host, port) => {
             assert_eq!(host, "localhost");
             assert_eq!(port, 1227);
+        }
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn test_endpoint_str_ipv4() {
+    use std::net::SocketAddrV4;
+
+    let ep = "0.0.0.0:1227".to_endpoint().unwrap();
+    match ep {
+        Endpoint::SocketAddr(SocketAddr::V4(addr)) => {
+            assert_eq!(addr, SocketAddrV4::from_str("0.0.0.0:1227").unwrap());
+        }
+        _ => panic!(),
+    }
+}
+
+
+#[test]
+fn test_endpoint_str_ipv6() {
+    use std::net::SocketAddrV6;
+
+    let ep = "[::]:1227".to_endpoint().unwrap();
+    match ep {
+        Endpoint::SocketAddr(SocketAddr::V6(addr)) => {
+            assert_eq!(addr, SocketAddrV6::from_str("[::]:1227").unwrap());
         }
         _ => panic!(),
     }
