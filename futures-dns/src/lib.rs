@@ -126,6 +126,23 @@ impl<'a> ToEndpoint<'a> for &'a str {
 }
 
 #[test]
+fn test_resolve_localhost() {
+    let resolver = CpuPoolResolver::new(1);
+
+    let fut = resolver.resolve("localhost").and_then(|addrs| {
+        for addr in addrs {
+            assert!(match addr {
+                IpAddr::V4(a) => a.is_loopback(),
+                IpAddr::V6(a) => a.is_loopback(),
+            });
+        }
+        Ok(())
+    });
+
+    let _ = fut.wait();
+}
+
+#[test]
 fn test_endpoint_str_port() {
     use std::net::Ipv4Addr;
 
