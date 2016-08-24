@@ -1,5 +1,12 @@
 extern crate futures;
 extern crate futures_cpupool;
+extern crate futures_io;
+extern crate futures_mio;
+
+#[macro_use]
+extern crate log;
+
+mod connector;
 
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -7,6 +14,9 @@ use std::str::FromStr;
 
 use futures::{BoxFuture, Future};
 use futures_cpupool::CpuPool;
+use futures_io::IoFuture;
+
+pub use connector::Connector;
 
 /// The Resolver trait represents an object capable of
 /// resolving host names into IP addresses.
@@ -35,7 +45,7 @@ impl CpuPoolResolver {
 }
 
 impl Resolver for CpuPoolResolver {
-    fn resolve(&self, host: &str) -> BoxFuture<Vec<IpAddr>, io::Error> {
+    fn resolve(&self, host: &str) -> IoFuture<Vec<IpAddr>> {
         let host = format!("{}:0", host);
         self.pool.execute(move || {
             match host[..].to_socket_addrs() {
@@ -131,6 +141,7 @@ fn test_resolve_localhost() {
 
     let fut = resolver.resolve("localhost").and_then(|addrs| {
         for addr in addrs {
+            // TODO 1.12 addr.is_loopback()
             assert!(match addr {
                 IpAddr::V4(a) => a.is_loopback(),
                 IpAddr::V6(a) => a.is_loopback(),
