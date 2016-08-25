@@ -7,6 +7,7 @@ extern crate futures_mio;
 extern crate log;
 
 mod connector;
+mod select_all_ok;
 
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -17,6 +18,7 @@ use futures_cpupool::CpuPool;
 use futures_io::IoFuture;
 
 pub use connector::Connector;
+pub use select_all_ok::select_all_ok;
 
 /// The Resolver trait represents an object capable of
 /// resolving host names into IP addresses.
