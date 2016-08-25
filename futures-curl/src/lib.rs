@@ -173,7 +173,7 @@ impl Session {
         }).unwrap();
 
         let pin2 = pin.clone();
-        pin.add_loop_data(rx.and_then(|rx| {
+        pin.add_loop_data(
             Data {
                 rx: rx.fuse(),
                 multi: m,
@@ -184,7 +184,7 @@ impl Session {
                     io: HashMap::new(),
                 }),
             }
-        })).forget();
+        ).forget();
 
         Session { tx: tx }
     }

@@ -6,7 +6,8 @@ use futures::stream::Stream;
 use futures_io::IoFuture;
 use mio::channel;
 
-use {ReadinessStream, LoopHandle};
+use LoopHandle;
+use readiness_stream::{ReadinessStream, ReadinessStreamNew};
 
 /// The transmission half of a channel used for sending messages to a receiver.
 ///
@@ -27,7 +28,12 @@ pub struct Sender<T> {
 /// This type is created by the `LoopHandle::channel` method and implements the
 /// `Stream` trait to represent received messages.
 pub struct Receiver<T> {
-    rx: ReadinessStream<channel::Receiver<T>>,
+    inner: ReceiverInner<T>
+}
+
+enum ReceiverInner<T> {
+    New(ReadinessStreamNew<channel::Receiver<T>>),
+    Ready(ReadinessStream<channel::Receiver<T>>),
 }
 
 impl LoopHandle {
@@ -43,12 +49,12 @@ impl LoopHandle {
     /// The returned `Sender` can be used to send messages that are processed by
     /// the returned `Receiver`. The `Sender` can be cloned to send messages
     /// from multiple sources simultaneously.
-    pub fn channel<T>(self) -> (Sender<T>, IoFuture<Receiver<T>>)
+    pub fn channel<T>(self) -> (Sender<T>, Receiver<T>)
         where T: Send + 'static,
     {
         let (tx, rx) = channel::channel();
-        let rx = ReadinessStream::new(self, rx).map(|rx| Receiver { rx: rx });
-        (Sender { tx: tx }, rx.boxed())
+        let rx = Receiver { inner: ReceiverInner::New(ReadinessStream::new(self, rx)) };
+        (Sender { tx: tx }, rx)
     }
 }
 
@@ -82,18 +88,37 @@ impl<T> Clone for Sender<T> {
     }
 }
 
-impl<T> Stream for Receiver<T> {
+impl<T : Send + 'static> Stream for Receiver<T> {
     type Item = T;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<T>, io::Error> {
-        match self.rx.get_ref().try_recv() {
-            Ok(t) => Poll::Ok(Some(t)),
-            Err(TryRecvError::Empty) => {
-                self.rx.need_read();
-                Poll::NotReady
-            }
-            Err(TryRecvError::Disconnected) => Poll::Ok(None),
+        let x;
+        if let ReceiverInner::New(ref mut n) = self.inner {
+            match n.poll() {
+                Poll::NotReady => return Poll::NotReady,
+                Poll::Ok(ready) => { x = Some(ready); },
+                Poll::Err(e) => return Poll::Err(e),
+            };
+        } else {
+            x = None;
         }
+
+        if let Some(r) = x {
+            self.inner = ReceiverInner::Ready(r);
+        }
+
+        if let ReceiverInner::Ready(ref mut rx) = self.inner {
+            return match rx.get_ref().try_recv() {
+                Ok(t) => Poll::Ok(Some(t)),
+                Err(TryRecvError::Empty) => {
+                    rx.need_read();
+                    Poll::NotReady
+                }
+                Err(TryRecvError::Disconnected) => Poll::Ok(None),
+            }
+        }
+
+        unreachable!();
     }
 }
