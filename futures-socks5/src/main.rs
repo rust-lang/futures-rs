@@ -147,7 +147,7 @@ struct GlobalBuffer {
 
 impl GlobalBuffer {
     fn new(lp: &Loop, size: usize) -> IoFuture<GlobalBuffer> {
-        lp.handle().add_loop_data(move || {
+        lp.handle().add_loop_data(move |_| {
             RefCell::new(vec![0u8; size])
         }).map(|data| {
             GlobalBuffer { inner: Arc::new(data) }
