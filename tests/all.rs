@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "never", feature(conservative_impl_trait))]
+
 extern crate futures;
 
 use std::sync::mpsc::{channel, TryRecvError};
@@ -77,6 +79,25 @@ fn test_empty() {
     assert_empty(|| empty().map(|a| a + 1));
     assert_empty(|| empty().map_err(|a| a + 1));
     assert_empty(|| empty().then(|a| a));
+}
+
+#[cfg(feature = "never")]
+#[test]
+fn test_never() {
+    fn never() -> impl Future<Item = i32, Error = u32> { futures::never() }
+
+    assert_empty(|| never());
+    assert_empty(|| never().select(never()));
+    assert_empty(|| never().join(never()));
+    assert_empty(|| never().join(f_ok(1)));
+    assert_empty(|| f_ok(1).join(never()));
+    assert_empty(|| never().or_else(move |_| never()));
+    assert_empty(|| never().and_then(move |_| never()));
+    assert_empty(|| f_err(1).or_else(move |_| never()));
+    assert_empty(|| f_ok(1).and_then(move |_| never()));
+    assert_empty(|| never().map(|a| a + 1));
+    assert_empty(|| never().map_err(|a| a + 1));
+    assert_empty(|| never().then(|a| a));
 }
 
 #[test]
