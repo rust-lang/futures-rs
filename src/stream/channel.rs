@@ -78,7 +78,6 @@ impl<T, E> Stream for Receiver<T, E> {
             self.inner.slot.cancel(token);
         }
 
-        // TODO: disconnect?
         match self.inner.slot.try_consume() {
             Ok(Message::Data(Ok(e))) => Poll::Ok(Some(e)),
             Ok(Message::Data(Err(e))) => Poll::Err(e),
@@ -137,6 +136,9 @@ impl<T, E> Future for FutureSender<T, E> {
         let sender = self.sender.take().expect("cannot poll FutureSender twice");
         if let Some(token) = self.on_empty_token.take() {
             sender.inner.slot.cancel(token);
+        }
+        if sender.inner.receiver_gone.load(Ordering::SeqCst) {
+            return Poll::Err(SendError(data))
         }
         match sender.inner.slot.try_produce(Message::Data(data)) {
             Ok(()) => Poll::Ok(sender),

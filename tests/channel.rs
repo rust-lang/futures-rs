@@ -37,3 +37,11 @@ fn drop_sender() {
     drop(tx);
     sassert_done(&mut rx);
 }
+
+#[test]
+fn drop_rx() {
+    let (tx, rx) = channel::<u32, u32>();
+    let tx = tx.send(Ok(1)).wait().ok().unwrap();
+    drop(rx);
+    assert!(tx.send(Ok(1)).wait().is_err());
+}
