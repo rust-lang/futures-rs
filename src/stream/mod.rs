@@ -59,7 +59,7 @@ if_std! {
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
-    pub use self::channel::{channel, Sender, Receiver};
+    pub use self::channel::{channel, Sender, Receiver, FutureSender};
     pub use self::collect::Collect;
     pub use self::wait::Wait;
 
