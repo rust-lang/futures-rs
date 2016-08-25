@@ -174,18 +174,22 @@ pub use poll::{Poll, Async};
 // Primitive futures
 mod done;
 mod empty;
+#[cfg(not(feature = "never"))]
 mod failed;
+#[cfg(not(feature = "never"))]
 mod finished;
 mod lazy;
 #[cfg(feature = "never")]
 mod never;
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
+#[cfg(not(feature = "never"))]
 pub use failed::{failed, Failed};
+#[cfg(not(feature = "never"))]
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 #[cfg(feature = "never")]
-pub use never::{never, Never};
+pub use never::{never, Never, failed, Failed, finished, Finished};
 
 // combinators
 mod and_then;

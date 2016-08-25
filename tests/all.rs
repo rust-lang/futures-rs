@@ -106,12 +106,32 @@ fn test_finished() {
     assert_done(|| failed(1), err(1));
 }
 
+#[cfg(not(feature = "never"))]
 #[test]
 fn flatten() {
     fn finished<T: Send + 'static>(a: T) -> Finished<T, u32> {
         futures::finished(a)
     }
     fn failed<E: Send + 'static>(b: E) -> Failed<i32, E> {
+        futures::failed(b)
+    }
+
+    assert_done(|| finished(finished(1)).flatten(), ok(1));
+    assert_done(|| finished(failed(1)).flatten(), err(1));
+    assert_done(|| failed(1u32).map(finished).flatten(), err(1));
+    assert_done(|| futures::finished::<_, u8>(futures::finished::<_, u32>(1))
+                           .flatten(), ok(1));
+    assert_empty(|| finished(empty::<i32, u32>()).flatten());
+    assert_empty(|| empty::<i32, u32>().map(finished).flatten());
+}
+
+#[cfg(feature = "never")]
+#[test]
+fn flatten() {
+    fn finished<T: Send + 'static>(a: T) -> impl Future<Item = T, Error = u32> {
+        futures::finished(a)
+    }
+    fn failed<E: Send + 'static>(b: E) -> impl Future<Item = i32, Error = E> {
         futures::failed(b)
     }
 
