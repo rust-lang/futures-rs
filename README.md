@@ -93,13 +93,11 @@ computations on futures.
 
 [Future]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
 
-The `Future` trait is driven by two methods, [`poll`][poll] and
-[`schedule`][schedule], which allow pulling values out of a future and otherwise
-getting notified when a future is complete. More documentation can be found on
-the associated methods themselves.
+The `Future` trait is driven by one method, [`poll`][poll], which allows
+pulling values out of a future and also getting notified when a future is
+complete. More documentation can be found on the associated method.
 
 [poll]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.poll
-[schedule]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.schedule
 
 More information can be found in [the tutorial][tutorial-future-trait]
 
