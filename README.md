@@ -56,11 +56,11 @@ all, check out the [tutorial].
 [`futures-cpupool`]: http://alexcrichton.com/futures-rs/futures_cpupool
 [`tokio-core`]: https://tokio-rs.github.io/tokio-core
 [`tokio-proto`]: https://tokio-rs.github.io/tokio-proto
-[`tokio-socks5`]: https://tokio-rs.github.io/tokio-socks5
+[`tokio-socks5`]: https://github.com/tokio-rs/tokio-socks5
 [`tokio-tls`]: https://tokio-rs.github.io/tokio-tls
 [`tokio-curl`]: https://tokio-rs.github.io/tokio-curl
 [`tokio-uds`]: https://tokio-rs.github.io/tokio-uds
-[`tokio-minihttp`]: https://tokio-rs.github.io/tokio-minihttp
+[`tokio-minihttp`]: https://github.com/tokio-rs/tokio-minihttp
 
 ## Why Futures?
 
