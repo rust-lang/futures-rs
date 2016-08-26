@@ -27,6 +27,7 @@ members = [
   "futures-socks5",
   "futures-curl",
   "futures-uds",
+  "futures-dns"
 ]
 
 [dependencies]
