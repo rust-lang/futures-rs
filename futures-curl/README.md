@@ -4,11 +4,9 @@ An implementation of an asynchronous HTTP client using futures backed by
 libcurl.
 
 [![Build Status](https://travis-ci.org/alexcrichton/futures-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/futures-rs)
+[![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/alexcrichton/futures-rs)
 
 [Documentation](http://alexcrichton.com/futures-rs/futures_curl)
-
-> **Note**: this library does not currently work on Windows, but support is
-> planned soon!
 
 ## Usage
 
