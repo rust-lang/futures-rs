@@ -112,7 +112,7 @@ streams. Finally [`tokio-proto`] can be layered on top for easily writing highly
 efficient protocol implementations.
 
 [tokio-core]: https://tokio-rs.github.io/tokio-core
-[tokio-tls]: https://tokio-rs.github.io/tokio-core
+[tokio-tls]: https://tokio-rs.github.io/tokio-tls
 [mio]: https://github.com/carllerche/mio
 
 # License
