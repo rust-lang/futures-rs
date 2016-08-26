@@ -5,9 +5,6 @@
 //! battle-tested C library for sending HTTP requests in an asynchronous
 //! fashion.
 //!
-//! > **Note**: this crate currently only supports Unix, but Windows support is
-//! >           coming soon!
-//!
 //! # Examples
 //!
 //! ```rust
@@ -48,6 +45,12 @@
 //!     println!("{:?} {:?}", req.response_code(), err);
 //! }
 //! ```
+//!
+//! # Platform support
+//!
+//! This crate works on both Unix and Windows, but note that it will not scale
+//! well on Windows. Unfortunately the implementation (seemingly from libcurl)
+//! relies on `select`, which does not scale very far on Windows.
 
 #![deny(missing_docs)]
 
