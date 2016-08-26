@@ -32,41 +32,35 @@ use futures::Future;
 And then, use futures! If this is your first time with futures in Rust, or at
 all, check out the [tutorial].
 
-## What's in this project
-
-This repository currently houses a number of futures-related crates, all with
-associated documentation:
+## What's using futures?
 
 * [`futures`] - the core abstraction of zero-cost futures
-* [`futures-io`] - core zero-cost I/O abstractions expressed with futures and
-                   streams
-* [`futures-mio`] - a concrete implementation of TCP/UDP `futures-io`
-                    abstractions backed by `mio`
-* [`futures-socks5`] - an implementation of an efficient SOCKSv5 proxy server
-                       showcasing `futures`, `futures-io`, and `futures-mio`
-* [`futures-tls`] - TLS/SSL streams built on `futures-io` abstractions
-                    implementing both client and server side connections, with
-                    support for the native system library on all platforms
 * [`futures-cpupool`] - a thread pool for compute-bound work in event loops
-* [`futures-minihttp`] - a simple HTTP server with some "hello world" examples
-                         that show the screaming fast performance of the futures
-                         and mio stack
-* [`tls-example`] - an HTTP server, built with minihttp, which accepts TLS
-                    connections, currently this demo requires OpenSSL
-* [`futures-curl`] - an asynchronous HTTP client backed by libcurl exposed
-                     through futures
-* [`futures-uds`] - bindings for Unix domain sockets and futures
+* [`tokio-core`] - a concrete implementation of TCP/UDP abstractions backed by
+                   `mio` composable with types implementing `Future`
+* [`tokio-proto`] - abstractions for easily writing new and composable protocols
+                    on top of `tokio-core`
+* [`tokio-socks5`] - an implementation of an efficient SOCKSv5 proxy server
+                     showcasing `futures` and `tokio-core`
+* [`tokio-tls`] - TLS/SSL streams built on futures, implementing both client and
+                  server side connections, with support for the native system
+                  library on all platforms
+* [`tokio-curl`] - an asynchronous HTTP client backed by libcurl exposed
+                   through futures
+* [`tokio-uds`] - bindings for Unix domain sockets and futures
+* [`tokio-minihttp`] - a simple HTTP server with some "hello world" examples
+                       that show the screaming fast performance of the futures
+                       and mio stack
 
 [`futures`]: http://alexcrichton.com/futures-rs/futures
-[`futures-io`]: http://alexcrichton.com/futures-rs/futures_io
-[`futures-mio`]: http://alexcrichton.com/futures-rs/futures_mio
-[`futures-tls`]: http://alexcrichton.com/futures-rs/futures_tls
-[`futures-curl`]: http://alexcrichton.com/futures-rs/futures_curl
-[`futures-uds`]: http://alexcrichton.com/futures-rs/futures_uds
 [`futures-cpupool`]: http://alexcrichton.com/futures-rs/futures_cpupool
-[`futures-minihttp`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp
-[`futures-socks5`]: https://github.com/alexcrichton/futures-rs/blob/master/futures-socks5/src/main.rs
-[`tls-example`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp/tls-example
+[`tokio-core`]: https://tokio-rs.github.io/tokio-core
+[`tokio-proto`]: https://tokio-rs.github.io/tokio-proto
+[`tokio-socks5`]: https://tokio-rs.github.io/tokio-socks5
+[`tokio-tls`]: https://tokio-rs.github.io/tokio-tls
+[`tokio-curl`]: https://tokio-rs.github.io/tokio-curl
+[`tokio-uds`]: https://tokio-rs.github.io/tokio-uds
+[`tokio-minihttp`]: https://tokio-rs.github.io/tokio-minihttp
 
 ## Why Futures?
 
@@ -106,19 +100,19 @@ More information can be found in [the tutorial][tutorial-future-trait]
 ## I/O with futures
 
 With the power of zero-allocation futures we can take futures all the way down
-the stack to the I/O layer. The [`futures-io` crate][futures-io] provides an
+the stack to the I/O layer. The [`tokio-core` crate][tokio-core] provides an
 abstraction for I/O objects as a stream of readiness notifications plus `Read`
 and `Write` traits along with a number of combinators you'd expect when working
 with `std::io`.
 
-These abstractions can be implemented by the [`futures-mio` crate][futures-mio]
-to use [`mio`][mio] to power I/O. Finally we can then use these abstractions to
-build a [`futures-tls` crate][futures-tls] crate to provide TLS/SSL streams over
-arbitrary read/write streams.
+These abstractions can be implemented by the with [`mio`][mio] to power I/O.
+Finally we can then use these abstractions to build a [`tokio-tls`
+crate][tokio-tls] crate to provide TLS/SSL streams over arbitrary read/write
+streams. Finally [`tokio-proto`] can be layered on top for easily writing highly
+efficient protocol implementations.
 
-[futures-io]: http://alexcrichton.com/futures-rs/futures_io/index.html
-[futures-mio]: http://alexcrichton.com/futures-rs/futures_mio/index.html
-[futures-tls]: http://alexcrichton.com/futures-rs/futures_tls/index.html
+[tokio-core]: https://tokio-rs.github.io/tokio-core
+[tokio-tls]: https://tokio-rs.github.io/tokio-core
 [mio]: https://github.com/carllerche/mio
 
 # License
