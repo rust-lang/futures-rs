@@ -154,9 +154,6 @@
 
 #[macro_use]
 #[cfg(feature = "use_std")]
-extern crate scoped_tls;
-#[macro_use]
-#[cfg(feature = "use_std")]
 extern crate std;
 
 #[macro_use]
@@ -208,8 +205,8 @@ pub use then::Then;
 if_std! {
     mod lock;
     mod slot;
-    pub mod task;
     pub mod executor;
+    pub mod task;
 
     mod collect;
     mod oneshot;

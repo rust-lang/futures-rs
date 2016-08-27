@@ -41,7 +41,31 @@ use BoxFuture;
 use executor::{DEFAULT, Executor};
 use slot::Slot;
 
-scoped_thread_local!(static CURRENT_TASK: Task);
+thread_local!(static CURRENT_TASK: Cell<*const Task> = Cell::new(0 as *const _));
+
+fn set<F, R>(task: &Task, f: F) -> R
+    where F: FnOnce() -> R
+{
+    struct Reset(*const Task);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            CURRENT_TASK.with(|c| c.set(self.0));
+        }
+    }
+
+    CURRENT_TASK.with(|c| {
+        let _reset = Reset(c.get());
+        c.set(task);
+        f()
+    })
+}
+
+fn with<F: FnOnce(&Task) -> R, R>(f: F) -> R {
+    let task = CURRENT_TASK.with(|c| c.get());
+    unsafe {
+        f(&*task)
+    }
+}
 
 /// Returns a handle to the current task to call `unpark` at a later date.
 ///
@@ -66,7 +90,7 @@ scoped_thread_local!(static CURRENT_TASK: Task);
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
 pub fn park() -> TaskHandle {
-    CURRENT_TASK.with(|task| task.handle().clone())
+    with(|task| task.handle().clone())
 }
 
 /// Inform the current task that to make progress, it should call `poll` on the
@@ -93,7 +117,7 @@ pub fn park() -> TaskHandle {
 /// stack frame (e.g. via the `futures-mio` crate's `Loop::run` function), then
 /// a call to this function will panic.
 pub fn poll_on(e: Arc<Executor>) {
-    CURRENT_TASK.with(|task| task.poll_on(e))
+    with(|task| task.poll_on(e))
 }
 
 /// A structure representing one "task", or thread of execution throughout the
@@ -240,7 +264,7 @@ impl Task {
     pub fn enter<F, R>(&mut self, f: F) -> R
         where F: FnOnce() -> R,
     {
-        CURRENT_TASK.set(self, f)
+        set(self, f)
     }
 
     /// Consumes this task to run a future to completion.
@@ -274,7 +298,7 @@ impl Task {
         // The syntax here is a little odd, but the idea is that if it panics
         // we've lost access to `self`, `future`, and `me` all in one go.
         let result = catch_unwind(move || {
-            let res = CURRENT_TASK.set(&mut me, || future.poll());
+            let res = set(&mut me, || future.poll());
             (res, future, me)
         });
 
@@ -456,7 +480,7 @@ impl<A> TaskData<A> {
     ///
     /// This function will panic if a task is not currently running.
     pub fn new(a: A) -> TaskData<A> {
-        CURRENT_TASK.with(|task| {
+        with(|task| {
             TaskData {
                 task_inner: task.inner_usize(),
                 ptr: Arc::new(UnsafeCell::new(a)),
@@ -480,7 +504,7 @@ impl<A> TaskData<A> {
         where F: FnOnce(&A) -> R
     {
         // for safety here, see docs at the top of this module
-        CURRENT_TASK.with(|task| {
+        with(|task| {
             assert_eq!(self.task_inner, task.inner_usize());
             f(unsafe { &*self.ptr.get() })
         })
