@@ -13,22 +13,6 @@ An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
 """
 
-[workspace]
-members = [
-  "futures-tls",
-  "futures-io",
-  "futures-mio",
-  "futures-iobuf",
-  "futures-cpupool",
-  "futures-minihttp",
-  "futures-minihttp/tls-example",
-  "futures-minihttp/techempower1",
-  "futures-minihttp/techempower2",
-  "futures-socks5",
-  "futures-curl",
-  "futures-uds",
-]
-
 [dependencies]
 log = { version = "0.3", default-features = true }
 scoped-tls = { version = "0.1", optional = true }
