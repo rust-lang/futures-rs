@@ -18,7 +18,7 @@ simple HTTP server built on futures is really fast!
 [java-futures]: https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/Future.html
 [cpp-futures]: http://en.cppreference.com/w/cpp/thread/future
 [scala-futures]: http://docs.scala-lang.org/overviews/core/futures.html
-[early benchmarks]: https://github.com/alexcrichton/futures-rs/tree/master/futures-minihttp#futures-minihttp
+[early benchmarks]: https://aturon.github.io/blog/2016/08/11/futures/
 
 This document is split up into a few sections:
 
@@ -53,9 +53,8 @@ futures to your project's `Cargo.toml` like so:
 ```toml
 [dependencies]
 futures = { git = "https://github.com/alexcrichton/futures-rs" }
-futures-io = { git = "https://github.com/alexcrichton/futures-rs" }
-futures-mio = { git = "https://github.com/alexcrichton/futures-rs" }
-futures-tls = { git = "https://github.com/alexcrichton/futures-rs" }
+tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
+tokio-tls = { git = "https://github.com/tokio-rs/tokio-tls" }
 ```
 
 > **Note**: this library is currently in active development and requires
@@ -66,39 +65,36 @@ Here we're adding a dependency on three crates:
 
 * [`futures`] - the definition and core implementation of [`Future`] and
   [`Stream`].
-* [`futures-io`] - I/O abstractions built with these two traits.
-* [`futures-mio`] - bindings to the [`mio`] crate providing concrete
-  implementations of [`Future`], [`Stream`], and [`futures-io`] abstractions
-  with TCP and UDP.
-* [`futures-tls`] - an SSL/TLS implementation built on top of [`futures-io`].
+* [`tokio-core`] - bindings to the [`mio`] crate providing concrete
+  implementations of [`Future`] and [`Stream`] for TCP and UDP.
+* [`tokio-tls`] - an SSL/TLS implementation built on top of futures
 
 [`mio`]: https://crates.io/crates/mio
-[`futures-io`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-io
-[`futures-mio`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-mio
-[`futures-tls`]: https://github.com/alexcrichton/futures-rs/tree/master/futures-tls
+[`tokio-core`]: https://github.com/tokio-rs/tokio-core
+[`tokio-tls`]: https://github.com/tokio-rs/tokio-tls
 [`Future`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
 [`Stream`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html
+[Tokio]: https://github.com/tokio-rs
 
 The [`futures`] crate itself is a low-level implementation of futures which does
 not assume any particular runtime or I/O layer. For the examples below we'll be
-using the concrete implementations available in [`futures-mio`] and
-[`futures-io`] to show how futures and streams can be used to perform
-sophisticated I/O with zero abstraction overhead.
+using the concrete implementations available in [`tokio-core`] to show how
+futures and streams can be used to perform sophisticated I/O with zero
+abstraction overhead.
 
 Now that we've got all that set up, let's write our first program! As
 a "Hello, World!" for I/O, let's download the Rust home page:
 
 ```rust
 extern crate futures;
-extern crate futures_io;
-extern crate futures_mio;
-extern crate futures_tls;
+extern crate tokio_core;
+extern crate tokio_tls;
 
 use std::net::ToSocketAddrs;
 
 use futures::Future;
-use futures_mio::Loop;
-use futures_tls::ClientContext;
+use tokio_core::Loop;
+use tokio_tls::ClientContext;
 
 fn main() {
     let mut lp = Loop::new().unwrap();
@@ -111,14 +107,14 @@ fn main() {
         cx.handshake("www.rust-lang.org", socket)
     });
     let request = tls_handshake.and_then(|socket| {
-        futures_io::write_all(socket, "\
+        tokio_core::io::write_all(socket, "\
             GET / HTTP/1.0\r\n\
             Host: www.rust-lang.org\r\n\
             \r\n\
         ".as_bytes())
     });
     let response = request.and_then(|(socket, _)| {
-        futures_io::read_to_end(socket, Vec::new())
+        tokio_core::io::read_to_end(socket, Vec::new())
     });
 
     let (_, data) = lp.run(response).unwrap();
@@ -128,9 +124,6 @@ fn main() {
 
 If you place that file in `src/main.rs`, and then execute `cargo run`, you
 should see the HTML of the Rust home page!
-
-> Note: `rustc` 1.10 compiles this example slowly. With 1.11 it builds
-considerably faster.
 
 There's a lot to digest here, though, so let's walk through it
 line-by-line. First up in `main()`:
@@ -144,7 +137,7 @@ Here we [create an event loop][loop-new] on which we will perform all our
 I/O. Then we resolve the "www.rust-lang.org" host name by using
 the standard library's [`to_socket_addrs`] method.
 
-[loop-new]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.new
+[loop-new]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.new
 [`to_socket_addrs`]: https://doc.rust-lang.org/std/net/trait.ToSocketAddrs.html
 
 Next up:
@@ -158,8 +151,8 @@ We [get a handle] to our event loop and connect to the host with
 means that we don't actually have the socket yet, but rather it will
 be fully connected at some later point in time.
 
-[get a handle]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.handle
-[`tcp_connect`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.tcp_connect
+[get a handle]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.handle
+[`tcp_connect`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.tcp_connectt
 
 Once our socket is available we need to perform three tasks to download the
 rust-lang.org home page:
@@ -187,7 +180,7 @@ closure which receives the resolved value of this previous future. In this case
 not run if [`tcp_connect`] returned an error.
 
 [`and_then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.and_then
-[`TcpStream`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpStream.html
+[`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpStream.html
 
 Once we have our `socket`, we create a client TLS context via
 [`ClientContext::new`]. This type from the [`futures-tls`] crate
@@ -217,7 +210,7 @@ Next up, we issue our HTTP request:
 
 ```rust
 let request = tls_handshake.and_then(|socket| {
-    futures_io::write_all(socket, "\
+    tokio_core::io::write_all(socket, "\
         GET / HTTP/1.0\r\n\
         Host: www.rust-lang.org\r\n\
         \r\n\
@@ -231,7 +224,7 @@ combinator writes the entirety of our HTTP request, issueing multiple
 writes as necessary. Here we're just doing a simple HTTP/1.0 request,
 so there's not much we need to write.
 
-[`write_all`]: http://alexcrichton.com/futures-rs/futures_io/fn.write_all.html
+[`write_all`]: https://tokio-rs.github.io/tokio-core/tokio_core/io/fn.write_all.html
 
 The future returned by [`write_all`] will complete once all the data
 has been written to the socket. Note that behind the scenes the
@@ -242,7 +235,7 @@ And the third and final piece of our request looks like:
 
 ```rust
 let response = request.and_then(|(socket, _)| {
-    futures_io::read_to_end(socket, Vec::new())
+    tokio_core::io::read_to_end(socket, Vec::new())
 });
 ```
 
@@ -251,7 +244,7 @@ the [`read_to_end`] combinator. This future will read all data from the
 `socket` provided and place it into the buffer provided (in this case an empty
 one), and resolve to the buffer itself once the underlying connection hits EOF.
 
-[`read_to_end`]: http://alexcrichton.com/futures-rs/futures_io/fn.read_to_end.html
+[`read_to_end`]: https://tokio-rs.github.io/tokio-core/tokio_core/io/fn.read_to_end.html
 
 Like before, though, reads from the `socket` are actually decrypting data
 received from the server under the covers, so we're just reading the decrypted
@@ -275,7 +268,7 @@ the event loop, [asking it to resolve the future][`loop_run`]. The event loop wi
 then run until the future has been resolved, returning the result of the future
 which in this case is `io::Result<(TcpStream, Vec<u8>)>`.
 
-[`loop_run`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.run
+[`loop_run`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.run
 
 Note that this `lp.run(..)` call will block the calling thread until the future
 can itself be resolved. This means that `data` here has type `Vec<u8>`. We then
@@ -543,17 +536,16 @@ take a look at an example of streams now, the [`incoming`] implementation of
 [`Stream`] on [`TcpListener`]. The simple server below will accept connections,
 write out the word "Hello!" to them, and then close the socket:
 
-[`incoming`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html#method.incoming
-[`TcpListener`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html
+[`incoming`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpListener.html#method.incoming
+[`TcpListener`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpListener.html
 
 ```rust
 extern crate futures;
-extern crate futures_io;
-extern crate futures_mio;
+extern crate tokio_core;
 
 use futures::Future;
 use futures::stream::Stream;
-use futures_mio::Loop;
+use tokio_core::Loop;
 
 fn main() {
     let mut lp = Loop::new().unwrap();
@@ -566,7 +558,7 @@ fn main() {
 
         let clients = listener.incoming();
         let welcomes = clients.and_then(|(socket, _peer_addr)| {
-            futures_io::write_all(socket, b"Hello!\n")
+            tokio_core::io::write_all(socket, b"Hello!\n")
         });
         welcomes.for_each(|(_socket, _welcome)| {
             Ok(())
@@ -589,7 +581,7 @@ Here we initialize our event loop, like before, and then we use the
 [`tcp_listen`] method on [`LoopHandle`] to create a TCP listener which will
 accept sockets.
 
-[`tcp_listen`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.tcp_listen
+[`tcp_listen`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.tcp_listen
 
 Next up we see:
 
@@ -615,7 +607,7 @@ Here we're just calling the [`local_addr`] method to print out what address we
 ended up binding to. We know that at this point the port is actually bound
 successfully, so clients can now connect.
 
-[`local_addr`]: http://alexcrichton.com/futures-rs/futures_mio/struct.TcpListener.html#method.local_addr
+[`local_addr`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpListener.html#method.local_addr
 
 Next up, we actually create our [`Stream`]!
 
@@ -641,7 +633,7 @@ methods on the [`Stream`] trait:
 
 ```rust
 let welcomes = clients.and_then(|(socket, _peer_addr)| {
-    futures_io::write_all(socket, b"Hello!\n")
+    tokio_core::io::write_all(socket, b"Hello!\n")
 });
 ```
 
@@ -682,7 +674,7 @@ If, instead, we want to handle all clients concurrently, we can use the
 ```rust
 let clients = listener.incoming();
 let welcomes = clients.map(|(socket, _peer_addr)| {
-    futures_io::write_all(socket, b"Hello!\n")
+    tokio_core::io::write_all(socket, b"Hello!\n")
 });
 welcomes.for_each(|future| {
     future.forget();
@@ -1046,7 +1038,7 @@ data is sometimes not `Send` or otherwise needs to be persisted yet not tied to
 a [`Task`]. For this purpose the [`futures-mio`] crate provides a similar
 abstraction, [`LoopData`].
 
-[`LoopData`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html
+[`LoopData`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html
 
 The [`LoopData`] is similar to [`TaskData`] where it's a handle to data
 conceptually owned by the event loop. The key property of [`LoopData`], however,
@@ -1064,8 +1056,8 @@ the data with [`get`][loop-get] or [`get_mut`][loop-get-mut]. Both of these
 methods return `Option` where `None` is returned if you're not on the event
 loop.
 
-[loop-get]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html#method.get
-[loop-get-mut]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html#method.get_mut
+[loop-get]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html#method.get
+[loop-get-mut]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html#method.get_mut
 
 In the case that `None` is returned, a future may have to return to the event
 loop in order to make progress. In order to guarantee this the [`executor`]
@@ -1073,7 +1065,7 @@ associated with the data can be acquired and passed to [`Task::poll_on`]. This
 will request that the task poll itself on the specified executor, which in this
 case will run the poll request on the event loop where the data can be accessed.
 
-[`executor`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopData.html#method.executor
+[`executor`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html#method.executor
 [`Task::poll_on`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.poll_on
 
 A [`LoopData`] can be created through one of two methods:
@@ -1087,10 +1079,10 @@ A [`LoopData`] can be created through one of two methods:
   unlike the [`Loop`] method, this function will return a future that resolves
   to the [`LoopData`] value.
 
-[`Loop`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html
-[`Loop::add_loop_data`]: http://alexcrichton.com/futures-rs/futures_mio/struct.Loop.html#method.add_loop_data
-[`LoopHandle`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html
-[`LoopHandle::add_loop_data`]: http://alexcrichton.com/futures-rs/futures_mio/struct.LoopHandle.html#method.add_loop_data
+[`Loop`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html
+[`Loop::add_loop_data`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.add_loop_data
+[`LoopHandle`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html
+[`LoopHandle::add_loop_data`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.add_loop_data
 
 Task-local data and event-loop data provide the ability for futures to easily
 share sendable and non-sendable data amongst many futures.
