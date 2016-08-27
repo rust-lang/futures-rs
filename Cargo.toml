@@ -14,7 +14,7 @@ composability, and iterator-like interfaces.
 """
 
 [dependencies]
-log = { version = "0.3", default-features = true }
+log = { version = "0.3", default-features = false }
 scoped-tls = { version = "0.1", optional = true }
 
 [features]
