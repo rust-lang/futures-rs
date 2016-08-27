@@ -103,7 +103,7 @@ pub fn park() -> TaskHandle {
 /// When a future discovers that it's not necessarily in the right place to make
 /// progress, it can provide this task with an `Executor` to make more progress.
 /// The Task will ensure that it'll eventually schedule a poll on the executor
-/// provided in a "prompt" fashion, that is there shohuldn't be a long blocking
+/// provided in a "prompt" fashion, that is there shouldn't be a long blocking
 /// pause between a call to this and when a future is polled on the executor.
 ///
 /// # Panics

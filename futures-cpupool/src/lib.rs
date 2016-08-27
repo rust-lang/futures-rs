@@ -3,7 +3,7 @@
 //!
 //! This crate provides a simple thread pool abstraction for running work
 //! externally from the current thread that's running. An instance of `Future`
-//! is handed back to represent that the work may be done later, and futher
+//! is handed back to represent that the work may be done later, and further
 //! computations can be chained along with it as well.
 //!
 //! ```rust

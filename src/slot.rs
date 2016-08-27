@@ -124,7 +124,7 @@ impl<T> Slot<T> {
 
     /// Attempts to store `t` in the slot.
     ///
-    /// This method can only be called by the one consumer working on this
+    /// This method can only be called by the one producer working on this
     /// `Slot`. Concurrent calls to this method or `on_empty` will result in
     /// panics or possibly errors.
     ///
