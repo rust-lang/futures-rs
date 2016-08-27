@@ -3,7 +3,7 @@ environment:
   - TARGET: x86_64-pc-windows-msvc
 install:
   - curl -sSf -o rustup-init.exe https://win.rustup.rs/
-  - rustup-init.exe -y --default-host %TARGET% --default-toolchain nightly
+  - rustup-init.exe -y --default-host %TARGET%
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
   - rustc -V
   - cargo -V
@@ -14,12 +14,3 @@ test_script:
   - cargo build
   - cargo build --no-default-features
   - cargo test
-  - cargo test --manifest-path futures-io/Cargo.toml
-  - cargo test --manifest-path futures-iobuf/Cargo.toml
-  - cargo test --manifest-path futures-cpupool/Cargo.toml
-  - cargo test --manifest-path futures-mio/Cargo.toml
-  - cargo test --manifest-path futures-tls/Cargo.toml
-  - cargo test --manifest-path futures-minihttp/Cargo.toml
-  - cargo test --manifest-path futures-socks5/Cargo.toml
-  - cargo build --manifest-path futures-minihttp/techempower1/Cargo.toml
-  - cargo build --manifest-path futures-minihttp/techempower2/Cargo.toml

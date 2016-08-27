@@ -183,7 +183,7 @@ not run if [`tcp_connect`] returned an error.
 [`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpStream.html
 
 Once we have our `socket`, we create a client TLS context via
-[`ClientContext::new`]. This type from the [`futures-tls`] crate
+[`ClientContext::new`]. This type from the [`tokio-tls`] crate
 represents the client half of a TLS connection. Next we call the
 [`handshake`] method to actually perform the TLS handshake. The first
 argument is the domain name we're connecting to, with the I/O object
@@ -1035,7 +1035,7 @@ access the data at a later time you can use the [`with`] methods.
 
 We've now seen that we can store data into a [`Task`] with [`TaskData`], but
 data is sometimes not `Send` or otherwise needs to be persisted yet not tied to
-a [`Task`]. For this purpose the [`futures-mio`] crate provides a similar
+a [`Task`]. For this purpose the [`tokio-core`] crate provides a similar
 abstraction, [`LoopData`].
 
 [`LoopData`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html
