@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use {Future, Poll};
 use slot::{Slot, Token};
 use lock::Lock;
-use task::{self, TaskHandle};
+use task::{self, Task};
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
@@ -27,7 +27,7 @@ pub struct Complete<T> {
 struct Inner<T> {
     slot: Slot<Option<T>>,
     oneshot_gone: AtomicBool,
-    notify_cancel: Lock<Option<TaskHandle>>,
+    notify_cancel: Lock<Option<Task>>,
 }
 
 /// Creates a new in-memory oneshot used to represent completing a computation.

@@ -205,7 +205,6 @@ pub use then::Then;
 if_std! {
     mod lock;
     mod slot;
-    pub mod executor;
     pub mod task;
 
     mod collect;
@@ -214,16 +213,6 @@ if_std! {
     pub use collect::{collect, Collect};
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
     pub use select_all::{SelectAll, SelectAllNext, select_all};
-
-    mod forget;
-
-    struct ThreadNotify(std::thread::Thread);
-
-    impl task::Notify for ThreadNotify {
-        fn notify(&self) {
-            self.0.unpark();
-        }
-    }
 
     /// A type alias for `Box<Future + Send>`
     pub type BoxFuture<T, E> = std::boxed::Box<Future<Item = T, Error = E> + Send>;
@@ -385,8 +374,7 @@ pub trait Future {
     {
         use std::thread;
 
-        let notify = ThreadNotify(thread::current());
-        let mut task = task::Task::new_notify(notify);
+        let task = task::ThreadTask::new();
         loop {
             match task.enter(|| self.poll()) {
                 Poll::Ok(e) => return Ok(e),
@@ -782,41 +770,6 @@ pub trait Future {
     {
         let f = fuse::new(self);
         assert_future::<Self::Item, Self::Error, _>(f)
-    }
-
-    /// Consume this future drive it to completion.
-    ///
-    /// This function is one of the primary methods of driving a future
-    /// forward, and is also one of the primary sources of concurrency in event
-    /// loops. This function will allocate a new `Task` to associate with this
-    /// future, and the task will be paired with the future until it is
-    /// completed.
-    ///
-    /// This method is also a convenient way of simply "spawning" a future into
-    /// the background. For example this is similar to the `ensure` method in
-    /// Python.
-    ///
-    /// # Bounds
-    ///
-    /// Note that this function requires the underlying future to be `Send +
-    /// 'static`, but not all futures may implement these bounds.
-    ///
-    /// If your type is not `Send`, however, fear not! Most event loops will
-    /// provide an abstraction like `LoopData` in the `futures-mio` crate. This
-    /// allows a future to be "pinned" to an event loop, allowing its handle to
-    /// be `Send` while the underlying data itself is not `Send`. By using
-    /// objects like `LoopData`, any future can become `Send` to use this method
-    /// to drive it to completion.
-    ///
-    /// If your type is not `'static` then this method cannot be used. Instead
-    /// most event loops should provide a method which resolves the value of a
-    /// future, driving the event loop in the meantime. For example the
-    /// `futures-mio` crate provides a `Loop::run` method which pins the future
-    /// to the stack frame of that function call, allowing it to have a
-    /// non-`'static` lifetime.
-    #[cfg(feature = "use_std")]
-    fn forget(self) where Self: Sized + Send + 'static {
-        forget::forget(self);
     }
 }
 
