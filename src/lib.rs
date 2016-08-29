@@ -207,9 +207,11 @@ if_std! {
     mod slot;
     pub mod task;
 
+    mod catch_unwind;
     mod collect;
     mod oneshot;
     mod select_all;
+    pub use catch_unwind::CatchUnwind;
     pub use collect::{collect, Collect};
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
     pub use select_all::{SelectAll, SelectAllNext, select_all};
@@ -770,6 +772,32 @@ pub trait Future {
     {
         let f = fuse::new(self);
         assert_future::<Self::Item, Self::Error, _>(f)
+    }
+
+    /// Catches unwinding panics while polling the future.
+    ///
+    /// In general, panics within a future can propagate all the way out to the
+    /// task level. This combinator makes it possible to halt unwinding within
+    /// the future itself. It's most commonly used within task executors.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use futures::*;
+    ///
+    /// let mut future = finished::<i32, u32>(2);
+    /// assert!(future.catch_unwind().wait().is_ok());
+    ///
+    /// let mut future = lazy(|| {
+    ///     panic!();
+    ///     finished::<i32, u32>(2)
+    /// });
+    /// assert!(future.catch_unwind().wait().is_err());
+    #[cfg(feature = "use_std")]
+    fn catch_unwind(self) -> CatchUnwind<Self>
+        where Self: Sized + std::panic::UnwindSafe
+    {
+        catch_unwind::new(self)
     }
 }
 
