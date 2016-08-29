@@ -24,6 +24,7 @@ mod fold;
 mod for_each;
 mod fuse;
 mod future;
+mod history;
 mod map;
 mod map_err;
 mod merge;
@@ -41,6 +42,7 @@ pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
 pub use self::fuse::Fuse;
+pub use self::history::History;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
@@ -676,6 +678,30 @@ pub trait Stream {
         where Self: Sized
     {
         peek::new(self)
+    }
+
+    /// An adapter which for creating a stream that records its history.
+    ///
+    /// A `History` can be cloned by multiple consumers. Each consumer
+    /// will get a history of previous items created since the clone.
+    /// The size of the history can be optional limited to a certain length.
+    fn history(self, limit: Option<usize>) -> History<Self>
+        where Self: Sized,
+              Self::Item: Clone
+    {
+        history::new(self, history::HistoryType::Partial(limit))
+    }
+
+    /// An adapter which for creating a stream that records its full history.
+    ///
+    /// A `History` can be cloned by multiple consumers. Each consumer
+    /// will get a history of previous items created since the clone.
+    /// The size of the history can be optional limited to a certain length.
+    fn full_history(self, limit: Option<usize>) -> History<Self> 
+        where Self: Sized,
+              Self::Item: Clone
+    {
+        history::new(self, history::HistoryType::Full(limit))
     }
 }
 
