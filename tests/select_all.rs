@@ -1,7 +1,6 @@
 extern crate futures;
 
 use futures::*;
-use futures::task::Task;
 
 #[test]
 fn smoke() {
@@ -10,7 +9,7 @@ fn smoke() {
         failed(2).boxed(),
         finished(3).boxed(),
     ];
-    Task::new().enter(|| {
+    futures::task::ThreadTask::new().enter(|| {
         let (i, idx, v) = select_all(v).poll().unwrap().ok().unwrap();
         assert_eq!(i, 1);
         assert_eq!(idx, 0);

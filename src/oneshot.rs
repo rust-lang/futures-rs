@@ -46,13 +46,16 @@ struct Inner<T> {
 /// # Examples
 ///
 /// ```
+/// use std::thread;
 /// use futures::*;
 ///
 /// let (c, p) = oneshot::<i32>();
 ///
-/// p.map(|i| {
-///     println!("got: {}", i);
-/// }).forget();
+/// thread::spawn(|| {
+///     p.map(|i| {
+///         println!("got: {}", i);
+///     }).wait();
+/// });
 ///
 /// c.complete(3);
 /// ```
