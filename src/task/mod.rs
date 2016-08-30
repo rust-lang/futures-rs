@@ -43,38 +43,41 @@ use self::unpark_mutex::UnparkMutex;
 
 use typemap::{SendMap, TypeMap};
 
-thread_local!(static CURRENT_TASK: Cell<*const Task> = Cell::new(0 as *const _));
-thread_local!(static CURRENT_TASK_DATA: Cell<*const TaskData> = Cell::new(0 as *const _));
+thread_local!(static CURRENT_TASK: Cell<(*const Task, *const TaskData)> = {
+    Cell::new((0 as *const _, 0 as *const _))
+});
 
-// TODO: make this more robust around overflow on 32-bit machines
-static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
+fn fresh_task_id() -> usize {
+    // TODO: this assert is a real bummer, need to figure out how to reuse
+    //       old IDs that are no longer in use.
+    static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    assert!(id < usize::max_value() / 2,
+            "too many previous tasks have been allocated");
+    return id
+}
 
 fn set<F, R>(task: &Task, data: &TaskData, f: F) -> R
     where F: FnOnce() -> R
 {
-    struct Reset(*const Task, *const TaskData);
+    struct Reset((*const Task, *const TaskData));
     impl Drop for Reset {
         fn drop(&mut self) {
             CURRENT_TASK.with(|c| c.set(self.0));
-            CURRENT_TASK_DATA.with(|c| c.set(self.1));
         }
     }
 
     CURRENT_TASK.with(|c| {
-        CURRENT_TASK_DATA.with(|d| {
-            let _reset = Reset(c.get(), d.get());
-            c.set(task);
-            d.set(data);
-            f()
-        })
+        let _reset = Reset(c.get());
+        c.set((task as *const _, data as *const _));
+        f()
     })
 }
 
 fn with<F: FnOnce(&Task, &TaskData) -> R, R>(f: F) -> R {
-    let task = CURRENT_TASK.with(|c| c.get());
-    let data = CURRENT_TASK_DATA.with(|d| d.get());
-    assert!(task != 0 as *const _, "No `Task` is currently running");
-    assert!(data != 0 as *const _, "No `TaskData` is available; is a `Task` runnin?");
+    let (task, data) = CURRENT_TASK.with(|c| c.get());
+    assert!(!task.is_null(), "no Task is currently running");
+    assert!(!data.is_null());
     unsafe {
         f(&*task, &*data)
     }
@@ -204,6 +207,11 @@ pub struct Task {
     events: Events,
 }
 
+fn _assert_kinds() {
+    fn _assert_send<T: Send>() {}
+    _assert_send::<Task>();
+}
+
 #[derive(Clone)]
 /// The two kinds of execution models: `Executor`-based or local thread-based
 enum TaskKind {
@@ -245,7 +253,7 @@ impl ThreadTask {
     /// current thread.
     pub fn new() -> ThreadTask {
         ThreadTask {
-            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            id: fresh_task_id(),
             task_data: RefCell::new(TypeMap::custom()),
         }
     }
@@ -356,9 +364,9 @@ impl Task {
     ///
     /// Does not actually begin task execution; use the `unpark` method to do
     /// so.
-    pub fn new(exec: Arc<Executor>, future: BoxFuture<(), ()>) -> Task {
+    pub fn new() -> Task {
         Task {
-            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            id: fresh_task_id(),
             kind: TaskKind::Executor {
                 mutex: Arc::new(UnparkMutex::new(MutexInner {
                     future: future,
@@ -417,7 +425,7 @@ impl Events {
     }
 
     fn trigger(&self) {
-        for event in &self.set {
+        for event in self.set.iter() {
             event.set.insert(event.item)
         }
     }
@@ -425,7 +433,7 @@ impl Events {
     fn with_event(&self, event: UnparkEvent) -> Events {
         let mut set = self.set.clone();
         set.push(event);
-        Events{ set: set }
+        Events { set: set }
     }
 }
 

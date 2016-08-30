@@ -57,28 +57,36 @@ impl<D> UnparkMutex<D> {
     /// that polling is not necessary (because the task is finished or the
     /// polling has been delegated).
     pub fn notify(&self) -> Result<D, ()> {
+        let mut status = self.status.load(SeqCst);
         loop {
-            match self.status.load(SeqCst) {
+            match status {
                 // The task is idle, so try to run it immediately.
                 WAITING => {
-                    if self.status.compare_exchange(WAITING, POLLING, SeqCst, SeqCst).is_ok() {
-                        let data = unsafe {
-                            // SAFETY: we've ensured mutual exclusion via the status
-                            // protocol; we are the only thread that has transitioned to the
-                            // POLLING state, and we won't transition back to QUEUED until
-                            // the lock is "released" by this thread. See the protocol
-                            // diagram above.
-                            (*self.inner.get()).take().unwrap()
-                        };
-                        return Ok(data);
+                    match self.status.compare_exchange(WAITING, POLLING,
+                                                       SeqCst, SeqCst) {
+                        Ok(_) => {
+                            let data = unsafe {
+                                // SAFETY: we've ensured mutual exclusion via
+                                // the status protocol; we are the only thread
+                                // that has transitioned to the POLLING state,
+                                // and we won't transition back to QUEUED until
+                                // the lock is "released" by this thread. See
+                                // the protocol diagram above.
+                                (*self.inner.get()).take().unwrap()
+                            };
+                            return Ok(data);
+                        }
+                        Err(cur) => status = cur,
                     }
                 }
 
-                // The task is being polled, so we need to record that it should be *repolled*
-                // when complete.
+                // The task is being polled, so we need to record that it should
+                // be *repolled* when complete.
                 POLLING => {
-                    if self.status.compare_exchange(POLLING, REPOLL, SeqCst, SeqCst).is_ok() {
-                        return Err(());
+                    match self.status.compare_exchange(POLLING, REPOLL,
+                                                       SeqCst, SeqCst) {
+                        Ok(_) => return Err(()),
+                        Err(cur) => status = cur,
                     }
                 }
 
@@ -109,14 +117,17 @@ impl<D> UnparkMutex<D> {
     pub unsafe fn wait(&self, data: D) -> Result<(), D> {
         *self.inner.get() = Some(data);
 
-        if self.status.compare_exchange(POLLING, WAITING, SeqCst, SeqCst).is_ok() {
+        match self.status.compare_exchange(POLLING, WAITING, SeqCst, SeqCst) {
             // no unparks came in while we were running
-            Ok(())
-        } else {
+            Ok(_) => Ok(()),
+
             // guaranteed to be in REPOLL state; just clobber the
             // state and run again.
-            self.status.store(POLLING, SeqCst);
-            Err((*self.inner.get()).take().unwrap())
+            Err(status) => {
+                assert_eq!(status, REPOLL);
+                self.status.store(POLLING, SeqCst);
+                Err((*self.inner.get()).take().unwrap())
+            }
         }
     }
 
