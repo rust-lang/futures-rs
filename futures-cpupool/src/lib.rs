@@ -42,7 +42,7 @@ extern crate crossbeam;
 extern crate futures;
 extern crate num_cpus;
 
-use std::panic::AssertUnwindSafe;
+use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -142,6 +142,9 @@ impl CpuPool {
               F::Error: Send + 'static,
     {
         let (tx, rx) = oneshot();
+        // AssertUnwindSafe is used here becuase `Send + 'static` is basically
+        // an alias for an implementation of the `UnwindSafe` trait but we can't
+        // express that in the standard library right now.
         let sender = Sender {
             fut: AssertUnwindSafe(f).catch_unwind(),
             tx: Some(tx),
@@ -191,7 +194,8 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
 
     fn poll(&mut self) -> Poll<T, E> {
         match self.inner.poll() {
-            Poll::Ok(res) => res.unwrap().into(),
+            Poll::Ok(Ok(res)) => res.into(),
+            Poll::Ok(Err(e)) => panic::resume_unwind(e),
             Poll::Err(_) => panic!("shouldn't be canceled"),
             Poll::NotReady => Poll::NotReady,
         }
