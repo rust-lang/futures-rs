@@ -116,8 +116,8 @@ impl CpuPool {
         };
 
         for _ in 0..size {
-            let pool = CpuPool { inner: pool.inner.clone() };
-            thread::spawn(|| pool.work());
+            let inner = pool.inner.clone();
+            thread::spawn(move || work(&inner));
         }
 
         return pool
@@ -129,13 +129,26 @@ impl CpuPool {
         CpuPool::new(num_cpus::get())
     }
 
-    /// Execute some work on this thread pool, returning a future to the work
-    /// that's running on the thread pool.
+    /// Spawns a future to run on this thread pool, returning a future
+    /// representing the produced value.
     ///
-    /// This function will execute the closure `f` on the associated thread
+    /// This function will execute the future `f` on the associated thread
     /// pool, and return a future representing the finished computation. The
-    /// future will either resolve to `R` if the computation finishes
-    /// successfully or to `Box<Any+Send>` if it panics.
+    /// returned future serves as a proxy to the computation that `F` is
+    /// running.
+    ///
+    /// To simply run an arbitrary closure on a thread pool and extract the
+    /// result, you can use the `futures::lazy` combinator to defer work to
+    /// executing on the thread pool itself.
+    ///
+    /// Note that if the future `f` panics it will be caught by default and the
+    /// returned future will propagate the panic. That is, panics will not tear
+    /// down the thread pool and will be propagated to the returned future's
+    /// `poll` method if queried.
+    ///
+    /// If the returned future is dropped then this `CpuPool` will attempt to
+    /// cancel the computation, if possible. That is, if the computation is in
+    /// the middle of working, it will be interrupted when possible.
     pub fn spawn<F>(&self, f: F) -> CpuFuture<F::Item, F::Error>
         where F: Future + Send + 'static,
               F::Item: Send + 'static,
@@ -152,14 +165,13 @@ impl CpuPool {
         Task::new(self.inner.clone(), sender.boxed()).unpark();
         CpuFuture { inner: rx }
     }
+}
 
-    fn work(self) {
-        let mut done = false;
-        while !done {
-            match self.inner.queue.pop() {
-                Message::Close => done = true,
-                Message::Run(r) => r.run(),
-            }
+fn work(inner: &Inner) {
+    loop {
+        match inner.queue.pop() {
+            Message::Run(r) => r.run(),
+            Message::Close => break,
         }
     }
 }
@@ -173,11 +185,10 @@ impl Clone for CpuPool {
 
 impl Drop for CpuPool {
     fn drop(&mut self) {
-        if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) > 1 {
-            return
-        }
-        for _ in 0..self.inner.size {
-            self.inner.queue.push(Message::Close);
+        if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) == 1 {
+            for _ in 0..self.inner.size {
+                self.inner.queue.push(Message::Close);
+            }
         }
     }
 }
