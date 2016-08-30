@@ -26,24 +26,24 @@
 //! function is similar to the standard library's `thread::park` method where it
 //! returns a handle to wake up a task at a later date (via an `unpark` method).
 
-mod unpark_mutex;
-mod task_rc;
-pub use self::task_rc::TaskRc;
-
 use {BoxFuture, Poll};
 
 use std::prelude::v1::*;
 
-use std::thread;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
+use std::thread;
 
 use self::unpark_mutex::UnparkMutex;
 
-use typemap::{SendMap, TypeMap};
+mod unpark_mutex;
+mod task_rc;
+mod data;
+pub use self::task_rc::TaskRc;
+pub use self::data::LocalKey;
 
-thread_local!(static CURRENT_TASK: Cell<(*const Task, *const TaskData)> = {
+thread_local!(static CURRENT_TASK: Cell<(*const Task, *const data::LocalMap)> = {
     Cell::new((0 as *const _, 0 as *const _))
 });
 
@@ -57,10 +57,10 @@ fn fresh_task_id() -> usize {
     return id
 }
 
-fn set<F, R>(task: &Task, data: &TaskData, f: F) -> R
+fn set<F, R>(task: &Task, data: &data::LocalMap, f: F) -> R
     where F: FnOnce() -> R
 {
-    struct Reset((*const Task, *const TaskData));
+    struct Reset((*const Task, *const data::LocalMap));
     impl Drop for Reset {
         fn drop(&mut self) {
             CURRENT_TASK.with(|c| c.set(self.0));
@@ -74,7 +74,7 @@ fn set<F, R>(task: &Task, data: &TaskData, f: F) -> R
     })
 }
 
-fn with<F: FnOnce(&Task, &TaskData) -> R, R>(f: F) -> R {
+fn with<F: FnOnce(&Task, &data::LocalMap) -> R, R>(f: F) -> R {
     let (task, data) = CURRENT_TASK.with(|c| c.get());
     assert!(!task.is_null(), "no Task is currently running");
     assert!(!data.is_null());
@@ -148,49 +148,6 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     })
 }
 
-/// Access the current task's local data.
-///
-/// Each task has its own set of local data, which is required to be `Send` but
-/// not `Sync`. Futures within a task can access this data at any point.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-///
-/// It will also panic if called in the context of another `with_local_data` or
-/// `with_local_data_mut`.
-pub fn with_local_data<F, R>(f: F) -> R
-    where F: FnOnce(&SendMap) -> R
-{
-    with(|_, data| {
-        f(&*data.borrow())
-    })
-}
-
-/// Access the current task's local data, mutably.
-///
-/// Each task has its own set of local data, which is required to be `Send` but
-/// not `Sync`. Futures within a task can access this data at any point.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-///
-/// It will also panic if called in the context of another `with_local_data` or
-/// `with_local_data_mut`.
-pub fn with_local_data_mut<F, R>(f: F) -> R
-    where F: FnOnce(&mut SendMap) -> R
-{
-    with(|_, data| {
-        f(&mut *data.borrow_mut())
-    })
-}
-
-
 /// A handle to a "task", which represents a single lightweight "thread" of
 /// execution driving a future to completion.
 ///
@@ -222,11 +179,9 @@ enum TaskKind {
     Local(thread::Thread),
 }
 
-type TaskData = RefCell<SendMap>;
-
 struct MutexInner {
     future: BoxFuture<(), ()>,
-    task_data: TaskData,
+    task_data: data::LocalMap,
 }
 
 /// A task intended to be run directly on a local thread.
@@ -239,7 +194,7 @@ struct MutexInner {
 /// `std::thread::Thread::unpark` for the thread that entered the task.
 pub struct ThreadTask {
     id: usize,
-    task_data: TaskData,
+    task_data: data::LocalMap,
 }
 
 /// A handle for running an executor-bound task.
@@ -254,7 +209,7 @@ impl ThreadTask {
     pub fn new() -> ThreadTask {
         ThreadTask {
             id: fresh_task_id(),
-            task_data: RefCell::new(TypeMap::custom()),
+            task_data: data::local_map(),
         }
     }
 
@@ -364,13 +319,13 @@ impl Task {
     ///
     /// Does not actually begin task execution; use the `unpark` method to do
     /// so.
-    pub fn new() -> Task {
+    pub fn new(exec: Arc<Executor>, future: BoxFuture<(), ()>) -> Task {
         Task {
             id: fresh_task_id(),
             kind: TaskKind::Executor {
                 mutex: Arc::new(UnparkMutex::new(MutexInner {
                     future: future,
-                    task_data: RefCell::new(TypeMap::custom()),
+                    task_data: data::local_map(),
                 })),
                 exec: exec
             },
@@ -406,15 +361,6 @@ impl Task {
                 }
             }
             TaskKind::Local(ref thread) => thread.unpark()
-        }
-    }
-
-    /// Determines whether the underlying future has ever polled with a final
-    /// result (or panicked), and thus terminated.
-    pub fn is_done(&self) -> bool {
-        match self.kind {
-            TaskKind::Executor { ref mutex, .. } => mutex.is_complete(),
-            _ => false,
         }
     }
 }

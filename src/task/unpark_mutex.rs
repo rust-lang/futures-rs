@@ -141,10 +141,4 @@ impl<D> UnparkMutex<D> {
     pub unsafe fn complete(&self) {
         self.status.store(COMPLETE, SeqCst);
     }
-
-
-    /// Determine whether task execution has completed.
-    pub fn is_complete(&self) -> bool {
-        self.status.load(SeqCst) == COMPLETE
-    }
 }
