@@ -784,6 +784,12 @@ pub trait Future {
     /// task level. This combinator makes it possible to halt unwinding within
     /// the future itself. It's most commonly used within task executors.
     ///
+    /// Note that this method requires the `UnwindSafe` bound from the standard
+    /// library. This isn't always applied automatically, and the standard
+    /// library provides an `AssertUnwindSafe` wrapper type to apply it
+    /// after-the fact. To assist using this method, the `Future` trait is also
+    /// implemented for `AssertUnwindSafe<F>` where `F` implements `Future`.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -797,6 +803,7 @@ pub trait Future {
     ///     finished::<i32, u32>(2)
     /// });
     /// assert!(future.catch_unwind().wait().is_err());
+    /// ```
     #[cfg(feature = "use_std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + std::panic::UnwindSafe

@@ -8,14 +8,14 @@ use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 ///
 /// This is created by this `Future::catch_uwnind` method.
 pub struct CatchUnwind<F> where F: Future {
-    future: F,
+    future: Option<F>,
 }
 
 pub fn new<F>(future: F) -> CatchUnwind<F>
     where F: Future + UnwindSafe,
 {
     CatchUnwind {
-        future: future,
+        future: Some(future),
     }
 }
 
@@ -26,10 +26,14 @@ impl<F> Future for CatchUnwind<F>
     type Error = Box<Any + Send>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match catch_unwind(AssertUnwindSafe(|| self.future.poll())) {
-            Ok(Poll::NotReady) => Poll::NotReady,
-            Ok(Poll::Ok(v)) => Poll::Ok(Ok(v)),
-            Ok(Poll::Err(e)) => Poll::Ok(Err(e)),
+        let mut future = self.future.take().expect("cannot poll twice");
+        match catch_unwind(|| (future.poll(), future)) {
+            Ok((Poll::NotReady, f)) => {
+                self.future = Some(f);
+                Poll::NotReady
+            }
+            Ok((Poll::Ok(v), _)) => Poll::Ok(Ok(v)),
+            Ok((Poll::Err(e), _)) => Poll::Ok(Err(e)),
             Err(e) => Poll::Err(e),
         }
     }
