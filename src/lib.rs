@@ -203,6 +203,8 @@ pub use select::{Select, SelectNext};
 pub use then::Then;
 
 if_std! {
+    extern crate typemap;
+
     mod lock;
     mod slot;
     pub mod task;
@@ -227,6 +229,8 @@ if_std! {
             (**self).poll()
         }
     }
+
+
 }
 
 // streams

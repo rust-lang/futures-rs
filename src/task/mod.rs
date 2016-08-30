@@ -8,7 +8,9 @@
 //! A "task" is the unit of abstraction for what is driving this state machine
 //! and tree of futures forward. A task is used to poll futures and schedule
 //! futures with, and has utilities for sharing data between tasks and handles
-//! for notifying when a future is ready.
+//! for notifying when a future is ready. Each task also has its own set of
+//! task-local data, which can be accessed at any point by the task's future;
+//! see `with_local_data`.
 //!
 //! Note that libraries typically should not manage tasks themselves, but rather
 //! leave that to event loops and other "executors", or by using the `wait`
@@ -31,35 +33,44 @@ use {BoxFuture, Poll};
 use std::prelude::v1::*;
 
 use std::thread;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 
 use self::unpark_mutex::UnparkMutex;
 
-thread_local!(static CURRENT_TASK: Cell<*const Task> = Cell::new(0 as *const _));
+use typemap::{SendMap, TypeMap};
 
-fn set<F, R>(task: &Task, f: F) -> R
+thread_local!(static CURRENT_TASK: Cell<*const Task> = Cell::new(0 as *const _));
+thread_local!(static CURRENT_TASK_DATA: Cell<*const TaskData> = Cell::new(0 as *const _));
+
+fn set<F, R>(task: &Task, data: &TaskData, f: F) -> R
     where F: FnOnce() -> R
 {
-    struct Reset(*const Task);
+    struct Reset(*const Task, *const TaskData);
     impl Drop for Reset {
         fn drop(&mut self) {
             CURRENT_TASK.with(|c| c.set(self.0));
+            CURRENT_TASK_DATA.with(|c| c.set(self.1));
         }
     }
 
     CURRENT_TASK.with(|c| {
-        let _reset = Reset(c.get());
-        c.set(task);
-        f()
+        CURRENT_TASK_DATA.with(|d| {
+            let _reset = Reset(c.get(), d.get());
+            c.set(task);
+            d.set(data);
+            f()
+        })
     })
 }
 
-fn with<F: FnOnce(&Task) -> R, R>(f: F) -> R {
+fn with<F: FnOnce(&Task, &TaskData) -> R, R>(f: F) -> R {
     let task = CURRENT_TASK.with(|c| c.get());
+    let data = CURRENT_TASK_DATA.with(|d| d.get());
     assert!(task != 0 as *const _, "No `Task` is currently running");
+    assert!(data != 0 as *const _, "No `TaskData` is available; is a `Task` runnin?");
     unsafe {
-        f(&*task)
+        f(&*task, &*data)
     }
 }
 
@@ -90,7 +101,7 @@ fn with<F: FnOnce(&Task) -> R, R>(f: F) -> R {
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
 pub fn park() -> Task {
-    with(|task| task.clone())
+    with(|task, _| task.clone())
 }
 
 /// For the duration of the given callback, add an "unpark event" to be
@@ -118,14 +129,57 @@ pub fn park() -> Task {
 pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     where F: FnOnce() -> R
 {
-    with(|task| {
+    with(|task, data| {
         let new_task = Task {
             kind: task.kind.clone(),
             events: task.events.with_event(event),
         };
-        set(&new_task, f)
+        set(&new_task, data, f)
     })
 }
+
+/// Access the current task's local data.
+///
+/// Each task has its own set of local data, which is required to be `Send` but
+/// not `Sync`. Futures within a task can access this data at any point.
+///
+/// # Panics
+///
+/// This function will panic if a task is not currently being executed. That
+/// is, this method can be dangerous to call outside of an implementation of
+/// `poll`.
+///
+/// It will also panic if called in the context of another `with_local_data` or
+/// `with_local_data_mut`.
+pub fn with_local_data<F, R>(f: F) -> R
+    where F: FnOnce(&SendMap) -> R
+{
+    with(|_, data| {
+        f(&*data.borrow())
+    })
+}
+
+/// Access the current task's local data, mutably.
+///
+/// Each task has its own set of local data, which is required to be `Send` but
+/// not `Sync`. Futures within a task can access this data at any point.
+///
+/// # Panics
+///
+/// This function will panic if a task is not currently being executed. That
+/// is, this method can be dangerous to call outside of an implementation of
+/// `poll`.
+///
+/// It will also panic if called in the context of another `with_local_data` or
+/// `with_local_data_mut`.
+pub fn with_local_data_mut<F, R>(f: F) -> R
+    where F: FnOnce(&mut SendMap) -> R
+{
+    with(|_, data| {
+        f(&mut *data.borrow_mut())
+    })
+}
+
 
 /// A handle to a "task", which represents a single lightweight "thread" of
 /// execution driving a future to completion.
@@ -152,9 +206,11 @@ enum TaskKind {
     Local(thread::Thread),
 }
 
+type TaskData = RefCell<SendMap>;
+
 struct MutexInner {
     future: BoxFuture<(), ()>,
-    _task_data: (), // TODO: add task-local storage
+    task_data: TaskData,
 }
 
 /// A task intended to be run directly on a local thread.
@@ -166,7 +222,7 @@ struct MutexInner {
 /// When the corresponding `Task` handle is unparked, it will invoke
 /// `std::thread::Thread::unpark` for the thread that entered the task.
 pub struct ThreadTask {
-    _task_data: (), // TODO: add task-local storage
+    task_data: TaskData,
 }
 
 /// A handle for running an executor-bound task.
@@ -180,7 +236,7 @@ impl ThreadTask {
     /// current thread.
     pub fn new() -> ThreadTask {
         ThreadTask {
-            _task_data: (),
+            task_data: RefCell::new(TypeMap::custom()),
         }
     }
 
@@ -194,7 +250,7 @@ impl ThreadTask {
             kind: TaskKind::Local(thread::current()),
             events: Events::new(),
         };
-        set(&task, f)
+        set(&task, &self.task_data, f)
     }
 }
 
@@ -209,7 +265,7 @@ impl Run {
             _ => unreachable!(),
         };
 
-        let Run { task, mut inner } = self;
+        let Run { task, inner: MutexInner { mut future, mut task_data } } = self;
 
         loop {
             unsafe {
@@ -218,13 +274,17 @@ impl Run {
                 mutex.start_poll();
             }
 
-            if let Poll::NotReady = set(&task, || inner.future.poll()) {
+            if let Poll::NotReady = set(&task, &task_data, || future.poll()) {
                 let wait_res = unsafe {
                     // SAFETY: same as above
-                    mutex.wait(inner)
+                    mutex.wait(MutexInner {
+                        future: future,
+                        task_data: task_data
+                    })
                 };
                 if let Err(new_inner) = wait_res {
-                    inner = new_inner;
+                    future = new_inner.future;
+                    task_data = new_inner.task_data;
                 } else {
                     return;
                 }
@@ -290,7 +350,7 @@ impl Task {
             kind: TaskKind::Executor {
                 mutex: Arc::new(UnparkMutex::new(MutexInner {
                     future: future,
-                    _task_data: (),
+                    task_data: RefCell::new(TypeMap::custom()),
                 })),
                 exec: exec
             },
