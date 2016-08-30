@@ -5,11 +5,11 @@ use core::mem;
 use {Future, Poll, IntoFuture};
 
 macro_rules! generate {
-    ($(($Join:ident, $new:ident, <A, $($B:ident),*>),)*) => ($(
-        /// Future for the `join` combinator, waiting for two futures to
-        /// complete.
-        ///
-        /// This is created by this `Future::join` method.
+    ($(
+        $(#[$doc:meta])*
+        ($Join:ident, $new:ident, <A, $($B:ident),*>),
+    )*) => ($(
+        $(#[$doc])*
         pub struct $Join<A, $($B),*>
             where A: Future,
                   $($B: Future<Error=A::Error>),*
@@ -97,9 +97,28 @@ macro_rules! generate {
 }
 
 generate! {
+    /// Future for the `join` combinator, waiting for two futures to
+    /// complete.
+    ///
+    /// This is created by this `Future::join` method.
     (Join, new, <A, B>),
+
+    /// Future for the `join3` combinator, waiting for three futures to
+    /// complete.
+    ///
+    /// This is created by this `Future::join3` method.
     (Join3, new3, <A, B, C>),
+
+    /// Future for the `join4` combinator, waiting for four futures to
+    /// complete.
+    ///
+    /// This is created by this `Future::join4` method.
     (Join4, new4, <A, B, C, D>),
+
+    /// Future for the `join5` combinator, waiting for five futures to
+    /// complete.
+    ///
+    /// This is created by this `Future::join5` method.
     (Join5, new5, <A, B, C, D, E>),
 }
 
