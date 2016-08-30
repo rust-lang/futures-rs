@@ -27,6 +27,8 @@
 //! returns a handle to wake up a task at a later date (via an `unpark` method).
 
 mod unpark_mutex;
+mod task_rc;
+pub use self::task_rc::TaskRc;
 
 use {BoxFuture, Poll};
 
@@ -35,6 +37,7 @@ use std::prelude::v1::*;
 use std::thread;
 use std::cell::{Cell, RefCell};
 use std::sync::Arc;
+use std::sync::atomic::{Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
 
 use self::unpark_mutex::UnparkMutex;
 
@@ -42,6 +45,9 @@ use typemap::{SendMap, TypeMap};
 
 thread_local!(static CURRENT_TASK: Cell<*const Task> = Cell::new(0 as *const _));
 thread_local!(static CURRENT_TASK_DATA: Cell<*const TaskData> = Cell::new(0 as *const _));
+
+// TODO: make this more robust around overflow on 32-bit machines
+static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
 
 fn set<F, R>(task: &Task, data: &TaskData, f: F) -> R
     where F: FnOnce() -> R
@@ -131,6 +137,7 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
 {
     with(|task, data| {
         let new_task = Task {
+            id: task.id,
             kind: task.kind.clone(),
             events: task.events.with_event(event),
         };
@@ -192,6 +199,7 @@ pub fn with_local_data_mut<F, R>(f: F) -> R
 /// the `Task::new` constructor.
 #[derive(Clone)]
 pub struct Task {
+    id: usize,
     kind: TaskKind,
     events: Events,
 }
@@ -222,6 +230,7 @@ struct MutexInner {
 /// When the corresponding `Task` handle is unparked, it will invoke
 /// `std::thread::Thread::unpark` for the thread that entered the task.
 pub struct ThreadTask {
+    id: usize,
     task_data: TaskData,
 }
 
@@ -236,6 +245,7 @@ impl ThreadTask {
     /// current thread.
     pub fn new() -> ThreadTask {
         ThreadTask {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             task_data: RefCell::new(TypeMap::custom()),
         }
     }
@@ -247,6 +257,7 @@ impl ThreadTask {
     /// current thread.
     pub fn enter<R, F: FnOnce() -> R>(&self, f: F) -> R {
         let task = Task {
+            id: self.id,
             kind: TaskKind::Local(thread::current()),
             events: Events::new(),
         };
@@ -347,6 +358,7 @@ impl Task {
     /// so.
     pub fn new(exec: Arc<Executor>, future: BoxFuture<(), ()>) -> Task {
         Task {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             kind: TaskKind::Executor {
                 mutex: Arc::new(UnparkMutex::new(MutexInner {
                     future: future,
@@ -374,6 +386,7 @@ impl Task {
             TaskKind::Executor { ref mutex, ref exec } => {
                 if let Ok(inner) = mutex.notify() {
                     let task = Task {
+                        id: self.id,
                         kind: self.kind.clone(),
                         events: Events::new(),
                     };
