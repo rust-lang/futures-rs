@@ -2,7 +2,6 @@ extern crate futures;
 
 use futures::{failed, finished, Future, oneshot, Poll};
 use futures::stream::*;
-use futures::task::Task;
 
 mod support;
 use support::*;
@@ -108,7 +107,7 @@ fn peekable() {
 #[test]
 fn fuse() {
     let mut stream = list().fuse();
-    Task::new().enter(|| {
+    futures::task::ThreadTask::new().enter(|| {
         assert_eq!(stream.poll(), Poll::Ok(Some(1)));
         assert_eq!(stream.poll(), Poll::Ok(Some(2)));
         assert_eq!(stream.poll(), Poll::Ok(Some(3)));

@@ -4,6 +4,9 @@ use std::sync::mpsc::channel;
 
 use futures::*;
 
+mod support;
+use support::*;
+
 #[test]
 fn map() {
     // Whatever runs after a `map` should have dropped the closure by that

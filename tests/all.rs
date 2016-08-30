@@ -3,7 +3,6 @@ extern crate futures;
 use std::sync::mpsc::{channel, TryRecvError};
 
 use futures::*;
-use futures::task::Task;
 
 mod support;
 use support::*;
@@ -125,7 +124,7 @@ fn smoke_oneshot() {
 
     let (c, mut p) = oneshot::<i32>();
     drop(c);
-    let res = Task::new().enter(|| p.poll());
+    let res = futures::task::ThreadTask::new().enter(|| p.poll());
     assert!(res.unwrap().is_err());
     let (c, p) = oneshot::<i32>();
     drop(c);
@@ -148,7 +147,7 @@ fn select_cancels() {
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.complete(1);
-    assert!(Task::new().enter(|| f.poll()).is_ready());
+    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_ready());
     assert_eq!(brx.recv().unwrap(), 1);
     drop((c, f));
     assert!(drx.recv().is_err());
@@ -159,7 +158,7 @@ fn select_cancels() {
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let mut f = b.select(d).then(unselect);
-    Task::new().enter(|| {
+    futures::task::ThreadTask::new().enter(|| {
         assert!(f.poll().is_not_ready());
         assert!(f.poll().is_not_ready());
         a.complete(1);
@@ -178,7 +177,7 @@ fn join_cancels() {
 
     let mut f = b.join(d);
     drop(a);
-    assert!(Task::new().enter(|| f.poll()).is_ready());
+    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
 
@@ -189,10 +188,11 @@ fn join_cancels() {
 
     let (tx, rx) = channel();
     let f = b.join(d);
-    Task::new().run(f.then(move |_| {
+    f.then(move |_| {
         tx.send(()).unwrap();
-        Ok(())
-    }).boxed());
+        let res: Result<(), ()> = Ok(());
+        res
+    }).forget();
     assert!(rx.try_recv().is_err());
     drop(a);
     rx.recv().unwrap();
@@ -204,7 +204,7 @@ fn join_cancels() {
 fn join_incomplete() {
     let (a, b) = oneshot::<i32>();
     let mut f = finished(1).join(b);
-    assert!(Task::new().enter(|| f.poll()).is_not_ready());
+    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -213,7 +213,7 @@ fn join_incomplete() {
 
     let (a, b) = oneshot::<i32>();
     let mut f = b.join(Ok(2));
-    assert!(Task::new().enter(|| f.poll()).is_not_ready());
+    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
     f.map(move |r| tx.send(r).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -222,7 +222,7 @@ fn join_incomplete() {
 
     let (a, b) = oneshot::<i32>();
     let mut f = finished(1).join(b);
-    assert!(Task::new().enter(|| f.poll()).is_not_ready());
+    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
     f.map_err(move |_r| tx.send(2).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -231,7 +231,7 @@ fn join_incomplete() {
 
     let (a, b) = oneshot::<i32>();
     let mut f = b.join(Ok(2));
-    assert!(Task::new().enter(|| f.poll()).is_not_ready());
+    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
     f.map_err(move |_r| tx.send(1).unwrap()).forget();
     assert!(rx.try_recv().is_err());
@@ -320,7 +320,7 @@ fn select2() {
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let mut f = b.select(d);
-        Task::new().enter(|| f.poll());
+        futures::task::ThreadTask::new().enter(|| f.poll());
         drop(f);
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());

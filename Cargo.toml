@@ -15,7 +15,8 @@ composability, and iterator-like interfaces.
 
 [dependencies]
 log = { version = "0.3", default-features = false }
+typemap = { version = "0.3.3", optional = true }
 
 [features]
-use_std = []
+use_std = ["typemap"]
 default = ["use_std"]
