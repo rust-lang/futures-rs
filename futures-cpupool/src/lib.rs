@@ -162,7 +162,7 @@ impl CpuPool {
             fut: AssertUnwindSafe(f).catch_unwind(),
             tx: Some(tx),
         };
-        task::spawn(sender.boxed()).execute(self.inner.clone());
+        task::spawn(sender).execute(self.inner.clone());
         CpuFuture { inner: rx }
     }
 }

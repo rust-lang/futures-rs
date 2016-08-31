@@ -150,7 +150,7 @@
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
 #![no_std]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 #[macro_use]
 #[cfg(feature = "use_std")]
