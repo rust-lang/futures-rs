@@ -17,6 +17,7 @@ mod iter;
 pub use self::iter::{iter, IterStream};
 
 mod and_then;
+mod empty;
 mod filter;
 mod filter_map;
 mod flatten;
@@ -35,6 +36,7 @@ mod take;
 mod then;
 mod zip;
 pub use self::and_then::AndThen;
+pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
