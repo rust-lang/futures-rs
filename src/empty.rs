@@ -12,9 +12,7 @@ pub struct Empty<T, E> {
 /// Creates a future which never resolves, representing a computation that never
 /// finishes.
 ///
-/// The returned future will never resolve with a success but is still
-/// susceptible to cancellation. That is, if a callback is scheduled on the
-/// returned future, it is only run once the future is dropped (canceled).
+/// The returned future will forever return `Poll::NotReady`.
 pub fn empty<T, E>() -> Empty<T, E> {
     Empty { _data: marker::PhantomData }
 }
