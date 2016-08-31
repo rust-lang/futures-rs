@@ -107,8 +107,8 @@ impl<A> TaskRc<A> {
     {
         // for safety here, see docs at the top of this module
         super::with(|task, _| {
-            assert_eq!(self.task_id, task.id,
-                       "TaskRc being accessed on task it does not belong to");
+            assert!(self.task_id == task.id,
+                    "TaskRc being accessed on task it does not belong to");
             f(unsafe { &*self.ptr.get() })
         })
     }
