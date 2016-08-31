@@ -150,7 +150,7 @@
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
 #![no_std]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 #[macro_use]
 #[cfg(feature = "use_std")]
@@ -373,19 +373,10 @@ pub trait Future {
     /// This function does not attempt to catch panics. If the `poll` function
     /// panics, panics will be propagated to the caller.
     #[cfg(feature = "use_std")]
-    fn wait(mut self) -> Result<Self::Item, Self::Error>
+    fn wait(self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
-        use std::thread;
-
-        let task = task::ThreadTask::new();
-        loop {
-            match task.enter(|| self.poll()) {
-                Poll::Ok(e) => return Ok(e),
-                Poll::Err(e) => return Err(e),
-                Poll::NotReady => thread::park(),
-            }
-        }
+        task::spawn(self).wait_future()
     }
 
     /// Convenience function for turning this future into a trait object.

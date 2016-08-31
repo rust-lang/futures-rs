@@ -26,8 +26,6 @@
 //! function is similar to the standard library's `thread::park` method where it
 //! returns a handle to wake up a task at a later date (via an `unpark` method).
 
-use {BoxFuture, Poll};
-
 use std::prelude::v1::*;
 
 use std::cell::Cell;
@@ -35,7 +33,9 @@ use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
 
-use self::unpark_mutex::UnparkMutex;
+use {BoxFuture, Poll, Future};
+use stream::Stream;
+use task::unpark_mutex::UnparkMutex;
 
 mod unpark_mutex;
 mod task_rc;
@@ -77,7 +77,7 @@ fn set<F, R>(task: &Task, data: &data::LocalMap, f: F) -> R
 fn with<F: FnOnce(&Task, &data::LocalMap) -> R, R>(f: F) -> R {
     let (task, data) = CURRENT_TASK.with(|c| c.get());
     assert!(!task.is_null(), "no Task is currently running");
-    assert!(!data.is_null());
+    debug_assert!(!data.is_null());
     unsafe {
         f(&*task, &*data)
     }
@@ -113,6 +113,20 @@ pub fn park() -> Task {
     with(|task, _| task.clone())
 }
 
+pub struct Spawn<T> {
+    obj: T,
+    id: usize,
+    data: data::LocalMap,
+}
+
+pub fn spawn<T>(obj: T) -> Spawn<T> {
+    Spawn {
+        obj: obj,
+        id: fresh_task_id(),
+        data: data::local_map(),
+    }
+}
+
 /// For the duration of the given callback, add an "unpark event" to be
 /// triggered when the task handle is used to unpark the task.
 ///
@@ -141,7 +155,7 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     with(|task, data| {
         let new_task = Task {
             id: task.id,
-            kind: task.kind.clone(),
+            unpark: task.unpark.clone(),
             events: task.events.with_event(event),
         };
         set(&new_task, data, f)
@@ -160,7 +174,7 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
 #[derive(Clone)]
 pub struct Task {
     id: usize,
-    kind: TaskKind,
+    unpark: Arc<Unpark>,
     events: Events,
 }
 
@@ -169,106 +183,122 @@ fn _assert_kinds() {
     _assert_send::<Task>();
 }
 
-#[derive(Clone)]
-/// The two kinds of execution models: `Executor`-based or local thread-based
-enum TaskKind {
-    Executor {
-        mutex: Arc<UnparkMutex<MutexInner>>,
-        exec: Arc<Executor>,
-    },
-    Local(thread::Thread),
-}
-
-struct MutexInner {
-    future: BoxFuture<(), ()>,
-    task_data: data::LocalMap,
-}
-
-/// A task intended to be run directly on a local thread.
-///
-/// Actual execution of a `ThreadTask` is left to the thread itself, which can
-/// use the `ThreadTask::enter` method to set up the environment for the task
-/// before polling it.
-///
-/// When the corresponding `Task` handle is unparked, it will invoke
-/// `std::thread::Thread::unpark` for the thread that entered the task.
-pub struct ThreadTask {
-    id: usize,
-    task_data: data::LocalMap,
-}
-
-/// A handle for running an executor-bound task.
-pub struct Run {
-    task: Task,
-    inner: MutexInner,
-}
-
-impl ThreadTask {
-    /// Create a new `ThreadTask`; note that the task is in no way bound to the
-    /// current thread.
-    pub fn new() -> ThreadTask {
-        ThreadTask {
-            id: fresh_task_id(),
-            task_data: data::local_map(),
-        }
-    }
-
-    /// "Enter" the task, setting up the task environment appropriately for
-    /// calling `poll` methods.
-    ///
-    /// Ties the ambient `Task` handle to `std::thread::Thread::unpark` for the
-    /// current thread.
-    pub fn enter<R, F: FnOnce() -> R>(&self, f: F) -> R {
+impl<T> Spawn<T> {
+    fn enter<F, R>(&mut self, unpark: Arc<Unpark>, f: F) -> R
+        where F: FnOnce(&mut T) -> R
+    {
         let task = Task {
             id: self.id,
-            kind: TaskKind::Local(thread::current()),
+            unpark: unpark,
             events: Events::new(),
         };
-        set(&task, &self.task_data, f)
+        let obj = &mut self.obj;
+        set(&task, &self.data, || f(obj))
     }
 }
 
+pub trait Executor: Send + Sync + 'static {
+    fn execute(&self, r: Run);
+}
+
+impl<F: Future> Spawn<F> {
+    pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
+        self.enter(unpark, |f| f.poll())
+    }
+
+    pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
+        let unpark = Arc::new(ThreadUnpark(thread::current()));
+        loop {
+            match self.poll_future(unpark.clone()) {
+                Poll::Ok(e) => return Ok(e),
+                Poll::Err(e) => return Err(e),
+                Poll::NotReady => thread::park(),
+            }
+        }
+    }
+}
+
+impl Spawn<BoxFuture<(), ()>> {
+    pub fn execute(self, exec: Arc<Executor>) {
+        exec.clone().execute(Run {
+            spawn: self,
+            inner: Arc::new(Inner {
+                exec: exec,
+                mutex: UnparkMutex::new()
+            }),
+        })
+    }
+}
+
+impl<S: Stream> Spawn<S> {
+    pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
+                       -> Poll<Option<S::Item>, S::Error> {
+        self.enter(unpark, |stream| stream.poll())
+    }
+
+    pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
+        let unpark = Arc::new(ThreadUnpark(thread::current()));
+        loop {
+            match self.poll_stream(unpark.clone()) {
+                Poll::Ok(Some(e)) => return Some(Ok(e)),
+                Poll::Ok(None) => return None,
+                Poll::Err(e) => return Some(Err(e)),
+                Poll::NotReady => thread::park(),
+            }
+        }
+    }
+}
+
+struct ThreadUnpark(thread::Thread);
+
+impl Unpark for ThreadUnpark {
+    fn unpark(&self) {
+        self.0.unpark()
+    }
+}
+
+pub struct Run {
+    spawn: Spawn<BoxFuture<(), ()>>,
+    inner: Arc<Inner>,
+}
+
+struct Inner {
+    mutex: UnparkMutex<Run>,
+    exec: Arc<Executor>,
+}
 
 impl Run {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
     pub fn run(self) {
-        // TODO: make this more efficient (avoid clone, etc)
-        let mutex = match self.task.kind {
-            TaskKind::Executor { ref mutex, .. } => mutex.clone(),
-            _ => unreachable!(),
-        };
+        let Run { mut spawn, inner } = self;
 
-        let Run { task, inner: MutexInner { mut future, mut task_data } } = self;
+        // SAFETY: the ownership of this `Run` object is evidence that
+        // we are in the `POLLING`/`REPOLL` state for the mutex.
+        unsafe {
+            inner.mutex.start_poll();
 
-        loop {
-            unsafe {
-                // SAFETY: the ownership of this `Run` object is evidence that
-                // we are in the `POLLING`/`REPOLL` state for the mutex.
-                mutex.start_poll();
-            }
-
-            if let Poll::NotReady = set(&task, &task_data, || future.poll()) {
-                let wait_res = unsafe {
-                    // SAFETY: same as above
-                    mutex.wait(MutexInner {
-                        future: future,
-                        task_data: task_data
-                    })
-                };
-                if let Err(new_inner) = wait_res {
-                    future = new_inner.future;
-                    task_data = new_inner.task_data;
-                } else {
-                    return;
+            loop {
+                match spawn.poll_future(inner.clone()) {
+                    Poll::NotReady => {}
+                    Poll::Ok(()) |
+                    Poll::Err(()) => return inner.mutex.complete(),
                 }
-            } else {
-                unsafe {
-                    // SAFETY: same as above
-                    mutex.complete();
+                let run = Run { spawn: spawn, inner: inner.clone() };
+                match inner.mutex.wait(run) {
+                    Ok(()) => return,            // we've waited
+                    Err(r) => spawn = r.spawn,   // someone's notified us
                 }
-                return;
             }
+        }
+    }
+}
+
+impl Unpark for Inner {
+    fn unpark(&self) {
+        match self.mutex.notify() {
+            Ok(run) => self.exec.execute(run),
+            Err(()) => {}
         }
     }
 }
@@ -291,19 +321,19 @@ pub struct UnparkEvent {
     item: usize,
 }
 
-/// A way of notifying a task that it should wake up and poll its future.
-pub trait Executor: Send + Sync + 'static {
-    /// Indicate that the task should attempt to poll its future in a timely
-    /// fashion. This is typically done when alerting a future that an event of
-    /// interest has occurred through `Task::unpark`.
-    ///
-    /// It must be guaranteed that, for each call to `notify`, `poll` will be
-    /// called at least once subsequently (unless the task has terminated). If
-    /// the task is currently polling its future when `notify` is called, it
-    /// must poll the future *again* afterwards, ensuring that all relevant
-    /// events are eventually observed by the future.
-    fn execute(&self, run: Run);
-}
+// /// A way of notifying a task that it should wake up and poll its future.
+// pub trait Executor: Send + Sync + 'static {
+//     /// Indicate that the task should attempt to poll its future in a timely
+//     /// fashion. This is typically done when alerting a future that an event of
+//     /// interest has occurred through `Task::unpark`.
+//     ///
+//     /// It must be guaranteed that, for each call to `notify`, `poll` will be
+//     /// called at least once subsequently (unless the task has terminated). If
+//     /// the task is currently polling its future when `notify` is called, it
+//     /// must poll the future *again* afterwards, ensuring that all relevant
+//     /// events are eventually observed by the future.
+//     fn execute(&self, run: Run);
+// }
 
 /// A concurrent set which allows for the insertion of `usize` values.
 ///
@@ -314,25 +344,11 @@ pub trait EventSet: Send + Sync + 'static {
     fn insert(&self, id: usize);
 }
 
-impl Task {
-    /// Creates a new task by binding together a future and an executor.
-    ///
-    /// Does not actually begin task execution; use the `unpark` method to do
-    /// so.
-    pub fn new(exec: Arc<Executor>, future: BoxFuture<(), ()>) -> Task {
-        Task {
-            id: fresh_task_id(),
-            kind: TaskKind::Executor {
-                mutex: Arc::new(UnparkMutex::new(MutexInner {
-                    future: future,
-                    task_data: data::local_map(),
-                })),
-                exec: exec
-            },
-            events: Events::new(),
-        }
-    }
+pub trait Unpark: Send + Sync + 'static {
+    fn unpark(&self);
+}
 
+impl Task {
     /// Indicate that the task should attempt to poll its future in a timely
     /// fashion. This is typically done when alerting a future that an event of
     /// interest has occurred through `Task::unpark`.
@@ -344,24 +360,7 @@ impl Task {
     /// eventually observed by the future.
     pub fn unpark(&self) {
         self.events.trigger();
-
-        match self.kind {
-            TaskKind::Executor { ref mutex, ref exec } => {
-                if let Ok(inner) = mutex.notify() {
-                    let task = Task {
-                        id: self.id,
-                        kind: self.kind.clone(),
-                        events: Events::new(),
-                    };
-                    let run = Run {
-                        task: task,
-                        inner: inner,
-                    };
-                    exec.execute(run)
-                }
-            }
-            TaskKind::Local(ref thread) => thread.unpark()
-        }
+        self.unpark.unpark();
     }
 }
 

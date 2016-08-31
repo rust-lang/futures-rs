@@ -49,7 +49,7 @@ use std::thread;
 
 use crossbeam::sync::MsQueue;
 use futures::{Future, oneshot, Oneshot, Complete, Poll};
-use futures::task::{Task, Run, Executor};
+use futures::task::{self, Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -162,7 +162,7 @@ impl CpuPool {
             fut: AssertUnwindSafe(f).catch_unwind(),
             tx: Some(tx),
         };
-        Task::new(self.inner.clone(), sender.boxed()).unpark();
+        task::spawn(sender.boxed()).execute(self.inner.clone());
         CpuFuture { inner: rx }
     }
 }

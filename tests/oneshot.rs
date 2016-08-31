@@ -4,7 +4,6 @@ use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
 use futures::{oneshot, Complete, Future, Poll};
-use futures::task::ThreadTask;
 
 mod support;
 use support::*;
@@ -12,13 +11,15 @@ use support::*;
 #[test]
 fn smoke_poll() {
     let (mut tx, rx) = oneshot::<u32>();
-    ThreadTask::new().enter(|| {
+    let mut task = futures::task::spawn(futures::lazy(|| {
         assert!(tx.poll_cancel().is_not_ready());
         assert!(tx.poll_cancel().is_not_ready());
         drop(rx);
         assert!(tx.poll_cancel().is_ready());
         assert!(tx.poll_cancel().is_ready());
-    })
+        futures::finished::<(), ()>(())
+    }));
+    assert!(task.poll_future(unpark_noop()).is_ready());
 }
 
 #[test]

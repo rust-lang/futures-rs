@@ -43,10 +43,10 @@ const REPOLL: usize = 2;        // --> POLLING
 const COMPLETE: usize = 3;      // No transitions out
 
 impl<D> UnparkMutex<D> {
-    pub fn new(data: D) -> UnparkMutex<D> {
+    pub fn new() -> UnparkMutex<D> {
         UnparkMutex {
             status: AtomicUsize::new(WAITING),
-            inner: UnsafeCell::new(Some(data)),
+            inner: UnsafeCell::new(None),
         }
     }
 

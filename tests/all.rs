@@ -122,9 +122,9 @@ fn smoke_oneshot() {
         b
     });
 
-    let (c, mut p) = oneshot::<i32>();
+    let (c, p) = oneshot::<i32>();
     drop(c);
-    let res = futures::task::ThreadTask::new().enter(|| p.poll());
+    let res = task::spawn(p).poll_future(unpark_panic());
     assert!(res.unwrap().is_err());
     let (c, p) = oneshot::<i32>();
     drop(c);
@@ -142,14 +142,15 @@ fn select_cancels() {
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = b.select(d).then(unselect);
+    let f = b.select(d).then(unselect);
     // assert!(f.poll(&mut Task::new()).is_not_ready());
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.complete(1);
-    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_ready());
+    let res = task::spawn(f).poll_future(unpark_panic());
+    assert!(res.is_ready());
     assert_eq!(brx.recv().unwrap(), 1);
-    drop((c, f));
+    drop(c);
     assert!(drx.recv().is_err());
 
     let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
@@ -157,15 +158,13 @@ fn select_cancels() {
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = b.select(d).then(unselect);
-    futures::task::ThreadTask::new().enter(|| {
-        assert!(f.poll().is_not_ready());
-        assert!(f.poll().is_not_ready());
-        a.complete(1);
-        assert!(f.poll().is_ready());
-        drop((c, f));
-        assert!(drx.recv().is_err());
-    })
+    let mut f = task::spawn(b.select(d).then(unselect));
+    assert!(f.poll_future(unpark_noop()).is_not_ready());
+    assert!(f.poll_future(unpark_noop()).is_not_ready());
+    a.complete(1);
+    assert!(f.poll_future(unpark_panic()).is_ready());
+    drop((c, f));
+    assert!(drx.recv().is_err());
 }
 
 #[test]
@@ -175,10 +174,11 @@ fn join_cancels() {
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = b.join(d);
+    let f = b.join(d);
     drop(a);
-    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_ready());
-    drop((c, f));
+    let res = task::spawn(f).poll_future(unpark_panic());
+    assert!(res.is_ready());
+    drop(c);
     assert!(drx.recv().is_err());
 
     let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
@@ -203,39 +203,39 @@ fn join_cancels() {
 #[test]
 fn join_incomplete() {
     let (a, b) = oneshot::<i32>();
-    let mut f = finished(1).join(b);
-    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
-    f.map(move |r| tx.send(r).unwrap()).forget();
+    let mut f = task::spawn(finished(1).join(b).map(move |r| tx.send(r).unwrap()));
+    assert!(f.poll_future(unpark_noop()).is_not_ready());
     assert!(rx.try_recv().is_err());
     a.complete(2);
+    assert!(f.poll_future(unpark_noop()).is_ready());
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
     let (a, b) = oneshot::<i32>();
-    let mut f = b.join(Ok(2));
-    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
-    f.map(move |r| tx.send(r).unwrap()).forget();
+    let mut f = task::spawn(b.join(Ok(2)).map(move |r| tx.send(r).unwrap()));
+    assert!(f.poll_future(unpark_noop()).is_not_ready());
     assert!(rx.try_recv().is_err());
     a.complete(1);
+    assert!(f.poll_future(unpark_noop()).is_ready());
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
     let (a, b) = oneshot::<i32>();
-    let mut f = finished(1).join(b);
-    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
-    f.map_err(move |_r| tx.send(2).unwrap()).forget();
+    let mut f = task::spawn(finished(1).join(b).map_err(move |_r| tx.send(2).unwrap()));
+    assert!(f.poll_future(unpark_noop()).is_not_ready());
     assert!(rx.try_recv().is_err());
     drop(a);
+    assert!(f.poll_future(unpark_noop()).is_ready());
     assert_eq!(rx.recv().unwrap(), 2);
 
     let (a, b) = oneshot::<i32>();
-    let mut f = b.join(Ok(2));
-    assert!(futures::task::ThreadTask::new().enter(|| f.poll()).is_not_ready());
     let (tx, rx) = channel();
-    f.map_err(move |_r| tx.send(1).unwrap()).forget();
+    let mut f = task::spawn(b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap()));
+    assert!(f.poll_future(unpark_noop()).is_not_ready());
     assert!(rx.try_recv().is_err());
     drop(a);
+    assert!(f.poll_future(unpark_noop()).is_ready());
     assert_eq!(rx.recv().unwrap(), 1);
 }
 
@@ -319,9 +319,8 @@ fn select2() {
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
-        let mut f = b.select(d);
-        futures::task::ThreadTask::new().enter(|| f.poll());
-        drop(f);
+        let f = b.select(d);
+        task::spawn(f).poll_future(support::unpark_noop());
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());
     }
