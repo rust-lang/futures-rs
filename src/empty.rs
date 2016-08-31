@@ -1,6 +1,7 @@
 use core::marker;
 
 use {Future, Poll};
+use stream::Stream;
 
 /// A future which is never resolved.
 ///
@@ -25,5 +26,17 @@ impl<T, E> Future for Empty<T, E> {
 
     fn poll(&mut self) -> Poll<T, E> {
         Poll::NotReady
+    }
+}
+
+impl<T, E> Stream for Empty<T, E>
+    where T: Send + 'static,
+          E: Send + 'static
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        Poll::Ok(None)
     }
 }
