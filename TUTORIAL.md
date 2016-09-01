@@ -152,7 +152,7 @@ means that we don't actually have the socket yet, but rather it will
 be fully connected at some later point in time.
 
 [get a handle]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.handle
-[`tcp_connect`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.tcp_connectt
+[`tcp_connect`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.tcp_connect
 
 Once our socket is available we need to perform three tasks to download the
 rust-lang.org home page:
