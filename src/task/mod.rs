@@ -148,6 +148,13 @@ impl Task {
         self.events.trigger();
         self.unpark.unpark();
     }
+
+    /// Returns `true` when called from within the context of the task. In
+    /// other words, the task is currently running on the thread calling the
+    /// function.
+    pub fn is_current(&self) -> bool {
+        with(|current, _| current.id == self.id)
+    }
 }
 
 /// Representation of a spawned future/stream.
