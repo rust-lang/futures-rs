@@ -456,6 +456,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
+    /// use std::thread;
     /// use futures::{finished, Future, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
@@ -470,10 +471,10 @@ pub trait Stream {
     ///     }).boxed()
     /// }
     ///
-    /// send(5, tx).forget();
+    /// thread::spawn(|| send(5, tx).wait());
     ///
     /// let mut result = rx.collect();
-    /// assert_eq!(result.poll(), Poll::Ok(vec![5, 4, 3, 2, 1]));
+    /// assert_eq!(result.wait(), Ok(vec![5, 4, 3, 2, 1]));
     /// ```
     #[cfg(feature = "use_std")]
     fn collect(self) -> Collect<Self>
@@ -497,6 +498,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
+    /// use std::thread;
     /// use futures::{finished, Future, Poll, BoxFuture};
     /// use futures::stream::*;
     ///
@@ -511,10 +513,10 @@ pub trait Stream {
     ///     }).boxed()
     /// }
     ///
-    /// send(5, tx).forget();
+    /// thread::spawn(|| send(5, tx).wait());
     ///
     /// let mut result = rx.fold(0, |a, b| finished::<i32, u32>(a + b));
-    /// assert_eq!(result.poll(), Poll::Ok(15));
+    /// assert_eq!(result.wait(), Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut,
@@ -533,6 +535,7 @@ pub trait Stream {
     /// individual stream will get exhausted before moving on to the next.
     ///
     /// ```
+    /// use std::thread;
     /// use futures::{finished, Future, Poll};
     /// use futures::stream::*;
     ///
@@ -540,13 +543,13 @@ pub trait Stream {
     /// let (tx2, rx2) = channel::<i32, u32>();
     /// let (tx3, rx3) = channel::<_, u32>();
     ///
-    /// tx1.send(Ok(1)).and_then(|tx1| tx1.send(Ok(2))).forget();
-    /// tx2.send(Ok(3)).and_then(|tx2| tx2.send(Ok(4))).forget();
+    /// thread::spawn(|| tx1.send(Ok(1)).and_then(|tx1| tx1.send(Ok(2))).wait());
+    /// thread::spawn(|| tx2.send(Ok(3)).and_then(|tx2| tx2.send(Ok(4))).wait());
     ///
-    /// tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).forget();
+    /// thread::spawn(|| tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).wait());
     ///
     /// let mut result = rx3.flatten().collect();
-    /// assert_eq!(result.poll(), Poll::Ok(vec![1, 2, 3, 4]));
+    /// assert_eq!(result.wait(), Ok(vec![1, 2, 3, 4]));
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream,

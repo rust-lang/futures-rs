@@ -1,8 +1,8 @@
+#[macro_use]
 extern crate futures;
 
 use futures::{failed, finished, Future, oneshot, Poll};
 use futures::stream::*;
-use futures::task::Task;
 
 mod support;
 use support::*;
@@ -107,15 +107,13 @@ fn peekable() {
 
 #[test]
 fn fuse() {
-    let mut stream = list().fuse();
-    Task::new().enter(|| {
-        assert_eq!(stream.poll(), Poll::Ok(Some(1)));
-        assert_eq!(stream.poll(), Poll::Ok(Some(2)));
-        assert_eq!(stream.poll(), Poll::Ok(Some(3)));
-        assert_eq!(stream.poll(), Poll::Ok(None));
-        assert_eq!(stream.poll(), Poll::Ok(None));
-        assert_eq!(stream.poll(), Poll::Ok(None));
-    });
+    let mut stream = list().fuse().wait();
+    assert_eq!(stream.next(), Some(Ok(1)));
+    assert_eq!(stream.next(), Some(Ok(2)));
+    assert_eq!(stream.next(), Some(Ok(3)));
+    assert_eq!(stream.next(), None);
+    assert_eq!(stream.next(), None);
+    assert_eq!(stream.next(), None);
 }
 
 #[test]
@@ -133,9 +131,10 @@ fn buffered() {
     c.complete(3);
     sassert_empty(&mut rx);
     a.complete(5);
-    sassert_next(&mut rx, 5);
-    sassert_next(&mut rx, 3);
-    sassert_done(&mut rx);
+    let mut rx = rx.wait();
+    assert_eq!(rx.next(), Some(Ok(5)));
+    assert_eq!(rx.next(), Some(Ok(3)));
+    assert_eq!(rx.next(), None);
 
     let (tx, rx) = channel::<_, u32>();
     let (a, b) = oneshot::<u32>();
@@ -150,9 +149,10 @@ fn buffered() {
     c.complete(3);
     sassert_empty(&mut rx);
     a.complete(5);
-    sassert_next(&mut rx, 5);
-    sassert_next(&mut rx, 3);
-    sassert_done(&mut rx);
+    let mut rx = rx.wait();
+    assert_eq!(rx.next(), Some(Ok(5)));
+    assert_eq!(rx.next(), Some(Ok(3)));
+    assert_eq!(rx.next(), None);
 }
 
 #[test]
@@ -170,10 +170,28 @@ fn zip() {
 
 #[test]
 fn peek() {
-    let mut peekable = list().peekable();
-    assert_eq!(peekable.peek().unwrap(), Ok(Some(&1)));
-    assert_eq!(peekable.peek().unwrap(), Ok(Some(&1)));
-    assert_eq!(peekable.poll().unwrap(), Ok(Some(1)));
+    struct Peek {
+        inner: Peekable<Receiver<i32, u32>>
+    }
+
+    impl Future for Peek {
+        type Item = ();
+        type Error = ();
+
+        fn poll(&mut self) -> Poll<(), ()> {
+            {
+                let res = try_poll!(self.inner.peek());
+                assert_eq!(res, Ok(Some(&1)));
+            }
+            assert_eq!(self.inner.peek().unwrap(), Ok(Some(&1)));
+            assert_eq!(self.inner.poll().unwrap(), Ok(Some(1)));
+            Poll::Ok(())
+        }
+    }
+
+    Peek {
+        inner: list().peekable(),
+    }.wait().unwrap()
 }
 
 #[test]

@@ -12,50 +12,44 @@
 //!
 //! use std::sync::mpsc::channel;
 //!
-//! use futures::Future;
+//! use futures::{BoxFuture, Future};
 //! use futures_cpupool::CpuPool;
 //!
-//! # fn long_running_computation() -> u32 { 2 }
-//! # fn long_running_computation2(a: u32) -> u32 { a }
+//! # fn long_running_future(a: u32) -> BoxFuture<u32, ()> { futures::done(Ok(a)).boxed() }
 //! # fn main() {
 //!
 //! // Create a worker thread pool with four threads
 //! let pool = CpuPool::new(4);
 //!
 //! // Execute some work on the thread pool, optionally closing over data.
-//! let a = pool.execute(long_running_computation);
-//! let b = pool.execute(|| long_running_computation2(100));
+//! let a = pool.spawn(long_running_future(2));
+//! let b = pool.spawn(long_running_future(100));
 //!
 //! // Express some further computation once the work is completed on the thread
 //! // pool.
-//! let c = a.join(b).map(|(a, b)| a + b);
-//!
-//! // Block the current thread to get the result.
-//! let (tx, rx) = channel();
-//! c.then(move |res| {
-//!     tx.send(res)
-//! }).forget();
-//! let res = rx.recv().unwrap();
+//! let c = a.join(b).map(|(a, b)| a + b).wait().unwrap();
 //!
 //! // Print out the result
-//! println!("{:?}", res);
+//! println!("{:?}", c);
 //! # }
 //! ```
 
 #![deny(missing_docs)]
 
 extern crate crossbeam;
+
+#[macro_use]
 extern crate futures;
 extern crate num_cpus;
 
-use std::any::Any;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use crossbeam::sync::MsQueue;
-use futures::{Future, oneshot, Oneshot, Poll};
+use futures::{Future, oneshot, Oneshot, Complete, Poll};
+use futures::task::{self, Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -74,6 +68,11 @@ pub struct CpuPool {
     inner: Arc<Inner>,
 }
 
+struct Sender<F, T> {
+    fut: F,
+    tx: Option<Complete<T>>,
+}
+
 fn _assert() {
     fn _assert_send<T: Send>() {}
     fn _assert_sync<T: Sync>() {}
@@ -87,26 +86,17 @@ struct Inner {
     size: usize,
 }
 
-/// The type of future returned from the `CpuPool::execute` function.
+/// The type of future returned from the `CpuPool::spawn` function, which
+/// proxies the futures running on the thread pool.
 ///
-/// This future will either resolve to `R`, the completed value, or
-/// `Box<Any+Send>` if the computation panics (with the payload of the panic).
-pub struct CpuFuture<R: Send + 'static> {
-    inner: Oneshot<thread::Result<R>>,
-}
-
-trait Thunk: Send + 'static {
-    fn call_box(self: Box<Self>);
-}
-
-impl<F: FnOnce() + Send + 'static> Thunk for F {
-    fn call_box(self: Box<Self>) {
-        (*self)()
-    }
+/// This future will resolve in the same way as the underlying future, and it
+/// will propagate panics.
+pub struct CpuFuture<T, E> {
+    inner: Oneshot<thread::Result<Result<T, E>>>,
 }
 
 enum Message {
-    Run(Box<Thunk>),
+    Run(Run),
     Close,
 }
 
@@ -126,8 +116,8 @@ impl CpuPool {
         };
 
         for _ in 0..size {
-            let pool = CpuPool { inner: pool.inner.clone() };
-            thread::spawn(|| pool.work());
+            let inner = pool.inner.clone();
+            thread::spawn(move || work(&inner));
         }
 
         return pool
@@ -139,33 +129,49 @@ impl CpuPool {
         CpuPool::new(num_cpus::get())
     }
 
-    /// Execute some work on this thread pool, returning a future to the work
-    /// that's running on the thread pool.
+    /// Spawns a future to run on this thread pool, returning a future
+    /// representing the produced value.
     ///
-    /// This function will execute the closure `f` on the associated thread
+    /// This function will execute the future `f` on the associated thread
     /// pool, and return a future representing the finished computation. The
-    /// future will either resolve to `R` if the computation finishes
-    /// successfully or to `Box<Any+Send>` if it panics.
-    pub fn execute<F, R>(&self, f: F) -> CpuFuture<R>
-        where F: FnOnce() -> R + Send + 'static,
-              R: Send + 'static,
+    /// returned future serves as a proxy to the computation that `F` is
+    /// running.
+    ///
+    /// To simply run an arbitrary closure on a thread pool and extract the
+    /// result, you can use the `futures::lazy` combinator to defer work to
+    /// executing on the thread pool itself.
+    ///
+    /// Note that if the future `f` panics it will be caught by default and the
+    /// returned future will propagate the panic. That is, panics will not tear
+    /// down the thread pool and will be propagated to the returned future's
+    /// `poll` method if queried.
+    ///
+    /// If the returned future is dropped then this `CpuPool` will attempt to
+    /// cancel the computation, if possible. That is, if the computation is in
+    /// the middle of working, it will be interrupted when possible.
+    pub fn spawn<F>(&self, f: F) -> CpuFuture<F::Item, F::Error>
+        where F: Future + Send + 'static,
+              F::Item: Send + 'static,
+              F::Error: Send + 'static,
     {
         let (tx, rx) = oneshot();
-        self.inner.queue.push(Message::Run(Box::new(|| {
-            // TODO: should check to see if `tx` is canceled by the time we're
-            //       running, and if so we just skip the entire computation.
-            tx.complete(panic::catch_unwind(AssertUnwindSafe(f)));
-        })));
+        // AssertUnwindSafe is used here becuase `Send + 'static` is basically
+        // an alias for an implementation of the `UnwindSafe` trait but we can't
+        // express that in the standard library right now.
+        let sender = Sender {
+            fut: AssertUnwindSafe(f).catch_unwind(),
+            tx: Some(tx),
+        };
+        task::spawn(sender).execute(self.inner.clone());
         CpuFuture { inner: rx }
     }
+}
 
-    fn work(self) {
-        let mut done = false;
-        while !done {
-            match self.inner.queue.pop() {
-                Message::Close => done = true,
-                Message::Run(r) => r.call_box(),
-            }
+fn work(inner: &Inner) {
+    loop {
+        match inner.queue.pop() {
+            Message::Run(r) => r.run(),
+            Message::Close => break,
         }
     }
 }
@@ -179,24 +185,46 @@ impl Clone for CpuPool {
 
 impl Drop for CpuPool {
     fn drop(&mut self) {
-        if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) > 1 {
-            return
-        }
-        for _ in 0..self.inner.size {
-            self.inner.queue.push(Message::Close);
+        if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) == 1 {
+            for _ in 0..self.inner.size {
+                self.inner.queue.push(Message::Close);
+            }
         }
     }
 }
 
-impl<R: Send + 'static> Future for CpuFuture<R> {
-    type Item = R;
-    type Error = Box<Any + Send>;
+impl Executor for Inner {
+    fn execute(&self, run: Run) {
+        self.queue.push(Message::Run(run))
+    }
+}
 
-    fn poll(&mut self) -> Poll<R, Box<Any + Send>> {
+impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
+    type Item = T;
+    type Error = E;
+
+    fn poll(&mut self) -> Poll<T, E> {
         match self.inner.poll() {
-            Poll::Ok(res) => res.into(),
+            Poll::Ok(Ok(res)) => res.into(),
+            Poll::Ok(Err(e)) => panic::resume_unwind(e),
             Poll::Err(_) => panic!("shouldn't be canceled"),
             Poll::NotReady => Poll::NotReady,
         }
+    }
+}
+
+impl<F: Future> Future for Sender<F, Result<F::Item, F::Error>> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<(), ()> {
+        if let Poll::Ok(_) = self.tx.as_mut().unwrap().poll_cancel() {
+            // Cancelled, bail out
+            return Poll::Ok(());
+        }
+
+        let res = try_poll!(self.fut.poll());
+        self.tx.take().unwrap().complete(res);
+        Poll::Ok(())
     }
 }

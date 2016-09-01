@@ -1,13 +1,13 @@
 extern crate futures;
 
 use futures::*;
-use futures::task::Task;
+
+mod support;
+use support::*;
 
 #[test]
 fn fuse() {
-    let mut future = finished::<i32, u32>(2).fuse();
-    Task::new().enter(|| {
-        assert!(future.poll().is_ready());
-        assert!(future.poll().is_not_ready());
-    })
+    let mut future = task::spawn(finished::<i32, u32>(2).fuse());
+    assert!(future.poll_future(unpark_panic()).is_ready());
+    assert!(future.poll_future(unpark_panic()).is_not_ready());
 }

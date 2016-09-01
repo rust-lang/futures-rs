@@ -205,25 +205,16 @@ pub use then::Then;
 if_std! {
     mod lock;
     mod slot;
-    pub mod executor;
     pub mod task;
 
+    mod catch_unwind;
     mod collect;
     mod oneshot;
     mod select_all;
+    pub use catch_unwind::CatchUnwind;
     pub use collect::{collect, Collect};
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
     pub use select_all::{SelectAll, SelectAllNext, select_all};
-
-    mod forget;
-
-    struct ThreadNotify(std::thread::Thread);
-
-    impl task::Notify for ThreadNotify {
-        fn notify(&self) {
-            self.0.unpark();
-        }
-    }
 
     /// A type alias for `Box<Future + Send>`
     pub type BoxFuture<T, E> = std::boxed::Box<Future<Item = T, Error = E> + Send>;
@@ -236,6 +227,8 @@ if_std! {
             (**self).poll()
         }
     }
+
+
 }
 
 // streams
@@ -380,20 +373,10 @@ pub trait Future {
     /// This function does not attempt to catch panics. If the `poll` function
     /// panics, panics will be propagated to the caller.
     #[cfg(feature = "use_std")]
-    fn wait(mut self) -> Result<Self::Item, Self::Error>
+    fn wait(self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
-        use std::thread;
-
-        let notify = ThreadNotify(thread::current());
-        let mut task = task::Task::new_notify(notify);
-        loop {
-            match task.enter(|| self.poll()) {
-                Poll::Ok(e) => return Ok(e),
-                Poll::Err(e) => return Err(e),
-                Poll::NotReady => thread::park(),
-            }
-        }
+        task::spawn(self).wait_future()
     }
 
     /// Convenience function for turning this future into a trait object.
@@ -784,39 +767,37 @@ pub trait Future {
         assert_future::<Self::Item, Self::Error, _>(f)
     }
 
-    /// Consume this future drive it to completion.
+    /// Catches unwinding panics while polling the future.
     ///
-    /// This function is one of the primary methods of driving a future
-    /// forward, and is also one of the primary sources of concurrency in event
-    /// loops. This function will allocate a new `Task` to associate with this
-    /// future, and the task will be paired with the future until it is
-    /// completed.
+    /// In general, panics within a future can propagate all the way out to the
+    /// task level. This combinator makes it possible to halt unwinding within
+    /// the future itself. It's most commonly used within task executors.
     ///
-    /// This method is also a convenient way of simply "spawning" a future into
-    /// the background. For example this is similar to the `ensure` method in
-    /// Python.
+    /// Note that this method requires the `UnwindSafe` bound from the standard
+    /// library. This isn't always applied automatically, and the standard
+    /// library provides an `AssertUnwindSafe` wrapper type to apply it
+    /// after-the fact. To assist using this method, the `Future` trait is also
+    /// implemented for `AssertUnwindSafe<F>` where `F` implements `Future`.
     ///
-    /// # Bounds
+    /// # Examples
     ///
-    /// Note that this function requires the underlying future to be `Send +
-    /// 'static`, but not all futures may implement these bounds.
+    /// ```rust
+    /// use futures::*;
     ///
-    /// If your type is not `Send`, however, fear not! Most event loops will
-    /// provide an abstraction like `LoopData` in the `futures-mio` crate. This
-    /// allows a future to be "pinned" to an event loop, allowing its handle to
-    /// be `Send` while the underlying data itself is not `Send`. By using
-    /// objects like `LoopData`, any future can become `Send` to use this method
-    /// to drive it to completion.
+    /// let mut future = finished::<i32, u32>(2);
+    /// assert!(future.catch_unwind().wait().is_ok());
     ///
-    /// If your type is not `'static` then this method cannot be used. Instead
-    /// most event loops should provide a method which resolves the value of a
-    /// future, driving the event loop in the meantime. For example the
-    /// `futures-mio` crate provides a `Loop::run` method which pins the future
-    /// to the stack frame of that function call, allowing it to have a
-    /// non-`'static` lifetime.
+    /// let mut future = lazy(|| {
+    ///     panic!();
+    ///     finished::<i32, u32>(2)
+    /// });
+    /// assert!(future.catch_unwind().wait().is_err());
+    /// ```
     #[cfg(feature = "use_std")]
-    fn forget(self) where Self: Sized + Send + 'static {
-        forget::forget(self);
+    fn catch_unwind(self) -> CatchUnwind<Self>
+        where Self: Sized + std::panic::UnwindSafe
+    {
+        catch_unwind::new(self)
     }
 }
 

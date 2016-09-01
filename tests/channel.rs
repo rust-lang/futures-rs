@@ -15,10 +15,11 @@ fn sequence() {
 
     let amt = 20;
     send(amt, tx).forget();
+    let mut rx = rx.wait();
     for i in (1..amt + 1).rev() {
-        sassert_next(&mut rx, i);
+        assert_eq!(rx.next(), Some(Ok(i)));
     }
-    sassert_done(&mut rx);
+    assert_eq!(rx.next(), None);
 
     fn send(n: u32, sender: Sender<u32, u32>)
             -> Box<Future<Item=(), Error=()> + Send> {

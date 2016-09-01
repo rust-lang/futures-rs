@@ -15,6 +15,8 @@ fn lots() {
     }
 
     let (tx, rx) = channel();
-    doit(1_000).map(move |_| tx.send(()).unwrap()).forget();
+    ::std::thread::spawn(|| {
+        doit(1_000).map(move |_| tx.send(()).unwrap()).wait()
+    });
     rx.recv().unwrap();
 }

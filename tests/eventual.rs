@@ -1,5 +1,8 @@
 extern crate futures;
 
+mod support;
+use support::*;
+
 use std::sync::mpsc::channel;
 use std::thread;
 
