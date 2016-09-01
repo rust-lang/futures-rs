@@ -6,7 +6,7 @@ use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
 /// Future for the `catch_unwind` combinator.
 ///
-/// This is created by this `Future::catch_uwnind` method.
+/// This is created by this `Future::catch_unwind` method.
 pub struct CatchUnwind<F> where F: Future {
     future: Option<F>,
 }
