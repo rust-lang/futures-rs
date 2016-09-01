@@ -4,7 +4,7 @@
 //! trait. This trait is very similar to the `Iterator` trait in the standard
 //! library except that it expresses the concept of blocking as well. A stream
 //! here is a sequential sequence of values which may take some amount of time
-//! inbetween to produce.
+//! in between to produce.
 //!
 //! A stream may request that it is blocked between values while the next value
 //! is calculated, and provides a way to get notified once the next value is
@@ -65,7 +65,7 @@ if_std! {
     pub use self::collect::Collect;
     pub use self::wait::Wait;
 
-    /// A type alias for `Box<Future + Send>`
+    /// A type alias for `Box<Stream + Send>`
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
 
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
