@@ -1,4 +1,4 @@
-use Poll;
+use {Async, Poll};
 use stream::Stream;
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
@@ -31,9 +31,9 @@ impl<I, T, E> Stream for IterStream<I>
 
     fn poll(&mut self) -> Poll<Option<T>, E> {
         match self.iter.next() {
-            Some(Ok(e)) => Poll::Ok(Some(e)),
-            Some(Err(e)) => Poll::Err(e),
-            None => Poll::Ok(None),
+            Some(Ok(e)) => Ok(Async::Ready(Some(e))),
+            Some(Err(e)) => Err(e),
+            None => Ok(Async::Ready(None)),
         }
     }
 }

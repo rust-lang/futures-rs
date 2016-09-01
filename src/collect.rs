@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 
 use std::mem;
 
-use {Future, IntoFuture, Poll};
+use {Future, IntoFuture, Poll, Async};
 
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
@@ -77,8 +77,9 @@ impl<I> Future for Collect<I>
         loop {
             match self.cur {
                 Some(ref mut cur) => {
-                    match try_poll!(cur.poll()) {
-                        Ok(e) => self.result.push(e),
+                    match cur.poll() {
+                        Ok(Async::Ready(e)) => self.result.push(e),
+                        Ok(Async::NotReady) => return Ok(Async::NotReady),
 
                         // If we hit an error, drop all our associated resources
                         // ASAP.
@@ -89,12 +90,12 @@ impl<I> Future for Collect<I>
                             for f in self.result.drain(..) {
                                 drop(f);
                             }
-                            return Poll::Err(e)
+                            return Err(e)
                         }
                     }
                 }
                 None => {
-                    return Poll::Ok(mem::replace(&mut self.result, Vec::new()))
+                    return Ok(Async::Ready(mem::replace(&mut self.result, Vec::new())))
                 }
             }
 

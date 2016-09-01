@@ -1,6 +1,6 @@
 use core::marker;
 
-use {Future, Poll};
+use {Future, Poll, Async};
 
 /// A future which is never resolved.
 ///
@@ -12,7 +12,7 @@ pub struct Empty<T, E> {
 /// Creates a future which never resolves, representing a computation that never
 /// finishes.
 ///
-/// The returned future will forever return `Poll::NotReady`.
+/// The returned future will forever return `Async::NotReady`.
 pub fn empty<T, E>() -> Empty<T, E> {
     Empty { _data: marker::PhantomData }
 }
@@ -22,6 +22,6 @@ impl<T, E> Future for Empty<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        Poll::NotReady
+        Ok(Async::NotReady)
     }
 }

@@ -1,4 +1,4 @@
-use Poll;
+use {Async, Poll};
 use stream::Stream;
 
 /// A stream combinator which returns a maximum number of elements.
@@ -26,12 +26,12 @@ impl<S> Stream for Take<S>
 
     fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         if self.remaining == 0 {
-            Poll::Ok(None)
+            Ok(Async::Ready(None))
         } else {
             match self.stream.poll() {
-                Poll::Ok(Some(e)) => {
+                e @ Ok(Async::Ready(Some(_))) => {
                     self.remaining -= 1;
-                    Poll::Ok(Some(e))
+                    e
                 }
                 other => other,
             }

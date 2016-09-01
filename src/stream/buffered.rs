@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 
 use std::mem;
 
-use {IntoFuture, Poll, Future};
+use {Async, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
@@ -53,14 +53,13 @@ impl<S> Stream for Buffered<S>
             }
 
             if let State::Empty = self.futures[idx] {
-                match self.stream.poll() {
-                    Poll::Ok(Some(future)) => {
+                match try!(self.stream.poll()) {
+                    Async::Ready(Some(future)) => {
                         let future = future.into_future();
                         self.futures[idx] = State::Running(future);
                     }
-                    Poll::Ok(None) => break,
-                    Poll::Err(e) => return Poll::Err(e),
-                    Poll::NotReady => break,
+                    Async::Ready(None) => break,
+                    Async::NotReady => break,
                 }
             }
         }
@@ -70,9 +69,9 @@ impl<S> Stream for Buffered<S>
             let result = match *future {
                 State::Running(ref mut s) => {
                     match s.poll() {
-                        Poll::Ok(e) => Ok(e),
-                        Poll::Err(e) => Err(e),
-                        Poll::NotReady => continue,
+                        Ok(Async::NotReady) => continue,
+                        Ok(Async::Ready(e)) => Ok(e),
+                        Err(e) => Err(e),
                     }
                 }
                 _ => continue,
@@ -90,14 +89,14 @@ impl<S> Stream for Buffered<S>
             if self.cur >= self.futures.len() {
                 self.cur = 0;
             }
-            return r.map(Some).into()
+            return Ok(Async::Ready(Some(try!(r))))
         }
 
         if self.stream.is_done() {
             if let State::Empty = self.futures[self.cur] {
-                return Poll::Ok(None)
+                return Ok(Async::Ready(None))
             }
         }
-        Poll::NotReady
+        Ok(Async::NotReady)
     }
 }

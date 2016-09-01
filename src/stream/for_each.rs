@@ -1,4 +1,4 @@
-use {Future, Poll};
+use {Async, Future, Poll};
 use stream::Stream;
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -29,15 +29,9 @@ impl<S, F> Future for ForEach<S, F>
 
     fn poll(&mut self) -> Poll<(), S::Error> {
         loop {
-            match try_poll!(self.stream.poll()) {
-                Ok(Some(e)) => {
-                    match (self.f)(e) {
-                        Ok(()) => {}
-                        Err(e) => return Poll::Err(e),
-                    }
-                }
-                Ok(None) => return Poll::Ok(()),
-                Err(e) => return Poll::Err(e),
+            match try_ready!(self.stream.poll()) {
+                Some(e) => try!((self.f)(e)),
+                None => return Ok(Async::Ready(())),
             }
         }
     }

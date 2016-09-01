@@ -1,6 +1,6 @@
 use core::mem;
 
-use {Future, Poll, IntoFuture};
+use {Future, Poll, IntoFuture, Async};
 use stream::Stream;
 
 /// A future used to collect all the results of a stream into one generic type.
@@ -27,7 +27,7 @@ pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
           Fut: IntoFuture<Item = T>,
-          Fut::Error: Into<S::Error>,
+          S::Error: From<Fut::Error>,
 {
     Fold {
         stream: s,
@@ -40,7 +40,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
           Fut: IntoFuture<Item = T>,
-          Fut::Error: Into<S::Error>,
+          S::Error: From<Fut::Error>,
 {
     type Item = T;
     type Error = S::Error;
@@ -50,27 +50,25 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll() {
-                        Poll::Ok(Some(e)) => {
+                    match try!(self.stream.poll()) {
+                        Async::Ready(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();
                             self.state = State::Processing(future);
                         }
-                        Poll::Ok(None) => return Poll::Ok(state),
-                        Poll::Err(e) => return Poll::Err(e),
-                        Poll::NotReady => {
+                        Async::Ready(None) => return Ok(Async::Ready(state)),
+                        Async::NotReady => {
                             self.state = State::Ready(state);
-                            return Poll::NotReady
+                            return Ok(Async::NotReady)
                         }
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll() {
-                        Poll::Ok(state) => self.state = State::Ready(state),
-                        Poll::Err(e) => return Poll::Err(e.into()),
-                        Poll::NotReady => {
+                    match try!(fut.poll()) {
+                        Async::Ready(state) => self.state = State::Ready(state),
+                        Async::NotReady => {
                             self.state = State::Processing(fut);
-                            return Poll::NotReady;
+                            return Ok(Async::NotReady)
                         }
                     }
                 }

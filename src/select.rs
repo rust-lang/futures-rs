@@ -1,4 +1,4 @@
-use {Future, Poll};
+use {Future, Poll, Async};
 
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.
@@ -41,9 +41,15 @@ impl<A, B> Future for Select<A, B>
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
                 match a.poll() {
-                    Poll::Ok(a) => (Ok(a), true),
-                    Poll::Err(a) => (Err(a), true),
-                    Poll::NotReady => (try_poll!(b.poll()), false),
+                    Err(a) => (Err(a), true),
+                    Ok(Async::Ready(a)) => (Ok(a), true),
+                    Ok(Async::NotReady) => {
+                        match b.poll() {
+                            Err(a) => (Err(a), false),
+                            Ok(Async::Ready(a)) => (Ok(a), false),
+                            Ok(Async::NotReady) => return Ok(Async::NotReady),
+                        }
+                    }
                 }
             }
             None => panic!("cannot poll select twice"),
@@ -53,8 +59,8 @@ impl<A, B> Future for Select<A, B>
         let next = if is_a {OneOf::B(b)} else {OneOf::A(a)};
         let next = SelectNext { inner: next };
         match ret {
-            Ok(a) => Poll::Ok((a, next)),
-            Err(e) => Poll::Err((e, next)),
+            Ok(a) => Ok(Async::Ready((a, next))),
+            Err(e) => Err((e, next)),
         }
     }
 }

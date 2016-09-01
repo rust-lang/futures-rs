@@ -176,16 +176,16 @@ fn peek() {
 
     impl Future for Peek {
         type Item = ();
-        type Error = ();
+        type Error = u32;
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self) -> Poll<(), u32> {
             {
-                let res = try_poll!(self.inner.peek());
-                assert_eq!(res, Ok(Some(&1)));
+                let res = try_ready!(self.inner.peek());
+                assert_eq!(res, Some(&1));
             }
-            assert_eq!(self.inner.peek().unwrap(), Ok(Some(&1)));
-            assert_eq!(self.inner.poll().unwrap(), Ok(Some(1)));
-            Poll::Ok(())
+            assert_eq!(self.inner.peek().unwrap(), Some(&1).into());
+            assert_eq!(self.inner.poll().unwrap(), Some(1).into());
+            Ok(().into())
         }
     }
 

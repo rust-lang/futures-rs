@@ -1,4 +1,4 @@
-use Poll;
+use {Poll, Async};
 use stream::{Stream, Fuse};
 
 /// An adapter for merging the output of two streams.
@@ -41,32 +41,39 @@ impl<S1, S2> Stream for Merge<S1, S2>
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(e) = self.queued_error.take() {
-            return Poll::Err(e);
+            return Err(e)
         }
 
-        match self.stream1.poll() {
-            Poll::Err(e) => Poll::Err(e),
-            Poll::NotReady => match self.stream2.poll() {
-                Poll::Err(e) => Poll::Err(e),
-                Poll::NotReady => Poll::NotReady,
-                Poll::Ok(Some(item2)) => Poll::Ok(Some(MergedItem::Second(item2))),
-                Poll::Ok(None) => Poll::NotReady,
-            },
-            Poll::Ok(Some(item1)) => match self.stream2.poll() {
-                Poll::Err(e) => {
-                    self.queued_error = Some(e);
-                    Poll::Ok(Some(MergedItem::First(item1)))
+        match try!(self.stream1.poll()) {
+            Async::NotReady => {
+                match try_ready!(self.stream2.poll()) {
+                    Some(item2) => Ok(Async::Ready(Some(MergedItem::Second(item2)))),
+                    None => Ok(Async::NotReady),
                 }
-                Poll::NotReady => Poll::Ok(Some(MergedItem::First(item1))),
-                Poll::Ok(Some(item2)) => Poll::Ok(Some(MergedItem::Both(item1, item2))),
-                Poll::Ok(None) => Poll::Ok(Some(MergedItem::First(item1))),
-            },
-            Poll::Ok(None) => match self.stream2.poll() {
-                Poll::Err(e) =>  Poll::Err(e),
-                Poll::NotReady => Poll::NotReady,
-                Poll::Ok(Some(item2)) => Poll::Ok(Some(MergedItem::Second(item2))),
-                Poll::Ok(None) => Poll::Ok(None),
-            },
+            }
+            Async::Ready(None) => {
+                match try_ready!(self.stream2.poll()) {
+                    Some(item2) => Ok(Async::Ready(Some(MergedItem::Second(item2)))),
+                    None => Ok(Async::Ready(None)),
+                }
+            }
+            Async::Ready(Some(item1)) => {
+                match self.stream2.poll() {
+                    Err(e) => {
+                        self.queued_error = Some(e);
+                        Ok(Async::Ready(Some(MergedItem::First(item1))))
+                    }
+                    Ok(Async::NotReady) => {
+                        Ok(Async::Ready(Some(MergedItem::First(item1))))
+                    }
+                    Ok(Async::Ready(Some(item2))) => {
+                        Ok(Async::Ready(Some(MergedItem::Both(item1, item2))))
+                    }
+                    Ok(Async::Ready(None)) => {
+                        Ok(Async::Ready(Some(MergedItem::First(item1))))
+                    }
+                }
+            }
         }
     }
 }

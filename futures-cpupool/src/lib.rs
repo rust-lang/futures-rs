@@ -48,7 +48,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use crossbeam::sync::MsQueue;
-use futures::{IntoFuture, Future, oneshot, Oneshot, Complete, Poll};
+use futures::{IntoFuture, Future, oneshot, Oneshot, Complete, Poll, Async};
 use futures::task::{self, Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
@@ -223,11 +223,11 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        match self.inner.poll() {
-            Poll::Ok(Ok(res)) => res.into(),
-            Poll::Ok(Err(e)) => panic::resume_unwind(e),
-            Poll::Err(_) => panic!("shouldn't be canceled"),
-            Poll::NotReady => Poll::NotReady,
+        match self.inner.poll().expect("shouldn't be canceled") {
+            Async::Ready(Ok(Ok(e))) => Ok(e.into()),
+            Async::Ready(Ok(Err(e))) => Err(e),
+            Async::Ready(Err(e)) => panic::resume_unwind(e),
+            Async::NotReady => Ok(Async::NotReady),
         }
     }
 }
@@ -237,13 +237,17 @@ impl<F: Future> Future for Sender<F, Result<F::Item, F::Error>> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<(), ()> {
-        if let Poll::Ok(_) = self.tx.as_mut().unwrap().poll_cancel() {
+        if let Ok(Async::Ready(_)) = self.tx.as_mut().unwrap().poll_cancel() {
             // Cancelled, bail out
-            return Poll::Ok(());
+            return Ok(().into())
         }
 
-        let res = try_poll!(self.fut.poll());
+        let res = match self.fut.poll() {
+            Ok(Async::Ready(e)) => Ok(e),
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Err(e) => Err(e),
+        };
         self.tx.take().unwrap().complete(res);
-        Poll::Ok(())
+        Ok(Async::Ready(()))
     }
 }

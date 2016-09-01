@@ -1,4 +1,4 @@
-use {Poll, IntoFuture, Future};
+use {Async, Poll, IntoFuture, Future};
 use stream::Stream;
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -40,42 +40,27 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
 
         loop {
             if self.pending.is_none() {
-                let item = match try_poll!(self.stream.poll()) {
-                    Ok(Some(e)) => e,
-                    Ok(None) => return Poll::Ok(None),
-                    Err(e) => return Poll::Err(e),
+                let item = match try_ready!(self.stream.poll()) {
+                    Some(e) => e,
+                    None => return Ok(Async::Ready(None)),
                 };
                 self.pending = Some(((self.pred)(&item).into_future(), item));
             }
 
             assert!(self.pending.is_some());
-            match try_poll!(self.pending.as_mut().unwrap().0.poll()) {
-                Ok(true) => self.pending = None,
-                Ok(false) => {
+            match self.pending.as_mut().unwrap().0.poll() {
+                Ok(Async::Ready(true)) => self.pending = None,
+                Ok(Async::Ready(false)) => {
                     let (_, item) = self.pending.take().unwrap();
                     self.done_skipping = true;
-                    return Poll::Ok(Some(item))
+                    return Ok(Async::Ready(Some(item)))
                 }
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Err(e) => {
                     self.pending = None;
-                    return Poll::Err(e)
+                    return Err(e)
                 }
             }
         }
-    }
-}
-
-impl<S, P, R> SkipWhile<S, P, R>
-    where S: Stream,
-          P: FnMut(&S::Item) -> R,
-          R: IntoFuture<Item=bool, Error=S::Error>,
-{
-    /// Consume this adaptor, returning the underlying stream.
-    ///
-    /// Note that if an element is buffered or a future is active determining
-    /// whether that element should be yielded they will both be dropped as part
-    /// of this operation.
-    pub fn into_inner(self) -> S {
-        self.stream
     }
 }

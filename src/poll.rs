@@ -1,79 +1,61 @@
-
+/// A macro for extracting the successful type of a `Poll<T, E>`.
+///
+/// This macro bakes propagation of both errors and `NotReady` signals by
+/// returning early.
 #[macro_export]
-macro_rules! try_poll {
+macro_rules! try_ready {
     ($e:expr) => (match $e {
-        $crate::Poll::NotReady => return $crate::Poll::NotReady,
-        $crate::Poll::Ok(t) => Ok(t),
-        $crate::Poll::Err(e) => Err(e),
+        Ok($crate::Async::Ready(t)) => t,
+        Ok($crate::Async::NotReady) => return Ok($crate::Async::NotReady),
+        Err(e) => return Err(From::from(e)),
     })
 }
 
-/// Possible return values from the `Future::poll` method.
+/// Return type of the `Future::poll` method, indicates whether a future's value
+/// is ready or not.
+///
+/// * `Ok(Async::Ready(t))` means that a future has successfully resolved
+/// * `Ok(Async::NotReady)` means that a future is not ready to complete yet
+/// * `Err(e)` means that a future has completed with the given failure
+pub type Poll<T, E> = Result<Async<T>, E>;
+
+/// Return type of future, indicating whether a value is ready or not.
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Poll<T, E> {
-    /// Indicates that the future is not ready yet, ask again later.
+pub enum Async<T> {
+    /// Represents that a value is immediately ready.
+    Ready(T),
+
+    /// Represents that a value is not ready yet, but may be so later.
     NotReady,
-
-    /// Indicates that the future has completed successfully, and this value is
-    /// what the future completed with.
-    Ok(T),
-
-    /// Indicates that the future has failed, and this error is what the future
-    /// failed with.
-    Err(E),
 }
 
-impl<T, E> Poll<T, E> {
-    /// Change the success type of this `Poll` value with the closure provided
-    pub fn map<F, U>(self, f: F) -> Poll<U, E>
+impl<T> Async<T> {
+    /// Change the success type of this `Async` value with the closure provided
+    pub fn map<F, U>(self, f: F) -> Async<U>
         where F: FnOnce(T) -> U
     {
         match self {
-            Poll::NotReady => Poll::NotReady,
-            Poll::Ok(t) => Poll::Ok(f(t)),
-            Poll::Err(e) => Poll::Err(e),
+            Async::NotReady => Async::NotReady,
+            Async::Ready(t) => Async::Ready(f(t)),
         }
     }
 
-    /// Change the error type of this `Poll` value with the closure provided
-    pub fn map_err<F, U>(self, f: F) -> Poll<T, U>
-        where F: FnOnce(E) -> U
-    {
-        match self {
-            Poll::NotReady => Poll::NotReady,
-            Poll::Ok(t) => Poll::Ok(t),
-            Poll::Err(e) => Poll::Err(f(e)),
-        }
-    }
-
-    /// Returns whether this is `Poll::NotReady`
+    /// Returns whether this is `Async::NotReady`
     pub fn is_not_ready(&self) -> bool {
         match *self {
-            Poll::NotReady => true,
-            _ => false,
+            Async::NotReady => true,
+            Async::Ready(_) => false,
         }
     }
 
-    /// Returns whether this is either `Poll::Ok` or `Poll::Err`
+    /// Returns whether this is `Async::Ready`
     pub fn is_ready(&self) -> bool {
         !self.is_not_ready()
     }
-
-    /// Unwraps this `Poll` into a `Result`, panicking if it's not ready.
-    pub fn unwrap(self) -> Result<T, E> {
-        match self {
-            Poll::Ok(t) => Ok(t),
-            Poll::Err(t) => Err(t),
-            Poll::NotReady => panic!("unwrapping a Poll that wasn't ready"),
-        }
-    }
 }
 
-impl<T, E> From<Result<T, E>> for Poll<T, E> {
-    fn from(r: Result<T, E>) -> Poll<T, E> {
-        match r {
-            Ok(t) => Poll::Ok(t),
-            Err(t) => Poll::Err(t),
-        }
+impl<T> From<T> for Async<T> {
+    fn from(t: T) -> Async<T> {
+        Async::Ready(t)
     }
 }

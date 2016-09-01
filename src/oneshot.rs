@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Poll};
+use {Future, Poll, Async};
 use slot::{Slot, Token};
 use lock::Lock;
 use task::{self, Task};
@@ -98,19 +98,19 @@ impl<T> Complete<T> {
     /// within the context of a task. In otherwords, this should only ever be
     /// called from inside another future.
     ///
-    /// If `Poll::Ok` is returned then it means that the `Oneshot` has
-    /// disappeared and the result this `Complete` would otherwise produce
-    /// should no longer be produced.
+    /// If `Ready` is returned then it means that the `Oneshot` has disappeared
+    /// and the result this `Complete` would otherwise produce should no longer
+    /// be produced.
     ///
-    /// If `Poll::NotReady` is returned then the `Oneshot` is still alive and
-    /// may be able to receive a message if sent. The current task, however,
-    /// is scheduled to receive a notification if the corresponding `Oneshot`
-    /// goes away.
+    /// If `NotReady` is returned then the `Oneshot` is still alive and may be
+    /// able to receive a message if sent. The current task, however, is
+    /// scheduled to receive a notification if the corresponding `Oneshot` goes
+    /// away.
     pub fn poll_cancel(&mut self) -> Poll<(), ()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone.
         if self.inner.oneshot_gone.load(Ordering::SeqCst) {
-            return Poll::Ok(())
+            return Ok(Async::Ready(()))
         }
 
         // If our other half is not gone then we need to park our current task
@@ -129,12 +129,12 @@ impl<T> Complete<T> {
         let handle = task::park();
         match self.inner.notify_cancel.try_lock() {
             Some(mut p) => *p = Some(handle),
-            None => return Poll::Ok(()),
+            None => return Ok(Async::Ready(())),
         }
         if self.inner.oneshot_gone.load(Ordering::SeqCst) {
-            Poll::Ok(())
+            Ok(Async::Ready(()))
         } else {
-            Poll::NotReady
+            Ok(Async::NotReady)
         }
     }
 
@@ -170,14 +170,14 @@ impl<T> Future for Oneshot<T> {
             self.inner.slot.cancel(cancel_token);
         }
         match self.inner.slot.try_consume() {
-            Ok(Some(e)) => Poll::Ok(e),
-            Ok(None) => Poll::Err(Canceled),
+            Ok(Some(e)) => Ok(Async::Ready(e)),
+            Ok(None) => Err(Canceled),
             Err(_) => {
                 let task = task::park();
                 self.cancel_token = Some(self.inner.slot.on_full(move |_| {
                     task.unpark();
                 }));
-                Poll::NotReady
+                Ok(Async::NotReady)
             }
         }
     }

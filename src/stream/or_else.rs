@@ -1,4 +1,4 @@
-use {IntoFuture, Future, Poll};
+use {IntoFuture, Future, Poll, Async};
 use stream::Stream;
 
 /// A stream combinator which chains a computation onto errors produced by a
@@ -35,17 +35,24 @@ impl<S, F, U> Stream for OrElse<S, F, U>
 
     fn poll(&mut self) -> Poll<Option<S::Item>, U::Error> {
         if self.future.is_none() {
-            let item = match try_poll!(self.stream.poll()) {
-                Ok(e) => return Poll::Ok(e),
+            let item = match self.stream.poll() {
+                Ok(Async::Ready(e)) => return Ok(Async::Ready(e)),
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Err(e) => e,
             };
             self.future = Some((self.f)(item).into_future());
         }
         assert!(self.future.is_some());
-        let res = self.future.as_mut().unwrap().poll();
-        if res.is_ready() {
-            self.future = None;
+        match self.future.as_mut().unwrap().poll() {
+            Ok(Async::Ready(e)) => {
+                self.future = None;
+                Ok(Async::Ready(Some(e)))
+            }
+            Err(e) => {
+                self.future = None;
+                Err(e)
+            }
+            Ok(Async::NotReady) => Ok(Async::NotReady)
         }
-        res.map(Some)
     }
 }

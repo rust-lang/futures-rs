@@ -2,7 +2,7 @@
 
 use core::mem;
 
-use {Future, Poll, IntoFuture};
+use {Future, Poll, IntoFuture, Async};
 
 macro_rules! generate {
     ($(
@@ -50,7 +50,7 @@ macro_rules! generate {
                     Ok(done) => done,
                     Err(e) => {
                         self.erase();
-                        return Poll::Err(e)
+                        return Err(e)
                     }
                 };
                 $(
@@ -58,15 +58,15 @@ macro_rules! generate {
                         Ok(done) => all_done && done,
                         Err(e) => {
                             self.erase();
-                            return Poll::Err(e)
+                            return Err(e)
                         }
                     };
                 )*
 
                 if all_done {
-                    Poll::Ok((self.a.take(), $(self.$B.take()),*))
+                    Ok(Async::Ready((self.a.take(), $(self.$B.take()),*)))
                 } else {
-                    Poll::NotReady
+                    Ok(Async::NotReady)
                 }
             }
         }
@@ -131,17 +131,16 @@ enum MaybeDone<A: Future> {
 impl<A: Future> MaybeDone<A> {
     fn poll(&mut self) -> Result<bool, A::Error> {
         let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll(),
+            MaybeDone::NotYet(ref mut a) => try!(a.poll()),
             MaybeDone::Done(_) => return Ok(true),
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };
         match res {
-            Poll::Ok(res) => {
+            Async::Ready(res) => {
                 *self = MaybeDone::Done(res);
                 Ok(true)
             }
-            Poll::Err(res) => Err(res),
-            Poll::NotReady => Ok(false),
+            Async::NotReady => Ok(false),
         }
     }
 

@@ -1,6 +1,6 @@
 use core::mem;
 
-use {Future, Poll};
+use {Future, Poll, Async};
 
 pub enum Chain<A, B, C> where A: Future {
     First(A, C),
@@ -21,7 +21,13 @@ impl<A, B, C> Chain<A, B, C>
                         -> Result<Result<B::Item, B>, B::Error>,
     {
         let a_result = match *self {
-            Chain::First(ref mut a, _) => try_poll!(a.poll()),
+            Chain::First(ref mut a, _) => {
+                match a.poll() {
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Ok(Async::Ready(t)) => Ok(t),
+                    Err(e) => Err(e),
+                }
+            }
             Chain::Second(ref mut b) => return b.poll(),
             Chain::Done => panic!("cannot poll a chained future twice"),
         };
@@ -29,14 +35,13 @@ impl<A, B, C> Chain<A, B, C>
             Chain::First(_, c) => c,
             _ => panic!(),
         };
-        match f(a_result, data) {
-            Ok(Ok(e)) => Poll::Ok(e),
-            Ok(Err(mut b)) => {
+        match try!(f(a_result, data)) {
+            Ok(e) => Ok(Async::Ready(e)),
+            Err(mut b) => {
                 let ret = b.poll();
                 *self = Chain::Second(b);
                 ret
             }
-            Err(e) => Poll::Err(e),
         }
     }
 }

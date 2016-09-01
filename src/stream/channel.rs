@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use {Future, Poll};
+use {Future, Poll, Async};
 use slot::{Slot, Token};
 use stream::Stream;
 use task;
@@ -79,15 +79,15 @@ impl<T, E> Stream for Receiver<T, E> {
         }
 
         match self.inner.slot.try_consume() {
-            Ok(Message::Data(Ok(e))) => Poll::Ok(Some(e)),
-            Ok(Message::Data(Err(e))) => Poll::Err(e),
-            Ok(Message::Done) => Poll::Ok(None),
+            Ok(Message::Data(Ok(e))) => Ok(Async::Ready(Some(e))),
+            Ok(Message::Data(Err(e))) => Err(e),
+            Ok(Message::Done) => Ok(Async::Ready(None)),
             Err(..) => {
                 let task = task::park();
                 self.on_full_token = Some(self.inner.slot.on_full(move |_| {
                     task.unpark();
                 }));
-                Poll::NotReady
+                Ok(Async::NotReady)
             }
         }
     }
@@ -138,10 +138,10 @@ impl<T, E> Future for FutureSender<T, E> {
             sender.inner.slot.cancel(token);
         }
         if sender.inner.receiver_gone.load(Ordering::SeqCst) {
-            return Poll::Err(SendError(data))
+            return Err(SendError(data))
         }
         match sender.inner.slot.try_produce(Message::Data(data)) {
-            Ok(()) => Poll::Ok(sender),
+            Ok(()) => Ok(Async::Ready(sender)),
             Err(e) => {
                 let task = task::park();
                 let token = sender.inner.slot.on_empty(None, move |_slot, _item| {
@@ -153,7 +153,7 @@ impl<T, E> Future for FutureSender<T, E> {
                     Message::Done => panic!(),
                 });
                 self.sender = Some(sender);
-                Poll::NotReady
+                Ok(Async::NotReady)
             }
         }
     }

@@ -1,4 +1,4 @@
-use {IntoFuture, Future, Poll};
+use {Async, IntoFuture, Future, Poll};
 use stream::Stream;
 
 /// A stream combinator which chains a computation onto each item produced by a
@@ -35,18 +35,25 @@ impl<S, F, U> Stream for Then<S, F, U>
 
     fn poll(&mut self) -> Poll<Option<U::Item>, U::Error> {
         if self.future.is_none() {
-            let item = match try_poll!(self.stream.poll()) {
-                Ok(None) => return Poll::Ok(None),
-                Ok(Some(e)) => Ok(e),
+            let item = match self.stream.poll() {
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Ok(Async::Ready(None)) => return Ok(Async::Ready(None)),
+                Ok(Async::Ready(Some(e))) => Ok(e),
                 Err(e) => Err(e),
             };
             self.future = Some((self.f)(item).into_future());
         }
         assert!(self.future.is_some());
-        let res = self.future.as_mut().unwrap().poll();
-        if res.is_ready() {
-            self.future = None;
+        match self.future.as_mut().unwrap().poll() {
+            Ok(Async::Ready(e)) => {
+                self.future = None;
+                Ok(Async::Ready(Some(e)))
+            }
+            Err(e) => {
+                self.future = None;
+                Err(e)
+            }
+            Ok(Async::NotReady) => Ok(Async::NotReady)
         }
-        res.map(Some)
     }
 }

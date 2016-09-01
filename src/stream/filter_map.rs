@@ -1,4 +1,4 @@
-use Poll;
+use {Async, Poll};
 use stream::Stream;
 
 /// A combinator used to filter the results of a stream and simultaneously map
@@ -29,14 +29,13 @@ impl<S, F, B> Stream for FilterMap<S, F>
 
     fn poll(&mut self) -> Poll<Option<B>, S::Error> {
         loop {
-            match try_poll!(self.stream.poll()) {
-                Ok(Some(e)) => {
+            match try_ready!(self.stream.poll()) {
+                Some(e) => {
                     if let Some(e) = (self.f)(e) {
-                        return Poll::Ok(Some(e))
+                        return Ok(Async::Ready(Some(e)))
                     }
                 }
-                Ok(None) => return Poll::Ok(None),
-                Err(e) => return Poll::Err(e),
+                None => return Ok(Async::Ready(None)),
             }
         }
     }

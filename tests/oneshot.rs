@@ -12,14 +12,14 @@ use support::*;
 fn smoke_poll() {
     let (mut tx, rx) = oneshot::<u32>();
     let mut task = futures::task::spawn(futures::lazy(|| {
-        assert!(tx.poll_cancel().is_not_ready());
-        assert!(tx.poll_cancel().is_not_ready());
+        assert!(tx.poll_cancel().unwrap().is_not_ready());
+        assert!(tx.poll_cancel().unwrap().is_not_ready());
         drop(rx);
-        assert!(tx.poll_cancel().is_ready());
-        assert!(tx.poll_cancel().is_ready());
+        assert!(tx.poll_cancel().unwrap().is_ready());
+        assert!(tx.poll_cancel().unwrap().is_ready());
         futures::finished::<(), ()>(())
     }));
-    assert!(task.poll_future(unpark_noop()).is_ready());
+    assert!(task.poll_future(unpark_noop()).unwrap().is_ready());
 }
 
 #[test]

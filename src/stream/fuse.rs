@@ -1,4 +1,4 @@
-use Poll;
+use {Poll, Async};
 use stream::Stream;
 
 /// A stream which "fuse"s a stream once it's terminated.
@@ -21,10 +21,10 @@ impl<S: Stream> Stream for Fuse<S> {
 
     fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         let ret = self.stream.as_mut().map(|s| s.poll());
-        if let Some(Poll::Ok(None)) = ret {
+        if let Some(Ok(Async::Ready(None))) = ret {
             self.stream = None;
         }
-        ret.unwrap_or(Poll::Ok(None))
+        ret.unwrap_or(Ok(Async::Ready(None)))
     }
 }
 

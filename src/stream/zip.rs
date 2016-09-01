@@ -1,4 +1,4 @@
-use Poll;
+use {Async, Poll};
 use stream::{Stream, Fuse};
 
 /// An adapter for merging the output of two streams.
@@ -32,30 +32,28 @@ impl<S1, S2> Stream for Zip<S1, S2>
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         if self.queued1.is_none() {
-            match self.stream1.poll() {
-                Poll::Err(e) => return Poll::Err(e),
-                Poll::NotReady => {}
-                Poll::Ok(Some(item1)) => self.queued1 = Some(item1),
-                Poll::Ok(None) => {}
+            match try!(self.stream1.poll()) {
+                Async::NotReady => {}
+                Async::Ready(Some(item1)) => self.queued1 = Some(item1),
+                Async::Ready(None) => {}
             }
         }
         if self.queued2.is_none() {
-            match self.stream2.poll() {
-                Poll::Err(e) => return Poll::Err(e),
-                Poll::NotReady => {}
-                Poll::Ok(Some(item2)) => self.queued2 = Some(item2),
-                Poll::Ok(None) => {}
+            match try!(self.stream2.poll()) {
+                Async::NotReady => {}
+                Async::Ready(Some(item2)) => self.queued2 = Some(item2),
+                Async::Ready(None) => {}
             }
         }
 
         if self.queued1.is_some() && self.queued2.is_some() {
             let pair = (self.queued1.take().unwrap(),
                         self.queued2.take().unwrap());
-            Poll::Ok(Some(pair))
+            Ok(Async::Ready(Some(pair)))
         } else if self.stream1.is_done() || self.stream2.is_done() {
-            Poll::Ok(None)
+            Ok(Async::Ready(None))
         } else {
-            Poll::NotReady
+            Ok(Async::NotReady)
         }
     }
 }

@@ -1,4 +1,4 @@
-use Poll;
+use {Async, Poll};
 use stream::Stream;
 
 /// A stream combinator used to filter the results of a stream and only yield
@@ -29,14 +29,13 @@ impl<S, F> Stream for Filter<S, F>
 
     fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         loop {
-            match try_poll!(self.stream.poll()) {
-                Ok(Some(e)) => {
+            match try_ready!(self.stream.poll()) {
+                Some(e) => {
                     if (self.f)(&e) {
-                        return Poll::Ok(Some(e))
+                        return Ok(Async::Ready(Some(e)))
                     }
                 }
-                Ok(None) => return Poll::Ok(None),
-                Err(e) => return Poll::Err(e),
+                None => return Ok(Async::Ready(None)),
             }
         }
     }

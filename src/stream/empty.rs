@@ -1,7 +1,7 @@
 use core::marker;
 
 use stream::Stream;
-use Poll;
+use {Poll, Async};
 
 /// A stream which contains no elements.
 ///
@@ -12,7 +12,7 @@ pub struct Empty<T, E> {
 
 /// Creates a stream which contains no elements.
 ///
-/// The returned stream will always return `Poll::Ok(None)` when polled.
+/// The returned stream will always return `Ready(None)` when polled.
 pub fn empty<T, E>() -> Empty<T, E> {
     Empty { _data: marker::PhantomData }
 }
@@ -25,6 +25,6 @@ impl<T, E> Stream for Empty<T, E>
     type Error = E;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        Poll::Ok(None)
+        Ok(Async::Ready(None))
     }
 }

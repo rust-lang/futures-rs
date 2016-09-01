@@ -1,4 +1,4 @@
-use Poll;
+use {Async, Poll};
 use stream::Stream;
 
 /// A stream combinator which will change the type of a stream from one
@@ -28,6 +28,7 @@ impl<S, F, U> Stream for Map<S, F>
     type Error = S::Error;
 
     fn poll(&mut self) -> Poll<Option<U>, S::Error> {
-        self.stream.poll().map(|option| option.map(&mut self.f))
+        let option = try_ready!(self.stream.poll());
+        Ok(Async::Ready(option.map(&mut self.f)))
     }
 }

@@ -34,7 +34,7 @@ use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
 
-use {BoxFuture, Poll, Future};
+use {BoxFuture, Poll, Future, Async};
 use stream::Stream;
 use task::unpark_mutex::UnparkMutex;
 
@@ -200,10 +200,10 @@ impl<F: Future> Spawn<F> {
     /// `task::park()` will return a handle that contains the `unpark`
     /// specified.
     ///
-    /// If this function returns `Poll::NotReady`, then the `unpark` should be
+    /// If this function returns `NotReady`, then the `unpark` should be
     /// scheduled to receive a notification when poll can be called again.
-    /// Otherwise if `Poll::Ok` or `Poll::Err` is returned, the `Spawn` task can
-    /// be safely destroyed.
+    /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
+    /// safely destroyed.
     pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
         self.enter(unpark, |f| f.poll())
     }
@@ -217,10 +217,9 @@ impl<F: Future> Spawn<F> {
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
         let unpark = Arc::new(ThreadUnpark(thread::current()));
         loop {
-            match self.poll_future(unpark.clone()) {
-                Poll::Ok(e) => return Ok(e),
-                Poll::Err(e) => return Err(e),
-                Poll::NotReady => thread::park(),
+            match try!(self.poll_future(unpark.clone())) {
+                Async::NotReady => thread::park(),
+                Async::Ready(e) => return Ok(e),
             }
         }
     }
@@ -274,10 +273,10 @@ impl<S: Stream> Spawn<S> {
         let unpark = Arc::new(ThreadUnpark(thread::current()));
         loop {
             match self.poll_stream(unpark.clone()) {
-                Poll::Ok(Some(e)) => return Some(Ok(e)),
-                Poll::Ok(None) => return None,
-                Poll::Err(e) => return Some(Err(e)),
-                Poll::NotReady => thread::park(),
+                Ok(Async::NotReady) => thread::park(),
+                Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
+                Ok(Async::Ready(None)) => return None,
+                Err(e) => return Some(Err(e)),
             }
         }
     }
@@ -356,9 +355,9 @@ impl Run {
 
             loop {
                 match spawn.poll_future(inner.clone()) {
-                    Poll::NotReady => {}
-                    Poll::Ok(()) |
-                    Poll::Err(()) => return inner.mutex.complete(),
+                    Ok(Async::NotReady) => {}
+                    Ok(Async::Ready(())) |
+                    Err(()) => return inner.mutex.complete(),
                 }
                 let run = Run { spawn: spawn, inner: inner.clone() };
                 match inner.mutex.wait(run) {

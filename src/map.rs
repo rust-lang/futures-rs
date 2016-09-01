@@ -1,4 +1,4 @@
-use {Future, Poll};
+use {Future, Poll, Async};
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -25,7 +25,12 @@ impl<U, A, F> Future for Map<A, F>
     type Error = A::Error;
 
     fn poll(&mut self) -> Poll<U, A::Error> {
-        let result = try_poll!(self.future.poll());
-        result.map(self.f.take().expect("cannot poll Map twice")).into()
+        let e = match self.future.poll() {
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Ready(e)) => Ok(e),
+            Err(e) => Err(e),
+        };
+        e.map(self.f.take().expect("cannot poll Map twice"))
+         .map(Async::Ready)
     }
 }

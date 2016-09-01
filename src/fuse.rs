@@ -1,9 +1,9 @@
-use {Future, Poll};
+use {Future, Poll, Async};
 
 /// A future which "fuse"s a future once it's been resolved.
 ///
 /// Normally futures can behave unpredictable once they're used after a future
-/// has been resolved, but `Fuse` is always defined to return `Poll::NotReady`
+/// has been resolved, but `Fuse` is always defined to return `Async::NotReady`
 /// from `poll` after it has succeeded, and after it has succeeded all future
 /// calls to `schedule` will be ignored.
 pub struct Fuse<A: Future> {
@@ -21,10 +21,14 @@ impl<A: Future> Future for Fuse<A> {
     type Error = A::Error;
 
     fn poll(&mut self) -> Poll<A::Item, A::Error> {
-        let ret = self.future.as_mut().map(|f| f.poll());
-        if ret.as_ref().map(|r| r.is_ready()) == Some(true) {
-            self.future = None;
+        let res = self.future.as_mut().map(|f| f.poll());
+        match res.unwrap_or(Ok(Async::NotReady)) {
+            res @ Ok(Async::Ready(_)) |
+            res @ Err(_) => {
+                self.future = None;
+                return res
+            }
+            Ok(Async::NotReady) => Ok(Async::NotReady)
         }
-        ret.unwrap_or(Poll::NotReady)
     }
 }

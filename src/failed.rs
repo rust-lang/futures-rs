@@ -31,6 +31,6 @@ impl<T, E> Future for Failed<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        Poll::Err(self.e.take().expect("cannot poll Failed twice"))
+        Err(self.e.take().expect("cannot poll Failed twice"))
     }
 }

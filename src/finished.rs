@@ -1,6 +1,6 @@
 use core::marker;
 
-use {Future, Poll};
+use {Future, Poll, Async};
 
 /// A future representing a finished successful computation.
 ///
@@ -33,6 +33,6 @@ impl<T, E> Future for Finished<T, E> {
 
 
     fn poll(&mut self) -> Poll<T, E> {
-        Poll::Ok(self.t.take().expect("cannot poll Finished twice"))
+        Ok(Async::Ready(self.t.take().expect("cannot poll Finished twice")))
     }
 }

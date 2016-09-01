@@ -168,7 +168,7 @@ macro_rules! if_std {
 
 #[macro_use]
 mod poll;
-pub use poll::Poll;
+pub use poll::{Poll, Async};
 
 // Primitive futures
 mod done;
@@ -227,8 +227,6 @@ if_std! {
             (**self).poll()
         }
     }
-
-
 }
 
 // streams
@@ -292,7 +290,7 @@ pub trait Future {
     /// should ensure that a call to this **never blocks** as event loops may
     /// not work properly otherwise.
     ///
-    /// When a future is not ready yet, the `Poll::NotReady` value will be
+    /// When a future is not ready yet, the `Async::NotReady` value will be
     /// returned. In this situation the future will *also* register interest of
     /// the current task in the value being produced. That is, once the value is
     /// ready it will notify the current task that progress can be made.
@@ -316,10 +314,11 @@ pub trait Future {
     ///
     /// # Return value
     ///
-    /// This function returns `Poll::NotReady` if the future is not ready yet,
-    /// or `Poll::{Ok,Err}` with the result of this future if it's ready. Once
-    /// a future has returned `Ok` or `Err` it is considered a contract error
-    /// to continue polling it.
+    /// This function returns `Async::NotReady` if the future is not ready yet,
+    /// `Err` if the future is finished but resolved to an error, or
+    /// `Async::Ready` with the result of this future if it's finished
+    /// successfully. Once a future has finished it is considered a contract
+    /// error to continue polling it.
     ///
     /// If `NotReady` is returned, then the future will internally register
     /// interest in the value being produced for the current task. In other
@@ -328,11 +327,10 @@ pub trait Future {
     ///
     /// # Panics
     ///
-    /// Once a future has completed (returned `Poll::{Ok, Err}` from `poll`),
+    /// Once a future has completed (returned `Ready` or `Err` from `poll`),
     /// then any future calls to `poll` may panic, block forever, or otherwise
     /// cause wrong behavior. The `Future` trait itself provides no guarantees
-    /// about the behavior of `poll` after `Ok` or `Err` has been returned
-    /// at least once.
+    /// about the behavior of `poll` after a future has completed.
     ///
     /// Callers who may call `poll` too many times may want to consider using
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
@@ -345,8 +343,8 @@ pub trait Future {
     /// # Errors
     ///
     /// This future may have failed to finish the computation, in which case
-    /// the `Poll::Err` variant will be returned with an appropriate payload of
-    /// an error.
+    /// the `Err` variant will be returned with an appropriate payload of an
+    /// error.
     fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 
     /// Block the current thread until this future is resolved.
@@ -730,14 +728,14 @@ pub trait Future {
     /// Fuse a future such that `poll` will never again be called once it has
     /// completed.
     ///
-    /// Currently once a future has returned `Poll::Ok` or `Poll::Err` from
+    /// Currently once a future has returned `Ready` or `Err` from
     /// `poll` any further calls could exhibit bad behavior such as blocking
     /// forever, panicking, never returning, etc. If it is known that `poll`
     /// may be called too often then this method can be used to ensure that it
     /// has defined semantics.
     ///
     /// Once a future has been `fuse`d and it returns a completion from `poll`,
-    /// then it will forever return `Poll::NotReady` from `poll` again (never
+    /// then it will forever return `NotReady` from `poll` again (never
     /// resolve).  This, unlike the trait's `poll` method, is guaranteed.
     ///
     /// Additionally, once a future has completed, this `Fuse` combinator will
@@ -750,15 +748,15 @@ pub trait Future {
     /// use futures::*;
     ///
     /// let mut future = finished::<i32, u32>(2);
-    /// assert!(future.poll().is_ready());
+    /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
     ///
     /// // Normally, a call such as this would panic:
     /// //future.poll();
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = finished::<i32, u32>(2).fuse();
-    /// assert!(future.poll().is_ready());
-    /// assert!(future.poll().is_not_ready());
+    /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
+    /// assert_eq!(future.poll(), Ok(Async::NotReady));
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized

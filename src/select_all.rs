@@ -1,7 +1,7 @@
 use std::mem;
 use std::prelude::v1::*;
 
-use {Future, IntoFuture, Poll};
+use {Future, IntoFuture, Poll, Async};
 
 /// Future for the `select_all` combinator, waiting for one of any of a list of
 /// futures to complete.
@@ -52,9 +52,9 @@ impl<A> Future for SelectAll<A>
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
             match f.poll() {
-                Poll::NotReady => None,
-                Poll::Ok(e) => Some((i, Ok(e))),
-                Poll::Err(e) => Some((i, Err(e))),
+                Ok(Async::NotReady) => None,
+                Ok(Async::Ready(e)) => Some((i, Ok(e))),
+                Err(e) => Some((i, Err(e))),
             }
         }).next();
         match item {
@@ -62,11 +62,11 @@ impl<A> Future for SelectAll<A>
                 self.inner.remove(idx);
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 match res {
-                    Ok(e) => Poll::Ok((e, idx, rest)),
-                    Err(e) => Poll::Err((e, idx, rest)),
+                    Ok(e) => Ok(Async::Ready((e, idx, rest))),
+                    Err(e) => Err((e, idx, rest)),
                 }
             }
-            None => Poll::NotReady,
+            None => Ok(Async::NotReady),
         }
     }
 }

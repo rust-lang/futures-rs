@@ -115,16 +115,16 @@ pub trait Stream {
     ///
     /// # Return value
     ///
-    /// If `Poll::NotReady` is returned then this stream's next value is not
-    /// ready yet, then implementations will ensure that the current task will
-    /// be notified when the next value may be ready. If `Some` is returned then
+    /// If `NotReady` is returned then this stream's next value is not ready
+    /// yet, then implementations will ensure that the current task will be
+    /// notified when the next value may be ready. If `Some` is returned then
     /// the returned value represents the next value on the stream. `Err`
     /// indicates an error happened, while `Ok` indicates whether there was a
     /// new item on the stream or whether the stream has terminated.
     ///
     /// # Panics
     ///
-    /// Once a stream is finished, that is `Poll::Ok(None)` has been returned,
+    /// Once a stream is finished, that is `Ready(None)` has been returned,
     /// further calls to `poll` may result in a panic or other "bad behavior".
     /// If this is difficult to guard against then the `fuse` adapter can be
     /// used to ensure that `poll` always has well-defined semantics.
@@ -521,7 +521,7 @@ pub trait Stream {
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut,
               Fut: IntoFuture<Item = T>,
-              Fut::Error: Into<Self::Error>,
+              Self::Error: From<Fut::Error>,
               Self: Sized
     {
         fold::new(self, f, init)
