@@ -30,6 +30,7 @@ mod map_err;
 mod merge;
 mod or_else;
 mod peek;
+mod publish;
 mod skip;
 mod skip_while;
 mod take;
@@ -48,6 +49,7 @@ pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::merge::{Merge, MergedItem};
 pub use self::or_else::OrElse;
+pub use self::publish::Publish;
 pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
@@ -681,6 +683,15 @@ pub trait Stream {
         where Self: Sized
     {
         peek::new(self)
+    }
+
+    /// Creates a new stream which multicasts a stream.
+    fn publish(self) -> Publish<Self>
+        where Self: Sized,
+              Self::Item: Clone,
+              Self::Error: Clone,
+    {
+        publish::new(self)
     }
 }
 
