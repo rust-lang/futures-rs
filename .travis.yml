@@ -18,6 +18,7 @@ script:
   - cargo test
 
   - cargo doc --no-deps
+  - cargo doc --no-deps --manifest-path futures-cpupool/Cargo.toml
 after_success:
   - travis-cargo --only nightly doc-upload
 env:
