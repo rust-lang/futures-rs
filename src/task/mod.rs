@@ -30,6 +30,7 @@
 use std::prelude::v1::*;
 
 use std::cell::Cell;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
@@ -154,6 +155,14 @@ impl Task {
     /// function.
     pub fn is_current(&self) -> bool {
         with(|current, _| current.id == self.id)
+    }
+}
+
+impl fmt::Debug for Task {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Task")
+         .field("id", &self.id)
+         .finish()
     }
 }
 
