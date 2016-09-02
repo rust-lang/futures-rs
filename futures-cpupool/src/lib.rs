@@ -48,7 +48,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use crossbeam::sync::MsQueue;
-use futures::{Future, oneshot, Oneshot, Complete, Poll};
+use futures::{IntoFuture, Future, oneshot, Oneshot, Complete, Poll};
 use futures::task::{self, Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
@@ -164,6 +164,25 @@ impl CpuPool {
         };
         task::spawn(sender).execute(self.inner.clone());
         CpuFuture { inner: rx }
+    }
+
+    /// Spawns a closure on this thread pool.
+    ///
+    /// This function is a convenience wrapper around the `spawn` function above
+    /// for running a closure wrapped in `futures::lazy`. It will spawn the
+    /// function `f` provided onto the thread pool, and continue to run the
+    /// future returned by `f` on the thread pool as well.
+    ///
+    /// The returned future will be a handle to the result produced by the
+    /// future that `f` returns.
+    pub fn spawn_fn<F, R>(&self, f: F) -> CpuFuture<R::Item, R::Error>
+        where F: FnOnce() -> R + Send + 'static,
+              R: IntoFuture + 'static,
+              R::Future: Send + 'static,
+              R::Item: Send + 'static,
+              R::Error: Send + 'static,
+    {
+        self.spawn(futures::lazy(f))
     }
 }
 
