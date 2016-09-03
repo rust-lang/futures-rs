@@ -151,7 +151,7 @@
 
 #![no_std]
 #![deny(missing_docs)]
-#![cfg_attr(feature = "never", feature(never_type, conservative_impl_trait))]
+#![cfg_attr(feature = "never", feature(never_type, conservative_impl_trait, default_type_parameter_fallback))]
 
 #[macro_use]
 #[cfg(feature = "use_std")]
