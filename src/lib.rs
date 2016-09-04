@@ -151,7 +151,7 @@
 
 #![no_std]
 #![deny(missing_docs)]
-#![cfg_attr(feature = "never", feature(never_type, conservative_impl_trait, default_type_parameter_fallback))]
+#![cfg_attr(feature = "never", feature(never_type, default_type_parameter_fallback))]
 
 #[macro_use]
 #[cfg(feature = "use_std")]
@@ -174,22 +174,22 @@ pub use poll::{Poll, Async};
 // Primitive futures
 mod done;
 mod empty;
-#[cfg(not(feature = "never"))]
 mod failed;
-#[cfg(not(feature = "never"))]
 mod finished;
 mod lazy;
 #[cfg(feature = "never")]
 mod never;
 pub use done::{done, Done};
 pub use empty::{empty, Empty};
-#[cfg(not(feature = "never"))]
 pub use failed::{failed, Failed};
-#[cfg(not(feature = "never"))]
 pub use finished::{finished, Finished};
 pub use lazy::{lazy, Lazy};
 #[cfg(feature = "never")]
-pub use never::{never, Never, failed, Failed, finished, Finished};
+pub use never::{
+    never, Never,
+    always_failed, AlwaysFailed,
+    always_finished, AlwaysFinished
+};
 
 // combinators
 mod and_then;
