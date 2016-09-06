@@ -189,8 +189,8 @@ represents the client half of a TLS connection. Next we call the
 argument is the domain name we're connecting to, with the I/O object
 as the second.
 
-[`ClientContext::new`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.new
-[`handshake`]: http://alexcrichton.com/futures-rs/futures_tls/struct.ClientContext.html#method.handshake
+[`ClientContext::new`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.new
+[`handshake`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.handshake
 
 Like with [`tcp_connect`] from before, the [`handshake`] method
 returns a future. The actual TLS handshake may take some time as the
@@ -198,7 +198,7 @@ client and server need to perform some I/O, agree on certificates,
 etc. Once resolved, however, the future will become a [`TlsStream`],
 similar to our previous [`TcpStream`]
 
-[`TlsStream`]: http://alexcrichton.com/futures-rs/futures_tls/struct.TlsStream.html
+[`TlsStream`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.TlsStream.html
 
 The [`and_then`] combinator is doing some heavy lifting behind the
 scenes here by ensuring that it executes futures in the right order
