@@ -5,6 +5,7 @@ use stream::Stream;
 /// elements.
 ///
 /// This combinator is created by the `Stream::flatten` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct Flatten<S>
     where S: Stream,
 {

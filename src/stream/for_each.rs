@@ -5,6 +5,7 @@ use stream::Stream;
 /// stream.
 ///
 /// This structure is returned by the `Stream::for_each` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct ForEach<S, F> {
     stream: S,
     f: F,

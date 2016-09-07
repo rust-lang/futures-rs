@@ -8,6 +8,7 @@ use {Future, IntoFuture, Poll, Async};
 /// completed values.
 ///
 /// This future is created with the `collect` method.
+#[must_use = "futures do nothing unless polled"]
 pub struct Collect<I>
     where I: IntoIterator,
           I::Item: IntoFuture,

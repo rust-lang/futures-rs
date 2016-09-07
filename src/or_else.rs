@@ -5,6 +5,7 @@ use chain::Chain;
 /// a future which fails with an error.
 ///
 /// This is created by this `Future::or_else` method.
+#[must_use = "futures do nothing unless polled"]
 pub struct OrElse<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,
 }

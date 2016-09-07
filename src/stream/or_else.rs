@@ -5,6 +5,7 @@ use stream::Stream;
 /// stream.
 ///
 /// This structure is produced by the `Stream::or_else` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct OrElse<S, F, U>
     where U: IntoFuture,
 {

@@ -41,6 +41,7 @@ pub struct Sender<T, E> {
 
 /// A future returned by the `Sender::send` method which will resolve to the
 /// sender once it's available to send another message.
+#[must_use = "futures do nothing unless polled"]
 pub struct FutureSender<T, E> {
     sender: Option<Sender<T, E>>,
     data: Option<Result<T, E>>,
@@ -52,6 +53,7 @@ pub struct FutureSender<T, E> {
 /// This is a concrete implementation of a stream which can be used to represent
 /// a stream of values being computed elsewhere. This is created by the
 /// `channel` method in the `stream` module.
+#[must_use = "streams do nothing unless polled"]
 pub struct Receiver<T, E> {
     inner: Arc<Inner<T, E>>,
     on_full_token: Option<Token>,

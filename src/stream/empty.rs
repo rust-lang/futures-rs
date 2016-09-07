@@ -6,6 +6,7 @@ use {Poll, Async};
 /// A stream which contains no elements.
 ///
 /// This stream can be created with the `stream::empty` function.
+#[must_use = "streams do nothing unless polled"]
 pub struct Empty<T, E> {
     _data: marker::PhantomData<(T, E)>,
 }

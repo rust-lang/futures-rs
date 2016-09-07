@@ -5,6 +5,7 @@ use stream::Stream;
 /// them to a different type.
 ///
 /// This structure is returned by the `Stream::filter_map` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct FilterMap<S, F> {
     stream: S,
     f: F,

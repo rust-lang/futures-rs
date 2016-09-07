@@ -7,6 +7,7 @@ use stream::Stream;
 /// returned an error, but `Fuse` is always defined to return `None` from `poll`
 /// after terination/errors, and afterwards all calls to `schedule` will be
 /// ignored.
+#[must_use = "streams do nothing unless polled"]
 pub struct Fuse<S> {
     stream: Option<S>,
 }

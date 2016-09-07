@@ -7,6 +7,7 @@ use task;
 /// Created by the `Stream::wait` method, this function transforms any stream
 /// into a standard iterator. This is implemented by blocking the current thread
 /// while items on the underlying stream aren't ready yet.
+#[must_use = "iterators do nothing unless advanced"]
 pub struct Wait<S> {
     stream: task::Spawn<S>,
 }

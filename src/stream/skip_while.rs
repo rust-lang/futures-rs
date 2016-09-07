@@ -5,6 +5,7 @@ use stream::Stream;
 /// holds.
 ///
 /// This structure is produced by the `Stream::skip_while` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct SkipWhile<S, P, R> where S: Stream, R: IntoFuture {
     stream: S,
     pred: P,

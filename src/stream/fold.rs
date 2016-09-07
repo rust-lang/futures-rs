@@ -6,6 +6,7 @@ use stream::Stream;
 /// A future used to collect all the results of a stream into one generic type.
 ///
 /// This future is returned by the `Stream::fold` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct Fold<S, F, Fut, T> where Fut: IntoFuture {
     stream: S,
     f: F,

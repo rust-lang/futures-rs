@@ -11,6 +11,7 @@ use stream::{Stream, Fuse};
 /// This adaptor will buffer up a list of pending futures, and then return their
 /// results in the order that they were pulled out of the original stream. This
 /// is created by the `Stream::buffered` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct Buffered<S>
     where S: Stream,
           S::Item: IntoFuture,

@@ -6,6 +6,7 @@ use {Future, Poll, Async};
 /// has been resolved, but `Fuse` is always defined to return `Async::NotReady`
 /// from `poll` after it has succeeded, and after it has succeeded all future
 /// calls to `schedule` will be ignored.
+#[must_use = "futures do nothing unless polled"]
 pub struct Fuse<A: Future> {
     future: Option<A>,
 }

@@ -5,6 +5,7 @@ use chain::Chain;
 /// the result of the final future.
 ///
 /// This is created by this `Future::flatten` method.
+#[must_use = "futures do nothing unless polled"]
 pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
     state: Chain<A, <A::Item as IntoFuture>::Future, ()>,
 }

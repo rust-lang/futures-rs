@@ -5,6 +5,7 @@ use stream::Stream;
 /// type to another.
 ///
 /// This is produced by the `Stream::map` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct Map<S, F> {
     stream: S,
     f: F,

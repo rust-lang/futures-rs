@@ -10,6 +10,7 @@ use task::{self, Task};
 /// memory.
 ///
 /// This is created by the `oneshot` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct Oneshot<T> {
     inner: Arc<Inner<T>>,
     cancel_token: Option<Token>,

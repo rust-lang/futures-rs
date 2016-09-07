@@ -3,6 +3,7 @@ use {Future, Poll, Async};
 /// Future for the `map` combinator, changing the type of a future.
 ///
 /// This is created by this `Future::map` method.
+#[must_use = "futures do nothing unless polled"]
 pub struct Map<A, F> where A: Future {
     future: A,
     f: Option<F>,

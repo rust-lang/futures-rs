@@ -5,6 +5,7 @@ use {Future, Poll};
 /// A future representing a finished but erroneous computation.
 ///
 /// Created by the `failed` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct Failed<T, E> {
     _t: marker::PhantomData<T>,
     e: Option<E>,

@@ -5,6 +5,7 @@ use stream::Stream;
 /// some values.
 ///
 /// This structure is produced by the `Stream::filter` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct Filter<S, F> {
     stream: S,
     f: F,

@@ -10,6 +10,7 @@ macro_rules! generate {
         ($Join:ident, $new:ident, <A, $($B:ident),*>),
     )*) => ($(
         $(#[$doc])*
+        #[must_use = "futures do nothing unless polled"]
         pub struct $Join<A, $($B),*>
             where A: Future,
                   $($B: Future<Error=A::Error>),*

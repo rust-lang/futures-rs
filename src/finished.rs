@@ -5,6 +5,7 @@ use {Future, Poll, Async};
 /// A future representing a finished successful computation.
 ///
 /// Created by the `finished` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct Finished<T, E> {
     t: Option<T>,
     _e: marker::PhantomData<E>,

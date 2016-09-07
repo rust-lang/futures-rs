@@ -7,6 +7,7 @@ use {Future, IntoFuture, Poll, Async};
 /// futures to complete.
 ///
 /// This is created by this `select_all` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct SelectAll<A> where A: Future {
     inner: Vec<SelectAllNext<A>>,
 }
@@ -15,6 +16,7 @@ pub struct SelectAll<A> where A: Future {
 ///
 /// This sentinel future represents the completion of the remaining futures in a
 /// list of futures.
+#[must_use = "futures do nothing unless polled"]
 pub struct SelectAllNext<A> where A: Future {
     inner: A,
 }
@@ -59,7 +61,7 @@ impl<A> Future for SelectAll<A>
         }).next();
         match item {
             Some((idx, res)) => {
-                self.inner.remove(idx);
+                drop(self.inner.remove(idx));
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 match res {
                     Ok(e) => Ok(Async::Ready((e, idx, rest))),

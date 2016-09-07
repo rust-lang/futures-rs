@@ -5,6 +5,7 @@ use {Future, Poll, Async};
 /// A future which is never resolved.
 ///
 /// This future can be created with the `empty` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct Empty<T, E> {
     _data: marker::PhantomData<(T, E)>,
 }

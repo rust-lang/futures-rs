@@ -6,6 +6,7 @@ use {Future, IntoFuture, Poll};
 /// scheduled.
 ///
 /// This is created by the `lazy` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct Lazy<F, R: IntoFuture> {
     inner: _Lazy<F, R::Future>,
 }

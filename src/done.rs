@@ -3,6 +3,7 @@ use {Future, Poll, Async};
 /// A future representing a value that is immediately ready.
 ///
 /// Created by the `done` function.
+#[must_use = "futures do nothing unless polled"]
 pub struct Done<T, E> {
     inner: Option<Result<T, E>>,
 }

@@ -4,6 +4,7 @@ use stream::Stream;
 /// A stream combinator which returns a maximum number of elements.
 ///
 /// This structure is produced by the `Stream::take` method.
+#[must_use = "streams do nothing unless polled"]
 pub struct Take<S> {
     stream: S,
     remaining: u64,

@@ -4,6 +4,7 @@ use stream::Stream;
 /// A combinator used to temporarily convert a stream into a future.
 ///
 /// This future is returned by the `Stream::into_future` method.
+#[must_use = "futures do nothing unless polled"]
 pub struct StreamFuture<S> {
     stream: Option<S>,
 }
