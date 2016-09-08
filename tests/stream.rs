@@ -156,6 +156,45 @@ fn buffered() {
 }
 
 #[test]
+fn unordered() {
+    let (tx, rx) = channel::<_, u32>();
+    let (a, b) = oneshot::<u32>();
+    let (c, d) = oneshot::<u32>();
+
+    tx.send(Ok(b.map_err(|_| 2).boxed()))
+      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+      .forget();
+
+    let mut rx = rx.buffer_unordered(2);
+    sassert_empty(&mut rx);
+    let mut rx = rx.wait();
+    c.complete(3);
+    assert_eq!(rx.next(), Some(Ok(3)));
+    a.complete(5);
+    assert_eq!(rx.next(), Some(Ok(5)));
+    assert_eq!(rx.next(), None);
+
+    let (tx, rx) = channel::<_, u32>();
+    let (a, b) = oneshot::<u32>();
+    let (c, d) = oneshot::<u32>();
+
+    tx.send(Ok(b.map_err(|_| 2).boxed()))
+      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+      .forget();
+
+    // We don't even get to see `c` until `a` completes.
+    let mut rx = rx.buffer_unordered(1);
+    sassert_empty(&mut rx);
+    c.complete(3);
+    sassert_empty(&mut rx);
+    a.complete(5);
+    let mut rx = rx.wait();
+    assert_eq!(rx.next(), Some(Ok(5)));
+    assert_eq!(rx.next(), Some(Ok(3)));
+    assert_eq!(rx.next(), None);
+}
+
+#[test]
 fn zip() {
     assert_done(|| list().zip(list()).collect(),
                 Ok(vec![(1, 1), (2, 2), (3, 3)]));

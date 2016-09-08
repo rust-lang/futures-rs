@@ -57,10 +57,12 @@ pub use self::peek::Peekable;
 
 if_std! {
     mod buffered;
+    mod buffer_unordered;
     mod channel;
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
+    pub use self::buffer_unordered::BufferUnordered;
     pub use self::channel::{channel, Sender, Receiver, FutureSender};
     pub use self::collect::Collect;
     pub use self::wait::Wait;
@@ -648,6 +650,24 @@ pub trait Stream {
               Self: Sized
     {
         buffered::new(self, amt)
+    }
+
+    /// An adaptor for creating a buffered list of pending futures (unordered).
+    ///
+    /// If this stream's item can be converted into a future, then this adaptor
+    /// will buffer up to `amt` futures and then return results in the order
+    /// in which they complete. No more than `amt` futures will be buffered at
+    /// any point in time, and less than `amt` may also be buffered depending on
+    /// the state of each future.
+    ///
+    /// The returned stream will be a stream of each future's result, with
+    /// errors passed through whenever they occur.
+    #[cfg(feature = "use_std")]
+    fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
+        where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
+              Self: Sized
+    {
+        buffer_unordered::new(self, amt)
     }
 
     /// An adapter for merging the output of two streams.
