@@ -36,11 +36,9 @@ example, to mesh in with the rest of a future's computation.
 
 ### How do I call `poll`?
 
-Right now, call `.forget()`. That method will drive a future to completion and
-drop all associated resources as soon as it's completed.
-
-Eventually more flavorful methods of configuring a `Task` will be available, but
-right now `.forget()` is all we have.
+In general it's not recommended to call `poll` unless you're implementing
+another `poll` function. If you need to poll a future, however, you can use
+`task::spawn` followed by the `poll_future` method on `Spawn<T>`.
 
 ### How do I return a future?
 
