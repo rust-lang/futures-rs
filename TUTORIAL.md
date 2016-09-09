@@ -29,7 +29,6 @@ This document is split up into a few sections:
 * [Returning futures][returning-futures]
 * [`Task` and `Future`][task-and-future]
 * [Task local data][task-local-data]
-* [Event loop data][event-loop-data]
 
 If you'd like to help contribute to this document you can find it on
 [GitHub][online-doc].
@@ -66,15 +65,16 @@ Here we're adding a dependency on three crates:
 * [`futures`] - the definition and core implementation of [`Future`] and
   [`Stream`].
 * [`tokio-core`] - bindings to the [`mio`] crate providing concrete
-  implementations of [`Future`] and [`Stream`] for TCP and UDP.
-* [`tokio-tls`] - an SSL/TLS implementation built on top of futures
+  implementations of [`Future`] and [`Stream`] for TCP and UDP as well as the
+  heart of the [Tokio] project
+* [`tokio-tls`] - an SSL/TLS implementation for [Tokio]
 
 [`mio`]: https://crates.io/crates/mio
 [`tokio-core`]: https://github.com/tokio-rs/tokio-core
 [`tokio-tls`]: https://github.com/tokio-rs/tokio-tls
 [`Future`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
 [`Stream`]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html
-[Tokio]: https://github.com/tokio-rs
+[Tokio]: https://github.com/tokio-rs/tokio
 
 The [`futures`] crate itself is a low-level implementation of futures which does
 not assume any particular runtime or I/O layer. For the examples below we'll be
@@ -93,14 +93,15 @@ extern crate tokio_tls;
 use std::net::ToSocketAddrs;
 
 use futures::Future;
-use tokio_core::Loop;
+use tokio_core::reactor::Core;
+use tokio_core::net::TcpStream;
 use tokio_tls::ClientContext;
 
 fn main() {
-    let mut lp = Loop::new().unwrap();
+    let mut core = Core::new().unwrap();
     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
 
-    let socket = lp.handle().tcp_connect(&addr);
+    let socket = TcpStream::connect(&addr, &core.handle());
 
     let tls_handshake = socket.and_then(|socket| {
         let cx = ClientContext::new().unwrap();
@@ -117,7 +118,7 @@ fn main() {
         tokio_core::io::read_to_end(socket, Vec::new())
     });
 
-    let (_, data) = lp.run(response).unwrap();
+    let (_, data) = core.run(response).unwrap();
     println!("{}", String::from_utf8_lossy(&data));
 }
 ```
@@ -129,30 +130,30 @@ There's a lot to digest here, though, so let's walk through it
 line-by-line. First up in `main()`:
 
 ```rust
-let mut lp = Loop::new().unwrap();
+let mut cre = Core::new().unwrap();
 let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
 ```
 
-Here we [create an event loop][loop-new] on which we will perform all our
+Here we [create an event loop][core-new] on which we will perform all our
 I/O. Then we resolve the "www.rust-lang.org" host name by using
 the standard library's [`to_socket_addrs`] method.
 
-[loop-new]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.new
+[core-new]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Core.html#method.new
 [`to_socket_addrs`]: https://doc.rust-lang.org/std/net/trait.ToSocketAddrs.html
 
 Next up:
 
 ```rust
-let socket = lp.handle().tcp_connect(&addr);
+let socket = TcpStream::connect(&addr, &core.handle());
 ```
 
 We [get a handle] to our event loop and connect to the host with
-[`tcp_connect`]. Note, though, that [`tcp_connect`] returns a future! This
-means that we don't actually have the socket yet, but rather it will
-be fully connected at some later point in time.
+[`TcpStream::connect`]. Note, though, that [`TcpStream::connect`] returns a
+future! This means that we don't actually have the socket yet, but rather it
+will be fully connected at some later point in time.
 
-[get a handle]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.handle
-[`tcp_connect`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.tcp_connect
+[get a handle]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Core.html#method.handle
+[`TcpStream::connect`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpStream.html#method.connect
 
 Once our socket is available we need to perform three tasks to download the
 rust-lang.org home page:
@@ -173,11 +174,11 @@ let tls_handshake = socket.and_then(|socket| {
 });
 ```
 
-Here we use the [`and_then`] method on the [`Future`] trait to continue building
-on the future returned by [`tcp_connect`]. The [`and_then`] method takes a
-closure which receives the resolved value of this previous future. In this case
-`socket` will have type [`TcpStream`]. The [`and_then`] closure, however, will
-not run if [`tcp_connect`] returned an error.
+Here we use the [`and_then`] method on the [`Future`] trait to continue
+building on the future returned by [`TcpStream::connect`]. The [`and_then`] method
+takes a closure which receives the resolved value of this previous future. In
+this case `socket` will have type [`TcpStream`]. The [`and_then`] closure,
+however, will not run if [`TcpStream::connect`] returned an error.
 
 [`and_then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.and_then
 [`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpStream.html
@@ -192,7 +193,7 @@ as the second.
 [`ClientContext::new`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.new
 [`handshake`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.handshake
 
-Like with [`tcp_connect`] from before, the [`handshake`] method
+Like with [`TcpStream::connect`] from before, the [`handshake`] method
 returns a future. The actual TLS handshake may take some time as the
 client and server need to perform some I/O, agree on certificates,
 etc. Once resolved, however, the future will become a [`TlsStream`],
@@ -259,25 +260,25 @@ To actually execute our future and drive it to completion we'll need to run the
 event loop:
 
 ```rust
-let (_, data) = lp.run(response).unwrap();
+let (_, data) = core.run(response).unwrap();
 println!("{}", String::from_utf8_lossy(&data));
 ```
 
 Here we pass our `response` future, our entire HTTP request, and we pass it to
-the event loop, [asking it to resolve the future][`loop_run`]. The event loop will
+the event loop, [asking it to resolve the future][`core_run`]. The event loop will
 then run until the future has been resolved, returning the result of the future
 which in this case is `io::Result<(TcpStream, Vec<u8>)>`.
 
-[`loop_run`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.run
+[`core_run`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Core.html#method.run
 
-Note that this `lp.run(..)` call will block the calling thread until the future
-can itself be resolved. This means that `data` here has type `Vec<u8>`. We then
-print it out to stdout as usual.
+Note that this `core.run(..)` call will block the calling thread until the
+future can itself be resolved. This means that `data` here has type `Vec<u8>`.
+We then print it out to stdout as usual.
 
-Phew! At this point we've seen futures [initiate a TCP connection][`tcp_connect`]
-[create a chain of computation][`and_then`], and [read data from a
-socket][`read_to_end`]. But this is only a hint of what futures can
-do, so let's dive more into the traits themselves!
+Phew! At this point we've seen futures [initiate a TCP
+connection][`TcpStream::connect`] [create a chain of computation][`and_then`],
+and [read data from a socket][`read_to_end`]. But this is only a hint of what
+futures can do, so let's dive more into the traits themselves!
 
 ---
 
@@ -337,7 +338,7 @@ Or when taking a future you might write:
 ```rust
 fn foo<F>(future: F)
     where F: Future<Error = io::Error>,
-          F::Item: Future,
+          F::Item: Clone,
 {
     // ...
 }
@@ -369,22 +370,29 @@ conveys a number of restrictions and abilities:
 * During a `poll`, futures can mutate their own state.
 * When `poll`'d, futures are owned by another entity.
 
-Next we see the [`Poll`][poll-type] type being returned, which looks like:
+Next we see that [`Poll`][poll-type] is actually a type alias:
 
-[`Task`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html
-[poll-type]: http://alexcrichton.com/futures-rs/futures/enum.Poll.html
+[poll-type]: http://alexcrichton.com/futures-rs/futures/type.Poll.html
 
 ```rust
-enum Poll<T, E> {
+type Poll<T, E> = Result<Async<T>, E>;
+```
+
+Let's follow through and see what [`Async`] is as well:
+
+```rust
+pub enum Async<T> {
+    Ready(T),
     NotReady,
-    Ok(T),
-    Err(E),
 }
 ```
 
+[`Async`]: http://alexcrichton.com/futures-rs/futures/enum.Async.html
+
 Through this `enum` futures can communicate whether the future's value is ready
-to go via `Poll::Ok` or `Poll::Err`. If the value isn't ready yet then
-`Poll::NotReady` is returned.
+to go. If an error ever happens, then `Err` is returned immediately. Otherwise,
+the [`Async`] type indicates whether the futures is ready with a successful
+payload or not ready.
 
 The [`Future`] trait, like `Iterator`, doesn't specify what happens after
 [`poll`] is called if the future has already resolved. Many implementations will
@@ -392,7 +400,7 @@ panic, some may never resolve again, etc. This means that implementors of the
 [`Future`] trait don't need to maintain state to check if [`poll`] has already
 returned successfully.
 
-If a call to [`poll`] returns `Poll::NotReady`, then futures still need to know
+If a call to [`poll`] returns `NotReady`, then futures still need to know
 how to figure out when to get poll'd later! To accomplish this, a future must
 ensure that when `NotReady` is returned the *current task* is arranged to
 receive a notification when the value may be available. We'll [talk more about
@@ -400,14 +408,14 @@ tasks later][task-and-future], and it's a sufficient mental model to understand
 that `NotReady` means not only the item isn't ready, but you're now registered
 to receive a notification when it is ready.
 
-To actually deliver notifications, the `task::park` method is the primary entry
-point. This function returns a [`TaskHandle`] which implements `Send + 'static`
-and has one primary method, [`unpark`]. The `unpark` method, when called,
-indicates that a future can make progress, and may be able to resolve to a
-value.
+To actually deliver notifications, the [`park`] method is the primary
+entry point. This function returns a threadsafe [`Task`] handle with one
+primary method, [`unpark`]. The `unpark` method, when called, indicates that a
+future can make progress, and may be able to resolve to a value.
 
-[`TaskHandle`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html
-[`unpark`]: http://alexcrichton.com/futures-rs/futures/struct.TaskHandle.html#method.unpark
+[`Task`]: http://alexcrichton.com/futures-rs/futures/task/struct.Task.html
+[`unpark`]: http://alexcrichton.com/futures-rs/futures/task/struct.Task.html#method.unpark
+[`park`]: http://alexcrichton.com/futures-rs/futures/task/fn.park.html
 
 More detailed documentation can be found on the [`poll`] methods itself.
 
