@@ -181,7 +181,7 @@ this case `socket` will have type [`TcpStream`]. The [`and_then`] closure,
 however, will not run if [`TcpStream::connect`] returned an error.
 
 [`and_then`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.and_then
-[`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpStream.html
+[`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpStream.html
 
 Once we have our `socket`, we create a client TLS context via
 [`ClientContext::new`]. This type from the [`tokio-tls`] crate
@@ -513,7 +513,7 @@ returns `Option<Self::Item>` instead of `Self::Item`.
 [stream-poll]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#tymethod.poll
 
 A [`Stream`] produces optionally many values over time, signaling termination of
-the stream by returning `Poll::Ok(None)`. At its heart a [`Stream`] represents
+the stream by returning `Ready(None)`. At its heart a [`Stream`] represents
 an asynchronous stream of values being produced in order.
 
 A [`Stream`] is actually just a special instance of a [`Future`], and can be
@@ -544,65 +544,50 @@ take a look at an example of streams now, the [`incoming`] implementation of
 [`Stream`] on [`TcpListener`]. The simple server below will accept connections,
 write out the word "Hello!" to them, and then close the socket:
 
-[`incoming`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpListener.html#method.incoming
-[`TcpListener`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.TcpListener.html
+[`incoming`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpListener.html#method.incoming
+[`TcpListener`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpListener.html
 
 ```rust
 extern crate futures;
 extern crate tokio_core;
 
-use futures::Future;
 use futures::stream::Stream;
-use tokio_core::Loop;
+use tokio_core::reactor::Core;
+use tokio_core::net::TcpListener;
 
 fn main() {
-    let mut lp = Loop::new().unwrap();
+    let mut core = Core::new().unwrap();
     let address = "127.0.0.1:8080".parse().unwrap();
-    let listener = lp.handle().tcp_listen(&address);
+    let listener = TcpListener::bind(&address, &core.handle()).unwrap();
 
-    let server = listener.and_then(|listener| {
-        let addr = listener.local_addr().unwrap();
-        println!("Listening for connections on {}", addr);
+    let addr = listener.local_addr().unwrap();
+    println!("Listening for connections on {}", addr);
 
-        let clients = listener.incoming();
-        let welcomes = clients.and_then(|(socket, _peer_addr)| {
-            tokio_core::io::write_all(socket, b"Hello!\n")
-        });
-        welcomes.for_each(|(_socket, _welcome)| {
-            Ok(())
-        })
+    let clients = listener.incoming();
+    let welcomes = clients.and_then(|(socket, _peer_addr)| {
+        tokio_core::io::write_all(socket, b"Hello!\n")
+    });
+    let server = welcomes.for_each(|(_socket, _welcome)| {
+        Ok(())
     });
 
-    lp.run(server).unwrap();
+    core.run(server).unwrap();
 }
 ```
 
 Like before, let's walk through this line-by-line:
 
 ```rust
-let mut lp = Loop::new().unwrap();
+let mut core = Core::new().unwrap();
 let address = "127.0.0.1:8080".parse().unwrap();
-let listener = lp.handle().tcp_listen(&address);
+let listener = TcpListener::bind(&address, &core.handle()).unwrap();
 ```
 
 Here we initialize our event loop, like before, and then we use the
-[`tcp_listen`] method on [`LoopHandle`] to create a TCP listener which will
-accept sockets.
+[`TcpListener::bind`] function to create a TCP listener which will accept
+sockets.
 
-[`tcp_listen`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.tcp_listen
-
-Next up we see:
-
-```rust
-let server = listener.and_then(|listener| {
-    // ...
-});
-```
-
-Here we see that [`tcp_listen`], like [`tcp_connect`] from before, did not
-return a [`TcpListener`] but rather a future which will resolve to a TCP
-listener. We then employ the [`and_then`] method on [`Future`] to define what
-happens once the TCP listener is available.
+[`TcpListener::bind`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpListener.html#method.bind
 
 Now that we've got the TCP listener we can inspect its state:
 
@@ -677,23 +662,27 @@ these therefore has the effect of taking each socket from the stream and
 processing all chained operations on it before taking the next socket.
 
 If, instead, we want to handle all clients concurrently, we can use the
-[`forget`] method:
+[`spawn`] method on [`Handle`]\:
+
+[`spawn`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Handle.html#method.spawn
 
 ```rust
 let clients = listener.incoming();
 let welcomes = clients.map(|(socket, _peer_addr)| {
-    tokio_core::io::write_all(socket, b"Hello!\n")
+    tokio_core::io::write_all(socket, b"hello!\n")
 });
-welcomes.for_each(|future| {
-    future.forget();
+let handle = core.handle();
+let server = welcomes.for_each(|future| {
+    handle.spawn(future.then(|_| Ok(())));
     Ok(())
-})
+});
 ```
 
 Instead of [`and_then`][stream-and-then] we're using [`map`][stream-map] here
 which changes our stream of clients to a stream of futures. We then change our
-[`for_each`] closure to *[`forget`]* the future, which allows the future to
-execute concurrently.
+[`for_each`] closure to *[`spawn`]* the future, which allows the future to
+execute concurrently on the event loop. Note that [`spawn`] requires the future
+to have the item/error types as `()`.
 
 ---
 
@@ -702,10 +691,10 @@ execute concurrently.
 
 [Back to top][top]
 
-Alright! At this point we've got a good understanding of the [`Future`] and [`Stream`]
-traits, both how they're implemented as well as how they're composed together.
-But where do all these futures originally come from? Let's take a look at a few
-concrete implementations of futures and streams.
+Alright! At this point we've got a good understanding of the [`Future`] and
+[`Stream`] traits, both how they're implemented as well as how they're composed
+together.  But where do all these futures originally come from? Let's take a
+look at a few concrete implementations of futures and streams.
 
 First, any value already available is trivially a future that is immediately
 ready. For this, the [`done`], [`failed`], [`finished`] functions suffice. The
