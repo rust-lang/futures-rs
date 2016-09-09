@@ -99,18 +99,14 @@ More information can be found in [the tutorial][tutorial-future-trait]
 ## I/O with futures
 
 With the power of zero-allocation futures we can take futures all the way down
-the stack to the I/O layer. The [`tokio-core` crate][tokio-core] provides an
-abstraction for I/O objects as a stream of readiness notifications plus `Read`
-and `Write` traits along with a number of combinators you'd expect when working
-with `std::io`.
+the stack to the I/O layer. The [Tokio] project is a one-stop shop for async I/O
+in Rust, starting with the [`tokio-core` crate][tokio-core] at the very bottom
+layer all the way up to the [`tokio-proto` crate][tokio-proto] to enable easily
+building new protocols.
 
-These abstractions can be implemented by the with [`mio`][mio] to power I/O.
-Finally we can then use these abstractions to build a [`tokio-tls`
-crate][tokio-tls] crate to provide TLS/SSL streams over arbitrary read/write
-streams. Finally [`tokio-proto`] can be layered on top for easily writing highly
-efficient protocol implementations.
-
+[Tokio]: https://github.com/tokio-rs/tokio
 [tokio-core]: https://tokio-rs.github.io/tokio-core
+[tokio-proto]: https://tokio-rs.github.io/tokio-proto
 [tokio-tls]: https://tokio-rs.github.io/tokio-tls
 [mio]: https://github.com/carllerche/mio
 
