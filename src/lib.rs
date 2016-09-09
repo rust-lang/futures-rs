@@ -1,8 +1,9 @@
-//! Futures at zero cost
+//! Zero-cost Futures in Rust
 //!
 //! This library is an implementation of futures in Rust which aims to provide
-//! zero cost abstractions, `Iterator`-like ergonomics, and easy composability
-//! between `Future`-related APIs.
+//! a robust implementation of handling asynchronous computations, ergonomic
+//! composition and usage, and zero cost abstractions over what would otherwise
+//! be written by hand.
 //!
 //! Futures are a concept for an object which is a proxy for another value that
 //! may not be ready yet. For example issuing an HTTP request may return a
@@ -250,10 +251,21 @@ mod chain;
 ///
 /// # The `poll` method
 ///
-/// The core method of future, `poll`, is not intended to be called in general.
-/// The `poll` method is typically called in the context of a "task" which
-/// drives a future to completion. For more information on this see the `task`
-/// module.
+/// The core method of future, `poll`, is used to attempt to generate the value
+/// of a `Future`. This method *does not block* but is allowed to inform the
+/// caller that the value is not ready yet. Implementations of `poll` may
+/// themselves do work to generate the value, but it's guaranteed that this will
+/// never block the calling thread.
+///
+/// A key aspect of this method is that if the value is not yet available the
+/// current task is scheduled to receive a notification when it's later ready to
+/// be made available. This follows what's typically known as a "readiness" or
+/// "pull" model where values are pulled out of futures on demand, and
+/// otherwise a task is notified when a value might be ready to get pulled out.
+///
+/// The `poll` method is not intended to be called in general, but rather is
+/// typically called in the context of a "task" which drives a future to
+/// completion. For more information on this see the `task` module.
 ///
 /// # Combinators
 ///
@@ -270,16 +282,12 @@ mod chain;
 /// otherwise have to write down.
 // TODO: expand this
 pub trait Future {
-
     /// The type of value that this future will resolved with if it is
     /// successful.
     type Item;
 
     /// The type of error that this future will resolve with if it fails in a
     /// normal fashion.
-    ///
-    /// Futures may also fail due to panics or cancellation, but that is
-    /// expressed through the `PollError` type, not this type.
     type Error;
 
     /// Query this future to see if its value has become available, registering
@@ -300,17 +308,17 @@ pub trait Future {
     /// This function, `poll`, is the primary method for 'making progress'
     /// within a tree of futures. For example this method will be called
     /// repeatedly as the internal state machine makes its various transitions.
-    /// Additionally, this function may not necessarily have many guarantees
-    /// about *where* it's run (e.g. always on an I/O thread or not). Unless it
-    /// is otherwise arranged to be so, it should be ensured that
-    /// **implementations of this function finish very quickly**.
+    /// Executors are responsible for ensuring that this function is called in
+    /// the right location (e.g. always on an I/O thread or not). Unless it is
+    /// otherwise arranged to be so, it should be ensured that **implementations
+    /// of this function finish very quickly**.
     ///
-    /// This prevents unnecessarily clogging up threads and/or event loops while
-    /// a `poll` function call, for example, takes up compute resources to
-    /// perform some expensive computation. If it is known ahead of time that a
-    /// call to `poll` may end up taking awhile, the work should be offloaded to
-    /// a thread pool (or something similar) to ensure that `poll` can return
-    /// quickly.
+    /// Returning quickly prevents unnecessarily clogging up threads and/or
+    /// event loops while a `poll` function call, for example, takes up compute
+    /// resources to perform some expensive computation. If it is known ahead
+    /// of time that a call to `poll` may end up taking awhile, the work should
+    /// be offloaded to a thread pool (or something similar) to ensure that
+    /// `poll` can return quickly.
     ///
     /// # Return value
     ///
@@ -318,7 +326,7 @@ pub trait Future {
     /// `Err` if the future is finished but resolved to an error, or
     /// `Async::Ready` with the result of this future if it's finished
     /// successfully. Once a future has finished it is considered a contract
-    /// error to continue polling it.
+    /// error to continue polling the future.
     ///
     /// If `NotReady` is returned, then the future will internally register
     /// interest in the value being produced for the current task. In other
