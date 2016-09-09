@@ -684,6 +684,9 @@ which changes our stream of clients to a stream of futures. We then change our
 execute concurrently on the event loop. Note that [`spawn`] requires the future
 to have the item/error types as `()`.
 
+We'll talk a bit more about spawning futures in the [tasks and
+futures][task-and-future] section.
+
 ---
 
 ## Concrete futures and streams
@@ -950,40 +953,34 @@ come from? Additionally, where'd [`poll`] get called from in the first place?
 
 Enter, a [`Task`]!
 
-In the [`futures`] crate the [`Task`] struct drives a computation represented by
-futures. Any particular instance of a `Future` may be short-lived, only a part
-of a larger computation. For example, in our ["hello world"][hello-world]
-example we had a number of futures, but only one actually ran at a time. For the
-entire program, we had one [`Task`] that followed the logical "thread of
-execution" as each future resolved and the overall computation progressed.
+In the [`futures`] crate a task drives a computation represented by
+futures. Tasks can be thought of as being similar to green threads or normal OS
+threads: they're spawned to represent concurrent computations (which in this
+case are futures). Any particular instance of a `Future` may be short-lived,
+only a part of a larger computation. For example, in our ["hello
+world"][hello-world] example we had a number of futures, but only one actually
+ran at a time. For the entire program, we had one task that followed the
+logical "thread of execution" as each future resolved and the overall
+computation progressed.
 
-In short, a `Task` is the entity that actually orchestrates the top-level calls
-to `poll`. Its main method, [`run`], does exactly this.  Internally, `Task` has
-synchronization such that if [`unpark`] is called on multiple threads then the
-resulting calls to [`poll`] are properly coordinated.
+When a future is [`spawn`]ed it is fused with a task, and then this structure
+can be polled for completion. Precisely how and when a `poll` happens is up to
+the function which spawned the future. Normally you won't call [`spawn`] but
+rather one of [`CpuPool::spawn`] with a thread pool or [`Handle::spawn`] with
+an event loop. These internally use [`spawn`] and handle managing calls to
+`poll` for you.
 
-[`run`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.run
+[`CpuPool::spawn`]: http://alexcrichton.com/futures-rs/futures_cpupool/struct.CpuPool.html#method.spawn
+[`Handle::spawn`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Handle.html#method.spawn
 
-Tasks themselves are not typically created manually but rather are manufactured
-through use of the [`forget`] function. This function on the [`Future`] trait
-creates a new [`Task`] and then asks it to run the future, resolving the entire
-chain of composed futures in sequence.
 
 _The clever implementation of `Task` is the key to the `futures` crate's
-efficiency: when a `Task` is created, each of the `Future`s in the chain of
+efficiency: when a future is spawned, each of the `Future`s in the chain of
 computations is combined into a single state machine structure and moved
 together from the stack into the heap_. This action is the only allocation
 imposed by the futures library. In effect, the `Task` behaves as if you had
 written an efficient state machine by hand while allowing you to express that
 state machine as straight-line sequence of computations.
-
-[`forget`]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#method.forget
-
-Conceptually a [`Task`] is somewhat similar to an OS thread's stack. Where an OS
-thread runs functions that all have access to the stack which is available
-across blocking I/O calls, an asynchronous computation runs individual futures
-over time which all have access to a [`Task`] that is persisted throughout the
-lifetime of the computation.
 
 ---
 
@@ -997,8 +994,8 @@ one piece of a larger asynchronous computation. This means that futures come
 and go, but there could also be data that lives for the entire span of a
 computation that many futures need access to.
 
-Futures themselves require `'static`, so we have two choices to share data
-between futures:
+Futures themselves are often required to be `'static`, so we have two choices
+to share data between futures:
 
 * If the data is only ever used by one future at a time we can thread through
   ownership of the data between each future.
@@ -1013,73 +1010,20 @@ In the [`Task` and `Future`][task-and-future] section we saw how an
 asynchronous computation has access to a [`Task`] for its entire lifetime, and
 from the signature of [`poll`] we also see that it has mutable access to
 this task. The [`Task`] API leverages these facts and allows you to store
-data inside a `Task`.
+data inside a `Task`. Data associated with a `Task` can be created with two
+methods:
 
-Data associated with a `Task` with [`TaskData::new`] to return a [`TaskData`]
-handle. This handle can then be cloned regardless of the underlying data. To
-access the data at a later time you can use the [`with`] methods.
+* The [`task_local!`] macro behaves similarly to the `thread_local!` macro in
+  the standard library. Data initialized this way is lazily initialized on
+  first access for a task, and then it's destroyed when a task itself is
+  destroyed.
+* The [`TaskRc`] structure provides the ability to create a reference-counted
+  piece of data that can only be accessed on an appropriate task. It can be
+  cloned, however, like an `Rc`.
 
-[`TaskData`]: http://alexcrichton.com/futures-rs/futures/task/struct.TaskData.html
-[`TaskData::new`]: http://alexcrichton.com/futures-rs/futures/task/struct.TaskData.html#method.new
-[`with`]: http://alexcrichton.com/futures-rs/futures/task/struct.TaskData.html#method.with
+[`task_local!`]: http://alexcrichton.com/futures-rs/futures/macro.task_local.html
+[`TaskRc`]: http://alexcrichton.com/futures-rs/futures/task/struct.TaskRc.html
 
----
-
-## Event loop data
-[event-loop-data]: #event-loop-data
-
-[Back to top][top]
-
-We've now seen that we can store data into a [`Task`] with [`TaskData`], but
-data is sometimes not `Send` or otherwise needs to be persisted yet not tied to
-a [`Task`]. For this purpose the [`tokio-core`] crate provides a similar
-abstraction, [`LoopData`].
-
-[`LoopData`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html
-
-The [`LoopData`] is similar to [`TaskData`] where it's a handle to data
-conceptually owned by the event loop. The key property of [`LoopData`], however,
-is that it implements the `Send` trait regardless of the underlying data.
-
-One key method on the [`Future`] trait, [`forget`], requires that the future is
-`Send`. This is not always possible for a future itself, but a `LoopData<F:
-Future>` is indeed `Send` and the `Future` trait is implemented directly for
-`LoopData<F>`. This means that if a future is not `Send`, it can trivially be
-made `Send` by "pinning" it to an event loop through `LoopData`.
-
-A [`LoopData`] handle is a bit easier to access than a [`TaskData`], as you
-don't need to get the data from a task. Instead you can simply attempt to access
-the data with [`get`][loop-get] or [`get_mut`][loop-get-mut]. Both of these
-methods return `Option` where `None` is returned if you're not on the event
-loop.
-
-[loop-get]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html#method.get
-[loop-get-mut]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html#method.get_mut
-
-In the case that `None` is returned, a future may have to return to the event
-loop in order to make progress. In order to guarantee this the [`executor`]
-associated with the data can be acquired and passed to [`Task::poll_on`]. This
-will request that the task poll itself on the specified executor, which in this
-case will run the poll request on the event loop where the data can be accessed.
-
-[`executor`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopData.html#method.executor
-[`Task::poll_on`]: http://alexcrichton.com/futures-rs/futures/struct.Task.html#method.poll_on
-
-A [`LoopData`] can be created through one of two methods:
-
-* If you've got a handle to the [event loop itself][`Loop`] then you can call
-  the [`Loop::add_loop_data`] method. This allows inserting data directly and a
-  handle is immediately returned.
-* If all you have is a [`LoopHandle`] then you can call the
-  [`LoopHandle::add_loop_data`] method. This, unlike [`Loop::add_loop_data`],
-  requires a `Send` closure which will be used to create the relevant data. Also
-  unlike the [`Loop`] method, this function will return a future that resolves
-  to the [`LoopData`] value.
-
-[`Loop`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html
-[`Loop::add_loop_data`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.Loop.html#method.add_loop_data
-[`LoopHandle`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html
-[`LoopHandle::add_loop_data`]: https://tokio-rs.github.io/tokio-core/tokio_core/struct.LoopHandle.html#method.add_loop_data
-
-Task-local data and event-loop data provide the ability for futures to easily
-share sendable and non-sendable data amongst many futures.
+Note that both of these methods will fuse data with the currently running task,
+which may not always be desired. These two should likely be used sparingly in
+general.
