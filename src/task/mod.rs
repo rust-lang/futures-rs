@@ -209,7 +209,7 @@ impl<F: Future> Spawn<F> {
     /// `task::park()` will return a handle that contains the `unpark`
     /// specified.
     ///
-    /// If this function returns `NotReady`, then the `unpark` should be
+    /// If this function returns `NotReady`, then the `unpark` should have been
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
