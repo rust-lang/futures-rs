@@ -33,7 +33,7 @@ This document is split up into a few sections:
 If you'd like to help contribute to this document you can find it on
 [GitHub][online-doc].
 
-[online-doc]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md
+[online-doc]: https://github.com/alexcrichton/futures-rs/blob/master/tutorial/TUTORIAL.md
 
 ---
 

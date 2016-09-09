@@ -9,7 +9,7 @@ This library is an implementation of **zero-cost futures** in Rust.
 
 [Tutorial][tutorial]
 
-[tutorial]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md
+[tutorial]: https://github.com/alexcrichton/futures-rs/blob/master/tutorial/TUTORIAL.md
 
 ## Usage
 
@@ -94,7 +94,7 @@ complete. More documentation can be found on the associated method.
 
 More information can be found in [the tutorial][tutorial-future-trait]
 
-[tutorial-future-trait]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md#the-future-trait
+[tutorial-future-trait]: https://github.com/alexcrichton/futures-rs/blob/master/tutorial/TUTORIAL.md#the-future-trait
 
 ## I/O with futures
 
