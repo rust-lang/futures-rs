@@ -13,6 +13,7 @@ sudo: false
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 script:
+  - export CARGO_TARGET_DIR=`pwd`/target
   - cargo build
   - cargo build --no-default-features
   - cargo test
