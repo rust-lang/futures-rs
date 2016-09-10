@@ -89,7 +89,7 @@ fn with<F: FnOnce(&Task, &data::LocalMap) -> R, R>(f: F) -> R {
 /// execution driving a future to completion.
 ///
 /// In general, futures are composed into large units of work, which are then
-/// spawned as tasks onto an *executor*. The executor is responible for polling
+/// spawned as tasks onto an *executor*. The executor is responsible for polling
 /// the future as notifications arrive, until the future terminates.
 ///
 /// This is obtained by the `task::park` function.
