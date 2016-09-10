@@ -15,13 +15,11 @@
 //!
 //! ## Installation
 //!
-//! Currently it's recommended to use the git version of this repository as it's
-//! in active development, but this will be published to crates.io in the near
-//! future!
+//! Add this to your `Cargo.toml`:
 //!
 //! ```toml
 //! [dependencies]
-//! futures = { git = "https://github.com/alexcrichton/futures-rs" }
+//! futures = "0.1"
 //! ```
 //!
 //! ## Examples

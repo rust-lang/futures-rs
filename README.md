@@ -17,7 +17,7 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures = { git = "https://github.com/alexcrichton/futures-rs" }
+futures = "0.1"
 ```
 
 Next, add this to your crate:
