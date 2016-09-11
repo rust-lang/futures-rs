@@ -1,6 +1,6 @@
 # futures-rs
 
-This library is an implementation of **zero cost futures** in Rust.
+This library is an implementation of **zero-cost futures** in Rust.
 
 [![Build Status](https://travis-ci.org/alexcrichton/futures-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/futures-rs)
 [![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/alexcrichton/futures-rs)
@@ -41,14 +41,14 @@ all, check out the [tutorial].
                     on top of `tokio-core`
 * [`tokio-socks5`] - an implementation of an efficient SOCKSv5 proxy server
                      showcasing `futures` and `tokio-core`
-* [`tokio-tls`] - TLS/SSL streams built on futures, implementing both client and
-                  server side connections, with support for the native system
+* [`tokio-tls`] - TLS/SSL streams built on futures, implementing both client- and
+                  server-side connections, with support for the native system
                   library on all platforms
 * [`tokio-curl`] - an asynchronous HTTP client backed by libcurl exposed
                    through futures
 * [`tokio-uds`] - bindings for Unix domain sockets and futures
 * [`tokio-minihttp`] - a simple HTTP server with some "hello world" examples
-                       that show the screaming fast performance of the futures
+                       that show the screaming-fast performance of the futures
                        and mio stack
 
 [`futures`]: http://alexcrichton.com/futures-rs/futures
@@ -79,9 +79,9 @@ they can all compose with one another.
 ## The `Future` trait
 
 At the heart of this crate is [the `Future` trait][Future], which in true Rust
-style, is an interface for **zero allocation futures**. Like iterators in Rust,
+style, is an interface for **zero-allocation futures**. Like iterators in Rust,
 there are a wide variety of helpful combinators associated with this trait which
-are also zero allocation and serve as a succinct and powerful way to compose
+are also zero-allocation and serve as a succinct and powerful way to compose
 computations on futures.
 
 [Future]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
