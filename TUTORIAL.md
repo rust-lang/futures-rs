@@ -391,7 +391,7 @@ pub enum Async<T> {
 
 Through this `enum` futures can communicate whether the future's value is ready
 to go. If an error ever happens, then `Err` is returned immediately. Otherwise,
-the [`Async`] type indicates whether the futures is ready with a successful
+the [`Async`] type indicates whether the future is ready with a successful
 payload or not ready.
 
 The [`Future`] trait, like `Iterator`, doesn't specify what happens after
@@ -430,7 +430,7 @@ convert it to a future of `u32`? For this sort of composition, the `Future`
 trait also provides a large number of **combinators** which can be seen on the
 [`Future`] trait itself.
 
-These combinators similar to the [`Iterator`] combinators in that they all
+These combinators are similar to the [`Iterator`] combinators in that they all
 consume the receiving future and return a new future. For example, we could
 have:
 
@@ -470,7 +470,7 @@ The combinators on futures allow expressing concepts like:
 
 Usage of the combinators should feel very similar to the [`Iterator`] trait in
 Rust or [futures in Scala][scala-futures]. Most composition of futures ends up
-being done through these combinators. All combinators are zero-cost, that means
+being done through these combinators. All combinators are zero-cost, meaning that
 no memory is allocated internally and the implementation will optimize to what
 you would have otherwise written by hand.
 
@@ -481,7 +481,7 @@ you would have otherwise written by hand.
 
 [Back to top][top]
 
-Previously, we've taken a long look at the [`Future`] trait which is useful if
+Previously, we've taken a long look at the [`Future`] trait, which is useful if
 we're only producing one value over time. But sometimes computations are best
 modeled as a *stream* of values being produced over time. For example, a TCP
 listener produces a number of TCP socket connections over its lifetime.
@@ -700,7 +700,7 @@ together.  But where do all these futures originally come from? Let's take a
 look at a few concrete implementations of futures and streams.
 
 First, any value already available is trivially a future that is immediately
-ready. For this, the [`done`], [`failed`], [`finished`] functions suffice. The
+ready. For this, the [`done`], [`failed`], and [`finished`] functions suffice. The
 [`done`] variant takes a `Result<T, E>` and returns a `Future<Item=T, Error=E>`.
 The [`failed`] and [`finished`] variants then specify either `T` or `E` and
 leave the other associated type as a wildcard.

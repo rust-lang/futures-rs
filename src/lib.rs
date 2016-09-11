@@ -2,7 +2,7 @@
 //!
 //! This library is an implementation of futures in Rust which aims to provide
 //! a robust implementation of handling asynchronous computations, ergonomic
-//! composition and usage, and zero cost abstractions over what would otherwise
+//! composition and usage, and zero-cost abstractions over what would otherwise
 //! be written by hand.
 //!
 //! Futures are a concept for an object which is a proxy for another value that
