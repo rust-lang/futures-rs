@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "never", feature(never_type, default_type_parameter_fallback))]
+
 extern crate futures;
 
 use std::sync::mpsc::{channel, TryRecvError};
@@ -79,6 +81,24 @@ fn test_empty() {
     assert_empty(|| empty().then(|a| a));
 }
 
+#[cfg(feature = "never")]
+#[test]
+fn test_never() {
+    assert_empty(|| never());
+    assert_empty(|| never().select(never()));
+    assert_empty(|| never().join(never()));
+    assert_empty(|| never().join(f_ok(1)));
+    assert_empty(|| f_ok(1).join(never()));
+    assert_empty(|| never().or_else(move |_| never()));
+    assert_empty(|| never().and_then(move |_| never()));
+    assert_empty(|| f_err(1).or_else(move |_| never()));
+    assert_empty(|| f_ok(1).and_then(move |_| never()));
+    // TODO: Remove <ialways_32, i32> when `!` implements `std::ops::Add<i32>``
+    assert_empty(|| never::<i32, i32>().map(|a| a + 1));
+    assert_empty(|| never::<i32, i32>().map_err(|a| a + 1));
+    assert_empty(|| never().then(|a| a));
+}
+
 #[test]
 fn test_finished() {
     assert_done(|| finished(1), ok(1));
@@ -101,6 +121,18 @@ fn flatten() {
                            .flatten(), ok(1));
     assert_empty(|| finished(empty::<i32, u32>()).flatten());
     assert_empty(|| empty::<i32, u32>().map(finished).flatten());
+}
+
+#[cfg(feature = "never")]
+#[test]
+fn flatten_never() {
+    // TODO: Uncomment when `std::convert::From<!>` is implemented for `i32`
+    //assert_done(|| always_finished(always_finished(1)).flatten(), ok(1));
+    //assert_done(|| always_finished(always_failed(1)).flatten(), err(1));
+    //assert_done(|| always_failed(1u32).map(always_finished).flatten(), err(1));
+    //assert_done(|| always_finished(always_finished(1)).flatten(), ok(1));
+    assert_empty(|| always_finished(never()).flatten());
+    assert_empty(|| never().map(always_finished::<!>).flatten());
 }
 
 #[test]
