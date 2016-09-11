@@ -130,7 +130,7 @@ There's a lot to digest here, though, so let's walk through it
 line-by-line. First up in `main()`:
 
 ```rust
-let mut cre = Core::new().unwrap();
+let mut core = Core::new().unwrap();
 let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
 ```
 
