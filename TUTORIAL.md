@@ -264,7 +264,7 @@ let (_, data) = core.run(response).unwrap();
 println!("{}", String::from_utf8_lossy(&data));
 ```
 
-Here we pass our `response` future, our entire HTTP request, and we pass it to
+Here we pass our `response` future, our entire HTTP request, to
 the event loop, [asking it to resolve the future][`core_run`]. The event loop will
 then run until the future has been resolved, returning the result of the future
 which in this case is `io::Result<(TcpStream, Vec<u8>)>`.
