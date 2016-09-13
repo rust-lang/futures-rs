@@ -38,9 +38,10 @@ struct Inner<T> {
 /// what to do in another.
 ///
 /// This function is similar to Rust's channels found in the standard library.
-/// Two halves are returned, the first of which is a `Oneshot` which implements
-/// the `Future` trait. The second half is a `Complete` handle which is used to
-/// signal the end of a computation.
+/// Two halves are returned, the first of which is a `Complete` handle, used to
+/// signal the end of a computation and provide its value. The second half is a
+/// `Oneshot` which implements the `Future` trait, resolving to the value that
+/// was given to the `Complete` handle.
 ///
 /// Each half can be separately owned and sent across threads.
 ///
