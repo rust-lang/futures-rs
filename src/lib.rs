@@ -549,16 +549,16 @@ pub trait Future {
         assert_future::<B::Item, Self::Error, _>(and_then::new(self, f))
     }
 
-    /// Execute another future after this one has resolved with an error.
+    /// Execute another future if this one resolves with an error.
     ///
-    /// This function can be used to chain two futures together and ensure that
-    /// the final future isn't resolved until both have finished. The closure
-    /// provided is yielded the error of this future and returns another value
-    /// which can be converted into a future.
+    /// Return a future that passes along this future's value if it succeeds,
+    /// and otherwise passes the error to the closure `f` and waits for the
+    /// future it returns. The closure may also simply return a value that can
+    /// be converted into a future.
     ///
     /// Note that because `Result` implements the `IntoFuture` trait this method
-    /// can also be useful for chaining fallible and serial computations onto
-    /// the end of one future.
+    /// can also be useful for chaining together fallback computations, where
+    /// when one fails, the next is attempted.
     ///
     /// If this future is canceled, panics, or completes successfully then the
     /// provided closure `f` is never called.
