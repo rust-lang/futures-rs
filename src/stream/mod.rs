@@ -56,13 +56,17 @@ pub use self::zip::Zip;
 pub use self::peek::Peekable;
 
 if_std! {
+    use std;
+
     mod buffered;
     mod buffer_unordered;
+    mod catch_unwind;
     mod channel;
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
+    pub use self::catch_unwind::CatchUnwind;
     pub use self::channel::{channel, Sender, Receiver, FutureSender};
     pub use self::collect::Collect;
     pub use self::wait::Wait;
@@ -632,6 +636,43 @@ pub trait Stream {
         where Self: Sized
     {
         fuse::new(self)
+    }
+
+    /// Catches unwinding panics while polling the stream.
+    ///
+    /// Caught panic (if any) will be the last element of the resulting stream.
+    ///
+    /// In general, panics within a stream can propagate all the way out to the
+    /// task level. This combinator makes it possible to halt unwinding within
+    /// the stream itself. It's most commonly used within task executors.
+    ///
+    /// Note that this method requires the `UnwindSafe` bound from the standard
+    /// library. This isn't always applied automatically, and the standard
+    /// library provides an `AssertUnwindSafe` wrapper type to apply it
+    /// after-the fact. To assist using this method, the `Stream` trait is also
+    /// implemented for `AssertUnwindSafe<S>` where `S` implements `Stream`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use futures::stream;
+    /// use futures::stream::Stream;
+    ///
+    /// let stream = stream::iter::<_, Option<i32>, bool>(vec![
+    ///     Some(10), None, Some(11)].into_iter().map(Ok));
+    /// // panic on second element
+    /// let stream_panicking = stream.map(|o| o.unwrap());
+    /// let mut iter = stream_panicking.catch_unwind().wait();
+    ///
+    /// assert_eq!(Ok(10), iter.next().unwrap().ok().unwrap());
+    /// assert!(iter.next().unwrap().is_err());
+    /// assert!(iter.next().is_none());
+    /// ```
+    #[cfg(feature = "use_std")]
+    fn catch_unwind(self) -> CatchUnwind<Self>
+        where Self: Sized + std::panic::UnwindSafe
+    {
+        catch_unwind::new(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
