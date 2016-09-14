@@ -30,7 +30,7 @@ impl<S> Stream for Take<S>
             Ok(Async::Ready(None))
         } else {
             match self.stream.poll() {
-                e @ Ok(Async::Ready(Some(_))) => {
+                e @ Ok(Async::Ready(Some(_))) | e @ Err(_) => {
                     self.remaining -= 1;
                     e
                 }
