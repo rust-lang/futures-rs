@@ -16,11 +16,22 @@ pub struct IterStream<I> {
 /// always calls `iter.next()` and returns that. Additionally, the error type is
 /// generic here as it will never be returned, instead the type of the iterator
 /// will always be returned upwards as a successful value.
-pub fn iter<I, T, E>(i: I) -> IterStream<I>
-    where I: Iterator<Item=Result<T, E>>,
+///
+/// ```rust
+/// use futures::*;
+/// use futures::stream::Stream;
+///
+/// let mut stream = stream::iter(vec![Ok(17), Err(false), Ok(19)]);
+/// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
+/// assert_eq!(Err(false), stream.poll());
+/// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
+/// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// ```
+pub fn iter<J, T, E>(i: J) -> IterStream<J::IntoIter>
+    where J: IntoIterator<Item=Result<T, E>>,
 {
     IterStream {
-        iter: i,
+        iter: i.into_iter(),
     }
 }
 
