@@ -1,5 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::error::Error;
+use std::fmt;
 
 use {Future, Poll, Async};
 use slot::{Slot, Token};
@@ -162,6 +164,19 @@ impl<T> Drop for Complete<T> {
 /// is dropped.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Canceled;
+
+impl fmt::Display for Canceled {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "oneshot canceled")
+    }
+}
+
+impl Error for Canceled {
+    fn description(&self) -> &str {
+        "oneshot canceled"
+    }
+}
+
 
 impl<T> Future for Oneshot<T> {
     type Item = T;
