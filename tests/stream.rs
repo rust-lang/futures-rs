@@ -238,3 +238,40 @@ fn wait() {
     assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
 }
+
+#[test]
+fn history() {
+    let mut history = list().history(None);
+    let mut sub1 = history.clone();
+    assert_eq!(history.poll(), Poll::Ok(Some(1)));
+    let mut sub2 = history.clone();
+    assert_eq!(history.poll(), Poll::Ok(Some(2)));
+    assert_eq!(sub1.poll(), Poll::Ok(Some(1)));
+    assert_eq!(sub1.poll(), Poll::Ok(Some(2)));
+    assert_eq!(history.poll(), Poll::Ok(Some(3)));
+    assert_eq!(sub2.poll(), Poll::Ok(Some(2)));
+    assert_eq!(sub2.poll(), Poll::Ok(Some(3)));
+    assert_eq!(history.poll(), Poll::Ok(None));
+    assert_eq!(sub1.poll(), Poll::Ok(Some(3)));
+    assert_eq!(sub1.poll(), Poll::Ok(None));
+    assert_eq!(sub2.poll(), Poll::Ok(None));
+}
+
+#[test]
+fn full_history() {
+    let mut history = list().full_history(None);
+    let mut sub1 = history.clone();
+    assert_eq!(history.poll(), Poll::Ok(Some(1)));
+    let mut sub2 = history.clone();
+    assert_eq!(history.poll(), Poll::Ok(Some(2)));
+    assert_eq!(sub1.poll(), Poll::Ok(Some(1)));
+    assert_eq!(sub1.poll(), Poll::Ok(Some(2)));
+    assert_eq!(history.poll(), Poll::Ok(Some(3)));
+    assert_eq!(sub2.poll(), Poll::Ok(Some(1)));
+    assert_eq!(sub2.poll(), Poll::Ok(Some(2)));
+    assert_eq!(sub2.poll(), Poll::Ok(Some(3)));
+    assert_eq!(history.poll(), Poll::Ok(None));
+    assert_eq!(sub1.poll(), Poll::Ok(Some(3)));
+    assert_eq!(sub1.poll(), Poll::Ok(None));
+    assert_eq!(sub2.poll(), Poll::Ok(None));
+}
