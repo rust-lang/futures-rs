@@ -735,7 +735,7 @@ pub trait Stream {
         zip::new(self, other)
     }
 
-    /// Creates a new stream witch exposes a `peek` method.
+    /// Creates a new stream which exposes a `peek` method.
     ///
     /// Calling `peek` returns a reference to the next item in the stream.
     fn peekable(self) -> Peekable<Self>
