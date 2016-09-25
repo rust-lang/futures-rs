@@ -1,3 +1,6 @@
+use std::any::Any;
+use std::error::Error;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -70,6 +73,29 @@ enum Message<T> {
 }
 
 pub struct SendError<T, E>(Result<T, E>);
+
+impl<T, E> fmt::Debug for SendError<T, E> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("SendError")
+            .field(&"...")
+            .finish()
+    }
+}
+
+impl<T, E> fmt::Display for SendError<T, E> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "send failed because receiver is gone")
+    }
+}
+
+impl<T, E> Error for SendError<T, E>
+    where T: Any, E: Any
+{
+    fn description(&self) -> &str {
+        "send failed because receiver is gone"
+    }
+}
+
 
 impl<T, E> Stream for Receiver<T, E> {
     type Item = T;
