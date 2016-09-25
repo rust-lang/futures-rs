@@ -51,14 +51,10 @@ futures to your project's `Cargo.toml` like so:
 
 ```toml
 [dependencies]
-futures = { git = "https://github.com/alexcrichton/futures-rs" }
-tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
+futures = "0.1"
+tokio-core = "0.1"
 tokio-tls = { git = "https://github.com/tokio-rs/tokio-tls" }
 ```
-
-> **Note**: this library is currently in active development and requires
->           pulling from git right now, but soon the crates will be published to
->           crates.io!
 
 Here we're adding a dependency on three crates:
 
