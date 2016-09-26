@@ -91,6 +91,7 @@ struct Inner {
 ///
 /// This future will resolve in the same way as the underlying future, and it
 /// will propagate panics.
+#[must_use]
 pub struct CpuFuture<T, E> {
     inner: Oneshot<thread::Result<Result<T, E>>>,
 }
