@@ -42,7 +42,7 @@ pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
 pub use self::fold::Fold;
-pub use self::for_each::ForEach;
+pub use self::for_each::{Drained, ForEach};
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::map::Map;

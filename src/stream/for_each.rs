@@ -21,14 +21,17 @@ pub fn new<S, F>(s: S, f: F) -> ForEach<S, F>
     }
 }
 
+/// Wrapper around a stream that has already reached its end.
+pub struct Drained<S>(pub S);
+
 impl<S, F> Future for ForEach<S, F>
     where S: Stream,
           F: FnMut(S::Item) -> Result<(), S::Error>,
 {
-    type Item = S;
+    type Item = Drained<S>;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<S, S::Error> {
+    fn poll(&mut self) -> Poll<Drained<S>, S::Error> {
         match self.stream {
             Some(ref mut s) => {
                 loop {
@@ -43,6 +46,6 @@ impl<S, F> Future for ForEach<S, F>
             None => panic!("poll a ForEach after it's done"),
         }
 
-        Ok(Async::Ready(self.stream.take().unwrap()))
+        Ok(Async::Ready(Drained(self.stream.take().unwrap())))
     }
 }
