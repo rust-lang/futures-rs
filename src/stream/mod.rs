@@ -17,6 +17,7 @@ mod iter;
 pub use self::iter::{iter, IterStream};
 
 mod and_then;
+mod checked;
 mod empty;
 mod filter;
 mod filter_map;
@@ -37,6 +38,7 @@ mod take;
 mod then;
 mod zip;
 pub use self::and_then::AndThen;
+pub use self::checked::Checked;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -638,6 +640,25 @@ pub trait Stream {
         where Self: Sized
     {
         fuse::new(self)
+    }
+
+    /// Create a wrapper stream that is guaranteed to panic if poll is called
+    /// after EOF.
+    ///
+    /// `Stream` contract prohibit calling `poll` after EOF, and this wrapper
+    /// enforces this contract in runtime.
+    ///
+    /// Panic behavior however should not be relied upon, but instead this
+    /// wrapper can be used in tests and during debugging of stream clients.
+    ///
+    /// Checked wrappers can also be used internally in implementations of
+    /// streams that otherwise would do something harmful when polled after
+    /// EOF (e. g. violate memory safety, which is not allowed by `Stream`
+    /// contract.
+    fn checked(self) -> Checked<Self>
+        where Self: Sized
+    {
+        checked::new(self)
     }
 
     /// Catches unwinding panics while polling the stream.
