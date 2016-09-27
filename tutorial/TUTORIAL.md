@@ -1,3 +1,5 @@
+% Futures Tutorial
+
 # Getting started with futures
 [top]: #getting-started-with-futures
 
@@ -81,7 +83,7 @@ abstraction overhead.
 Now that we've got all that set up, let's write our first program! As
 a "Hello, World!" for I/O, let's download the Rust home page:
 
-```rust
+```rust,no_run
 extern crate futures;
 extern crate tokio_core;
 extern crate tokio_tls;
@@ -125,9 +127,14 @@ should see the HTML of the Rust home page!
 There's a lot to digest here, though, so let's walk through it
 line-by-line. First up in `main()`:
 
-```rust
+```rust,no_run
+# extern crate tokio_core;
+# use std::net::ToSocketAddrs;
+# use tokio_core::reactor::Core;
+# fn main() {
 let mut core = Core::new().unwrap();
 let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+# }
 ```
 
 Here we [create an event loop][core-new] on which we will perform all our
@@ -139,8 +146,16 @@ the standard library's [`to_socket_addrs`] method.
 
 Next up:
 
-```rust
+```rust,no_run
+# extern crate tokio_core;
+# use std::net::ToSocketAddrs;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpStream;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
 let socket = TcpStream::connect(&addr, &core.handle());
+# }
 ```
 
 We [get a handle] to our event loop and connect to the host with
@@ -163,11 +178,24 @@ rust-lang.org home page:
 
 Let's take a look at each of these steps in detail, the first being:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# extern crate tokio_core;
+# extern crate tokio_tls;
+# use std::net::ToSocketAddrs;
+# use futures::Future;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpStream;
+# use tokio_tls::ClientContext;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+#     let socket = TcpStream::connect(&addr, &core.handle());
 let tls_handshake = socket.and_then(|socket| {
     let cx = ClientContext::new().unwrap();
     cx.handshake("www.rust-lang.org", socket)
 });
+# }
 ```
 
 Here we use the [`and_then`] method on the [`Future`] trait to continue
@@ -205,7 +233,23 @@ keep chaining computation!
 
 Next up, we issue our HTTP request:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# extern crate tokio_core;
+# extern crate tokio_tls;
+# use std::net::ToSocketAddrs;
+# use futures::Future;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpStream;
+# use tokio_tls::ClientContext;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+#     let socket = TcpStream::connect(&addr, &core.handle());
+#     let tls_handshake = socket.and_then(|socket| {
+#         let cx = ClientContext::new().unwrap();
+#         cx.handshake("www.rust-lang.org", socket)
+#     });
 let request = tls_handshake.and_then(|socket| {
     tokio_core::io::write_all(socket, "\
         GET / HTTP/1.0\r\n\
@@ -213,6 +257,7 @@ let request = tls_handshake.and_then(|socket| {
         \r\n\
     ".as_bytes())
 });
+# }
 ```
 
 Here we take the future from the previous step, `tls_handshake`, and
@@ -230,10 +275,34 @@ sending it to the underlying socket.
 
 And the third and final piece of our request looks like:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# extern crate tokio_core;
+# extern crate tokio_tls;
+# use std::net::ToSocketAddrs;
+# use futures::Future;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpStream;
+# use tokio_tls::ClientContext;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+#     let socket = TcpStream::connect(&addr, &core.handle());
+#     let tls_handshake = socket.and_then(|socket| {
+#         let cx = ClientContext::new().unwrap();
+#         cx.handshake("www.rust-lang.org", socket)
+#     });
+#     let request = tls_handshake.and_then(|socket| {
+#         tokio_core::io::write_all(socket, "\
+#             GET / HTTP/1.0\r\n\
+#             Host: www.rust-lang.org\r\n\
+#             \r\n\
+#         ".as_bytes())
+#     });
 let response = request.and_then(|(socket, _)| {
     tokio_core::io::read_to_end(socket, Vec::new())
 });
+# }
 ```
 
 The previous `request` future is chained again to the final future,
@@ -255,9 +324,36 @@ this point in the program we've done no I/O, issued no HTTP requests, etc.
 To actually execute our future and drive it to completion we'll need to run the
 event loop:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# extern crate tokio_core;
+# extern crate tokio_tls;
+# use std::net::ToSocketAddrs;
+# use futures::Future;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpStream;
+# use tokio_tls::ClientContext;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+#     let socket = TcpStream::connect(&addr, &core.handle());
+#     let tls_handshake = socket.and_then(|socket| {
+#         let cx = ClientContext::new().unwrap();
+#         cx.handshake("www.rust-lang.org", socket)
+#     });
+#     let request = tls_handshake.and_then(|socket| {
+#         tokio_core::io::write_all(socket, "\
+#             GET / HTTP/1.0\r\n\
+#             Host: www.rust-lang.org\r\n\
+#             \r\n\
+#         ".as_bytes())
+#     });
+#     let response = request.and_then(|(socket, _)| {
+#         tokio_core::io::read_to_end(socket, Vec::new())
+#     });
 let (_, data) = core.run(response).unwrap();
 println!("{}", String::from_utf8_lossy(&data));
+# }
 ```
 
 Here we pass our `response` future, our entire HTTP request, to
@@ -286,7 +382,14 @@ futures can do, so let's dive more into the traits themselves!
 The core trait of the [`futures`] crate is [`Future`].  This trait represents an
 asynchronous computation which will eventually get resolved. Let's take a look:
 
-```rust
+```rust,no_run
+pub enum Async<T> {
+    Ready(T),
+    NotReady,
+}
+
+type Poll<T, E> = Result<Async<T>, E>;
+
 trait Future {
     type Item;
     type Error;
@@ -309,9 +412,11 @@ let's go through them all in detail!
 
 [Back to `Future`][future-trait]
 
-```rust
+```rust,no_run
+# trait Future {
 type Item;
 type Error;
+# }
 ```
 
 The first aspect of the [`Future`] trait you'll probably notice is the two
@@ -323,21 +428,30 @@ These two types will show up very frequently in `where` clauses when consuming
 futures generically, and type signatures when futures are returned. For example
 when returning a future you might write:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# use std::io;
+# use futures::Future;
 fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
     // ...
+#     Box::new(futures::finished(0))
 }
+# fn main() {}
 ```
 
 Or when taking a future you might write:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# use std::io;
+# use futures::Future;
 fn foo<F>(future: F)
     where F: Future<Error = io::Error>,
           F::Item: Clone,
 {
     // ...
 }
+# fn main() {}
 ```
 
 ### `poll`
@@ -345,8 +459,15 @@ fn foo<F>(future: F)
 
 [Back to `Future`][future-trait]
 
-```rust
+```rust,no_run
+# extern crate futures;
+# use futures::Poll;
+# trait Future {
+# type Item;
+# type Error;
 fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
+# }
+# fn main() {}
 ```
 
 The entire [`Future`] trait is built up around this one method, and it's the
@@ -370,13 +491,17 @@ Next we see that [`Poll`][poll-type] is actually a type alias:
 
 [poll-type]: http://alexcrichton.com/futures-rs/futures/type.Poll.html
 
-```rust
+```rust,no_run
+# pub enum Async<T> {
+#     Ready(T),
+#     NotReady,
+# }
 type Poll<T, E> = Result<Async<T>, E>;
 ```
 
 Let's follow through and see what [`Async`] is as well:
 
-```rust
+```rust,no_run
 pub enum Async<T> {
     Ready(T),
     NotReady,
@@ -430,14 +555,17 @@ These combinators are similar to the [`Iterator`] combinators in that they all
 consume the receiving future and return a new future. For example, we could
 have:
 
-```rust
-fn parse<F>(future: F) -> Box<Future<Item=u32, Error=F::Error>>
-    where F: Future<Item=String> + 'static,
+```rust,no_run
+# extern crate futures;
+# use futures::{BoxFuture, Future};
+fn parse<F>(future: F) -> BoxFuture<u32, F::Error>
+    where F: Future<Item=String> + Send + 'static,
 {
     Box::new(future.map(|string| {
         string.parse::<u32>().unwrap()
     }))
 }
+# fn main() {}
 ```
 
 Here we're using [`map`] to transform a future of `String` to a future of `u32`,
@@ -493,7 +621,14 @@ in the standard library:
 
 Let's take a look at the [`Stream`] trait in the [`futures`] crate:
 
-```rust
+```rust,no_run
+pub enum Async<T> {
+    Ready(T),
+    NotReady,
+}
+
+type Poll<T, E> = Result<Async<T>, E>;
+
 trait Stream {
     type Item;
     type Error;
@@ -523,7 +658,7 @@ composing streams and other arbitrary futures with the core future combinators.
 
 Like [`Future`], the [`Stream`] trait provides a large number of combinators.
 Many future-like combinators are provided, like [`then`][stream-then], in
-addition to stream-specific combinators like [`fold`].
+addition to stream-specific combinators like [`fold`] and [`collect`].
 
 [stream-then]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.then
 [stream-map]: http://alexcrichton.com/futures-rs/futures/stream/trait.Stream.html#method.map
@@ -543,7 +678,7 @@ write out the word "Hello!" to them, and then close the socket:
 [`incoming`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpListener.html#method.incoming
 [`TcpListener`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpListener.html
 
-```rust
+```rust,no_run
 extern crate futures;
 extern crate tokio_core;
 
@@ -573,10 +708,15 @@ fn main() {
 
 Like before, let's walk through this line-by-line:
 
-```rust
+```rust,no_run
+# extern crate tokio_core;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpListener;
+# fn main() {
 let mut core = Core::new().unwrap();
 let address = "127.0.0.1:8080".parse().unwrap();
 let listener = TcpListener::bind(&address, &core.handle()).unwrap();
+# }
 ```
 
 Here we initialize our event loop, like before, and then we use the
@@ -587,9 +727,17 @@ sockets.
 
 Now that we've got the TCP listener we can inspect its state:
 
-```rust
+```rust,no_run
+# extern crate tokio_core;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpListener;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let address = "127.0.0.1:8080".parse().unwrap();
+#     let listener = TcpListener::bind(&address, &core.handle()).unwrap();
 let addr = listener.local_addr().unwrap();
 println!("Listening for connections on {}", addr);
+# }
 ```
 
 Here we're just calling the [`local_addr`] method to print out what address we
@@ -600,8 +748,17 @@ successfully, so clients can now connect.
 
 Next up, we actually create our [`Stream`]!
 
-```rust
+```rust,no_run
+# extern crate tokio_core;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpListener;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let address = "127.0.0.1:8080".parse().unwrap();
+#     let listener = TcpListener::bind(&address, &core.handle()).unwrap();
+#     let addr = listener.local_addr().unwrap();
 let clients = listener.incoming();
+# }
 ```
 
 Here the [`incoming`] method returns a [`Stream`] of [`TcpListener`] and
@@ -620,10 +777,22 @@ system for processing.
 Now that we've got our stream of clients, we can manipulate it via the standard
 methods on the [`Stream`] trait:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# extern crate tokio_core;
+# use futures::stream::Stream;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpListener;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let address = "127.0.0.1:8080".parse().unwrap();
+#     let listener = TcpListener::bind(&address, &core.handle()).unwrap();
+#     let addr = listener.local_addr().unwrap();
+#     let clients = listener.incoming();
 let welcomes = clients.and_then(|(socket, _peer_addr)| {
     tokio_core::io::write_all(socket, b"Hello!\n")
 });
+# }
 ```
 
 Here we use the [`and_then`][stream-and-then] method on [`Stream`] to perform an
@@ -639,10 +808,26 @@ This block means that `welcomes` is now a stream of sockets which have had
 that point, so we can collapse the entire `welcomes` stream into a future with
 the [`for_each`] method:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# extern crate tokio_core;
+# use futures::stream::Stream;
+# use tokio_core::reactor::Core;
+# use tokio_core::net::TcpListener;
+# fn main() {
+#     let mut core = Core::new().unwrap();
+#     let address = "127.0.0.1:8080".parse().unwrap();
+#     let listener = TcpListener::bind(&address, &core.handle()).unwrap();
+#     let addr = listener.local_addr().unwrap();
+#     println!("Listening for connections on {}", addr);
+#     let clients = listener.incoming();
+#     let welcomes = clients.and_then(|(socket, _peer_addr)| {
+#         tokio_core::io::write_all(socket, b"Hello!\n")
+#     });
 welcomes.for_each(|(_socket, _welcome)| {
     Ok(())
-})
+});
+# }
 ```
 
 Here we take the results of the previous future, [`write_all`], and discard
@@ -662,16 +847,33 @@ If, instead, we want to handle all clients concurrently, we can use the
 
 [`spawn`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Handle.html#method.spawn
 
-```rust
-let clients = listener.incoming();
-let welcomes = clients.map(|(socket, _peer_addr)| {
-    tokio_core::io::write_all(socket, b"hello!\n")
-});
-let handle = core.handle();
-let server = welcomes.for_each(|future| {
-    handle.spawn(future.then(|_| Ok(())));
-    Ok(())
-});
+```rust,no_run
+extern crate futures;
+extern crate tokio_core;
+
+use futures::Future;
+use futures::stream::Stream;
+use tokio_core::reactor::Core;
+use tokio_core::net::TcpListener;
+
+fn main() {
+    let mut core = Core::new().unwrap();
+    let address = "127.0.0.1:8080".parse().unwrap();
+    let listener = TcpListener::bind(&address, &core.handle()).unwrap();
+
+    let addr = listener.local_addr().unwrap();
+    println!("Listening for connections on {}", addr);
+
+    let clients = listener.incoming();
+    let welcomes = clients.map(|(socket, _peer_addr)| {
+        tokio_core::io::write_all(socket, b"hello!\n")
+    });
+    let handle = core.handle();
+    let server = welcomes.for_each(|future| {
+        handle.spawn(future.then(|_| Ok(())));
+        Ok(())
+    });
+}
 ```
 
 Instead of [`and_then`][stream-and-then] we're using [`map`][stream-map] here
@@ -717,7 +919,7 @@ the [`futures`] crate, the first of which is [`oneshot`]. Let's take a look:
 
 [`oneshot`]: http://alexcrichton.com/futures-rs/futures/fn.oneshot.html
 
-```rust
+```rust,no_run
 extern crate futures;
 
 use std::thread;
@@ -798,10 +1000,14 @@ isn't (yet) the easiest thing to do. Let's walk through your options:
 
 First, what you can do is return a boxed [trait object]:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# use std::io;
+# use futures::{finished, Future};
 fn foo() -> Box<Future<Item = u32, Error = io::Error>> {
-    // ...
+    Box::new(finished(1))
 }
+# fn main() {}
 ```
 
 The upside of this strategy is that it's easy to write down (just a [`Box`]) and
@@ -811,10 +1017,14 @@ the method as *any* type of future can be returned as an opaque, boxed `Future`.
 Note that the [`boxed`] method actually returns a `BoxFuture`, but this is just
 a type alias for `Box<Future + Send>`:
 
-```rust
-fn foo() -> BoxFuture<u32, u32> {
+```rust,no_run
+# extern crate futures;
+# use std::io;
+# use futures::{BoxFuture, finished, Future};
+fn foo() -> BoxFuture<u32, io::Error> {
     finished(1).boxed()
 }
+# fn main() {}
 ```
 
 The downside of this approach is that it requires a runtime allocation
@@ -837,7 +1047,9 @@ into effect.
 If you'd like to not return a `Box`, however, another option is to name the
 return type explicitly. For example:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# use futures::{Future, Oneshot, oneshot, Poll};
 struct MyFuture {
     inner: Oneshot<i32>,
 }
@@ -845,12 +1057,17 @@ struct MyFuture {
 fn foo() -> MyFuture {
     let (tx, rx) = oneshot();
     // ...
-    MyFuture { inner: tx }
+    MyFuture { inner: rx }
 }
 
 impl Future for MyFuture {
-    // ...
+    type Item = <Oneshot<i32> as Future>::Item;
+    type Error = <Oneshot<i32> as Future>::Error;
+    fn poll(&mut self) -> Poll<<Oneshot<i32> as Future>::Item, <Oneshot<i32> as Future>::Error> {
+        self.inner.poll()
+    }
 }
+# fn main() {}
 ```
 
 In this example we're returning a custom type, `MyFuture`, and we implement the
@@ -873,13 +1090,16 @@ frequently returning futures it may be too much.
 
 The next possible alternative is to name the return type directly:
 
-```rust
+```rust,no_run
+# extern crate futures;
+# use futures::{Future, Map};
 fn add_10<F>(f: F) -> Map<F, fn(i32) -> i32>
     where F: Future<Item = i32>,
 {
     fn do_map(i: i32) -> i32 { i + 10 }
     f.map(do_map)
 }
+# fn main() {}
 ```
 
 Here we name the return type exactly as the compiler sees it. The [`map`]
@@ -907,12 +1127,17 @@ example:
 
 [`impl Trait`]: https://github.com/rust-lang/rfcs/blob/master/text/1522-conservative-impl-trait.md
 
-```rust
+# This was tested on nightly, but is ignored due to `futures` running on stable.
+```rust,ignore
+# #![feature(conservative_impl_trait)]
+# extern crate futures;
+# use futures::{Future, Map};
 fn add_10<F>(f: F) -> impl Future<Item = i32, Error = F::Error>
     where F: Future<Item = i32>,
 {
     f.map(|i| i + 10)
 }
+# fn main() {}
 ```
 
 Here we're indicating that the return type is "something that implements

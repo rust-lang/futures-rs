@@ -1,0 +1,10 @@
+[package]
+name = "tutorial"
+version = "0.1.0"
+authors = ["Ahmed Charles <acharles@outlook.com>"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+futures = { git = "https://github.com/alexcrichton/futures-rs" }
+tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
+tokio-tls = { git = "https://github.com/tokio-rs/tokio-tls" }
