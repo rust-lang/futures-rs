@@ -185,6 +185,7 @@ pub use lazy::{lazy, Lazy};
 mod and_then;
 mod flatten;
 mod fuse;
+mod into_stream;
 mod join;
 mod map;
 mod map_err;
@@ -194,6 +195,7 @@ mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
 pub use fuse::Fuse;
+pub use into_stream::IntoStream;
 pub use join::{Join, Join3, Join4, Join5};
 pub use map::Map;
 pub use map_err::MapErr;
@@ -695,6 +697,33 @@ pub trait Future {
     {
         join::new5(self, b.into_future(), c.into_future(), d.into_future(),
                    e.into_future())
+    }
+
+    /// Convert this future into single element stream.
+    ///
+    /// Resulting stream contains single success if this future resolves to
+    /// success and single error if this future resolves into error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::*;
+    /// use futures::stream::Stream;
+    ///
+    /// let future = finished::<_, bool>(17);
+    /// let mut stream = future.into_stream();
+    /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
+    /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    ///
+    /// let future = failed::<bool, _>(19);
+    /// let mut stream = future.into_stream();
+    /// assert_eq!(Err(19), stream.poll());
+    /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    /// ```
+    fn into_stream(self) -> IntoStream<Self>
+        where Self: Sized
+    {
+        into_stream::new(self)
     }
 
     /// Flatten the execution of this future when the successful result of this
