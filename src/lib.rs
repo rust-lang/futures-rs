@@ -184,6 +184,7 @@ pub use lazy::{lazy, Lazy};
 // combinators
 mod and_then;
 mod flatten;
+mod flatten_stream;
 mod fuse;
 mod into_stream;
 mod join;
@@ -194,6 +195,7 @@ mod select;
 mod then;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
+pub use flatten_stream::FlattenStream;
 pub use fuse::Fuse;
 pub use into_stream::IntoStream;
 pub use join::{Join, Join3, Join4, Join5};
@@ -758,6 +760,40 @@ pub trait Future {
         assert_future::<<<Self as Future>::Item as IntoFuture>::Item,
                         <<Self as Future>::Item as IntoFuture>::Error,
                         _>(f)
+    }
+
+    /// Flatten the execution of this future when the successful result of this
+    /// future is a stream.
+    ///
+    /// This can be useful when stream initialization is deferred, and it is
+    /// convenient to work with that stream as if stream was available at the
+    /// call site.
+    ///
+    /// Note that this function consumes this future and returns a wrapped
+    /// version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::*;
+    /// use futures::stream::Stream;
+    ///
+    /// let stream_items = vec![Ok(17), Err(true), Ok(19)];
+    /// let future_of_a_stream = finished::<_, bool>(stream::iter(stream_items));
+    ///
+    /// let stream = future_of_a_stream.flatten_stream();
+    ///
+    /// let mut iter = stream.wait();
+    /// assert_eq!(Ok(17), iter.next().unwrap());
+    /// assert_eq!(Err(true), iter.next().unwrap());
+    /// assert_eq!(Ok(19), iter.next().unwrap());
+    /// assert_eq!(None, iter.next());
+    /// ```
+    fn flatten_stream(self) -> FlattenStream<Self>
+        where <Self as Future>::Item: stream::Stream<Error=Self::Error>,
+              Self: Sized
+    {
+        flatten_stream::new(self)
     }
 
     /// Fuse a future such that `poll` will never again be called once it has
