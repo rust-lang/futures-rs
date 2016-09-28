@@ -108,6 +108,8 @@ impl CpuPool {
     /// and clones can be made of it to get multiple references to the same
     /// thread pool.
     pub fn new(size: usize) -> CpuPool {
+        assert!(size > 0);
+
         let pool = CpuPool {
             inner: Arc::new(Inner {
                 queue: MsQueue::new(),
