@@ -9,13 +9,11 @@ pub struct IterStream<I> {
     iter: I,
 }
 
-/// Converts an `Iterator` into a `Stream` which is always ready to yield the
-/// next value.
+/// Converts an `Iterator` over `Result`s into a `Stream` which is always ready
+/// to yield the next value.
 ///
 /// Iterators in Rust don't express the ability to block, so this adapter simply
-/// always calls `iter.next()` and returns that. Additionally, the error type is
-/// generic here as it will never be returned, instead the type of the iterator
-/// will always be returned upwards as a successful value.
+/// always calls `iter.next()` and returns that.
 ///
 /// ```rust
 /// use futures::*;
