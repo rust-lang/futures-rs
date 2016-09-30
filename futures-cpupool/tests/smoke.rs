@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use futures::{Future, BoxFuture};
-use futures_cpupool::CpuPool;
+use futures_cpupool::{CpuPool, Builder};
 
 fn done<T: Send + 'static>(t: T) -> BoxFuture<T, ()> {
     futures::done(Ok(t)).boxed()
@@ -58,6 +58,39 @@ fn threads_go_away() {
     for _ in 0..100 {
         if CNT.load(Ordering::SeqCst) == 1 {
             return
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    panic!("thread didn't exit");
+}
+
+#[test]
+fn lifecycle_test() {
+    static NUM_STARTS: AtomicUsize = ATOMIC_USIZE_INIT;
+    static NUM_STOPS: AtomicUsize = ATOMIC_USIZE_INIT;
+
+    fn after_start() {
+        NUM_STARTS.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn before_stop() {
+        NUM_STOPS.fetch_add(1, Ordering::SeqCst);
+    }
+
+    let pool = Builder::new()
+        .pool_size(4)
+        .after_start(after_start)
+        .before_stop(before_stop)
+        .create();
+    let _handle = pool.spawn(futures::lazy(|| {
+        Ok::<(), ()>(())
+    }));
+    drop(pool);
+
+    for _ in 0..100 {
+        if NUM_STOPS.load(Ordering::SeqCst) == 4 {
+            assert_eq!(NUM_STARTS.load(Ordering::SeqCst), 4);
+            return;
         }
         thread::sleep(Duration::from_millis(10));
     }

@@ -64,8 +64,23 @@ use futures::task::{self, Run, Executor};
 ///
 /// Currently `CpuPool` implements `Clone` which just clones a new reference to
 /// the underlying thread pool.
+///
+/// **Note:** if you use CpuPool inside a library it's better accept a
+/// `Builder` object for thread configuration rather than configuring just
+/// pool size.  This not only future proof for other settings but also allows
+/// user to attach monitoring tools to lifecycle hooks.
 pub struct CpuPool {
     inner: Arc<Inner>,
+}
+
+/// Thread pool configuration object
+///
+/// Builder starts with a number of workers equal to the number
+/// of CPUs on the host. But you can change it until you call `create()`.
+pub struct Builder {
+    pool_size: usize,
+    after_start: Option<Arc<Fn() + Send + Sync>>,
+    before_stop: Option<Arc<Fn() + Send + Sync>>,
 }
 
 struct Sender<F, T> {
@@ -84,6 +99,8 @@ struct Inner {
     queue: MsQueue<Message>,
     cnt: AtomicUsize,
     size: usize,
+    after_start: Option<Arc<Fn() + Send + Sync>>,
+    before_stop: Option<Arc<Fn() + Send + Sync>>,
 }
 
 /// The type of future returned from the `CpuPool::spawn` function, which
@@ -107,29 +124,24 @@ impl CpuPool {
     /// The returned handle can use `execute` to run work on this thread pool,
     /// and clones can be made of it to get multiple references to the same
     /// thread pool.
+    ///
+    /// This is a shortcut for:
+    /// ```rust
+    /// Builder::new().pool_size(size).create()
+    /// ```
     pub fn new(size: usize) -> CpuPool {
-        assert!(size > 0);
-
-        let pool = CpuPool {
-            inner: Arc::new(Inner {
-                queue: MsQueue::new(),
-                cnt: AtomicUsize::new(1),
-                size: size,
-            }),
-        };
-
-        for _ in 0..size {
-            let inner = pool.inner.clone();
-            thread::spawn(move || work(&inner));
-        }
-
-        return pool
+        Builder::new().pool_size(size).create()
     }
 
     /// Creates a new thread pool with a number of workers equal to the number
     /// of CPUs on the host.
+    ///
+    /// This is a shortcut for:
+    /// ```rust
+    /// Builder::new().create()
+    /// ```
     pub fn new_num_cpus() -> CpuPool {
-        CpuPool::new(num_cpus::get())
+        Builder::new().create()
     }
 
     /// Spawns a future to run on this thread pool, returning a future
@@ -190,12 +202,14 @@ impl CpuPool {
 }
 
 fn work(inner: &Inner) {
+    inner.after_start.as_ref().map(|fun| fun());
     loop {
         match inner.queue.pop() {
             Message::Run(r) => r.run(),
             Message::Close => break,
         }
     }
+    inner.before_stop.as_ref().map(|fun| fun());
 }
 
 impl Clone for CpuPool {
@@ -252,5 +266,67 @@ impl<F: Future> Future for Sender<F, Result<F::Item, F::Error>> {
         };
         self.tx.take().unwrap().complete(res);
         Ok(Async::Ready(()))
+    }
+}
+
+impl Builder {
+    /// Create a builder a number of workers equal to the number
+    /// of CPUs on the host.
+    pub fn new() -> Builder {
+        Builder {
+            pool_size: num_cpus::get(),
+            after_start: None,
+            before_stop: None,
+        }
+    }
+
+    /// Set size of a future CpuPool
+    ///
+    /// The size of a thread pool is the number of worker threads spawned
+    pub fn pool_size(&mut self, size: usize) -> &mut Self {
+        self.pool_size = size;
+        self
+    }
+
+    /// Execute function `f` right after each thread is started but before
+    /// running any jobs on it
+    ///
+    /// This is initially intended for bookkeeping and monitoring uses
+    pub fn after_start<F>(&mut self, f: F) -> &mut Self
+        where F: Fn() + Send + Sync + 'static
+    {
+        self.after_start = Some(Arc::new(f));
+        self
+    }
+
+    /// Execute function `f` before each worker thread stops
+    ///
+    /// This is initially intended for bookkeeping and monitoring uses
+    pub fn before_stop<F>(&mut self, f: F) -> &mut Self
+        where F: Fn() + Send + Sync + 'static
+    {
+        self.before_stop = Some(Arc::new(f));
+        self
+    }
+
+    /// Create CpuPool with configured parameters
+    pub fn create(&mut self) -> CpuPool {
+        let pool = CpuPool {
+            inner: Arc::new(Inner {
+                queue: MsQueue::new(),
+                cnt: AtomicUsize::new(1),
+                size: self.pool_size,
+                after_start: self.after_start.clone(),
+                before_stop: self.before_stop.clone(),
+            }),
+        };
+        assert!(self.pool_size > 0);
+
+        for _ in 0..self.pool_size {
+            let inner = pool.inner.clone();
+            thread::spawn(move || work(&inner));
+        }
+
+        return pool
     }
 }
