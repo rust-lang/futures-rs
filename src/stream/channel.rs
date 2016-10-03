@@ -72,6 +72,7 @@ enum Message<T> {
     Done,
 }
 
+/// Error type returned by `FutureSender` when the receiving end of a `channel` is dropped
 pub struct SendError<T, E>(Result<T, E>);
 
 impl<T, E> fmt::Debug for SendError<T, E> {
