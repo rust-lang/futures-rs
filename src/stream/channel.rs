@@ -187,3 +187,13 @@ impl<T, E> Future for FutureSender<T, E> {
         }
     }
 }
+
+impl<T, E> Drop for FutureSender<T, E> {
+    fn drop(&mut self) {
+        if let Some(token) = self.on_empty_token.take() {
+            if let Some(sender) = self.sender.take() {
+                sender.inner.slot.cancel(token);
+            }
+        }
+    }
+}

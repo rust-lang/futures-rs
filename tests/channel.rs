@@ -57,7 +57,7 @@ impl task::Unpark for Unpark {
 
 #[test]
 fn poll_future_then_drop() {
-    let (tx, _) = channel::<u32, u32>();
+    let (tx, _rx) = channel::<u32, u32>();
 
     let tx = tx.send(Ok(1));
     let mut t = task::spawn(tx);
@@ -65,7 +65,7 @@ fn poll_future_then_drop() {
     // First poll succeeds
     let tx = match t.poll_future(Arc::new(Unpark)) {
         Ok(Async::Ready(tx)) => tx,
-        _ => unreachable!(),
+        _ => panic!(),
     };
 
     // Send another value
@@ -75,7 +75,7 @@ fn poll_future_then_drop() {
     // Second poll doesn't
     match t.poll_future(Arc::new(Unpark)) {
         Ok(Async::NotReady) => {},
-        _ => unreachable!(),
+        _ => panic!(),
     };
 
     drop(t);
