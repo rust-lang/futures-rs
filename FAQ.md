@@ -56,7 +56,7 @@ allocation at the very end, not for any of the intermediate futures.
 
 More information can be found [in the tutorial][return-future].
 
-[return-future]: https://github.com/alexcrichton/futures-rs/blob/master/TUTORIAL.md#returning-futures
+[return-future]: https://github.com/alexcrichton/futures-rs/blob/master/tutorial/TUTORIAL.md#returning-futures
 
 ### Does it work on Windows?
 

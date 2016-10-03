@@ -20,7 +20,11 @@ script:
 
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path futures-cpupool/Cargo.toml
+
+  - cargo build --manifest-path tutorial/Cargo.toml
+  - rustdoc -L tutorial/target/debug -L tutorial/target/debug/deps --test tutorial/TUTORIAL.md
 after_success:
+  - rustdoc -o target/doc tutorial/TUTORIAL.md
   - travis-cargo --only nightly doc-upload
 env:
   global:
