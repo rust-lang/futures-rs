@@ -1,7 +1,8 @@
 extern crate futures;
 
-use futures::{done, Future};
+use futures::{task, done, Future, Async};
 use futures::stream::*;
+use std::sync::Arc;
 
 mod support;
 use support::*;
@@ -45,4 +46,37 @@ fn drop_rx() {
     let tx = tx.send(Ok(1)).wait().ok().unwrap();
     drop(rx);
     assert!(tx.send(Ok(1)).wait().is_err());
+}
+
+struct Unpark;
+
+impl task::Unpark for Unpark {
+    fn unpark(&self) {
+    }
+}
+
+#[test]
+fn poll_future_then_drop() {
+    let (tx, _) = channel::<u32, u32>();
+
+    let tx = tx.send(Ok(1));
+    let mut t = task::spawn(tx);
+
+    // First poll succeeds
+    let tx = match t.poll_future(Arc::new(Unpark)) {
+        Ok(Async::Ready(tx)) => tx,
+        _ => unreachable!(),
+    };
+
+    // Send another value
+    let tx = tx.send(Ok(2));
+    let mut t = task::spawn(tx);
+
+    // Second poll doesn't
+    match t.poll_future(Arc::new(Unpark)) {
+        Ok(Async::NotReady) => {},
+        _ => unreachable!(),
+    };
+
+    drop(t);
 }
