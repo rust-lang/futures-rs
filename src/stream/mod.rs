@@ -69,7 +69,7 @@ if_std! {
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
-    pub use self::channel::{channel, Sender, Receiver, FutureSender};
+    pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
     pub use self::collect::Collect;
     pub use self::wait::Wait;
 
