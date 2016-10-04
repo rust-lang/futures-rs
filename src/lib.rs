@@ -150,6 +150,7 @@
 
 #![no_std]
 #![deny(missing_docs)]
+#![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[macro_use]
 #[cfg(feature = "use_std")]
