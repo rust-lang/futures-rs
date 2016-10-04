@@ -7,7 +7,7 @@ readme = "README.md"
 keywords = ["futures", "async", "future"]
 repository = "https://github.com/alexcrichton/futures-rs"
 homepage = "https://github.com/alexcrichton/futures-rs"
-documentation = "http://alexcrichton.com/futures-rs/futures/"
+documentation = "https://docs.rs/futures"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.

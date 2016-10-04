@@ -5,7 +5,7 @@ This library is an implementation of **zero-cost futures** in Rust.
 [![Build Status](https://travis-ci.org/alexcrichton/futures-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/futures-rs)
 [![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/alexcrichton/futures-rs)
 
-[Documentation](https://alexcrichton.github.io/futures-rs)
+[Documentation](https://docs.rs/futures)
 
 [Tutorial][tutorial]
 
@@ -51,8 +51,8 @@ all, check out the [tutorial].
                        that show the screaming-fast performance of the futures
                        and mio stack
 
-[`futures`]: http://alexcrichton.com/futures-rs/futures
-[`futures-cpupool`]: http://alexcrichton.com/futures-rs/futures_cpupool
+[`futures`]: https://docs.rs/futures
+[`futures-cpupool`]: https://docs.rs/futures-cpupool
 [`tokio-core`]: https://tokio-rs.github.io/tokio-core
 [`tokio-proto`]: https://tokio-rs.github.io/tokio-proto
 [`tokio-socks5`]: https://github.com/tokio-rs/tokio-socks5
@@ -84,13 +84,13 @@ there are a wide variety of helpful combinators associated with this trait which
 are also zero-allocation and serve as a succinct and powerful way to compose
 computations on futures.
 
-[Future]: http://alexcrichton.com/futures-rs/futures/trait.Future.html
+[Future]: https://docs.rs/futures/0.1/futures/trait.Future.html
 
 The `Future` trait is driven by one method, [`poll`][poll], which allows
 pulling values out of a future and also getting notified when a future is
 complete. More documentation can be found on the associated method.
 
-[poll]: http://alexcrichton.com/futures-rs/futures/trait.Future.html#tymethod.poll
+[poll]: https://docs.rs/futures/0.1/futures/trait.Future.html#tymethod.pollod.poll
 
 More information can be found in [the tutorial][tutorial-future-trait]
 
