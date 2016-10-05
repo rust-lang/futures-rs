@@ -3,6 +3,7 @@ extern crate futures;
 use futures::{task, done, Future, Async};
 use futures::stream::*;
 use std::sync::Arc;
+use std::sync::atomic::*;
 
 mod support;
 use support::*;
@@ -79,4 +80,25 @@ fn poll_future_then_drop() {
     };
 
     drop(t);
+}
+
+#[test]
+fn drop_order() {
+    static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
+    let (tx, rx) = channel::<_, u32>();
+
+    struct A;
+
+    impl Drop for A {
+        fn drop(&mut self) {
+            DROPS.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    let tx = tx.send(Ok(A)).wait().unwrap();
+    assert_eq!(DROPS.load(Ordering::SeqCst), 0);
+    drop(rx);
+    assert_eq!(DROPS.load(Ordering::SeqCst), 1);
+    assert!(tx.send(Ok(A)).wait().is_err());
+    assert_eq!(DROPS.load(Ordering::SeqCst), 2);
 }

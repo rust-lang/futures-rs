@@ -208,7 +208,6 @@ pub use then::Then;
 
 if_std! {
     mod lock;
-    mod slot;
     pub mod task;
 
     mod catch_unwind;
