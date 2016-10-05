@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::SeqCst;
 use std::error::Error;
 use std::fmt;
 
 use {Future, Poll, Async};
-use slot::{Slot, Token};
 use lock::Lock;
 use task::{self, Task};
 
@@ -15,7 +15,6 @@ use task::{self, Task};
 #[must_use = "futures do nothing unless polled"]
 pub struct Oneshot<T> {
     inner: Arc<Inner<T>>,
-    cancel_token: Option<Token>,
 }
 
 /// Represents the completion half of a oneshot through which the result of a
@@ -24,13 +23,42 @@ pub struct Oneshot<T> {
 /// This is created by the `oneshot` function.
 pub struct Complete<T> {
     inner: Arc<Inner<T>>,
-    completed: bool,
 }
 
+/// Internal state of the `Oneshot`/`Complete` pair above. This is all used as
+/// the internal synchronization between the two for send/recv operations.
 struct Inner<T> {
-    slot: Slot<Option<T>>,
-    oneshot_gone: AtomicBool,
-    notify_cancel: Lock<Option<Task>>,
+    /// Indicates whether this oneshot is complete yet. This is filled in both
+    /// by `Complete::drop` and by `Oneshot::drop`, and both sides iterpret it
+    /// appropriately.
+    ///
+    /// For `Oneshot`, if this is `true`, then it's guaranteed that `data` is
+    /// unlocked and ready to be inspected.
+    ///
+    /// For `Complete` if this is `true` then the oneshot has gone away and it
+    /// can return ready from `poll_cancel`.
+    complete: AtomicBool,
+
+    /// The actual data being transferred as part of this `Oneshot`. This is
+    /// filled in by `Complete::complete` and read by `Oneshot::poll`.
+    ///
+    /// Note that this is protected by `Lock`, but it is in theory safe to
+    /// replace with an `UnsafeCell` as it's actually protected by `complete`
+    /// above. I wouldn't recommend doing this, however, unless someone is
+    /// supremely confident in the various atomic orderings here and there.
+    data: Lock<Option<T>>,
+
+    /// Field to store the task which is blocked in `Oneshot::poll`.
+    ///
+    /// This is filled in when a oneshot is polled but not ready yet. Note that
+    /// the `Lock` here, unlike in `data` above, is important to resolve races.
+    /// Both the `Oneshot` and the `Complete` halves understand that if they
+    /// can't acquire the lock then some important interference is happening.
+    rx_task: Lock<Option<Task>>,
+
+    /// Like `rx_task` above, except for the task blocked in
+    /// `Complete::poll_cancel`. Additionally, `Lock` cannot be `UnsafeCell`.
+    tx_task: Lock<Option<Task>>,
 }
 
 /// Creates a new in-memory oneshot used to represent completing a computation.
@@ -65,17 +93,16 @@ struct Inner<T> {
 /// ```
 pub fn oneshot<T>() -> (Complete<T>, Oneshot<T>) {
     let inner = Arc::new(Inner {
-        slot: Slot::new(None),
-        oneshot_gone: AtomicBool::new(false),
-        notify_cancel: Lock::new(None),
+        complete: AtomicBool::new(false),
+        data: Lock::new(None),
+        rx_task: Lock::new(None),
+        tx_task: Lock::new(None),
     });
     let oneshot = Oneshot {
         inner: inner.clone(),
-        cancel_token: None,
     };
     let complete = Complete {
         inner: inner,
-        completed: false,
     };
     (complete, oneshot)
 }
@@ -87,8 +114,14 @@ impl<T> Complete<T> {
     /// `Oneshot`, that the error provided is the result of the computation this
     /// represents.
     pub fn complete(mut self, t: T) {
-        self.completed = true;
-        self.send(Some(t))
+        // First up, flag that this method was called and then store the data.
+        // Note that this lock acquisition should always succeed as it can only
+        // interfere with `poll` in `Oneshot` which is only called when the
+        // `complete` flag is true, which we're setting here.
+        let mut slot = self.inner.data.try_lock().unwrap();
+        assert!(slot.is_none());
+        *slot = Some(t);
+        drop(slot);
     }
 
     /// Polls this `Complete` half to detect whether the `Oneshot` this has
@@ -112,8 +145,10 @@ impl<T> Complete<T> {
     /// away.
     pub fn poll_cancel(&mut self) -> Poll<(), ()> {
         // Fast path up first, just read the flag and see if our other half is
-        // gone.
-        if self.inner.oneshot_gone.load(Ordering::SeqCst) {
+        // gone. This flag is set both in our destructor and the oneshot
+        // destructor, but our destructor hasn't run yet so if it's set then the
+        // oneshot is gone.
+        if self.inner.complete.load(SeqCst) {
             return Ok(Async::Ready(()))
         }
 
@@ -131,31 +166,40 @@ impl<T> Complete<T> {
         // if it fails to acquire the lock it assumes that we'll see the flag
         // later on. So... we then try to see the flag later on!
         let handle = task::park();
-        match self.inner.notify_cancel.try_lock() {
+        match self.inner.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Ok(Async::Ready(())),
         }
-        if self.inner.oneshot_gone.load(Ordering::SeqCst) {
+        if self.inner.complete.load(SeqCst) {
             Ok(Async::Ready(()))
         } else {
             Ok(Async::NotReady)
-        }
-    }
-
-    fn send(&mut self, t: Option<T>) {
-        if let Err(e) = self.inner.slot.try_produce(t) {
-            self.inner.slot.on_empty(Some(e.into_inner()), |slot, item| {
-                slot.try_produce(item.unwrap()).ok()
-                    .expect("advertised as empty but wasn't");
-            });
         }
     }
 }
 
 impl<T> Drop for Complete<T> {
     fn drop(&mut self) {
-        if !self.completed {
-            self.send(None);
+        // Flag that we're a completed `Complete` and try to wake up a receiver.
+        // Whether or not we actually stored any data will get picked up and
+        // translated to either an item or cancellation.
+        //
+        // Note that if we fail to acquire the `rx_task` lock then that means
+        // we're in one of two situations:
+        //
+        // 1. The receiver is trying to block in `poll`
+        // 2. The receiver is being dropped
+        //
+        // In the first case it'll check the `complete` flag after it's done
+        // blocking to see if it succeeded. In the latter case we don't need to
+        // wake up anyone anyway. So in both cases it's ok to ignore the `None`
+        // case of `try_lock` and bail out.
+        self.inner.complete.store(true, SeqCst);
+        if let Some(mut slot) = self.inner.rx_task.try_lock() {
+            if let Some(task) = slot.take() {
+                drop(slot);
+                task.unpark();
+            }
         }
     }
 }
@@ -183,42 +227,68 @@ impl<T> Future for Oneshot<T> {
     type Error = Canceled;
 
     fn poll(&mut self) -> Poll<T, Canceled> {
-        if let Some(cancel_token) = self.cancel_token.take() {
-            self.inner.slot.cancel(cancel_token);
-        }
-        match self.inner.slot.try_consume() {
-            Ok(Some(e)) => Ok(Async::Ready(e)),
-            Ok(None) => Err(Canceled),
-            Err(_) => {
-                let task = task::park();
-                self.cancel_token = Some(self.inner.slot.on_full(move |_| {
-                    task.unpark();
-                }));
-                Ok(Async::NotReady)
+        let mut done = false;
+
+        // Check to see if some data has arrived. If it hasn't then we need to
+        // block our task.
+        //
+        // Note that the acquisition of the `rx_task` lock might fail below, but
+        // the only situation where this can happen is during `Complete::drop`
+        // when we are indeed completed already. If that's happening then we
+        // know we're completed so keep going.
+        if self.inner.complete.load(SeqCst) {
+            done = true;
+        } else {
+            let task = task::park();
+            match self.inner.rx_task.try_lock() {
+                Some(mut slot) => *slot = Some(task),
+                None => done = true,
             }
+        }
+
+        // If we're `done` via one of the paths above, then look at the data and
+        // figure out what the answer is. If, however, we stored `rx_task`
+        // successfully above we need to check again if we're completed in case
+        // a message was sent while `rx_task` was locked and couldn't notify us
+        // otherwise.
+        //
+        // If we're not done, and we're not complete, though, then we've
+        // successfully blocked our task and we return `NotReady`.
+        if done || self.inner.complete.load(SeqCst) {
+            match self.inner.data.try_lock().unwrap().take() {
+                Some(data) => Ok(data.into()),
+                None => Err(Canceled),
+            }
+        } else {
+            Ok(Async::NotReady)
         }
     }
 }
 
 impl<T> Drop for Oneshot<T> {
     fn drop(&mut self) {
-        // First up, if we squirreled away a task to get notified once the
-        // oneshot was filled in, we cancel that notification. We'll never end
-        // up actually receiving data (as we're being dropped) so no need to
-        // hold onto the task.
-        if let Some(cancel_token) = self.cancel_token.take() {
-            self.inner.slot.cancel(cancel_token)
+        // Indicate to the `Complete` that we're done, so any future calls to
+        // `poll_cancel` are weeded out.
+        self.inner.complete.store(true, SeqCst);
+
+        // If we've blocked a task then there's no need for it to stick around,
+        // so we need to drop it. If this lock acquisition fails, though, then
+        // it's just because our `Complete` is trying to take the task, so we
+        // let them take care of that.
+        if let Some(mut slot) = self.inner.rx_task.try_lock() {
+            let task = slot.take();
+            drop(slot);
+            drop(task);
         }
 
-        // Next up, inform the `Complete` half that we're going away. First up
-        // we flag ourselves as gone, and next we'll attempt to wake up any
-        // handle that was stored.
+        // Finally, if our `Complete` wants to get notified of us going away, it
+        // would have stored something in `tx_task`. Here we try to peel that
+        // out and unpark it.
         //
-        // If we fail to acquire the lock on the handle, that means that a
-        // `Complete` is in the process of storing one, and it'll check
-        // `oneshot_gone` on its way out to see our write here.
-        self.inner.oneshot_gone.store(true, Ordering::SeqCst);
-        if let Some(mut handle) = self.inner.notify_cancel.try_lock() {
+        // Note that the `try_lock` here may fail, but only if the `Complete` is
+        // in the process of filling in the task. If that happens then we
+        // already flagged `complete` and they'll pick that up above.
+        if let Some(mut handle) = self.inner.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
                 task.unpark()
