@@ -56,7 +56,7 @@ fn fresh_task_id() -> usize {
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     assert!(id < usize::max_value() / 2,
             "too many previous tasks have been allocated");
-    return id
+    id
 }
 
 fn set<F, R>(task: &Task, data: &data::LocalMap, f: F) -> R

@@ -64,14 +64,11 @@ impl<S1, S2> Stream for Merge<S1, S2>
                         self.queued_error = Some(e);
                         Ok(Async::Ready(Some(MergedItem::First(item1))))
                     }
-                    Ok(Async::NotReady) => {
+                    Ok(Async::NotReady) | Ok(Async::Ready(None)) => {
                         Ok(Async::Ready(Some(MergedItem::First(item1))))
                     }
                     Ok(Async::Ready(Some(item2))) => {
                         Ok(Async::Ready(Some(MergedItem::Both(item1, item2))))
-                    }
-                    Ok(Async::Ready(None)) => {
-                        Ok(Async::Ready(Some(MergedItem::First(item1))))
                     }
                 }
             }

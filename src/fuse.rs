@@ -27,7 +27,7 @@ impl<A: Future> Future for Fuse<A> {
             res @ Ok(Async::Ready(_)) |
             res @ Err(_) => {
                 self.future = None;
-                return res
+                res
             }
             Ok(Async::NotReady) => Ok(Async::NotReady)
         }

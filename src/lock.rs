@@ -1,4 +1,4 @@
-//! A "mutex" which only supports try_lock
+//! A "mutex" which only supports `try_lock`
 //!
 //! As a futures library the eventual call to an event loop should be the only
 //! thing that ever blocks, so this is assisted with a fast user-space
