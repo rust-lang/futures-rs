@@ -14,7 +14,7 @@ fn list() -> Receiver<i32, u32> {
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Ok(3)))
       .forget();
-    return rx
+    rx
 }
 
 fn err_list() -> Receiver<i32, u32> {
@@ -23,7 +23,7 @@ fn err_list() -> Receiver<i32, u32> {
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Err(3)))
       .forget();
-    return rx
+    rx
 }
 
 #[test]
