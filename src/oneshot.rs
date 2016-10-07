@@ -113,7 +113,7 @@ impl<T> Complete<T> {
     /// This function will consume `self` and indicate to the other end, the
     /// `Oneshot`, that the error provided is the result of the computation this
     /// represents.
-    pub fn complete(mut self, t: T) {
+    pub fn complete(self, t: T) {
         // First up, flag that this method was called and then store the data.
         // Note that this lock acquisition should always succeed as it can only
         // interfere with `poll` in `Oneshot` which is only called when the
