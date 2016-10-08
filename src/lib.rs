@@ -214,10 +214,12 @@ if_std! {
     mod catch_unwind;
     mod collect;
     mod oneshot;
+    mod multishot;
     mod select_all;
     pub use catch_unwind::CatchUnwind;
     pub use collect::{collect, Collect};
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
+    pub use multishot::{to_multi};
     pub use select_all::{SelectAll, SelectAllNext, select_all};
 
     /// A type alias for `Box<Future + Send>`
@@ -435,7 +437,7 @@ pub trait Future {
     /// ```
     fn map<F, U>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U,
-              Self: Sized,
+              Self: Sized
     {
         assert_future::<U, Self::Error, _>(map::new(self, f))
     }
@@ -464,7 +466,7 @@ pub trait Future {
     /// ```
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
-              Self: Sized,
+              Self: Sized
     {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
     }
@@ -509,7 +511,7 @@ pub trait Future {
     fn then<F, B>(self, f: F) -> Then<Self, B, F>
         where F: FnOnce(Result<Self::Item, Self::Error>) -> B,
               B: IntoFuture,
-              Self: Sized,
+              Self: Sized
     {
         assert_future::<B::Item, B::Error, _>(then::new(self, f))
     }
@@ -549,7 +551,7 @@ pub trait Future {
     fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
               B: IntoFuture<Error = Self::Error>,
-              Self: Sized,
+              Self: Sized
     {
         assert_future::<B::Item, Self::Error, _>(and_then::new(self, f))
     }
@@ -589,7 +591,7 @@ pub trait Future {
     fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B,
               B: IntoFuture<Item = Self::Item>,
-              Self: Sized,
+              Self: Sized
     {
         assert_future::<Self::Item, B::Error, _>(or_else::new(self, f))
     }
@@ -623,12 +625,13 @@ pub trait Future {
     /// }
     /// ```
     fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
-              Self: Sized,
+        where B: IntoFuture<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
     {
         let f = select::new(self, other.into_future());
         assert_future::<(Self::Item, SelectNext<Self, B::Future>),
-                        (Self::Error, SelectNext<Self, B::Future>), _>(f)
+                        (Self::Error, SelectNext<Self, B::Future>),
+                        _>(f)
     }
 
     /// Joins the result of two futures, waiting for them both to complete.
@@ -662,8 +665,8 @@ pub trait Future {
     /// });
     /// ```
     fn join<B>(self, other: B) -> Join<Self, B::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+        where B: IntoFuture<Error = Self::Error>,
+              Self: Sized
     {
         let f = join::new(self, other.into_future());
         assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
@@ -671,34 +674,40 @@ pub trait Future {
 
     /// Same as `join`, but with more futures.
     fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+        where B: IntoFuture<Error = Self::Error>,
+              C: IntoFuture<Error = Self::Error>,
+              Self: Sized
     {
         join::new3(self, b.into_future(), c.into_future())
     }
 
     /// Same as `join`, but with more futures.
-    fn join4<B, C, D>(self, b: B, c: C, d: D)
-                      -> Join4<Self, B::Future, C::Future, D::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+    fn join4<B, C, D>(self, b: B, c: C, d: D) -> Join4<Self, B::Future, C::Future, D::Future>
+        where B: IntoFuture<Error = Self::Error>,
+              C: IntoFuture<Error = Self::Error>,
+              D: IntoFuture<Error = Self::Error>,
+              Self: Sized
     {
         join::new4(self, b.into_future(), c.into_future(), d.into_future())
     }
 
     /// Same as `join`, but with more futures.
-    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
+    fn join5<B, C, D, E>(self,
+                         b: B,
+                         c: C,
+                         d: D,
+                         e: E)
                          -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              E: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+        where B: IntoFuture<Error = Self::Error>,
+              C: IntoFuture<Error = Self::Error>,
+              D: IntoFuture<Error = Self::Error>,
+              E: IntoFuture<Error = Self::Error>,
+              Self: Sized
     {
-        join::new5(self, b.into_future(), c.into_future(), d.into_future(),
+        join::new5(self,
+                   b.into_future(),
+                   c.into_future(),
+                   d.into_future(),
                    e.into_future())
     }
 
@@ -791,7 +800,7 @@ pub trait Future {
     /// assert_eq!(None, iter.next());
     /// ```
     fn flatten_stream(self) -> FlattenStream<Self>
-        where <Self as Future>::Item: stream::Stream<Error=Self::Error>,
+        where <Self as Future>::Item: stream::Stream<Error = Self::Error>,
               Self: Sized
     {
         flatten_stream::new(self)
@@ -883,7 +892,7 @@ impl<'a, F: ?Sized + Future> Future for &'a mut F {
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 fn assert_future<A, B, F>(t: F) -> F
-    where F: Future<Item=A, Error=B>,
+    where F: Future<Item = A, Error = B>
 {
     t
 }
@@ -894,7 +903,7 @@ fn assert_future<A, B, F>(t: F) -> F
 /// used in a very similar fashion.
 pub trait IntoFuture {
     /// The future that this type can be converted into.
-    type Future: Future<Item=Self::Item, Error=Self::Error>;
+    type Future: Future<Item = Self::Item, Error = Self::Error>;
 
     /// The item that the future may resolve with.
     type Item;
