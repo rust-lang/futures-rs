@@ -29,13 +29,12 @@ impl<S> Stream for Take<S>
         if self.remaining == 0 {
             Ok(Async::Ready(None))
         } else {
-            match self.stream.poll() {
-                e @ Ok(Async::Ready(Some(_))) | e @ Err(_) => {
-                    self.remaining -= 1;
-                    e
-                }
-                other => other,
+            let next = try_ready!(self.stream.poll());
+            match next {
+                Some(_) => self.remaining -= 1,
+                None => self.remaining = 0,
             }
+            Ok(Async::Ready(next))
         }
     }
 }
