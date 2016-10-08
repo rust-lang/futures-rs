@@ -607,20 +607,18 @@ pub trait Stream {
         skip::new(self, amt)
     }
 
-    /// Fuse a stream such that `poll`/`schedule` will never again be called
-    /// once it has terminated (signaled emptyness or an error).
+    /// Fuse a stream such that `poll` will never again be called once it has
+    /// finished.
     ///
-    /// Currently once a stream has returned `Some(Ok(None))` from `poll` any further
+    /// Currently once a stream has returned `None` from `poll` any further
     /// calls could exhibit bad behavior such as block forever, panic, never
-    /// return, etc. If it is known that `poll` may be called too often then
-    /// this method can be used to ensure that it has defined semantics.
+    /// return, etc. If it is known that `poll` may be called after stream has
+    /// already finished, then this method can be used to ensure that it has
+    /// defined semantics.
     ///
-    /// Once a stream has been `fuse`d and it terminates, then
-    /// it will forever return `None` from `poll` again (never resolve). This,
-    /// unlike the trait's `poll` method, is guaranteed.
-    ///
-    /// Additionally, once a stream has completed, this `Fuse` combinator will
-    /// never call `schedule` on the underlying stream.
+    /// Once a stream has been `fuse`d and it finishes, then it will forever
+    /// return `None` from `poll`. This, unlike for the traits `poll` method,
+    /// is guaranteed.
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {
