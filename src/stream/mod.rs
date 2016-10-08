@@ -506,25 +506,12 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use std::thread;
-    /// use futures::{finished, Future, Poll, BoxFuture};
-    /// use futures::stream::*;
+    /// use futures::{self, Future};
+    /// use futures::stream::{self, Stream};
     ///
-    /// let (tx, rx) = channel::<i32, u32>();
-    ///
-    /// fn send(n: i32, tx: Sender<i32, u32>) -> BoxFuture<(), ()> {
-    ///     if n == 0 {
-    ///         return finished(()).boxed()
-    ///     }
-    ///     tx.send(Ok(n)).map_err(|_| ()).and_then(move |tx| {
-    ///         send(n - 1, tx)
-    ///     }).boxed()
-    /// }
-    ///
-    /// thread::spawn(|| send(5, tx).wait());
-    ///
-    /// let mut result = rx.fold(0, |a, b| finished::<i32, u32>(a + b));
-    /// assert_eq!(result.wait(), Ok(15));
+    /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
+    /// let sum = number_stream.fold(0, |a, b| futures::finished(a + b));
+    /// assert_eq!(sum.wait(), Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut,
