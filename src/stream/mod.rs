@@ -148,14 +148,14 @@ pub trait Stream {
     ///
     /// This method will consume ownership of this stream, returning an
     /// implementation of a standard iterator. This iterator will *block the
-    /// current thread* on each call to `next` if the item in the future isn't
+    /// current thread* on each call to `next` if the item in the stream isn't
     /// ready yet.
     ///
     /// > **Note:** This method is not appropriate to call on event loops or
     /// >           similar I/O situations because it will prevent the event
     /// >           loop from making progress (this blocks the thread). This
     /// >           method should only be called when it's guaranteed that the
-    /// >           blocking work associated with this future will be completed
+    /// >           blocking work associated with this stream will be completed
     /// >           by another thread.
     ///
     /// # Behavior
@@ -218,7 +218,7 @@ pub trait Stream {
     /// they are made available, and the callback will be executed inline with
     /// calls to `poll`.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `map` methods in the
     /// standard library.
     ///
@@ -243,7 +243,7 @@ pub trait Stream {
     /// they are made available, and the callback will be executed inline with
     /// calls to `poll`.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `map_err` methods in the
     /// standard library.
     ///
@@ -272,7 +272,7 @@ pub trait Stream {
     ///
     /// All errors are passed through without filtering in this combinator.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `filter` methods in the
     /// standard library.
     ///
@@ -301,7 +301,7 @@ pub trait Stream {
     ///
     /// All errors are passed through without filtering in this combinator.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `filter_map` methods in the
     /// standard library.
     ///
@@ -340,7 +340,7 @@ pub trait Stream {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
     /// # Examples
@@ -382,7 +382,7 @@ pub trait Stream {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
     /// # Examples
@@ -425,7 +425,7 @@ pub trait Stream {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
     /// # Examples
