@@ -91,6 +91,18 @@ fn skip() {
 }
 
 #[test]
+fn skip_passes_errors_through() {
+    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Ok(5)])
+        .skip(1)
+        .wait();
+    assert_eq!(s.next(), Some(Err(1)));
+    assert_eq!(s.next(), Some(Err(2)));
+    assert_eq!(s.next(), Some(Ok(4)));
+    assert_eq!(s.next(), Some(Ok(5)));
+    assert_eq!(s.next(), None);
+}
+
+#[test]
 fn skip_while() {
     assert_done(|| list().skip_while(|e| Ok(*e % 2 == 1)).collect(),
                 Ok(vec![2, 3]));
@@ -98,6 +110,21 @@ fn skip_while() {
 #[test]
 fn take() {
     assert_done(|| list().take(2).collect(), Ok(vec![1, 2]));
+}
+
+#[test]
+fn take_passes_errors_through() {
+    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)])
+        .take(1)
+        .wait();
+    assert_eq!(s.next(), Some(Err(1)));
+    assert_eq!(s.next(), Some(Err(2)));
+    assert_eq!(s.next(), Some(Ok(3)));
+    assert_eq!(s.next(), None);
+
+    let mut s = iter(vec![Ok(1), Err(2)]).take(1).wait();
+    assert_eq!(s.next(), Some(Ok(1)));
+    assert_eq!(s.next(), None);
 }
 
 #[test]

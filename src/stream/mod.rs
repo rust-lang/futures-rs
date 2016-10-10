@@ -587,10 +587,16 @@ pub trait Stream {
         for_each::new(self, f)
     }
 
-    /// Creates a new stream of at most `amt` items.
+    /// Creates a new stream of at most `amt` items of the underlying stream.
     ///
     /// Once `amt` items have been yielded from this stream then it will always
     /// return that the stream is done.
+    ///
+    /// # Errors
+    ///
+    /// Any errors yielded from underlying stream, before the desired amount of
+    /// items is reached, are passed through and do not affect the total number
+    /// of items taken.
     fn take(self, amt: u64) -> Take<Self>
         where Self: Sized
     {
@@ -601,6 +607,11 @@ pub trait Stream {
     ///
     /// Once `amt` items have been skipped from this stream then it will always
     /// return the remaining items on this stream.
+    ///
+    /// # Errors
+    ///
+    /// All errors yielded from underlying stream are passed through and do not
+    /// affect the total number of items skipped.
     fn skip(self, amt: u64) -> Skip<Self>
         where Self: Sized
     {
