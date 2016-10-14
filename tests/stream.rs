@@ -265,3 +265,43 @@ fn wait() {
     assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
 }
+
+#[test]
+fn publish() {
+    let (tx, rx) = channel::<_, u32>();
+    tx.send(Ok(1))
+        .and_then(|tx| tx.send(Ok(2)))
+        .and_then(|tx| tx.send(Ok(3)))
+        .forget();
+
+    let first = rx.publish();
+    let second = first.clone();
+    let third = first.clone();
+
+    let mut first = first.wait();
+    let mut second = second.wait();
+    let mut third = third.wait();
+
+    // First register the original one.
+    assert_eq!(first.next(), Some(Ok(1)));
+
+    // The second one now comes in - it should have been dropped
+    // for the first but will recieve the second.
+    assert_eq!(second.next(), Some(Ok(2)));
+
+    // The third one also comes in and should receive the second.
+    assert_eq!(third.next(), Some(Ok(2)));
+
+    // The first returns to get the second.
+    assert_eq!(first.next(), Some(Ok(2)));
+
+    // Now in any order each gets the last.
+    assert_eq!(second.next(), Some(Ok(3)));
+    assert_eq!(first.next(), Some(Ok(3)));
+    assert_eq!(third.next(), Some(Ok(3)));
+
+    // Finally in any order, each gets end of stream.
+    assert_eq!(first.next(), None);
+    assert_eq!(third.next(), None);
+    assert_eq!(second.next(), None);
+}
