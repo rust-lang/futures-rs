@@ -1,4 +1,4 @@
-rm use std::mem;
+use std::mem;
 use std::prelude::v1::*;
 
 use {Future, IntoFuture, Poll, Async};
