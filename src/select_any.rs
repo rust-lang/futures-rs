@@ -1,4 +1,4 @@
-use std::mem;
+rm use std::mem;
 use std::prelude::v1::*;
 
 use {Future, IntoFuture, Poll, Async};
@@ -27,51 +27,51 @@ pub fn select_any<I>(iter: I) -> SelectAny<<I::Item as IntoFuture>::Future>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
-  let ret = SelectAny {
-    inner: iter.into_iter()
-    .map(|a| a.into_future())
-    .collect(),
-  };
-  assert!(ret.inner.len() > 0);
-  ret
+    let ret = SelectAny {
+        inner: iter.into_iter()
+                   .map(|a| a.into_future())
+                   .collect(),
+    };
+    assert!(ret.inner.len() > 0);
+    ret
 }
 
 impl<A> Future for SelectAny<A> where A: Future {
-  type Item = (A::Item, Vec<A>);
-  type Error = A::Error;
+    type Item = (A::Item, Vec<A>);
+    type Error = A::Error;
 
-  fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-    // loop until we've either exhausted all errors, a success was hit, or nothing is ready
-    loop {
-      let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-        match f.poll() {
-          Ok(Async::NotReady) => None,
-          Ok(Async::Ready(e)) => Some((i, Ok(e))),
-          Err(e) => Some((i, Err(e))),
-        }
-      }).next();
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        // loop until we've either exhausted all errors, a success was hit, or nothing is ready
+        loop {
+            let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
+                match f.poll() {
+                    Ok(Async::NotReady) => None,
+                    Ok(Async::Ready(e)) => Some((i, Ok(e))),
+                    Err(e) => Some((i, Err(e))),
+                }
+            }).next();
 
-      match item {
-        Some((idx, res)) => {
-          // always remove Ok or Err, if it's not the last Err continue looping
-          drop(self.inner.remove(idx));
-          match res {
-            Ok(e) => {
-              let rest = mem::replace(&mut self.inner, Vec::new());
-              return Ok(Async::Ready((e, rest)))
-            },
-            Err(e) => {
-              if self.inner.is_empty() {
-                return Err(e)
-              }
-            },
-          }
+            match item {
+                Some((idx, res)) => {
+                    // always remove Ok or Err, if it's not the last Err continue looping
+                    drop(self.inner.remove(idx));
+                    match res {
+                        Ok(e) => {
+                            let rest = mem::replace(&mut self.inner, Vec::new());
+                            return Ok(Async::Ready((e, rest)))
+                        },
+                        Err(e) => {
+                            if self.inner.is_empty() {
+                                return Err(e)
+                            }
+                        },
+                    }
+                }
+                None => {
+                    // based on the filter above, nothing is ready, return
+                    return Ok(Async::NotReady)
+                },
+            }
         }
-        None => {
-          // based on the filter above, nothing is ready, return
-          return Ok(Async::NotReady)
-        },
-      }
     }
-  }
 }
