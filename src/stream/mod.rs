@@ -60,12 +60,14 @@ pub use self::peek::Peekable;
 if_std! {
     use std;
 
+    mod buffer;
     mod buffered;
     mod buffer_unordered;
     mod catch_unwind;
     mod channel;
     mod collect;
     mod wait;
+    pub use self::buffer::Buffer;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
@@ -671,6 +673,21 @@ pub trait Stream {
         where Self: Sized + std::panic::UnwindSafe
     {
         catch_unwind::new(self)
+    }
+
+    /// An adaptor for buffering up items of the stream before passing them on
+    /// as one vector.
+    ///
+    /// The vector will contain at most `capacity` elements, though can contain
+    /// less if the underlying stream ended and did not produce a multiple of
+    /// `capacity` elements.
+    ///
+    /// Errors are passed through.
+    #[cfg(feature = "use_std")]
+    fn buffer(self, capacity: usize) -> Buffer<Self>
+        where Self: Sized
+    {
+        buffer::new(self, capacity)
     }
 
     /// An adaptor for creating a buffered list of pending futures.

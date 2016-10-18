@@ -265,3 +265,10 @@ fn wait() {
     assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
 }
+
+#[test]
+fn buffer() {
+    assert_done(|| list().buffer(3).collect(), Ok(vec![vec![1, 2, 3]]));
+    assert_done(|| list().buffer(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
+    assert_done(|| list().buffer(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
+}
