@@ -35,27 +35,25 @@ impl<S> Stream for Buffer<S>
     type Error = <S as Stream>::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        let maybe_next = try_ready!(self.stream.poll());
-
-        if let Some(item) = maybe_next {
-            // Push the item into the buffer and check whether it is
-            // full. If so, replace our buffer with a new and empty one
-            // and return the full one.
-            self.items.push(item);
-            if self.items.len() < self.capacity {
-                Ok(Async::NotReady)
+        loop {
+            if let Some(item) = try_ready!(self.stream.poll()) {
+                // Push the item into the buffer and check whether it is
+                // full. If so, replace our buffer with a new and empty one
+                // and return the full one.
+                self.items.push(item);
+                if self.items.len() >= self.capacity {
+                    let full_buf = mem::replace(&mut self.items, Vec::with_capacity(self.capacity));
+                    return Ok(Async::Ready(Some(full_buf)))
+                }
             } else {
-                let full_buf = mem::replace(&mut self.items, Vec::with_capacity(self.capacity));
-                Ok(Async::Ready(Some(full_buf)))
-            }
-        } else {
-            // Since the underlying stream ran out of values, return
-            // what we have buffered, if we have anything.
-            if self.items.len() > 0 {
-                let full_buf = mem::replace(&mut self.items, Vec::new());
-                Ok(Async::Ready(Some(full_buf)))
-            } else {
-                Ok(Async::Ready(None))
+                // Since the underlying stream ran out of values, return
+                // what we have buffered, if we have anything.
+                return if self.items.len() > 0 {
+                    let full_buf = mem::replace(&mut self.items, Vec::new());
+                    Ok(Async::Ready(Some(full_buf)))
+                } else {
+                    Ok(Async::Ready(None))
+                }
             }
         }
     }
