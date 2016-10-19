@@ -21,6 +21,8 @@ pub struct Buffer<S>
 pub fn new<S>(s: S, capacity: usize) -> Buffer<S>
     where S: Stream
 {
+    assert!(capacity > 0);
+    
     Buffer {
         capacity: capacity,
         items: Vec::with_capacity(capacity),

@@ -680,7 +680,7 @@ pub trait Stream {
     ///
     /// The vector will contain at most `capacity` elements, though can contain
     /// less if the underlying stream ended and did not produce a multiple of
-    /// `capacity` elements.
+    /// `capacity` elements. `capacity` must be greater than zero.
     ///
     /// Errors are passed through.
     #[cfg(feature = "use_std")]
