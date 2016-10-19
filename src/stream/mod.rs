@@ -64,12 +64,14 @@ if_std! {
     mod buffer_unordered;
     mod catch_unwind;
     mod channel;
+    mod chunks;
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
+    pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
 
@@ -740,6 +742,20 @@ pub trait Stream {
         where Self: Sized
     {
         peek::new(self)
+    }
+
+    /// An adaptor for chunking up items of the stream inside a vector.
+    ///
+    /// The vector will contain at most `capacity` elements, though can contain
+    /// less if the underlying stream ended and did not produce a multiple of
+    /// `capacity` elements. `capacity` must be greater than zero.
+    ///
+    /// Errors are passed through.
+    #[cfg(feature = "use_std")]
+    fn chunks(self, capacity: usize) -> Chunks<Self>
+        where Self: Sized
+    {
+        chunks::new(self, capacity)
     }
 }
 
