@@ -267,14 +267,14 @@ fn wait() {
 }
 
 #[test]
-fn buffer() {
-    assert_done(|| list().buffer(3).collect(), Ok(vec![vec![1, 2, 3]]));
-    assert_done(|| list().buffer(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
-    assert_done(|| list().buffer(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
+fn chunks() {
+    assert_done(|| list().chunks(3).collect(), Ok(vec![vec![1, 2, 3]]));
+    assert_done(|| list().chunks(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
+    assert_done(|| list().chunks(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
 }
 
 #[test]
 #[should_panic]
-fn buffer_panic_on_cap_zero() {
-    let _ = list().buffer(0);
+fn chunks_panic_on_cap_zero() {
+    let _ = list().chunks(0);
 }

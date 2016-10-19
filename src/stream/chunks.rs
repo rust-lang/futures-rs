@@ -4,13 +4,13 @@ use std::prelude::v1::*;
 use {Async, Poll};
 use stream::{Stream, Fuse};
 
-/// An adaptor that buffers elements in a vector before passing them on as one item.
+/// An adaptor that chunks up elements in a vector.
 ///
-/// This adaptor will buffer up a list of items in a stream and pass on the
+/// This adaptor will buffer up a list of items in the stream and pass on the
 /// vector used for buffering when a specified capacity has been reached. This is
-/// created by the `Stream::buffer` method.
+/// created by the `Stream::chunks` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Buffer<S>
+pub struct Chunks<S>
     where S: Stream
 {
     capacity: usize, // TODO: Do we need this? Doesn't Vec::capacity() suffice?
@@ -18,19 +18,19 @@ pub struct Buffer<S>
     stream: Fuse<S>
 }
 
-pub fn new<S>(s: S, capacity: usize) -> Buffer<S>
+pub fn new<S>(s: S, capacity: usize) -> Chunks<S>
     where S: Stream
 {
     assert!(capacity > 0);
-    
-    Buffer {
+
+    Chunks {
         capacity: capacity,
         items: Vec::with_capacity(capacity),
         stream: super::fuse::new(s),
     }
 }
 
-impl<S> Stream for Buffer<S>
+impl<S> Stream for Chunks<S>
     where S: Stream
 {
     type Item = Vec<<S as Stream>::Item>;
