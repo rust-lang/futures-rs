@@ -2,6 +2,7 @@
 extern crate futures;
 
 use futures::{failed, finished, Future, oneshot, Poll};
+use futures::task;
 use futures::stream::*;
 
 mod support;
@@ -271,6 +272,11 @@ fn chunks() {
     assert_done(|| list().chunks(3).collect(), Ok(vec![vec![1, 2, 3]]));
     assert_done(|| list().chunks(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
     assert_done(|| list().chunks(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
+    let mut list = task::spawn(err_list().chunks(3));
+    let i = list.wait_stream().unwrap().unwrap();
+    assert_eq!(i, vec![1, 2]);
+    let i = list.wait_stream().unwrap().unwrap_err();
+    assert_eq!(i, 3);
 }
 
 #[test]

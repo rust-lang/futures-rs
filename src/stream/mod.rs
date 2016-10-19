@@ -746,11 +746,21 @@ pub trait Stream {
 
     /// An adaptor for chunking up items of the stream inside a vector.
     ///
-    /// The vector will contain at most `capacity` elements, though can contain
-    /// less if the underlying stream ended and did not produce a multiple of
-    /// `capacity` elements. `capacity` must be greater than zero.
+    /// This combinator will attempt to pull items from this stream and buffer
+    /// them into a local vector. At most `capacity` items will get buffered
+    /// before they're yielded from the returned stream.
     ///
-    /// Errors are passed through.
+    /// Note that the vectors returned from this iterator may not always have
+    /// `capacity` elements. If the underlying stream ended and only a partial
+    /// vector was created, it'll be returned. Additionally if an error happens
+    /// from the underlying stream then the currently buffered items will be
+    /// yielded.
+    ///
+    /// Errors are passed through the stream unbuffered.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic of `capacity` is zero.
     #[cfg(feature = "use_std")]
     fn chunks(self, capacity: usize) -> Chunks<Self>
         where Self: Sized
