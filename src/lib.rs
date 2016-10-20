@@ -215,10 +215,12 @@ if_std! {
     mod collect;
     mod oneshot;
     mod select_all;
+    mod select_ok;
     pub use catch_unwind::CatchUnwind;
     pub use collect::{collect, Collect};
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
     pub use select_all::{SelectAll, SelectAllNext, select_all};
+    pub use select_ok::{SelectOk, select_ok};
 
     /// A type alias for `Box<Future + Send>`
     pub type BoxFuture<T, E> = std::boxed::Box<Future<Item = T, Error = E> + Send>;
