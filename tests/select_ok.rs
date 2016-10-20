@@ -11,12 +11,12 @@ fn ignore_failed() {
         finished(4).boxed(),
     ];
 
-    let (i, v) = select_any(v).wait().ok().unwrap();
+    let (i, v) = select_ok(v).wait().ok().unwrap();
     assert_eq!(i, 3);
 
     assert!(v.len() == 1);
 
-    let (i, v) = select_any(v).wait().ok().unwrap();
+    let (i, v) = select_ok(v).wait().ok().unwrap();
     assert_eq!(i, 4);
 
     assert!(v.len() == 0);
@@ -30,11 +30,11 @@ fn last_failed() {
         failed(3).boxed(),
     ];
 
-    let (i, v) = select_any(v).wait().ok().unwrap();
+    let (i, v) = select_ok(v).wait().ok().unwrap();
     assert_eq!(i, 1);
 
     assert!(v.len() == 2);
 
-    let i = select_any(v).wait().err().unwrap();
+    let i = select_ok(v).wait().err().unwrap();
     assert_eq!(i, 3);
 }
