@@ -384,9 +384,25 @@ impl<T, E> Future for FutureSender<T, E> {
             }
             n => panic!("bad state: {}", n),
         }
-        if !empty && sender.inner.state.load(SeqCst) == DATA {
-            self.state = Some((sender, data));
-            return Ok(Async::NotReady)
+        if !empty {
+            match sender.inner.state.load(SeqCst) {
+                // If there's still data on the channel we've successfully
+                // blocked, so return.
+                DATA => {
+                    self.state = Some((sender, data));
+                    return Ok(Async::NotReady)
+                }
+
+                // If the receiver is gone, inform so immediately. The receiver
+                // may also be looking at `inner.data` at this point so we have
+                // to avoid it.
+                GONE => return Err(SendError(data)),
+
+                // Oh oops! Looks like we blocked ourselves but during that time
+                // the data was taken, let's fall through and send our data.
+                EMPTY => {}
+                n => panic!("bad state: {}", n),
+            }
         }
         *sender.inner.data.try_lock().unwrap() = Some(data);
         drop(sender.inner.state.compare_exchange(EMPTY, DATA, SeqCst, SeqCst));
