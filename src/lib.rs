@@ -215,6 +215,7 @@ if_std! {
     mod collect;
     mod oneshot;
     mod select_all;
+    mod shared;
     pub use catch_unwind::CatchUnwind;
     pub use collect::{collect, Collect};
     pub use oneshot::{oneshot, Oneshot, Complete, Canceled};
@@ -868,6 +869,13 @@ pub trait Future {
         where Self: Sized + std::panic::UnwindSafe
     {
         catch_unwind::new(self)
+    }
+    
+    /// TODO: doc
+    fn shared(self) -> shared::Shared<Self> 
+        where Self: Sized
+    {
+        shared::new(self)
     }
 }
 
