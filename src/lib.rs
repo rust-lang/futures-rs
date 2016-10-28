@@ -160,6 +160,8 @@ extern crate core;
 #[macro_use]
 extern crate log;
 
+extern crate slab;
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "use_std")]
