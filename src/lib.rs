@@ -148,13 +148,14 @@
 //!
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
-#![no_std]
+//#![no_std]
 #![deny(missing_docs)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
-#[macro_use]
-#[cfg(feature = "use_std")]
-extern crate std;
+//#[macro_use]
+//#[cfg(feature = "use_std")]
+//extern crate std;
+extern crate core;
 
 #[macro_use]
 extern crate log;
@@ -194,6 +195,7 @@ mod map_err;
 mod or_else;
 mod select;
 mod then;
+mod stack;
 pub use and_then::AndThen;
 pub use flatten::Flatten;
 pub use flatten_stream::FlattenStream;
