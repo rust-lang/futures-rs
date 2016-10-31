@@ -29,7 +29,7 @@ pub struct Complete<T> {
 /// the internal synchronization between the two for send/recv operations.
 struct Inner<T> {
     /// Indicates whether this oneshot is complete yet. This is filled in both
-    /// by `Complete::drop` and by `Oneshot::drop`, and both sides iterpret it
+    /// by `Complete::drop` and by `Oneshot::drop`, and both sides interpret it
     /// appropriately.
     ///
     /// For `Oneshot`, if this is `true`, then it's guaranteed that `data` is
@@ -204,7 +204,7 @@ impl<T> Drop for Complete<T> {
     }
 }
 
-/// Error returned from a `Oneshot<T>` whenever the correponding `Complete<T>`
+/// Error returned from a `Oneshot<T>` whenever the corresponding `Complete<T>`
 /// is dropped.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Canceled;
