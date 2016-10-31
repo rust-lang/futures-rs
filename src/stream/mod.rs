@@ -64,6 +64,8 @@ if_std! {
     mod buffer_unordered;
     mod catch_unwind;
     mod channel;
+    /// a mpsc channel
+    pub mod mpsc;
     mod chunks;
     mod collect;
     mod wait;

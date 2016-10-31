@@ -207,6 +207,8 @@ pub use select::{Select, SelectNext};
 pub use then::Then;
 
 if_std! {
+    extern crate crossbeam;
+
     mod lock;
     pub mod task;
 
