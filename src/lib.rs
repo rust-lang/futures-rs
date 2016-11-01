@@ -237,6 +237,9 @@ if_std! {
 // streams
 pub mod stream;
 
+// sinks
+pub mod sink;
+
 // impl details
 mod chain;
 

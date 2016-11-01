@@ -199,6 +199,23 @@ pub fn spawn<T>(obj: T) -> Spawn<T> {
     }
 }
 
+impl<T> Spawn<T> {
+    /// Get a shared reference to the object the Spawn is wrapping.
+    pub fn get_ref(&self) -> &T {
+        &self.obj
+    }
+
+    /// Get a mutable reference to the object the Spawn is wrapping.
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.obj
+    }
+
+    /// Consume the Spawn, returning its inner object
+    pub fn into_inner(self) -> T {
+        self.obj
+    }
+}
+
 impl<F: Future> Spawn<F> {
     /// Polls the internal future, scheduling notifications to be sent to the
     /// `unpark` argument.
