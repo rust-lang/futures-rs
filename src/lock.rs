@@ -8,7 +8,7 @@ extern crate core;
 
 use self::core::cell::UnsafeCell;
 use self::core::ops::{Deref, DerefMut};
-use self::core::sync::atomic::Ordering::{SeqCst};
+use self::core::sync::atomic::Ordering::SeqCst;
 use self::core::sync::atomic::AtomicBool;
 
 /// A "mutex" around a value, similar to `std::sync::Mutex<T>`.
