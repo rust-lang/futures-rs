@@ -16,6 +16,10 @@ composability, and iterator-like interfaces.
 [dependencies]
 log = { version = "0.3", default-features = false }
 
+[dependencies.crossbeam]
+optional = true
+version = "0.2.10"
+
 [features]
+default = ["use_std", "crossbeam"]
 use_std = []
-default = ["use_std"]
