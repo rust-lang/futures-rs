@@ -194,6 +194,12 @@ impl<T> Drop for Complete<T> {
         // blocking to see if it succeeded. In the latter case we don't need to
         // wake up anyone anyway. So in both cases it's ok to ignore the `None`
         // case of `try_lock` and bail out.
+        //
+        // The first case crucially depends on `Lock` using `SeqCst` ordering
+        // under the hood. If it instead used `Release` / `Acquire` ordering,
+        // then it would not necessarily synchronize with `inner.complete`
+        // and deadlock might be possible, as was observed in
+        // https://github.com/alexcrichton/futures-rs/pull/219.
         self.inner.complete.store(true, SeqCst);
         if let Some(mut slot) = self.inner.rx_task.try_lock() {
             if let Some(task) = slot.take() {
