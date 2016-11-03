@@ -11,7 +11,7 @@
 //! ready as well.
 // TODO: expand these docs
 
-use {IntoFuture, Poll};
+use {IntoFuture, Poll, sync, sink};
 
 mod iter;
 pub use self::iter::{iter, IterStream};
@@ -63,17 +63,35 @@ if_std! {
     mod buffered;
     mod buffer_unordered;
     mod catch_unwind;
-    mod channel;
     mod chunks;
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
-    pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    pub use sync::spsc::channel;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    pub use sync::spsc::Sender;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    pub use sync::spsc::Receiver;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    pub type FutureSender<T, E> = sink::Send<sync::spsc::Sender<T, E>>;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::SendError instead")]
+    pub use sync::spsc::SendError;
 
     /// A type alias for `Box<Stream + Send>`
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;

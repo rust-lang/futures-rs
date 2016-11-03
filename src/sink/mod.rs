@@ -222,7 +222,7 @@ pub trait Sink {
     /// between each item.**
     ///
     /// On completion, the sink is returned.
-    fn send<S>(self, item: Self::SinkItem) -> Send<Self>
+    fn send(self, item: Self::SinkItem) -> Send<Self>
         where Self: Sized
     {
         send::new(self, item)

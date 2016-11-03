@@ -1,3 +1,5 @@
+//! A single-producer, single-consumer, futures-aware channel
+
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
@@ -5,9 +7,10 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use {Future, Poll, Async};
+use {Poll, Async};
 use lock::Lock;
 use stream::Stream;
+use sink::{Sink, StartSend, AsyncSink};
 use task::{self, Task};
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
@@ -45,16 +48,10 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
 ///
 /// This is created by the `channel` method in the `stream` module.
 pub struct Sender<T, E> {
+    // Option to signify early closure of the sending side
     inner: Arc<Inner<Result<T, E>>>,
     // described below on `Inner`
     flag: bool,
-}
-
-/// A future returned by the `Sender::send` method which will resolve to the
-/// sender once it's available to send another message.
-#[must_use = "futures do nothing unless polled"]
-pub struct FutureSender<T, E> {
-    state: Option<(Sender<T, E>, Result<T, E>)>,
 }
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -152,7 +149,7 @@ const EMPTY: usize = 0;
 const DATA: usize = 1;
 const GONE: usize = 2;
 
-/// Error type returned by `FutureSender` when the receiving end of a `channel` is dropped
+/// Error type for sending, used when the receiving end of the channel is dropped
 pub struct SendError<T, E>(Result<T, E>);
 
 impl<T, E> fmt::Debug for SendError<T, E> {
@@ -310,11 +307,9 @@ impl<T, E> Sender<T, E> {
     ///
     /// This method consumes the sender and returns a future which will resolve
     /// to the sender again when the value sent has been consumed.
-    pub fn send(self, t: Result<T, E>) -> FutureSender<T, E> {
-        // FIXME(#164) this should send immediately
-        FutureSender {
-            state: Some((self, t)),
-        }
+    // TODO: remove this at 0.2
+    pub fn send(self, t: Result<T, E>) -> ::sink::Send<Self> {
+        Sink::send(self, t)
     }
 
     /// Same as Receiver::rx_task above.
@@ -346,6 +341,63 @@ impl<T, E> Sender<T, E> {
     }
 }
 
+impl<T, E> Sink for Sender<T, E> {
+    type SinkItem = Result<T, E>;
+    type SinkError = SendError<T, E>;
+
+    fn start_send(&mut self, item: Self::SinkItem)
+                  -> StartSend<Self::SinkItem, Self::SinkError>
+    {
+        // This is very similar to `Receiver::poll` above, it's basically just
+        // the opposite in a few places.
+        let mut empty = false;
+        match self.inner.state.load(SeqCst) {
+            GONE => return Err(SendError(item)),
+            EMPTY => empty = true,
+            DATA => {
+                let task = task::park();
+                match self.tx_task().try_lock() {
+                    Some(mut slot) => *slot = Some(task),
+                    None => empty = true,
+                }
+            }
+            n => panic!("bad state: {}", n),
+        }
+        if !empty {
+            match self.inner.state.load(SeqCst) {
+                // If there's still data on the channel we've successfully
+                // blocked, so return.
+                DATA => return Ok(AsyncSink::NotReady(item)),
+
+                // If the receiver is gone, inform so immediately. The receiver
+                // may also be looking at `self.inner.data` at this point so we have
+                // to avoid it.
+                GONE => return Err(SendError(item)),
+
+                // Oh oops! Looks like we blocked ourselves but during that time
+                // the data was taken, let's fall through and send our data.
+                EMPTY => {}
+                n => panic!("bad state: {}", n),
+            }
+        }
+        *self.inner.data.try_lock().unwrap() = Some(item);
+        drop(self.inner.state.compare_exchange(EMPTY, DATA, SeqCst, SeqCst));
+        if let Some(mut slot) = self.rx_task().try_lock() {
+            if let Some(task) = slot.take() {
+                drop(slot);
+                task.unpark();
+            }
+        }
+
+        self.flag = !self.flag;
+        Ok(AsyncSink::Ready)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        Ok(Async::Ready(()))
+    }
+}
+
 impl<T, E> Drop for Sender<T, E> {
     fn drop(&mut self) {
         // Like Receiver::drop we let our other half know we're gone, and then
@@ -359,78 +411,15 @@ impl<T, E> Drop for Sender<T, E> {
                 task.unpark();
             }
         }
-    }
-}
 
-impl<T, E> Future for FutureSender<T, E> {
-    type Item = Sender<T, E>;
-    type Error = SendError<T, E>;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        // This is very similar to `Receiver::poll` above, it's basically just
-        // the opposite in a few places.
-        let (mut sender, data) = self.state.take().expect("cannot poll \
-                                                           FutureSender twice");
-        let mut empty = false;
-        match sender.inner.state.load(SeqCst) {
-            GONE => return Err(SendError(data)),
-            EMPTY => empty = true,
-            DATA => {
-                let task = task::park();
-                match sender.tx_task().try_lock() {
-                    Some(mut slot) => *slot = Some(task),
-                    None => empty = true,
-                }
-            }
-            n => panic!("bad state: {}", n),
-        }
-        if !empty {
-            match sender.inner.state.load(SeqCst) {
-                // If there's still data on the channel we've successfully
-                // blocked, so return.
-                DATA => {
-                    self.state = Some((sender, data));
-                    return Ok(Async::NotReady)
-                }
-
-                // If the receiver is gone, inform so immediately. The receiver
-                // may also be looking at `inner.data` at this point so we have
-                // to avoid it.
-                GONE => return Err(SendError(data)),
-
-                // Oh oops! Looks like we blocked ourselves but during that time
-                // the data was taken, let's fall through and send our data.
-                EMPTY => {}
-                n => panic!("bad state: {}", n),
-            }
-        }
-        *sender.inner.data.try_lock().unwrap() = Some(data);
-        drop(sender.inner.state.compare_exchange(EMPTY, DATA, SeqCst, SeqCst));
-        if let Some(mut slot) = sender.rx_task().try_lock() {
+        // If we've registered a task to be interested in when the sender was
+        // empty again, wake up the task. (This almost certainly means that the
+        // client code is buggy, but better to generate an extra wakeup than
+        // obscure the bug via deadlock.)
+        if let Some(mut slot) = self.tx_task().try_lock() {
             if let Some(task) = slot.take() {
                 drop(slot);
                 task.unpark();
-            }
-        }
-        sender.flag = !sender.flag;
-        Ok(sender.into())
-    }
-}
-
-impl<T, E> Drop for FutureSender<T, E> {
-    fn drop(&mut self) {
-        let sender = match self.state.take() {
-            Some((sender, _)) => sender,
-            None => return,
-        };
-
-        // If we've registered a task to be interested in when the sender was
-        // empty again, there's no need to hold onto it any more, so extract it
-        // and drop it.
-        let slot = sender.tx_task().try_lock();
-        if let Some(mut slot) = slot {
-            if let Some(task) = slot.take() {
-                drop((slot, task));
             }
         }
     }
