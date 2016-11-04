@@ -179,6 +179,7 @@ pub use stream::{Stream};
 pub mod sink;
 pub use sink::Sink;
 
+#[deprecated(since = "0.1.4", note = "import through the future module instead")]
 pub use future::{done, empty, failed, finished, lazy};
 
 #[doc(hidden)]
@@ -212,6 +213,7 @@ if_std! {
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::Canceled instead")]
     pub use sync::oneshot::Canceled;
 
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "import through the future module instead")]
     pub use future::{BoxFuture, collect, select_all, select_ok};
-    pub use stream::BoxStream;
 }
