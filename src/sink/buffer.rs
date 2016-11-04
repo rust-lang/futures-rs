@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 
 use {Poll, Async};
-use sink::{Sink, StartSend, AsyncSink};
+use {StartSend, AsyncSink};
+use sink::Sink;
 use stream::Stream;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed

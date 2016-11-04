@@ -3,7 +3,7 @@
 //! This module contains the `Sink` trait, along with a number of adapter types
 //! for it. An overview is available in the documentaiton for the trait itself.
 
-use {IntoFuture, Poll, Async};
+use {IntoFuture, Poll, StartSend};
 use stream::Stream;
 
 mod with;
@@ -19,24 +19,6 @@ if_std! {
 
     pub use self::buffer::Buffer;
 }
-
-/// The result of an asynchronous attempt to send a value to a sink.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum AsyncSink<T> {
-    /// The `start_send` attempt succeeded, so the sending process has
-    /// *started*; you muse use `Sink::poll_complete` to drive the send
-    /// to completion.
-    Ready,
-
-    /// The `start_send` attempt failed due to the sink being full. The value
-    /// being sent is returned, and the current `Task` will be autoamtically
-    /// notified again once the sink has room.
-    NotReady(T),
-}
-
-/// Return type of the `Sink::start_send` method, indicating the outcome of a
-/// send attempt. See `AsyncSink` for more details.
-pub type StartSend<T, E> = Result<AsyncSink<T>, E>;
 
 pub use self::with::With;
 pub use self::flush::Flush;
@@ -196,6 +178,7 @@ pub trait Sink {
     ///
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
+    #[cfg(feature = "use_std")]
     fn buffer(self, amt: usize) -> Buffer<Self>
         where Self: Sized
     {
@@ -256,11 +239,11 @@ if_std! {
                       -> StartSend<Self::SinkItem, Self::SinkError>
         {
             self.push(item);
-            Ok(AsyncSink::Ready)
+            Ok(::AsyncSink::Ready)
         }
 
         fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+            Ok(::Async::Ready(()))
         }
     }
 }

@@ -7,10 +7,10 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use {Poll, Async};
+use {Poll, Async, StartSend, AsyncSink};
 use lock::Lock;
 use stream::Stream;
-use sink::{Sink, StartSend, AsyncSink};
+use sink::Sink;
 use task::{self, Task};
 
 /// Creates an in-memory channel implementation of the `Stream` trait.

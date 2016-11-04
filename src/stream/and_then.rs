@@ -33,7 +33,7 @@ impl<S, F, U: IntoFuture> ::sink::Sink for AndThen<S, F, U>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::sink::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

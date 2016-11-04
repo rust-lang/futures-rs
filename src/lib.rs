@@ -168,7 +168,7 @@ macro_rules! if_std {
 
 #[macro_use]
 mod poll;
-pub use poll::{Poll, Async};
+pub use poll::{Poll, Async, AsyncSink, StartSend};
 
 pub mod future;
 pub use future::{Future, IntoFuture};

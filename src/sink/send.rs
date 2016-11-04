@@ -1,5 +1,5 @@
-use {Poll, Async, Future};
-use sink::{Sink, AsyncSink};
+use {Poll, Async, Future, AsyncSink};
+use sink::Sink;
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
 /// then waits until the sink has fully flushed.

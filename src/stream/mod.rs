@@ -11,7 +11,7 @@
 //! ready as well.
 // TODO: expand these docs
 
-use {IntoFuture, Poll, sync, sink};
+use {IntoFuture, Poll};
 
 mod iter;
 pub use self::iter::{iter, IterStream};
@@ -87,7 +87,7 @@ if_std! {
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
-    pub type FutureSender<T, E> = sink::Send<sync::spsc::Sender<T, E>>;
+    pub type FutureSender<T, E> = ::sink::Send<::sync::spsc::Sender<T, E>>;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::spsc::SendError instead")]

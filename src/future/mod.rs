@@ -66,7 +66,7 @@ if_std! {
     }
 }
 
-use {Poll, task, stream};
+use {Poll, stream};
 
 /// Trait for types which are a placeholder of a value that will become
 /// available at possible some later point in time.
@@ -214,7 +214,7 @@ pub trait Future {
     fn wait(self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
-        task::spawn(self).wait_future()
+        ::task::spawn(self).wait_future()
     }
 
     /// Convenience function for turning this future into a trait object.

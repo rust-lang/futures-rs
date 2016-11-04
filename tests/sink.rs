@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::{Ordering, AtomicBool};
 
-use futures::{Poll, Async, Future, stream, finished};
+use futures::{Poll, Async, Future, stream, finished, AsyncSink, StartSend};
 use futures::sync::{oneshot, spsc};
 use futures::task::{self, Task, Unpark};
 use futures::sink::*;
