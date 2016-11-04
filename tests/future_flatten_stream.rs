@@ -4,7 +4,6 @@ extern crate futures;
 use core::marker;
 
 use futures::*;
-use futures::stream::Stream;
 
 #[test]
 fn successful_future() {

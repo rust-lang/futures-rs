@@ -1,5 +1,5 @@
 use {Future, IntoFuture, Poll};
-use chain::Chain;
+use super::chain::Chain;
 
 /// Future for the `flatten` combinator, flattening a future-of-a-future to get just
 /// the result of the final future.

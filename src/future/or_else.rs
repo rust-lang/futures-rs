@@ -1,5 +1,5 @@
 use {Future, IntoFuture, Poll};
-use chain::Chain;
+use super::chain::Chain;
 
 /// Future for the `or_else` combinator, chaining a computation onto the end of
 /// a future which fails with an error.
