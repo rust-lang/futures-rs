@@ -18,6 +18,41 @@ if_std! {
     mod buffer;
 
     pub use self::buffer::Buffer;
+
+    // TODO: consider expanding this via e.g. FromIterator
+    impl<T> Sink for ::std::vec::Vec<T> {
+        type SinkItem = T;
+        type SinkError = (); // Change this to ! once it stabilizes
+
+        fn start_send(&mut self, item: Self::SinkItem)
+                      -> StartSend<Self::SinkItem, Self::SinkError>
+        {
+            self.push(item);
+            Ok(::AsyncSink::Ready)
+        }
+
+        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+            Ok(::Async::Ready(()))
+        }
+    }
+
+    /// A type alias for `Box<Stream + Send>`
+    pub type BoxSink<T, E> = ::std::boxed::Box<Sink<SinkItem = T, SinkError = E> +
+                                               ::core::marker::Send>;
+
+    impl<S: ?Sized + Sink> Sink for ::std::boxed::Box<S> {
+        type SinkItem = S::SinkItem;
+        type SinkError = S::SinkError;
+
+        fn start_send(&mut self, item: Self::SinkItem)
+                      -> StartSend<Self::SinkItem, Self::SinkError> {
+            (**self).start_send(item)
+        }
+
+        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+            (**self).poll_complete()
+        }
+    }
 }
 
 pub use self::with::With;
@@ -229,21 +264,16 @@ pub trait Sink {
     }
 }
 
-if_std! {
-    // TODO: consider expanding this via e.g. FromIterator
-    impl<T> Sink for ::std::vec::Vec<T> {
-        type SinkItem = T;
-        type SinkError = (); // Change this to ! once it stabilizes
+impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
 
-        fn start_send(&mut self, item: Self::SinkItem)
-                      -> StartSend<Self::SinkItem, Self::SinkError>
-        {
-            self.push(item);
-            Ok(::AsyncSink::Ready)
-        }
+    fn start_send(&mut self, item: Self::SinkItem)
+                  -> StartSend<Self::SinkItem, Self::SinkError> {
+        (**self).start_send(item)
+    }
 
-        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-            Ok(::Async::Ready(()))
-        }
+    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        (**self).poll_complete()
     }
 }
