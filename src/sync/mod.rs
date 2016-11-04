@@ -7,3 +7,6 @@
 
 pub mod oneshot;
 pub mod spsc;
+mod bilock;
+
+pub use self::bilock::BiLock;
