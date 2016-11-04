@@ -174,7 +174,7 @@ pub mod future;
 pub use future::{Future, IntoFuture};
 
 pub mod stream;
-pub use stream::{Stream};
+pub use stream::Stream;
 
 pub mod sink;
 pub use sink::Sink;
