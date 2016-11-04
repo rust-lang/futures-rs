@@ -186,8 +186,8 @@ pub use future::{done, empty, failed, finished, lazy};
 #[deprecated(since = "0.1.4", note = "import through the future module instead")]
 pub use future::{
     Done, Empty, Failed, Finished, Lazy, AndThen, Flatten, FlattenStream, Fuse, IntoStream,
-    Join, Join3, Join4, Join5, Map, MapErr, OrElse, Select, SelectAll,
-    SelectAllNext, SelectNext, Then
+    Join, Join3, Join4, Join5, Map, MapErr, OrElse, Select,
+    SelectNext, Then
 };
 
 if_std! {
@@ -217,4 +217,8 @@ if_std! {
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "import through the future module instead")]
     pub use future::{BoxFuture, collect, select_all, select_ok};
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "import through the future module instead")]
+    pub use future::{SelectAll, SelectAllNext};
 }
