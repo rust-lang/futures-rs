@@ -33,6 +33,21 @@ impl<S: Sink> Buffer<S> {
     pub fn get_mut(&mut self) -> &mut S {
         &mut self.sink
     }
+
+    fn try_empty_buffer(&mut self) -> Poll<(), S::SinkError> {
+        while let Some(item) = self.buf.pop_front() {
+            if let AsyncSink::NotReady(item) = try!(self.sink.start_send(item)) {
+                self.buf.push_front(item);
+
+                // ensure that we attempt to complete any pushes we've started
+                try!(self.sink.poll_complete());
+
+                return Ok(Async::NotReady);
+            }
+        }
+
+        Ok(Async::Ready(()))
+    }
 }
 
 // Forwarding impl of Stream from the underlying sink
@@ -50,7 +65,7 @@ impl<S: Sink> Sink for Buffer<S> {
     type SinkError = S::SinkError;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        try!(self.poll_complete());
+        try!(self.try_empty_buffer());
         if self.buf.len() > self.cap {
             return Ok(AsyncSink::NotReady(item));
         }
@@ -59,19 +74,8 @@ impl<S: Sink> Sink for Buffer<S> {
     }
 
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        while let Some(item) = self.buf.pop_front() {
-            if let AsyncSink::NotReady(item) = try!(self.sink.start_send(item)) {
-                self.buf.push_front(item);
-
-                // ensure that we attempt to complete any pushes we've started
-                try!(self.sink.poll_complete());
-
-                return Ok(Async::NotReady);
-            }
-        }
-
+        try_ready!(self.try_empty_buffer());
         debug_assert!(self.buf.is_empty());
-
         self.sink.poll_complete()
     }
 }
