@@ -26,5 +26,5 @@
 #[deprecated(since = "0.1.4", note = "import through the executor module instead")]
 pub use task_impl::{Spawn, spawn, Executor, Run};
 
-pub use task_impl::{Task, TaskRc, LocalKey, park}
+pub use task_impl::{Task, TaskRc, LocalKey, park};
 pub use task_impl::{with_unpark_event, UnparkEvent, EventSet, Unpark};
