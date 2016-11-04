@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use {Poll, Async};
 use sink::{Sink, StartSend, AsyncSink};
+use stream::Stream;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.
@@ -31,6 +32,16 @@ impl<S: Sink> Buffer<S> {
     /// Get a mutable reference to the inner sink.
     pub fn get_mut(&mut self) -> &mut S {
         &mut self.sink
+    }
+}
+
+// Forwarding impl of Stream from the underlying sink
+impl<S> Stream for Buffer<S> where S: Sink + Stream {
+    type Item = S::Item;
+    type Error = S::Error;
+
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll()
     }
 }
 

@@ -21,6 +21,22 @@ pub fn new<S, F, B>(s: S, f: F) -> FilterMap<S, F>
     }
 }
 
+// Forwarding impl of Sink from the underlying stream
+impl<S, F> ::sink::Sink for FilterMap<S, F>
+    where S: ::sink::Sink
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::sink::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
+}
+
 impl<S, F, B> Stream for FilterMap<S, F>
     where S: Stream,
           F: FnMut(S::Item) -> Option<B>,

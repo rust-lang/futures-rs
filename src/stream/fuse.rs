@@ -8,11 +8,28 @@ use stream::Stream;
 /// finished.
 #[must_use = "streams do nothing unless polled"]
 pub struct Fuse<S> {
-    stream: Option<S>,
+    stream: S,
+    done: bool,
+}
+
+// Forwarding impl of Sink from the underlying stream
+impl<S> ::sink::Sink for Fuse<S>
+    where S: ::sink::Sink
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::sink::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
 }
 
 pub fn new<S: Stream>(s: S) -> Fuse<S> {
-    Fuse { stream: Some(s) }
+    Fuse { stream: s, done: false }
 }
 
 impl<S: Stream> Stream for Fuse<S> {
@@ -20,11 +37,15 @@ impl<S: Stream> Stream for Fuse<S> {
     type Error = S::Error;
 
     fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        let ret = self.stream.as_mut().map(|s| s.poll());
-        if let Some(Ok(Async::Ready(None))) = ret {
-            self.stream = None;
+        if self.done {
+            Ok(Async::Ready(None))
+        } else {
+            let r = self.stream.poll();
+            if let Ok(Async::Ready(None)) = r {
+                self.done = true;
+            }
+            r
         }
-        ret.unwrap_or(Ok(Async::Ready(None)))
     }
 }
 
@@ -35,6 +56,6 @@ impl<S> Fuse<S> {
     /// guaranteed to return `None`. If this returns `false`, then the
     /// underlying stream is still in use.
     pub fn is_done(&self) -> bool {
-        self.stream.is_none()
+        self.done
     }
 }

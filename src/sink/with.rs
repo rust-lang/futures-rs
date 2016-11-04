@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 
 use {IntoFuture, Future, Poll, Async};
 use sink::{Sink, StartSend, AsyncSink};
+use stream::Stream;
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
 /// to pushing a value into the underlying sink.
@@ -45,6 +46,20 @@ pub fn new<S, U, F, Fut>(sink: S, f: F) -> With<S, U, F, Fut>
         sink: sink,
         f: f,
         _phantom: PhantomData,
+    }
+}
+
+// Forwarding impl of Stream from the underlying sink
+impl<S, U, F, Fut> Stream for With<S, U, F, Fut>
+    where S: Stream + Sink,
+          F: FnMut(U) -> Fut,
+          Fut: IntoFuture
+{
+    type Item = S::Item;
+    type Error = S::Error;
+
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll()
     }
 }
 
