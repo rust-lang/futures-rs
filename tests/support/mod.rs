@@ -13,11 +13,11 @@ pub fn f_err(a: u32) -> Done<i32, u32> { Err(a).into_future() }
 pub fn ok(a: i32) -> Result<i32, u32> { Ok(a) }
 pub fn err(a: u32) -> Result<i32, u32> { Err(a) }
 
-pub fn assert_done<T, F>(mut f: F, result: Result<T::Item, T::Error>)
+pub fn assert_done<T, F>(f: F, result: Result<T::Item, T::Error>)
     where T: Future,
           T::Item: Eq + fmt::Debug,
           T::Error: Eq + fmt::Debug,
-          F: FnMut() -> T,
+          F: FnOnce() -> T,
 {
     assert_eq!(f().wait(), result);
 }
