@@ -48,8 +48,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use crossbeam::sync::MsQueue;
-use futures::{IntoFuture, Future, oneshot, Oneshot, Complete, Poll, Async};
-use futures::task::{self, Run, Executor};
+use futures::{IntoFuture, Future, Poll, Async};
+use futures::sync::oneshot::{channel, Sender, Receiver};
+use futures::task;
+use futures::executor::{Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -83,9 +85,9 @@ pub struct Builder {
     before_stop: Option<Arc<Fn() + Send + Sync>>,
 }
 
-struct Sender<F, T> {
+struct MySender<F, T> {
     fut: F,
-    tx: Option<Complete<T>>,
+    tx: Option<Sender<T>>,
 }
 
 fn _assert() {
@@ -110,7 +112,7 @@ struct Inner {
 /// will propagate panics.
 #[must_use]
 pub struct CpuFuture<T, E> {
-    inner: Oneshot<thread::Result<Result<T, E>>>,
+    inner: Receiver<thread::Result<Result<T, E>>>,
 }
 
 enum Message {
@@ -169,11 +171,11 @@ impl CpuPool {
               F::Item: Send + 'static,
               F::Error: Send + 'static,
     {
-        let (tx, rx) = oneshot();
+        let (tx, rx) = channel();
         // AssertUnwindSafe is used here becuase `Send + 'static` is basically
         // an alias for an implementation of the `UnwindSafe` trait but we can't
         // express that in the standard library right now.
-        let sender = Sender {
+        let sender = MySender {
             fut: AssertUnwindSafe(f).catch_unwind(),
             tx: Some(tx),
         };
@@ -249,7 +251,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
     }
 }
 
-impl<F: Future> Future for Sender<F, Result<F::Item, F::Error>> {
+impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
     type Item = ();
     type Error = ();
 

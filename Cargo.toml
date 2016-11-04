@@ -19,3 +19,6 @@ log = { version = "0.3", default-features = false }
 [features]
 use_std = []
 default = ["use_std"]
+
+[workspace]
+members = ["futures-cpupool"]
