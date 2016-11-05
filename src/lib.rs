@@ -148,16 +148,19 @@
 //!
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
-#![no_std]
+//#![no_std]
 #![deny(missing_docs)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
-#[macro_use]
-#[cfg(feature = "use_std")]
-extern crate std;
+//#[macro_use]
+//#[cfg(feature = "use_std")]
+//extern crate std;
+extern crate core;
 
 #[macro_use]
 extern crate log;
+
+extern crate slab;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(

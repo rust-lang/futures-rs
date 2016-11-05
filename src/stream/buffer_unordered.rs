@@ -1,7 +1,13 @@
 use std::prelude::v1::*;
+use std::sync::Arc;
+use std::collections::VecDeque;
+
+use slab::Slab;
+use task::{self, EventSet, UnparkEvent};
 
 use {Async, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
+use stack::Stack;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible, delivering results as they become available.
@@ -15,8 +21,9 @@ pub struct BufferUnordered<S>
           S::Item: IntoFuture,
 {
     stream: Fuse<S>,
-    futures: Vec<Option<<S::Item as IntoFuture>::Future>>,
+    futures: Slab<<S::Item as IntoFuture>::Future>,
     cur: usize,
+    stack: Arc<Stack<usize>>,
 }
 
 pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
@@ -25,8 +32,9 @@ pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
 {
     BufferUnordered {
         stream: super::fuse::new(s),
-        futures: (0..amt).map(|_| None).collect(),
+        futures: Slab::with_capacity(amt),
         cur: 0,
+        stack: Arc::new(Stack::new()),
     }
 }
 
@@ -57,40 +65,48 @@ impl<S> Stream for BufferUnordered<S>
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         // First, try to fill in all the futures
-        for future in &mut self.futures {
-            if future.is_none() {
-                match try!(self.stream.poll()) {
-                    Async::Ready(Some(s)) => {
-                        *future = Some(s.into_future());
-                    }
-                    Async::Ready(None) => break,
-                    Async::NotReady => break,
+        while self.futures.len() < self.futures.capacity() {
+            match try!(self.stream.poll()) {
+                Async::Ready(Some(s)) => {
+                    let idx = match self.futures.insert(s.into_future()) {
+                        Ok(idx) => idx,
+                        // Can't unwrap because future does not implement Debug
+                        Err(_original_future) => unreachable!(),
+                    };
+                    self.stack.push(idx);
                 }
+                Async::Ready(None) => break,
+                Async::NotReady => break,
             }
         }
 
         // Next, try and step futures forward until we find a ready one.
         // Always start at `cur` for fairness.
         let mut waiting = false;
-        for i in 0..self.futures.len() {
-            let mut idx = self.cur + i;
-            if idx >= self.futures.len() {
-                idx -= self.futures.len();
-            }
-            let future = &mut self.futures[idx];
-            let result = match *future {
-                Some(ref mut s) => match s.poll() {
-                    Ok(Async::NotReady) => {
-                        waiting = true;
-                        continue
-                    },
-                    Ok(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
-                    Err(e) => Err(e),
+        let mut drained = self.stack.drain();
+        while let Some(idx) = drained.next() {
+            let result = match self.futures.get_mut(idx) {
+                Some(ref mut s) => {
+                    let event = UnparkEvent::new(self.stack.clone(), idx);
+                    let poll_result = task::with_unpark_event(event, || {
+                        s.poll()
+                    });
+                    match poll_result {
+                        Ok(Async::NotReady) => {
+                            waiting = true;
+                            continue
+                        },
+                        Ok(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
+                        Err(e) => Err(e),
+                    }
                 },
                 None => continue,
             };
-            self.cur = i + 1;
-            *future = None;
+            self.futures.remove(idx);
+            // push unresolved futures back
+            for idx in drained {
+                self.stack.push(idx);
+            }
             return result;
         }
 
