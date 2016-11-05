@@ -22,7 +22,7 @@ pub struct Failed<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
 /// let future_of_err_1 = failed::<u32, u32>(1);
 /// ```

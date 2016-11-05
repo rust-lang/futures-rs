@@ -19,7 +19,7 @@ pub struct Done<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
 /// let future_of_1 = done::<u32, u32>(Ok(1));
 /// let future_of_err_2 = done::<u32, u32>(Err(2));

@@ -31,7 +31,7 @@
 //!
 //! use std::io;
 //! use std::time::Duration;
-//! use futures::{Future, Map};
+//! use futures::future::{Future, Map};
 //!
 //! // A future is actually a trait implementation, so we can generically take a
 //! // future of any integer and return back a future that will resolve to that
@@ -180,9 +180,11 @@ pub mod sink;
 pub use sink::Sink;
 
 #[deprecated(since = "0.1.4", note = "import through the future module instead")]
+#[cfg(feature = "with-deprecated")]
 pub use future::{done, empty, failed, finished, lazy};
 
 #[doc(hidden)]
+#[cfg(feature = "with-deprecated")]
 #[deprecated(since = "0.1.4", note = "import through the future module instead")]
 pub use future::{
     Done, Empty, Failed, Finished, Lazy, AndThen, Flatten, FlattenStream, Fuse, IntoStream,
@@ -200,25 +202,31 @@ if_std! {
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::channel instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use sync::oneshot::channel as oneshot;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::Receiver instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use sync::oneshot::Receiver as Oneshot;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::Sender instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use sync::oneshot::Sender as Complete;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::Canceled instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use sync::oneshot::Canceled;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "import through the future module instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use future::{BoxFuture, collect, select_all, select_ok};
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "import through the future module instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use future::{SelectAll, SelectAllNext, Collect, SelectOk};
 }

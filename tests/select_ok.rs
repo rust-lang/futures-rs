@@ -1,6 +1,6 @@
 extern crate futures;
 
-use futures::*;
+use futures::future::*;
 
 #[test]
 fn ignore_failed() {

@@ -3,6 +3,7 @@ extern crate futures;
 use std::sync::mpsc::channel;
 
 use futures::*;
+use futures::future::finished;
 
 #[test]
 fn lots() {

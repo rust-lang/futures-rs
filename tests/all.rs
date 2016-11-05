@@ -2,7 +2,10 @@ extern crate futures;
 
 use std::sync::mpsc::{channel, TryRecvError};
 
-use futures::*;
+use futures::future::*;
+use futures::future;
+use futures::executor;
+use futures::sync::oneshot::{self, Canceled};
 
 mod support;
 use support::*;
@@ -63,7 +66,7 @@ fn result_smoke() {
 
 #[test]
 fn test_empty() {
-    fn empty() -> Empty<i32, u32> { futures::empty() }
+    fn empty() -> Empty<i32, u32> { future::empty() }
 
     assert_empty(|| empty());
     assert_empty(|| empty().select(empty()));
@@ -88,16 +91,16 @@ fn test_finished() {
 #[test]
 fn flatten() {
     fn finished<T: Send + 'static>(a: T) -> Finished<T, u32> {
-        futures::finished(a)
+        future::finished(a)
     }
     fn failed<E: Send + 'static>(b: E) -> Failed<i32, E> {
-        futures::failed(b)
+        future::failed(b)
     }
 
     assert_done(|| finished(finished(1)).flatten(), ok(1));
     assert_done(|| finished(failed(1)).flatten(), err(1));
     assert_done(|| failed(1u32).map(finished).flatten(), err(1));
-    assert_done(|| futures::finished::<_, u8>(futures::finished::<_, u32>(1))
+    assert_done(|| future::finished::<_, u8>(future::finished::<_, u32>(1))
                            .flatten(), ok(1));
     assert_empty(|| finished(empty::<i32, u32>()).flatten());
     assert_empty(|| empty::<i32, u32>().map(finished).flatten());
@@ -106,27 +109,27 @@ fn flatten() {
 #[test]
 fn smoke_oneshot() {
     assert_done(|| {
-        let (c, p) = oneshot();
+        let (c, p) = oneshot::channel();
         c.complete(1);
         p
     }, Ok(1));
     assert_done(|| {
-        let (c, p) = oneshot::<i32>();
+        let (c, p) = oneshot::channel::<i32>();
         drop(c);
         p
     }, Err(Canceled));
     let mut completes = Vec::new();
     assert_empty(|| {
-        let (a, b) = oneshot::<i32>();
+        let (a, b) = oneshot::channel::<i32>();
         completes.push(a);
         b
     });
 
-    let (c, p) = oneshot::<i32>();
+    let (c, p) = oneshot::channel::<i32>();
     drop(c);
-    let res = task::spawn(p).poll_future(unpark_panic());
+    let res = executor::spawn(p).poll_future(unpark_panic());
     assert!(res.is_err());
-    let (c, p) = oneshot::<i32>();
+    let (c, p) = oneshot::channel::<i32>();
     drop(c);
     let (tx, rx) = channel();
     p.then(move |_| {
@@ -137,7 +140,7 @@ fn smoke_oneshot() {
 
 #[test]
 fn select_cancels() {
-    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+    let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
     let ((btx, brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
@@ -147,18 +150,18 @@ fn select_cancels() {
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.complete(1);
-    let res = task::spawn(f).poll_future(unpark_panic());
+    let res = executor::spawn(f).poll_future(unpark_panic());
     assert!(res.ok().unwrap().is_ready());
     assert_eq!(brx.recv().unwrap(), 1);
     drop(c);
     assert!(drx.recv().is_err());
 
-    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+    let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
     let ((btx, _brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = task::spawn(b.select(d).then(unselect));
+    let mut f = executor::spawn(b.select(d).then(unselect));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     a.complete(1);
@@ -169,19 +172,19 @@ fn select_cancels() {
 
 #[test]
 fn join_cancels() {
-    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+    let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
     let ((btx, _brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let f = b.join(d);
     drop(a);
-    let res = task::spawn(f).poll_future(unpark_panic());
+    let res = executor::spawn(f).poll_future(unpark_panic());
     assert!(res.is_err());
     drop(c);
     assert!(drx.recv().is_err());
 
-    let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+    let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
     let ((btx, _brx), (dtx, drx)) = (channel(), channel());
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
@@ -202,36 +205,36 @@ fn join_cancels() {
 
 #[test]
 fn join_incomplete() {
-    let (a, b) = oneshot::<i32>();
+    let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
-    let mut f = task::spawn(finished(1).join(b).map(move |r| tx.send(r).unwrap()));
+    let mut f = executor::spawn(finished(1).join(b).map(move |r| tx.send(r).unwrap()));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(rx.try_recv().is_err());
     a.complete(2);
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_ready());
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
-    let (a, b) = oneshot::<i32>();
+    let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
-    let mut f = task::spawn(b.join(Ok(2)).map(move |r| tx.send(r).unwrap()));
+    let mut f = executor::spawn(b.join(Ok(2)).map(move |r| tx.send(r).unwrap()));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(rx.try_recv().is_err());
     a.complete(1);
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_ready());
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
-    let (a, b) = oneshot::<i32>();
+    let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
-    let mut f = task::spawn(finished(1).join(b).map_err(move |_r| tx.send(2).unwrap()));
+    let mut f = executor::spawn(finished(1).join(b).map_err(move |_r| tx.send(2).unwrap()));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(rx.try_recv().is_err());
     drop(a);
     assert!(f.poll_future(unpark_noop()).is_err());
     assert_eq!(rx.recv().unwrap(), 2);
 
-    let (a, b) = oneshot::<i32>();
+    let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
-    let mut f = task::spawn(b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap()));
+    let mut f = executor::spawn(b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap()));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(rx.try_recv().is_err());
     drop(a);
@@ -241,9 +244,9 @@ fn join_incomplete() {
 
 #[test]
 fn collect_collects() {
-    assert_done(|| collect(vec![f_ok(1), f_ok(2)]), Ok(vec![1, 2]));
-    assert_done(|| collect(vec![f_ok(1)]), Ok(vec![1]));
-    assert_done(|| collect(Vec::<Result<i32, u32>>::new()), Ok(vec![]));
+    assert_done(|| join_all(vec![f_ok(1), f_ok(2)]), Ok(vec![1, 2]));
+    assert_done(|| join_all(vec![f_ok(1)]), Ok(vec![1]));
+    assert_done(|| join_all(Vec::<Result<i32, u32>>::new()), Ok(vec![]));
 
     // TODO: needs more tests
 }
@@ -271,7 +274,7 @@ fn select2() {
     // Finish one half of a select and then fail the second, ensuring that we
     // get the notification of the second one.
     {
-        let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+        let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
         let f = b.select(d);
         let (tx, rx) = channel();
         f.map(move |r| tx.send(r).unwrap()).forget();
@@ -287,7 +290,7 @@ fn select2() {
 
     // Fail the second half and ensure that we see the first one finish
     {
-        let ((a, b), (c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+        let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
         let f = b.select(d);
         let (tx, rx) = channel();
         f.map_err(move |r| tx.send((1, r.1)).unwrap()).forget();
@@ -303,7 +306,7 @@ fn select2() {
 
     // Cancelling the first half should cancel the second
     {
-        let ((_a, b), (_c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+        let ((_a, b), (_c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
@@ -315,19 +318,19 @@ fn select2() {
 
     // Cancel after a schedule
     {
-        let ((_a, b), (_c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+        let ((_a, b), (_c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let f = b.select(d);
-        drop(task::spawn(f).poll_future(support::unpark_noop()));
+        drop(executor::spawn(f).poll_future(support::unpark_noop()));
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());
     }
 
     // Cancel propagates
     {
-        let ((a, b), (_c, d)) = (oneshot::<i32>(), oneshot::<i32>());
+        let ((a, b), (_c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });

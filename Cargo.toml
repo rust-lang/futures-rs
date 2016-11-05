@@ -18,7 +18,8 @@ log = { version = "0.3", default-features = false }
 
 [features]
 use_std = []
-default = ["use_std"]
+with-deprecated = []
+default = ["use_std", "with-deprecated"]
 
 [workspace]
 members = ["futures-cpupool"]

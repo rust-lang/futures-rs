@@ -6,7 +6,8 @@ use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
 
-use {BoxFuture, Poll, Future, Async};
+use {Poll, Future, Async};
+use future::BoxFuture;
 use stream::Stream;
 
 mod unpark_mutex;
@@ -15,6 +16,7 @@ use self::unpark_mutex::UnparkMutex;
 mod task_rc;
 mod data;
 #[allow(deprecated)]
+#[cfg(feature = "with-deprecated")]
 pub use self::task_rc::TaskRc;
 pub use self::data::LocalKey;
 

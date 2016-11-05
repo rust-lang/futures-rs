@@ -7,9 +7,12 @@ use std::rc::Rc;
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::{Ordering, AtomicBool};
 
-use futures::{Poll, Async, Future, stream, finished, AsyncSink, StartSend};
+use futures::{Poll, Async, Future, AsyncSink, StartSend};
+use futures::future::finished;
+use futures::stream;
 use futures::sync::{oneshot, spsc};
-use futures::task::{self, Task, Unpark};
+use futures::task::{self, Task};
+use futures::executor::{self, Unpark};
 use futures::sink::*;
 
 mod support;
@@ -110,7 +113,7 @@ fn spsc_blocking_start_send() {
     let tx = tx.flush().wait().unwrap();
 
     let flag = Flag::new();
-    let mut task = task::spawn(StartSendFut::new(tx, Ok(1)));
+    let mut task = executor::spawn(StartSendFut::new(tx, Ok(1)));
 
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     assert!(!flag.get());
@@ -130,7 +133,7 @@ fn spsc_blocking_send() {
     let tx = tx.flush().wait().unwrap();
 
     let flag = Flag::new();
-    let mut task = task::spawn(tx.send(Ok(1)));
+    let mut task = executor::spawn(tx.send(Ok(1)));
 
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     assert!(!flag.get());
@@ -156,7 +159,7 @@ fn with_flush() {
     assert_eq!(sink.start_send(0), Ok(AsyncSink::Ready));
 
     let flag = Flag::new();
-    let mut task = task::spawn(sink.flush());
+    let mut task = executor::spawn(sink.flush());
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     tx.complete(());
     assert!(flag.get());
@@ -236,7 +239,7 @@ fn with_flush_propagate() {
     assert_eq!(sink.start_send(Some(1)).unwrap(), AsyncSink::Ready);
 
     let flag = Flag::new();
-    let mut task = task::spawn(sink.flush());
+    let mut task = executor::spawn(sink.flush());
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     assert!(!flag.get());
     assert_eq!(task.get_mut().get_mut().get_mut().force_flush(), vec![0, 1]);
@@ -332,7 +335,7 @@ fn buffer() {
     let sink = StartSendFut::new(sink, 1).wait().unwrap();
 
     let flag = Flag::new();
-    let mut task = task::spawn(sink.send(2));
+    let mut task = executor::spawn(sink.send(2));
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     assert!(!flag.get());
     allow.start();

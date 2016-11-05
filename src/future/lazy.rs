@@ -30,7 +30,7 @@ enum _Lazy<F, R> {
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
 /// let a = lazy(|| finished::<u32, u32>(1));
 ///

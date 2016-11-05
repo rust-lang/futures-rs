@@ -55,9 +55,11 @@ if_std! {
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use join_all instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use self::join_all::join_all as collect;
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use JoinAll instead")]
+    #[cfg(feature = "with-deprecated")]
     pub use self::join_all::JoinAll as Collect;
 
     /// A type alias for `Box<Future + Send>`
@@ -221,7 +223,7 @@ pub trait Future {
     fn wait(self) -> Result<Self::Item, Self::Error>
         where Self: Sized
     {
-        ::task::spawn(self).wait_future()
+        ::executor::spawn(self).wait_future()
     }
 
     /// Convenience function for turning this future into a trait object.
@@ -235,7 +237,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let a: BoxFuture<i32, i32> = done(Ok(1)).boxed();
     /// ```
@@ -264,7 +266,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let future_of_1 = finished::<u32, u32>(1);
     /// let future_of_4 = future_of_1.map(|x| x + 3);
@@ -293,7 +295,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let future_of_err_1 = failed::<u32, u32>(1);
     /// let future_of_err_4 = future_of_err_1.map_err(|x| x + 3);
@@ -327,7 +329,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let future_of_1 = finished::<u32, u32>(1);
     /// let future_of_4 = future_of_1.then(|x| {
@@ -370,7 +372,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let future_of_1 = finished::<u32, u32>(1);
     /// let future_of_4 = future_of_1.and_then(|x| {
@@ -410,7 +412,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let future_of_err_1 = failed::<u32, u32>(1);
     /// let future_of_4 = future_of_err_1.or_else(|x| -> Result<u32, u32> {
@@ -443,7 +445,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// // A poor-man's join implemented on top of select
     ///
@@ -486,7 +488,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let a = finished::<u32, u32>(1);
     /// let b = finished::<u32, u32>(2);
@@ -546,7 +548,9 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::Async;
+    /// use futures::stream::Stream;
+    /// use futures::future::*;
     ///
     /// let future = finished::<_, bool>(17);
     /// let mut stream = future.into_stream();
@@ -581,16 +585,16 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let future_of_a_future = finished::<_, u32>(finished::<u32, u32>(1));
     /// let future_of_1 = future_of_a_future.flatten();
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: IntoFuture,
-    <<Self as Future>::Item as IntoFuture>::Error:
-    From<<Self as Future>::Error>,
-              Self: Sized
+        <<Self as Future>::Item as IntoFuture>::Error:
+            From<<Self as Future>::Error>,
+        Self: Sized
     {
         let f = flatten::new(self);
         assert_future::<<<Self as Future>::Item as IntoFuture>::Item,
@@ -611,7 +615,8 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::*;
+    /// use futures::stream::{self, Stream};
+    /// use futures::future::*;
     ///
     /// let stream_items = vec![Ok(17), Err(true), Ok(19)];
     /// let future_of_a_stream = finished::<_, bool>(stream::iter(stream_items));
@@ -651,7 +656,8 @@ pub trait Future {
     /// # Examples
     ///
     /// ```rust
-    /// use futures::*;
+    /// use futures::Async;
+    /// use futures::future::*;
     ///
     /// let mut future = finished::<i32, u32>(2);
     /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
@@ -686,7 +692,7 @@ pub trait Future {
     /// # Examples
     ///
     /// ```rust
-    /// use futures::*;
+    /// use futures::future::*;
     ///
     /// let mut future = finished::<i32, u32>(2);
     /// assert!(future.catch_unwind().wait().is_ok());

@@ -1,5 +1,5 @@
 use stream::Stream;
-use task;
+use executor;
 
 /// A stream combinator which converts an asynchronous stream to a **blocking
 /// iterator**.
@@ -9,12 +9,12 @@ use task;
 /// while items on the underlying stream aren't ready yet.
 #[must_use = "iterators do nothing unless advanced"]
 pub struct Wait<S> {
-    stream: task::Spawn<S>,
+    stream: executor::Spawn<S>,
 }
 
 pub fn new<S: Stream>(s: S) -> Wait<S> {
     Wait {
-        stream: task::spawn(s),
+        stream: executor::spawn(s),
     }
 }
 

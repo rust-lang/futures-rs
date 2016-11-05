@@ -4,7 +4,7 @@ extern crate futures;
 use std::thread;
 
 use futures::{Async, Poll};
-use futures::task;
+use futures::executor;
 use futures::stream::{self, Stream};
 use futures::future::{self, Future};
 use futures::sync::BiLock;
@@ -39,7 +39,7 @@ fn smoke() {
         Ok::<(), ()>(())
     });
 
-    assert!(task::spawn(future)
+    assert!(executor::spawn(future)
                 .poll_future(unpark_noop())
                 .expect("failure in poll")
                 .is_ready());

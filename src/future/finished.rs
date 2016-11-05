@@ -23,7 +23,7 @@ pub struct Finished<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
 /// let future_of_1 = finished::<u32, u32>(1);
 /// ```
