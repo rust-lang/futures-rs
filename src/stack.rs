@@ -1,14 +1,12 @@
 //! A lock-free stack which supports concurrent pushes and a concurrent call to
 //! drain the entire stack all at once.
 
-#![allow(dead_code)]
-
 use std::sync::atomic::AtomicUsize;
 use std::mem;
 use std::marker;
 use std::sync::atomic::Ordering::SeqCst;
 
-use task::{self, EventSet, UnparkEvent};
+use task::EventSet;
 
 
 pub struct Stack<T> {

@@ -160,8 +160,6 @@ extern crate core;
 #[macro_use]
 extern crate log;
 
-extern crate slab;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "use_std")]
@@ -198,6 +196,7 @@ pub use future::{
 if_std! {
     mod lock;
     mod task_impl;
+    mod stack;
 
     pub mod task;
     pub mod executor;
