@@ -1,3 +1,7 @@
+#![deprecated(since = "0.1.4",
+              note = "replaced with `BiLock` in many cases, otherwise slated \
+                      for removal due to confusion")]
+
 use std::prelude::v1::*;
 use std::sync::Arc;
 use std::cell::UnsafeCell;

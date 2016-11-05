@@ -14,6 +14,7 @@ use self::unpark_mutex::UnparkMutex;
 
 mod task_rc;
 mod data;
+#[allow(deprecated)]
 pub use self::task_rc::TaskRc;
 pub use self::data::LocalKey;
 
