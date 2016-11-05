@@ -1,4 +1,4 @@
-//! Definition of the Collect combinator, waiting for all of a list of futures
+//! Definition of the JoinAll combinator, waiting for all of a list of futures
 //! to finish.
 
 use std::prelude::v1::*;
@@ -10,9 +10,9 @@ use {Future, IntoFuture, Poll, Async};
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
 ///
-/// This future is created with the `collect` method.
+/// This future is created with the `join_all` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct Collect<I>
+pub struct JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
@@ -36,9 +36,9 @@ pub struct Collect<I>
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
-/// let f = collect(vec![
+/// let f = join_all(vec![
 ///     finished::<u32, u32>(1),
 ///     finished::<u32, u32>(2),
 ///     finished::<u32, u32>(3),
@@ -47,7 +47,7 @@ pub struct Collect<I>
 ///     assert_eq!(x, [1, 2, 3]);
 /// });
 ///
-/// let f = collect(vec![
+/// let f = join_all(vec![
 ///     finished::<u32, u32>(1).boxed(),
 ///     failed::<u32, u32>(2).boxed(),
 ///     finished::<u32, u32>(3).boxed(),
@@ -57,19 +57,19 @@ pub struct Collect<I>
 ///     x
 /// });
 /// ```
-pub fn collect<I>(i: I) -> Collect<I>
+pub fn join_all<I>(i: I) -> JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
     let mut i = i.into_iter();
-    Collect {
+    JoinAll {
         cur: i.next().map(IntoFuture::into_future),
         remaining: i,
         result: Vec::new(),
     }
 }
 
-impl<I> Future for Collect<I>
+impl<I> Future for JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {

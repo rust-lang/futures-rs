@@ -45,13 +45,20 @@ pub use self::then::Then;
 
 if_std! {
     mod catch_unwind;
-    mod collect;
+    mod join_all;
     mod select_all;
     mod select_ok;
     pub use self::catch_unwind::CatchUnwind;
-    pub use self::collect::{collect, Collect};
+    pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use join_all instead")]
+    pub use future::join_all as collect;
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use JoinAll instead")]
+    pub use future::JoinAll as Collect;
 
     /// A type alias for `Box<Future + Send>`
     pub type BoxFuture<T, E> = ::std::boxed::Box<Future<Item = T, Error = E> + Send>;

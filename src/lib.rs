@@ -187,7 +187,7 @@ pub use future::{done, empty, failed, finished, lazy};
 pub use future::{
     Done, Empty, Failed, Finished, Lazy, AndThen, Flatten, FlattenStream, Fuse, IntoStream,
     Join, Join3, Join4, Join5, Map, MapErr, OrElse, Select,
-    SelectNext, Then
+    SelectNext, Then, Collect
 };
 
 if_std! {
