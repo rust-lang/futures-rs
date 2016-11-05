@@ -55,10 +55,10 @@ if_std! {
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use join_all instead")]
-    pub use future::join_all as collect;
+    pub use self::join_all::join_all as collect;
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use JoinAll instead")]
-    pub use future::JoinAll as Collect;
+    pub use self::join_all::JoinAll as Collect;
 
     /// A type alias for `Box<Future + Send>`
     pub type BoxFuture<T, E> = ::std::boxed::Box<Future<Item = T, Error = E> + Send>;
