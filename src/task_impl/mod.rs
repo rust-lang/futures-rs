@@ -208,25 +208,37 @@ pub trait EventSet: Send + Sync + 'static {
 
 // A collection of UnparkEvents to trigger on `unpark`
 #[derive(Clone)]
-struct Events {
-    set: Vec<UnparkEvent>, // TODO: change to some SmallVec
+enum Events {
+    Zero,
+    One(UnparkEvent),
+    Lots(Vec<UnparkEvent>),
 }
 
 impl Events {
     fn new() -> Events {
-        Events { set: Vec::new() }
+        Events::Zero
     }
 
     fn trigger(&self) {
-        for event in self.set.iter() {
-            event.set.insert(event.item)
+        match *self {
+            Events::Zero => {}
+            Events::One(ref event) => event.set.insert(event.item),
+            Events::Lots(ref list) => {
+                for event in list {
+                    event.set.insert(event.item);
+                }
+            }
         }
     }
 
     fn with_event(&self, event: UnparkEvent) -> Events {
-        let mut set = self.set.clone();
-        set.push(event);
-        Events { set: set }
+        let mut list = match *self {
+            Events::Zero => return Events::One(event),
+            Events::One(ref event) => vec![event.clone()],
+            Events::Lots(ref list) => list.clone(),
+        };
+        list.push(event);
+        Events::Lots(list)
     }
 }
 
