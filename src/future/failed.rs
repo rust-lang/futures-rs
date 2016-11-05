@@ -1,3 +1,6 @@
+//! Definition of the Failed combinator, an error value that's immediately
+//! ready.
+
 use core::marker;
 
 use {Future, Poll};

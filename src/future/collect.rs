@@ -1,3 +1,6 @@
+//! Definition of the Collect combinator, waiting for all of a list of futures
+//! to finish.
+
 use std::prelude::v1::*;
 
 use std::mem;

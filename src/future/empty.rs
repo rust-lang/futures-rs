@@ -1,3 +1,5 @@
+//! Definition of the Empty combinator, a future that's never ready.
+
 use core::marker;
 
 use {Future, Poll, Async};

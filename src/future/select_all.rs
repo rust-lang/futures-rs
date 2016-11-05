@@ -1,3 +1,6 @@
+//! Definition of the SelectAll, finding the first future in a list that
+//! finishes.
+
 use std::mem;
 use std::prelude::v1::*;
 

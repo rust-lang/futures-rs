@@ -1,3 +1,5 @@
+//! Definition of the `Done` (immediately finished) combinator
+
 use {Future, Poll, Async};
 
 /// A future representing a value that is immediately ready.

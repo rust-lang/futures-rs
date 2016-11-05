@@ -1,3 +1,6 @@
+//! Definition of the `SelectOk` combinator, finding the first successful future
+//! in a list.
+
 use std::mem;
 use std::prelude::v1::*;
 

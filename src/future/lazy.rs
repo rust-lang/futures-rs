@@ -1,3 +1,6 @@
+//! Definition of the Lazy combinator, deferring execution of a function until
+//! the future is polled.
+
 use core::mem;
 
 use {Future, IntoFuture, Poll};

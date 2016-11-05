@@ -1,3 +1,6 @@
+//! Definition of the Finished combinator, a successful value that's immediately
+//! ready.
+
 use core::marker;
 
 use {Future, Poll, Async};
