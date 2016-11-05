@@ -4,7 +4,7 @@ extern crate futures;
 use futures::Poll;
 use futures::executor;
 use futures::future::{failed, finished, Future};
-use futures::stream::*;
+use futures::stream::{iter, Stream, Peekable};
 use futures::sync::oneshot;
 use futures::sync::spsc;
 
@@ -12,7 +12,7 @@ mod support;
 use support::*;
 
 
-fn list() -> Receiver<i32, u32> {
+fn list() -> spsc::Receiver<i32, u32> {
     let (tx, rx) = spsc::channel();
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
@@ -21,7 +21,7 @@ fn list() -> Receiver<i32, u32> {
     rx
 }
 
-fn err_list() -> Receiver<i32, u32> {
+fn err_list() -> spsc::Receiver<i32, u32> {
     let (tx, rx) = spsc::channel();
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
@@ -241,7 +241,7 @@ fn zip() {
 #[test]
 fn peek() {
     struct Peek {
-        inner: Peekable<Receiver<i32, u32>>
+        inner: Peekable<spsc::Receiver<i32, u32>>
     }
 
     impl Future for Peek {
