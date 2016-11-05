@@ -68,7 +68,6 @@ struct SyncedInner<F>
 {
     original_future: F, // The original future
     result: Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>>, // The original future result wrapped with `SharedItem`/`SharedError`
-    tasks_receiver: Lock<Receiver<Task>>, // When original future is polled and ready, unparks all the tasks in that channel
 }
 
 struct Inner<F>
@@ -76,6 +75,7 @@ struct Inner<F>
 {
     synced_inner: RwLock<SyncedInner<F>>,
     tasks_unpark_started: AtomicBool,
+    tasks_receiver: Lock<Receiver<Task>>, // When original future is polled and ready, unparks all the tasks in that channel
 }
 
 /// TODO: doc
@@ -96,9 +96,9 @@ pub fn new<F>(future: F) -> Shared<F>
             synced_inner: RwLock::new(SyncedInner {
                 original_future: future,
                 result: None,
-                tasks_receiver: Lock::new(tasks_receiver),
             }),
             tasks_unpark_started: AtomicBool::new(false),
+            tasks_receiver: Lock::new(tasks_receiver),            
         }),
         tasks_sender: tasks_sender,
     }
@@ -156,7 +156,7 @@ impl<F> Future for Shared<F>
                 Ok(inner_guard) => {
                     let ref inner = *inner_guard;
                     self.inner.tasks_unpark_started.store(true, Ordering::Relaxed);
-                    match inner.tasks_receiver.try_lock() {
+                    match self.inner.tasks_receiver.try_lock() {
                         Some(tasks_receiver_guard) => {
                             let ref tasks_receiver = *tasks_receiver_guard;
                             loop {
