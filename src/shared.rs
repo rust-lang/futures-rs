@@ -151,7 +151,7 @@ impl<F> Future for Shared<F>
             Err(_) => {} // Will be handled later
         }
 
-        if polled_result.is_some() {
+        if let Some(result) = polled_result {
             match self.inner.synced_inner.try_read() {
                 Ok(inner_guard) => {
                     let ref inner = *inner_guard;
@@ -169,11 +169,7 @@ impl<F> Future for Shared<F>
                         None => {} // Other thread is unparking the tasks
                     }
 
-                    if let Some(ref result) = inner.result {
-                        return result.clone();
-                    } else {
-                        unreachable!();
-                    }
+                    return result.clone();
                 }
                 _ => {
                     // The mutex is locked for write, after the poll was ready.
@@ -192,9 +188,7 @@ impl<F> Future for Shared<F>
             match self.inner.synced_inner.try_read() {
                 Ok(inner_guard) => {
                     let ref inner = *inner_guard;
-                    if let Some(ref result) = inner.result {
-                        return result.clone();
-                    }
+                    return inner.result.as_ref().unwrap().clone();
                 }
                 _ => {
                     // The mutex is locked for write, so the sent task will be unparked later
