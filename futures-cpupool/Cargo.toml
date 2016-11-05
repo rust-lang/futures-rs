@@ -12,6 +12,11 @@ computation on the threads themselves.
 """
 
 [dependencies]
-futures = { path = "..", version = "0.1" }
 num_cpus = "1.0"
 crossbeam = "0.2.10"
+
+[dependencies.futures]
+path = ".."
+version = "0.1"
+default-features = false
+features = ["use_std"]

@@ -5,11 +5,11 @@ use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::thread;
 use std::time::Duration;
 
-use futures::{Future, BoxFuture};
+use futures::future::{Future, BoxFuture};
 use futures_cpupool::{CpuPool, Builder};
 
 fn done<T: Send + 'static>(t: T) -> BoxFuture<T, ()> {
-    futures::done(Ok(t)).boxed()
+    futures::future::done(Ok(t)).boxed()
 }
 
 #[test]
@@ -49,10 +49,10 @@ fn threads_go_away() {
     thread_local!(static FOO: A = A);
 
     let pool = CpuPool::new(2);
-    let _handle = pool.spawn(futures::lazy(|| {
+    let _handle = pool.spawn_fn(|| {
         FOO.with(|_| ());
         Ok::<(), ()>(())
-    }));
+    });
     drop(pool);
 
     for _ in 0..100 {
@@ -82,9 +82,9 @@ fn lifecycle_test() {
         .after_start(after_start)
         .before_stop(before_stop)
         .create();
-    let _handle = pool.spawn(futures::lazy(|| {
+    let _handle = pool.spawn_fn(|| {
         Ok::<(), ()>(())
-    }));
+    });
     drop(pool);
 
     for _ in 0..100 {

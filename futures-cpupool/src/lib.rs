@@ -10,12 +10,12 @@
 //! extern crate futures;
 //! extern crate futures_cpupool;
 //!
-//! use std::sync::mpsc::channel;
-//!
-//! use futures::{BoxFuture, Future};
+//! use futures::Future;
 //! use futures_cpupool::CpuPool;
 //!
-//! # fn long_running_future(a: u32) -> BoxFuture<u32, ()> { futures::done(Ok(a)).boxed() }
+//! # fn long_running_future(a: u32) -> futures::future::BoxFuture<u32, ()> {
+//! #     futures::future::done(Ok(a)).boxed()
+//! # }
 //! # fn main() {
 //!
 //! // Create a worker thread pool with four threads
@@ -49,9 +49,9 @@ use std::thread;
 
 use crossbeam::sync::MsQueue;
 use futures::{IntoFuture, Future, Poll, Async};
+use futures::future::lazy;
 use futures::sync::oneshot::{channel, Sender, Receiver};
-use futures::task;
-use futures::executor::{Run, Executor};
+use futures::executor::{self, Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -155,7 +155,7 @@ impl CpuPool {
     /// running.
     ///
     /// To simply run an arbitrary closure on a thread pool and extract the
-    /// result, you can use the `futures::lazy` combinator to defer work to
+    /// result, you can use the `future::lazy` combinator to defer work to
     /// executing on the thread pool itself.
     ///
     /// Note that if the future `f` panics it will be caught by default and the
@@ -179,14 +179,14 @@ impl CpuPool {
             fut: AssertUnwindSafe(f).catch_unwind(),
             tx: Some(tx),
         };
-        task::spawn(sender).execute(self.inner.clone());
+        executor::spawn(sender).execute(self.inner.clone());
         CpuFuture { inner: rx }
     }
 
     /// Spawns a closure on this thread pool.
     ///
     /// This function is a convenience wrapper around the `spawn` function above
-    /// for running a closure wrapped in `futures::lazy`. It will spawn the
+    /// for running a closure wrapped in `future::lazy`. It will spawn the
     /// function `f` provided onto the thread pool, and continue to run the
     /// future returned by `f` on the thread pool as well.
     ///
@@ -199,7 +199,7 @@ impl CpuPool {
               R::Item: Send + 'static,
               R::Error: Send + 'static,
     {
-        self.spawn(futures::lazy(f))
+        self.spawn(lazy(f))
     }
 }
 
