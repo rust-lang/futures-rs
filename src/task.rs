@@ -32,4 +32,5 @@ pub use task_impl::{Task, LocalKey, park, with_unpark_event, UnparkEvent, EventS
 #[doc(hidden)]
 #[deprecated(since = "0.1.4", note = "import through the executor module instead")]
 #[cfg(feature = "with-deprecated")]
+#[allow(deprecated)]
 pub use task_impl::TaskRc;

@@ -1,7 +1,7 @@
 extern crate futures;
 
-use futures::*;
-use futures::future::finished;
+use futures::future::{finished, Future};
+use futures::executor;
 
 mod support;
 use support::*;

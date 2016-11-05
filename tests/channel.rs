@@ -6,15 +6,15 @@ use std::sync::atomic::*;
 use futures::{Future, Async};
 use futures::future::done;
 use futures::executor;
-use futures::stream::*;
-use futures::sync::spsc::*;
+use futures::stream::Stream;
+use futures::sync::spsc;
 
 mod support;
 use support::*;
 
 #[test]
 fn sequence() {
-    let (tx, mut rx) = channel();
+    let (tx, mut rx) = spsc::channel();
 
     sassert_empty(&mut rx);
     sassert_empty(&mut rx);
@@ -27,7 +27,7 @@ fn sequence() {
     }
     assert_eq!(rx.next(), None);
 
-    fn send(n: u32, sender: Sender<u32, u32>)
+    fn send(n: u32, sender: spsc::Sender<u32, u32>)
             -> Box<Future<Item=(), Error=()> + Send> {
         if n == 0 {
             return done(Ok(())).boxed()
@@ -40,14 +40,14 @@ fn sequence() {
 
 #[test]
 fn drop_sender() {
-    let (tx, mut rx) = channel::<u32, u32>();
+    let (tx, mut rx) = spsc::channel::<u32, u32>();
     drop(tx);
     sassert_done(&mut rx);
 }
 
 #[test]
 fn drop_rx() {
-    let (tx, rx) = channel::<u32, u32>();
+    let (tx, rx) = spsc::channel::<u32, u32>();
     let tx = tx.send(Ok(1)).wait().ok().unwrap();
     drop(rx);
     assert!(tx.send(Ok(1)).wait().is_err());
@@ -62,7 +62,7 @@ impl executor::Unpark for Unpark {
 
 #[test]
 fn poll_future_then_drop() {
-    let (tx, _rx) = channel::<u32, u32>();
+    let (tx, _rx) = spsc::channel::<u32, u32>();
 
     let tx = tx.send(Ok(1));
     let mut t = executor::spawn(tx);
@@ -89,7 +89,7 @@ fn poll_future_then_drop() {
 #[test]
 fn drop_order() {
     static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
-    let (tx, rx) = channel::<_, u32>();
+    let (tx, rx) = spsc::channel::<_, u32>();
 
     struct A;
 
