@@ -1,4 +1,5 @@
 #![cfg(feature = "with-deprecated")]
+#![allow(deprecated)]
 #![deprecated(since = "0.1.4",
               note = "replaced with `BiLock` in many cases, otherwise slated \
                       for removal due to confusion")]
