@@ -20,10 +20,25 @@ pub struct BufferUnordered<S>
           S::Item: IntoFuture,
 {
     stream: Fuse<S>,
+
+    // A slab of futures that are being executed. Each slot in this vector is
+    // either an active future or a pointer to the next empty slot. This is used
+    // to get O(1) deallocation in the slab and O(1) allocation.
+    //
+    // The `next_future` field is the next slot in the `futures` array that's a
+    // `Slot::Next` variant. If it points to the end of the array then the array
+    // is full.
     futures: Vec<Slot<<S::Item as IntoFuture>::Future>>,
     next_future: usize,
-    pending: Drain<usize>,
+
+    // A list of events that will get pushed onto concurrently by our many
+    // futures. This is filled in and used with the `with_unpark_event`
+    // function. The `pending` list here is the last time we drained events from
+    // our stack.
     stack: Arc<Stack<usize>>,
+    pending: Drain<usize>,
+
+    // Number of active futures running in the `futures` slab
     active: usize,
 }
 
@@ -36,13 +51,12 @@ pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
 {
-    let stack = Stack::new();
     BufferUnordered {
         stream: super::fuse::new(s),
         futures: (0..amt).map(|i| Slot::Next(i + 1)).collect(),
         next_future: 0,
-        pending: stack.drain(),
-        stack: Arc::new(stack),
+        pending: Stack::new().drain(),
+        stack: Arc::new(Stack::new()),
         active: 0,
     }
 }
