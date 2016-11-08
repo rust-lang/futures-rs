@@ -55,8 +55,6 @@ impl<T, U> Future for SendAll<T, U>
     type Error = T::SinkError;
 
     fn poll(&mut self) -> Poll<T, T::SinkError> {
-        try!(self.sink_mut().poll_complete());
-
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered.take() {
@@ -64,6 +62,8 @@ impl<T, U> Future for SendAll<T, U>
         }
 
         loop {
+            try!(self.sink_mut().poll_complete());
+
             if let Some(item) = try_ready!(self.stream.poll()) {
                 try_ready!(self.try_start_send(item))
             } else {
