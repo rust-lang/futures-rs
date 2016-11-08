@@ -74,6 +74,22 @@ pub enum AsyncSink<T> {
     NotReady(T),
 }
 
+impl<T> AsyncSink<T> {
+    /// Returns whether this is `AsyncSink::NotReady`
+    pub fn is_not_ready(&self) -> bool {
+        match *self {
+            AsyncSink::NotReady(_) => true,
+            AsyncSink::Ready => false,
+        }
+    }
+
+    /// Returns whether this is `AsyncSink::Ready`
+    pub fn is_ready(&self) -> bool {
+        !self.is_not_ready()
+    }
+}
+
+
 /// Return type of the `Sink::start_send` method, indicating the outcome of a
 /// send attempt. See `AsyncSink` for more details.
 pub type StartSend<T, E> = Result<AsyncSink<T>, E>;
