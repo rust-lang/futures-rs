@@ -60,7 +60,7 @@ pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
 pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     where S::Error: Eq + fmt::Debug
 {
-    match task::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(unpark_panic()) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),

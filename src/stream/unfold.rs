@@ -29,13 +29,14 @@ use stream::Stream;
 /// # Example
 ///
 /// ```rust
-/// use futures::*;
+/// use futures::stream::{self, Stream};
+/// use futures::future::{self, Future};
 ///
 /// let mut stream = stream::unfold(0, |state| {
 ///     if state <= 2 {
 ///         let next_state = state + 1;
 ///         let yielded = state  * 2;
-///         let fut = futures::finished::<_, u32>((yielded, next_state));
+///         let fut = future::finished::<_, u32>((yielded, next_state));
 ///         Some(fut)
 ///     } else {
 ///         None
