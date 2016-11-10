@@ -4,10 +4,11 @@ use std::fmt;
 use std::sync::Arc;
 use std::thread;
 
-use futures::{Future, IntoFuture, Async};
+use futures::{Future, IntoFuture, Async, Poll};
 use futures::future::Done;
 use futures::stream::Stream;
 use futures::executor::{self, Unpark};
+use futures::task;
 
 pub fn f_ok(a: i32) -> Done<i32, u32> { Ok(a).into_future() }
 pub fn f_err(a: u32) -> Done<i32, u32> { Err(a).into_future() }
@@ -56,6 +57,17 @@ pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
     }
 }
 
+pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
+    where S::Error: Eq + fmt::Debug
+{
+    match task::spawn(s).poll_stream(unpark_panic()) {
+        Ok(Async::Ready(None)) => panic!("stream is at its end"),
+        Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
+        Ok(Async::NotReady) => panic!("stream wasn't ready"),
+        Err(e) => assert_eq!(e, err),
+    }
+}
+
 pub fn unpark_panic() -> Arc<Unpark> {
     struct Foo;
 
@@ -91,3 +103,28 @@ impl<F> ForgetExt for F
         thread::spawn(|| self.wait());
     }
 }
+
+pub struct DelayFuture<F>(F,bool);
+
+impl<F: Future> Future for DelayFuture<F> {
+    type Item = F::Item;
+    type Error = F::Error;
+
+    fn poll(&mut self) -> Poll<F::Item,F::Error> {
+        if self.1 {
+            self.0.poll()
+        } else {
+            self.1 = true;
+            task::park().unpark();
+            Ok(Async::NotReady)
+        }
+    }
+}
+
+/// Introduces one Ok(Async::NotReady) before polling the given future
+pub fn delay_future<F>(f: F) -> DelayFuture<F::Future>
+    where F: IntoFuture,
+{
+    DelayFuture(f.into_future(), false)
+}
+

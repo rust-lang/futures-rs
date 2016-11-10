@@ -35,6 +35,7 @@ mod skip;
 mod skip_while;
 mod take;
 mod then;
+mod unfold;
 mod zip;
 pub use self::and_then::AndThen;
 pub use self::empty::{Empty, empty};
@@ -54,6 +55,7 @@ pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::then::Then;
+pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::peek::Peekable;
 
