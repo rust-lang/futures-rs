@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
-use std::sync::RwLock;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::cell::UnsafeCell;
+use std::marker::Sync;
 use {Future, Poll, Async};
 use task::{self, Task};
 use lock::Lock;
@@ -67,16 +68,18 @@ struct SyncedInner<F>
     where F: Future
 {
     original_future: F, // The original future
-    result: Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>>, // The original future result wrapped with `SharedItem`/`SharedError`
 }
 
 struct Inner<F>
     where F: Future
 {
-    synced_inner: RwLock<SyncedInner<F>>,
+    synced_inner: Lock<SyncedInner<F>>,
     tasks_unpark_started: AtomicBool,
     tasks_receiver: Lock<Receiver<Task>>, // When original future is polled and ready, unparks all the tasks in that channel
+    result: UnsafeCell<Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>>>, // The original future result wrapped with `SharedItem`/`SharedError`    
 }
+
+unsafe impl<F> Sync for Inner<F> where F: Future {}
 
 /// TODO: doc
 #[must_use = "futures do nothing unless polled"]
@@ -93,12 +96,12 @@ pub fn new<F>(future: F) -> Shared<F>
     let (tasks_sender, tasks_receiver) = channel();
     Shared {
         inner: Arc::new(Inner {
-            synced_inner: RwLock::new(SyncedInner {
+            synced_inner: Lock::new(SyncedInner {
                 original_future: future,
-                result: None,
             }),
             tasks_unpark_started: AtomicBool::new(false),
             tasks_receiver: Lock::new(tasks_receiver),            
+            result: UnsafeCell::new(None),
         }),
         tasks_sender: tasks_sender,
     }
@@ -111,87 +114,72 @@ impl<F> Future for Shared<F>
     type Error = SharedError<F::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut polled_result: Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>> =
-            None;
+        let mut polled_result: Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>> = None;
 
         // If the result is ready, just return it
-        match self.inner.synced_inner.try_read() {
-            Ok(inner_guard) => {
-                let ref inner = *inner_guard;
-                if let Some(ref result) = inner.result {
+        if self.inner.tasks_unpark_started.load(Ordering::Relaxed) {
+            unsafe {
+                if let Some(ref result) = *self.inner.result.get() {
                     return result.clone();
                 }
             }
-            _ => {} // Mutex is locked for write
         }
 
         // The result was not ready.
-        match self.inner.synced_inner.try_write() {
-            Ok(mut inner_guard) => {
+        match self.inner.synced_inner.try_lock() {
+            Some(mut inner_guard) => {
                 let ref mut inner = *inner_guard;
 
                 // By the time that synced_inner was unlocked, other thread could poll the result,
                 // so we check if result has a value
-                if inner.result.is_some() {
-                    polled_result = inner.result.clone();
-                } else {
-                    match inner.original_future.poll() {
-                        Ok(Async::Ready(item)) => {
-                            inner.result = Some(Ok(Async::Ready(SharedItem::new(item))));
-                            polled_result = inner.result.clone();
+                unsafe {
+                    if (*self.inner.result.get()).is_some() {
+                        polled_result = (*self.inner.result.get()).clone();
+                    } else {
+                        match inner.original_future.poll() {
+                            Ok(Async::Ready(item)) => {
+                                *self.inner.result.get() = Some(Ok(Async::Ready(SharedItem::new(item))));
+                                polled_result = (*self.inner.result.get()).clone();
+                            }
+                            Err(error) => {
+                                *self.inner.result.get() = Some(Err(SharedError::new(error)));
+                                polled_result = (*self.inner.result.get()).clone();
+                            }
+                            Ok(Async::NotReady) => {} // Will be handled later
                         }
-                        Err(error) => {
-                            inner.result = Some(Err(SharedError::new(error)));
-                            polled_result = inner.result.clone();
-                        }
-                        Ok(Async::NotReady) => {} // Will be handled later
                     }
                 }
             }
-            Err(_) => {} // Will be handled later
+            None => {} // Will be handled later
         }
 
         if let Some(result) = polled_result {
-            match self.inner.synced_inner.try_read() {
-                Ok(inner_guard) => {
-                    let ref inner = *inner_guard;
-                    self.inner.tasks_unpark_started.store(true, Ordering::Relaxed);
-                    match self.inner.tasks_receiver.try_lock() {
-                        Some(tasks_receiver_guard) => {
-                            let ref tasks_receiver = *tasks_receiver_guard;
-                            loop {
-                                match tasks_receiver.try_recv() {
-                                    Ok(task) => task.unpark(),
-                                    _ => break,
-                                }
-                            }
+            self.inner.tasks_unpark_started.store(true, Ordering::Relaxed);
+            match self.inner.tasks_receiver.try_lock() {
+                Some(tasks_receiver_guard) => {
+                    let ref tasks_receiver = *tasks_receiver_guard;
+                    loop {
+                        match tasks_receiver.try_recv() {
+                            Ok(task) => task.unpark(),
+                            _ => break,
                         }
-                        None => {} // Other thread is unparking the tasks
                     }
-
-                    return result.clone();
                 }
-                _ => {
-                    // The mutex is locked for write, after the poll was ready.
-                    // The context that locked for write will unpark the tasks.
-                }
+                None => {} // Other thread is unparking the tasks
             }
+
+            return result.clone();
         }
 
         let t = task::park();
         let _ = self.tasks_sender.send(t);
         if self.inner.tasks_unpark_started.load(Ordering::Relaxed) {
-            // If the tasks unpark has started, synced_inner can be locked for read,
-            // and its result has value (not None).
+            // If the tasks unpark has started, self.inner.result has a value (not None).
             // The result must be read here because it is possible that the task,
             // t (see variable above), had not been unparked.
-            match self.inner.synced_inner.try_read() {
-                Ok(inner_guard) => {
-                    let ref inner = *inner_guard;
-                    return inner.result.as_ref().unwrap().clone();
-                }
-                _ => {
-                    // The mutex is locked for write, so the sent task will be unparked later
+            unsafe {
+                if let Some(ref result) = *self.inner.result.get() {
+                    return result.clone();
                 }
             }
         }
