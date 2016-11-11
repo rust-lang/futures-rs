@@ -48,10 +48,12 @@ if_std! {
     mod join_all;
     mod select_all;
     mod select_ok;
+    mod fold;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
+    pub use self::fold::{Fold, FoldUnordered, fold, fold_unordered};
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use join_all instead")]
