@@ -26,6 +26,22 @@ pub fn new<S, P, R>(s: S, p: P) -> SkipWhile<S, P, R>
     }
 }
 
+// Forwarding impl of Sink from the underlying stream
+impl<S, P, R> ::sink::Sink for SkipWhile<S, P, R>
+    where S: ::sink::Sink + Stream, R: IntoFuture
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
+}
+
 impl<S, P, R> Stream for SkipWhile<S, P, R>
     where S: Stream,
           P: FnMut(&S::Item) -> R,

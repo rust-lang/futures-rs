@@ -1,3 +1,6 @@
+//! Definition of the SelectAll, finding the first future in a list that
+//! finishes.
+
 use std::mem;
 use std::prelude::v1::*;
 
@@ -9,17 +12,11 @@ use {Future, IntoFuture, Poll, Async};
 /// This is created by this `select_all` function.
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectAll<A> where A: Future {
-    inner: Vec<SelectAllNext<A>>,
+    inner: Vec<A>,
 }
 
-/// Future yielded as the result in a `SelectAll` future.
-///
-/// This sentinel future represents the completion of the remaining futures in a
-/// list of futures.
-#[must_use = "futures do nothing unless polled"]
-pub struct SelectAllNext<A> where A: Future {
-    inner: A,
-}
+#[doc(hidden)]
+pub type SelectAllNext<A> = A;
 
 /// Creates a new future which will select over a list of futures.
 ///
@@ -38,7 +35,6 @@ pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoFuture>::Future>
     let ret = SelectAll {
         inner: iter.into_iter()
                    .map(|a| a.into_future())
-                   .map(|a| SelectAllNext { inner: a })
                    .collect(),
     };
     assert!(ret.inner.len() > 0);
@@ -48,8 +44,8 @@ pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoFuture>::Future>
 impl<A> Future for SelectAll<A>
     where A: Future,
 {
-    type Item = (A::Item, usize, Vec<SelectAllNext<A>>);
-    type Error = (A::Error, usize, Vec<SelectAllNext<A>>);
+    type Item = (A::Item, usize, Vec<A>);
+    type Error = (A::Error, usize, Vec<A>);
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
@@ -61,7 +57,7 @@ impl<A> Future for SelectAll<A>
         }).next();
         match item {
             Some((idx, res)) => {
-                drop(self.inner.remove(idx));
+                self.inner.remove(idx);
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 match res {
                     Ok(e) => Ok(Async::Ready((e, idx, rest))),
@@ -70,16 +66,5 @@ impl<A> Future for SelectAll<A>
             }
             None => Ok(Async::NotReady),
         }
-    }
-}
-
-impl<A> Future for SelectAllNext<A>
-    where A: Future,
-{
-    type Item = A::Item;
-    type Error = A::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll()
     }
 }

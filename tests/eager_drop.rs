@@ -2,7 +2,9 @@ extern crate futures;
 
 use std::sync::mpsc::channel;
 
-use futures::*;
+use futures::Poll;
+use futures::future::*;
+use futures::sync::oneshot;
 
 mod support;
 use support::*;
@@ -49,7 +51,7 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
 
 #[test]
 fn and_then_drops_eagerly() {
-    let (c, p) = oneshot::<()>();
+    let (c, p) = oneshot::channel::<()>();
     let (tx, rx) = channel::<()>();
     let (tx2, rx2) = channel();
     FutureData { _data: tx, future: p }.and_then(move |_| {

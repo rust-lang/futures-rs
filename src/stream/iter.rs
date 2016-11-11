@@ -17,7 +17,6 @@ pub struct IterStream<I> {
 ///
 /// ```rust
 /// use futures::*;
-/// use futures::stream::Stream;
 ///
 /// let mut stream = stream::iter(vec![Ok(17), Err(false), Ok(19)]);
 /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());

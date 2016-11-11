@@ -38,6 +38,23 @@ pub fn new<S>(s: S, amt: usize) -> Buffered<S>
     }
 }
 
+// Forwarding impl of Sink from the underlying stream
+impl<S> ::sink::Sink for Buffered<S>
+    where S: ::sink::Sink + Stream,
+          S::Item: IntoFuture,
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
+}
+
 impl<S> Stream for Buffered<S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,

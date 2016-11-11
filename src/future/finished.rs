@@ -1,3 +1,6 @@
+//! Definition of the Finished combinator, a successful value that's immediately
+//! ready.
+
 use core::marker;
 
 use {Future, Poll, Async};
@@ -20,7 +23,7 @@ pub struct Finished<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
 /// let future_of_1 = finished::<u32, u32>(1);
 /// ```

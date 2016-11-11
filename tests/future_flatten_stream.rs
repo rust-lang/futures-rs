@@ -3,8 +3,9 @@ extern crate futures;
 
 use core::marker;
 
-use futures::*;
-use futures::stream::Stream;
+use futures::{Stream, Future, Poll};
+use futures::future::{finished, failed};
+use futures::stream;
 
 #[test]
 fn successful_future() {

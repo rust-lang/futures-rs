@@ -26,6 +26,22 @@ pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
     }
 }
 
+// Forwarding impl of Sink from the underlying stream
+impl<S, F, U: IntoFuture> ::sink::Sink for AndThen<S, F, U>
+    where S: ::sink::Sink
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
+}
+
 impl<S, F, U> Stream for AndThen<S, F, U>
     where S: Stream,
           F: FnMut(S::Item) -> U,

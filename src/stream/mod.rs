@@ -35,6 +35,7 @@ mod skip;
 mod skip_while;
 mod take;
 mod then;
+mod unfold;
 mod zip;
 pub use self::and_then::AndThen;
 pub use self::empty::{Empty, empty};
@@ -54,6 +55,7 @@ pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::then::Then;
+pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::peek::Peekable;
 
@@ -63,15 +65,40 @@ if_std! {
     mod buffered;
     mod buffer_unordered;
     mod catch_unwind;
-    mod channel;
+    mod chunks;
     mod collect;
     mod wait;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
-    pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
+    pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    #[cfg(feature = "with-deprecated")]
+    pub use sync::spsc::channel;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    #[cfg(feature = "with-deprecated")]
+    pub use sync::spsc::Sender;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    #[cfg(feature = "with-deprecated")]
+    pub use sync::spsc::Receiver;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+    #[cfg(feature = "with-deprecated")]
+    pub type FutureSender<T, E> = ::sink::Send<::sync::spsc::Sender<T, E>>;
+
+    #[doc(hidden)]
+    #[deprecated(since = "0.1.4", note = "use sync::spsc::SendError instead")]
+    #[cfg(feature = "with-deprecated")]
+    pub use sync::spsc::SendError;
 
     /// A type alias for `Box<Stream + Send>`
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
@@ -148,14 +175,14 @@ pub trait Stream {
     ///
     /// This method will consume ownership of this stream, returning an
     /// implementation of a standard iterator. This iterator will *block the
-    /// current thread* on each call to `next` if the item in the future isn't
+    /// current thread* on each call to `next` if the item in the stream isn't
     /// ready yet.
     ///
     /// > **Note:** This method is not appropriate to call on event loops or
     /// >           similar I/O situations because it will prevent the event
     /// >           loop from making progress (this blocks the thread). This
     /// >           method should only be called when it's guaranteed that the
-    /// >           blocking work associated with this future will be completed
+    /// >           blocking work associated with this stream will be completed
     /// >           by another thread.
     ///
     /// # Behavior
@@ -186,8 +213,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::stream::*;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel();
+    /// let (_tx, rx) = spsc::channel();
     /// let a: BoxStream<i32, i32> = rx.boxed();
     /// ```
     #[cfg(feature = "use_std")]
@@ -218,16 +246,17 @@ pub trait Stream {
     /// they are made available, and the callback will be executed inline with
     /// calls to `poll`.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `map` methods in the
     /// standard library.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::Stream;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     /// let rx = rx.map(|x| x + 3);
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
@@ -243,16 +272,17 @@ pub trait Stream {
     /// they are made available, and the callback will be executed inline with
     /// calls to `poll`.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `map_err` methods in the
     /// standard library.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::Stream;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     /// let rx = rx.map_err(|x| x + 3);
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
@@ -272,16 +302,17 @@ pub trait Stream {
     ///
     /// All errors are passed through without filtering in this combinator.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `filter` methods in the
     /// standard library.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::Stream;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     /// let evens = rx.filter(|x| x % 0 == 2);
     /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
@@ -301,16 +332,17 @@ pub trait Stream {
     ///
     /// All errors are passed through without filtering in this combinator.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `filter_map` methods in the
     /// standard library.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::Stream;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     /// let evens_plus_one = rx.filter_map(|x| {
     ///     if x % 0 == 2 {
     ///         Some(x + 1)
@@ -340,15 +372,16 @@ pub trait Stream {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::Stream;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     ///
     /// let rx = rx.then(|result| {
     ///     match result {
@@ -382,15 +415,16 @@ pub trait Stream {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
     /// use futures::stream::*;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     ///
     /// let rx = rx.and_then(|result| {
     ///     if result % 2 == 0 {
@@ -425,15 +459,16 @@ pub trait Stream {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::Stream;
+    /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32, u32>();
     ///
     /// let rx = rx.or_else(|result| {
     ///     if result % 2 == 0 {
@@ -465,12 +500,14 @@ pub trait Stream {
     ///
     /// ```
     /// use std::thread;
-    /// use futures::{finished, Future, Poll, BoxFuture};
-    /// use futures::stream::*;
     ///
-    /// let (tx, rx) = channel::<i32, u32>();
+    /// use futures::future::{BoxFuture, finished};
+    /// use futures::{Stream, Future};
+    /// use futures::sync::spsc;
     ///
-    /// fn send(n: i32, tx: Sender<i32, u32>) -> BoxFuture<(), ()> {
+    /// let (tx, rx) = spsc::channel::<i32, u32>();
+    ///
+    /// fn send(n: i32, tx: spsc::Sender<i32, u32>) -> BoxFuture<(), ()> {
     ///     if n == 0 {
     ///         return finished(()).boxed()
     ///     }
@@ -506,25 +543,12 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use std::thread;
-    /// use futures::{finished, Future, Poll, BoxFuture};
-    /// use futures::stream::*;
+    /// use futures::stream::{self, Stream};
+    /// use futures::future::{finished, Future};
     ///
-    /// let (tx, rx) = channel::<i32, u32>();
-    ///
-    /// fn send(n: i32, tx: Sender<i32, u32>) -> BoxFuture<(), ()> {
-    ///     if n == 0 {
-    ///         return finished(()).boxed()
-    ///     }
-    ///     tx.send(Ok(n)).map_err(|_| ()).and_then(move |tx| {
-    ///         send(n - 1, tx)
-    ///     }).boxed()
-    /// }
-    ///
-    /// thread::spawn(|| send(5, tx).wait());
-    ///
-    /// let mut result = rx.fold(0, |a, b| finished::<i32, u32>(a + b));
-    /// assert_eq!(result.wait(), Ok(15));
+    /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
+    /// let sum = number_stream.fold(0, |a, b| finished(a + b));
+    /// assert_eq!(sum.wait(), Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut,
@@ -544,12 +568,13 @@ pub trait Stream {
     ///
     /// ```
     /// use std::thread;
-    /// use futures::{finished, Future, Poll};
-    /// use futures::stream::*;
     ///
-    /// let (tx1, rx1) = channel::<i32, u32>();
-    /// let (tx2, rx2) = channel::<i32, u32>();
-    /// let (tx3, rx3) = channel::<_, u32>();
+    /// use futures::{Future, Stream, Poll};
+    /// use futures::sync::spsc;
+    ///
+    /// let (tx1, rx1) = spsc::channel::<i32, u32>();
+    /// let (tx2, rx2) = spsc::channel::<i32, u32>();
+    /// let (tx3, rx3) = spsc::channel::<_, u32>();
     ///
     /// thread::spawn(|| tx1.send(Ok(1)).and_then(|tx1| tx1.send(Ok(2))).wait());
     /// thread::spawn(|| tx2.send(Ok(3)).and_then(|tx2| tx2.send(Ok(4))).wait());
@@ -600,10 +625,16 @@ pub trait Stream {
         for_each::new(self, f)
     }
 
-    /// Creates a new stream of at most `amt` items.
+    /// Creates a new stream of at most `amt` items of the underlying stream.
     ///
     /// Once `amt` items have been yielded from this stream then it will always
     /// return that the stream is done.
+    ///
+    /// # Errors
+    ///
+    /// Any errors yielded from underlying stream, before the desired amount of
+    /// items is reached, are passed through and do not affect the total number
+    /// of items taken.
     fn take(self, amt: u64) -> Take<Self>
         where Self: Sized
     {
@@ -614,26 +645,29 @@ pub trait Stream {
     ///
     /// Once `amt` items have been skipped from this stream then it will always
     /// return the remaining items on this stream.
+    ///
+    /// # Errors
+    ///
+    /// All errors yielded from underlying stream are passed through and do not
+    /// affect the total number of items skipped.
     fn skip(self, amt: u64) -> Skip<Self>
         where Self: Sized
     {
         skip::new(self, amt)
     }
 
-    /// Fuse a stream such that `poll`/`schedule` will never again be called
-    /// once it has terminated (signaled emptyness or an error).
+    /// Fuse a stream such that `poll` will never again be called once it has
+    /// finished.
     ///
-    /// Currently once a stream has returned `Some(Ok(None))` from `poll` any further
+    /// Currently once a stream has returned `None` from `poll` any further
     /// calls could exhibit bad behavior such as block forever, panic, never
-    /// return, etc. If it is known that `poll` may be called too often then
-    /// this method can be used to ensure that it has defined semantics.
+    /// return, etc. If it is known that `poll` may be called after stream has
+    /// already finished, then this method can be used to ensure that it has
+    /// defined semantics.
     ///
-    /// Once a stream has been `fuse`d and it terminates, then
-    /// it will forever return `None` from `poll` again (never resolve). This,
-    /// unlike the trait's `poll` method, is guaranteed.
-    ///
-    /// Additionally, once a stream has completed, this `Fuse` combinator will
-    /// never call `schedule` on the underlying stream.
+    /// Once a stream has been `fuse`d and it finishes, then it will forever
+    /// return `None` from `poll`. This, unlike for the traits `poll` method,
+    /// is guaranteed.
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {
@@ -744,6 +778,30 @@ pub trait Stream {
         where Self: Sized
     {
         peek::new(self)
+    }
+
+    /// An adaptor for chunking up items of the stream inside a vector.
+    ///
+    /// This combinator will attempt to pull items from this stream and buffer
+    /// them into a local vector. At most `capacity` items will get buffered
+    /// before they're yielded from the returned stream.
+    ///
+    /// Note that the vectors returned from this iterator may not always have
+    /// `capacity` elements. If the underlying stream ended and only a partial
+    /// vector was created, it'll be returned. Additionally if an error happens
+    /// from the underlying stream then the currently buffered items will be
+    /// yielded.
+    ///
+    /// Errors are passed through the stream unbuffered.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic of `capacity` is zero.
+    #[cfg(feature = "use_std")]
+    fn chunks(self, capacity: usize) -> Chunks<Self>
+        where Self: Sized
+    {
+        chunks::new(self, capacity)
     }
 }
 

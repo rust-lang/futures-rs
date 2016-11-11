@@ -20,6 +20,21 @@ pub fn new<S: Stream>(stream: S) -> Peekable<S> {
     }
 }
 
+// Forwarding impl of Sink from the underlying stream
+impl<S> ::sink::Sink for Peekable<S>
+    where S: ::sink::Sink + Stream
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
+}
 
 impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;

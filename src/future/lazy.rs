@@ -1,3 +1,6 @@
+//! Definition of the Lazy combinator, deferring execution of a function until
+//! the future is polled.
+
 use core::mem;
 
 use {Future, IntoFuture, Poll};
@@ -27,7 +30,7 @@ enum _Lazy<F, R> {
 /// # Examples
 ///
 /// ```
-/// use futures::*;
+/// use futures::future::*;
 ///
 /// let a = lazy(|| finished::<u32, u32>(1));
 ///

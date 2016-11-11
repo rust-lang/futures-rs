@@ -14,7 +14,6 @@ pub struct Once<T, E>(stream::IterStream<core::iter::Once<Result<T, E>>>);
 ///
 /// ```rust
 /// use futures::*;
-/// use futures::stream::Stream;
 ///
 /// let mut stream = stream::once::<(), _>(Err(17));
 /// assert_eq!(Err(17), stream.poll());

@@ -59,3 +59,37 @@ impl<T> From<T> for Async<T> {
         Async::Ready(t)
     }
 }
+
+/// The result of an asynchronous attempt to send a value to a sink.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum AsyncSink<T> {
+    /// The `start_send` attempt succeeded, so the sending process has
+    /// *started*; you muse use `Sink::poll_complete` to drive the send
+    /// to completion.
+    Ready,
+
+    /// The `start_send` attempt failed due to the sink being full. The value
+    /// being sent is returned, and the current `Task` will be autoamtically
+    /// notified again once the sink has room.
+    NotReady(T),
+}
+
+impl<T> AsyncSink<T> {
+    /// Returns whether this is `AsyncSink::NotReady`
+    pub fn is_not_ready(&self) -> bool {
+        match *self {
+            AsyncSink::NotReady(_) => true,
+            AsyncSink::Ready => false,
+        }
+    }
+
+    /// Returns whether this is `AsyncSink::Ready`
+    pub fn is_ready(&self) -> bool {
+        !self.is_not_ready()
+    }
+}
+
+
+/// Return type of the `Sink::start_send` method, indicating the outcome of a
+/// send attempt. See `AsyncSink` for more details.
+pub type StartSend<T, E> = Result<AsyncSink<T>, E>;

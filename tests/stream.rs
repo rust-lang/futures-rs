@@ -1,15 +1,19 @@
 #[macro_use]
 extern crate futures;
 
-use futures::{failed, finished, Future, oneshot, Poll};
-use futures::stream::*;
+use futures::Poll;
+use futures::executor;
+use futures::future::{failed, finished, Future};
+use futures::stream::{iter, Stream, Peekable};
+use futures::sync::oneshot;
+use futures::sync::spsc;
 
 mod support;
 use support::*;
 
 
-fn list() -> Receiver<i32, u32> {
-    let (tx, rx) = channel();
+fn list() -> spsc::Receiver<i32, u32> {
+    let (tx, rx) = spsc::channel();
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Ok(3)))
@@ -17,8 +21,8 @@ fn list() -> Receiver<i32, u32> {
     rx
 }
 
-fn err_list() -> Receiver<i32, u32> {
-    let (tx, rx) = channel();
+fn err_list() -> spsc::Receiver<i32, u32> {
+    let (tx, rx) = spsc::channel();
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Err(3)))
@@ -91,6 +95,18 @@ fn skip() {
 }
 
 #[test]
+fn skip_passes_errors_through() {
+    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Ok(5)])
+        .skip(1)
+        .wait();
+    assert_eq!(s.next(), Some(Err(1)));
+    assert_eq!(s.next(), Some(Err(2)));
+    assert_eq!(s.next(), Some(Ok(4)));
+    assert_eq!(s.next(), Some(Ok(5)));
+    assert_eq!(s.next(), None);
+}
+
+#[test]
 fn skip_while() {
     assert_done(|| list().skip_while(|e| Ok(*e % 2 == 1)).collect(),
                 Ok(vec![2, 3]));
@@ -98,6 +114,21 @@ fn skip_while() {
 #[test]
 fn take() {
     assert_done(|| list().take(2).collect(), Ok(vec![1, 2]));
+}
+
+#[test]
+fn take_passes_errors_through() {
+    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)])
+        .take(1)
+        .wait();
+    assert_eq!(s.next(), Some(Err(1)));
+    assert_eq!(s.next(), Some(Err(2)));
+    assert_eq!(s.next(), Some(Ok(3)));
+    assert_eq!(s.next(), None);
+
+    let mut s = iter(vec![Ok(1), Err(2)]).take(1).wait();
+    assert_eq!(s.next(), Some(Ok(1)));
+    assert_eq!(s.next(), None);
 }
 
 #[test]
@@ -118,9 +149,9 @@ fn fuse() {
 
 #[test]
 fn buffered() {
-    let (tx, rx) = channel::<_, u32>();
-    let (a, b) = oneshot::<u32>();
-    let (c, d) = oneshot::<u32>();
+    let (tx, rx) = spsc::channel::<_, u32>();
+    let (a, b) = oneshot::channel::<u32>();
+    let (c, d) = oneshot::channel::<u32>();
 
     tx.send(Ok(b.map_err(|_| 2).boxed()))
       .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
@@ -136,9 +167,9 @@ fn buffered() {
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = channel::<_, u32>();
-    let (a, b) = oneshot::<u32>();
-    let (c, d) = oneshot::<u32>();
+    let (tx, rx) = spsc::channel::<_, u32>();
+    let (a, b) = oneshot::channel::<u32>();
+    let (c, d) = oneshot::channel::<u32>();
 
     tx.send(Ok(b.map_err(|_| 2).boxed()))
       .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
@@ -157,9 +188,9 @@ fn buffered() {
 
 #[test]
 fn unordered() {
-    let (tx, rx) = channel::<_, u32>();
-    let (a, b) = oneshot::<u32>();
-    let (c, d) = oneshot::<u32>();
+    let (tx, rx) = spsc::channel::<_, u32>();
+    let (a, b) = oneshot::channel::<u32>();
+    let (c, d) = oneshot::channel::<u32>();
 
     tx.send(Ok(b.map_err(|_| 2).boxed()))
       .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
@@ -174,9 +205,9 @@ fn unordered() {
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = channel::<_, u32>();
-    let (a, b) = oneshot::<u32>();
-    let (c, d) = oneshot::<u32>();
+    let (tx, rx) = spsc::channel::<_, u32>();
+    let (a, b) = oneshot::channel::<u32>();
+    let (c, d) = oneshot::channel::<u32>();
 
     tx.send(Ok(b.map_err(|_| 2).boxed()))
       .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
@@ -210,7 +241,7 @@ fn zip() {
 #[test]
 fn peek() {
     struct Peek {
-        inner: Peekable<Receiver<i32, u32>>
+        inner: Peekable<spsc::Receiver<i32, u32>>
     }
 
     impl Future for Peek {
@@ -237,4 +268,22 @@ fn peek() {
 fn wait() {
     assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
+}
+
+#[test]
+fn chunks() {
+    assert_done(|| list().chunks(3).collect(), Ok(vec![vec![1, 2, 3]]));
+    assert_done(|| list().chunks(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
+    assert_done(|| list().chunks(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
+    let mut list = executor::spawn(err_list().chunks(3));
+    let i = list.wait_stream().unwrap().unwrap();
+    assert_eq!(i, vec![1, 2]);
+    let i = list.wait_stream().unwrap().unwrap_err();
+    assert_eq!(i, 3);
+}
+
+#[test]
+#[should_panic]
+fn chunks_panic_on_cap_zero() {
+    let _ = list().chunks(0);
 }
