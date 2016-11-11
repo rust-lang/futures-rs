@@ -173,7 +173,6 @@ pub use poll::{Poll, Async, AsyncSink, StartSend};
 
 pub mod future;
 pub use future::{Future, IntoFuture};
-    mod shared;
 
 pub mod stream;
 pub use stream::Stream;
@@ -184,13 +183,6 @@ pub use sink::Sink;
 #[deprecated(since = "0.1.4", note = "import through the future module instead")]
 #[cfg(feature = "with-deprecated")]
 pub use future::{done, empty, failed, finished, lazy};
-    }
-    
-    /// TODO: doc
-    fn shared(self) -> shared::Shared<Self> 
-        where Self: Sized
-    {
-        shared::new(self)
 
 #[doc(hidden)]
 #[cfg(feature = "with-deprecated")]

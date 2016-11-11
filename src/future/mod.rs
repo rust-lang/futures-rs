@@ -27,6 +27,7 @@ mod map_err;
 mod or_else;
 mod select;
 mod then;
+mod shared;
 
 // impl details
 mod chain;
@@ -709,6 +710,13 @@ pub trait Future {
     {
             catch_unwind::new(self)
         }
+
+    /// TODO: doc
+    fn shared(self) -> shared::Shared<Self> 
+        where Self: Sized
+    {
+        shared::new(self)
+    }
 }
 
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
