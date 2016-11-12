@@ -96,3 +96,15 @@ fn lifecycle_test() {
     }
     panic!("thread didn't exit");
 }
+
+#[test]
+fn thread_name() {
+    let pool = Builder::new()
+        .name_prefix("my-pool-")
+        .create();
+    let future = pool.spawn_fn(|| {
+        assert!(thread::current().name().unwrap().starts_with("my-pool-"));
+        Ok::<(), ()>(())
+    });
+    let _ = future.wait();
+}
