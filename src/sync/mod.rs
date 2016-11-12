@@ -9,4 +9,4 @@ pub mod oneshot;
 pub mod spsc;
 mod bilock;
 
-pub use self::bilock::{BiLock, BiLockAcquire, BiLockAcquired};
+pub use self::bilock::{BiLock, BiLockGuard, BiLockAcquire, BiLockAcquired};
