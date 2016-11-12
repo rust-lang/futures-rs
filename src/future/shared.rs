@@ -96,7 +96,8 @@ pub struct Shared<F>
 impl<F> Shared<F>
     where F: Future
 {
-    fn result_to_polled_result(result: Result<SharedItem<F::Item>, SharedError<F::Error>>) -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
+    fn result_to_polled_result(result: Result<SharedItem<F::Item>, SharedError<F::Error>>)
+                               -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
         match result {
             Ok(item) => Ok(Async::Ready(item)),
             Err(error) => Err(error),
@@ -162,8 +163,7 @@ impl<F> Future for Shared<F>
                     } else {
                         match inner.original_future.poll() {
                             Ok(Async::Ready(item)) => {
-                                *self.inner.result.get() =
-                                    Some(Ok(SharedItem::new(item)));
+                                *self.inner.result.get() = Some(Ok(SharedItem::new(item)));
                                 should_unpark_tasks = true;
                             }
                             Err(error) => {
