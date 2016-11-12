@@ -79,7 +79,7 @@ struct Inner<F>
     /// When original future is polled and ready, unparks all the tasks in that channel
     tasks_receiver: Lock<Receiver<Task>>,
     /// The original future result wrapped with `SharedItem`/`SharedError`
-    result: UnsafeCell<Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>>>,
+    result: UnsafeCell<Option<Result<SharedItem<F::Item>, SharedError<F::Error>>>>,
 }
 
 unsafe impl<F> Sync for Inner<F> where F: Future {}
@@ -91,6 +91,17 @@ pub struct Shared<F>
 {
     inner: Arc<Inner<F>>,
     tasks_sender: Sender<Task>,
+}
+
+impl<F> Shared<F>
+    where F: Future
+{
+    fn result_to_polled_result(result: Result<SharedItem<F::Item>, SharedError<F::Error>>) -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
+        match result {
+            Ok(item) => Ok(Async::Ready(item)),
+            Err(error) => Err(error),
+        }
+    }
 }
 
 pub fn new<F>(future: F) -> Shared<F>
@@ -135,7 +146,7 @@ impl<F> Future for Shared<F>
         if self.inner.tasks_unpark_started.load(Ordering::Relaxed) {
             unsafe {
                 if let Some(ref result) = *self.inner.result.get() {
-                    return result.clone();
+                    return Self::result_to_polled_result(result.clone());
                 }
             }
         }
@@ -152,7 +163,7 @@ impl<F> Future for Shared<F>
                         match inner.original_future.poll() {
                             Ok(Async::Ready(item)) => {
                                 *self.inner.result.get() =
-                                    Some(Ok(Async::Ready(SharedItem::new(item))));
+                                    Some(Ok(SharedItem::new(item)));
                                 should_unpark_tasks = true;
                             }
                             Err(error) => {
@@ -184,7 +195,7 @@ impl<F> Future for Shared<F>
 
             unsafe {
                 if let Some(ref result) = *self.inner.result.get() {
-                    return result.clone();
+                    return Self::result_to_polled_result(result.clone());
                 } else {
                     // How should I use unwrap here?
                     // The compiler says cannot "move out of borrowed content"
@@ -201,7 +212,7 @@ impl<F> Future for Shared<F>
             // t (see variable above), had not been unparked.
             unsafe {
                 if let Some(ref result) = *self.inner.result.get() {
-                    return result.clone();
+                    return Self::result_to_polled_result(result.clone());
                 } else {
                     // How should I use unwrap here?
                     // The compiler says cannot "move out of borrowed content"
