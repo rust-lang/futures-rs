@@ -182,7 +182,15 @@ impl<F> Future for Shared<F>
                 None => {} // Other thread is unparking the tasks
             }
 
-            return result.clone();
+            unsafe {
+                if let Some(ref result) = *self.inner.result.get() {
+                    return result.clone();
+                } else {
+                    // How should I use unwrap here?
+                    // The compiler says cannot "move out of borrowed content"
+                    unreachable!();
+                }
+            }
         }
 
         let t = task::park();
