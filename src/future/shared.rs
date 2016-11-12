@@ -63,7 +63,8 @@ impl<E> SharedError<E> {
     }
 }
 
-/// The data that has to be synced to implement `Shared`, in order to satisfy the `Future` trait's constraints.
+/// The data that has to be synced to implement `Shared`,
+/// in order to satisfy the `Future` trait's constraints.
 struct SyncedInner<F>
     where F: Future
 {
@@ -75,8 +76,10 @@ struct Inner<F>
 {
     synced_inner: Lock<SyncedInner<F>>,
     tasks_unpark_started: AtomicBool,
-    tasks_receiver: Lock<Receiver<Task>>, // When original future is polled and ready, unparks all the tasks in that channel
-    result: UnsafeCell<Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>>>, // The original future result wrapped with `SharedItem`/`SharedError`    
+    /// When original future is polled and ready, unparks all the tasks in that channel
+    tasks_receiver: Lock<Receiver<Task>>,
+    /// The original future result wrapped with `SharedItem`/`SharedError`
+    result: UnsafeCell<Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>>>,
 }
 
 unsafe impl<F> Sync for Inner<F> where F: Future {}
@@ -96,11 +99,9 @@ pub fn new<F>(future: F) -> Shared<F>
     let (tasks_sender, tasks_receiver) = channel();
     Shared {
         inner: Arc::new(Inner {
-            synced_inner: Lock::new(SyncedInner {
-                original_future: future,
-            }),
+            synced_inner: Lock::new(SyncedInner { original_future: future }),
             tasks_unpark_started: AtomicBool::new(false),
-            tasks_receiver: Lock::new(tasks_receiver),            
+            tasks_receiver: Lock::new(tasks_receiver),
             result: UnsafeCell::new(None),
         }),
         tasks_sender: tasks_sender,
@@ -114,7 +115,21 @@ impl<F> Future for Shared<F>
     type Error = SharedError<F::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut polled_result: Option<Result<Async<SharedItem<F::Item>>, SharedError<F::Error>>> = None;
+        // The logic is as follows:
+        // 1. Check if the result is ready (with tasks_unpark_started)
+        //  - If the result is ready, return it.
+        //  - Otherwise:
+        // 2. Try lock the self.inner.synced_inner:
+        //    - If successfully locked, poll the original future.
+        //      If the future is ready, unpark the tasks from
+        //      self.inner.tasks_receiver and return the result.
+        //    - If the future is not ready:
+        // 3. Create a task and send it through self.tasks_sender.
+        // 4. Check again if the result is ready (with tasks_unpark_started)
+        // 5. Return the result if it's ready. It is necessary because otherwise there could be
+        //    a race between the task sending and the thread receiving the tasks.
+
+        let mut should_unpark_tasks: bool = false;
 
         // If the result is ready, just return it
         if self.inner.tasks_unpark_started.load(Ordering::Relaxed) {
@@ -129,21 +144,20 @@ impl<F> Future for Shared<F>
         match self.inner.synced_inner.try_lock() {
             Some(mut inner_guard) => {
                 let ref mut inner = *inner_guard;
-
-                // By the time that synced_inner was unlocked, other thread could poll the result,
-                // so we check if result has a value
                 unsafe {
+                    // Other thread could poll the result, so we check if result has a value
                     if (*self.inner.result.get()).is_some() {
-                        polled_result = (*self.inner.result.get()).clone();
+                        should_unpark_tasks = true;
                     } else {
                         match inner.original_future.poll() {
                             Ok(Async::Ready(item)) => {
-                                *self.inner.result.get() = Some(Ok(Async::Ready(SharedItem::new(item))));
-                                polled_result = (*self.inner.result.get()).clone();
+                                *self.inner.result.get() =
+                                    Some(Ok(Async::Ready(SharedItem::new(item))));
+                                should_unpark_tasks = true;
                             }
                             Err(error) => {
                                 *self.inner.result.get() = Some(Err(SharedError::new(error)));
-                                polled_result = (*self.inner.result.get()).clone();
+                                should_unpark_tasks = true;
                             }
                             Ok(Async::NotReady) => {} // Will be handled later
                         }
@@ -153,7 +167,7 @@ impl<F> Future for Shared<F>
             None => {} // Will be handled later
         }
 
-        if let Some(result) = polled_result {
+        if should_unpark_tasks {
             self.inner.tasks_unpark_started.store(true, Ordering::Relaxed);
             match self.inner.tasks_receiver.try_lock() {
                 Some(tasks_receiver_guard) => {
@@ -180,6 +194,10 @@ impl<F> Future for Shared<F>
             unsafe {
                 if let Some(ref result) = *self.inner.result.get() {
                     return result.clone();
+                } else {
+                    // How should I use unwrap here?
+                    // The compiler says cannot "move out of borrowed content"
+                    unreachable!();
                 }
             }
         }
