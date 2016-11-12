@@ -31,6 +31,7 @@ mod merge;
 mod once;
 mod or_else;
 mod peek;
+mod select;
 mod skip;
 mod skip_while;
 mod take;
@@ -51,13 +52,14 @@ pub use self::map_err::MapErr;
 pub use self::merge::{Merge, MergedItem};
 pub use self::once::{Once, once};
 pub use self::or_else::OrElse;
+pub use self::peek::Peekable;
+pub use self::select::Select;
 pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
-pub use self::peek::Peekable;
 
 if_std! {
     use std;
@@ -802,6 +804,24 @@ pub trait Stream {
         where Self: Sized
     {
         chunks::new(self, capacity)
+    }
+
+    /// Creates a stream that selects the next element from either this stream
+    /// or the provided one, whichever is ready first.
+    ///
+    /// This combinator will attempt to pull items from both streams. Each
+    /// stream will be polled in a round-robin fashion, and whenever a stream is
+    /// ready to yield an item that item is yielded.
+    ///
+    /// The `select` function is similar to `merge` except that it requires both
+    /// streams to have the same item and error types.
+    ///
+    /// Error are passed through from either stream.
+    fn select<S>(self, other: S) -> Select<Self, S>
+        where S: Stream<Item = Self::Item, Error = Self::Error>,
+              Self: Sized,
+    {
+        select::new(self, other)
     }
 }
 

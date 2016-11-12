@@ -287,3 +287,18 @@ fn chunks() {
 fn chunks_panic_on_cap_zero() {
     let _ = list().chunks(0);
 }
+
+#[test]
+fn select() {
+    let a = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
+    let b = iter(vec![Ok(4), Ok(5), Ok(6)]);
+    assert_done(|| a.select(b).collect(), Ok(vec![1, 4, 2, 5, 3, 6]));
+
+    let a = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
+    let b = iter(vec![Ok(1), Ok(2)]);
+    assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
+
+    let a = iter(vec![Ok(1), Ok(2)]);
+    let b = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
+    assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
+}
