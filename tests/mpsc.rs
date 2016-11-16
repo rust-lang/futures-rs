@@ -35,7 +35,7 @@ fn send_recv_no_buffer() {
 
     // Run on a task context
     lazy(move || {
-        assert!(tx.poll_ready().is_ready());
+        assert!(tx.poll_complete().unwrap().is_ready());
 
         // Send first message
 
@@ -43,7 +43,7 @@ fn send_recv_no_buffer() {
         assert!(is_ready(&res));
 
         // assert!(!tx.poll_complete().is_ready());
-        assert!(!tx.poll_ready().is_ready());
+        assert!(!tx.poll_complete().unwrap().is_ready());
 
         // Send second message
         let res = tx.start_send(2).unwrap();
@@ -53,7 +53,7 @@ fn send_recv_no_buffer() {
         assert_eq!(rx.poll().unwrap(), Async::Ready(Some(1)));
 
         // assert!(!tx.poll_complete().is_ready());
-        assert!(tx.poll_ready().is_ready());
+        assert!(tx.poll_complete().unwrap().is_ready());
 
         let res = tx.start_send(2).unwrap();
         assert!(is_ready(&res));

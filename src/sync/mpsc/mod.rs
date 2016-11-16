@@ -99,6 +99,12 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
+/// The transmission end of a channel which is used to send values.
+///
+/// This is created by the `unbounded` method.
+#[derive(Clone)]
+pub struct UnboundedSender<T>(Sender<T>);
+
 /// The receiving end of a channel which implements the `Stream` trait.
 ///
 /// This is a concrete implementation of a stream which can be used to represent
@@ -107,6 +113,13 @@ pub struct Sender<T> {
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
+
+/// The receiving end of a channel which implements the `Stream` trait.
+///
+/// This is a concrete implementation of a stream which can be used to represent
+/// a stream of values being computed elsewhere. This is created by the
+/// `unbounded` method.
+pub struct UnboundedReceiver<T>(Receiver<T>);
 
 struct Inner<T> {
     // Max buffer size of the channel. If `None` then the channel is unbounded.
@@ -126,7 +139,7 @@ struct Inner<T> {
     num_senders: AtomicUsize,
 
     // Handle to the receiver's task.
-    recv_task: Mutex<Option<Task>>,
+    recv_task: Mutex<ReceiverTask>,
 }
 
 // Struct representation of `Inner::state`.
@@ -137,6 +150,11 @@ struct State {
 
     // Number of messages in the channel
     num_messages: usize,
+}
+
+struct ReceiverTask {
+    unparked: bool,
+    task: Option<Task>,
 }
 
 // Returned from Receiver::try_park()
@@ -195,9 +213,9 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
 /// **Note** that the amount of available system memory is an implicit bound to
 /// the channel. Using an `unbounded` channel has the ability of causing the
 /// process to run out of memory. In this case, the process will be aborted.
-pub fn unbounded<T>() -> (Sender<T>, Receiver<T>) {
-    // usize::MAX is a special case where producers will never be blocked
-    channel2(None)
+pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
+    let (tx, rx) = channel2(None);
+    (UnboundedSender(tx), UnboundedReceiver(rx))
 }
 
 fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
@@ -207,7 +225,10 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
         message_queue: Queue::new(),
         parked_queue: Queue::new(),
         num_senders: AtomicUsize::new(1),
-        recv_task: Mutex::new(None),
+        recv_task: Mutex::new(ReceiverTask {
+            unparked: false,
+            task: None,
+        }),
     });
 
     let tx = Sender {
@@ -230,80 +251,6 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
  */
 
 impl<T> Sender<T> {
-    fn try_clone(&self) -> Option<Sender<T>> {
-        // Since this atomic op isn't actually guarding any memory and we don't
-        // care about any orderings besides the ordering on the single atomic
-        // variable, a relaxed ordering is acceptable.
-        let mut curr = self.inner.num_senders.load(Ordering::Relaxed);
-
-        loop {
-            // If the maximum number of senders has been reached, then fail
-            if curr == self.inner.max_senders() {
-                return None;
-            }
-
-            debug_assert!(curr < self.inner.max_senders());
-
-            let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, Ordering::Relaxed);
-
-            // The ABA problem doesn't matter here. We only care that the
-            // number of senders never exceeds the maximum.
-            if actual == curr {
-                return Some(Sender {
-                    inner: self.inner.clone(),
-                    sender_task: Arc::new(Mutex::new(None)),
-                    maybe_parked: false,
-                });
-            }
-
-            curr = actual;
-        }
-    }
-
-    /// Returns `Async::Ready(())` if sending a message will succeed
-    ///
-    /// If `Async::NotReady` is returned, the current task will be notified
-    /// once the `Sender` becomes ready to accept a new value.
-    pub fn poll_ready(&mut self) -> Async<()> {
-        // First check the `maybe_parked` variable. This avoids acquiring the
-        // lock in most cases
-        if self.maybe_parked {
-            // Get a lock on the task handle
-            let mut task = self.sender_task.lock().unwrap();
-
-            if task.is_none() {
-                self.maybe_parked = false;
-                return Async::Ready(());
-            }
-
-            // At this point, an unpark request is pending, so there will be an
-            // unpark sometime in the future. We just need to make sure that
-            // the correct task will be notified.
-            //
-            // Update the task in case the `Sender` has been moved to another
-            // task
-            *task = Some(task::park());
-
-            Async::NotReady
-        } else {
-            Async::Ready(())
-        }
-    }
-
-    fn start_send2(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        // If the sender is currently blocked, reject the message before doing
-        // any work.
-        if !self.poll_ready().is_ready() {
-            return Ok(AsyncSink::NotReady(msg));
-        }
-
-        // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg), true));
-
-        Ok(AsyncSink::Ready)
-    }
-
     // Do the send without failing
     fn do_send(&mut self, msg: Option<T>, can_park: bool) -> Result<(), SendError<T>> {
         // First, increment the number of messages contained by the channel.
@@ -352,7 +299,15 @@ impl<T> Sender<T> {
         if unpark_recv {
             // Do this step first so that the lock is dropped when
             // `unpark` is called
-            let task = self.inner.recv_task.lock().unwrap().take();
+            let task = {
+                let mut recv_task = self.inner.recv_task.lock().unwrap();
+
+                // Setting this flag enables the receiving end to detect that
+                // an unpark event happened in order to avoid unecessarily
+                // parking.
+                recv_task.unparked = true;
+                recv_task.task.take()
+            };
 
             if let Some(task) = task {
                 task.unpark();
@@ -378,7 +333,8 @@ impl<T> Sender<T> {
             // This probably is never hit? Odds are the process will run out of
             // memory first. It may be worth to return something else in this
             // case?
-            assert!(state.num_messages < MAX_CAPACITY, "buffer space exhausted; sending this messages would overflow the state");
+            assert!(state.num_messages < MAX_CAPACITY, "buffer space exhausted; \
+                    sending this messages would overflow the state");
 
             state.num_messages += 1;
 
@@ -431,17 +387,88 @@ impl<T> Sink for Sender<T> {
     type SinkError = SendError<T>;
 
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send2(msg)
+        // If the sender is currently blocked, reject the message before doing
+        // any work.
+        if !self.poll_complete().unwrap().is_ready() {
+            return Ok(AsyncSink::NotReady(msg));
+        }
+
+        // The channel has capacity to accept the message, so send it.
+        try!(self.do_send(Some(msg), true));
+
+        Ok(AsyncSink::Ready)
     }
 
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
-        Ok(Async::Ready(()))
+        // First check the `maybe_parked` variable. This avoids acquiring the
+        // lock in most cases
+        if self.maybe_parked {
+            // Get a lock on the task handle
+            let mut task = self.sender_task.lock().unwrap();
+
+            if task.is_none() {
+                self.maybe_parked = false;
+                return Ok(Async::Ready(()));
+            }
+
+            // At this point, an unpark request is pending, so there will be an
+            // unpark sometime in the future. We just need to make sure that
+            // the correct task will be notified.
+            //
+            // Update the task in case the `Sender` has been moved to another
+            // task
+            *task = Some(task::park());
+
+            Ok(Async::NotReady)
+        } else {
+            Ok(Async::Ready(()))
+        }
+    }
+}
+
+impl<T> Sink for UnboundedSender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
+
+    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+        self.0.start_send(msg)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+        self.0.poll_complete()
     }
 }
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
-        self.try_clone().expect("failed to clone sender; maximum number of senders already reached")
+        // Since this atomic op isn't actually guarding any memory and we don't
+        // care about any orderings besides the ordering on the single atomic
+        // variable, a relaxed ordering is acceptable.
+        let mut curr = self.inner.num_senders.load(Ordering::Relaxed);
+
+        loop {
+            // If the maximum number of senders has been reached, then fail
+            if curr == self.inner.max_senders() {
+                panic!("cannot clone `Sender` -- too many outstanding senders");
+            }
+
+            debug_assert!(curr < self.inner.max_senders());
+
+            let next = curr + 1;
+            let actual = self.inner.num_senders.compare_and_swap(curr, next, Ordering::Relaxed);
+
+            // The ABA problem doesn't matter here. We only care that the
+            // number of senders never exceeds the maximum.
+            if actual == curr {
+                return Sender {
+                    inner: self.inner.clone(),
+                    sender_task: Arc::new(Mutex::new(None)),
+                    maybe_parked: false,
+                };
+            }
+
+            curr = actual;
+        }
     }
 }
 
@@ -495,7 +522,7 @@ impl<T> Receiver<T> {
         }
     }
 
-    fn next_message(&self) -> Async<Option<T>> {
+    fn next_message(&mut self) -> Async<Option<T>> {
         // Pop off a message
         loop {
             match unsafe { self.inner.message_queue.pop() } {
@@ -525,7 +552,7 @@ impl<T> Receiver<T> {
     }
 
     // Unpark a single task handle if there is one pending in the parked queue
-    fn unpark_one(&self) {
+    fn unpark_one(&mut self) {
         loop {
             match unsafe { self.inner.parked_queue.pop() } {
                 PopResult::Data(task) => {
@@ -567,19 +594,16 @@ impl<T> Receiver<T> {
         }
 
         // First, track the task in the `recv_task` slot
-        let mut task = self.inner.recv_task.lock().unwrap();
-        *task = Some(task::park());
+        let mut recv_task = self.inner.recv_task.lock().unwrap();
 
-        // Ensure that there are still no messages. It is possible for a
-        // message to have been sent while updating the task slot.
-        let curr = self.inner.state.load(Ordering::SeqCst);
-        let state = decode_state(curr);
-
-        if state.num_messages == 0 {
-            TryPark::NotEmpty
-        } else {
-            TryPark::Parked
+        if recv_task.unparked {
+            // Consume the `unpark` signal without actually parking
+            recv_task.unparked = false;
+            return TryPark::NotEmpty;
         }
+
+        recv_task.task = Some(task::park());
+        TryPark::Parked
     }
 
     fn dec_num_messages(&self) {
@@ -627,9 +651,9 @@ impl<T> Stream for Receiver<T> {
                             return Ok(Async::Ready(None));
                         }
                         TryPark::NotEmpty => {
-                            // A message was sent while trying to park. Yield
-                            // the thread and try the poll operation again.
-                            thread::yield_now();
+                            // A message has been sent while attempting to
+                            // park. Loop again, the next iteration is
+                            // guaranteed to get the message.
                             continue;
                         }
                     }
@@ -646,6 +670,25 @@ impl<T> Stream for Receiver<T> {
             // Return the message
             return Ok(Async::Ready(msg));
         }
+    }
+}
+
+impl<T> UnboundedReceiver<T> {
+    /// Closes the receiving half
+    ///
+    /// This prevents any further messages from being sent on the channel while
+    /// still enabling the receiver to drain messages that are buffered.
+    pub fn close(&mut self) {
+        self.0.close();
+    }
+}
+
+impl<T> Stream for UnboundedReceiver<T> {
+    type Item = T;
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Option<T>, ()> {
+        self.0.poll()
     }
 }
 
