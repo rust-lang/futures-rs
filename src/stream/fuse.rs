@@ -58,4 +58,9 @@ impl<S> Fuse<S> {
     pub fn is_done(&self) -> bool {
         self.done
     }
+
+    /// Recover original stream
+    pub fn into_inner(self) -> S {
+        self.stream
+    }
 }
