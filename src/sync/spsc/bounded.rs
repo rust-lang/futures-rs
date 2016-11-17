@@ -1,5 +1,3 @@
-//! A single-producer, single-consumer, futures-aware channel
-
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
