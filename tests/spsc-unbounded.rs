@@ -8,11 +8,11 @@ use futures::Stream;
 fn smoke() {
     const N: usize = 1_000_000;
 
-    let (mut tx, rx) = futures::sync::spsc::unbounded::<usize, ()>();
+    let (mut tx, rx) = futures::sync::spsc::unbounded::<usize>();
 
     let t = thread::spawn(move || {
         for i in 0..N {
-            tx.send(Ok(i)).unwrap();
+            tx.send(i).unwrap();
         }
     });
 
@@ -39,8 +39,8 @@ fn drop_pending() {
         }
     }
 
-    let (mut tx, rx) = futures::sync::spsc::unbounded::<_, ()>();
-    tx.send(Ok(A)).unwrap();
+    let (mut tx, rx) = futures::sync::spsc::unbounded();
+    tx.send(A).unwrap();
     drop(rx);
 
     unsafe { assert!(HIT); }

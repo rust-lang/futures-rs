@@ -1,16 +1,14 @@
-use std::any::Any;
-use std::error::Error;
-use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize};
 use std::sync::atomic::Ordering::SeqCst;
 
 use {Poll, Async, StartSend, AsyncSink};
 use lock::Lock;
-use stream::Stream;
 use sink::Sink;
-use task::{self, Task};
+use stream::Stream;
+use sync::spsc::SendError;
 use sync::spsc::queue::Queue;
+use task::{self, Task};
 
 /// Creates an unbounded sender/receiver pair.
 ///
@@ -30,7 +28,7 @@ use sync::spsc::queue::Queue;
 /// situations and may lead to situations such as resource exhaustion if a
 /// system is overloaded. Care should be taken to ensure there are limits on the
 /// system elsewhere to prevent this case.
-pub fn unbounded<T, E>() -> (UnboundedSender<T, E>, UnboundedReceiver<T, E>) {
+pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
     let inner = Arc::new(Inner {
         queue: unsafe { Queue::new(128) },
         closed: AtomicBool::new(false),
@@ -51,8 +49,8 @@ pub fn unbounded<T, E>() -> (UnboundedSender<T, E>, UnboundedReceiver<T, E>) {
 ///
 /// Each sender implements the `Sink` trait but also provide an inherent `send`
 /// method to statically handle the case that `NotReady` never arises.
-pub struct UnboundedSender<T, E> {
-    inner: Arc<Inner<Result<T, E>>>,
+pub struct UnboundedSender<T> {
+    inner: Arc<Inner<T>>,
 
     /// Internal flag that's flipped on each message sent and indicates which
     /// blocker slot inside `Inner` should be awoken to receive a message.
@@ -65,8 +63,8 @@ pub struct UnboundedSender<T, E> {
 /// one is available.
 ///
 /// Each receiver implements the `Stream` trait for items sent over the channel.
-pub struct UnboundedReceiver<T, E> {
-    inner: Arc<Inner<Result<T, E>>>,
+pub struct UnboundedReceiver<T> {
+    inner: Arc<Inner<T>>,
     flag: bool,
 }
 
@@ -92,39 +90,10 @@ struct Inner<T> {
     blocker2: Lock<Option<Task>>,
 }
 
-/// The type of error returned from the `send` method and the sender's `Sink`
-/// implementation.
-///
-/// This error is returned when a message is sent but the receiver is guaranteed
-/// to have gone away.
-pub struct UnboundedSendError<T, E>(Result<T, E>);
-
-impl<T, E> fmt::Debug for UnboundedSendError<T, E> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_tuple("UnboundedSendError")
-            .field(&"...")
-            .finish()
-    }
-}
-
-impl<T, E> fmt::Display for UnboundedSendError<T, E> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "send failed because receiver is gone")
-    }
-}
-
-impl<T, E> Error for UnboundedSendError<T, E>
-    where T: Any, E: Any
-{
-    fn description(&self) -> &str {
-        "send failed because receiver is gone"
-    }
-}
-
-impl<T, E> UnboundedReceiver<T, E> {
+impl<T> UnboundedReceiver<T> {
     // this function is only safe too call on one thread at a time, hence the
     // `unsafe` annotation.
-    unsafe fn pop(&mut self) -> Option<Result<T, E>> {
+    unsafe fn pop(&mut self) -> Option<T> {
         let res = self.inner.queue.pop();
         if res.is_some() {
             self.flag = !self.flag;
@@ -141,11 +110,11 @@ impl<T, E> UnboundedReceiver<T, E> {
     }
 }
 
-impl<T, E> Stream for UnboundedReceiver<T, E> {
+impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
-    type Error = E;
+    type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
+    fn poll(&mut self) -> Poll<Option<T>, ()> {
         let mut blocked = false;
         let mut n = 0;
 
@@ -159,8 +128,7 @@ impl<T, E> Stream for UnboundedReceiver<T, E> {
             // we've been dropped, and we haven't been dropped yet, so we're the
             // only one calling pop.
             match unsafe { self.pop() } {
-                Some(Ok(e)) => return Ok(Some(e).into()),
-                Some(Err(e)) => return Err(e),
+                Some(e) => return Ok(Some(e).into()),
                 None => {}
             }
 
@@ -193,7 +161,7 @@ impl<T, E> Stream for UnboundedReceiver<T, E> {
     }
 }
 
-impl<T, E> Drop for UnboundedReceiver<T, E> {
+impl<T> Drop for UnboundedReceiver<T> {
     fn drop(&mut self) {
         // First we try to clear out the queue, which will implicitly tell
         // senders that we're going away, for more info see the docs on that
@@ -216,14 +184,14 @@ impl<T, E> Drop for UnboundedReceiver<T, E> {
     }
 }
 
-impl<T, E> UnboundedSender<T, E> {
+impl<T> UnboundedSender<T> {
     /// Sends a message over this channel to the receiver.
     ///
     /// The message `t` is guaranteed to be sent and will be buffered internally
     /// so long as the receiver is still alive. If the receiver has dropped then
     /// the message is returned as an `UnboundedSendError`. If the message was
     /// queued then `Ok(())` is returned.
-    pub fn send(&mut self, t: Result<T, E>) -> Result<(), UnboundedSendError<T, E>> {
+    pub fn send(&mut self, t: T) -> Result<(), SendError<T>> {
         // First up, inform the receiver that we're about to start sending a
         // message. This increment will normally bump the count to 1. If,
         // however, we bumped it to 0 (e.g. we see -1) then it means that the
@@ -231,7 +199,7 @@ impl<T, E> UnboundedSender<T, E> {
         // return an error.
         if self.inner.active_sends.fetch_add(1, SeqCst) == -1 {
             self.inner.active_sends.fetch_sub(1, SeqCst);
-            return Err(UnboundedSendError(t))
+            return Err(SendError(t))
         }
 
         // Next, actually enqueue our message.
@@ -277,13 +245,11 @@ impl<T, E> UnboundedSender<T, E> {
     }
 }
 
-impl<T, E> Sink for UnboundedSender<T, E> {
-    type SinkItem = Result<T, E>;
-    type SinkError = UnboundedSendError<T, E>;
+impl<T> Sink for UnboundedSender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
 
-    fn start_send(&mut self, item: Self::SinkItem)
-                  -> StartSend<Self::SinkItem, Self::SinkError>
-    {
+    fn start_send(&mut self, item: T) -> StartSend<T, SendError<T>> {
         UnboundedSender::send(self, item).map(|()| AsyncSink::Ready)
     }
 
@@ -292,7 +258,7 @@ impl<T, E> Sink for UnboundedSender<T, E> {
     }
 }
 
-impl<T, E> Drop for UnboundedSender<T, E> {
+impl<T> Drop for UnboundedSender<T> {
     fn drop(&mut self) {
         // Inform the receiver that we're gone, and then unblock them if we're
         // waiting. Note that if we miss the lock here it means that the

@@ -1,15 +1,13 @@
-use std::any::Any;
-use std::error::Error;
-use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use {Poll, Async, StartSend, AsyncSink};
 use lock::Lock;
-use stream::Stream;
 use sink::Sink;
+use stream::Stream;
+use sync::spsc::SendError;
 use task::{self, Task};
+use {Poll, Async, StartSend, AsyncSink};
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
 ///
@@ -146,38 +144,6 @@ struct Inner<T> {
 const EMPTY: usize = 0;
 const DATA: usize = 1;
 const GONE: usize = 2;
-
-/// Error type for sending, used when the receiving end of the channel is dropped
-pub struct SendError<T>(T);
-
-impl<T> fmt::Debug for SendError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_tuple("SendError")
-            .field(&"...")
-            .finish()
-    }
-}
-
-impl<T> fmt::Display for SendError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "send failed because receiver is gone")
-    }
-}
-
-impl<T> Error for SendError<T>
-    where T: Any
-{
-    fn description(&self) -> &str {
-        "send failed because receiver is gone"
-    }
-}
-
-impl<T> SendError<T> {
-    /// Returns the message that was attempted to be sent but failed.
-    pub fn into_inner(self) -> T {
-        self.0
-    }
-}
 
 impl<T> Stream for Receiver<T> {
     type Item = T;
