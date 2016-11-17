@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate futures;
 
-use futures::Poll;
+use futures::{Poll, Future, Stream, Sink};
 use futures::executor;
-use futures::future::{failed, finished, Future};
-use futures::stream::{iter, Stream, Peekable};
+use futures::future::{failed, finished};
+use futures::stream::{iter, Peekable, BoxStream};
 use futures::sync::oneshot;
 use futures::sync::spsc;
 
@@ -12,22 +12,22 @@ mod support;
 use support::*;
 
 
-fn list() -> spsc::Receiver<i32, u32> {
+fn list() -> BoxStream<i32, u32> {
     let (tx, rx) = spsc::channel();
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Ok(3)))
       .forget();
-    rx
+    rx.then(|r| r.unwrap()).boxed()
 }
 
-fn err_list() -> spsc::Receiver<i32, u32> {
+fn err_list() -> BoxStream<i32, u32> {
     let (tx, rx) = spsc::channel();
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Err(3)))
       .forget();
-    rx
+    rx.then(|r| r.unwrap()).boxed()
 }
 
 #[test]
@@ -149,12 +149,12 @@ fn fuse() {
 
 #[test]
 fn buffered() {
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = spsc::channel();
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     let mut rx = rx.buffered(2);
@@ -167,12 +167,12 @@ fn buffered() {
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = spsc::channel();
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     let mut rx = rx.buffered(1);
@@ -188,12 +188,12 @@ fn buffered() {
 
 #[test]
 fn unordered() {
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = spsc::channel();
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     let mut rx = rx.buffer_unordered(2);
@@ -205,12 +205,12 @@ fn unordered() {
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = spsc::channel();
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     // We don't even get to see `c` until `a` completes.
@@ -241,7 +241,7 @@ fn zip() {
 #[test]
 fn peek() {
     struct Peek {
-        inner: Peekable<spsc::Receiver<i32, u32>>
+        inner: Peekable<BoxStream<i32, u32>>
     }
 
     impl Future for Peek {

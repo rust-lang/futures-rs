@@ -24,7 +24,7 @@ use task::{self, Task};
 ///
 /// The `Receiver` returned implements the `Stream` trait and has access to any
 /// number of the associated combinators for transforming the result.
-pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
+pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner {
         state: AtomicUsize::new(EMPTY),
         data: Lock::new(None),
@@ -47,9 +47,9 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `channel` method in the `stream` module.
-pub struct Sender<T, E> {
+pub struct Sender<T> {
     // Option to signify early closure of the sending side
-    inner: Arc<Inner<Result<T, E>>>,
+    inner: Arc<Inner<T>>,
     // described below on `Inner`
     flag: bool,
 }
@@ -60,8 +60,8 @@ pub struct Sender<T, E> {
 /// a stream of values being computed elsewhere. This is created by the
 /// `channel` method in the `stream` module.
 #[must_use = "streams do nothing unless polled"]
-pub struct Receiver<T, E> {
-    inner: Arc<Inner<Result<T, E>>>,
+pub struct Receiver<T> {
+    inner: Arc<Inner<T>>,
     // described below on `Inner`
     flag: bool,
 }
@@ -150,9 +150,9 @@ const DATA: usize = 1;
 const GONE: usize = 2;
 
 /// Error type for sending, used when the receiving end of the channel is dropped
-pub struct SendError<T, E>(Result<T, E>);
+pub struct SendError<T>(T);
 
-impl<T, E> fmt::Debug for SendError<T, E> {
+impl<T> fmt::Debug for SendError<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_tuple("SendError")
             .field(&"...")
@@ -160,26 +160,32 @@ impl<T, E> fmt::Debug for SendError<T, E> {
     }
 }
 
-impl<T, E> fmt::Display for SendError<T, E> {
+impl<T> fmt::Display for SendError<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "send failed because receiver is gone")
     }
 }
 
-impl<T, E> Error for SendError<T, E>
-    where T: Any, E: Any
+impl<T> Error for SendError<T>
+    where T: Any
 {
     fn description(&self) -> &str {
         "send failed because receiver is gone"
     }
 }
 
+impl<T> SendError<T> {
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
-impl<T, E> Stream for Receiver<T, E> {
+impl<T> Stream for Receiver<T> {
     type Item = T;
-    type Error = E;
+    type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
+    fn poll(&mut self) -> Poll<Option<T>, ()> {
         // First thing's first, let's check out the state of the channel. A
         // local flag is kept which indicates whether we've got data available
         // to us.
@@ -219,11 +225,7 @@ impl<T, E> Stream for Receiver<T, E> {
 
         // We've gotten this far, so extract the data (which is guaranteed to
         // not be contended) and transform it to our return value.
-        let ret = match self.inner.data.try_lock().unwrap().take() {
-            Some(Ok(e)) => Ok(Some(e).into()),
-            Some(Err(e)) => Err(e),
-            None => Ok(None.into()),
-        };
+        let ret = Ok(self.inner.data.try_lock().unwrap().take().into());
 
         // Inform the channel that our data slot is now empty. Note that we use
         // a compare_exchange here to ensure that if the sender goes away (e.g.
@@ -251,7 +253,7 @@ impl<T, E> Stream for Receiver<T, E> {
     }
 }
 
-impl<T, E> Receiver<T, E> {
+impl<T> Receiver<T> {
     /// Helper method to look at the right slot to store an rx task into, given
     /// how many messages we've sent so far.
     fn rx_task(&self) -> &Lock<Option<Task>> {
@@ -273,7 +275,7 @@ impl<T, E> Receiver<T, E> {
     }
 }
 
-impl<T, E> Drop for Receiver<T, E> {
+impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         // First up, inform our sender bretheren that we're going away by
         // transitioning ourselves to the GONE state.
@@ -302,16 +304,7 @@ impl<T, E> Drop for Receiver<T, E> {
     }
 }
 
-impl<T, E> Sender<T, E> {
-    /// Sends a new value along this channel to the receiver.
-    ///
-    /// This method consumes the sender and returns a future which will resolve
-    /// to the sender again when the value sent has been consumed.
-    // TODO: remove this at 0.2
-    pub fn send(self, t: Result<T, E>) -> ::sink::Send<Self> {
-        Sink::send(self, t)
-    }
-
+impl<T> Sender<T> {
     /// Same as Receiver::rx_task above.
     fn rx_task(&self) -> &Lock<Option<Task>> {
         if self.flag {
@@ -341,9 +334,9 @@ impl<T, E> Sender<T, E> {
     }
 }
 
-impl<T, E> Sink for Sender<T, E> {
-    type SinkItem = Result<T, E>;
-    type SinkError = SendError<T, E>;
+impl<T> Sink for Sender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
 
     fn start_send(&mut self, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError>
@@ -398,7 +391,7 @@ impl<T, E> Sink for Sender<T, E> {
     }
 }
 
-impl<T, E> Drop for Sender<T, E> {
+impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
         // Like Receiver::drop we let our other half know we're gone, and then
         // we try to wake them up if they're waiting for us. Note that we don't

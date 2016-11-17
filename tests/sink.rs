@@ -107,13 +107,13 @@ impl<S: Sink> Future for StartSendFut<S> {
 // Test that `start_send` on an `spsc` channel does indeed block when the
 // channel is full
 fn spsc_blocking_start_send() {
-    let (mut tx, mut rx) = spsc::channel::<i32, ()>();
+    let (mut tx, mut rx) = spsc::channel::<i32>();
 
-    assert_eq!(tx.start_send(Ok(0)).unwrap(), AsyncSink::Ready);
+    assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
     let tx = tx.flush().wait().unwrap();
 
     let flag = Flag::new();
-    let mut task = executor::spawn(StartSendFut::new(tx, Ok(1)));
+    let mut task = executor::spawn(StartSendFut::new(tx, 1));
 
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     assert!(!flag.get());
@@ -127,13 +127,13 @@ fn spsc_blocking_start_send() {
 
 #[test]
 fn spsc_blocking_send() {
-    let (mut tx, mut rx) = spsc::channel::<i32, ()>();
+    let (mut tx, mut rx) = spsc::channel::<i32>();
 
-    assert_eq!(tx.start_send(Ok(0)).unwrap(), AsyncSink::Ready);
+    assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
     let tx = tx.flush().wait().unwrap();
 
     let flag = Flag::new();
-    let mut task = executor::spawn(tx.send(Ok(1)));
+    let mut task = executor::spawn(tx.send(1));
 
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
     assert!(!flag.get());

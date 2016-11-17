@@ -70,6 +70,7 @@ if_std! {
     mod chunks;
     mod collect;
     mod wait;
+    mod channel;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
@@ -78,29 +79,9 @@ if_std! {
     pub use self::wait::Wait;
 
     #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
     #[cfg(feature = "with-deprecated")]
-    pub use sync::spsc::channel;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::spsc::Sender;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::spsc::Receiver;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub type FutureSender<T, E> = ::sink::Send<::sync::spsc::Sender<T, E>>;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::spsc::SendError instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::spsc::SendError;
+    #[allow(deprecated)]
+    pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
 
     /// A type alias for `Box<Stream + Send>`
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
@@ -218,7 +199,7 @@ pub trait Stream {
     /// use futures::sync::spsc;
     ///
     /// let (_tx, rx) = spsc::channel();
-    /// let a: BoxStream<i32, i32> = rx.boxed();
+    /// let a: BoxStream<i32, ()> = rx.boxed();
     /// ```
     #[cfg(feature = "use_std")]
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
@@ -258,7 +239,7 @@ pub trait Stream {
     /// use futures::Stream;
     /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32>();
     /// let rx = rx.map(|x| x + 3);
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
@@ -284,8 +265,8 @@ pub trait Stream {
     /// use futures::Stream;
     /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
-    /// let rx = rx.map_err(|x| x + 3);
+    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let rx = rx.map_err(|()| 3);
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
         where F: FnMut(Self::Error) -> U,
@@ -314,7 +295,7 @@ pub trait Stream {
     /// use futures::Stream;
     /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32>();
     /// let evens = rx.filter(|x| x % 0 == 2);
     /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
@@ -344,7 +325,7 @@ pub trait Stream {
     /// use futures::Stream;
     /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32>();
     /// let evens_plus_one = rx.filter_map(|x| {
     ///     if x % 0 == 2 {
     ///         Some(x + 1)
@@ -383,12 +364,12 @@ pub trait Stream {
     /// use futures::Stream;
     /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32>();
     ///
     /// let rx = rx.then(|result| {
     ///     match result {
     ///         Ok(e) => Ok(e + 3),
-    ///         Err(e) => Err(e - 4),
+    ///         Err(()) => Err(4),
     ///     }
     /// });
     /// ```
@@ -426,13 +407,13 @@ pub trait Stream {
     /// use futures::stream::*;
     /// use futures::sync::spsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
+    /// let (_tx, rx) = spsc::channel::<i32>();
     ///
     /// let rx = rx.and_then(|result| {
     ///     if result % 2 == 0 {
     ///         Ok(result)
     ///     } else {
-    ///         Err(result as u32)
+    ///         Err(())
     ///     }
     /// });
     /// ```
@@ -463,23 +444,6 @@ pub trait Stream {
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::Stream;
-    /// use futures::sync::spsc;
-    ///
-    /// let (_tx, rx) = spsc::channel::<i32, u32>();
-    ///
-    /// let rx = rx.or_else(|result| {
-    ///     if result % 2 == 0 {
-    ///         Ok(result as i32)
-    ///     } else {
-    ///         Err(result)
-    ///     }
-    /// });
-    /// ```
     fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
         where F: FnMut(Self::Error) -> U,
               U: IntoFuture<Item = Self::Item>,
@@ -503,22 +467,16 @@ pub trait Stream {
     /// ```
     /// use std::thread;
     ///
-    /// use futures::future::{BoxFuture, finished};
-    /// use futures::{Stream, Future};
+    /// use futures::{Stream, Future, Sink};
     /// use futures::sync::spsc;
     ///
-    /// let (tx, rx) = spsc::channel::<i32, u32>();
+    /// let (mut tx, rx) = spsc::channel();
     ///
-    /// fn send(n: i32, tx: spsc::Sender<i32, u32>) -> BoxFuture<(), ()> {
-    ///     if n == 0 {
-    ///         return finished(()).boxed()
+    /// thread::spawn(|| {
+    ///     for i in (0..5).rev() {
+    ///         tx = tx.send(i + 1).wait().unwrap();
     ///     }
-    ///     tx.send(Ok(n)).map_err(|_| ()).and_then(move |tx| {
-    ///         send(n - 1, tx)
-    ///     }).boxed()
-    /// }
-    ///
-    /// thread::spawn(|| send(5, tx).wait());
+    /// });
     ///
     /// let mut result = rx.collect();
     /// assert_eq!(result.wait(), Ok(vec![5, 4, 3, 2, 1]));
@@ -571,17 +529,25 @@ pub trait Stream {
     /// ```
     /// use std::thread;
     ///
-    /// use futures::{Future, Stream, Poll};
+    /// use futures::{Future, Stream, Poll, Sink};
     /// use futures::sync::spsc;
     ///
-    /// let (tx1, rx1) = spsc::channel::<i32, u32>();
-    /// let (tx2, rx2) = spsc::channel::<i32, u32>();
-    /// let (tx3, rx3) = spsc::channel::<_, u32>();
+    /// let (tx1, rx1) = spsc::channel::<i32>();
+    /// let (tx2, rx2) = spsc::channel::<i32>();
+    /// let (tx3, rx3) = spsc::channel();
     ///
-    /// thread::spawn(|| tx1.send(Ok(1)).and_then(|tx1| tx1.send(Ok(2))).wait());
-    /// thread::spawn(|| tx2.send(Ok(3)).and_then(|tx2| tx2.send(Ok(4))).wait());
-    ///
-    /// thread::spawn(|| tx3.send(Ok(rx1)).and_then(|tx3| tx3.send(Ok(rx2))).wait());
+    /// thread::spawn(|| {
+    ///     tx1.send(1).wait().unwrap()
+    ///        .send(2).wait().unwrap();
+    /// });
+    /// thread::spawn(|| {
+    ///     tx2.send(3).wait().unwrap()
+    ///        .send(4).wait().unwrap();
+    /// });
+    /// thread::spawn(|| {
+    ///     tx3.send(rx1).wait().unwrap()
+    ///        .send(rx2).wait().unwrap();
+    /// });
     ///
     /// let mut result = rx3.flatten().collect();
     /// assert_eq!(result.wait(), Ok(vec![1, 2, 3, 4]));
