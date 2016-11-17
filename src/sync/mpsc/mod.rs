@@ -255,13 +255,13 @@ impl<T> Sender<T> {
     fn do_send(&mut self, msg: Option<T>, can_park: bool) -> Result<(), SendError<T>> {
         // First, increment the number of messages contained by the channel.
         // This operation will also atomically determine if the sender task
-        // should be parked and if the receiver task should be unparked.
+        // should be parked.
         //
         // None is returned in the case that the channel has been closed by the
         // receiver. This happens when `Receiver::close` is called or the
         // receiver is dropped.
-        let (park_self, unpark_recv) = match self.inc_num_messages(msg.is_none()) {
-            Some((park_self, unpark_recv)) => (park_self, unpark_recv),
+        let park_self = match self.inc_num_messages(msg.is_none()) {
+            Some(park_self) => park_self,
             None => {
                 // The receiver has closed the channel. Only abort if actually
                 // sending a message. It is important that the stream
@@ -293,33 +293,16 @@ impl<T> Sender<T> {
         // Push the message onto the message queue
         self.inner.message_queue.push(msg);
 
-        // If sending the message caused the number of messages contained by
-        // the channel to go from 0 -> 1, then the sender is responsible to
-        // unpark the receiver (if it is currently parked).
-        if unpark_recv {
-            // Do this step first so that the lock is dropped when
-            // `unpark` is called
-            let task = {
-                let mut recv_task = self.inner.recv_task.lock().unwrap();
-
-                // Setting this flag enables the receiving end to detect that
-                // an unpark event happened in order to avoid unecessarily
-                // parking.
-                recv_task.unparked = true;
-                recv_task.task.take()
-            };
-
-            if let Some(task) = task {
-                task.unpark();
-            }
-        }
+        // Signal to the receiver that a message has been enqueued. If the
+        // receiver is parked, this will unpark the task.
+        self.signal();
 
         Ok(())
     }
 
     // Increment the number of queued messages. Returns if the sender should
     // block.
-    fn inc_num_messages(&self, close: bool) -> Option<(bool, bool)> {
+    fn inc_num_messages(&self, close: bool) -> Option<bool> {
         let mut curr = self.inner.state.load(Ordering::SeqCst);
 
         loop {
@@ -354,13 +337,39 @@ impl<T> Sender<T> {
                     None => false,
                 };
 
-                // Only unpark the receive half if transitioning from 0 -> 1.
-                let unpark_recv = state.num_messages == 1;
-
-                return Some((park_self, unpark_recv));
+                return Some(park_self);
             }
 
             curr = actual;
+        }
+    }
+
+    // Signal to the receiver task that a message has been enqueued
+    fn signal(&mut self) {
+        // TODO
+        // This logic can probably be improved by guarding the lock with an
+        // atomic.
+        //
+        // Do this step first so that the lock is dropped when
+        // `unpark` is called
+        let task = {
+            let mut recv_task = self.inner.recv_task.lock().unwrap();
+
+            // If the receiver has already been unparked, then there is nothing
+            // more to do
+            if recv_task.unparked {
+                return;
+            }
+
+            // Setting this flag enables the receiving end to detect that
+            // an unpark event happened in order to avoid unecessarily
+            // parking.
+            recv_task.unparked = true;
+            recv_task.task.take()
+        };
+
+        if let Some(task) = task {
+            task.unpark();
         }
     }
 
@@ -583,13 +592,8 @@ impl<T> Receiver<T> {
         let curr = self.inner.state.load(Ordering::SeqCst);
         let state = decode_state(curr);
 
-        // If there are pending messages, then there is no need to park.
-        if state.num_messages > 0 {
-            return TryPark::NotEmpty;
-        }
-
         // If the channel is closed, then there is no need to park.
-        if !state.is_open {
+        if !state.is_open && state.num_messages == 0 {
             return TryPark::Closed;
         }
 
