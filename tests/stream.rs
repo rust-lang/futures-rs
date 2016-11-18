@@ -6,14 +6,14 @@ use futures::executor;
 use futures::future::{failed, finished};
 use futures::stream::{iter, Peekable, BoxStream};
 use futures::sync::oneshot;
-use futures::sync::spsc;
+use futures::sync::mpsc;
 
 mod support;
 use support::*;
 
 
 fn list() -> BoxStream<i32, u32> {
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(1);
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Ok(3)))
@@ -22,7 +22,7 @@ fn list() -> BoxStream<i32, u32> {
 }
 
 fn err_list() -> BoxStream<i32, u32> {
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(1);
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Err(3)))
@@ -149,7 +149,7 @@ fn fuse() {
 
 #[test]
 fn buffered() {
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
@@ -167,7 +167,7 @@ fn buffered() {
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
@@ -188,7 +188,7 @@ fn buffered() {
 
 #[test]
 fn unordered() {
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
@@ -205,7 +205,7 @@ fn unordered() {
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 

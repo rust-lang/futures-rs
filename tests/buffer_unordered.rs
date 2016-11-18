@@ -1,21 +1,21 @@
 #[macro_use]
 extern crate futures;
 
-use std::sync::mpsc;
+use std::sync::mpsc as std_mpsc;
 use std::thread;
 
 use futures::{Future, Stream, Sink};
 use futures::sync::oneshot;
-use futures::sync::spsc;
+use futures::sync::mpsc;
 
 #[test]
 fn works() {
     const N: usize = 4;
 
-    let (mut tx, rx) = spsc::channel();
+    let (mut tx, rx) = mpsc::channel(1);
 
-    let (tx2, rx2) = mpsc::channel();
-    let (tx3, rx3) = mpsc::channel();
+    let (tx2, rx2) = std_mpsc::channel();
+    let (tx3, rx3) = std_mpsc::channel();
     let t1 = thread::spawn(move || {
         for _ in 0..N+1 {
             let (mytx, myrx) = oneshot::channel();
@@ -30,7 +30,7 @@ fn works() {
         }
     });
 
-    let (tx4, rx4) = mpsc::channel();
+    let (tx4, rx4) = std_mpsc::channel();
     let t2 = thread::spawn(move || {
         for item in rx.map_err(|_| panic!()).buffer_unordered(N).wait() {
             tx4.send(item.unwrap()).unwrap();

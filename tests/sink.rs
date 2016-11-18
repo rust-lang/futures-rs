@@ -10,7 +10,7 @@ use std::sync::atomic::{Ordering, AtomicBool};
 use futures::{Poll, Async, Future, AsyncSink, StartSend};
 use futures::future::finished;
 use futures::stream;
-use futures::sync::{oneshot, spsc};
+use futures::sync::{oneshot, mpsc};
 use futures::task::{self, Task};
 use futures::executor::{self, Unpark};
 use futures::sink::*;
@@ -104,30 +104,33 @@ impl<S: Sink> Future for StartSendFut<S> {
 }
 
 #[test]
-// Test that `start_send` on an `spsc` channel does indeed block when the
+// Test that `start_send` on an `mpsc` channel does indeed block when the
 // channel is full
-fn spsc_blocking_start_send() {
-    let (mut tx, mut rx) = spsc::channel::<i32>();
+fn mpsc_blocking_start_send() {
+    let (mut tx, mut rx) = mpsc::channel::<i32>(0);
 
-    assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
-    let tx = tx.flush().wait().unwrap();
+    futures::lazy(|| {
+        assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
 
-    let flag = Flag::new();
-    let mut task = executor::spawn(StartSendFut::new(tx, 1));
+        let flag = Flag::new();
+        let mut task = executor::spawn(StartSendFut::new(tx, 1));
 
-    assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
-    assert!(!flag.get());
-    sassert_next(&mut rx, 0);
-    assert!(flag.get());
-    flag.set(false);
-    assert!(task.poll_future(flag.clone()).unwrap().is_ready());
-    assert!(!flag.get());
-    sassert_next(&mut rx, 1);
+        assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
+        assert!(!flag.get());
+        sassert_next(&mut rx, 0);
+        assert!(flag.get());
+        flag.set(false);
+        assert!(task.poll_future(flag.clone()).unwrap().is_ready());
+        assert!(!flag.get());
+        sassert_next(&mut rx, 1);
+
+        Ok::<(), ()>(())
+    }).wait().unwrap();
 }
 
 #[test]
-fn spsc_blocking_send() {
-    let (mut tx, mut rx) = spsc::channel::<i32>();
+fn mpsc_blocking_send() {
+    let (mut tx, mut rx) = mpsc::channel::<i32>(1);
 
     assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
     let tx = tx.flush().wait().unwrap();

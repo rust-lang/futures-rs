@@ -6,7 +6,6 @@
 //! instead work at the task level.
 
 pub mod oneshot;
-pub mod spsc;
 pub mod mpsc;
 mod bilock;
 

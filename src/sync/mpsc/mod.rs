@@ -67,20 +67,19 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-mod queue;
-
-use self::queue::{Queue, PopResult};
-
-use {Async, AsyncSink, Poll, StartSend};
-use task::{self, Task};
-use sink::{Sink};
-use stream::Stream;
-
-use std::{thread, usize};
-use std::sync::{Arc, Mutex};
+use std::any::Any;
+use std::error::Error;
+use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::usize;
 
-pub use std::sync::mpsc::SendError;
+use sync::mpsc::queue::{Queue, PopResult};
+use task::{self, Task};
+use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
+
+mod queue;
 
 /// The transmission end of a channel which is used to send values.
 ///
@@ -120,6 +119,39 @@ pub struct Receiver<T> {
 /// a stream of values being computed elsewhere. This is created by the
 /// `unbounded` method.
 pub struct UnboundedReceiver<T>(Receiver<T>);
+
+/// Error type for sending, used when the receiving end of the channel is
+/// dropped
+pub struct SendError<T>(T);
+
+impl<T> fmt::Debug for SendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("SendError")
+            .field(&"...")
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for SendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "send failed because receiver is gone")
+    }
+}
+
+impl<T> Error for SendError<T>
+    where T: Any
+{
+    fn description(&self) -> &str {
+        "send failed because receiver is gone"
+    }
+}
+
+impl<T> SendError<T> {
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 struct Inner<T> {
     // Max buffer size of the channel. If `None` then the channel is unbounded.
@@ -673,6 +705,16 @@ impl<T> Stream for Receiver<T> {
 
             // Return the message
             return Ok(Async::Ready(msg));
+        }
+    }
+}
+
+impl<T> Drop for Receiver<T> {
+    fn drop(&mut self) {
+        // Drain the channel of all pending messages
+        self.close();
+        while self.next_message().is_ready() {
+            // ...
         }
     }
 }

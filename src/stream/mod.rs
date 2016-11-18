@@ -196,9 +196,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::stream::*;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel();
+    /// let (_tx, rx) = mpsc::channel(1);
     /// let a: BoxStream<i32, ()> = rx.boxed();
     /// ```
     #[cfg(feature = "use_std")]
@@ -237,9 +237,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::Stream;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let rx = rx.map(|x| x + 3);
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
@@ -263,9 +263,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::Stream;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let rx = rx.map_err(|()| 3);
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
@@ -293,9 +293,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::Stream;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens = rx.filter(|x| x % 0 == 2);
     /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
@@ -323,9 +323,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::Stream;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens_plus_one = rx.filter_map(|x| {
     ///     if x % 0 == 2 {
     ///         Some(x + 1)
@@ -362,9 +362,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::Stream;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let (_tx, rx) = mpsc::channel::<i32>(1);
     ///
     /// let rx = rx.then(|result| {
     ///     match result {
@@ -405,9 +405,9 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::stream::*;
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (_tx, rx) = spsc::channel::<i32>();
+    /// let (_tx, rx) = mpsc::channel::<i32>(1);
     ///
     /// let rx = rx.and_then(|result| {
     ///     if result % 2 == 0 {
@@ -468,9 +468,9 @@ pub trait Stream {
     /// use std::thread;
     ///
     /// use futures::{Stream, Future, Sink};
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (mut tx, rx) = spsc::channel();
+    /// let (mut tx, rx) = mpsc::channel(1);
     ///
     /// thread::spawn(|| {
     ///     for i in (0..5).rev() {
@@ -530,11 +530,11 @@ pub trait Stream {
     /// use std::thread;
     ///
     /// use futures::{Future, Stream, Poll, Sink};
-    /// use futures::sync::spsc;
+    /// use futures::sync::mpsc;
     ///
-    /// let (tx1, rx1) = spsc::channel::<i32>();
-    /// let (tx2, rx2) = spsc::channel::<i32>();
-    /// let (tx3, rx3) = spsc::channel();
+    /// let (tx1, rx1) = mpsc::channel::<i32>(1);
+    /// let (tx2, rx2) = mpsc::channel::<i32>(1);
+    /// let (tx3, rx3) = mpsc::channel(1);
     ///
     /// thread::spawn(|| {
     ///     tx1.send(1).wait().unwrap()

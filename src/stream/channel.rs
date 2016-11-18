@@ -1,5 +1,5 @@
 #![cfg(feature = "with-deprecated")]
-#![deprecated(since = "0.1.4", note = "use sync::spsc::channel instead")]
+#![deprecated(since = "0.1.4", note = "use sync::mpsc::channel instead")]
 #![allow(deprecated)]
 
 use std::any::Any;
@@ -8,7 +8,7 @@ use std::fmt;
 
 use {Poll, Async, Stream, Future, Sink};
 use sink::Send;
-use sync::spsc;
+use sync::mpsc;
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
 ///
@@ -22,7 +22,7 @@ use sync::spsc;
 /// The `Receiver` returned implements the `Stream` trait and has access to any
 /// number of the associated combinators for transforming the result.
 pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
-    let (tx, rx) = spsc::channel();
+    let (tx, rx) = mpsc::channel(0);
     (Sender { inner: tx }, Receiver { inner: rx })
 }
 
@@ -30,7 +30,7 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
 ///
 /// This is created by the `channel` method in the `stream` module.
 pub struct Sender<T, E> {
-    inner: spsc::Sender<Result<T, E>>,
+    inner: mpsc::Sender<Result<T, E>>,
 }
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -40,7 +40,7 @@ pub struct Sender<T, E> {
 /// `channel` method in the `stream` module.
 #[must_use = "streams do nothing unless polled"]
 pub struct Receiver<T, E> {
-    inner: spsc::Receiver<Result<T, E>>,
+    inner: mpsc::Receiver<Result<T, E>>,
 }
 
 /// Error type for sending, used when the receiving end of the channel is dropped
@@ -48,7 +48,7 @@ pub struct SendError<T, E>(Result<T, E>);
 
 /// Future returned by `Sender::send`.
 pub struct FutureSender<T, E> {
-    inner: Send<spsc::Sender<Result<T, E>>>,
+    inner: Send<mpsc::Sender<Result<T, E>>>,
 }
 
 impl<T, E> fmt::Debug for SendError<T, E> {
