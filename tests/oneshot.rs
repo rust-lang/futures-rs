@@ -68,3 +68,24 @@ fn cancel_lots() {
 
     t.join().unwrap();
 }
+
+#[test]
+fn close() {
+    let (mut tx, mut rx) = channel::<u32>();
+    rx.close();
+    assert!(rx.poll().is_err());
+    assert!(tx.poll_cancel().unwrap().is_ready());
+}
+
+#[test]
+fn close_wakes() {
+    let (tx, mut rx) = channel::<u32>();
+    let (tx2, rx2) = mpsc::channel();
+    let t = thread::spawn(move || {
+        rx.close();
+        rx2.recv().unwrap();
+    });
+    WaitForCancel { tx: tx }.wait().unwrap();
+    tx2.send(()).unwrap();
+    t.join().unwrap();
+}
