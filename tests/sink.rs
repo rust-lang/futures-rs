@@ -8,7 +8,7 @@ use std::cell::{Cell, RefCell};
 use std::sync::atomic::{Ordering, AtomicBool};
 
 use futures::{Poll, Async, Future, AsyncSink, StartSend};
-use futures::future::finished;
+use futures::future::ok;
 use futures::stream;
 use futures::sync::{oneshot, mpsc};
 use futures::task::{self, Task};
@@ -109,7 +109,7 @@ impl<S: Sink> Future for StartSendFut<S> {
 fn mpsc_blocking_start_send() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
 
-    futures::lazy(|| {
+    futures::future::lazy(|| {
         assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
 
         let flag = Flag::new();
@@ -155,7 +155,7 @@ fn with_flush() {
     let (tx, rx) = oneshot::channel();
     let mut block = rx.boxed();
     let mut sink = Vec::new().with(|elem| {
-        mem::replace(&mut block, finished(()).boxed())
+        mem::replace(&mut block, ok(()).boxed())
             .map(move |_| elem + 1).map_err(|_| panic!())
     });
 

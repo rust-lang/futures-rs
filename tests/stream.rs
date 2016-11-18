@@ -3,7 +3,7 @@ extern crate futures;
 
 use futures::{Poll, Future, Stream, Sink};
 use futures::executor;
-use futures::future::{failed, finished};
+use futures::future::{ok, err};
 use futures::stream::{iter, Peekable, BoxStream};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
@@ -42,8 +42,8 @@ fn map_err() {
 
 #[test]
 fn fold() {
-    assert_done(|| list().fold(0, |a, b| finished::<i32, u32>(a + b)), Ok(6));
-    assert_done(|| err_list().fold(0, |a, b| finished::<i32, u32>(a + b)), Err(3));
+    assert_done(|| list().fold(0, |a, b| ok::<i32, u32>(a + b)), Ok(6));
+    assert_done(|| err_list().fold(0, |a, b| ok::<i32, u32>(a + b)), Err(3));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn filter_map() {
 #[test]
 fn and_then() {
     assert_done(|| list().and_then(|a| Ok(a + 1)).collect(), Ok(vec![2, 3, 4]));
-    assert_done(|| list().and_then(|a| failed::<i32, u32>(a as u32)).collect(),
+    assert_done(|| list().and_then(|a| err::<i32, u32>(a as u32)).collect(),
                 Err(1));
 }
 
@@ -78,7 +78,7 @@ fn then() {
 #[test]
 fn or_else() {
     assert_done(|| err_list().or_else(|a| {
-        finished::<i32, u32>(a as i32)
+        ok::<i32, u32>(a as i32)
     }).collect(), Ok(vec![1, 2, 3]));
 }
 

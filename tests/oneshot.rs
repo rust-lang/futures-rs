@@ -4,7 +4,7 @@ use std::sync::mpsc;
 use std::thread;
 
 use futures::{Future, Poll};
-use futures::future::{lazy, finished};
+use futures::future::{lazy, ok};
 use futures::sync::oneshot::*;
 
 mod support;
@@ -19,7 +19,7 @@ fn smoke_poll() {
         drop(rx);
         assert!(tx.poll_cancel().unwrap().is_ready());
         assert!(tx.poll_cancel().unwrap().is_ready());
-        finished::<(), ()>(())
+        ok::<(), ()>(())
     }));
     assert!(task.poll_future(unpark_noop()).unwrap().is_ready());
 }

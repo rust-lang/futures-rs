@@ -36,7 +36,7 @@ use stream::Stream;
 ///     if state <= 2 {
 ///         let next_state = state + 1;
 ///         let yielded = state  * 2;
-///         let fut = future::finished::<_, u32>((yielded, next_state));
+///         let fut = future::ok::<_, u32>((yielded, next_state));
 ///         Some(fut)
 ///     } else {
 ///         None

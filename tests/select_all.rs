@@ -5,9 +5,9 @@ use futures::future::*;
 #[test]
 fn smoke() {
     let v = vec![
-        finished(1).boxed(),
-        failed(2).boxed(),
-        finished(3).boxed(),
+        ok(1).boxed(),
+        err(2).boxed(),
+        ok(3).boxed(),
     ];
 
     let (i, idx, v) = select_all(v).wait().ok().unwrap();

@@ -32,9 +32,9 @@ enum _Lazy<F, R> {
 /// ```
 /// use futures::future::*;
 ///
-/// let a = lazy(|| finished::<u32, u32>(1));
+/// let a = lazy(|| ok::<u32, u32>(1));
 ///
-/// let b = lazy(|| -> Done<u32, u32> {
+/// let b = lazy(|| -> Ok<u32, u32> {
 ///     panic!("oh no!")
 /// });
 /// drop(b); // closure is never run

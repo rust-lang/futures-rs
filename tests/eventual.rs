@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 
 use futures::Future;
-use futures::future::{finished, failed};
+use futures::future::{ok, err};
 use futures::sync::oneshot;
 
 #[test]
@@ -15,9 +15,9 @@ fn and_then1() {
     let (tx, rx) = mpsc::channel();
 
     let tx2 = tx.clone();
-    let p1 = finished::<_, i32>("a").then(move |t| { tx2.send("first").unwrap(); t });
+    let p1 = ok::<_, i32>("a").then(move |t| { tx2.send("first").unwrap(); t });
     let tx2 = tx.clone();
-    let p2 = finished("b").then(move |t| { tx2.send("second").unwrap(); t });
+    let p2 = ok("b").then(move |t| { tx2.send("second").unwrap(); t });
     let f = p1.and_then(|_| p2);
 
     assert!(rx.try_recv().is_err());
@@ -33,9 +33,9 @@ fn and_then2() {
     let (tx, rx) = mpsc::channel();
 
     let tx2 = tx.clone();
-    let p1 = failed::<i32, _>(2).then(move |t| { tx2.send("first").unwrap(); t });
+    let p1 = err::<i32, _>(2).then(move |t| { tx2.send("first").unwrap(); t });
     let tx2 = tx.clone();
-    let p2 = finished("b").then(move |t| { tx2.send("second").unwrap(); t });
+    let p2 = ok("b").then(move |t| { tx2.send("second").unwrap(); t });
     let f = p1.and_then(|_| p2);
 
     assert!(rx.try_recv().is_err());
@@ -114,13 +114,13 @@ fn cancel1() {
 
 #[test]
 fn map_err1() {
-    finished::<i32, i32>(1).map_err(|_| panic!()).forget();
+    ok::<i32, i32>(1).map_err(|_| panic!()).forget();
 }
 
 #[test]
 fn map_err2() {
     let (tx, rx) = mpsc::channel();
-    failed::<i32, i32>(1).map_err(move |v| tx.send(v).unwrap()).forget();
+    err::<i32, i32>(1).map_err(move |v| tx.send(v).unwrap()).forget();
     assert_eq!(rx.recv(), Ok(1));
     assert!(rx.recv().is_err());
 }
@@ -162,7 +162,7 @@ fn or_else2() {
 
     p1.or_else(move |_| {
         tx.send(()).unwrap();
-        finished::<i32, i32>(1)
+        ok::<i32, i32>(1)
     }).forget();
 
     c1.complete(2);
@@ -172,7 +172,7 @@ fn or_else2() {
 #[test]
 fn join1() {
     let (tx, rx) = mpsc::channel();
-    finished::<i32, i32>(1).join(finished(2))
+    ok::<i32, i32>(1).join(ok(2))
                            .map(move |v| tx.send(v).unwrap())
                            .forget();
     assert_eq!(rx.recv(), Ok((1, 2)));

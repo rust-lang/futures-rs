@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::*;
 
 use futures::{Future, Async, Stream, Sink};
-use futures::future::done;
+use futures::future::result;
 use futures::executor;
 use futures::sync::mpsc;
 
@@ -29,7 +29,7 @@ fn sequence() {
     fn send(n: u32, sender: mpsc::Sender<u32>)
             -> Box<Future<Item=(), Error=()> + Send> {
         if n == 0 {
-            return done(Ok(())).boxed()
+            return result(Ok(())).boxed()
         }
         sender.send(n).map_err(|_| ()).and_then(move |sender| {
             send(n - 1, sender)

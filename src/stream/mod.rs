@@ -504,10 +504,10 @@ pub trait Stream {
     ///
     /// ```
     /// use futures::stream::{self, Stream};
-    /// use futures::future::{finished, Future};
+    /// use futures::future::{ok, Future};
     ///
     /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
-    /// let sum = number_stream.fold(0, |a, b| finished(a + b));
+    /// let sum = number_stream.fold(0, |a, b| ok(a + b));
     /// assert_eq!(sum.wait(), Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>

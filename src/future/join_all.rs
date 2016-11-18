@@ -39,18 +39,18 @@ pub struct JoinAll<I>
 /// use futures::future::*;
 ///
 /// let f = join_all(vec![
-///     finished::<u32, u32>(1),
-///     finished::<u32, u32>(2),
-///     finished::<u32, u32>(3),
+///     ok::<u32, u32>(1),
+///     ok::<u32, u32>(2),
+///     ok::<u32, u32>(3),
 /// ]);
 /// let f = f.map(|x| {
 ///     assert_eq!(x, [1, 2, 3]);
 /// });
 ///
 /// let f = join_all(vec![
-///     finished::<u32, u32>(1).boxed(),
-///     failed::<u32, u32>(2).boxed(),
-///     finished::<u32, u32>(3).boxed(),
+///     ok::<u32, u32>(1).boxed(),
+///     err::<u32, u32>(2).boxed(),
+///     ok::<u32, u32>(3).boxed(),
 /// ]);
 /// let f = f.then(|x| {
 ///     assert_eq!(x, Err(2));

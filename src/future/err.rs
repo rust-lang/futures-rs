@@ -1,4 +1,4 @@
-//! Definition of the Failed combinator, an error value that's immediately
+//! Definition of the Err combinator, an error value that's immediately
 //! ready.
 
 use core::marker;
@@ -7,9 +7,9 @@ use {Future, Poll};
 
 /// A future representing a finished but erroneous computation.
 ///
-/// Created by the `failed` function.
+/// Created by the `err` function.
 #[must_use = "futures do nothing unless polled"]
-pub struct Failed<T, E> {
+pub struct Err<T, E> {
     _t: marker::PhantomData<T>,
     e: Option<E>,
 }
@@ -24,17 +24,17 @@ pub struct Failed<T, E> {
 /// ```
 /// use futures::future::*;
 ///
-/// let future_of_err_1 = failed::<u32, u32>(1);
+/// let future_of_err_1 = err::<u32, u32>(1);
 /// ```
-pub fn failed<T, E>(e: E) -> Failed<T, E> {
-    Failed { _t: marker::PhantomData, e: Some(e) }
+pub fn err<T, E>(e: E) -> Err<T, E> {
+    Err { _t: marker::PhantomData, e: Some(e) }
 }
 
-impl<T, E> Future for Failed<T, E> {
+impl<T, E> Future for Err<T, E> {
     type Item = T;
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        Err(self.e.take().expect("cannot poll Failed twice"))
+        Err(self.e.take().expect("cannot poll Err twice"))
     }
 }
