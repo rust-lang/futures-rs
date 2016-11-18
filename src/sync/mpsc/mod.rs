@@ -467,6 +467,21 @@ impl<T> Sink for Sender<T> {
     }
 }
 
+impl<T> UnboundedSender<T> {
+    /// Sends the provided message along this channel.
+    ///
+    /// This is an unbounded sender, so this function differs from `Sink::send`
+    /// by ensuring the return type reflects that the channel is always ready to
+    /// receive messages.
+    pub fn send(&mut self, msg: T) -> Result<(), SendError<T>> {
+        match self.0.start_send(msg) {
+            Ok(AsyncSink::Ready) => Ok(()),
+            Ok(AsyncSink::NotReady(_)) => panic!(),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
