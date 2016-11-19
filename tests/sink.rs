@@ -45,14 +45,15 @@ fn send() {
 fn send_all() {
     let v = Vec::new();
 
-    let v = v.send_all(stream::iter(vec![Ok(0), Ok(1)])).wait().unwrap();
+    let (v, _) = v.send_all(stream::iter(vec![Ok(0), Ok(1)])).wait().unwrap();
     assert_eq!(v, vec![0, 1]);
 
-    let v = v.send_all(stream::iter(vec![Ok(2), Ok(3)])).wait().unwrap();
+    let (v, _) = v.send_all(stream::iter(vec![Ok(2), Ok(3)])).wait().unwrap();
     assert_eq!(v, vec![0, 1, 2, 3]);
 
-    assert_done(move || v.send_all(stream::iter(vec![Ok(4), Ok(5)])),
-                Ok(vec![0, 1, 2, 3, 4, 5]));
+    assert_done(
+        move || v.send_all(stream::iter(vec![Ok(4), Ok(5)])).map(|(v, _)| v),
+        Ok(vec![0, 1, 2, 3, 4, 5]));
 }
 
 // An Unpark struct that records unpark events for inspection
