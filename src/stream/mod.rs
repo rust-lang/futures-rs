@@ -74,12 +74,14 @@ if_std! {
     mod collect;
     mod wait;
     mod channel;
+    mod split;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
+    pub use self::split::{SplitStream, SplitSink};
 
     #[doc(hidden)]
     #[cfg(feature = "with-deprecated")]
@@ -808,6 +810,17 @@ pub trait Stream {
               Self: Sized
     {
         forward::new(self, sink)
+    }
+
+    /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
+    /// objects, which can be useful when you want to split ownership between
+    /// tasks, or allow direct interaction between the two objects (e.g. via
+    /// `Sink::send_all`).
+    #[cfg(feature = "use_std")]
+    fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
+        where Self: super::sink::Sink + Sized
+    {
+        split::split(self)
     }
 }
 
