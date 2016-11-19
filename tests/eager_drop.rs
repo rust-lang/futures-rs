@@ -15,7 +15,7 @@ fn map() {
     // point.
     let (tx, rx) = channel::<()>();
     let (tx2, rx2) = channel();
-    failed::<i32, i32>(1).map(move |a| { drop(tx); a }).map_err(move |_| {
+    err::<i32, i32>(1).map(move |a| { drop(tx); a }).map_err(move |_| {
         assert!(rx.recv().is_err());
         tx2.send(()).unwrap()
     }).forget();
@@ -28,7 +28,7 @@ fn map_err() {
     // point.
     let (tx, rx) = channel::<()>();
     let (tx2, rx2) = channel();
-    finished::<i32, i32>(1).map_err(move |a| { drop(tx); a }).map(move |_| {
+    ok::<i32, i32>(1).map_err(move |a| { drop(tx); a }).map(move |_| {
         assert!(rx.recv().is_err());
         tx2.send(()).unwrap()
     }).forget();
@@ -57,7 +57,7 @@ fn and_then_drops_eagerly() {
     FutureData { _data: tx, future: p }.and_then(move |_| {
         assert!(rx.recv().is_err());
         tx2.send(()).unwrap();
-        finished(1)
+        ok(1)
     }).forget();
     assert!(rx2.try_recv().is_err());
     c.complete(());

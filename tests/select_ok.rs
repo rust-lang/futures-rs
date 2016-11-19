@@ -3,12 +3,12 @@ extern crate futures;
 use futures::future::*;
 
 #[test]
-fn ignore_failed() {
+fn ignore_err() {
     let v = vec![
-        failed(1).boxed(),
-        failed(2).boxed(),
-        finished(3).boxed(),
-        finished(4).boxed(),
+        err(1).boxed(),
+        err(2).boxed(),
+        ok(3).boxed(),
+        ok(4).boxed(),
     ];
 
     let (i, v) = select_ok(v).wait().ok().unwrap();
@@ -23,11 +23,11 @@ fn ignore_failed() {
 }
 
 #[test]
-fn last_failed() {
+fn last_err() {
     let v = vec![
-        finished(1).boxed(),
-        failed(2).boxed(),
-        failed(3).boxed(),
+        ok(1).boxed(),
+        err(2).boxed(),
+        err(3).boxed(),
     ];
 
     let (i, v) = select_ok(v).wait().ok().unwrap();

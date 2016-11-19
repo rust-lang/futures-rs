@@ -1,33 +1,33 @@
 #[macro_use]
 extern crate futures;
 
-use futures::Poll;
+use futures::{Poll, Future, Stream, Sink};
 use futures::executor;
-use futures::future::{failed, finished, Future};
-use futures::stream::{iter, Stream, Peekable};
+use futures::future::{ok, err};
+use futures::stream::{iter, Peekable, BoxStream};
 use futures::sync::oneshot;
-use futures::sync::spsc;
+use futures::sync::mpsc;
 
 mod support;
 use support::*;
 
 
-fn list() -> spsc::Receiver<i32, u32> {
-    let (tx, rx) = spsc::channel();
+fn list() -> BoxStream<i32, u32> {
+    let (tx, rx) = mpsc::channel(1);
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Ok(3)))
       .forget();
-    rx
+    rx.then(|r| r.unwrap()).boxed()
 }
 
-fn err_list() -> spsc::Receiver<i32, u32> {
-    let (tx, rx) = spsc::channel();
+fn err_list() -> BoxStream<i32, u32> {
+    let (tx, rx) = mpsc::channel(1);
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Err(3)))
       .forget();
-    rx
+    rx.then(|r| r.unwrap()).boxed()
 }
 
 #[test]
@@ -42,8 +42,8 @@ fn map_err() {
 
 #[test]
 fn fold() {
-    assert_done(|| list().fold(0, |a, b| finished::<i32, u32>(a + b)), Ok(6));
-    assert_done(|| err_list().fold(0, |a, b| finished::<i32, u32>(a + b)), Err(3));
+    assert_done(|| list().fold(0, |a, b| ok::<i32, u32>(a + b)), Ok(6));
+    assert_done(|| err_list().fold(0, |a, b| ok::<i32, u32>(a + b)), Err(3));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn filter_map() {
 #[test]
 fn and_then() {
     assert_done(|| list().and_then(|a| Ok(a + 1)).collect(), Ok(vec![2, 3, 4]));
-    assert_done(|| list().and_then(|a| failed::<i32, u32>(a as u32)).collect(),
+    assert_done(|| list().and_then(|a| err::<i32, u32>(a as u32)).collect(),
                 Err(1));
 }
 
@@ -78,7 +78,7 @@ fn then() {
 #[test]
 fn or_else() {
     assert_done(|| err_list().or_else(|a| {
-        finished::<i32, u32>(a as i32)
+        ok::<i32, u32>(a as i32)
     }).collect(), Ok(vec![1, 2, 3]));
 }
 
@@ -149,12 +149,12 @@ fn fuse() {
 
 #[test]
 fn buffered() {
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     let mut rx = rx.buffered(2);
@@ -167,12 +167,12 @@ fn buffered() {
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     let mut rx = rx.buffered(1);
@@ -188,12 +188,12 @@ fn buffered() {
 
 #[test]
 fn unordered() {
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     let mut rx = rx.buffer_unordered(2);
@@ -205,12 +205,12 @@ fn unordered() {
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), None);
 
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = mpsc::channel(1);
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Ok(b.map_err(|_| 2).boxed()))
-      .and_then(|tx| tx.send(Ok(d.map_err(|_| 4).boxed())))
+    tx.send(b.map_err(|_| ()).boxed())
+      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
       .forget();
 
     // We don't even get to see `c` until `a` completes.
@@ -241,7 +241,7 @@ fn zip() {
 #[test]
 fn peek() {
     struct Peek {
-        inner: Peekable<spsc::Receiver<i32, u32>>
+        inner: Peekable<BoxStream<i32, u32>>
     }
 
     impl Future for Peek {
@@ -286,4 +286,19 @@ fn chunks() {
 #[should_panic]
 fn chunks_panic_on_cap_zero() {
     let _ = list().chunks(0);
+}
+
+#[test]
+fn select() {
+    let a = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
+    let b = iter(vec![Ok(4), Ok(5), Ok(6)]);
+    assert_done(|| a.select(b).collect(), Ok(vec![1, 4, 2, 5, 3, 6]));
+
+    let a = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
+    let b = iter(vec![Ok(1), Ok(2)]);
+    assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
+
+    let a = iter(vec![Ok(1), Ok(2)]);
+    let b = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
+    assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
 }

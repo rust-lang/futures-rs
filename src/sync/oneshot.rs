@@ -226,6 +226,25 @@ impl Error for Canceled {
     }
 }
 
+impl<T> Receiver<T> {
+    /// Gracefully close this receiver, preventing sending any future messages.
+    ///
+    /// Any `send` operation which happens after this method returns is
+    /// guaranteed to fail. Once this method is called the normal `poll` method
+    /// can be used to determine whether a message was actually sent or not. If
+    /// `Canceled` is returned from `poll` then no message was sent.
+    pub fn close(&mut self) {
+        // Flag our completion and then attempt to wake up the sender if it's
+        // blocked. See comments in `drop` below for more info
+        self.inner.complete.store(true, SeqCst);
+        if let Some(mut handle) = self.inner.tx_task.try_lock() {
+            if let Some(task) = handle.take() {
+                drop(handle);
+                task.unpark()
+            }
+        }
+    }
+}
 
 impl<T> Future for Receiver<T> {
     type Item = T;

@@ -1,4 +1,6 @@
-//! Definition of the `Done` (immediately finished) combinator
+//! Definition of the `Result` (immediately finished) combinator
+
+use core::result;
 
 use {Future, Poll, Async};
 
@@ -6,8 +8,9 @@ use {Future, Poll, Async};
 ///
 /// Created by the `done` function.
 #[must_use = "futures do nothing unless polled"]
-pub struct Done<T, E> {
-    inner: Option<Result<T, E>>,
+// TODO: rename this to `Result` on the next major version
+pub struct FutureResult<T, E> {
+    inner: Option<result::Result<T, E>>,
 }
 
 /// Creates a new "leaf future" which will resolve with the given result.
@@ -21,18 +24,18 @@ pub struct Done<T, E> {
 /// ```
 /// use futures::future::*;
 ///
-/// let future_of_1 = done::<u32, u32>(Ok(1));
-/// let future_of_err_2 = done::<u32, u32>(Err(2));
+/// let future_of_1 = result::<u32, u32>(Ok(1));
+/// let future_of_err_2 = result::<u32, u32>(Err(2));
 /// ```
-pub fn done<T, E>(r: Result<T, E>) -> Done<T, E> {
-    Done { inner: Some(r) }
+pub fn result<T, E>(r: result::Result<T, E>) -> FutureResult<T, E> {
+    FutureResult { inner: Some(r) }
 }
 
-impl<T, E> Future for Done<T, E> {
+impl<T, E> Future for FutureResult<T, E> {
     type Item = T;
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        self.inner.take().expect("cannot poll Done twice").map(Async::Ready)
+        self.inner.take().expect("cannot poll Result twice").map(Async::Ready)
     }
 }

@@ -14,7 +14,7 @@
 //! use futures_cpupool::CpuPool;
 //!
 //! # fn long_running_future(a: u32) -> futures::future::BoxFuture<u32, ()> {
-//! #     futures::future::done(Ok(a)).boxed()
+//! #     futures::future::result(Ok(a)).boxed()
 //! # }
 //! # fn main() {
 //!
@@ -81,6 +81,7 @@ pub struct CpuPool {
 /// of CPUs on the host. But you can change it until you call `create()`.
 pub struct Builder {
     pool_size: usize,
+    name_prefix: Option<String>,
     after_start: Option<Arc<Fn() + Send + Sync>>,
     before_stop: Option<Arc<Fn() + Send + Sync>>,
 }
@@ -277,6 +278,7 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             pool_size: num_cpus::get(),
+            name_prefix: None,
             after_start: None,
             before_stop: None,
         }
@@ -287,6 +289,15 @@ impl Builder {
     /// The size of a thread pool is the number of worker threads spawned
     pub fn pool_size(&mut self, size: usize) -> &mut Self {
         self.pool_size = size;
+        self
+    }
+
+    /// Set thread name prefix of a future CpuPool
+    ///
+    /// Thread name prefix is used for generating thread names. For example, if prefix is
+    /// `my-pool-`, then threads in the pool will get names like `my-pool-1` etc.
+    pub fn name_prefix<S: Into<String>>(&mut self, name_prefix: S) -> &mut Self {
+        self.name_prefix = Some(name_prefix.into());
         self
     }
 
@@ -324,9 +335,13 @@ impl Builder {
         };
         assert!(self.pool_size > 0);
 
-        for _ in 0..self.pool_size {
+        for counter in 0..self.pool_size {
             let inner = pool.inner.clone();
-            thread::spawn(move || work(&inner));
+            let mut thread_builder = thread::Builder::new();
+            if let Some(ref name_prefix) = self.name_prefix {
+                thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
+            }
+            thread_builder.spawn(move || work(&inner)).unwrap();
         }
 
         return pool

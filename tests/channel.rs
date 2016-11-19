@@ -3,18 +3,17 @@ extern crate futures;
 use std::sync::Arc;
 use std::sync::atomic::*;
 
-use futures::{Future, Async};
-use futures::future::done;
+use futures::{Future, Async, Stream, Sink};
+use futures::future::result;
 use futures::executor;
-use futures::stream::Stream;
-use futures::sync::spsc;
+use futures::sync::mpsc;
 
 mod support;
 use support::*;
 
 #[test]
 fn sequence() {
-    let (tx, mut rx) = spsc::channel();
+    let (tx, mut rx) = mpsc::channel(1);
 
     sassert_empty(&mut rx);
     sassert_empty(&mut rx);
@@ -27,12 +26,12 @@ fn sequence() {
     }
     assert_eq!(rx.next(), None);
 
-    fn send(n: u32, sender: spsc::Sender<u32, u32>)
+    fn send(n: u32, sender: mpsc::Sender<u32>)
             -> Box<Future<Item=(), Error=()> + Send> {
         if n == 0 {
-            return done(Ok(())).boxed()
+            return result(Ok(())).boxed()
         }
-        sender.send(Ok(n)).map_err(|_| ()).and_then(move |sender| {
+        sender.send(n).map_err(|_| ()).and_then(move |sender| {
             send(n - 1, sender)
         }).boxed()
     }
@@ -40,17 +39,17 @@ fn sequence() {
 
 #[test]
 fn drop_sender() {
-    let (tx, mut rx) = spsc::channel::<u32, u32>();
+    let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
     sassert_done(&mut rx);
 }
 
 #[test]
 fn drop_rx() {
-    let (tx, rx) = spsc::channel::<u32, u32>();
-    let tx = tx.send(Ok(1)).wait().ok().unwrap();
+    let (tx, rx) = mpsc::channel::<u32>(1);
+    let tx = tx.send(1).wait().ok().unwrap();
     drop(rx);
-    assert!(tx.send(Ok(1)).wait().is_err());
+    assert!(tx.send(1).wait().is_err());
 }
 
 struct Unpark;
@@ -62,9 +61,9 @@ impl executor::Unpark for Unpark {
 
 #[test]
 fn poll_future_then_drop() {
-    let (tx, _rx) = spsc::channel::<u32, u32>();
+    let (tx, _rx) = mpsc::channel::<u32>(1);
 
-    let tx = tx.send(Ok(1));
+    let tx = tx.send(1);
     let mut t = executor::spawn(tx);
 
     // First poll succeeds
@@ -74,7 +73,7 @@ fn poll_future_then_drop() {
     };
 
     // Send another value
-    let tx = tx.send(Ok(2));
+    let tx = tx.send(2);
     let mut t = executor::spawn(tx);
 
     // Second poll doesn't
@@ -89,7 +88,7 @@ fn poll_future_then_drop() {
 #[test]
 fn drop_order() {
     static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
-    let (tx, rx) = spsc::channel::<_, u32>();
+    let (tx, rx) = mpsc::channel(1);
 
     struct A;
 
@@ -99,10 +98,10 @@ fn drop_order() {
         }
     }
 
-    let tx = tx.send(Ok(A)).wait().unwrap();
+    let tx = tx.send(A).wait().unwrap();
     assert_eq!(DROPS.load(Ordering::SeqCst), 0);
     drop(rx);
     assert_eq!(DROPS.load(Ordering::SeqCst), 1);
-    assert!(tx.send(Ok(A)).wait().is_err());
+    assert!(tx.send(A).wait().is_err());
     assert_eq!(DROPS.load(Ordering::SeqCst), 2);
 }

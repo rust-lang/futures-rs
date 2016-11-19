@@ -9,7 +9,7 @@ use futures::future::{Future, BoxFuture};
 use futures_cpupool::{CpuPool, Builder};
 
 fn done<T: Send + 'static>(t: T) -> BoxFuture<T, ()> {
-    futures::future::done(Ok(t)).boxed()
+    futures::future::ok(t).boxed()
 }
 
 #[test]
@@ -95,4 +95,16 @@ fn lifecycle_test() {
         thread::sleep(Duration::from_millis(10));
     }
     panic!("thread didn't exit");
+}
+
+#[test]
+fn thread_name() {
+    let pool = Builder::new()
+        .name_prefix("my-pool-")
+        .create();
+    let future = pool.spawn_fn(|| {
+        assert!(thread::current().name().unwrap().starts_with("my-pool-"));
+        Ok::<(), ()>(())
+    });
+    let _ = future.wait();
 }

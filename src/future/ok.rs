@@ -1,4 +1,4 @@
-//! Definition of the Finished combinator, a successful value that's immediately
+//! Definition of the Ok combinator, a successful value that's immediately
 //! ready.
 
 use core::marker;
@@ -9,7 +9,7 @@ use {Future, Poll, Async};
 ///
 /// Created by the `finished` function.
 #[must_use = "futures do nothing unless polled"]
-pub struct Finished<T, E> {
+pub struct Ok<T, E> {
     t: Option<T>,
     _e: marker::PhantomData<E>,
 }
@@ -25,18 +25,18 @@ pub struct Finished<T, E> {
 /// ```
 /// use futures::future::*;
 ///
-/// let future_of_1 = finished::<u32, u32>(1);
+/// let future_of_1 = ok::<u32, u32>(1);
 /// ```
-pub fn finished<T, E>(t: T) -> Finished<T, E> {
-    Finished { t: Some(t), _e: marker::PhantomData }
+pub fn ok<T, E>(t: T) -> Ok<T, E> {
+    Ok { t: Some(t), _e: marker::PhantomData }
 }
 
-impl<T, E> Future for Finished<T, E> {
+impl<T, E> Future for Ok<T, E> {
     type Item = T;
     type Error = E;
 
 
     fn poll(&mut self) -> Poll<T, E> {
-        Ok(Async::Ready(self.t.take().expect("cannot poll Finished twice")))
+        Ok(Async::Ready(self.t.take().expect("cannot poll Ok twice")))
     }
 }
