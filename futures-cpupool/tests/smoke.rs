@@ -9,7 +9,7 @@ use futures::future::{Future, BoxFuture};
 use futures_cpupool::{CpuPool, Builder};
 
 fn done<T: Send + 'static>(t: T) -> BoxFuture<T, ()> {
-    futures::future::done(Ok(t)).boxed()
+    futures::future::ok(t).boxed()
 }
 
 #[test]

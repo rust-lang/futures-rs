@@ -14,7 +14,7 @@
 //! use futures_cpupool::CpuPool;
 //!
 //! # fn long_running_future(a: u32) -> futures::future::BoxFuture<u32, ()> {
-//! #     futures::future::done(Ok(a)).boxed()
+//! #     futures::future::result(Ok(a)).boxed()
 //! # }
 //! # fn main() {
 //!
