@@ -1,4 +1,4 @@
-//! Exeuctors
+//! Executors
 //!
 //! This module contains tools for managing the raw execution of futures,
 //! which is needed when building *executors* (places where futures can run).
