@@ -1,9 +1,12 @@
+#![feature(test)]
 extern crate futures;
+extern crate test;
 
-use futures::sync::mpsc::*;
+use futures::sync::mpsc::unbounded::*;
 use std::sync::atomic::*;
 use futures::stream::Stream;
 use std::thread;
+use test::Bencher;
 
 mod support;
 use support::*;
@@ -14,6 +17,52 @@ fn send(n: u32, mut sender: Sender<u32>) {
     }
     sender.send(n).unwrap();
     send(n - 1, sender)
+}
+
+fn send2(n: u32, mut sender: futures::sync::mpsc::UnboundedSender<u32>) {
+    if n == 0 {
+        return;
+    }
+    sender.send(n).unwrap();
+    send2(n - 1, sender)
+}
+
+#[bench]
+fn bench_multi_new(b: &mut Bencher) {
+    b.iter(|| {
+        let (tx, rx) = unbounded();
+
+        let tx2 = tx.clone();
+        let tx3 = tx.clone();
+        let amt = 40;
+        thread::spawn(move || send(amt, tx));
+        thread::spawn(move || send(amt, tx2));
+        thread::spawn(move || send(amt, tx3));
+        let mut rx = rx.wait();
+        for _ in 1..(amt * 3 + 1) {
+            assert!(rx.next().is_some());
+        }
+        assert_eq!(rx.next(), None);
+    });
+}
+
+#[bench]
+fn bench_multi_existing(b: &mut Bencher) {
+    b.iter(|| {
+        let (tx, rx) = futures::sync::mpsc::unbounded();
+
+        let tx2 = tx.clone();
+        let tx3 = tx.clone();
+        let amt = 40;
+        thread::spawn(move || send2(amt, tx));
+        thread::spawn(move || send2(amt, tx2));
+        thread::spawn(move || send2(amt, tx3));
+        let mut rx = rx.wait();
+        for _ in 1..(amt * 3 + 1) {
+            assert!(rx.next().is_some());
+        }
+        assert_eq!(rx.next(), None);
+    });
 }
 
 #[test]

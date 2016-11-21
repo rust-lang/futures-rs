@@ -9,9 +9,9 @@ use task::{self, Task};
 use std::sync::{Arc, Mutex, mpsc};
 use lock::Lock;
 
-const PARKED: usize = 4;
-const UNPARKING: usize = 5;
-const UNPARKED: usize = 6;
+const PARKED: usize = 0;
+const UNPARKING: usize = 1;
+const UNPARKED: usize = 2;
 
 /// `Sender` of the channel. `Sender` can be cloned.
 pub struct Sender<T> {
@@ -62,7 +62,7 @@ pub struct Receiver<T> {
 impl<T> Sender<T> {
     /// Send a message on the channel
     pub fn send(&mut self, t: T) -> Result<(), mpsc::SendError<T>> {
-        println!("TX: poll");
+        info!("TX: poll");
         match self.tx.send(t) {
             Ok(_) => {
                 let _ = self.inner.num_msgs_pending.fetch_add(1, SeqCst);
@@ -70,17 +70,17 @@ impl<T> Sender<T> {
                     UNPARKED => {
                         match self.inner.rx_state.load(SeqCst) {
                             PARKED => {
-                                println!("TX: unpark rx task");
+                                info!("TX: unpark rx task");
                                 if let Ok(mut task) = self.inner
                                     .rx_task
                                     .lock() {
-                                    task.take().unwrap().unpark();
+                                    task.take().expect("TX: expect RX TASK").unpark();
                                     self.inner.rx_state.store(UNPARKED, SeqCst);
                                     self.inner.tx_state.store(UNPARKED, SeqCst);
                                 }
                             }
                             UNPARKED => {
-                                println!("TX: RX has nothing to unpark");
+                                info!("TX: RX has nothing to unpark");
                                 self.inner.tx_state.store(UNPARKED, SeqCst);
                             }
                             s => panic!("TX: unknown state: {}", s),
@@ -88,7 +88,7 @@ impl<T> Sender<T> {
                     }
                     _ => {}
                 }
-                println!("TX: poll END");
+                info!("TX: poll END");
                 Ok(())
             }
             Err(e) => Err(e),
@@ -104,8 +104,9 @@ impl<T> Drop for Sender<T> {
            !self.inner.is_first_rx_poll.load(SeqCst) {
             // wake up receiver to go to disconnection event or get more data if there is any
             // can unwrap because we are guaranteed the receiver has set this value by now
-            let task = self.inner.rx_task_tx_drop.try_lock().unwrap().take().unwrap();
-            task.unpark();
+            if let Some(mut task) = self.inner.rx_task_tx_drop.try_lock() {
+                task.take().unwrap().unpark();
+            }
         }
     }
 }
@@ -139,14 +140,16 @@ impl<T> Stream for Receiver<T> {
     type Item = T;
     type Error = ();
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        println!("RX: poll");
+        info!("RX: poll");
         // if this is the receiver's first poll call, store two receiver tasks:
         // rx_task_tx_drop - used only once to wake up receiver when last Sender drops
         // rx_task - used by senders to wake up the receiver after a message has been sent
         if self.inner.is_first_rx_poll.load(SeqCst) {
-            let mut task = self.inner.rx_task_tx_drop.try_lock().unwrap();
-            *task = Some(task::park());
-            self.inner.is_first_rx_poll.store(false, SeqCst);
+            // println!("storing drop task");
+            if let Some(mut task) = self.inner.rx_task_tx_drop.try_lock() {
+                *task = Some(task::park());
+                self.inner.is_first_rx_poll.store(false, SeqCst);
+            }
         }
 
         match self.rx.try_recv() {
@@ -187,8 +190,8 @@ impl<T> Stream for Receiver<T> {
                             *task = Some(task::park());
                             self.inner.rx_state.store(PARKED, SeqCst);
                         }
-                        println!("RX: parked");
-                        println!("RX: end");
+                        info!("RX: parked");
+                        info!("RX: end");
 
                         Ok(Async::NotReady)
                     }
