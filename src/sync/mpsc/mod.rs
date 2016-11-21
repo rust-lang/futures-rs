@@ -421,26 +421,8 @@ impl<T> Sender<T> {
         let t = self.sender_task.clone();
         self.inner.parked_queue.push(t);
     }
-}
 
-impl<T> Sink for Sender<T> {
-    type SinkItem = T;
-    type SinkError = SendError<T>;
-
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        // If the sender is currently blocked, reject the message before doing
-        // any work.
-        if !self.poll_complete().unwrap().is_ready() {
-            return Ok(AsyncSink::NotReady(msg));
-        }
-
-        // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg), true));
-
-        Ok(AsyncSink::Ready)
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_unparked(&mut self) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -449,7 +431,7 @@ impl<T> Sink for Sender<T> {
 
             if task.is_none() {
                 self.maybe_parked = false;
-                return Ok(Async::Ready(()));
+                return Async::Ready(())
             }
 
             // At this point, an unpark request is pending, so there will be an
@@ -460,10 +442,32 @@ impl<T> Sink for Sender<T> {
             // task
             *task = Some(task::park());
 
-            Ok(Async::NotReady)
+            Async::NotReady
         } else {
-            Ok(Async::Ready(()))
+            Async::Ready(())
         }
+    }
+}
+
+impl<T> Sink for Sender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
+
+    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+        // If the sender is currently blocked, reject the message before doing
+        // any work.
+        if !self.poll_unparked().is_ready() {
+            return Ok(AsyncSink::NotReady(msg));
+        }
+
+        // The channel has capacity to accept the message, so send it.
+        try!(self.do_send(Some(msg), true));
+
+        Ok(AsyncSink::Ready)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+        Ok(Async::Ready(()))
     }
 }
 
