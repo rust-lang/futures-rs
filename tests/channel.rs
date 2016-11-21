@@ -60,32 +60,6 @@ impl executor::Unpark for Unpark {
 }
 
 #[test]
-fn poll_future_then_drop() {
-    let (tx, _rx) = mpsc::channel::<u32>(1);
-
-    let tx = tx.send(1);
-    let mut t = executor::spawn(tx);
-
-    // First poll succeeds
-    let tx = match t.poll_future(Arc::new(Unpark)) {
-        Ok(Async::Ready(tx)) => tx,
-        _ => panic!(),
-    };
-
-    // Send another value
-    let tx = tx.send(2);
-    let mut t = executor::spawn(tx);
-
-    // Second poll doesn't
-    match t.poll_future(Arc::new(Unpark)) {
-        Ok(Async::NotReady) => {},
-        _ => panic!(),
-    };
-
-    drop(t);
-}
-
-#[test]
 fn drop_order() {
     static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
     let (tx, rx) = mpsc::channel(1);
