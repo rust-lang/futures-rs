@@ -81,7 +81,6 @@ use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
 mod queue;
 pub mod unbounded;
-pub mod unbounded_clone;
 
 /// The transmission end of a channel which is used to send values.
 ///
