@@ -130,26 +130,6 @@ fn mpsc_blocking_start_send() {
 }
 
 #[test]
-fn mpsc_blocking_send() {
-    let (mut tx, mut rx) = mpsc::channel::<i32>(1);
-
-    assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
-    let tx = tx.flush().wait().unwrap();
-
-    let flag = Flag::new();
-    let mut task = executor::spawn(tx.send(1));
-
-    assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
-    assert!(!flag.get());
-    sassert_next(&mut rx, 0);
-    assert!(flag.get());
-    flag.set(false);
-    assert!(task.poll_future(flag.clone()).unwrap().is_ready());
-    assert!(!flag.get());
-    sassert_next(&mut rx, 1);
-}
-
-#[test]
 // test `flush` by using `with` to make the first insertion into a sink block
 // until a oneshot is completed
 fn with_flush() {

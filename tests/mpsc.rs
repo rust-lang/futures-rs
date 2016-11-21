@@ -42,18 +42,12 @@ fn send_recv_no_buffer() {
         let res = tx.start_send(1).unwrap();
         assert!(is_ready(&res));
 
-        // assert!(!tx.poll_complete().is_ready());
-        assert!(!tx.poll_complete().unwrap().is_ready());
-
         // Send second message
         let res = tx.start_send(2).unwrap();
         assert!(!is_ready(&res));
 
         // Take the value
         assert_eq!(rx.poll().unwrap(), Async::Ready(Some(1)));
-
-        // assert!(!tx.poll_complete().is_ready());
-        assert!(tx.poll_complete().unwrap().is_ready());
 
         let res = tx.start_send(2).unwrap();
         assert!(is_ready(&res));
