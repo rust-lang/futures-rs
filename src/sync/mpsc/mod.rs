@@ -101,7 +101,6 @@ pub struct Sender<T> {
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `unbounded` method.
-#[derive(Clone)]
 pub struct UnboundedSender<T>(Sender<T>);
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -498,6 +497,13 @@ impl<T> Sink for UnboundedSender<T> {
         self.0.poll_complete()
     }
 }
+
+impl<T> Clone for UnboundedSender<T> {
+    fn clone(&self) -> UnboundedSender<T> {
+        UnboundedSender(self.0.clone())
+    }
+}
+
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
