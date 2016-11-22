@@ -1,13 +1,14 @@
 //! A lock-free stack which supports concurrent pushes and a concurrent call to
 //! drain the entire stack all at once.
 
+use std::prelude::v1::*;
+
 use std::sync::atomic::AtomicUsize;
 use std::mem;
 use std::marker;
 use std::sync::atomic::Ordering::SeqCst;
 
 use task::EventSet;
-
 
 pub struct Stack<T> {
     head: AtomicUsize,
@@ -85,9 +86,11 @@ impl<T> Drop for Drain<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Stack;
+    use std::prelude::v1::*;
     use std::rc::Rc;
     use std::cell::Cell;
+
+    use super::Stack;
 
     struct Set(Rc<Cell<usize>>, usize);
 
