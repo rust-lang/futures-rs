@@ -1,11 +1,9 @@
 extern crate futures;
 
-use std::sync::Arc;
 use std::sync::atomic::*;
 
-use futures::{Future, Async, Stream, Sink};
+use futures::{Future, Stream, Sink};
 use futures::future::result;
-use futures::executor;
 use futures::sync::mpsc;
 
 mod support;
@@ -50,13 +48,6 @@ fn drop_rx() {
     let tx = tx.send(1).wait().ok().unwrap();
     drop(rx);
     assert!(tx.send(1).wait().is_err());
-}
-
-struct Unpark;
-
-impl executor::Unpark for Unpark {
-    fn unpark(&self) {
-    }
 }
 
 #[test]
