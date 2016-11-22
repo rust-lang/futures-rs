@@ -64,11 +64,10 @@ pub fn join_all<I>(i: I) -> JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
-    let mut result = JoinAll { elems: Vec::new() };
-    for f in i.into_iter() {
-        result.elems.push(ElemState::Pending(f.into_future()))
-    }
-    result
+    let elems = i.into_iter().map(|f| {
+        ElemState::Pending(f.into_future())
+    }).collect();
+    JoinAll { elems: elems }
 }
 
 impl<I> Future for JoinAll<I>
@@ -100,6 +99,8 @@ impl<I> Future for JoinAll<I>
             match done_val {
                 Ok(v) => self.elems[idx] = ElemState::Done(v),
                 Err(e) => {
+                    // On completion drop all our associated resources
+                    // ASAP.
                     self.elems = Vec::new();
                     return Err(e)
                 }
@@ -107,14 +108,13 @@ impl<I> Future for JoinAll<I>
         }
 
         if all_done {
-            let mut result = Vec::new();
             let elems = mem::replace(&mut self.elems, Vec::new());
-            for e in elems.into_iter() {
+            let result = elems.into_iter().map(|e| {
                 match e {
-                    ElemState::Done(t) => result.push(t),
+                    ElemState::Done(t) => t,
                     _ => unreachable!(),
                 }
-            }
+            }).collect();
             Ok(Async::Ready(result))
         } else {
             Ok(Async::NotReady)
