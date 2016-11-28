@@ -507,33 +507,18 @@ impl<T> Clone for UnboundedSender<T> {
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
-        // Since this atomic op isn't actually guarding any memory and we don't
-        // care about any orderings besides the ordering on the single atomic
-        // variable, a relaxed ordering is acceptable.
-        let mut curr = self.inner.num_senders.load(Ordering::Relaxed);
+        let prev = self.inner.num_senders.fetch_add(1, SeqCst);
 
-        loop {
-            // If the maximum number of senders has been reached, then fail
-            if curr == self.inner.max_senders() {
-                panic!("cannot clone `Sender` -- too many outstanding senders");
-            }
+        // If the maximum number of senders has been reached, then fail
+        if prev >= self.inner.max_senders() {
+            assert!(self.inner.num_senders.fetch_sub(1, SeqCst) > 0);
+            panic!("cannot clone `Sender` -- too many outstanding senders");
+        }
 
-            debug_assert!(curr < self.inner.max_senders());
-
-            let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, Ordering::Relaxed);
-
-            // The ABA problem doesn't matter here. We only care that the
-            // number of senders never exceeds the maximum.
-            if actual == curr {
-                return Sender {
-                    inner: self.inner.clone(),
-                    sender_task: Arc::new(Mutex::new(None)),
-                    maybe_parked: false,
-                };
-            }
-
-            curr = actual;
+        Sender {
+            inner: self.inner.clone(),
+            sender_task: Arc::new(Mutex::new(None)),
+            maybe_parked: false,
         }
     }
 }
