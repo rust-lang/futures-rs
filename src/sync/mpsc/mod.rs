@@ -561,30 +561,40 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        // A relaxed memory ordering is acceptable given that toggling the
-        // flag is an isolated operation. If no further functions are
-        // called on `Receiver` then the outcome of this function doesn't
-        // really matter. If `poll` is called after this, then the the same
-        // cell will be operated on again with stronger ordering.
-        let mut curr = self.inner.state.load(Ordering::Relaxed);
+        let mut curr = self.inner.state.load(Ordering::SeqCst);
 
         loop {
             let mut state = decode_state(curr);
 
             if !state.is_open {
-                return;
+                break
             }
 
             state.is_open = false;
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::Relaxed);
+            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::SeqCst);
 
             if actual == curr {
-                return;
+                break
             }
 
             curr = actual;
+        }
+
+        // Wake up any threads waiting as they'll see that we've closed the
+        // channel and will continue on their merry way.
+        loop {
+            match unsafe { self.inner.parked_queue.pop() } {
+                PopResult::Data(task) => {
+                    let task = task.lock().unwrap().take();
+                    if let Some(task) = task {
+                        task.unpark();
+                    }
+                }
+                PopResult::Empty => break,
+                PopResult::Inconsistent => thread::yield_now(),
+            }
         }
     }
 
