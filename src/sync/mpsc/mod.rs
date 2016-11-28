@@ -70,7 +70,8 @@
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
@@ -334,7 +335,7 @@ impl<T> Sender<T> {
     // Increment the number of queued messages. Returns if the sender should
     // block.
     fn inc_num_messages(&self, close: bool) -> Option<bool> {
-        let mut curr = self.inner.state.load(Ordering::SeqCst);
+        let mut curr = self.inner.state.load(SeqCst);
 
         loop {
             let mut state = decode_state(curr);
@@ -358,20 +359,19 @@ impl<T> Sender<T> {
             }
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::SeqCst);
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => {
+                    // Block if the current number of pending messages has exceeded
+                    // the configured buffer size
+                    let park_self = match self.inner.buffer {
+                        Some(buffer) => state.num_messages > buffer,
+                        None => false,
+                    };
 
-            if curr == actual {
-                // Block if the current number of pending messages has exceeded
-                // the configured buffer size
-                let park_self = match self.inner.buffer {
-                    Some(buffer) => state.num_messages > buffer,
-                    None => false,
-                };
-
-                return Some(park_self);
+                    return Some(park_self)
+                }
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
     }
 
@@ -526,7 +526,7 @@ impl<T> Clone for Sender<T> {
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
         // Ordering between variables don't matter here
-        let prev = self.inner.num_senders.fetch_sub(1, Ordering::Relaxed);
+        let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
             let _ = self.do_send(None, false);
@@ -546,7 +546,7 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        let mut curr = self.inner.state.load(Ordering::SeqCst);
+        let mut curr = self.inner.state.load(SeqCst);
 
         loop {
             let mut state = decode_state(curr);
@@ -558,13 +558,10 @@ impl<T> Receiver<T> {
             state.is_open = false;
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::SeqCst);
-
-            if actual == curr {
-                break
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => break,
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
 
         // Wake up any threads waiting as they'll see that we've closed the
@@ -641,7 +638,7 @@ impl<T> Receiver<T> {
 
     // Try to park the receiver task
     fn try_park(&self) -> TryPark {
-        let curr = self.inner.state.load(Ordering::SeqCst);
+        let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
         // If the channel is closed, then there is no need to park.
@@ -663,7 +660,7 @@ impl<T> Receiver<T> {
     }
 
     fn dec_num_messages(&self) {
-        let mut curr = self.inner.state.load(Ordering::SeqCst);
+        let mut curr = self.inner.state.load(SeqCst);
 
         loop {
             let mut state = decode_state(curr);
@@ -671,13 +668,10 @@ impl<T> Receiver<T> {
             state.num_messages -= 1;
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::SeqCst);
-
-            if actual == curr {
-                return;
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => break,
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
     }
 }
