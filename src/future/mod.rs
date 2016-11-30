@@ -12,12 +12,14 @@ mod err_;
 mod lazy;
 #[path = "ok.rs"]
 mod ok_;
+mod poll_fn;
 #[path = "result.rs"]
 mod result_;
 pub use self::empty::{empty, Empty};
 pub use self::err_::{err, Err};
 pub use self::lazy::{lazy, Lazy};
 pub use self::ok_::{ok, Ok};
+pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result_::{result, FutureResult};
 
 #[doc(hidden)]
