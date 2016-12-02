@@ -71,7 +71,7 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt;
 use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::{SeqCst, Relaxed};
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
@@ -510,7 +510,7 @@ impl<T> Clone for Sender<T> {
         // Since this atomic op isn't actually guarding any memory and we don't
         // care about any orderings besides the ordering on the single atomic
         // variable, a relaxed ordering is acceptable.
-        let mut curr = self.inner.num_senders.load(Relaxed);
+        let mut curr = self.inner.num_senders.load(SeqCst);
 
         loop {
             // If the maximum number of senders has been reached, then fail
@@ -521,7 +521,7 @@ impl<T> Clone for Sender<T> {
             debug_assert!(curr < self.inner.max_senders());
 
             let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, Relaxed);
+            let actual = self.inner.num_senders.compare_and_swap(curr, next, SeqCst);
 
             // The ABA problem doesn't matter here. We only care that the
             // number of senders never exceeds the maximum.
@@ -541,7 +541,7 @@ impl<T> Clone for Sender<T> {
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
         // Ordering between variables don't matter here
-        let prev = self.inner.num_senders.fetch_sub(1, Relaxed);
+        let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
             let _ = self.do_send(None, false);
