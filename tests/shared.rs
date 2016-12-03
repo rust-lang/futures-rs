@@ -37,5 +37,5 @@ fn two_threads() {
 
 #[test]
 fn many_threads() {
-    send_shared_oneshot_and_wait_on_multiple_threads(10000);
+    send_shared_oneshot_and_wait_on_multiple_threads(1000);
 }
