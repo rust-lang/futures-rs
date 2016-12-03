@@ -7,6 +7,11 @@ use std::mem;
 
 use {Future, IntoFuture, Poll, Async};
 
+enum ElemState<T> where T: Future {
+    Pending(T),
+    Done(T::Item),
+}
+
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
 ///
@@ -16,15 +21,13 @@ pub struct JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
-    cur: Option<<I::Item as IntoFuture>::Future>,
-    remaining: I::IntoIter,
-    result: Vec<<I::Item as IntoFuture>::Item>,
+    elems: Vec<ElemState<<I::Item as IntoFuture>::Future>>,
 }
 
 /// Creates a future which represents a collection of the results of the futures
 /// given.
 ///
-/// The returned future will execute each underlying future one at a time,
+/// The returned future will drive execution for all of its underlying futures,
 /// collecting the results into a destination `Vec<T>`. If any future returns
 /// an error then all other futures will be canceled and an error will be
 /// returned immediately. If all futures complete successfully, however, then
@@ -61,12 +64,10 @@ pub fn join_all<I>(i: I) -> JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
-    let mut i = i.into_iter();
-    JoinAll {
-        cur: i.next().map(IntoFuture::into_future),
-        remaining: i,
-        result: Vec::new(),
-    }
+    let elems = i.into_iter().map(|f| {
+        ElemState::Pending(f.into_future())
+    }).collect();
+    JoinAll { elems: elems }
 }
 
 impl<I> Future for JoinAll<I>
@@ -78,33 +79,45 @@ impl<I> Future for JoinAll<I>
 
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        loop {
-            match self.cur {
-                Some(ref mut cur) => {
-                    match cur.poll() {
-                        Ok(Async::Ready(e)) => self.result.push(e),
-                        Ok(Async::NotReady) => return Ok(Async::NotReady),
+        let mut all_done = true;
 
-                        // If we hit an error, drop all our associated resources
-                        // ASAP.
-                        Err(e) => {
-                            for f in self.remaining.by_ref() {
-                                drop(f);
-                            }
-                            for f in self.result.drain(..) {
-                                drop(f);
-                            }
-                            return Err(e)
+        for idx in 0 .. self.elems.len() {
+            let done_val = match &mut self.elems[idx] {
+                &mut ElemState::Pending(ref mut t) => {
+                    match t.poll() {
+                        Ok(Async::Ready(v)) => Ok(v),
+                        Ok(Async::NotReady) => {
+                            all_done = false;
+                            continue
                         }
+                        Err(e) => Err(e),
                     }
                 }
-                None => {
-                    return Ok(Async::Ready(mem::replace(&mut self.result, Vec::new())))
+                &mut ElemState::Done(ref mut _v) => continue,
+            };
+
+            match done_val {
+                Ok(v) => self.elems[idx] = ElemState::Done(v),
+                Err(e) => {
+                    // On completion drop all our associated resources
+                    // ASAP.
+                    self.elems = Vec::new();
+                    return Err(e)
                 }
             }
+        }
 
-            self.cur = self.remaining.next()
-                           .map(IntoFuture::into_future);
+        if all_done {
+            let elems = mem::replace(&mut self.elems, Vec::new());
+            let result = elems.into_iter().map(|e| {
+                match e {
+                    ElemState::Done(t) => t,
+                    _ => unreachable!(),
+                }
+            }).collect();
+            Ok(Async::Ready(result))
+        } else {
+            Ok(Async::NotReady)
         }
     }
 }

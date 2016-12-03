@@ -12,12 +12,14 @@ mod err_;
 mod lazy;
 #[path = "ok.rs"]
 mod ok_;
+mod poll_fn;
 #[path = "result.rs"]
 mod result_;
 pub use self::empty::{empty, Empty};
 pub use self::err_::{err, Err};
 pub use self::lazy::{lazy, Lazy};
 pub use self::ok_::{ok, Ok};
+pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result_::{result, FutureResult};
 
 #[doc(hidden)]
@@ -783,4 +785,19 @@ impl<T, E> IntoFuture for result::Result<T, E> {
     fn into_future(self) -> FutureResult<T, E> {
         result(self)
     }
+}
+
+/// Asynchronous conversion from a type `T`.
+///
+/// This trait is analogous to `std::convert::From`, adapted to asynchronous
+/// computation.
+pub trait FutureFrom<T>: Sized {
+    /// The future for the conversion.
+    type Future: Future<Item=Self, Error=Self::Error>;
+
+    /// Possible errors during conversion.
+    type Error;
+
+    /// Consume the given value, beginning the conversion.
+    fn future_from(T) -> Self::Future;
 }

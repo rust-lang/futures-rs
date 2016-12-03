@@ -45,14 +45,15 @@ fn send() {
 fn send_all() {
     let v = Vec::new();
 
-    let v = v.send_all(stream::iter(vec![Ok(0), Ok(1)])).wait().unwrap();
+    let (v, _) = v.send_all(stream::iter(vec![Ok(0), Ok(1)])).wait().unwrap();
     assert_eq!(v, vec![0, 1]);
 
-    let v = v.send_all(stream::iter(vec![Ok(2), Ok(3)])).wait().unwrap();
+    let (v, _) = v.send_all(stream::iter(vec![Ok(2), Ok(3)])).wait().unwrap();
     assert_eq!(v, vec![0, 1, 2, 3]);
 
-    assert_done(move || v.send_all(stream::iter(vec![Ok(4), Ok(5)])),
-                Ok(vec![0, 1, 2, 3, 4, 5]));
+    assert_done(
+        move || v.send_all(stream::iter(vec![Ok(4), Ok(5)])).map(|(v, _)| v),
+        Ok(vec![0, 1, 2, 3, 4, 5]));
 }
 
 // An Unpark struct that records unpark events for inspection
@@ -126,26 +127,6 @@ fn mpsc_blocking_start_send() {
 
         Ok::<(), ()>(())
     }).wait().unwrap();
-}
-
-#[test]
-fn mpsc_blocking_send() {
-    let (mut tx, mut rx) = mpsc::channel::<i32>(1);
-
-    assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
-    let tx = tx.flush().wait().unwrap();
-
-    let flag = Flag::new();
-    let mut task = executor::spawn(tx.send(1));
-
-    assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
-    assert!(!flag.get());
-    sassert_next(&mut rx, 0);
-    assert!(flag.get());
-    flag.set(false);
-    assert!(task.poll_future(flag.clone()).unwrap().is_ready());
-    assert!(!flag.get());
-    sassert_next(&mut rx, 1);
 }
 
 #[test]

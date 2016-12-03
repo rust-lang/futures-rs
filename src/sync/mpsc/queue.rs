@@ -42,6 +42,7 @@
 //       slightly modified
 
 pub use self::PopResult::*;
+use std::prelude::v1::*;
 
 use std::cell::UnsafeCell;
 use std::ptr;

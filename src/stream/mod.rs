@@ -38,6 +38,7 @@ mod take;
 mod then;
 mod unfold;
 mod zip;
+mod forward;
 pub use self::and_then::AndThen;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
@@ -60,6 +61,8 @@ pub use self::take::Take;
 pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
+pub use self::forward::Forward;
+use sink::{Sink};
 
 if_std! {
     use std;
@@ -71,12 +74,14 @@ if_std! {
     mod collect;
     mod wait;
     mod channel;
+    mod split;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
+    pub use self::split::{SplitStream, SplitSink};
 
     #[doc(hidden)]
     #[cfg(feature = "with-deprecated")]
@@ -788,6 +793,34 @@ pub trait Stream {
               Self: Sized,
     {
         select::new(self, other)
+    }
+
+    /// A future that completes after the given stream has been fully processed
+    /// into the sink, including flushing.
+    ///
+    /// This future will drive the stream to keep producing items until it is
+    /// exhausted, sending each item to the sink. It will complete once both the
+    /// stream is exhausted, and the sink has fully processed and flushed all of
+    /// the items sent to it.
+    ///
+    /// On completion, the pair (stream, sink) is returned.
+    fn forward<S>(self, sink: S) -> Forward<Self, S>
+        where S: Sink<SinkItem = Self::Item>,
+              Self::Error: From<S::SinkError>,
+              Self: Sized
+    {
+        forward::new(self, sink)
+    }
+
+    /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
+    /// objects, which can be useful when you want to split ownership between
+    /// tasks, or allow direct interaction between the two objects (e.g. via
+    /// `Sink::send_all`).
+    #[cfg(feature = "use_std")]
+    fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
+        where Self: super::sink::Sink + Sized
+    {
+        split::split(self)
     }
 }
 

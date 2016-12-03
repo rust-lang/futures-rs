@@ -6,10 +6,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use {Async, Future, Poll, StartSend, AsyncSink};
+use {Async, Future, Poll};
 use task::{self, Task};
-use stream::Stream;
-use sink::Sink;
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.
@@ -241,37 +239,5 @@ impl<T> DerefMut for BiLockAcquired<T> {
 impl<T> Drop for BiLockAcquired<T> {
     fn drop(&mut self) {
         self.inner.unlock();
-    }
-}
-
-impl<T: Stream> Stream for BiLock<T> {
-    type Item = T::Item;
-    type Error = T::Error;
-
-    fn poll(&mut self) -> Poll<Option<T::Item>, T::Error> {
-        match self.poll_lock() {
-            Async::Ready(mut inner) => inner.poll(),
-            Async::NotReady => Ok(Async::NotReady),
-        }
-    }
-}
-
-impl<T: Sink> Sink for BiLock<T> {
-    type SinkItem = T::SinkItem;
-    type SinkError = T::SinkError;
-
-    fn start_send(&mut self, item: T::SinkItem)
-                  -> StartSend<T::SinkItem, T::SinkError> {
-        match self.poll_lock() {
-            Async::Ready(mut inner) => inner.start_send(item),
-            Async::NotReady => Ok(AsyncSink::NotReady(item)),
-        }
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), T::SinkError> {
-        match self.poll_lock() {
-            Async::Ready(mut inner) => inner.poll_complete(),
-            Async::NotReady => Ok(Async::NotReady),
-        }
     }
 }

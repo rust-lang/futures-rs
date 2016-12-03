@@ -70,7 +70,8 @@
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
@@ -101,7 +102,6 @@ pub struct Sender<T> {
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `unbounded` method.
-#[derive(Clone)]
 pub struct UnboundedSender<T>(Sender<T>);
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -335,7 +335,7 @@ impl<T> Sender<T> {
     // Increment the number of queued messages. Returns if the sender should
     // block.
     fn inc_num_messages(&self, close: bool) -> Option<bool> {
-        let mut curr = self.inner.state.load(Ordering::SeqCst);
+        let mut curr = self.inner.state.load(SeqCst);
 
         loop {
             let mut state = decode_state(curr);
@@ -359,20 +359,19 @@ impl<T> Sender<T> {
             }
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::SeqCst);
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => {
+                    // Block if the current number of pending messages has exceeded
+                    // the configured buffer size
+                    let park_self = match self.inner.buffer {
+                        Some(buffer) => state.num_messages > buffer,
+                        None => false,
+                    };
 
-            if curr == actual {
-                // Block if the current number of pending messages has exceeded
-                // the configured buffer size
-                let park_self = match self.inner.buffer {
-                    Some(buffer) => state.num_messages > buffer,
-                    None => false,
-                };
-
-                return Some(park_self);
+                    return Some(park_self)
+                }
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
     }
 
@@ -421,26 +420,8 @@ impl<T> Sender<T> {
         let t = self.sender_task.clone();
         self.inner.parked_queue.push(t);
     }
-}
 
-impl<T> Sink for Sender<T> {
-    type SinkItem = T;
-    type SinkError = SendError<T>;
-
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        // If the sender is currently blocked, reject the message before doing
-        // any work.
-        if !self.poll_complete().unwrap().is_ready() {
-            return Ok(AsyncSink::NotReady(msg));
-        }
-
-        // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg), true));
-
-        Ok(AsyncSink::Ready)
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_unparked(&mut self) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -449,7 +430,7 @@ impl<T> Sink for Sender<T> {
 
             if task.is_none() {
                 self.maybe_parked = false;
-                return Ok(Async::Ready(()));
+                return Async::Ready(())
             }
 
             // At this point, an unpark request is pending, so there will be an
@@ -460,10 +441,32 @@ impl<T> Sink for Sender<T> {
             // task
             *task = Some(task::park());
 
-            Ok(Async::NotReady)
+            Async::NotReady
         } else {
-            Ok(Async::Ready(()))
+            Async::Ready(())
         }
+    }
+}
+
+impl<T> Sink for Sender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
+
+    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+        // If the sender is currently blocked, reject the message before doing
+        // any work.
+        if !self.poll_unparked().is_ready() {
+            return Ok(AsyncSink::NotReady(msg));
+        }
+
+        // The channel has capacity to accept the message, so send it.
+        try!(self.do_send(Some(msg), true));
+
+        Ok(AsyncSink::Ready)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+        Ok(Async::Ready(()))
     }
 }
 
@@ -495,12 +498,19 @@ impl<T> Sink for UnboundedSender<T> {
     }
 }
 
+impl<T> Clone for UnboundedSender<T> {
+    fn clone(&self) -> UnboundedSender<T> {
+        UnboundedSender(self.0.clone())
+    }
+}
+
+
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
         // Since this atomic op isn't actually guarding any memory and we don't
         // care about any orderings besides the ordering on the single atomic
         // variable, a relaxed ordering is acceptable.
-        let mut curr = self.inner.num_senders.load(Ordering::Relaxed);
+        let mut curr = self.inner.num_senders.load(SeqCst);
 
         loop {
             // If the maximum number of senders has been reached, then fail
@@ -511,7 +521,7 @@ impl<T> Clone for Sender<T> {
             debug_assert!(curr < self.inner.max_senders());
 
             let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, Ordering::Relaxed);
+            let actual = self.inner.num_senders.compare_and_swap(curr, next, SeqCst);
 
             // The ABA problem doesn't matter here. We only care that the
             // number of senders never exceeds the maximum.
@@ -531,7 +541,7 @@ impl<T> Clone for Sender<T> {
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
         // Ordering between variables don't matter here
-        let prev = self.inner.num_senders.fetch_sub(1, Ordering::Relaxed);
+        let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
             let _ = self.do_send(None, false);
@@ -551,30 +561,37 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        // A relaxed memory ordering is acceptable given that toggling the
-        // flag is an isolated operation. If no further functions are
-        // called on `Receiver` then the outcome of this function doesn't
-        // really matter. If `poll` is called after this, then the the same
-        // cell will be operated on again with stronger ordering.
-        let mut curr = self.inner.state.load(Ordering::Relaxed);
+        let mut curr = self.inner.state.load(SeqCst);
 
         loop {
             let mut state = decode_state(curr);
 
             if !state.is_open {
-                return;
+                break
             }
 
             state.is_open = false;
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::Relaxed);
-
-            if actual == curr {
-                return;
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => break,
+                Err(actual) => curr = actual,
             }
+        }
 
-            curr = actual;
+        // Wake up any threads waiting as they'll see that we've closed the
+        // channel and will continue on their merry way.
+        loop {
+            match unsafe { self.inner.parked_queue.pop() } {
+                PopResult::Data(task) => {
+                    let task = task.lock().unwrap().take();
+                    if let Some(task) = task {
+                        task.unpark();
+                    }
+                }
+                PopResult::Empty => break,
+                PopResult::Inconsistent => thread::yield_now(),
+            }
         }
     }
 
@@ -636,7 +653,7 @@ impl<T> Receiver<T> {
 
     // Try to park the receiver task
     fn try_park(&self) -> TryPark {
-        let curr = self.inner.state.load(Ordering::SeqCst);
+        let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
         // If the channel is closed, then there is no need to park.
@@ -658,7 +675,7 @@ impl<T> Receiver<T> {
     }
 
     fn dec_num_messages(&self) {
-        let mut curr = self.inner.state.load(Ordering::SeqCst);
+        let mut curr = self.inner.state.load(SeqCst);
 
         loop {
             let mut state = decode_state(curr);
@@ -666,13 +683,10 @@ impl<T> Receiver<T> {
             state.num_messages -= 1;
 
             let next = encode_state(&state);
-            let actual = self.inner.state.compare_and_swap(curr, next, Ordering::SeqCst);
-
-            if actual == curr {
-                return;
+            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => break,
+                Err(actual) => curr = actual,
             }
-
-            curr = actual;
         }
     }
 }

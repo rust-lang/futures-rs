@@ -302,3 +302,16 @@ fn select() {
     let b = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
     assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
 }
+
+#[test]
+fn forward() {
+    let v = Vec::new();
+    let v = iter(vec![Ok::<_, ()>(0), Ok(1)]).forward(v).wait().unwrap().1;
+    assert_eq!(v, vec![0, 1]);
+
+    let v = iter(vec![Ok::<_, ()>(2), Ok(3)]).forward(v).wait().unwrap().1;
+    assert_eq!(v, vec![0, 1, 2, 3]);
+
+    assert_done(move || iter(vec![Ok(4), Ok(5)]).forward(v).map(|(_, s)| s),
+                Ok::<_, ()>(vec![0, 1, 2, 3, 4, 5]));
+}

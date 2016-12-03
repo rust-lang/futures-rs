@@ -1,11 +1,9 @@
 extern crate futures;
 
-use std::sync::Arc;
 use std::sync::atomic::*;
 
-use futures::{Future, Async, Stream, Sink};
+use futures::{Future, Stream, Sink};
 use futures::future::result;
-use futures::executor;
 use futures::sync::mpsc;
 
 mod support;
@@ -50,39 +48,6 @@ fn drop_rx() {
     let tx = tx.send(1).wait().ok().unwrap();
     drop(rx);
     assert!(tx.send(1).wait().is_err());
-}
-
-struct Unpark;
-
-impl executor::Unpark for Unpark {
-    fn unpark(&self) {
-    }
-}
-
-#[test]
-fn poll_future_then_drop() {
-    let (tx, _rx) = mpsc::channel::<u32>(1);
-
-    let tx = tx.send(1);
-    let mut t = executor::spawn(tx);
-
-    // First poll succeeds
-    let tx = match t.poll_future(Arc::new(Unpark)) {
-        Ok(Async::Ready(tx)) => tx,
-        _ => panic!(),
-    };
-
-    // Send another value
-    let tx = tx.send(2);
-    let mut t = executor::spawn(tx);
-
-    // Second poll doesn't
-    match t.poll_future(Arc::new(Unpark)) {
-        Ok(Async::NotReady) => {},
-        _ => panic!(),
-    };
-
-    drop(t);
 }
 
 #[test]
