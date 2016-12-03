@@ -407,7 +407,7 @@ impl<T> Spawn<T> {
 /// `Spawn::poll_stream` functions. It's transitively used as part of the
 /// `Task::unpark` method to internally deliver notifications of readiness of a
 /// future to move forward.
-pub trait Unpark: Send + Sync + 'static {
+pub trait Unpark: Send + Sync {
     /// Indicates that an associated future and/or task are ready to make
     /// progress.
     ///
