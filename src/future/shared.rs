@@ -2,6 +2,7 @@
 //! and can be polled in multiple threads.
 
 use std::mem;
+use std::vec::Vec;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
@@ -9,6 +10,67 @@ use std::ops::Deref;
 use {Future, Poll, Async};
 use task::{self, Task};
 use lock::Lock;
+
+
+/// Trait that adds the `shared` method to every `Future`.
+///
+/// # Examples
+///
+/// ```
+/// use futures::future::*;
+///
+/// let future = ok::<_, bool>(6);
+/// let shared1 = future.shared();
+/// let shared2 = shared1.clone();
+/// assert_eq!(6, *shared1.wait().unwrap());
+/// assert_eq!(6, *shared2.wait().unwrap());
+/// ```
+pub trait IntoShared {
+    /// Convert this future into `Shared` future.
+    ///
+    /// The shared() method provides a mean to convert any future into a cloneable future.
+    /// It enables a future to be polled by multiple threads.
+    ///
+    /// `Shared` contains finishes with `SharedItem<T>` where T is the original future item,
+    /// or with `SharedError<E>` where E is the original future item.
+    /// Both `SharedItem` and `SharedError` implements `Deref`,
+    /// so only a deref is required in order to access the item/error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<_, bool>(6);
+    /// let shared1 = future.shared();
+    /// let shared2 = shared1.clone();
+    /// assert_eq!(6, *shared1.wait().unwrap());
+    /// assert_eq!(6, *shared2.wait().unwrap());
+    /// ```
+    ///
+    /// ```
+    /// use std::thread;
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<_, bool>(6);
+    /// let shared1 = future.shared();
+    /// let shared2 = shared1.clone();
+    /// let join_handle = thread::spawn(move || {
+    ///     assert_eq!(6, *shared2.wait().unwrap());
+    /// });
+    /// assert_eq!(6, *shared1.wait().unwrap());
+    /// join_handle.join().unwrap();
+    /// ```
+    fn shared(self) -> Shared<Self> where Self: Future + Sized;
+}
+
+impl<T> IntoShared for T
+    where T: Future + Sized
+{
+    fn shared(self) -> Shared<Self> {
+        Shared::new(self)
+    }
+}
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use Future::shared() method to convert any future into a `Shared` future.
@@ -41,6 +103,17 @@ enum State<T, E> {
 impl<F> Shared<F>
     where F: Future
 {
+    /// Creates a new `Shared` from another future.
+    pub fn new(future: F) -> Self {
+        Shared {
+            inner: Arc::new(Inner {
+                original_future: Lock::new(future),
+                result_ready: AtomicBool::new(false),
+                state: RwLock::new(State::Waiting(vec![])),
+            }),
+        }
+    }
+
     /// Converts a result as it's stored in `State::Done` into `Poll`.
     fn result_to_polled_result(result: Result<SharedItem<F::Item>, SharedError<F::Error>>)
                                -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
@@ -77,18 +150,6 @@ impl<F> Shared<F>
         }
 
         Self::result_to_polled_result(result)
-    }
-}
-
-pub fn new<F>(future: F) -> Shared<F>
-    where F: Future
-{
-    Shared {
-        inner: Arc::new(Inner {
-            original_future: Lock::new(future),
-            result_ready: AtomicBool::new(false),
-            state: RwLock::new(State::Waiting(vec![])),
-        }),
     }
 }
 
