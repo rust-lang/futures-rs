@@ -71,17 +71,16 @@ impl<T, U> Future for SendAll<T, U>
         }
 
         loop {
-            try!(self.sink_mut().poll_complete());
-
-            if let Some(item) = try_ready!(self.stream_mut().poll()) {
-                try_ready!(self.try_start_send(item))
-            } else {
-                // we're done pushing the stream, but want to block on flushing the
-                // sink
-                try_ready!(self.sink_mut().poll_complete());
-
-                // now everything's emptied, so return the sink for further use
-                return Ok(Async::Ready(self.take_result()))
+            match try!(self.stream_mut().poll()) {
+                Async::Ready(Some(item)) => try_ready!(self.try_start_send(item)),
+                Async::Ready(None) => {
+                    try_ready!(self.sink_mut().poll_complete());
+                    return Ok(Async::Ready(self.take_result()))
+                }
+                Async::NotReady => {
+                    try_ready!(self.sink_mut().poll_complete());
+                    return Ok(Async::NotReady)
+                }
             }
         }
     }
