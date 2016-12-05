@@ -18,7 +18,7 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures = "0.1.2"
+futures = "0.1.6"
 ```
 
 Next, add this to your crate:
@@ -85,13 +85,13 @@ there are a wide variety of helpful combinators associated with this trait which
 are also zero-allocation and serve as a succinct and powerful way to compose
 computations on futures.
 
-[Future]: https://docs.rs/futures/*/futures/trait.Future.html
+[Future]: https://docs.rs/futures/*/futures/future/trait.Future.html
 
 The `Future` trait is driven by one method, [`poll`][poll], which allows
 pulling values out of a future and also getting notified when a future is
 complete. More documentation can be found on the associated method.
 
-[poll]: https://docs.rs/futures/*/futures/trait.Future.html#tymethod.pollod.poll
+[poll]: https://docs.rs/futures/*/futures/future/trait.Future.html#tymethod.pollod.poll
 
 More information can be found in [the tutorial][tutorial-future-trait]
 
