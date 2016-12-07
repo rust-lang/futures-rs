@@ -35,22 +35,22 @@ impl<T> Async<T> {
         where F: FnOnce(T) -> U
     {
         match self {
-            Async::NotReady => Async::NotReady,
             Async::Ready(t) => Async::Ready(f(t)),
-        }
-    }
-
-    /// Returns whether this is `Async::NotReady`
-    pub fn is_not_ready(&self) -> bool {
-        match *self {
-            Async::NotReady => true,
-            Async::Ready(_) => false,
+            Async::NotReady => Async::NotReady,
         }
     }
 
     /// Returns whether this is `Async::Ready`
     pub fn is_ready(&self) -> bool {
-        !self.is_not_ready()
+        match *self {
+            Async::Ready(_) => true,
+            Async::NotReady => false,
+        }
+    }
+
+    /// Returns whether this is `Async::NotReady`
+    pub fn is_not_ready(&self) -> bool {
+        !self.is_ready()
     }
 }
 
@@ -75,17 +75,17 @@ pub enum AsyncSink<T> {
 }
 
 impl<T> AsyncSink<T> {
-    /// Returns whether this is `AsyncSink::NotReady`
-    pub fn is_not_ready(&self) -> bool {
+    /// Returns whether this is `AsyncSink::Ready`
+    pub fn is_ready(&self) -> bool {
         match *self {
-            AsyncSink::NotReady(_) => true,
-            AsyncSink::Ready => false,
+            AsyncSink::Ready => true,
+            AsyncSink::NotReady(_) => false,
         }
     }
 
-    /// Returns whether this is `AsyncSink::Ready`
-    pub fn is_ready(&self) -> bool {
-        !self.is_not_ready()
+    /// Returns whether this is `AsyncSink::NotReady`
+    pub fn is_not_ready(&self) -> bool {
+        !self.is_ready()
     }
 }
 
