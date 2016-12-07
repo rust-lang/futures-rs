@@ -11,10 +11,12 @@ mod lazy;
 mod poll_fn;
 #[path = "result.rs"]
 mod result_;
+mod tail_fn;
 pub use self::empty::{empty, Empty};
 pub use self::lazy::{lazy, Lazy};
 pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result_::{result, ok, err, FutureResult};
+pub use self::tail_fn::{tail_fn, Tail, TailFn};
 
 #[doc(hidden)]
 #[deprecated(since = "0.1.4", note = "use `ok` instead")]
