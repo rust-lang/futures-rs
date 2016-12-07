@@ -75,17 +75,17 @@ pub enum AsyncSink<T> {
 }
 
 impl<T> AsyncSink<T> {
-    /// Returns whether this is `AsyncSink::NotReady`
-    pub fn is_not_ready(&self) -> bool {
+    /// Returns whether this is `AsyncSink::Ready`
+    pub fn is_ready(&self) -> bool {
         match *self {
-            AsyncSink::NotReady(_) => true,
-            AsyncSink::Ready => false,
+            AsyncSink::Ready => true,
+            AsyncSink::NotReady(_) => false,
         }
     }
 
-    /// Returns whether this is `AsyncSink::Ready`
-    pub fn is_ready(&self) -> bool {
-        !self.is_not_ready()
+    /// Returns whether this is `AsyncSink::NotReady`
+    pub fn is_not_ready(&self) -> bool {
+        !self.is_ready()
     }
 }
 
