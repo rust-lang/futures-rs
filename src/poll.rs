@@ -35,8 +35,8 @@ impl<T> Async<T> {
         where F: FnOnce(T) -> U
     {
         match self {
-            Async::NotReady => Async::NotReady,
             Async::Ready(t) => Async::Ready(f(t)),
+            Async::NotReady => Async::NotReady,
         }
     }
 
