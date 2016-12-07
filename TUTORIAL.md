@@ -68,8 +68,8 @@ Here we're adding a dependency on three crates:
 [`mio`]: https://crates.io/crates/mio
 [`tokio-core`]: https://github.com/tokio-rs/tokio-core
 [`tokio-tls`]: https://github.com/tokio-rs/tokio-tls
-[`Future`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html
-[`Stream`]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html
+[`Future`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html
+[`Stream`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html
 [Tokio]: https://github.com/tokio-rs/tokio
 
 The [`futures`] crate itself is a low-level implementation of futures which does
@@ -176,7 +176,7 @@ takes a closure which receives the resolved value of this previous future. In
 this case `socket` will have type [`TcpStream`]. The [`and_then`] closure,
 however, will not run if [`TcpStream::connect`] returned an error.
 
-[`and_then`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.and_then
+[`and_then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.and_then
 [`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpStream.html
 
 Once we have our `socket`, we create a client TLS context via
@@ -357,7 +357,7 @@ method directly. Rather, you interact with futures through [combinators] that
 create higher-level abstractions around futures. But it's useful to our
 understanding if we have a sense of how futures work under the hood.
 
-[`poll`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#tymethod.poll
+[`poll`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#tymethod.poll
 
 Let's take a closer look at [`poll`]. Notice the `&mut self` argument, which
 conveys a number of restrictions and abilities:
@@ -368,7 +368,7 @@ conveys a number of restrictions and abilities:
 
 Next we see that [`Poll`][poll-type] is actually a type alias:
 
-[poll-type]: https://docs.rs/futures/0.1.6/futures/type.Poll.html
+[poll-type]: https://docs.rs/futures/0.1/futures/type.Poll.html
 
 ```rust
 type Poll<T, E> = Result<Async<T>, E>;
@@ -383,7 +383,7 @@ pub enum Async<T> {
 }
 ```
 
-[`Async`]: https://docs.rs/futures/0.1.6/futures/enum.Async.html
+[`Async`]: https://docs.rs/futures/0.1/futures/enum.Async.html
 
 Through this `enum` futures can communicate whether the future's value is ready
 to go. If an error ever happens, then `Err` is returned immediately. Otherwise,
@@ -409,9 +409,9 @@ entry point. This function returns a threadsafe [`Task`] handle with one
 primary method, [`unpark`]. The `unpark` method, when called, indicates that a
 future can make progress, and may be able to resolve to a value.
 
-[`Task`]: https://docs.rs/futures/0.1.6/futures/task/struct.Task.html
-[`unpark`]: https://docs.rs/futures/0.1.6/futures/task/struct.Task.html#method.unpark
-[`park`]: https://docs.rs/futures/0.1.6/futures/task/fn.park.html
+[`Task`]: https://docs.rs/futures/0.1/futures/task/struct.Task.html
+[`unpark`]: https://docs.rs/futures/0.1/futures/task/struct.Task.html#method.unpark
+[`park`]: https://docs.rs/futures/0.1/futures/task/fn.park.html
 
 More detailed documentation can be found on the [`poll`] methods itself.
 
@@ -455,14 +455,14 @@ The combinators on futures allow expressing concepts like:
 
 [`Iterator`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 [`Box`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
-[`map`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.map
-[`map_err`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.map_err
-[`then`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.then
-[`and_then`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.and_then
-[`or_else`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.or_else
-[`select`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.select
-[`join`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.join
-[`fuse`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.fuse
+[`map`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.map
+[`map_err`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.map_err
+[`then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.then
+[`and_then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.and_then
+[`or_else`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.or_else
+[`select`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.select
+[`join`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.join
+[`fuse`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.fuse
 
 Usage of the combinators should feel very similar to the [`Iterator`] trait in
 Rust or [futures in Scala][scala-futures]. Most composition of futures ends up
@@ -506,7 +506,7 @@ You'll notice that the [`Stream`] trait is very similar to the [`Future`]
 trait. The primary difference is that a stream's [`poll`][stream-poll] method
 returns `Option<Self::Item>` instead of `Self::Item`.
 
-[stream-poll]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#tymethod.poll
+[stream-poll]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#tymethod.poll
 
 A [`Stream`] produces optionally many values over time, signaling termination of
 the stream by returning `Ready(None)`. At its heart a [`Stream`] represents
@@ -518,17 +518,17 @@ future][`StreamFuture`] will resolve to the next value on the stream plus the
 stream itself, allowing more values to later be extracted. This also allows
 composing streams and other arbitrary futures with the core future combinators.
 
-[`into_future`]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.into_future
-[`StreamFuture`]: https://docs.rs/futures/0.1.6/futures/stream/struct.StreamFuture.html
+[`into_future`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.into_future
+[`StreamFuture`]: https://docs.rs/futures/0.1/futures/stream/struct.StreamFuture.html
 
 Like [`Future`], the [`Stream`] trait provides a large number of combinators.
 Many future-like combinators are provided, like [`then`][stream-then], in
 addition to stream-specific combinators like [`fold`].
 
-[stream-then]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.then
-[stream-map]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.map
-[`fold`]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.fold
-[`collect`]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.collect
+[stream-then]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.then
+[stream-map]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.map
+[`fold`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.fold
+[`collect`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.collect
 
 ### `Stream` Example
 [stream-example]: #stream-example
@@ -632,7 +632,7 @@ computation for each element of the stream (in this case a `TcpStream`). The
 computation is the same [`write_all`] we saw earlier, where it'll write the
 entire buffer to the socket provided.
 
-[stream-and-then]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.and_then
+[stream-and-then]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.and_then
 
 This block means that `welcomes` is now a stream of sockets which have had
 "Hello!" written to them. For our purposes we're done with the connection at
@@ -648,7 +648,7 @@ welcomes.for_each(|(_socket, _welcome)| {
 Here we take the results of the previous future, [`write_all`], and discard
 them, closing the socket.
 
-[`for_each`]: https://docs.rs/futures/0.1.6/futures/stream/trait.Stream.html#method.for_each
+[`for_each`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html#method.for_each
 
 Note that an important limitation of this server is that there is *no concurrency*!
 Streams represent in-order processing of data, and in this case the order of the
@@ -701,21 +701,21 @@ ready. For this, the [`done`], [`failed`], and [`finished`] functions suffice. T
 The [`failed`] and [`finished`] variants then specify either `T` or `E` and
 leave the other associated type as a wildcard.
 
-[`done`]: https://docs.rs/futures/0.1.6/futures/fn.done.html
-[`finished`]: https://docs.rs/futures/0.1.6/futures/fn.finished.html
-[`failed`]: https://docs.rs/futures/0.1.6/futures/fn.failed.html
+[`done`]: https://docs.rs/futures/0.1/futures/fn.done.html
+[`finished`]: https://docs.rs/futures/0.1/futures/fn.finished.html
+[`failed`]: https://docs.rs/futures/0.1/futures/fn.failed.html
 
 For streams, the equivalent of an "immediately ready" stream is the [`iter`]
 function which creates a stream that yields the same items as the underlying
 iterator.
 
-[`iter`]: https://docs.rs/futures/0.1.6/futures/stream/fn.iter.html
+[`iter`]: https://docs.rs/futures/0.1/futures/stream/fn.iter.html
 
 In situations though where a value isn't immediately ready, there are also
 more general implementations of [`Future`] and [`Stream`] that are available in
 the [`futures`] crate, the first of which is [`oneshot`]. Let's take a look:
 
-[`oneshot`]: https://docs.rs/futures/0.1.6/futures/sync/fn.oneshot.html
+[`oneshot`]: https://docs.rs/futures/0.1/futures/sync/fn.oneshot.html
 
 ```rust
 extern crate futures;
@@ -751,10 +751,10 @@ of the oneshot.  The `Error` type is [`Canceled`], which happens when the
 [`Complete`] half is dropped without completing the computation.
 
 [`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
-[`Complete`]: https://docs.rs/futures/0.1.6/futures/struct.Complete.html
-[`Complete::complete`]: https://docs.rs/futures/0.1.6/futures/struct.Complete.html#method.complete
-[oneshot-type]: https://docs.rs/futures/0.1.6/futures/struct.Oneshot.html
-[`Canceled`]: https://docs.rs/futures/0.1.6/futures/struct.Canceled.html
+[`Complete`]: https://docs.rs/futures/0.1/futures/struct.Complete.html
+[`Complete::complete`]: https://docs.rs/futures/0.1/futures/struct.Complete.html#method.complete
+[oneshot-type]: https://docs.rs/futures/0.1/futures/struct.Oneshot.html
+[`Canceled`]: https://docs.rs/futures/0.1/futures/struct.Canceled.html
 
 This concrete implementation of `Future` can be used (as shown here) to
 communicate values across threads. Each half implements the `Send` trait and is
@@ -772,8 +772,8 @@ returning a future that will resolve to the original sender only once the sent
 value is consumed. This creates backpressure so that a producer won't be able to
 make progress until the consumer has caught up.
 
-[`channel`]: https://docs.rs/futures/0.1.6/futures/stream/fn.channel.html
-[`Sender`]: https://docs.rs/futures/0.1.6/futures/stream/struct.Sender.html
+[`channel`]: https://docs.rs/futures/0.1/futures/stream/fn.channel.html
+[`Sender`]: https://docs.rs/futures/0.1/futures/stream/struct.Sender.html
 
 ---
 
@@ -827,7 +827,7 @@ generally introduce allocations), it's only at the fringe that a `Box` comes
 into effect.
 
 [trait object]: https://doc.rust-lang.org/book/trait-objects.html
-[`boxed`]: https://docs.rs/futures/0.1.6/futures/future/trait.Future.html#method.boxed
+[`boxed`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.boxed
 
 ### Custom types
 [return-custom-types]: #custom-types
@@ -894,7 +894,7 @@ Sometimes the types can get quite large or be unnameable altogether. Here we're
 using a function pointer (`fn(i32) -> i32`) but we would ideally use a closure.
 Unfortunately the return type cannot name the closure, for now.
 
-[`Map`]: https://docs.rs/futures/0.1.6/futures/future/struct.Map.html
+[`Map`]: https://docs.rs/futures/0.1/futures/future/struct.Map.html
 
 ### `impl Trait`
 [return-impl-trait]: #impl-trait
@@ -1017,8 +1017,8 @@ methods:
   piece of data that can only be accessed on an appropriate task. It can be
   cloned, however, like an `Rc`.
 
-[`task_local!`]: https://docs.rs/futures/0.1.6/futures/macro.task_local.html
-[`TaskRc`]: https://docs.rs/futures/0.1.6/futures/task/struct.TaskRc.html
+[`task_local!`]: https://docs.rs/futures/0.1/futures/macro.task_local.html
+[`TaskRc`]: https://docs.rs/futures/0.1/futures/task/struct.TaskRc.html
 
 Note that both of these methods will fuse data with the currently running task,
 which may not always be desired. These two should likely be used sparingly in
