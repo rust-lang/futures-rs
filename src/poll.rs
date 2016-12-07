@@ -40,17 +40,17 @@ impl<T> Async<T> {
         }
     }
 
-    /// Returns whether this is `Async::NotReady`
-    pub fn is_not_ready(&self) -> bool {
+    /// Returns whether this is `Async::Ready`
+    pub fn is_ready(&self) -> bool {
         match *self {
-            Async::NotReady => true,
-            Async::Ready(_) => false,
+            Async::Ready(_) => true,
+            Async::NotReady => false,
         }
     }
 
-    /// Returns whether this is `Async::Ready`
-    pub fn is_ready(&self) -> bool {
-        !self.is_not_ready()
+    /// Returns whether this is `Async::NotReady`
+    pub fn is_not_ready(&self) -> bool {
+        !self.is_ready()
     }
 }
 
