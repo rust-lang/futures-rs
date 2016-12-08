@@ -47,6 +47,7 @@ mod map_err;
 mod or_else;
 mod select;
 mod then;
+mod either;
 
 // impl details
 mod chain;
@@ -62,6 +63,7 @@ pub use self::map_err::MapErr;
 pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
 pub use self::then::Then;
+pub use self::either::Either;
 
 if_std! {
     mod catch_unwind;
