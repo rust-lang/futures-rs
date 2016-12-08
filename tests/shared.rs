@@ -3,7 +3,6 @@ extern crate futures;
 use std::thread;
 use futures::sync::oneshot;
 use futures::Future;
-use futures::future::IntoShared;
 
 
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
