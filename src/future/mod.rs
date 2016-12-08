@@ -47,6 +47,7 @@ mod map_err;
 mod or_else;
 mod select;
 mod then;
+mod flatten_sink;
 
 // impl details
 mod chain;
@@ -62,6 +63,7 @@ pub use self::map_err::MapErr;
 pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
 pub use self::then::Then;
+pub use self::flatten_sink::FlattenSink;
 
 if_std! {
     mod catch_unwind;
@@ -95,7 +97,7 @@ if_std! {
     }
 }
 
-use {Poll, stream};
+use {Poll, stream, sink};
 
 /// Trait for types which are a placeholder of a value that will become
 /// available at possible some later point in time.
@@ -654,6 +656,27 @@ pub trait Future {
               Self: Sized
     {
         flatten_stream::new(self)
+    }
+
+    /// Flatten the execution of this future when the successful result of this
+    /// future is a sink.
+    ///
+    /// This can be useful when sink initialization is deferred, and it is
+    /// convenient to work with that sink as if sink was available at the
+    /// call site.
+    ///
+    /// For example, if sink is created when client TCP connection is
+    /// established, you can create Sink in advance and enable buffering of
+    /// messages.
+    ///
+    /// Note that this function consumes this future and returns a wrapped
+    /// version of it.
+    fn flatten_sink(self) -> FlattenSink<Self>
+        where Self::Item: sink::Sink,
+              <Self::Item as sink::Sink>::SinkError: From<Self::Error>,
+              Self: Sized
+    {
+        flatten_sink::new(self)
     }
 
     /// Fuse a future such that `poll` will never again be called once it has
