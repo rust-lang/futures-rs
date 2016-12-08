@@ -1,4 +1,5 @@
 use {Future, Poll};
+
 /// Combines two different futures yielding the same item and error
 /// types into a single type.
 pub enum Either<A, B> {
@@ -8,13 +9,14 @@ pub enum Either<A, B> {
     B(B),
 }
 
-impl<A, B, Item, Error> Future for Either<A, B>
-    where A: Future<Item = Item, Error = Error>,
-          B: Future<Item = Item, Error = Error>
+impl<A, B> Future for Either<A, B>
+    where A: Future,
+          B: Future<Item = A::Item, Error = A::Error>
 {
-    type Item = Item;
-    type Error = Error;
-    fn poll(&mut self) -> Poll<Item, Error> {
+    type Item = A::Item;
+    type Error = A::Error;
+
+    fn poll(&mut self) -> Poll<A::Item, A::Error> {
         match *self {
             Either::A(ref mut a) => a.poll(),
             Either::B(ref mut b) => b.poll(),
