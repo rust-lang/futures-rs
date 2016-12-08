@@ -68,7 +68,7 @@ Here we're adding a dependency on three crates:
 [`mio`]: https://crates.io/crates/mio
 [`tokio-core`]: https://github.com/tokio-rs/tokio-core
 [`tokio-tls`]: https://github.com/tokio-rs/tokio-tls
-[`Future`]: https://docs.rs/futures/0.1/futures/trait.Future.html
+[`Future`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html
 [`Stream`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html
 [Tokio]: https://github.com/tokio-rs/tokio
 
@@ -176,7 +176,7 @@ takes a closure which receives the resolved value of this previous future. In
 this case `socket` will have type [`TcpStream`]. The [`and_then`] closure,
 however, will not run if [`TcpStream::connect`] returned an error.
 
-[`and_then`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.and_then
+[`and_then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.and_then
 [`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpStream.html
 
 Once we have our `socket`, we create a client TLS context via
@@ -357,7 +357,7 @@ method directly. Rather, you interact with futures through [combinators] that
 create higher-level abstractions around futures. But it's useful to our
 understanding if we have a sense of how futures work under the hood.
 
-[`poll`]: https://docs.rs/futures/0.1/futures/trait.Future.html#tymethod.poll
+[`poll`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#tymethod.poll
 
 Let's take a closer look at [`poll`]. Notice the `&mut self` argument, which
 conveys a number of restrictions and abilities:
@@ -455,14 +455,14 @@ The combinators on futures allow expressing concepts like:
 
 [`Iterator`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 [`Box`]: https://doc.rust-lang.org/std/boxed/struct.Box.html
-[`map`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.map
-[`map_err`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.map_err
-[`then`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.then
-[`and_then`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.and_then
-[`or_else`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.or_else
-[`select`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.select
-[`join`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.join
-[`fuse`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.fuse
+[`map`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.map
+[`map_err`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.map_err
+[`then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.then
+[`and_then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.and_then
+[`or_else`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.or_else
+[`select`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.select
+[`join`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.join
+[`fuse`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.fuse
 
 Usage of the combinators should feel very similar to the [`Iterator`] trait in
 Rust or [futures in Scala][scala-futures]. Most composition of futures ends up
@@ -715,7 +715,7 @@ In situations though where a value isn't immediately ready, there are also
 more general implementations of [`Future`] and [`Stream`] that are available in
 the [`futures`] crate, the first of which is [`oneshot`]. Let's take a look:
 
-[`oneshot`]: https://docs.rs/futures/0.1/futures/fn.oneshot.html
+[`oneshot`]: https://docs.rs/futures/0.1/futures/sync/fn.oneshot.html
 
 ```rust
 extern crate futures;
@@ -827,7 +827,7 @@ generally introduce allocations), it's only at the fringe that a `Box` comes
 into effect.
 
 [trait object]: https://doc.rust-lang.org/book/trait-objects.html
-[`boxed`]: https://docs.rs/futures/0.1/futures/trait.Future.html#method.boxed
+[`boxed`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.boxed
 
 ### Custom types
 [return-custom-types]: #custom-types
@@ -894,7 +894,7 @@ Sometimes the types can get quite large or be unnameable altogether. Here we're
 using a function pointer (`fn(i32) -> i32`) but we would ideally use a closure.
 Unfortunately the return type cannot name the closure, for now.
 
-[`Map`]: https://docs.rs/futures/0.1/futures/struct.Map.html
+[`Map`]: https://docs.rs/futures/0.1/futures/future/struct.Map.html
 
 ### `impl Trait`
 [return-impl-trait]: #impl-trait
