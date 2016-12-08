@@ -413,12 +413,16 @@ impl<T> Sender<T> {
             None
         };
 
-        self.maybe_parked = true;
         *self.sender_task.lock().unwrap() = task;
 
         // Send handle over queue
         let t = self.sender_task.clone();
         self.inner.parked_queue.push(t);
+
+        // Check to make sure we weren't closed after we sent our task on the
+        // queue
+        let state = decode_state(self.inner.state.load(SeqCst));
+        self.maybe_parked = state.is_open;
     }
 
     fn poll_unparked(&mut self) -> Async<()> {
