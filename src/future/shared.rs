@@ -37,7 +37,7 @@ struct Inner<F>
     where F: Future
 {
     /// The original future.
-    original_future: Lock<F>,
+    original_future: Lock<Option<F>>,
     /// Indicates whether the result is ready, and the state is `State::Done`.
     result_ready: AtomicBool,
     /// The state of the shared future.
@@ -59,7 +59,7 @@ impl<F> Shared<F>
     pub fn new(future: F) -> Self {
         Shared {
             inner: Arc::new(Inner {
-                original_future: Lock::new(future),
+                original_future: Lock::new(Some(future)),
                 result_ready: AtomicBool::new(false),
                 state: RwLock::new(State::Waiting(vec![])),
             }),
@@ -126,20 +126,31 @@ impl<F> Future for Shared<F>
         // The result was not ready.
         // Try lock the original future.
         match self.inner.original_future.try_lock() {
-            Some(mut original_future) => {
+            Some(mut original_future_option) => {
                 // Other thread could already poll the result, so we check if result_ready.
                 if self.inner.result_ready.load(Ordering::Relaxed) {
                     return self.read_result();
                 }
 
-                match original_future.poll() {
-                    Ok(Async::Ready(item)) => {
-                        return self.store_result(Ok(SharedItem::new(item)));
+                let mut result = None;
+                match *original_future_option {
+                    Some(ref mut original_future) => {
+                        match original_future.poll() {
+                            Ok(Async::Ready(item)) => {
+                                result = Some(self.store_result(Ok(SharedItem::new(item))));
+                            }
+                            Err(error) => {
+                                result = Some(self.store_result(Err(SharedError::new(error))));
+                            }
+                            Ok(Async::NotReady) => {} // A task will be parked
+                        }
                     }
-                    Err(error) => {
-                        return self.store_result(Err(SharedError::new(error)));
-                    }
-                    Ok(Async::NotReady) => {} // A task will be parked
+                    None => panic!("result_ready is false but original_future is None"),
+                }
+
+                if let Some(result) = result {
+                    *original_future_option = None;
+                    return result;
                 }
             }
             None => {} // A task will be parked
