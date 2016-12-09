@@ -66,20 +66,11 @@ impl<F> Shared<F>
         }
     }
 
-    /// Converts a result as it's stored in `State::Done` into `Poll`.
-    fn result_to_polled_result(result: Result<SharedItem<F::Item>, SharedError<F::Error>>)
-                               -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
-        match result {
-            Ok(item) => Ok(Async::Ready(item)),
-            Err(error) => Err(error),
-        }
-    }
-
     /// Clones the result from self.inner.state.
     /// Assumes state is `State::Done`.
     fn read_result(&self) -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
         match *self.inner.state.read().unwrap() {
-            State::Done(ref result) => Self::result_to_polled_result(result.clone()),
+            State::Done(ref result) => result.clone().map(Async::Ready),
             State::Waiting(_) => panic!("read_result() was called but State is not Done"),
         }
     }
@@ -101,7 +92,7 @@ impl<F> Shared<F>
             State::Done(_) => panic!("store_result() was called twice"),
         }
 
-        Self::result_to_polled_result(result)
+        result.clone().map(Async::Ready)
     }
 }
 
@@ -156,7 +147,7 @@ impl<F> Future for Shared<F>
 
         let ref mut state = *self.inner.state.write().unwrap();
         match state {
-            &mut State::Done(ref result) => return Self::result_to_polled_result(result.clone()),
+            &mut State::Done(ref result) => return result.clone().map(Async::Ready),
             &mut State::Waiting(ref mut waiters) => {
                 waiters.push(task::park());
             }
