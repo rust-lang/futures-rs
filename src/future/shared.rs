@@ -92,7 +92,7 @@ impl<F> Shared<F>
             State::Done(_) => panic!("store_result() was called twice"),
         }
 
-        result.clone().map(Async::Ready)
+        result.map(Async::Ready)
     }
 }
 
