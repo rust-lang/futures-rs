@@ -84,6 +84,7 @@ impl<F> Shared<F>
 
         match mem::replace(state, State::Done(result.clone())) {
             State::Waiting(waiters) => {
+                drop(state);
                 self.inner.result_ready.store(true, Ordering::Relaxed);
                 for task in waiters {
                     task.unpark();
