@@ -44,6 +44,7 @@ mod into_stream;
 mod join;
 mod map;
 mod map_err;
+mod from_err;
 mod or_else;
 mod select;
 mod then;
@@ -60,6 +61,7 @@ pub use self::into_stream::IntoStream;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::map::Map;
 pub use self::map_err::MapErr;
+pub use self::from_err::FromErr;
 pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
 pub use self::then::Then;
@@ -327,6 +329,34 @@ pub trait Future {
               Self: Sized,
     {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
+    }
+
+
+
+    /// Map this future's error to any error implementing `From` for
+    /// this future's `Error`, returning a new future.
+    ///
+    /// This function does for futures what `try!` does for `Result`,
+    /// by letting the compiler infer the type of the resulting error.
+    /// Just as `map_err` above, this is useful for example to ensure
+    /// that futures have the same error type when used with
+    /// combinators like `select` and `join`.
+    ///
+    /// Note that this function consumes the receiving future and returns a
+    /// wrapped version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future_of_err_1 = err::<u32, u32>(1);
+    /// let future_of_err_4 = future_of_err_1.from_err::<u32, u32>();
+    /// ```
+    fn from_err<F, E:From<Self::Error>>(self) -> FromErr<Self, E>
+        where Self: Sized,
+    {
+        assert_future::<Self::Item, E, _>(from_err::new(self))
     }
 
     /// Chain on a computation for when a future finished, passing the result of
