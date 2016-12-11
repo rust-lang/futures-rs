@@ -252,6 +252,18 @@ fn collect_collects() {
 }
 
 #[test]
+fn join_all_iter_lifetime() {
+    // In futures-rs version 0.1, this function would fail to typecheck due to an overly
+    // conservative type parameterization of `JoinAll`.
+    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<Future<Item=Vec<usize>, Error=()> + 'static> {
+        let iter = bufs.into_iter().map(|b| future::ok::<usize, ()>(b.len()));
+        Box::new(join_all(iter))
+    }
+
+    assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), Ok(vec![3, 0, 1]));
+}
+
+#[test]
 fn select2() {
     fn d<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
         match r {
