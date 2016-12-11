@@ -404,7 +404,7 @@ pub trait Future {
     /// });
     ///
     /// let future_of_err_1 = err::<u32, u32>(1);
-    /// future_of_err_1.and_then(|_| -> Ok<u32, u32> {
+    /// future_of_err_1.and_then(|_| -> FutureResult<u32, u32> {
     ///     panic!("should not be called in case of an error");
     /// });
     /// ```
@@ -444,7 +444,7 @@ pub trait Future {
     /// });
     ///
     /// let future_of_1 = ok::<u32, u32>(1);
-    /// future_of_1.or_else(|_| -> Ok<u32, u32> {
+    /// future_of_1.or_else(|_| -> FutureResult<u32, u32> {
     ///     panic!("should not be called in case of success");
     /// });
     /// ```

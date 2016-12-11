@@ -34,7 +34,7 @@ enum _Lazy<F, R> {
 ///
 /// let a = lazy(|| ok::<u32, u32>(1));
 ///
-/// let b = lazy(|| -> Ok<u32, u32> {
+/// let b = lazy(|| -> FutureResult<u32, u32> {
 ///     panic!("oh no!")
 /// });
 /// drop(b); // closure is never run
