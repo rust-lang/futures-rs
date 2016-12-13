@@ -16,13 +16,13 @@
 use std::mem;
 use std::vec::Vec;
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::SeqCst;
 use std::ops::Deref;
 
 use {Future, Poll, Async};
 use task::{self, Task};
 use lock::Lock;
-
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use Future::shared() method to convert any future into a `Shared` future.
@@ -49,7 +49,7 @@ struct Inner<F>
 /// 2. Waiting - contains the waiting tasks.
 enum State<T, E> {
     Waiting(Vec<Task>),
-    Done(Result<SharedItem<T>, SharedError<E>>),
+    Done(Result<Arc<T>, Arc<E>>),
 }
 
 impl<F> Shared<F>
@@ -66,34 +66,16 @@ impl<F> Shared<F>
         }
     }
 
-    /// Clones the result from self.inner.state.
-    /// Assumes state is `State::Done`.
-    fn read_result(&self) -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
-        match *self.inner.state.read().unwrap() {
-            State::Done(ref result) => result.clone().map(Async::Ready),
-            State::Waiting(_) => panic!("read_result() was called but State is not Done"),
-        }
-    }
-
-    /// Stores the result in self.inner.state, unparks the waiting tasks,
-    /// and returns the result.
-    fn store_result(&self,
-                    result: Result<SharedItem<F::Item>, SharedError<F::Error>>)
-                    -> Result<Async<SharedItem<F::Item>>, SharedError<F::Error>> {
-        let ref mut state = *self.inner.state.write().unwrap();
-
-        match mem::replace(state, State::Done(result.clone())) {
-            State::Waiting(waiters) => {
-                drop(state);
-                self.inner.result_ready.store(true, Ordering::Relaxed);
-                for task in waiters {
-                    task.unpark();
-                }
+    fn park(&self) -> Poll<SharedItem<F::Item>, SharedError<F::Error>> {
+        let me = task::park();
+        match *self.inner.state.write().unwrap() {
+            State::Waiting(ref mut list) => {
+                list.push(me);
+                Ok(Async::NotReady)
             }
-            State::Done(_) => panic!("store_result() was called twice"),
+            State::Done(Ok(ref e)) => Ok(SharedItem { item: e.clone() }.into()),
+            State::Done(Err(ref e)) => Err(SharedError { error: e.clone() }),
         }
-
-        result.map(Async::Ready)
     }
 }
 
@@ -119,53 +101,61 @@ impl<F> Future for Shared<F>
         // 4. If the state is `State::Done`, return the result. Otherwise:
         // 5. Create a task, push it to the waiters vector, and return `Ok(Async::NotReady)`.
 
-        // If the result is ready, just return it
-        if self.inner.result_ready.load(Ordering::Relaxed) {
-            return self.read_result();
-        }
+        if !self.inner.result_ready.load(SeqCst) {
+            match self.inner.original_future.try_lock() {
+                // We already saw the result wasn't ready, but after we've
+                // acquired the lock another thread could already have finished,
+                // so we check `result_ready` again.
+                Some(_) if self.inner.result_ready.load(SeqCst) => {}
 
-        // The result was not ready.
-        // Try lock the original future.
-        match self.inner.original_future.try_lock() {
-            Some(mut original_future_option) => {
-                // Other thread could already poll the result, so we check if result_ready.
-                if self.inner.result_ready.load(Ordering::Relaxed) {
-                    return self.read_result();
-                }
-
-                let mut result = None;
-                match *original_future_option {
-                    Some(ref mut original_future) => {
-                        match original_future.poll() {
-                            Ok(Async::Ready(item)) => {
-                                result = Some(self.store_result(Ok(SharedItem::new(item))));
-                            }
-                            Err(error) => {
-                                result = Some(self.store_result(Err(SharedError::new(error))));
-                            }
-                            Ok(Async::NotReady) => {} // A task will be parked
+                // If we lock the future, then try to push it towards
+                // completion.
+                Some(mut future) => {
+                    let result = match future.as_mut().unwrap().poll() {
+                        Ok(Async::NotReady) => {
+                            drop(future);
+                            return self.park()
                         }
+                        Ok(Async::Ready(item)) => Ok(Arc::new(item)),
+                        Err(error) => Err(Arc::new(error)),
+                    };
+
+                    // Free up resources associated with this future
+                    *future = None;
+
+                    // Wake up everyone waiting on the future and store the
+                    // result at the same time, flagging future pollers that
+                    // we're done.
+                    let waiters = {
+                        let mut state = self.inner.state.write().unwrap();
+                        self.inner.result_ready.store(true, SeqCst);
+
+                        match mem::replace(&mut *state, State::Done(result)) {
+                            State::Waiting(waiters) => waiters,
+                            State::Done(_) => panic!("store_result() was called twice"),
+                        }
+                    };
+                    for task in waiters {
+                        task.unpark();
                     }
-                    None => panic!("result_ready is false but original_future is None"),
                 }
 
-                if let Some(result) = result {
-                    *original_future_option = None;
-                    return result;
-                }
-            }
-            None => {} // A task will be parked
-        }
-
-        let ref mut state = *self.inner.state.write().unwrap();
-        match state {
-            &mut State::Done(ref result) => return result.clone().map(Async::Ready),
-            &mut State::Waiting(ref mut waiters) => {
-                waiters.push(task::park());
+                // Looks like someone else is making progress on the future,
+                // let's just wait for them.
+                None => return self.park(),
             }
         }
 
-        Ok(Async::NotReady)
+        // If we're here then we should have finished the future, so assert the
+        // `Done` state and return the item/error.
+        let result = match *self.inner.state.read().unwrap() {
+            State::Done(ref result) => result.clone(),
+            State::Waiting(_) => panic!("still waiting, not done yet"),
+        };
+        match result {
+            Ok(e) => Ok(SharedItem { item: e }.into()),
+            Err(e) => Err(SharedError { error: e }),
+        }
     }
 }
 
@@ -177,23 +167,11 @@ impl<F> Clone for Shared<F>
     }
 }
 
-/// A wrapped item of the original future.
-/// It is clonable and implements Deref for ease of use.
+/// A wrapped item of the original future that is clonable and implements Deref
+/// for ease of use.
 #[derive(Debug)]
 pub struct SharedItem<T> {
     item: Arc<T>,
-}
-
-impl<T> SharedItem<T> {
-    fn new(item: T) -> Self {
-        SharedItem { item: Arc::new(item) }
-    }
-}
-
-impl<T> Clone for SharedItem<T> {
-    fn clone(&self) -> Self {
-        SharedItem { item: self.item.clone() }
-    }
 }
 
 impl<T> Deref for SharedItem<T> {
@@ -204,23 +182,11 @@ impl<T> Deref for SharedItem<T> {
     }
 }
 
-/// A wrapped error of the original future.
-/// It is clonable and implements Deref for ease of use.
+/// A wrapped error of the original future that is clonable and implements Deref
+/// for ease of use.
 #[derive(Debug)]
 pub struct SharedError<E> {
     error: Arc<E>,
-}
-
-impl<E> SharedError<E> {
-    fn new(error: E) -> Self {
-        SharedError { error: Arc::new(error) }
-    }
-}
-
-impl<T> Clone for SharedError<T> {
-    fn clone(&self) -> Self {
-        SharedError { error: self.error.clone() }
-    }
 }
 
 impl<E> Deref for SharedError<E> {
