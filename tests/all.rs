@@ -90,10 +90,10 @@ fn test_ok() {
 
 #[test]
 fn flatten() {
-    fn ok<T: Send + 'static>(a: T) -> Ok<T, u32> {
+    fn ok<T: Send + 'static>(a: T) -> FutureResult<T, u32> {
         future::ok(a)
     }
-    fn err<E: Send + 'static>(b: E) -> Err<i32, E> {
+    fn err<E: Send + 'static>(b: E) -> FutureResult<i32, E> {
         future::err(b)
     }
 

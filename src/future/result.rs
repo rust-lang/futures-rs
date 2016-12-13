@@ -31,6 +31,39 @@ pub fn result<T, E>(r: result::Result<T, E>) -> FutureResult<T, E> {
     FutureResult { inner: Some(r) }
 }
 
+/// Creates a "leaf future" from an immediate value of a finished and
+/// successful computation.
+///
+/// The returned future is similar to `done` where it will immediately run a
+/// scheduled callback with the provided value.
+///
+/// # Examples
+///
+/// ```
+/// use futures::future::*;
+///
+/// let future_of_1 = ok::<u32, u32>(1);
+/// ```
+pub fn ok<T, E>(t: T) -> FutureResult<T, E> {
+    result(Ok(t))
+}
+
+/// Creates a "leaf future" from an immediate value of a failed computation.
+///
+/// The returned future is similar to `done` where it will immediately run a
+/// scheduled callback with the provided value.
+///
+/// # Examples
+///
+/// ```
+/// use futures::future::*;
+///
+/// let future_of_err_1 = err::<u32, u32>(1);
+/// ```
+pub fn err<T, E>(e: E) -> FutureResult<T, E> {
+    result(Err(e))
+}
+
 impl<T, E> Future for FutureResult<T, E> {
     type Item = T;
     type Error = E;
