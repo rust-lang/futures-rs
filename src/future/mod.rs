@@ -74,10 +74,12 @@ if_std! {
     mod join_all;
     mod select_all;
     mod select_ok;
+    mod shared;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
+    pub use self::shared::Shared;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use join_all instead")]
@@ -762,7 +764,49 @@ pub trait Future {
         where Self: Sized + ::std::panic::UnwindSafe
     {
             catch_unwind::new(self)
-        }
+    }
+
+    /// Convert this future into `Shared` future.
+    ///
+    /// The shared() method provides a mean to convert any future into a cloneable future.
+    /// It enables a future to be polled by multiple threads.
+    ///
+    /// `Shared` contains finishes with `SharedItem<T>` where T is the original future item,
+    /// or with `SharedError<E>` where E is the original future item.
+    /// Both `SharedItem` and `SharedError` implements `Deref`,
+    /// so only a deref is required in order to access the item/error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<_, bool>(6);
+    /// let shared1 = future.shared();
+    /// let shared2 = shared1.clone();
+    /// assert_eq!(6, *shared1.wait().unwrap());
+    /// assert_eq!(6, *shared2.wait().unwrap());
+    /// ```
+    ///
+    /// ```
+    /// use std::thread;
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<_, bool>(6);
+    /// let shared1 = future.shared();
+    /// let shared2 = shared1.clone();
+    /// let join_handle = thread::spawn(move || {
+    ///     assert_eq!(6, *shared2.wait().unwrap());
+    /// });
+    /// assert_eq!(6, *shared1.wait().unwrap());
+    /// join_handle.join().unwrap();
+    /// ```
+    #[cfg(feature = "use_std")]
+    fn shared(self) -> Shared<Self>
+        where Self: Sized 
+    {
+        Shared::new(self)
+    }
 }
 
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
