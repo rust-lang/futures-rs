@@ -82,8 +82,8 @@ pub struct CpuPool {
 pub struct Builder {
     pool_size: usize,
     name_prefix: Option<String>,
-    after_start: Option<Arc<Fn() + Send + Sync>>,
-    before_stop: Option<Arc<Fn() + Send + Sync>>,
+    after_start: Option<Arc<Fn(usize) + Send + Sync>>,
+    before_stop: Option<Arc<Fn(usize) + Send + Sync>>,
 }
 
 struct MySender<F, T> {
@@ -102,8 +102,8 @@ struct Inner {
     queue: MsQueue<Message>,
     cnt: AtomicUsize,
     size: usize,
-    after_start: Option<Arc<Fn() + Send + Sync>>,
-    before_stop: Option<Arc<Fn() + Send + Sync>>,
+    after_start: Option<Arc<Fn(usize) + Send + Sync>>,
+    before_stop: Option<Arc<Fn(usize) + Send + Sync>>,
 }
 
 /// The type of future returned from the `CpuPool::spawn` function, which
@@ -204,15 +204,15 @@ impl CpuPool {
     }
 }
 
-fn work(inner: &Inner) {
-    inner.after_start.as_ref().map(|fun| fun());
+fn work(inner: &Inner, number: usize) {
+    inner.after_start.as_ref().map(|fun| fun(number));
     loop {
         match inner.queue.pop() {
             Message::Run(r) => r.run(),
             Message::Close => break,
         }
     }
-    inner.before_stop.as_ref().map(|fun| fun());
+    inner.before_stop.as_ref().map(|fun| fun(number));
 }
 
 impl Clone for CpuPool {
@@ -306,7 +306,7 @@ impl Builder {
     ///
     /// This is initially intended for bookkeeping and monitoring uses
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
-        where F: Fn() + Send + Sync + 'static
+        where F: Fn(usize) + Send + Sync + 'static
     {
         self.after_start = Some(Arc::new(f));
         self
@@ -316,7 +316,7 @@ impl Builder {
     ///
     /// This is initially intended for bookkeeping and monitoring uses
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
-        where F: Fn() + Send + Sync + 'static
+        where F: Fn(usize) + Send + Sync + 'static
     {
         self.before_stop = Some(Arc::new(f));
         self
@@ -341,7 +341,7 @@ impl Builder {
             if let Some(ref name_prefix) = self.name_prefix {
                 thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
             }
-            thread_builder.spawn(move || work(&inner)).unwrap();
+            thread_builder.spawn(move || work(&inner, counter)).unwrap();
         }
 
         return pool
