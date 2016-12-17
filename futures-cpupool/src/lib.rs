@@ -243,7 +243,11 @@ impl Executor for Inner {
 }
 
 impl<T, E> CpuFuture<T, E> {
-    /// TODO
+    /// Drop this future without canceling the underlying future.
+    ///
+    /// When `CpuFuture` is dropped, `CpuPool` will try to abort the underlying
+    /// future. This function can be used when user wants to drop but keep
+    /// executing the underlying future.
     pub fn forget(self) {
         self.keep_running_flag.store(true, Ordering::SeqCst);
     }
