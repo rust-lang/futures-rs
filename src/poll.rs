@@ -69,7 +69,7 @@ pub enum AsyncSink<T> {
     Ready,
 
     /// The `start_send` attempt failed due to the sink being full. The value
-    /// being sent is returned, and the current `Task` will be autoamtically
+    /// being sent is returned, and the current `Task` will be automatically
     /// notified again once the sink has room.
     NotReady(T),
 }
