@@ -772,7 +772,7 @@ pub trait Future {
     /// It enables a future to be polled by multiple threads.
     ///
     /// `Shared` contains finishes with `SharedItem<T>` where T is the original future item,
-    /// or with `SharedError<E>` where E is the original future item.
+    /// or with `SharedError<E>` where E is the original future error.
     /// Both `SharedItem` and `SharedError` implements `Deref`,
     /// so only a deref is required in order to access the item/error.
     ///
