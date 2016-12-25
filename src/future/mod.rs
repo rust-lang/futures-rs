@@ -495,8 +495,8 @@ pub trait Future {
     /// both the value resolved and a future representing the completion of the
     /// other work. Both futures must have the same item and error type.
     ///
-    /// Note that this function consumes the receiving future and returns a
-    /// wrapped version of it.
+    /// Note that this function consumes the receiving futures and returns a
+    /// wrapped version of them.
     ///
     /// # Examples
     ///
