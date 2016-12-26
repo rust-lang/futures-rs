@@ -826,7 +826,7 @@ fn assert_future<A, B, F>(t: F) -> F
     t
 }
 
-/// Class of types which can be converted themselves into a future.
+/// Class of types which can be converted into a future.
 ///
 /// This trait is very similar to the `IntoIterator` trait and is intended to be
 /// used in a very similar fashion.
