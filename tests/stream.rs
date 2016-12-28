@@ -117,6 +117,12 @@ fn take() {
 }
 
 #[test]
+fn take_while() {
+    assert_done(|| list().take_while(|e| Ok(*e < 3)).collect(),
+                Ok(vec![1, 2]));
+}
+
+#[test]
 fn take_passes_errors_through() {
     let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)])
         .take(1)
