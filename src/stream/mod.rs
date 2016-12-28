@@ -35,6 +35,7 @@ mod select;
 mod skip;
 mod skip_while;
 mod take;
+mod take_while;
 mod then;
 mod unfold;
 mod zip;
@@ -58,6 +59,7 @@ pub use self::select::Select;
 pub use self::skip::Skip;
 pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
+pub use self::take_while::TakeWhile;
 pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
@@ -580,6 +582,20 @@ pub trait Stream {
               Self: Sized
     {
         skip_while::new(self, pred)
+    }
+
+    /// Take elements from this stream while the predicate provided resolves to
+    /// `true`.
+    ///
+    /// This function, like `Iterator::take_while`, will take elements from the
+    /// stream until the `predicate` resolves to `false`. Once one element
+    /// returns false it will always return that the stream is done.
+    fn take_while<P, R>(self, pred: P) -> TakeWhile<Self, P, R>
+        where P: FnMut(&Self::Item) -> R,
+              R: IntoFuture<Item=bool, Error=Self::Error>,
+              Self: Sized
+    {
+        take_while::new(self, pred)
     }
 
     /// Runs this stream to completion, executing the provided closure for each
