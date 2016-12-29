@@ -25,8 +25,8 @@ fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
 }
 
 #[test]
-fn one_threads() {
-    send_shared_oneshot_and_wait_on_multiple_threads(2);
+fn one_thread() {
+    send_shared_oneshot_and_wait_on_multiple_threads(1);
 }
 
 #[test]
