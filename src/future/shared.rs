@@ -99,7 +99,8 @@ impl<F> Future for Shared<F>
         //    - If the future is not ready, or if the lock failed:
         // 3. Lock the state for write.
         // 4. If the state is `State::Done`, return the result. Otherwise:
-        // 5. Create a task, push it to the waiters vector, and return `Ok(Async::NotReady)`.
+        // 5. Create a task, push it to the waiters vector, and return
+        //    `Ok(Async::NotReady)`.
 
         if !self.inner.result_ready.load(SeqCst) {
             match self.inner.original_future.try_lock() {
@@ -132,7 +133,9 @@ impl<F> Future for Shared<F>
 
                         match mem::replace(&mut *state, State::Done(result)) {
                             State::Waiting(waiters) => waiters,
-                            State::Done(_) => panic!("store_result() was called twice"),
+                            State::Done(_) => {
+                                panic!("store_result() was called twice")
+                            }
                         }
                     };
                     for task in waiters {
@@ -164,6 +167,34 @@ impl<F> Clone for Shared<F>
 {
     fn clone(&self) -> Self {
         Shared { inner: self.inner.clone() }
+    }
+}
+
+impl<F: Future> Drop for Shared<F> {
+    fn drop(&mut self) {
+        // A `Shared` represents a bunch of handles to one original future
+        // running on perhaps a bunch of different tasks.  That one future,
+        // however, is only guaranteed to have at most one task blocked on it.
+        //
+        // If our `Shared` handle is the one which has the task blocked on the
+        // original future, then us being dropped means that we won't ever be
+        // around to wake it up again, but all the other `Shared` handles may
+        // still be interested in the value of the original future!
+        //
+        // To handle this case we implement a destructor which will unpark all
+        // other waiting tasks whenever we're dropped. This should go through
+        // and wake up any interested handles, and at least one of them should
+        // make its way to blocking on the original future itself.
+        if self.inner.result_ready.load(SeqCst) {
+            return
+        }
+        let waiters = match *self.inner.state.write().unwrap() {
+            State::Waiting(ref mut waiters) => mem::replace(waiters, Vec::new()),
+            State::Done(_) => return,
+        };
+        for waiter in waiters {
+            waiter.unpark();
+        }
     }
 }
 
