@@ -57,6 +57,10 @@ impl<F> FuturesUnordered<F>
     fn poll_pending(&mut self, mut drain: Drain<usize>)
                     -> Option<Poll<Option<F::Item>, F::Error>> {
         while let Some(id) = drain.next() {
+            // If this future was already done just skip the notification
+            if self.futures[id].is_none() {
+                continue
+            }
             let event = UnparkEvent::new(self.stack.clone(), id);
             let ret = match task::with_unpark_event(event, || {
                 self.futures[id]

@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate futures;
 
+use std::any::Any;
+
 use futures::sync::oneshot;
 use futures::stream::futures_unordered;
 use futures::Future;
@@ -26,7 +28,6 @@ fn works_1() {
     assert_eq!(None, spawn.wait_stream());
 }
 
-
 #[test]
 fn works_2() {
     let (a_tx, a_rx) = oneshot::channel::<u32>();
@@ -41,4 +42,28 @@ fn works_2() {
     assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_ready());
     c_tx.complete(33);
     assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_ready());
+}
+
+#[test]
+fn finished_future_ok() {
+    let (_a_tx, a_rx) = oneshot::channel::<Box<Any+Send>>();
+    let (b_tx, b_rx) = oneshot::channel::<Box<Any+Send>>();
+    let (c_tx, c_rx) = oneshot::channel::<Box<Any+Send>>();
+
+    let stream = futures_unordered(vec![
+        a_rx.boxed(),
+        b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>)).boxed(),
+    ]);
+
+    let mut spawn = futures::executor::spawn(stream);
+    for _ in 0..10 {
+        assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_not_ready());
+    }
+
+    b_tx.complete(Box::new(()));
+    let next = spawn.poll_stream(support::unpark_noop()).unwrap();
+    assert!(next.is_ready());
+    c_tx.complete(Box::new(()));
+    assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_not_ready());
+    assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_not_ready());
 }
