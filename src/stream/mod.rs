@@ -602,15 +602,16 @@ pub trait Stream {
     /// element on the stream.
     ///
     /// The closure provided will be called for each item this stream resolves
-    /// to successfully, and the closure can optionally fail by returning a
-    /// `Result`.
+    /// to successfully, producing a future. That future will then be executed
+    /// to completion before moving on to the next item.
     ///
     /// The returned value is a `Future` where the `Item` type is `()` and
     /// errors are otherwise threaded through. Any error on the stream or in the
     /// closure will cause iteration to be halted immediately and the future
     /// will resolve to that error.
-    fn for_each<F>(self, f: F) -> ForEach<Self, F>
-        where F: FnMut(Self::Item) -> Result<(), Self::Error>,
+    fn for_each<F, U>(self, f: F) -> ForEach<Self, F, U>
+        where F: FnMut(Self::Item) -> U,
+              U: IntoFuture<Item=(), Error = Self::Error>,
               Self: Sized
     {
         for_each::new(self, f)
