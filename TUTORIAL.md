@@ -53,6 +53,7 @@ futures to your project's `Cargo.toml` like so:
 [dependencies]
 futures = "0.1"
 tokio-core = "0.1"
+native-tls = "0.1"
 tokio-tls = { git = "https://github.com/tokio-rs/tokio-tls" }
 ```
 
@@ -63,11 +64,13 @@ Here we're adding a dependency on three crates:
 * [`tokio-core`] - bindings to the [`mio`] crate providing concrete
   implementations of [`Future`] and [`Stream`] for TCP and UDP as well as the
   heart of the [Tokio] project
-* [`tokio-tls`] - an SSL/TLS implementation for [Tokio]
+* [`tokio-tls`] - A crate which provides extension traits to augment the functionality of native-tls for [Tokio]
+* [`native-tls`] - An abstraction over platform-specific TLS implementation for [Tokio]
 
 [`mio`]: https://crates.io/crates/mio
 [`tokio-core`]: https://github.com/tokio-rs/tokio-core
 [`tokio-tls`]: https://github.com/tokio-rs/tokio-tls
+[`native-tls`]: https://github.com/sfackler/rust-native-tls
 [`Future`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html
 [`Stream`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html
 [Tokio]: https://github.com/tokio-rs/tokio
@@ -83,25 +86,30 @@ a "Hello, World!" for I/O, let's download the Rust home page:
 
 ```rust
 extern crate futures;
+extern crate native_tls;
 extern crate tokio_core;
 extern crate tokio_tls;
 
+use std::io;
 use std::net::ToSocketAddrs;
 
 use futures::Future;
-use tokio_core::reactor::Core;
+use native_tls::TlsConnector;
 use tokio_core::net::TcpStream;
-use tokio_tls::ClientContext;
+use tokio_core::reactor::Core;
+use tokio_tls::TlsConnectorExt;
 
 fn main() {
     let mut core = Core::new().unwrap();
     let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
 
     let socket = TcpStream::connect(&addr, &core.handle());
+    let cx = TlsConnector::builder().unwrap().build().unwrap();
 
     let tls_handshake = socket.and_then(|socket| {
-        let cx = ClientContext::new().unwrap();
-        cx.handshake("www.rust-lang.org", socket)
+        cx.connect_async("www.rust-lang.org", socket).map_err(|e| {
+            io::Error::new(io::ErrorKind::Other, e)
+        })
     });
     let request = tls_handshake.and_then(|socket| {
         tokio_core::io::write_all(socket, "\
@@ -164,12 +172,14 @@ rust-lang.org home page:
 Let's take a look at each of these steps in detail, the first being:
 
 ```rust
+let cx = TlsConnector::builder().unwrap().build().unwrap();
+
 let tls_handshake = socket.and_then(|socket| {
-    let cx = ClientContext::new().unwrap();
-    cx.handshake("www.rust-lang.org", socket)
+    cx.connect_async("www.rust-lang.org", socket).map_err(|e| {
+        io::Error::new(io::ErrorKind::Other, e)
+    })
 });
 ```
-
 Here we use the [`and_then`] method on the [`Future`] trait to continue
 building on the future returned by [`TcpStream::connect`]. The [`and_then`] method
 takes a closure which receives the resolved value of this previous future. In
@@ -179,15 +189,18 @@ however, will not run if [`TcpStream::connect`] returned an error.
 [`and_then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.and_then
 [`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpStream.html
 
-Once we have our `socket`, we create a client TLS context via
-[`ClientContext::new`]. This type from the [`tokio-tls`] crate
-represents the client half of a TLS connection. Next we call the
+Once we have our `socket`, we create a TlsConnector context object via [`TlsConnector::builder`]
+and call [`connect_async`] (our extension method from [`TlsConnectorExt`]) passing in the socket. 
+The `cx` type from the [`native-tls`] crate represents the client half of a TLS connection. Next we call the
 [`handshake`] method to actually perform the TLS handshake. The first
 argument is the domain name we're connecting to, with the I/O object
 as the second.
 
 [`ClientContext::new`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.new
+[`TlsConnector::builder`]: https://docs.rs/native-tls/0.1.0/native_tls/struct.TlsConnector.html#method.builder
+[`TlsConnectorExt`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/trait.TlsConnectorExt.html#tymethod.connect_async
 [`handshake`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.handshake
+[`native-tls`]: https://github.com/sfackler/rust-native-tls
 
 Like with [`TcpStream::connect`] from before, the [`handshake`] method
 returns a future. The actual TLS handshake may take some time as the
