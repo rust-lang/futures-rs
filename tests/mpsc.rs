@@ -155,7 +155,7 @@ fn stress_shared_unbounded() {
 
         thread::spawn(move|| {
             for _ in 0..AMT {
-                tx = tx.send(1).wait().unwrap();
+                mpsc::UnboundedSender::send(&mut tx, 1).unwrap();
             }
         });
     }
