@@ -17,6 +17,7 @@ mod iter;
 pub use self::iter::{iter, IterStream};
 
 mod and_then;
+mod chain;
 mod empty;
 mod filter;
 mod filter_map;
@@ -41,6 +42,7 @@ mod unfold;
 mod zip;
 mod forward;
 pub use self::and_then::AndThen;
+pub use self::chain::Chain;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -760,6 +762,32 @@ pub trait Stream {
               Self: Sized,
     {
         zip::new(self, other)
+    }
+
+    /// Adapter for chaining two stream.
+    ///
+    /// The resulting stream emits elements from the first stream, and when
+    /// first stream reaches the end, emits the elements from the second stream.
+    ///
+    /// ```rust
+    /// use futures::stream;
+    /// use futures::stream::Stream;
+    ///
+    /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
+    /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);
+    /// let mut chain = stream1.chain(stream2).wait();
+    ///
+    /// assert_eq!(Some(Ok(10)), chain.next());
+    /// assert_eq!(Some(Err(false)), chain.next());
+    /// assert_eq!(Some(Err(true)), chain.next());
+    /// assert_eq!(Some(Ok(20)), chain.next());
+    /// assert_eq!(None, chain.next());
+    /// ```
+    fn chain<S>(self, other: S) -> Chain<Self, S>
+        where S: Stream<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        chain::new(self, other)
     }
 
     /// Creates a new stream which exposes a `peek` method.
