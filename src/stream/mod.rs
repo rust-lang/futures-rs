@@ -16,6 +16,9 @@ use {IntoFuture, Poll};
 mod iter;
 pub use self::iter::{iter, IterStream};
 
+mod repeat;
+pub use self::repeat::{repeat, Repeat};
+
 mod and_then;
 mod chain;
 mod empty;
