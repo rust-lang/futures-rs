@@ -33,9 +33,6 @@ pub struct JoinAll<I>
 /// returned immediately. If all futures complete successfully, however, then
 /// the returned future will succeed with a `Vec` of all the successful results.
 ///
-/// Note that this function does **not** attempt to execute each future in
-/// parallel, they are all executed in sequence.
-///
 /// # Examples
 ///
 /// ```
