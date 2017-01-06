@@ -4,7 +4,7 @@
 //! `futures-rs` executors. Channel creation provides `Receiver` and `Sender`
 //! handles. `Receiver` implements `Stream` and allows a task to read values
 //! out of the channel. If there is no message to read from the channel, the
-//! curernt task will be notified when a new value is sent. `Sender` implements
+//! current task will be notified when a new value is sent. `Sender` implements
 //! the `Sink` trait and allows a task to send messages into the channel. If
 //! the channel is at capacity, then send will be rejected and the task will be
 //! notified when additional capacity is available.
