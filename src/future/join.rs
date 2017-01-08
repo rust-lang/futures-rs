@@ -101,25 +101,25 @@ generate! {
     /// Future for the `join` combinator, waiting for two futures to
     /// complete.
     ///
-    /// This is created by this `Future::join` method.
+    /// This is created by the `Future::join` method.
     (Join, new, <A, B>),
 
     /// Future for the `join3` combinator, waiting for three futures to
     /// complete.
     ///
-    /// This is created by this `Future::join3` method.
+    /// This is created by the `Future::join3` method.
     (Join3, new3, <A, B, C>),
 
     /// Future for the `join4` combinator, waiting for four futures to
     /// complete.
     ///
-    /// This is created by this `Future::join4` method.
+    /// This is created by the `Future::join4` method.
     (Join4, new4, <A, B, C, D>),
 
     /// Future for the `join5` combinator, waiting for five futures to
     /// complete.
     ///
-    /// This is created by this `Future::join5` method.
+    /// This is created by the `Future::join5` method.
     (Join5, new5, <A, B, C, D, E>),
 }
 

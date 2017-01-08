@@ -6,7 +6,7 @@ use {Future, Poll, Async};
 
 /// Future for the `catch_unwind` combinator.
 ///
-/// This is created by this `Future::catch_unwind` method.
+/// This is created by the `Future::catch_unwind` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct CatchUnwind<F> where F: Future {
     future: Option<F>,

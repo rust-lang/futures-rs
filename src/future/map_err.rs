@@ -2,7 +2,7 @@ use {Future, Poll, Async};
 
 /// Future for the `map_err` combinator, changing the error type of a future.
 ///
-/// This is created by this `Future::map_err` method.
+/// This is created by the `Future::map_err` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct MapErr<A, F> where A: Future {
     future: A,

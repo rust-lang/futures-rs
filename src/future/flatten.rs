@@ -4,7 +4,7 @@ use super::chain::Chain;
 /// Future for the `flatten` combinator, flattening a future-of-a-future to get just
 /// the result of the final future.
 ///
-/// This is created by this `Future::flatten` method.
+/// This is created by the `Future::flatten` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
     state: Chain<A, <A::Item as IntoFuture>::Future, ()>,
