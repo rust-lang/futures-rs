@@ -1,11 +1,12 @@
 use {Future, Poll, Async};
 
-/// A future which "fuse"s a future once it's been resolved.
+/// A future which "fuses" a future once it's been resolved.
 ///
 /// Normally futures can behave unpredictable once they're used after a future
 /// has been resolved, but `Fuse` is always defined to return `Async::NotReady`
-/// from `poll` after it has succeeded, and after it has succeeded all future
-/// calls to `schedule` will be ignored.
+/// from `poll` after it has resolved successfully or returned an error.
+///
+/// This is created by the `Future::fuse` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct Fuse<A: Future> {
     future: Option<A>,
