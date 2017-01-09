@@ -4,7 +4,7 @@ use {Future, Poll, Async};
 
 /// Future for the `from_err` combinator, changing the error type of a future.
 ///
-/// This is created by this `Future::from_err` method.
+/// This is created by the `Future::from_err` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct FromErr<A, E> where A: Future {
     future: A,

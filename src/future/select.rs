@@ -3,7 +3,7 @@ use {Future, Poll, Async};
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.
 ///
-/// This is created by this `Future::select` method.
+/// This is created by the `Future::select` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     inner: Option<(A, B)>,

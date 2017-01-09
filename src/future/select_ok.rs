@@ -10,7 +10,7 @@ use {Future, IntoFuture, Poll, Async};
 /// futures to succesfully complete. unlike `select_all`, this future ignores all
 /// but the last error, if there are any.
 ///
-/// This is created by this `select_ok` function.
+/// This is created by the `select_ok` function.
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectOk<A> where A: Future {
     inner: Vec<A>,

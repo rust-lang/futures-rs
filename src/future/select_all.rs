@@ -9,7 +9,7 @@ use {Future, IntoFuture, Poll, Async};
 /// Future for the `select_all` combinator, waiting for one of any of a list of
 /// futures to complete.
 ///
-/// This is created by this `select_all` function.
+/// This is created by the `select_all` function.
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectAll<A> where A: Future {
     inner: Vec<A>,
