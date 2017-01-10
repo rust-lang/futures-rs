@@ -189,20 +189,19 @@ however, will not run if [`TcpStream::connect`] returned an error.
 [`and_then`]: https://docs.rs/futures/0.1/futures/future/trait.Future.html#method.and_then
 [`TcpStream`]: https://tokio-rs.github.io/tokio-core/tokio_core/net/struct.TcpStream.html
 
-Once we have our `socket`, we create a TlsConnector context object via [`TlsConnector::builder`]
-and call [`connect_async`] (our extension method from [`TlsConnectorExt`]) passing in the socket. 
-The `cx` type from the [`native-tls`] crate represents the client half of a TLS connection. Next we call the
-[`handshake`] method to actually perform the TLS handshake. The first
+Once we have our `socket`, we create a `TlsConnector` object (`cx`) via
+[`TlsConnector::builder`]. This type from the [`native-tls`] crate
+represents the client half of a TLS connection. Next we call the
+[`connect_async`] method to actually perform the TLS handshake. The first
 argument is the domain name we're connecting to, with the I/O object
 as the second.
 
 [`ClientContext::new`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.new
 [`TlsConnector::builder`]: https://docs.rs/native-tls/0.1.0/native_tls/struct.TlsConnector.html#method.builder
-[`TlsConnectorExt`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/trait.TlsConnectorExt.html#tymethod.connect_async
-[`handshake`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/struct.ClientContext.html#method.handshake
+[`connect_async`]: https://tokio-rs.github.io/tokio-tls/tokio_tls/trait.TlsConnectorExt.html#tymethod.connect_async
 [`native-tls`]: https://github.com/sfackler/rust-native-tls
 
-Like with [`TcpStream::connect`] from before, the [`handshake`] method
+Like with [`TcpStream::connect`] from before, the [`connect_async`] method
 returns a future. The actual TLS handshake may take some time as the
 client and server need to perform some I/O, agree on certificates,
 etc. Once resolved, however, the future will become a [`TlsStream`],
@@ -671,9 +670,10 @@ these therefore has the effect of taking each socket from the stream and
 processing all chained operations on it before taking the next socket.
 
 If, instead, we want to handle all clients concurrently, we can use the
-[`spawn`] method on [`Handle`]\:
+[`spawn`][`Handle::spawn`] method on a [`Handle` of `core`]\:
 
-[`spawn`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Handle.html#method.spawn
+[`Handle::spawn`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Handle.html#method.spawn
+[`Handle` of `core`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Core.html#method.handle
 
 ```rust
 let clients = listener.incoming();
@@ -689,8 +689,8 @@ let server = welcomes.for_each(|future| {
 
 Instead of [`and_then`][stream-and-then] we're using [`map`][stream-map] here
 which changes our stream of clients to a stream of futures. We then change our
-[`for_each`] closure to *[`spawn`]* the future, which allows the future to
-execute concurrently on the event loop. Note that [`spawn`] requires the future
+[`for_each`] closure to *[`spawn`][`Handle::spawn`]* the future, which allows the future to
+execute concurrently on the event loop. Note that [`spawn`][`Handle::spawn`] requires the future
 to have the item/error types as `()`.
 
 We'll talk a bit more about spawning futures in the [tasks and
@@ -728,46 +728,47 @@ In situations though where a value isn't immediately ready, there are also
 more general implementations of [`Future`] and [`Stream`] that are available in
 the [`futures`] crate, the first of which is [`oneshot`]. Let's take a look:
 
-[`oneshot`]: https://docs.rs/futures/0.1/futures/sync/fn.oneshot.html
+[`oneshot`]: https://docs.rs/futures/0.1/futures/sync/oneshot/index.html
 
 ```rust
 extern crate futures;
 
 use std::thread;
+use futures::sync::oneshot;
 use futures::Future;
 
-fn expensive_computation() -> u32 {
-    // ...
-    200
-}
-
 fn main() {
-    let (tx, rx) = futures::oneshot();
+    let (tx, rx) = oneshot::channel();
 
     thread::spawn(move || {
-        tx.complete(expensive_computation());
+        let result = 6; // expensive computation
+        tx.complete(result);
     });
 
-    let rx = rx.map(|x| x + 3);
+    let v = rx.map(|x| x + 3).wait().unwrap();
+
+    println!("got: {}", v);
 }
 ```
 
-Here we can see that the [`oneshot`] function returns two halves (like
-[`mpsc::channel`]). The first half, `tx` ("transmitter"), is of type [`Complete`]
+Here we can see that the [`oneshot::channel`] function returns two halves (like
+[libstd's `mpsc::channel`], but with only one shot).
+The first half, `tx` ("transmitter"), is of type [`Sender`]
 and is used to complete the oneshot, providing a value to the future on the
-other end. The [`Complete::complete`] method will transmit the value to the
+other end. The [`Sender::complete`] method will transmit the value to the
 receiving end.
 
-The second half, `rx` ("receiver"), is of type [`Oneshot`][oneshot-type] which is
+The second half, `rx` ("receiver"), is of type [`Receiver`] which is
 a type that implements the [`Future`] trait. The `Item` type is `T`, the type
 of the oneshot.  The `Error` type is [`Canceled`], which happens when the
-[`Complete`] half is dropped without completing the computation.
+[`Sender`] half is dropped without completing the computation.
 
-[`mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
-[`Complete`]: https://docs.rs/futures/0.1/futures/struct.Complete.html
-[`Complete::complete`]: https://docs.rs/futures/0.1/futures/struct.Complete.html#method.complete
-[oneshot-type]: https://docs.rs/futures/0.1/futures/struct.Oneshot.html
-[`Canceled`]: https://docs.rs/futures/0.1/futures/struct.Canceled.html
+[`oneshot::channel`]: https://docs.rs/futures/0.1/futures/sync/oneshot/fn.channel.html
+[libstd's `mpsc::channel`]: https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html
+[`Sender`]: https://docs.rs/futures/0.1/futures/sync/oneshot/struct.Sender.html
+[`Sender::complete`]: https://docs.rs/futures/0.1/futures/sync/oneshot/struct.Sender.html#method.complete
+[`Receiver`]: https://docs.rs/futures/0.1/futures/sync/oneshot/struct.Receiver.html
+[`Canceled`]: https://docs.rs/futures/0.1/futures/sync/oneshot/struct.Canceled.html
 
 This concrete implementation of `Future` can be used (as shown here) to
 communicate values across threads. Each half implements the `Send` trait and is
@@ -775,18 +776,18 @@ a separately owned entity to get passed around. It's generally not recommended
 to make liberal use of this type of future, however; the combinators above or
 other forms of base futures should be preferred wherever possible.
 
-For the [`Stream`] trait, a similar primitive is available, [`channel`]. This
+For the [`Stream`] trait, a similar primitive is available, [`mpsc`]. This
 type also has two halves, where the sending half is used to send messages and
 the receiving half implements `Stream`.
 
-The channel's [`Sender`] type differs from the standard library's in an
+The [`mpsc::Sender`] type differs from the standard library's in an
 important way: when a value is sent to the channel it consumes the sender,
 returning a future that will resolve to the original sender only once the sent
 value is consumed. This creates backpressure so that a producer won't be able to
 make progress until the consumer has caught up.
 
-[`channel`]: https://docs.rs/futures/0.1/futures/stream/fn.channel.html
-[`Sender`]: https://docs.rs/futures/0.1/futures/stream/struct.Sender.html
+[`mpsc`]: https://docs.rs/futures/0.1/futures/sync/mpsc/index.html
+[`mpsc::Sender`]: https://docs.rs/futures/0.1/futures/sync/mpsc/struct.Sender.html
 
 ---
 
@@ -852,13 +853,13 @@ return type explicitly. For example:
 
 ```rust
 struct MyFuture {
-    inner: Oneshot<i32>,
+    inner: Receiver<i32>,
 }
 
 fn foo() -> MyFuture {
-    let (tx, rx) = oneshot();
+    let (tx, rx) = oneshot::channel();
     // ...
-    MyFuture { inner: tx }
+    MyFuture { inner: rx }
 }
 
 impl Future for MyFuture {
@@ -868,7 +869,7 @@ impl Future for MyFuture {
 
 In this example we're returning a custom type, `MyFuture`, and we implement the
 `Future` trait directly for it. This implementation leverages an underlying
-`Oneshot<i32>`, but any other kind of protocol can also be implemented here as
+`oneshot::channel`, but any other kind of protocol can also be implemented here as
 well.
 
 The upside to this approach is that it won't require a `Box` allocation and it's
@@ -938,9 +939,9 @@ return type is hidden, and it's ergonomic to write as it's similar to the nice
 `Box` example above.
 
 The downside to this approach is only that it's not on stable Rust yet. As of
-the time of this writing [`impl Trait`] has an [initial implementation as a
-PR][impl-trait-pr] but it will still take some time to make its way into nightly
-and then finally the stable channel. The good news, however, is that as soon as
+the time of this writing [`impl Trait`] has an [initial implementation][impl-trait-pr]
+which is available only in nightly. But it will still take some time to make
+its way into the stable channel. The good news, however, is that as soon as
 `impl Trait` hits stable Rust all crates using futures can immediately benefit!
 It should be a backwards-compatible extension to change return types
 from `Box` to [`impl Trait`]
@@ -956,7 +957,7 @@ from `Box` to [`impl Trait`]
 
 Up to this point we've talked a lot about how to build computations by creating
 futures, but we've barely touched on how to actually *run* a future. When
-talking about [`poll`][poll] earlier it was mentioned that if `poll` returns
+talking about `poll` [earlier][poll], it was mentioned that if `poll` returns
 `NotReady` then it's arranged for a task to be notified, but where did this task
 come from? Additionally, where'd [`poll`] get called from in the first place?
 
@@ -972,15 +973,15 @@ ran at a time. For the entire program, we had one task that followed the
 logical "thread of execution" as each future resolved and the overall
 computation progressed.
 
-When a future is [`spawn`]ed it is fused with a task, and then this structure
+When a future is [`spawn`][`executor::spawn`]ed, it is fused with a task, and then this structure
 can be polled for completion. Precisely how and when a `poll` happens is up to
-the function which spawned the future. Normally you won't call [`spawn`] but
+the function which spawned the future. Normally you won't call [`executor::spawn`], but
 rather one of [`CpuPool::spawn`] with a thread pool or [`Handle::spawn`] with
-an event loop. These internally use [`spawn`] and handle managing calls to
+an event loop. These internally use [`executor::spawn`] and handle managing calls to
 `poll` for you.
 
+[`executor::spawn`]: https://docs.rs/futures/0.1/futures/executor/fn.spawn.html
 [`CpuPool::spawn`]: http://alexcrichton.com/futures-rs/futures_cpupool/struct.CpuPool.html#method.spawn
-[`Handle::spawn`]: https://tokio-rs.github.io/tokio-core/tokio_core/reactor/struct.Handle.html#method.spawn
 
 
 _The clever implementation of `Task` is the key to the `futures` crate's
@@ -998,41 +999,39 @@ state machine as straight-line sequence of computations.
 
 [Back to top][top]
 
-In the previous section we've now seen how each individual future is only
+In the previous section we've seen how each individual future is only
 one piece of a larger asynchronous computation. This means that futures come
 and go, but there could also be data that lives for the entire span of a
 computation that many futures need access to.
 
-Futures themselves are often required to be `'static`, so we have two choices
+Futures themselves are often required to be `'static`, so we have three choices
 to share data between futures:
 
 * If the data is only ever used by one future at a time we can thread through
   ownership of the data between each future.
-* If the data needs to be accessed concurrently, however, then we'd have to
-  naively store data in an `Arc`/`Rc` or worse, in an `Arc<Mutex>` if we wanted
-  to mutate it.
+* If the data needs to be accessed concurrently among many futures, then we'd
+  have to store it in an `Arc`, or an `Arc<Mutex>` if necessary.
+* If the data needs to be mutated by exactly two futures (possibly executing in
+  two different tasks), then we can use a [`BiLock`].
 
-But both of these solutions are relatively heavyweight, so let's see if we
-can do better!
+[`BiLock`]: https://docs.rs/futures/0.1/futures/sync/struct.BiLock.html
+
+However, if the data only needs to be shared among (or mutated by) the futures
+in a single task, then we can do much better!
 
 In the [`Task` and `Future`][task-and-future] section we saw how an
 asynchronous computation has access to a [`Task`] for its entire lifetime, and
 from the signature of [`poll`] we also see that it has mutable access to
 this task. The [`Task`] API leverages these facts and allows you to store
-data inside a `Task`. Data associated with a `Task` can be created with two
-methods:
+data inside a `Task`. Data associated with a `Task` can be created with:
 
-* The [`task_local!`] macro behaves similarly to the `thread_local!` macro in
+* The [`task_local!`] macro behaves similarly to the [`thread_local!`] macro in
   the standard library. Data initialized this way is lazily initialized on
   first access for a task, and then it's destroyed when a task itself is
   destroyed.
-* The [`TaskRc`] structure provides the ability to create a reference-counted
-  piece of data that can only be accessed on an appropriate task. It can be
-  cloned, however, like an `Rc`.
 
 [`task_local!`]: https://docs.rs/futures/0.1/futures/macro.task_local.html
-[`TaskRc`]: https://docs.rs/futures/0.1/futures/task/struct.TaskRc.html
+[`thread_local!`]: https://doc.rust-lang.org/stable/std/macro.thread_local.html
 
-Note that both of these methods will fuse data with the currently running task,
-which may not always be desired. These two should likely be used sparingly in
-general.
+Note that this will fuse data with the currently running task, which may not
+always be desired. It should likely be used sparingly in general.
