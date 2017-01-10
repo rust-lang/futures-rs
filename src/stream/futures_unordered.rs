@@ -92,7 +92,7 @@ impl<F> Stream for FuturesUnordered<F>
             return Ok(Async::Ready(None))
         }
         if let Some(drain) = self.pending.take() {
-            if let Some(ret) = self.poll_pending(drain){
+            if let Some(ret) = self.poll_pending(drain) {
                 return ret
             }
         }
