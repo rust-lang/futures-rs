@@ -181,6 +181,7 @@ pub use sink::Sink;
 
 #[deprecated(since = "0.1.4", note = "import through the future module instead")]
 #[cfg(feature = "with-deprecated")]
+#[doc(hidden)]
 pub use future::{done, empty, failed, finished, lazy};
 
 #[doc(hidden)]

@@ -110,14 +110,15 @@ if_std! {
     }
 }
 
-/// A stream of values, not all of which have been produced yet.
+/// A stream of values, not all of which may have been produced yet.
 ///
 /// `Stream` is a trait to represent any source of sequential events or items
-/// which acts like an iterator but may block over time. Like `Future` the
-/// methods of `Stream` never block and it is thus suitable for programming in
-/// an asynchronous fashion. This trait is very similar to the `Iterator` trait
-/// in the standard library where `Some` is used to signal elements of the
-/// stream and `None` is used to indicate that the stream is finished.
+/// which acts like an iterator but long periods of time may pass between
+/// items. Like `Future` the methods of `Stream` never block and it is thus
+/// suitable for programming in an asynchronous fashion. This trait is very
+/// similar to the `Iterator` trait in the standard library where `Some` is
+/// used to signal elements of the stream and `None` is used to indicate that
+/// the stream is finished.
 ///
 /// Like futures a stream has basic combinators to transform the stream, perform
 /// more work on each item, etc.
@@ -128,6 +129,21 @@ if_std! {
 /// value is the next item in the stream along with the rest of the stream. The
 /// `into_future` adaptor can be used here to convert any stream into a future
 /// for use with other future methods like `join` and `select`.
+///
+/// # Errors
+///
+/// Streams, like futures, can also model errors in their computation. All
+/// streams have an associated `Error` type like with futures. Currently as of
+/// the 0.1 release of this library an error on a stream **does not terminate
+/// the stream**. That is, after one error is received, another error may be
+/// received from the same stream (it's valid to keep polling).
+///
+/// This property of streams, however, is [being considered] for change in 0.2
+/// where an error on a stream is similar to `None`, it terminates the stream
+/// entirely. If one of these use cases suits you perfectly and not the other,
+/// please feel welcome to comment on [the issue][being considered]!
+///
+/// [being considered]: https://github.com/alexcrichton/futures-rs/issues/206
 // TODO: more here
 pub trait Stream {
     /// The type of item this stream will yield on success.
@@ -148,7 +164,7 @@ pub trait Stream {
     /// # Return value
     ///
     /// If `NotReady` is returned then this stream's next value is not ready
-    /// yet, then implementations will ensure that the current task will be
+    /// yet and implementations will ensure that the current task will be
     /// notified when the next value may be ready. If `Some` is returned then
     /// the returned value represents the next value on the stream. `Err`
     /// indicates an error happened, while `Ok` indicates whether there was a
@@ -182,10 +198,8 @@ pub trait Stream {
     /// >           blocking work associated with this stream will be completed
     /// >           by another thread.
     ///
-    /// # Behavior
-    ///
-    /// This function will *pin* this stream to the thread that calls `next`.
-    /// The stream will only be polled by this thread.
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Panics
     ///
@@ -205,6 +219,9 @@ pub trait Stream {
     /// this method requires the `Send` bound and returns a `BoxStream`, which
     /// also encodes this. If you'd like to create a `Box<Stream>` without the
     /// `Send` bound, then the `Box::new` function can be used instead.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Examples
     ///
@@ -476,6 +493,9 @@ pub trait Stream {
     /// The returned future will be resolved whenever an error happens or when
     /// the stream returns `Ok(None)`.
     ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
     /// # Examples
     ///
     /// ```
@@ -664,6 +684,9 @@ pub trait Stream {
     /// Once a stream has been `fuse`d and it finishes, then it will forever
     /// return `None` from `poll`. This, unlike for the traits `poll` method,
     /// is guaranteed.
+    ///
+    /// Also note that as soon as this stream returns `None` it will be dropped
+    /// to reclaim resources associated with it.
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {
@@ -676,13 +699,17 @@ pub trait Stream {
     ///
     /// In general, panics within a stream can propagate all the way out to the
     /// task level. This combinator makes it possible to halt unwinding within
-    /// the stream itself. It's most commonly used within task executors.
+    /// the stream itself. It's most commonly used within task executors. This
+    /// method should not be used for error handling.
     ///
     /// Note that this method requires the `UnwindSafe` bound from the standard
     /// library. This isn't always applied automatically, and the standard
     /// library provides an `AssertUnwindSafe` wrapper type to apply it
     /// after-the fact. To assist using this method, the `Stream` trait is also
     /// implemented for `AssertUnwindSafe<S>` where `S` implements `Stream`.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Examples
     ///
@@ -710,13 +737,16 @@ pub trait Stream {
     /// An adaptor for creating a buffered list of pending futures.
     ///
     /// If this stream's item can be converted into a future, then this adaptor
-    /// will buffer up to `amt` futures and then return results in the same
-    /// order as the underlying stream. No more than `amt` futures will be
+    /// will buffer up to at most `amt` futures and then return results in the
+    /// same order as the underlying stream. No more than `amt` futures will be
     /// buffered at any point in time, and less than `amt` may also be buffered
     /// depending on the state of each future.
     ///
     /// The returned stream will be a stream of each future's result, with
     /// errors passed through whenever they occur.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
     fn buffered(self, amt: usize) -> Buffered<Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
@@ -735,6 +765,9 @@ pub trait Stream {
     ///
     /// The returned stream will be a stream of each future's result, with
     /// errors passed through whenever they occur.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
     fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
@@ -816,6 +849,9 @@ pub trait Stream {
     ///
     /// Errors are passed through the stream unbuffered.
     ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
     /// # Panics
     ///
     /// This method will panic of `capacity` is zero.
@@ -862,9 +898,14 @@ pub trait Stream {
     }
 
     /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
-    /// objects, which can be useful when you want to split ownership between
-    /// tasks, or allow direct interaction between the two objects (e.g. via
+    /// objects.
+    ///
+    /// This can be useful when you want to split ownership between tasks, or
+    /// allow direct interaction between the two objects (e.g. via
     /// `Sink::send_all`).
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
     fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
         where Self: super::sink::Sink + Sized

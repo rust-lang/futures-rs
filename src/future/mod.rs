@@ -169,8 +169,10 @@ pub trait Future {
     ///
     /// When a future is not ready yet, the `Async::NotReady` value will be
     /// returned. In this situation the future will *also* register interest of
-    /// the current task in the value being produced. That is, once the value is
-    /// ready it will notify the current task that progress can be made.
+    /// the current task in the value being produced. This is done by calling
+    /// `task::park` to retreive a handle to the current `Task`. When the future
+    /// is then ready to make progress (e.g. it should be poll'd again) then the
+    /// `unpark` method is called on the `Task`.
     ///
     /// # Runtime characteristics
     ///
@@ -198,9 +200,10 @@ pub trait Future {
     /// error to continue polling the future.
     ///
     /// If `NotReady` is returned, then the future will internally register
-    /// interest in the value being produced for the current task. In other
-    /// words, the current task will receive a notification once the value is
-    /// ready to be produced or the future can make progress.
+    /// interest in the value being produced for the current task (through
+    /// `task::park`). In other words, the current task will receive a
+    /// notification (through the `unpark` method) once the value is ready to be
+    /// produced or the future can make progress.
     ///
     /// # Panics
     ///
@@ -238,15 +241,13 @@ pub trait Future {
     /// >           blocking work associated with this future will be completed
     /// >           by another thread.
     ///
-    /// # Behavior
-    ///
-    /// This function will *pin* this future to the current thread. The future
-    /// will only be polled by this thread.
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Panics
     ///
     /// This function does not attempt to catch panics. If the `poll` function
-    /// panics, panics will be propagated to the caller.
+    /// of this future panics, panics will be propagated to the caller.
     #[cfg(feature = "use_std")]
     fn wait(self) -> result::Result<Self::Item, Self::Error>
         where Self: Sized
@@ -254,13 +255,17 @@ pub trait Future {
         ::executor::spawn(self).wait_future()
     }
 
-    /// Convenience function for turning this future into a trait object.
+    /// Convenience function for turning this future into a trait object which
+    /// is also `Send`.
     ///
     /// This simply avoids the need to write `Box::new` and can often help with
     /// type inference as well by always returning a trait object. Note that
     /// this method requires the `Send` bound and returns a `BoxFuture`, which
     /// also encodes this. If you'd like to create a `Box<Future>` without the
     /// `Send` bound, then the `Box::new` function can be used instead.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Examples
     ///
@@ -284,7 +289,7 @@ pub trait Future {
     /// chain along a computation once a future has been resolved.
     ///
     /// The closure provided will only be called if this future is resolved
-    /// successfully. If this future returns an error, panics, or is canceled,
+    /// successfully. If this future returns an error, panics, or is dropped,
     /// then the closure provided will never be invoked.
     ///
     /// Note that this function consumes the receiving future and returns a
@@ -315,7 +320,7 @@ pub trait Future {
     ///
     /// The closure provided will only be called if this future is resolved
     /// with an error. If this future returns a success, panics, or is
-    /// canceled, then the closure provided will never be invoked.
+    /// dropped, then the closure provided will never be invoked.
     ///
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.
@@ -376,7 +381,7 @@ pub trait Future {
     /// trait so it is possible to simply alter the `Result` yielded to the
     /// closure and return it.
     ///
-    /// If this future is canceled or panics then the closure `f` will not be
+    /// If this future is dropped or panics then the closure `f` will not be
     /// run.
     ///
     /// Note that this function consumes the receiving future and returns a
@@ -419,7 +424,7 @@ pub trait Future {
     /// can also be useful for chaining fallible and serial computations onto
     /// the end of one future.
     ///
-    /// If this future is canceled, panics, or completes with an error then the
+    /// If this future is dropped, panics, or completes with an error then the
     /// provided closure `f` is never called.
     ///
     /// Note that this function consumes the receiving future and returns a
@@ -459,7 +464,7 @@ pub trait Future {
     /// can also be useful for chaining together fallback computations, where
     /// when one fails, the next is attempted.
     ///
-    /// If this future is canceled, panics, or completes successfully then the
+    /// If this future is dropped, panics, or completes successfully then the
     /// provided closure `f` is never called.
     ///
     /// Note that this function consumes the receiving future and returns a
@@ -532,11 +537,8 @@ pub trait Future {
     /// of both results.
     ///
     /// Both futures must have the same error type, and if either finishes with
-    /// an error then the other will be canceled and that error will be
+    /// an error then the other will be dropped and that error will be
     /// returned.
-    ///
-    /// If either future is canceled or panics, the other is canceled and the
-    /// original error is propagated upwards.
     ///
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.
@@ -596,16 +598,15 @@ pub trait Future {
                    e.into_future())
     }
 
-    /// Convert this future into single element stream.
+    /// Convert this future into a single element stream.
     ///
-    /// Resulting stream contains single success if this future resolves to
-    /// success and single error if this future resolves into error.
+    /// The returned stream contains single success if this future resolves to
+    /// success or single error if this future resolves into error.
     ///
     /// # Examples
     ///
     /// ```
-    /// use futures::Async;
-    /// use futures::stream::Stream;
+    /// use futures::{Stream, Async};
     /// use futures::future::*;
     ///
     /// let future = ok::<_, bool>(17);
@@ -705,9 +706,8 @@ pub trait Future {
     /// then it will forever return `NotReady` from `poll` again (never
     /// resolve).  This, unlike the trait's `poll` method, is guaranteed.
     ///
-    /// Additionally, once a future has completed, this `Fuse` combinator will
-    /// ensure that all registered callbacks will not be registered with the
-    /// underlying future.
+    /// This combinator will drop this future as soon as it's been completed to
+    /// ensure resources are reclaimed as soon as possible.
     ///
     /// # Examples
     ///
@@ -737,13 +737,17 @@ pub trait Future {
     ///
     /// In general, panics within a future can propagate all the way out to the
     /// task level. This combinator makes it possible to halt unwinding within
-    /// the future itself. It's most commonly used within task executors.
+    /// the future itself. It's most commonly used within task executors. It's
+    /// not recommended to use this for error handling.
     ///
     /// Note that this method requires the `UnwindSafe` bound from the standard
     /// library. This isn't always applied automatically, and the standard
     /// library provides an `AssertUnwindSafe` wrapper type to apply it
     /// after-the fact. To assist using this method, the `Future` trait is also
     /// implemented for `AssertUnwindSafe<F>` where `F` implements `Future`.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Examples
     ///
@@ -760,21 +764,26 @@ pub trait Future {
     /// assert!(future.catch_unwind().wait().is_err());
     /// ```
     #[cfg(feature = "use_std")]
-        fn catch_unwind(self) -> CatchUnwind<Self>
+    fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + ::std::panic::UnwindSafe
     {
             catch_unwind::new(self)
     }
 
-    /// Convert this future into `Shared` future.
+    /// Create a cloneable handle to this future where all handles will resolve
+    /// to the same result.
     ///
-    /// The shared() method provides a mean to convert any future into a cloneable future.
-    /// It enables a future to be polled by multiple threads.
+    /// The shared() method provides a mean to convert any future into a
+    /// cloneable future. It enables a future to be polled by multiple threads.
     ///
-    /// `Shared` contains finishes with `SharedItem<T>` where T is the original future item,
-    /// or with `SharedError<E>` where E is the original future error.
-    /// Both `SharedItem` and `SharedError` implements `Deref`,
-    /// so only a deref is required in order to access the item/error.
+    /// The returned `Shared` future resolves successfully with
+    /// `SharedItem<Self::Item>` or erroneously with `SharedError<Self::Error>`.
+    /// Both `SharedItem` and `SharedError` implements `Deref` to allow shared
+    /// access to the underlying result. Ownership of `Self::Item` and
+    /// `Self::Error` cannot currently be reclaimed.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Examples
     ///
@@ -803,7 +812,7 @@ pub trait Future {
     /// ```
     #[cfg(feature = "use_std")]
     fn shared(self) -> Shared<Self>
-        where Self: Sized 
+        where Self: Sized
     {
         Shared::new(self)
     }

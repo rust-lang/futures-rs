@@ -213,6 +213,9 @@ pub trait Sink {
     ///
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
     fn buffer(self, amt: usize) -> Buffer<Self>
         where Self: Sized
