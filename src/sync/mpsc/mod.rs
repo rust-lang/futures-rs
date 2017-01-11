@@ -527,6 +527,20 @@ impl<T> Sink for UnboundedSender<T> {
     }
 }
 
+impl<'a, T> Sink for &'a UnboundedSender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
+
+    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+        try!(self.0.do_send_nb(msg));
+        Ok(AsyncSink::Ready)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+        Ok(Async::Ready(()))
+    }
+}
+
 impl<T> Clone for UnboundedSender<T> {
     fn clone(&self) -> UnboundedSender<T> {
         UnboundedSender(self.0.clone())
