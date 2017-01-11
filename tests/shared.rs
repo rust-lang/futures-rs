@@ -1,26 +1,26 @@
 extern crate futures;
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::thread;
 
 use futures::sync::oneshot;
 use futures::Future;
+use futures::future;
 
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     let (tx, rx) = oneshot::channel::<u32>();
     let f = rx.shared();
-    let mut cloned_futures_waited_oneshots = vec![];
-    for _ in 0..threads_number {
+    let threads = (0..threads_number).map(|_| {
         let cloned_future = f.clone();
-        let (tx2, rx2) = oneshot::channel::<()>();
-        cloned_futures_waited_oneshots.push(rx2);
         thread::spawn(move || {
             assert!(*cloned_future.wait().unwrap() == 6);
-            tx2.complete(());
-        });
-    }
+        })
+    }).collect::<Vec<_>>();
     tx.complete(6);
-    for f in cloned_futures_waited_oneshots {
-        f.wait().unwrap();
+    assert!(*f.wait().unwrap() == 6);
+    for f in threads {
+        f.join().unwrap();
     }
 }
 
@@ -65,4 +65,17 @@ fn drop_on_one_task_ok() {
     let result = rx3.wait().unwrap();
     assert_eq!(result, 42);
     t2.join().unwrap();
+}
+
+#[test]
+fn drop_in_poll() {
+    let slot = Rc::new(RefCell::new(None));
+    let slot2 = slot.clone();
+    let future = future::poll_fn(move || {
+        drop(slot2.borrow_mut().take().unwrap());
+        Ok::<_, u32>(1.into())
+    }).shared();
+    let future2 = Box::new(future.clone()) as Box<Future<Item=_, Error=_>>;
+    *slot.borrow_mut() = Some(future2);
+    assert_eq!(*future.wait().unwrap(), 1);
 }
