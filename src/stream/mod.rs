@@ -9,7 +9,11 @@
 //! A stream may request that it is blocked between values while the next value
 //! is calculated, and provides a way to get notified once the next value is
 //! ready as well.
-// TODO: expand these docs
+//!
+//! You can find more information/tutorials about streams [online at
+//! https://tokio.rs][online]
+//!
+//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
 use {IntoFuture, Poll};
 
@@ -123,6 +127,11 @@ if_std! {
 /// Like futures a stream has basic combinators to transform the stream, perform
 /// more work on each item, etc.
 ///
+/// You can find more information/tutorials about streams [online at
+/// https://tokio.rs][online]
+///
+/// [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+///
 /// # Streams as Futures
 ///
 /// Any instance of `Stream` can also be viewed as a `Future` where the resolved
@@ -144,7 +153,6 @@ if_std! {
 /// please feel welcome to comment on [the issue][being considered]!
 ///
 /// [being considered]: https://github.com/alexcrichton/futures-rs/issues/206
-// TODO: more here
 pub trait Stream {
     /// The type of item this stream will yield on success.
     type Item;

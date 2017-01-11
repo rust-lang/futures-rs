@@ -2,6 +2,11 @@
 //!
 //! This module contains the `Sink` trait, along with a number of adapter types
 //! for it. An overview is available in the documentaiton for the trait itself.
+//!
+//! You can find more information/tutorials about streams [online at
+//! https://tokio.rs][online]
+//!
+//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
 use {IntoFuture, Poll, StartSend};
 use stream::Stream;
@@ -86,6 +91,11 @@ pub use self::send_all::SendAll;
 /// higher-level way. The `Sink::send_all` combinator is of particular
 /// importance: you can use it to send an entire stream to a sink, which is
 /// the simplest way to ultimately consume a sink.
+///
+/// You can find more information/tutorials about streams [online at
+/// https://tokio.rs][online]
+///
+/// [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 pub trait Sink {
     /// The type of value that the sink accepts.
     type SinkItem;

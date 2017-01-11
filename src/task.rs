@@ -16,6 +16,10 @@
 //! or by using the `wait` method to create and execute a task directly on the
 //! current thread.
 //!
+//! More information about the task model can be found [online at tokio.rs].
+//!
+//! [online at tokio.rs]: https://tokio.rs/docs/going-deeper/futures-model/
+//!
 //! ## Functions
 //!
 //! There is an important bare function in this module: `park`. The `park`

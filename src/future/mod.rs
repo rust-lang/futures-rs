@@ -108,6 +108,11 @@ use {Poll, stream};
 /// Trait for types which are a placeholder of a value that will become
 /// available at possible some later point in time.
 ///
+/// In addition to the documentation here you can also find more information
+/// about futures [online] at [https://tokio.rs](https://tokio.rs)
+///
+/// [online]: https://tokio.rs/docs/getting-started/futures/
+///
 /// Futures are used to provide a sentinel through which a value can be
 /// referenced. They crucially allow chaining and composing operations through
 /// consumption which allows expressing entire trees of computation as one
@@ -136,6 +141,11 @@ use {Poll, stream};
 /// typically called in the context of a "task" which drives a future to
 /// completion. For more information on this see the `task` module.
 ///
+/// More information about the details of `poll` and the nitty-gritty of tasks
+/// can be [found online at tokio.rs][poll-dox].
+///
+/// [poll-dox]: https://tokio.rs/docs/going-deeper/futures-model/
+///
 /// # Combinators
 ///
 /// Like iterators, futures provide a large number of combinators to work with
@@ -149,7 +159,10 @@ use {Poll, stream};
 /// or those on `Option` and `Result`. Like with iterators, the combinators are
 /// zero-cost and don't impose any extra layers of indirection you wouldn't
 /// otherwise have to write down.
-// TODO: expand this
+///
+/// More information about combinators can be found [on tokio.rs].
+///
+/// [on tokio.rs]: https://tokio.rs/docs/going-deeper/futures-mechanics/
 pub trait Future {
     /// The type of value that this future will resolved with if it is
     /// successful.
@@ -173,6 +186,11 @@ pub trait Future {
     /// `task::park` to retreive a handle to the current `Task`. When the future
     /// is then ready to make progress (e.g. it should be poll'd again) then the
     /// `unpark` method is called on the `Task`.
+    ///
+    /// More information about the details of `poll` and the nitty-gritty of
+    /// tasks can be [found online at tokio.rs][poll-dox].
+    ///
+    /// [poll-dox]: https://tokio.rs/docs/going-deeper/futures-model/
     ///
     /// # Runtime characteristics
     ///
