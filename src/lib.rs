@@ -13,6 +13,12 @@
 //! operations like chaining computations, changing the types of futures, or
 //! waiting for two futures to complete at the same time.
 //!
+//! You can find extensive tutorials and documentations at [https://tokio.rs]
+//! for both this crate (asynchronous programming in general) as well as the
+//! Tokio stack to perform async I/O with.
+//!
+//! [https://tokio.rs]: https://tokio.rs
+//!
 //! ## Installation
 //!
 //! Add this to your `Cargo.toml`:
