@@ -104,6 +104,16 @@ pub struct Sender<T> {
 /// This is created by the `unbounded` method.
 pub struct UnboundedSender<T>(Sender<T>);
 
+fn _assert_kinds() {
+    fn _assert_send<T: Send>() {}
+    fn _assert_sync<T: Sync>() {}
+    fn _assert_clone<T: Clone>() {}
+    _assert_send::<UnboundedSender<u32>>();
+    _assert_sync::<UnboundedSender<u32>>();
+    _assert_clone::<UnboundedSender<u32>>();
+}
+
+
 /// The receiving end of a channel which implements the `Stream` trait.
 ///
 /// This is a concrete implementation of a stream which can be used to represent
@@ -322,14 +332,33 @@ impl<T> Sender<T> {
             self.park(can_park);
         }
 
+        self.queue_push_and_signal(msg);
+
+        Ok(())
+    }
+
+    // Do the send without parking current task.
+    //
+    // To be called from unbounded sender.
+    fn do_send_nb(&self, msg: T) -> Result<(), SendError<T>> {
+        match self.inc_num_messages(false) {
+            Some(park_self) => assert!(!park_self),
+            None => return Err(SendError(msg)),
+        };
+
+        self.queue_push_and_signal(Some(msg));
+
+        Ok(())
+    }
+
+    // Push message to the queue and signal to the receiver
+    fn queue_push_and_signal(&self, msg: Option<T>) {
         // Push the message onto the message queue
         self.inner.message_queue.push(msg);
 
         // Signal to the receiver that a message has been enqueued. If the
         // receiver is parked, this will unpark the task.
         self.signal();
-
-        Ok(())
     }
 
     // Increment the number of queued messages. Returns if the sender should
@@ -376,7 +405,7 @@ impl<T> Sender<T> {
     }
 
     // Signal to the receiver task that a message has been enqueued
-    fn signal(&mut self) {
+    fn signal(&self) {
         // TODO
         // This logic can probably be improved by guarding the lock with an
         // atomic.
@@ -480,12 +509,8 @@ impl<T> UnboundedSender<T> {
     /// This is an unbounded sender, so this function differs from `Sink::send`
     /// by ensuring the return type reflects that the channel is always ready to
     /// receive messages.
-    pub fn send(&mut self, msg: T) -> Result<(), SendError<T>> {
-        match self.0.start_send(msg) {
-            Ok(AsyncSink::Ready) => Ok(()),
-            Ok(AsyncSink::NotReady(_)) => panic!(),
-            Err(e) => Err(e),
-        }
+    pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
+        self.0.do_send_nb(msg)
     }
 }
 
