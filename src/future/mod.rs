@@ -79,7 +79,7 @@ if_std! {
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
-    pub use self::shared::Shared;
+    pub use self::shared::{Shared, SharedItem, SharedError};
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use join_all instead")]
