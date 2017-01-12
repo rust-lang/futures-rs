@@ -327,14 +327,14 @@ impl<F: Future> Spawn<F> {
             }
         }
     }
+}
 
+impl Spawn<BoxFuture<(), ()>> {
     /// A specialized function to request running a future to completion on the
     /// specified executor.
     ///
-    /// This function only works for futures whose item and error types are `()`
-    /// and also implement the `Send` and `'static` bounds. This will submit
-    /// units of work (instances of `Run`) to the `exec` argument provided
-    /// necessary to drive the future to completion.
+    /// This will submit units of work (instances of `Run`) to the `exec`
+    /// argument provided necessary to drive the future to completion.
     ///
     /// When the future would block, it's arranged that when the future is again
     /// ready it will submit another unit of work to the `exec` provided. This
@@ -343,19 +343,9 @@ impl<F: Future> Spawn<F> {
     /// This method is not appropriate for all futures, and other kinds of
     /// executors typically provide a similar function with perhaps relaxed
     /// bounds as well.
-    pub fn execute(self, exec: Arc<Executor>)
-        where F: Future<Item=(), Error=()> + Send + 'static,
-    {
+    pub fn execute(self, exec: Arc<Executor>) {
         exec.clone().execute(Run {
-            // Ideally this method would be defined directly on
-            // `Spawn<BoxFuture<(), ()>>` so we wouldn't have to box here and
-            // it'd be more explicit, but unfortunately that currently has a
-            // link error on nightly: rust-lang/rust#36155
-            spawn: Spawn {
-                id: self.id,
-                data: self.data,
-                obj: self.obj.boxed(),
-            },
+            spawn: self,
             inner: Arc::new(Inner {
                 exec: exec,
                 mutex: UnparkMutex::new()
