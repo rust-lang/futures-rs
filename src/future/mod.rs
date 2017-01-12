@@ -378,9 +378,9 @@ pub trait Future {
     /// use futures::future::*;
     ///
     /// let future_of_err_1 = err::<u32, u32>(1);
-    /// let future_of_err_4 = future_of_err_1.from_err::<u32, u32>();
+    /// let future_of_err_4 = future_of_err_1.from_err::<u32>();
     /// ```
-    fn from_err<F, E:From<Self::Error>>(self) -> FromErr<Self, E>
+    fn from_err<E:From<Self::Error>>(self) -> FromErr<Self, E>
         where Self: Sized,
     {
         assert_future::<Self::Item, E, _>(from_err::new(self))
