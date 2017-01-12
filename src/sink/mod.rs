@@ -267,7 +267,10 @@ pub trait Sink {
     /// stream is exhausted, and the sink has fully processed and flushed all of
     /// the items sent to it.
     ///
-    /// On completion, the sink is returned.
+    /// Doing `sink.send_all(stream)` is roughly equivalent to
+    /// `stream.forward(sink)`.
+    ///
+    /// On completion, the pair `(sink, source)` is returned.
     fn send_all<S>(self, stream: S) -> SendAll<Self, S>
         where S: Stream<Item = Self::SinkItem>,
               Self::SinkError: From<S::Error>,

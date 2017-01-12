@@ -897,7 +897,10 @@ pub trait Stream {
     /// stream is exhausted, and the sink has fully processed and flushed all of
     /// the items sent to it.
     ///
-    /// On completion, the pair (stream, sink) is returned.
+    /// Doing `stream.forward(sink)` is roughly equivalent to
+    /// `sink.send_all(stream)`.
+    ///
+    /// On completion, the pair `(stream, sink)` is returned.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
         where S: Sink<SinkItem = Self::Item>,
               Self::Error: From<S::SinkError>,
