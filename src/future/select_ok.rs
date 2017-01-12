@@ -19,7 +19,7 @@ pub struct SelectOk<A> where A: Future {
 /// Creates a new future which will select the first successful future over a list of futures.
 ///
 /// The returned future will wait for any future within `iter` to be ready and Ok. Unlike
-/// select_all, this will only return the first successful completion, or the last
+/// `select_all`, this will only return the first successful completion, or the last
 /// failure. This is useful in contexts where any success is desired and failures
 /// are ignored, unless all the futures fail.
 ///
