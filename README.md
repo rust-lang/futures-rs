@@ -38,9 +38,8 @@ However, it has a significantly reduced API surface. To use `futures-rs` in
 a `#[no_std]` environment, use:
 
 ```toml
-[dependencies.futures]
-version = "..."
-no-default-features = true
+[dependencies]
+futures = { version = "0.1", default-features = false }
 ```
 
 # License
