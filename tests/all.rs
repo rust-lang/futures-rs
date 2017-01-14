@@ -353,3 +353,9 @@ fn select2() {
         assert!(rx.recv().is_err());
     }
 }
+
+#[test]
+fn option() {
+    assert_eq!(Ok(Some(())), Some(ok::<(), ()>(())).wait());
+    assert_eq!(Ok(None), <Option<FutureResult<(), ()>> as Future>::wait(None));
+}

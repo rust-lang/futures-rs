@@ -12,6 +12,7 @@ mod poll_fn;
 #[path = "result.rs"]
 mod result_;
 mod loop_fn;
+mod option;
 pub use self::empty::{empty, Empty};
 pub use self::lazy::{lazy, Lazy};
 pub use self::poll_fn::{poll_fn, PollFn};
