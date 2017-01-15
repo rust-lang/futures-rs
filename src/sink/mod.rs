@@ -21,8 +21,10 @@ mod send_all;
 
 if_std! {
     mod buffer;
+    mod send_error;
 
     pub use self::buffer::Buffer;
+    pub use self::send_error::SendError;
 
     // TODO: consider expanding this via e.g. FromIterator
     impl<T> Sink for ::std::vec::Vec<T> {

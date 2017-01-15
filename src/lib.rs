@@ -207,6 +207,7 @@ if_std! {
     pub mod task;
     pub mod executor;
     pub mod sync;
+    pub mod unsync;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::channel instead")]
