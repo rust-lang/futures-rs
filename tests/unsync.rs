@@ -70,3 +70,16 @@ fn mpsc_backpressure() {
             }))
     }).wait().unwrap();
 }
+
+#[test]
+fn mpsc_unbounded() {
+    let (tx, rx) = mpsc::unbounded::<i32>();
+    lazy(move || {
+        iter(vec![1, 2, 3].into_iter().map(Ok))
+            .forward(tx)
+            .map_err(|e: SendError<i32>| panic!("{}", e))
+            .join(rx.take(3).collect().map(|xs| {
+                assert!(xs == [1, 2, 3]);
+            }))
+    }).wait().unwrap();
+}

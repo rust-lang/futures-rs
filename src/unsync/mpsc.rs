@@ -9,68 +9,53 @@ use task::{self, Task};
 use sink::SendError;
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
-/// Creates a bounded in-memory channel with pre-allocated storage.
+/// Creates a bounded in-memory channel with buffered storage.
 ///
 /// This method creates concrete implementations of the `Stream` and `Sink`
 /// traits which can be used to communicate a stream of values between tasks
-/// with backpressure. The channel capacity is exactly `buffer`.
-pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
+/// with backpressure. The channel capacity is exactly `buffer`. On average,
+/// sending a message through this channel performs no dynamic allocation.
+pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) { channel_(Some(buffer)) }
+
+fn channel_<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
     let shared = Rc::new(RefCell::new(Shared {
-        buffer: VecDeque::with_capacity(buffer),
+        buffer: VecDeque::new(),
+        capacity: buffer,
         receiver_live: true,
-        blocked_senders: VecDeque::with_capacity(1),
+        blocked_senders: VecDeque::new(),
         blocked_recv: None,
     }));
     let sender = Sender { shared: shared.clone() };
-    (sender, Receiver { shared: Some(shared) })
+    let receiver = Receiver { shared: shared };
+    (sender, receiver)
 }
 
 struct Shared<T> {
     buffer: VecDeque<T>,
+    capacity: Option<usize>,
     receiver_live: bool,
     blocked_senders: VecDeque<Task>,
     blocked_recv: Option<Task>,
-}
-
-impl<T> Shared<T> {
-    fn send(&mut self, msg: T) -> AsyncSink<T> {
-        if self.buffer.len() == self.buffer.capacity() {
-            self.blocked_senders.push_back(task::park());
-            AsyncSink::NotReady(msg)
-        } else {
-            self.buffer.push_back(msg);
-            if let Some(task) = self.blocked_recv.take() {
-                task.unpark();
-            }
-            AsyncSink::Ready
-        }
-    }
-
-    fn recv(&mut self) -> Async<T> {
-        match self.buffer.pop_front() {
-            None => {
-                self.blocked_recv = Some(task::park());
-                Async::NotReady
-            }
-            Some(msg) => {
-                if let Some(task) = self.blocked_senders.pop_front() {
-                    task.unpark();
-                }
-                Async::Ready(msg)
-            }
-        }
-    }
 }
 
 /// The transmission end of a channel.
 ///
 /// This is created by the `channel` function.
 pub struct Sender<T> {
-    shared: Rc<RefCell<Shared<T>>>,    
+    shared: Rc<RefCell<Shared<T>>>,
+}
+
+impl<T> Drop for Sender<T> {
+    fn drop(&mut self) {
+        if let Some(task) = self.shared.borrow_mut().blocked_recv.take() {
+            // Wake up receiver to avoid deadlock in case this was the last sender
+            task.unpark();
+        }
+    }
 }
 
 impl<T> Clone for Sender<T> {
-    fn clone(&self) -> Sender<T> { Sender { shared: self.shared.clone() } }
+    fn clone(&self) -> Self { Sender { shared: self.shared.clone() } }
 }
 
 impl<T> Sink for Sender<T> {
@@ -80,9 +65,21 @@ impl<T> Sink for Sender<T> {
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
         let mut shared = self.shared.borrow_mut();
         if !shared.receiver_live {
-            Err(SendError(msg))
-        } else {
-            Ok(shared.send(msg))
+            return Err(SendError(msg));
+        }
+
+        match shared.capacity {
+            Some(capacity) if shared.buffer.len() == capacity => {
+                shared.blocked_senders.push_back(task::park());
+                Ok(AsyncSink::NotReady(msg))
+            }
+            _ => {
+                shared.buffer.push_back(msg);
+                if let Some(task) = shared.blocked_recv.take() {
+                    task.unpark();
+                }
+                Ok(AsyncSink::Ready)
+            }
         }
     }
 
@@ -96,13 +93,15 @@ impl<T> Sink for Sender<T> {
 ///
 /// This is created by the `channel` function.
 pub struct Receiver<T> {
-    shared: Option<Rc<RefCell<Shared<T>>>>,
+    shared: Rc<RefCell<Shared<T>>>,
 }
 
 impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
-        if let Some(shared) = self.shared.as_ref() {
-            shared.borrow_mut().receiver_live = false;
+        let mut shared = self.shared.borrow_mut();
+        shared.receiver_live = false;
+        for task in shared.blocked_senders.drain(..) {
+            task.unpark();
         }
     }
 }
@@ -112,16 +111,56 @@ impl<T> Stream for Receiver<T> {
     type Error = ();            // TODO: Replace with uninhabited type, as this can never fail
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        if let Async::Ready(msg) = self.shared.as_ref().unwrap().borrow_mut().recv() {
-            return Ok(Async::Ready(Some(msg)));
+        if let Some(shared) = Rc::get_mut(&mut self.shared) {
+            return Ok(Async::Ready(shared.borrow_mut().buffer.pop_front()));
         }
 
-        match Rc::try_unwrap(self.shared.take().unwrap()) {
-            Ok(_) => Ok(Async::Ready(None)),
-            Err(shared) => {
-                self.shared = Some(shared);
-                Ok(Async::NotReady)
+        let mut shared = self.shared.borrow_mut();
+        if let Some(msg) = shared.buffer.pop_front() {
+            if let Some(task) = shared.blocked_senders.pop_front() {
+                task.unpark();
             }
+            Ok(Async::Ready(Some(msg)))
+        } else {
+            shared.blocked_recv = Some(task::park());
+            Ok(Async::NotReady)
         }
     }
+}
+
+/// The transmission end of an unbounded channel.
+///
+/// This is created by the `unbounded` function.
+pub struct UnboundedSender<T>(Sender<T>);
+
+impl<T> Clone for UnboundedSender<T> {
+    fn clone(&self) -> Self { UnboundedSender(self.0.clone()) }
+}
+
+impl<T> Sink for UnboundedSender<T> {
+    type SinkItem = T;
+    type SinkError = SendError<T>;
+
+    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> { self.0.start_send(msg) }
+    fn poll_complete(&mut self) -> Poll<(), SendError<T>> { Ok(Async::Ready(())) }
+}
+
+/// The receiving end of an unbounded channel.
+///
+/// This is created by the `unbounded` function.
+pub struct UnboundedReceiver<T>(Receiver<T>);
+
+impl<T> Stream for UnboundedReceiver<T> {
+    type Item = T;
+    type Error = ();            // TODO: Replace with uninhabited type, as this can never fail
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> { self.0.poll() }
+}
+
+/// Creates an unbounded in-memory channel with buffered storage.
+///
+/// Identical semantics to `channel`, except with no limit to buffer size.
+pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
+    let (send, recv) = channel_(None);
+    (UnboundedSender(send), UnboundedReceiver(recv))
 }
