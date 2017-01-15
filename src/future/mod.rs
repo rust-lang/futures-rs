@@ -49,7 +49,7 @@ mod map_err;
 mod from_err;
 mod or_else;
 mod select;
-mod hselect;
+mod select2;
 mod then;
 mod either;
 
@@ -67,7 +67,7 @@ pub use self::map_err::MapErr;
 pub use self::from_err::FromErr;
 pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
-pub use self::hselect::HSelect;
+pub use self::select2::Select2;
 pub use self::then::Then;
 pub use self::either::Either;
 
@@ -565,14 +565,14 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// // A poor-man's join implemented on top of hselect
+    /// // A poor-man's join implemented on top of select2
     ///
     /// fn join<A, B, E>(a: A, b: B) -> BoxFuture<(A::Item, B::Item), E>
     ///     where A: Future<Error = E> + Send + 'static,
     ///           B: Future<Error = E> + Send + 'static,
     ///           A::Item: Send, B::Item: Send, E: Send + 'static,
     /// {
-    ///     a.hselect(b).then(|res| {
+    ///     a.select2(b).then(|res| {
     ///         match res {
     ///             Ok(Either::A((x, b))) => b.map(move |y| (x, y)).boxed(),
     ///             Ok(Either::B((y, a))) => a.map(move |x| (x, y)).boxed(),
@@ -582,10 +582,10 @@ pub trait Future {
     ///     }).boxed()
     /// }
     /// ```
-    fn hselect<B>(self, other: B) -> HSelect<Self, B::Future>
+    fn select2<B>(self, other: B) -> Select2<Self, B::Future>
         where B: IntoFuture, Self: Sized
     {
-        hselect::new(self, other.into_future())
+        select2::new(self, other.into_future())
     }
 
     /// Joins the result of two futures, waiting for them both to complete.
