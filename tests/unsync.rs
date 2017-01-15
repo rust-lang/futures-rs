@@ -3,8 +3,7 @@
 extern crate futures;
 
 use futures::{Future, Stream, Sink, Async};
-use futures::sink::SendError;
-use futures::unsync::mpsc;
+use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
 use futures::stream::iter;
 

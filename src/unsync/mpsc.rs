@@ -1,12 +1,14 @@
 //! A multi-producer, single-consumer, futures-aware, FIFO queue with back
 //! pressure, for use communicating between tasks on the same thread.
 
+use std::fmt;
+use std::error::Error;
+use std::any::Any;
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::cell::RefCell;
 
 use task::{self, Task};
-use sink::SendError;
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
 /// Creates a bounded in-memory channel with buffered storage.
@@ -163,4 +165,36 @@ impl<T> Stream for UnboundedReceiver<T> {
 pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
     let (send, recv) = channel_(None);
     (UnboundedSender(send), UnboundedReceiver(recv))
+}
+
+/// Error type for sending, used when the receiving end of a channel is
+/// dropped
+pub struct SendError<T>(pub T);
+
+impl<T> fmt::Debug for SendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("SendError")
+            .field(&"...")
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for SendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "send failed because receiver is gone")
+    }
+}
+
+impl<T: Any> Error for SendError<T>
+{
+    fn description(&self) -> &str {
+        "send failed because receiver is gone"
+    }
+}
+
+impl<T> SendError<T> {
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
 }

@@ -67,6 +67,9 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
+use std::fmt;
+use std::error::Error;
+use std::any::Any;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
@@ -76,13 +79,6 @@ use std::usize;
 use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
-
-#[doc(hidden)]
-#[deprecated(since = "0.1.9", note = "use sink::SendError instead")]
-#[cfg(feature = "with-deprecated")]
-pub use sink::SendError;
-#[cfg(not(feature = "with-deprecated"))]
-use sink::SendError;
 
 mod queue;
 
@@ -133,6 +129,38 @@ pub struct Receiver<T> {
 /// a stream of values being computed elsewhere. This is created by the
 /// `unbounded` method.
 pub struct UnboundedReceiver<T>(Receiver<T>);
+
+/// Error type for sending, used when the receiving end of a channel is
+/// dropped
+pub struct SendError<T>(pub T);
+
+impl<T> fmt::Debug for SendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("SendError")
+            .field(&"...")
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for SendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "send failed because receiver is gone")
+    }
+}
+
+impl<T: Any> Error for SendError<T>
+{
+    fn description(&self) -> &str {
+        "send failed because receiver is gone"
+    }
+}
+
+impl<T> SendError<T> {
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
 
 struct Inner<T> {
     // Max buffer size of the channel. If `None` then the channel is unbounded.
