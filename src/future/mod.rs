@@ -49,6 +49,7 @@ mod map_err;
 mod from_err;
 mod or_else;
 mod select;
+mod hselect;
 mod then;
 mod either;
 
@@ -66,6 +67,7 @@ pub use self::map_err::MapErr;
 pub use self::from_err::FromErr;
 pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
+pub use self::hselect::HSelect;
 pub use self::then::Then;
 pub use self::either::Either;
 
@@ -546,6 +548,44 @@ pub trait Future {
         let f = select::new(self, other.into_future());
         assert_future::<(Self::Item, SelectNext<Self, B::Future>),
                         (Self::Error, SelectNext<Self, B::Future>), _>(f)
+    }
+
+    /// Waits for either one of two differently-typed futures to complete.
+    ///
+    /// This function will return a new future which awaits for either this or
+    /// the `other` future to complete. The returned future will finish with
+    /// both the value resolved and a future representing the completion of the
+    /// other work.
+    ///
+    /// Note that this function consumes the receiving futures and returns a
+    /// wrapped version of them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// // A poor-man's join implemented on top of hselect
+    ///
+    /// fn join<A, B, E>(a: A, b: B) -> BoxFuture<(A::Item, B::Item), E>
+    ///     where A: Future<Error = E> + Send + 'static,
+    ///           B: Future<Error = E> + Send + 'static,
+    ///           A::Item: Send, B::Item: Send, E: Send + 'static,
+    /// {
+    ///     a.hselect(b).then(|res| {
+    ///         match res {
+    ///             Ok(Either::A((x, b))) => b.map(move |y| (x, y)).boxed(),
+    ///             Ok(Either::B((y, a))) => a.map(move |x| (x, y)).boxed(),
+    ///             Err(Either::A((e, _))) => err(e).boxed(),
+    ///             Err(Either::B((e, _))) => err(e).boxed(),
+    ///         }
+    ///     }).boxed()
+    /// }
+    /// ```
+    fn hselect<B>(self, other: B) -> HSelect<Self, B::Future>
+        where B: IntoFuture, Self: Sized
+    {
+        hselect::new(self, other.into_future())
     }
 
     /// Joins the result of two futures, waiting for them both to complete.
