@@ -50,6 +50,7 @@ mod from_err;
 mod or_else;
 mod select;
 mod then;
+mod then_yield;
 mod either;
 
 // impl details
@@ -67,6 +68,7 @@ pub use self::from_err::FromErr;
 pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
 pub use self::then::Then;
+pub use self::then_yield::ThenYield;
 pub use self::either::Either;
 
 if_std! {
@@ -429,6 +431,29 @@ pub trait Future {
               Self: Sized,
     {
         assert_future::<B::Item, B::Error, _>(then::new(self, f))
+    }
+
+    /// Yield after this future completes.
+    ///
+    /// This function returns a new future that, after the inner future
+    /// completes, yields once (returns `Async::NotReady`) before completing.
+    /// Use this if you're performing an expensive, potentially synchronous
+    /// operation and want to give other futures a chance to run (e.g., on a
+    /// thread pool).
+    ///
+    /// ```
+    /// use futures::{Async, Future, Stream, future, stream};
+    /// let numbers = stream::iter((1..10).map(Ok::<u64, ()>));
+    /// let mut product = numbers.fold(1, |a, b| {
+    ///    // Pretend calculating `a * b` is *really slow*.
+    ///    future::ok(a * b).then_yield()
+    /// });
+    /// assert_eq!(product.wait().unwrap(), 362880);
+    /// ```
+    fn then_yield(self) -> ThenYield<Self>
+        where Self: Sized,
+    {
+        assert_future::<Self::Item, Self::Error, _>(then_yield::new(self))
     }
 
     /// Execute another future after this one has resolved successfully.
