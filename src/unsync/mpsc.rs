@@ -145,6 +145,26 @@ impl<T> Sink for UnboundedSender<T> {
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> { Ok(Async::Ready(())) }
 }
 
+impl<T> UnboundedSender<T> {
+    /// Sends the provided message along this channel.
+    ///
+    /// This is an unbounded sender, so this function differs from `Sink::send`
+    /// by ensuring the return type reflects that the channel is always ready to
+    /// receive messages.
+    pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
+        let shared = match self.0.shared.upgrade() {
+            Some(shared) => shared,
+            None => return Err(SendError(msg)),
+        };
+        let mut shared = shared.borrow_mut();
+        shared.buffer.push_back(msg);
+        if let Some(task) = shared.blocked_recv.take() {
+            task.unpark();
+        }
+        Ok(())
+    }
+}
+
 /// The receiving end of an unbounded channel.
 ///
 /// This is created by the `unbounded` function.
