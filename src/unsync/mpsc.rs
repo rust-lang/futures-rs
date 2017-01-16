@@ -167,7 +167,7 @@ pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
 
 /// Error type for sending, used when the receiving end of a channel is
 /// dropped
-pub struct SendError<T>(pub T);
+pub struct SendError<T>(T);
 
 impl<T> fmt::Debug for SendError<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
