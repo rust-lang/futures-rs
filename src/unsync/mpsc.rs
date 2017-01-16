@@ -25,6 +25,7 @@ fn channel_<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
         capacity: buffer,
         blocked_senders: VecDeque::new(),
         blocked_recv: None,
+        sender_count: 1,
     }));
     let sender = Sender { shared: Rc::downgrade(&shared) };
     let receiver = Receiver { shared: shared };
@@ -36,6 +37,8 @@ struct Shared<T> {
     capacity: Option<usize>,
     blocked_senders: VecDeque<Task>,
     blocked_recv: Option<Task>,
+    // TODO: Redundant to Rc::weak_count; use that if/when stabilized
+    sender_count: usize,
 }
 
 /// The transmission end of a channel.
@@ -47,15 +50,27 @@ pub struct Sender<T> {
 
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
-        if let Some(task) = self.shared.upgrade().and_then(|shared| shared.borrow_mut().blocked_recv.take()) {
-            // Wake up receiver to avoid deadlock in case this was the last sender
-            task.unpark();
+        if let Some(shared) = self.shared.upgrade() {
+            let mut shared = shared.borrow_mut();
+            shared.sender_count -= 1;
+            if shared.sender_count == 0 {
+                if let Some(task) = shared.blocked_recv.take() {
+                    // Wake up receiver as its stream has ended
+                    task.unpark();
+                }
+            }
         }
     }
 }
 
 impl<T> Clone for Sender<T> {
-    fn clone(&self) -> Self { Sender { shared: self.shared.clone() } }
+    fn clone(&self) -> Self {
+        let result = Sender { shared: self.shared.clone() };
+        if let Some(shared) = self.shared.upgrade() {
+            shared.borrow_mut().sender_count += 1;
+        }
+        result
+    }
 }
 
 impl<T> Sink for Sender<T> {
@@ -63,24 +78,24 @@ impl<T> Sink for Sender<T> {
     type SinkError = SendError<T>;
 
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        if let Some(shared) = self.shared.upgrade() {
-            let mut shared = shared.borrow_mut();
+        let shared = match self.shared.upgrade() {
+            Some(shared) => shared,
+            None => return Err(SendError(msg)),
+        };
+        let mut shared = shared.borrow_mut();
 
-            match shared.capacity {
-                Some(capacity) if shared.buffer.len() == capacity => {
-                    shared.blocked_senders.push_back(task::park());
-                    Ok(AsyncSink::NotReady(msg))
-                }
-                _ => {
-                    shared.buffer.push_back(msg);
-                    if let Some(task) = shared.blocked_recv.take() {
-                        task.unpark();
-                    }
-                    Ok(AsyncSink::Ready)
-                }
+        match shared.capacity {
+            Some(capacity) if shared.buffer.len() == capacity => {
+                shared.blocked_senders.push_back(task::park());
+                Ok(AsyncSink::NotReady(msg))
             }
-        } else {
-            Err(SendError(msg))
+            _ => {
+                shared.buffer.push_back(msg);
+                if let Some(task) = shared.blocked_recv.take() {
+                    task.unpark();
+                }
+                Ok(AsyncSink::Ready)
+            }
         }
     }
 
@@ -112,6 +127,7 @@ impl<T> Stream for Receiver<T> {
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(shared) = Rc::get_mut(&mut self.shared) {
+            // All senders have been dropped, so drain the buffer and end the stream.
             return Ok(Async::Ready(shared.borrow_mut().buffer.pop_front()));
         }
 
