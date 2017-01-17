@@ -15,8 +15,8 @@ pub enum Loop<T, S> {
 /// A future implementing a tail-recursive loop.
 ///
 /// Created by the `loop_fn` function.
-pub struct LoopFn<A, F> {
-    future: A,
+pub struct LoopFn<A, F> where A: IntoFuture {
+    future: A::Future,
     func: F,
 }
 
@@ -69,10 +69,9 @@ pub struct LoopFn<A, F> {
 ///         })
 /// });
 /// ```
-pub fn loop_fn<S, T, I, A, F>(initial_state: S, mut func: F) -> LoopFn<A, F>
-    where F: FnMut(S) -> I,
-          A: Future<Item = Loop<T, S>>,
-          I: IntoFuture<Future = A, Item = A::Item, Error = A::Error>
+pub fn loop_fn<S, T, A, F>(initial_state: S, mut func: F) -> LoopFn<A, F>
+    where F: FnMut(S) -> A,
+          A: IntoFuture<Item = Loop<T, S>>,
 {
     LoopFn {
         future: func(initial_state).into_future(),
@@ -80,18 +79,16 @@ pub fn loop_fn<S, T, I, A, F>(initial_state: S, mut func: F) -> LoopFn<A, F>
     }
 }
 
-impl<S, T, I, A, F> Future for LoopFn<A, F>
-    where F: FnMut(S) -> I,
-          A: Future<Item = Loop<T, S>>,
-          I: IntoFuture<Future = A, Item = A::Item, Error = A::Error>
+impl<S, T, A, F> Future for LoopFn<A, F>
+    where F: FnMut(S) -> A,
+          A: IntoFuture<Item = Loop<T, S>>,
 {
     type Item = T;
     type Error = A::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         loop {
-            let status = try_ready!(self.future.poll());
-            match status {
+            match try_ready!(self.future.poll()) {
                 Loop::Break(x) => return Ok(Async::Ready(x)),
                 Loop::Continue(s) => self.future = (self.func)(s).into_future(),
             }
