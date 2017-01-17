@@ -35,7 +35,7 @@ pub struct LoopFn<A, F> where A: IntoFuture {
 /// # Examples
 ///
 /// ```
-/// use futures::future::{ok, loop_fn, Future, Ok, Loop};
+/// use futures::future::{ok, loop_fn, Future, FutureResult, Loop};
 /// use std::io::Error;
 ///
 /// struct Client {
@@ -47,11 +47,11 @@ pub struct LoopFn<A, F> where A: IntoFuture {
 ///         Client { ping_count: 0 }
 ///     }
 ///
-///     fn send_ping(self) -> Ok<Self, Error> {
+///     fn send_ping(self) -> FutureResult<Self, Error> {
 ///         ok(Client { ping_count: self.ping_count + 1 })
 ///     }
 ///
-///     fn receive_pong(self) -> Ok<(Self, bool), Error> {
+///     fn receive_pong(self) -> FutureResult<(Self, bool), Error> {
 ///         let done = self.ping_count >= 5;
 ///         ok((self, done))
 ///     }
