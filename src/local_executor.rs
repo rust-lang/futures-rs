@@ -1,9 +1,12 @@
-//! Execution of futures which perform no IO on a single thread
+//! Execution of futures on a single thread
+//!
+//! This module has no special handling of any blocking operations other than
+//! futures-aware inter-thread communications, and should therefore probably not
+//! be used to manage IO.
 
-use std::rc::Rc;
-use std::sync::Arc;
-use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::sync::{Arc, Mutex, mpsc};
+use std::collections::HashMap;
+use std::collections::hash_map;
 use std::boxed::Box;
 
 use {Future, Async};
@@ -12,16 +15,21 @@ use executor::{self, Spawn};
 
 /// Main loop object
 pub struct Core {
-    inner: Rc<RefCell<Inner>>,
-    live: usize,
+    unpark_send: mpsc::Sender<u64>,
+    unpark: mpsc::Receiver<u64>,
+    live: HashMap<u64, Spawn<Box<Future<Item=(), Error=()>>>>,
+    next_id: u64,
 }
 
 impl Core {
     /// Create a new `Core`.
     pub fn new() -> Self {
+        let (send, recv) = mpsc::channel();
         Core {
-            inner: Rc::new(RefCell::new(Inner::new())),
-            live: 0,
+            unpark_send: send,
+            unpark: recv,
+            live: HashMap::new(),
+            next_id: 0,
         }
     }
 
@@ -29,57 +37,40 @@ impl Core {
     pub fn spawn<F>(&mut self, f: F)
         where F: Future<Item=(), Error=()> + 'static
     {
-        self.inner.borrow_mut().ready.push_back(Rc::new(RefCell::new(executor::spawn(Box::new(f)))));
-        self.live += 1;
+        self.live.insert(self.next_id, executor::spawn(Box::new(f)));
+        self.unpark_send.send(self.next_id).unwrap();
+        self.next_id += 1;
     }
 
-    /// Run the loop until all futures complete.
+    /// Run the loop until all futures previously passed to `spawn` complete.
     ///
     /// # Panics
-    /// Panics if a future deadlocks.
+    /// May, but is not guaranteed to, panic if a future that was passed to `spawn` deadlocks.
     pub fn run(&mut self) {
-        loop {
-            let task = self.inner.borrow_mut().ready.pop_front();
-            if let Some(task) = task {
-                let unpark = Arc::new(Unpark { task: task.clone(), inner: self.inner.clone(), });
-                match task.borrow_mut().poll_future(unpark) {
-                    Ok(Async::Ready(())) => self.live -= 1,
-                    Err(()) => self.live -= 1,
+        while !self.live.is_empty() {
+            if let Ok(task) = self.unpark.recv() {
+                let unpark = Arc::new(Unpark { task: task, send: Mutex::new(self.unpark_send.clone()), });
+                let mut task = if let hash_map::Entry::Occupied(x) = self.live.entry(task) { x } else { continue };
+                let result = task.get_mut().poll_future(unpark);
+                match result {
+                    Ok(Async::Ready(())) => { task.remove_entry(); }
+                    Err(()) => { task.remove_entry(); }
                     Ok(Async::NotReady) => {}
                 }
             } else {
-                break;
+                panic!("deadlock: {} task(s) blocked", self.live.len());
             }
-        }
-        if self.live != 0 {
-            panic!("deadlock");
-        }
-    }
-}
-
-struct Inner {
-    ready: VecDeque<Rc<RefCell<Spawn<Box<Future<Item=(), Error=()>>>>>>,
-}
-
-impl Inner {
-    fn new() -> Self {
-        Inner {
-            ready: VecDeque::new(),
         }
     }
 }
 
 struct Unpark {
-    task: Rc<RefCell<Spawn<Box<Future<Item=(), Error=()>>>>>,
-    inner: Rc<RefCell<Inner>>,
+    task: u64,
+    send: Mutex<mpsc::Sender<u64>>,
 }
-
-// We will do neither of these things.
-unsafe impl ::std::marker::Sync for Unpark {}
-unsafe impl ::std::marker::Send for Unpark {}
 
 impl executor::Unpark for Unpark {
     fn unpark(&self) {
-        self.inner.borrow_mut().ready.push_back(self.task.clone())
+        let _ = self.send.lock().unwrap().send(self.task);
     }
 }
