@@ -24,6 +24,9 @@ pub struct Drain<T> {
     head: *mut Node<T>,
 }
 
+unsafe impl<T: Send> Send for Drain<T> {}
+unsafe impl<T: Sync> Sync for Drain<T> {}
+
 impl<T> Stack<T> {
     pub fn new() -> Stack<T> {
         Stack {
