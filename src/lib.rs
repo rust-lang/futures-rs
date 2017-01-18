@@ -206,6 +206,7 @@ if_std! {
 
     pub mod task;
     pub mod executor;
+    pub mod local_executor;
     pub mod sync;
     pub mod unsync;
 

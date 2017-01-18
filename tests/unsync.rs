@@ -6,6 +6,7 @@ use futures::{Future, Stream, Sink, Async};
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
 use futures::stream::iter;
+use futures::local_executor::Core;
 
 #[test]
 fn mpsc_send_recv() {
@@ -81,4 +82,25 @@ fn mpsc_unbounded() {
                 assert!(xs == [1, 2, 3]);
             }))
     }).wait().unwrap();
+}
+
+#[test]
+fn mpsc_recv_unpark() {
+    let mut core = Core::new();
+    let (tx, rx) = mpsc::channel::<i32>(1);
+    let tx2 = tx.clone();
+    core.spawn(rx.collect().map(|xs| assert!(xs == [1, 2])));
+    core.spawn(lazy(move || tx.send(1).map(|_| ()).map_err(|e| panic!("{}", e))));
+    core.spawn(lazy(move || tx2.send(2).map(|_| ()).map_err(|e| panic!("{}", e))));
+    core.run();
+}
+
+#[test]
+fn mpsc_send_unpark() {
+    let mut core = Core::new();
+    let (tx, rx) = mpsc::channel::<i32>(1);
+    core.spawn(iter(vec![1, 2].into_iter().map(Ok)).forward(tx)
+               .then(|x: Result<_, SendError<i32>>| { assert!(x.is_err()); Ok(()) }));
+    core.spawn(lazy(move || { let _ = rx; Ok(()) }));
+    core.run();
 }
