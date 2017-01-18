@@ -43,22 +43,16 @@ impl Core {
     }
 
     /// Run the loop until all futures previously passed to `spawn` complete.
-    ///
-    /// # Panics
-    /// May, but is not guaranteed to, panic if a future that was passed to `spawn` deadlocks.
     pub fn run(&mut self) {
         while !self.live.is_empty() {
-            if let Ok(task) = self.unpark.recv() {
-                let unpark = Arc::new(Unpark { task: task, send: Mutex::new(self.unpark_send.clone()), });
-                let mut task = if let hash_map::Entry::Occupied(x) = self.live.entry(task) { x } else { continue };
-                let result = task.get_mut().poll_future(unpark);
-                match result {
-                    Ok(Async::Ready(())) => { task.remove_entry(); }
-                    Err(()) => { task.remove_entry(); }
-                    Ok(Async::NotReady) => {}
-                }
-            } else {
-                panic!("deadlock: {} task(s) blocked", self.live.len());
+            let task = self.unpark.recv().unwrap(); // Safe to unwrap because self.unpark_send keeps the channel alive
+            let unpark = Arc::new(Unpark { task: task, send: Mutex::new(self.unpark_send.clone()), });
+            let mut task = if let hash_map::Entry::Occupied(x) = self.live.entry(task) { x } else { continue };
+            let result = task.get_mut().poll_future(unpark);
+            match result {
+                Ok(Async::Ready(())) => { task.remove_entry(); }
+                Err(()) => { task.remove_entry(); }
+                Ok(Async::NotReady) => {}
             }
         }
     }
