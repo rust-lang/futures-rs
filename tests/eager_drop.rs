@@ -60,7 +60,7 @@ fn and_then_drops_eagerly() {
         ok(1)
     }).forget();
     assert!(rx2.try_recv().is_err());
-    c.complete(());
+    c.send(()).unwrap();
     rx2.recv().unwrap();
 }
 

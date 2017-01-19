@@ -42,14 +42,14 @@ fn works() {
     let o4 = rx3.recv().unwrap();
     assert!(rx4.try_recv().is_err());
 
-    o1.complete(1);
+    o1.send(1).unwrap();
     assert_eq!(rx4.recv(), Ok(1));
-    o3.complete(3);
+    o3.send(3).unwrap();
     assert_eq!(rx4.recv(), Ok(3));
     tx2.send(()).unwrap();
-    o2.complete(2);
+    o2.send(2).unwrap();
     assert_eq!(rx4.recv(), Ok(2));
-    o4.complete(4);
+    o4.send(4).unwrap();
     assert_eq!(rx4.recv(), Ok(4));
 
     let o5 = rx3.recv().unwrap();
@@ -58,15 +58,15 @@ fn works() {
     let o8 = rx3.recv().unwrap();
     let o9 = rx3.recv().unwrap();
 
-    o5.complete(5);
+    o5.send(5).unwrap();
     assert_eq!(rx4.recv(), Ok(5));
-    o8.complete(8);
+    o8.send(8).unwrap();
     assert_eq!(rx4.recv(), Ok(8));
-    o9.complete(9);
+    o9.send(9).unwrap();
     assert_eq!(rx4.recv(), Ok(9));
-    o7.complete(7);
+    o7.send(7).unwrap();
     assert_eq!(rx4.recv(), Ok(7));
-    o6.complete(6);
+    o6.send(6).unwrap();
     assert_eq!(rx4.recv(), Ok(6));
 
     t1.join().unwrap();

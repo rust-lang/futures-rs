@@ -91,7 +91,7 @@ struct Inner<T> {
 ///     }).wait();
 /// });
 ///
-/// c.complete(3);
+/// c.send(3).unwrap();
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner {
@@ -110,13 +110,28 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 }
 
 impl<T> Sender<T> {
+    #[deprecated(note = "renamed to `send`", since = "0.1.11")]
+    #[doc(hidden)]
+    #[cfg(feature = "with-deprecated")]
+    pub fn complete(self, t: T) {
+        drop(self.send(t));
+    }
+
     /// Completes this oneshot with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the
     /// `Receiver`, that the error provided is the result of the computation this
     /// represents.
-    pub fn complete(self, t: T) {
-        // First up, flag that this method was called and then store the data.
+    ///
+    /// If the value is successfully enqueued for the remote end to receive,
+    /// then `Ok(())` is returned. If the receiving end was deallocated before
+    /// this function was called, however, then `Err` is returned with the value
+    /// provided.
+    pub fn send(self, t: T) -> Result<(), T> {
+        if self.inner.complete.load(SeqCst) {
+            return Err(t)
+        }
+
         // Note that this lock acquisition should always succeed as it can only
         // interfere with `poll` in `Receiver` which is only called when the
         // `complete` flag is true, which we're setting here.
@@ -124,6 +139,7 @@ impl<T> Sender<T> {
         assert!(slot.is_none());
         *slot = Some(t);
         drop(slot);
+        Ok(())
     }
 
     /// Polls this `Sender` half to detect whether the `Receiver` this has

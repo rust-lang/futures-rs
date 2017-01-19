@@ -19,7 +19,7 @@ fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
             assert!(*cloned_future.wait().unwrap() == 6);
         })
     }).collect::<Vec<_>>();
-    tx.complete(6);
+    tx.send(6).unwrap();
     assert!(*f.wait().unwrap() == 6);
     for f in threads {
         f.join().unwrap();
@@ -57,13 +57,13 @@ fn drop_on_one_task_ok() {
     let (tx3, rx3) = oneshot::channel::<u32>();
 
     let t2 = thread::spawn(|| {
-        drop(f2.map(|x| tx3.complete(*x)).map_err(|_| ()).wait());
+        drop(f2.map(|x| tx3.send(*x).unwrap()).map_err(|_| ()).wait());
     });
 
-    tx2.complete(11); // cancel `f1`
+    tx2.send(11).unwrap(); // cancel `f1`
     t1.join().unwrap();
 
-    tx.complete(42); // Should cause `f2` and then `rx3` to get resolved.
+    tx.send(42).unwrap(); // Should cause `f2` and then `rx3` to get resolved.
     let result = rx3.wait().unwrap();
     assert_eq!(result, 42);
     t2.join().unwrap();
@@ -97,7 +97,7 @@ fn peek() {
     }
 
     // Completing the underlying future has no effect, because the value has not been `poll`ed in.
-    tx0.complete(42);
+    tx0.send(42).unwrap();
     for _ in 0..2 {
         assert!(f1.peek().is_none());
         assert!(f2.peek().is_none());
@@ -123,20 +123,20 @@ fn polled_then_ignored() {
     let (tx2, rx2) = oneshot::channel::<u32>();
     let (tx3, rx3) = oneshot::channel::<u32>();
 
-    core.spawn(f1.map(|n| tx3.complete(*n)).map_err(|_|()));
+    core.spawn(f1.map(|n| tx3.send(*n).unwrap()).map_err(|_|()));
 
     core.run(future::ok::<(),()>(())).unwrap(); // Allow f1 to be polled.
 
     core.spawn(f2.map_err(|_| ()).map(|x| *x).select(rx2.map_err(|_| ())).map_err(|_| ())
-        .and_then(|(_, f2)| rx3.map_err(|_| ()).map(move |n| {drop(f2); tx1.complete(n)})));
+        .and_then(|(_, f2)| rx3.map_err(|_| ()).map(move |n| {drop(f2); tx1.send(n).unwrap()})));
 
     core.run(future::ok::<(),()>(())).unwrap();  // Allow f2 to be polled.
 
-    tx2.complete(11); // Resolve rx2, causing f2 to no longer get polled.
+    tx2.send(11).unwrap(); // Resolve rx2, causing f2 to no longer get polled.
 
-    core.run(future::ok::<(),()>(())).unwrap(); // Let the complete() propagate.
+    core.run(future::ok::<(),()>(())).unwrap(); // Let the send() propagate.
 
-    tx0.complete(42); // Should cause f1, then rx3, and then rx1 to resolve.
+    tx0.send(42).unwrap(); // Should cause f1, then rx3, and then rx1 to resolve.
 
     assert_eq!(core.run(rx1).unwrap(), 42);
 }
@@ -166,7 +166,7 @@ fn recursive_poll() {
     // deadlock or panic due to a recursive lock() on a mutex.
     core.run(future::ok::<(),()>(())).unwrap();
 
-    tx1.complete(()); // Break the cycle.
+    tx1.send(()).unwrap(); // Break the cycle.
     drop(tx0);
     core.run(f3).unwrap();
 }
@@ -198,7 +198,7 @@ fn recursive_poll_with_unpark() {
     // deadlock or panic due to a recursive lock() on a mutex.
     core.run(future::ok::<(),()>(())).unwrap();
 
-    tx1.complete(()); // Break the cycle.
+    tx1.send(()).unwrap(); // Break the cycle.
     drop(tx0);
     core.run(f3).unwrap();
 }
