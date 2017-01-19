@@ -67,9 +67,9 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-use std::any::Any;
-use std::error::Error;
 use std::fmt;
+use std::error::Error;
+use std::any::Any;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
@@ -130,7 +130,7 @@ pub struct Receiver<T> {
 /// `unbounded` method.
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-/// Error type for sending, used when the receiving end of the channel is
+/// Error type for sending, used when the receiving end of a channel is
 /// dropped
 pub struct SendError<T>(T);
 
@@ -148,8 +148,7 @@ impl<T> fmt::Display for SendError<T> {
     }
 }
 
-impl<T> Error for SendError<T>
-    where T: Any
+impl<T: Any> Error for SendError<T>
 {
     fn description(&self) -> &str {
         "send failed because receiver is gone"

@@ -10,6 +10,8 @@ use futures::stream::Stream;
 use futures::executor::{self, Unpark};
 use futures::task;
 
+pub mod local_executor;
+
 pub fn f_ok(a: i32) -> FutureResult<i32, u32> { Ok(a).into_future() }
 pub fn f_err(a: u32) -> FutureResult<i32, u32> { Err(a).into_future() }
 pub fn r_ok(a: i32) -> Result<i32, u32> { Ok(a) }
