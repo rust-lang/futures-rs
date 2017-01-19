@@ -2,11 +2,14 @@
 
 extern crate futures;
 
+mod support;
+
 use futures::{Future, Stream, Sink, Async};
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
 use futures::stream::iter;
-use futures::local_executor::Core;
+
+use support::local_executor::Core;
 
 #[test]
 fn mpsc_send_recv() {

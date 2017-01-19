@@ -11,9 +11,9 @@ use std::boxed::Box;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use {Future, Async};
+use futures::{Future, Async};
 
-use executor::{self, Spawn};
+use futures::executor::{self, Spawn};
 
 /// Main loop object
 pub struct Core {
