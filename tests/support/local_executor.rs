@@ -74,8 +74,8 @@ impl Core {
         let mut task = if let hash_map::Entry::Occupied(x) = self.live.entry(task) { x } else { return };
         let result = task.get_mut().poll_future(unpark);
         match result {
-            Ok(Async::Ready(())) => { task.remove_entry(); }
-            Err(()) => { task.remove_entry(); }
+            Ok(Async::Ready(())) => { task.remove(); }
+            Err(()) => { task.remove(); }
             Ok(Async::NotReady) => {}
         }
     }
