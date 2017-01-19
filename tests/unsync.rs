@@ -91,8 +91,7 @@ fn mpsc_recv_unpark() {
     let tx2 = tx.clone();
     core.spawn(rx.collect().map(|xs| assert!(xs == [1, 2])));
     core.spawn(lazy(move || tx.send(1).map(|_| ()).map_err(|e| panic!("{}", e))));
-    core.spawn(lazy(move || tx2.send(2).map(|_| ()).map_err(|e| panic!("{}", e))));
-    core.run();
+    core.run(lazy(move || tx2.send(2))).unwrap();
 }
 
 #[test]
@@ -102,5 +101,5 @@ fn mpsc_send_unpark() {
     core.spawn(iter(vec![1, 2].into_iter().map(Ok)).forward(tx)
                .then(|x: Result<_, SendError<i32>>| { assert!(x.is_err()); Ok(()) }));
     core.spawn(lazy(move || { let _ = rx; Ok(()) }));
-    core.run();
+    core.wait();
 }
