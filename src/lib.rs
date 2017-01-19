@@ -101,7 +101,7 @@
 //!     //
 //!     // Again note that all the above calls to `and_then` and the below calls
 //!     // to `map` and such require no allocations. We only ever allocate once
-//!     // we hit the `.boxed()` call at the end here, which means we've built
+//!     // we hit the `Box::new()` call at the end here, which means we've built
 //!     // up a relatively involved computation with only one box, and even that
 //!     // was optional!
 //!
