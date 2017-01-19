@@ -1,6 +1,7 @@
 extern crate futures;
 
 use futures::Future;
+use futures::future;
 use futures::unsync::oneshot::{channel, Canceled};
 
 #[test]
@@ -26,7 +27,7 @@ fn poll_cancel() {
 fn tx_complete_rx_unparked() {
     let (tx, rx) = channel();
 
-    let res = rx.join(::futures::lazy(move || {
+    let res = rx.join(future::lazy(move || {
         tx.complete(55);
         Ok(11)
     }));
@@ -37,7 +38,7 @@ fn tx_complete_rx_unparked() {
 fn tx_dropped_rx_unparked() {
     let (tx, rx) = channel::<i32>();
 
-    let res = rx.join(::futures::lazy(move || {
+    let res = rx.join(future::lazy(move || {
         let _tx = tx;
         Ok(11)
     }));
