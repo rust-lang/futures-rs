@@ -16,7 +16,7 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures = "0.1.7"
+futures = "0.1.9"
 ```
 
 Next, add this to your crate:
