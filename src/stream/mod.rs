@@ -80,6 +80,7 @@ if_std! {
 
     mod buffered;
     mod buffer_unordered;
+    mod batched;
     mod catch_unwind;
     mod chunks;
     mod collect;
@@ -89,6 +90,7 @@ if_std! {
     mod futures_unordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
+    pub use self::batched::Batched;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
@@ -869,6 +871,39 @@ pub trait Stream {
         where Self: Sized
     {
         chunks::new(self, capacity)
+    }
+
+    /// An adapter for creating batches from the underlying stream.
+    ///
+    /// Result of this operation is a stream of `Vec<Self::Item>`
+    /// where len of vec is at most `capacity` elements.
+    ///
+    /// Resulting stream emits all "ready" items from the underlying
+    /// stream, but no more than `capacity`.
+    ///
+    /// E. g. if `capacity` is 10, and underlying stream can return 4 items
+    /// before "not ready", then this stream emits vec of 4 elements.
+    ///
+    /// Errors are passed through the stream unbuffered,
+    /// and order of items and errors is preserved.
+    ///
+    /// Example use case: suppose you want to stream some events into
+    /// the network. Event source is provided as `Stream<Event>` and
+    /// you want to minimize number of network packets and at the same time
+    /// send events without delays if there are no more events available
+    /// at this moment. This can be done with `batched` combinator, which
+    /// does not wait for exact `capacity` items unlike `chunks` combinator.
+    ///
+    /// Another application of this adapter is to minimize number of context
+    /// switches and atomic operations when passing small messages.
+    ///
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
+    #[cfg(feature = "use_std")]
+    fn batched(self, capacity: usize) -> Batched<Self>
+        where Self: Sized
+    {
+        batched::new(self, capacity)
     }
 
     /// Creates a stream that selects the next element from either this stream
