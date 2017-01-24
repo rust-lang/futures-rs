@@ -14,22 +14,35 @@
 //! ```
 
 use std::mem;
-use std::vec::Vec;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
+use std::collections::HashMap;
 
 use {Future, Poll, Async};
-use task::{self, Task};
+use task;
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use Future::shared() method to convert any future into a `Shared` future.
 #[must_use = "futures do nothing unless polled"]
 pub struct Shared<F: Future> {
-    inner: Arc<Mutex<State<F>>>,
+    id: u64,
+    inner: Arc<Inner<F>>,
+}
+
+struct Inner<F: Future> {
+    next_clone_id: Mutex<u64>,
+
+    /// Only ever `Some` when `state` is `Waiting`. This is not part of the `State`
+    /// enum because we want to be able to call `poll()` on the original future
+    /// without holding a lock on `state`.
+    original_future: Mutex<Option<F>>,
+
+    state: RwLock<State<F>>,
 }
 
 enum State<F: Future> {
-    Waiting(F, Vec<Task>),
+    Waiting(Arc<Unparker>),
     Done(Result<Arc<F::Item>, Arc<F::Error>>),
 }
 
@@ -39,7 +52,13 @@ impl<F> Shared<F>
     /// Creates a new `Shared` from another future.
     pub fn new(future: F) -> Self {
         Shared {
-            inner: Arc::new(Mutex::new(State::Waiting(future, Vec::new()))),
+            id: 0,
+            inner: Arc::new(
+                Inner {
+                    next_clone_id: Mutex::new(1),
+                    original_future: Mutex::new(Some(future)),
+                    state: RwLock::new(State::Waiting(Arc::new(Unparker::new()))),
+                }),
         }
     }
 }
@@ -51,40 +70,52 @@ impl<F> Future for Shared<F>
     type Error = SharedError<F::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let mut inner = self.inner.lock().unwrap();
-        let result = match *inner {
-            State::Waiting(ref mut future, _) => Some(future.poll()),
-            State::Done(_) => None,
-        };
-        let new_state = match result {
-            Some(Ok(Async::NotReady)) => None,
-            Some(Ok(Async::Ready(e))) => Some(State::Done(Ok(Arc::new(e)))),
-            Some(Err(e)) => Some(State::Done(Err(Arc::new(e)))),
-            None => None,
-        };
-        let tasks_to_wake = match new_state {
-            Some(new) => {
-                match mem::replace(&mut *inner, new) {
-                    State::Waiting(_, tasks) => tasks,
-                    State::Done(_) => panic!(),
+        let state = self.inner.state.read().unwrap();
+        let event = match *state {
+            State::Waiting(ref unparker) => {
+                if unparker.original_future_needs_poll.swap(false, Ordering::SeqCst) {
+                    task::UnparkEvent::new(unparker.clone(), 0)
+                } else {
+                    unparker.insert(self.id, task::park());
+                    return Ok(Async::NotReady)
                 }
             }
-            None => Vec::new(),
+            State::Done(ref r) => {
+                match *r {
+                    Ok(ref v) => return Ok(SharedItem { item: v.clone() }.into()),
+                    Err(ref e) => return Err(SharedError { error: e.clone() }.into()),
+                }
+            }
+        };
+        drop(state);
+
+        let mut original_future = self.inner.original_future.lock().unwrap();
+        let done_val = match *original_future {
+            Some(ref mut future) => {
+                match task::with_unpark_event(event, || future.poll()) {
+                    Ok(Async::NotReady) => return Ok(Async::NotReady),
+                    Ok(Async::Ready(v)) => Ok(Arc::new(v)),
+                    Err(e) => Err(Arc::new(e)),
+                }
+            }
+            None => unreachable!(),
         };
 
-        let ret = match *inner {
-            State::Waiting(_, ref mut tasks) => {
-                tasks.push(task::park());
-                Ok(Async::NotReady)
-            }
-            State::Done(Ok(ref e)) => Ok(SharedItem { item: e.clone() }.into()),
-            State::Done(Err(ref e)) => Err(SharedError { error: e.clone() }.into()),
-        };
-        drop(inner);
-        for task in tasks_to_wake {
-            task.unpark();
+        // We can now drop the original future to free up any resources it holds.
+        original_future.take();
+        drop(original_future);
+
+        let mut state = self.inner.state.write().unwrap();
+        match mem::replace(&mut *state, State::Done(done_val.clone())) {
+            State::Waiting(ref unparker) => unparker.unpark(),
+            _ => unreachable!(),
         }
-        return ret
+        drop(state);
+
+        match done_val {
+            Ok(v) => Ok(SharedItem { item: v }.into()),
+            Err(e) => Err(SharedError { error: e }.into()),
+        }
     }
 }
 
@@ -92,44 +123,24 @@ impl<F> Clone for Shared<F>
     where F: Future
 {
     fn clone(&self) -> Self {
-        Shared { inner: self.inner.clone() }
+        let mut next_clone_id = self.inner.next_clone_id.lock().unwrap();
+        let clone_id = *next_clone_id;
+        *next_clone_id += 1;
+        Shared {
+            id: clone_id,
+            inner: self.inner.clone(),
+        }
     }
 }
 
 impl<F: Future> Drop for Shared<F> {
     fn drop(&mut self) {
-        // A `Shared` represents a bunch of handles to one original future
-        // running on perhaps a bunch of different tasks.  That one future,
-        // however, is only guaranteed to have at most one task blocked on it.
-        //
-        // If our `Shared` handle is the one which has the task blocked on the
-        // original future, then us being dropped means that we won't ever be
-        // around to wake it up again, but all the other `Shared` handles may
-        // still be interested in the value of the original future!
-        //
-        // To handle this case we implement a destructor which will unpark all
-        // other waiting tasks whenever we're dropped. This should go through
-        // and wake up any interested handles, and at least one of them should
-        // make its way to blocking on the original future itself.
-        //
-        // Note, though, that we don't call `lock` here but rather we just call
-        // `try_lock`. This is done because during a `poll` above, when the lock
-        // is held, we may end up calling this drop function. If that happens
-        // then this `try_lock` will fail, or the `try_lock` will fail due to
-        // another thread holding the lock. In both cases we're guaranteed that
-        // some other thread/task other than us is blocked on the main future,
-        // so there's no work for us to do.
-        let mut inner = match self.inner.try_lock() {
-            Ok(inner) => inner,
-            Err(_) => return,
-        };
-        let waiters = match *inner {
-            State::Waiting(_, ref mut waiters) => mem::replace(waiters, Vec::new()),
-            State::Done(_) => return,
-        };
-        drop(inner);
-        for waiter in waiters {
-            waiter.unpark();
+        let state = self.inner.state.read().unwrap();
+        match *state {
+            State::Waiting(ref unparker) => {
+                unparker.remove(self.id);
+            }
+            State::Done(_) => (),
         }
     }
 }
@@ -161,5 +172,49 @@ impl<E> Deref for SharedError<E> {
 
     fn deref(&self) -> &E {
         &self.error.as_ref()
+    }
+}
+
+/// An `EventSet` implementation for passing to `with_unpark_event()` when a `Shared`
+/// polls its underlying future. Usually, the purpose of an `EventSet` implementation
+/// is to gather precise information about what triggered an unpark, but that is *not*
+/// what this implementation does. Instead, it uses `EventSet::insert()` as a hook
+/// to unpark a set of waiting tasks.
+struct Unparker {
+    original_future_needs_poll: AtomicBool,
+
+    /// Tasks that need to be unparked once the original future resolves.
+    tasks: Mutex<HashMap<u64, task::Task>>,
+}
+
+impl task::EventSet for Unparker {
+    fn insert(&self, _id: usize) {
+        // The original future is ready to get polled again.
+        self.unpark();
+    }
+}
+
+impl Unparker {
+    fn new() -> Unparker {
+        Unparker {
+            original_future_needs_poll: AtomicBool::new(true),
+            tasks: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn insert(&self, idx: u64, task: task::Task) {
+        self.tasks.lock().unwrap().insert(idx, task);
+    }
+
+    fn remove(&self, idx: u64) {
+        self.tasks.lock().unwrap().remove(&idx);
+    }
+
+    fn unpark(&self) {
+        self.original_future_needs_poll.store(true, Ordering::SeqCst);
+        let tasks = ::std::mem::replace(&mut *self.tasks.lock().unwrap(), HashMap::new());
+        for (_, task) in tasks {
+            task.unpark();
+        }
     }
 }

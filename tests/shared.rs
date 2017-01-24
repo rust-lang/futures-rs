@@ -1,5 +1,7 @@
 extern crate futures;
 
+mod support;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
@@ -78,4 +80,64 @@ fn drop_in_poll() {
     let future2 = Box::new(future.clone()) as Box<Future<Item=_, Error=_>>;
     *slot.borrow_mut() = Some(future2);
     assert_eq!(*future.wait().unwrap(), 1);
+}
+
+#[test]
+fn polled_then_ignored() {
+    let mut core = ::support::local_executor::Core::new();
+
+    let (tx0, rx0) = oneshot::channel::<u32>();
+    let f1 = rx0.shared();
+    let f2 = f1.clone();
+
+    let (tx1, rx1) = oneshot::channel::<u32>();
+    let (tx2, rx2) = oneshot::channel::<u32>();
+    let (tx3, rx3) = oneshot::channel::<u32>();
+
+    core.spawn(f1.map(|n| tx3.complete(*n)).map_err(|_|()));
+
+    core.run(future::ok::<(),()>(())).unwrap(); // Allow f1 to be polled.
+
+    core.spawn(f2.map_err(|_| ()).map(|x| *x).select(rx2.map_err(|_| ())).map_err(|_| ())
+        .and_then(|(_, f2)| rx3.map_err(|_| ()).map(move |n| {drop(f2); tx1.complete(n)})));
+
+    core.run(future::ok::<(),()>(())).unwrap();  // Allow f2 to be polled.
+
+    tx2.complete(11); // Resolve rx2, causing f2 to no longer get polled.
+
+    core.run(future::ok::<(),()>(())).unwrap(); // Let the complete() propagate.
+
+    tx0.complete(42); // Should cause f1, then rx3, and then rx1 to resolve.
+
+    assert_eq!(core.run(rx1).unwrap(), 42);
+}
+
+#[test]
+fn recursive_poll() {
+    use futures::sync::mpsc;
+    use futures::Stream;
+
+    let mut core = ::support::local_executor::Core::new();
+    let (tx0, rx0) = mpsc::unbounded::<Box<Future<Item=(),Error=()>>>();
+    let run_stream = rx0.for_each(|f| f);
+
+    let (tx1, rx1) = oneshot::channel::<()>();
+
+    let f1 = run_stream.shared();
+    let f2 = f1.clone();
+    let f3 = f1.clone();
+    tx0.send(Box::new(
+        f1.map(|_|()).map_err(|_|())
+            .select(rx1.map_err(|_|()))
+            .map(|_| ()).map_err(|_|()))).unwrap();
+
+    core.spawn(f2.map(|_|()).map_err(|_|()));
+
+    // Call poll() on the spawned future. We want to be sure that this does not trigger a
+    // deadlock or panic due to a recursive lock() on a mutex.
+    core.run(future::ok::<(),()>(())).unwrap();
+
+    tx1.complete(()); // Break the cycle.
+    drop(tx0);
+    core.run(f3).unwrap();
 }
