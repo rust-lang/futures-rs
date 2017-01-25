@@ -112,12 +112,11 @@ pub fn park() -> Task {
 
 impl Task {
     /// Indicate that the task should attempt to poll its future in a timely
-    /// fashion. This is typically done when alerting a future that an event of
-    /// interest has occurred through `Task::unpark`.
+    /// fashion.
     ///
-    /// It's typically guaranteed that, for each call to `notify`, `poll` will
+    /// It's typically guaranteed that, for each call to `unpark`, `poll` will
     /// be called at least once subsequently (unless the task has terminated).
-    /// If the task is currently polling its future when `notify` is called, it
+    /// If the task is currently polling its future when `unpark` is called, it
     /// must poll the future *again* afterwards, ensuring that all relevant
     /// events are eventually observed by the future.
     pub fn unpark(&self) {
