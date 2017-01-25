@@ -141,3 +141,35 @@ fn recursive_poll() {
     drop(tx0);
     core.run(f3).unwrap();
 }
+
+#[test]
+fn recursive_poll_with_unpark() {
+    use futures::sync::mpsc;
+    use futures::{Stream, task};
+
+    let mut core = ::support::local_executor::Core::new();
+    let (tx0, rx0) = mpsc::unbounded::<Box<Future<Item=(),Error=()>>>();
+    let run_stream = rx0.for_each(|f| f);
+
+    let (tx1, rx1) = oneshot::channel::<()>();
+
+    let f1 = run_stream.shared();
+    let f2 = f1.clone();
+    let f3 = f1.clone();
+    tx0.send(Box::new(future::lazy(move || {
+        task::park().unpark();
+        f1.map(|_|()).map_err(|_|())
+            .select(rx1.map_err(|_|()))
+            .map(|_| ()).map_err(|_|())
+    }))).unwrap();
+
+    core.spawn(f2.map(|_|()).map_err(|_|()));
+
+    // Call poll() on the spawned future. We want to be sure that this does not trigger a
+    // deadlock or panic due to a recursive lock() on a mutex.
+    core.run(future::ok::<(),()>(())).unwrap();
+
+    tx1.complete(()); // Break the cycle.
+    drop(tx0);
+    core.run(f3).unwrap();
+}

@@ -14,7 +14,7 @@
 //! ```
 
 use std::mem;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, TryLockError};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
 use std::collections::HashMap;
@@ -71,13 +71,25 @@ impl<F> Future for Shared<F>
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let state = self.inner.state.read().unwrap();
-        let event = match *state {
+        let (mut original_future, event) = match *state {
             State::Waiting(ref unparker) => {
-                if unparker.original_future_needs_poll.swap(false, Ordering::SeqCst) {
-                    task::UnparkEvent::new(unparker.clone(), 0)
-                } else {
-                    unparker.insert(self.id, task::park());
-                    return Ok(Async::NotReady)
+                match self.inner.original_future.try_lock() {
+                    Ok(original_future) => {
+                        if unparker.original_future_needs_poll.swap(false, Ordering::SeqCst) {
+                            (original_future, task::UnparkEvent::new(unparker.clone(), 0))
+                        } else {
+                            unparker.insert(self.id, task::park());
+                            return Ok(Async::NotReady)
+                        }
+                    }
+                    Err(TryLockError::WouldBlock) => {
+                        // This is recursive call to poll()! Try again later.
+                        task::park().unpark();
+                        return Ok(Async::NotReady)
+                    }
+                    Err(TryLockError::Poisoned(e)) => {
+                        panic!("poisoned mutex: {:?}", e)
+                    }
                 }
             }
             State::Done(ref r) => {
@@ -89,7 +101,6 @@ impl<F> Future for Shared<F>
         };
         drop(state);
 
-        let mut original_future = self.inner.original_future.lock().unwrap();
         let done_val = match *original_future {
             Some(ref mut future) => {
                 match task::with_unpark_event(event, || future.poll()) {
