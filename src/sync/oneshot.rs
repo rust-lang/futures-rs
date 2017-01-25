@@ -8,7 +8,7 @@ use std::fmt;
 
 use {Future, Poll, Async};
 use lock::Lock;
-use task::{self, Task};
+use task::Task;
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
@@ -142,7 +142,7 @@ impl<T> Sender<T> {
     /// able to receive a message if sent. The current task, however, is
     /// scheduled to receive a notification if the corresponding `Receiver` goes
     /// away.
-    pub fn poll_cancel(&mut self) -> Poll<(), ()> {
+    pub fn poll_cancel(&mut self, task: &Task) -> Poll<(), ()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -164,9 +164,8 @@ impl<T> Sender<T> {
         // may have been dropped. The first thing it does is set the flag, and
         // if it fails to acquire the lock it assumes that we'll see the flag
         // later on. So... we then try to see the flag later on!
-        let handle = task::park();
         match self.inner.tx_task.try_lock() {
-            Some(mut p) => *p = Some(handle),
+            Some(mut p) => *p = Some(task.clone()),
             None => return Ok(Async::Ready(())),
         }
         if self.inner.complete.load(SeqCst) {
@@ -250,7 +249,7 @@ impl<T> Future for Receiver<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self) -> Poll<T, Canceled> {
+    fn poll(&mut self, task: &Task) -> Poll<T, Canceled> {
         let mut done = false;
 
         // Check to see if some data has arrived. If it hasn't then we need to
@@ -263,9 +262,8 @@ impl<T> Future for Receiver<T> {
         if self.inner.complete.load(SeqCst) {
             done = true;
         } else {
-            let task = task::park();
             match self.inner.rx_task.try_lock() {
-                Some(mut slot) => *slot = Some(task),
+                Some(mut slot) => *slot = Some(task.clone()),
                 None => done = true,
             }
         }

@@ -4,7 +4,7 @@ use poll::Poll;
 use Async;
 use stack::{Stack, Drain};
 use std::sync::Arc;
-use task::{self, UnparkEvent};
+use task::{Task, UnparkEvent};
 
 use std::prelude::v1::*;
 
@@ -54,7 +54,7 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
 impl<F> FuturesUnordered<F>
     where F: Future
 {
-    fn poll_pending(&mut self, mut drain: Drain<usize>)
+    fn poll_pending(&mut self, task: &Task, mut drain: Drain<usize>)
                     -> Option<Poll<Option<F::Item>, F::Error>> {
         while let Some(id) = drain.next() {
             // If this future was already done just skip the notification
@@ -62,12 +62,11 @@ impl<F> FuturesUnordered<F>
                 continue
             }
             let event = UnparkEvent::new(self.stack.clone(), id);
-            let ret = match task::with_unpark_event(event, || {
-                self.futures[id]
+            let ret = match self.futures[id]
                     .as_mut()
                     .unwrap()
-                    .poll()
-            }) {
+                    .poll(&task.with_unpark_event(event))
+            {
                 Ok(Async::NotReady) => continue,
                 Ok(Async::Ready(val)) => Ok(Async::Ready(Some(val))),
                 Err(e) => Err(e),
@@ -87,17 +86,17 @@ impl<F> Stream for FuturesUnordered<F>
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         if self.active == 0 {
             return Ok(Async::Ready(None))
         }
         if let Some(drain) = self.pending.take() {
-            if let Some(ret) = self.poll_pending(drain) {
+            if let Some(ret) = self.poll_pending(task, drain) {
                 return ret
             }
         }
         let drain = self.stack.drain();
-        if let Some(ret) = self.poll_pending(drain) {
+        if let Some(ret) = self.poll_pending(task, drain) {
             return ret
         }
         assert!(self.active > 0);

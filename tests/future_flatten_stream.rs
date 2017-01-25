@@ -6,6 +6,7 @@ use core::marker;
 use futures::{Stream, Future, Poll};
 use futures::future::{ok, err};
 use futures::stream;
+use futures::task::Task;
 
 #[test]
 fn successful_future() {
@@ -29,7 +30,7 @@ impl<T, E> Stream for PanickingStream<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, _task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         panic!()
     }
 }

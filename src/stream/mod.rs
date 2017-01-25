@@ -74,6 +74,7 @@ pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::forward::Forward;
 use sink::{Sink};
+use task::Task;
 
 if_std! {
     use std;
@@ -108,8 +109,8 @@ if_std! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-            (**self).poll()
+        fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
+            (**self).poll(task)
         }
     }
 }
@@ -185,7 +186,7 @@ pub trait Stream {
     /// If this is difficult to guard against then the `fuse` adapter can be
     /// used to ensure that `poll` always has well-defined semantics.
     // TODO: more here
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error>;
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error>;
 
     // TODO: should there also be a method like `poll` but doesn't return an
     //       item? basically just says "please make more progress internally"
@@ -930,7 +931,7 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        (**self).poll()
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
+        (**self).poll(task)
     }
 }

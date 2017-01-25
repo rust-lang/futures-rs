@@ -21,8 +21,9 @@ use support::*;
 #[test]
 fn vec_sink() {
     let mut v = Vec::new();
-    assert_eq!(v.start_send(0), Ok(AsyncSink::Ready));
-    assert_eq!(v.start_send(1), Ok(AsyncSink::Ready));
+    let task = task::empty();
+    assert_eq!(v.start_send(&task, 0), Ok(AsyncSink::Ready));
+    assert_eq!(v.start_send(&task, 1), Ok(AsyncSink::Ready));
     assert_eq!(v, vec![0, 1]);
     assert_done(move || v.flush(), Ok(vec![0, 1]));
 }
@@ -92,8 +93,8 @@ impl<S: Sink> Future for StartSendFut<S> {
     type Item = S;
     type Error = S::SinkError;
 
-    fn poll(&mut self) -> Poll<S, S::SinkError> {
-        match try!(self.0.as_mut().unwrap().start_send(self.1.take().unwrap())) {
+    fn poll(&mut self, task: &Task) -> Poll<S, S::SinkError> {
+        match try!(self.0.as_mut().unwrap().start_send(task, self.1.take().unwrap())) {
             AsyncSink::Ready => Ok(Async::Ready(self.0.take().unwrap())),
             AsyncSink::NotReady(item) => {
                 self.1 = Some(item);
@@ -111,7 +112,7 @@ fn mpsc_blocking_start_send() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
 
     futures::future::lazy(|| {
-        assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
+        assert_eq!(tx.start_send(&task::empty(), 0).unwrap(), AsyncSink::Ready);
 
         let flag = Flag::new();
         let mut task = executor::spawn(StartSendFut::new(tx, 1));
@@ -140,7 +141,7 @@ fn with_flush() {
             .map(move |_| elem + 1).map_err(|_| panic!())
     });
 
-    assert_eq!(sink.start_send(0), Ok(AsyncSink::Ready));
+    assert_eq!(sink.start_send(&task::empty(), 0), Ok(AsyncSink::Ready));
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
@@ -179,7 +180,7 @@ impl<T> Sink for ManualFlush<T> {
     type SinkItem = Option<T>; // Pass None to flush
     type SinkError = ();
 
-    fn start_send(&mut self, op: Option<T>) -> StartSend<Option<T>, ()> {
+    fn start_send(&mut self, _task: &Task, op: Option<T>) -> StartSend<Option<T>, ()> {
         if let Some(item) = op {
             self.data.push(item);
         } else {
@@ -188,11 +189,11 @@ impl<T> Sink for ManualFlush<T> {
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), ()> {
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), ()> {
         if self.data.is_empty() {
             Ok(Async::Ready(()))
         } else {
-            self.waiting_tasks.push(task::park());
+            self.waiting_tasks.push(task.clone());
             Ok(Async::NotReady)
         }
     }
@@ -219,8 +220,9 @@ impl<T> ManualFlush<T> {
 // but doesn't claim to be flushed until the underlyig sink is
 fn with_flush_propagate() {
     let mut sink = ManualFlush::new().with(|x| -> Result<Option<i32>, ()> { Ok(x) });
-    assert_eq!(sink.start_send(Some(0)).unwrap(), AsyncSink::Ready);
-    assert_eq!(sink.start_send(Some(1)).unwrap(), AsyncSink::Ready);
+    let task = task::empty();
+    assert_eq!(sink.start_send(&task, Some(0)).unwrap(), AsyncSink::Ready);
+    assert_eq!(sink.start_send(&task, Some(1)).unwrap(), AsyncSink::Ready);
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
@@ -263,11 +265,11 @@ impl Allow {
         }
     }
 
-    fn check(&self) -> bool {
+    fn check(&self, task: &Task) -> bool {
         if self.flag.get() {
             true
         } else {
-            self.tasks.borrow_mut().push(task::park());
+            self.tasks.borrow_mut().push(task.clone());
             false
         }
     }
@@ -285,8 +287,8 @@ impl<T> Sink for ManualAllow<T> {
     type SinkItem = T;
     type SinkError = ();
 
-    fn start_send(&mut self, item: T) -> StartSend<T, ()> {
-        if self.allow.check() {
+    fn start_send(&mut self, task: &Task, item: T) -> StartSend<T, ()> {
+        if self.allow.check(task) {
             self.data.push(item);
             Ok(AsyncSink::Ready)
         } else {
@@ -294,7 +296,7 @@ impl<T> Sink for ManualAllow<T> {
         }
     }
 
-    fn poll_complete(&mut self) -> Poll<(), ()> {
+    fn poll_complete(&mut self, _task: &Task) -> Poll<(), ()> {
         Ok(Async::Ready(()))
     }
 }

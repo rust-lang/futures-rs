@@ -3,6 +3,7 @@ use std::prelude::v1::*;
 
 use {Async, Poll};
 use stream::{Stream, Fuse};
+use task::Task;
 
 /// An adaptor that chunks up elements in a vector.
 ///
@@ -37,12 +38,12 @@ impl<S> ::sink::Sink for Chunks<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -60,14 +61,14 @@ impl<S> Stream for Chunks<S>
     type Item = Vec<<S as Stream>::Item>;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(err) = self.err.take() {
             return Err(err)
         }
 
         let cap = self.items.capacity();
         loop {
-            match self.stream.poll() {
+            match self.stream.poll(task) {
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
 
                 // Push the item into the buffer and check whether it is full.

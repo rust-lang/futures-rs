@@ -1,5 +1,6 @@
 use {Async, Poll};
 use stream::Stream;
+use task::Task;
 
 /// A stream combinator which will change the type of a stream from one
 /// type to another.
@@ -28,12 +29,12 @@ impl<S, F> ::sink::Sink for Map<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -44,8 +45,8 @@ impl<S, F, U> Stream for Map<S, F>
     type Item = U;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<U>, S::Error> {
-        let option = try_ready!(self.stream.poll());
+    fn poll(&mut self, task: &Task) -> Poll<Option<U>, S::Error> {
+        let option = try_ready!(self.stream.poll(task));
         Ok(Async::Ready(option.map(&mut self.f)))
     }
 }

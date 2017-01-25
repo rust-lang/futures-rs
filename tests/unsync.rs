@@ -8,6 +8,7 @@ use futures::{Future, Stream, Sink, Async};
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
 use futures::stream::iter;
+use futures::task;
 
 use support::local_executor::Core;
 
@@ -27,7 +28,7 @@ fn mpsc_rx_notready() {
     let (_tx, mut rx) = mpsc::channel::<i32>(1);
 
     lazy(|| {
-        assert_eq!(rx.poll().unwrap(), Async::NotReady);
+        assert_eq!(rx.poll(&task::empty()).unwrap(), Async::NotReady);
         Ok(()) as Result<(), ()>
     }).wait().unwrap();
 }
@@ -37,7 +38,7 @@ fn mpsc_rx_end() {
     let (_, mut rx) = mpsc::channel::<i32>(1);
 
     lazy(|| {
-        assert_eq!(rx.poll().unwrap(), Async::Ready(None));
+        assert_eq!(rx.poll(&task::empty()).unwrap(), Async::Ready(None));
         Ok(()) as Result<(), ()>
     }).wait().unwrap();
 }
@@ -47,7 +48,7 @@ fn mpsc_tx_notready() {
     let (tx, _rx) = mpsc::channel::<i32>(1);
     let tx = tx.send(1).wait().unwrap();
     lazy(move || {
-        assert!(tx.send(2).poll().unwrap().is_not_ready());
+        assert!(tx.send(2).poll(&task::empty()).unwrap().is_not_ready());
         Ok(()) as Result<(), ()>
     }).wait().unwrap();
 }
@@ -56,7 +57,7 @@ fn mpsc_tx_notready() {
 fn mpsc_tx_err() {
     let (tx, _) = mpsc::channel::<i32>(1);
     lazy(move || {
-        assert!(tx.send(2).poll().is_err());
+        assert!(tx.send(2).poll(&task::empty()).is_err());
         Ok(()) as Result<(), ()>
     }).wait().unwrap();
 }

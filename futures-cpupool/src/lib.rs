@@ -51,6 +51,7 @@ use crossbeam::sync::MsQueue;
 use futures::{IntoFuture, Future, Poll, Async};
 use futures::future::lazy;
 use futures::sync::oneshot::{channel, Sender, Receiver};
+use futures::task::Task;
 use futures::executor::{self, Run, Executor};
 
 /// A thread pool intended to run CPU intensive work.
@@ -257,8 +258,8 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<T, E> {
-        match self.inner.poll().expect("shouldn't be canceled") {
+    fn poll(&mut self, task: &Task) -> Poll<T, E> {
+        match self.inner.poll(task).expect("shouldn't be canceled") {
             Async::Ready(Ok(Ok(e))) => Ok(e.into()),
             Async::Ready(Ok(Err(e))) => Err(e),
             Async::Ready(Err(e)) => panic::resume_unwind(e),
@@ -271,15 +272,15 @@ impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self) -> Poll<(), ()> {
-        if let Ok(Async::Ready(_)) = self.tx.as_mut().unwrap().poll_cancel() {
+    fn poll(&mut self, task: &Task) -> Poll<(), ()> {
+        if let Ok(Async::Ready(_)) = self.tx.as_mut().unwrap().poll_cancel(task) {
             if !self.keep_running_flag.load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Ok(().into())
             }
         }
 
-        let res = match self.fut.poll() {
+        let res = match self.fut.poll(task) {
             Ok(Async::Ready(e)) => Ok(e),
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(e) => Err(e),

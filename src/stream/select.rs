@@ -1,5 +1,6 @@
 use {Poll, Async};
 use stream::{Stream, Fuse};
+use task::Task;
 
 /// An adapter for merging the output of two streams.
 ///
@@ -31,7 +32,7 @@ impl<S1, S2> Stream for Select<S1, S2>
     type Item = S1::Item;
     type Error = S1::Error;
 
-    fn poll(&mut self) -> Poll<Option<S1::Item>, S1::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<S1::Item>, S1::Error> {
         let (a, b) = if self.flag {
             (&mut self.stream2 as &mut Stream<Item=_, Error=_>,
              &mut self.stream1 as &mut Stream<Item=_, Error=_>)
@@ -41,13 +42,13 @@ impl<S1, S2> Stream for Select<S1, S2>
         };
         self.flag = !self.flag;
 
-        let a_done = match try!(a.poll()) {
+        let a_done = match try!(a.poll(task)) {
             Async::Ready(Some(item)) => return Ok(Some(item).into()),
             Async::Ready(None) => true,
             Async::NotReady => false,
         };
 
-        match try!(b.poll()) {
+        match try!(b.poll(task)) {
             Async::Ready(Some(item)) => {
                 // If the other stream isn't finished yet, give them a chance to
                 // go first next time as we pulled something off `b`.

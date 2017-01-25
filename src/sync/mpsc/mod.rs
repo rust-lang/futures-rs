@@ -77,7 +77,7 @@ use std::thread;
 use std::usize;
 
 use sync::mpsc::queue::{Queue, PopResult};
-use task::{self, Task};
+use task::Task;
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
 mod queue;
@@ -293,7 +293,7 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
 
 impl<T> Sender<T> {
     // Do the send without failing
-    fn do_send(&mut self, msg: Option<T>, can_park: bool) -> Result<(), SendError<T>> {
+    fn do_send(&mut self, task: Option<&Task>, msg: Option<T>) -> Result<(), SendError<T>> {
         // First, increment the number of messages contained by the channel.
         // This operation will also atomically determine if the sender task
         // should be parked.
@@ -328,7 +328,7 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(can_park);
+            self.park(task);
         }
 
         self.queue_push_and_signal(msg);
@@ -432,14 +432,10 @@ impl<T> Sender<T> {
         }
     }
 
-    fn park(&mut self, can_park: bool) {
+    fn park(&mut self, task: Option<&Task>) {
         // TODO: clean up internal state if the task::park will fail
 
-        let task = if can_park {
-            Some(task::park())
-        } else {
-            None
-        };
+        let task = task.map(|t| t.clone());
 
         *self.sender_task.lock().unwrap() = task;
 
@@ -453,14 +449,14 @@ impl<T> Sender<T> {
         self.maybe_parked = state.is_open;
     }
 
-    fn poll_unparked(&mut self) -> Async<()> {
+    fn poll_unparked(&mut self, task: &Task) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
             // Get a lock on the task handle
-            let mut task = self.sender_task.lock().unwrap();
+            let mut sender_task = self.sender_task.lock().unwrap();
 
-            if task.is_none() {
+            if sender_task.is_none() {
                 self.maybe_parked = false;
                 return Async::Ready(())
             }
@@ -471,7 +467,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            *task = Some(task::park());
+            *sender_task = Some(task.clone());
 
             Async::NotReady
         } else {
@@ -484,20 +480,20 @@ impl<T> Sink for Sender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+    fn start_send(&mut self, task: &Task, msg: T) -> StartSend<T, SendError<T>> {
         // If the sender is currently blocked, reject the message before doing
         // any work.
-        if !self.poll_unparked().is_ready() {
+        if !self.poll_unparked(task).is_ready() {
             return Ok(AsyncSink::NotReady(msg));
         }
 
         // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg), true));
+        try!(self.do_send(Some(task), Some(msg)));
 
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_complete(&mut self, _task: &Task) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -517,12 +513,12 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.0.start_send(msg)
+    fn start_send(&mut self, task: &Task, msg: T) -> StartSend<T, SendError<T>> {
+        self.0.start_send(task, msg)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
-        self.0.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), SendError<T>> {
+        self.0.poll_complete(task)
     }
 }
 
@@ -530,12 +526,12 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+    fn start_send(&mut self, _task: &Task, msg: T) -> StartSend<T, SendError<T>> {
         try!(self.0.do_send_nb(msg));
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_complete(&mut self, _task: &Task) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -586,7 +582,7 @@ impl<T> Drop for Sender<T> {
         let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
-            let _ = self.do_send(None, false);
+            let _ = self.do_send(None, None);
         }
     }
 }
@@ -694,7 +690,7 @@ impl<T> Receiver<T> {
     }
 
     // Try to park the receiver task
-    fn try_park(&self) -> TryPark {
+    fn try_park(&self, task: &Task) -> TryPark {
         let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
@@ -712,7 +708,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(task::park());
+        recv_task.task = Some(task.clone());
         TryPark::Parked
     }
 
@@ -737,7 +733,7 @@ impl<T> Stream for Receiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<T>, ()> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<T>, ()> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -746,7 +742,7 @@ impl<T> Stream for Receiver<T> {
                     // There are no messages to read, in this case, attempt to
                     // park. The act of parking will verify that the channel is
                     // still empty after the park operation has completed.
-                    match self.try_park() {
+                    match self.try_park(task) {
                         TryPark::Parked => {
                             // The task was parked, and the channel is still
                             // empty, return NotReady.
@@ -804,8 +800,8 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<T>, ()> {
-        self.0.poll()
+    fn poll(&mut self, task: &Task) -> Poll<Option<T>, ()> {
+        self.0.poll(task)
     }
 }
 

@@ -1,5 +1,6 @@
 use {Poll, Async};
 use stream::{Stream, Fuse};
+use task::Task;
 
 /// An adapter for merging the output of two streams.
 ///
@@ -40,26 +41,26 @@ impl<S1, S2> Stream for Merge<S1, S2>
     type Item = MergedItem<S1::Item, S2::Item>;
     type Error = S1::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(e) = self.queued_error.take() {
             return Err(e)
         }
 
-        match try!(self.stream1.poll()) {
+        match try!(self.stream1.poll(task)) {
             Async::NotReady => {
-                match try_ready!(self.stream2.poll()) {
+                match try_ready!(self.stream2.poll(task)) {
                     Some(item2) => Ok(Async::Ready(Some(MergedItem::Second(item2)))),
                     None => Ok(Async::NotReady),
                 }
             }
             Async::Ready(None) => {
-                match try_ready!(self.stream2.poll()) {
+                match try_ready!(self.stream2.poll(task)) {
                     Some(item2) => Ok(Async::Ready(Some(MergedItem::Second(item2)))),
                     None => Ok(Async::Ready(None)),
                 }
             }
             Async::Ready(Some(item1)) => {
-                match self.stream2.poll() {
+                match self.stream2.poll(task) {
                     Err(e) => {
                         self.queued_error = Some(e);
                         Ok(Async::Ready(Some(MergedItem::First(item1))))

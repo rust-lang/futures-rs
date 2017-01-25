@@ -1,5 +1,6 @@
 use {Async, Future, Poll};
 use stream::Stream;
+use task::Task;
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.
@@ -43,11 +44,11 @@ impl<F> Stream for FlattenStream<F>
     type Item = <F::Item as Stream>::Item;
     type Error = <F::Item as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             let (next_state, ret_opt) = match self.state {
                 State::Future(ref mut f) => {
-                    match f.poll() {
+                    match f.poll(task) {
                         Ok(Async::NotReady) => {
                             // State is not changed, early return.
                             return Ok(Async::NotReady)
@@ -66,7 +67,7 @@ impl<F> Stream for FlattenStream<F>
                 State::Stream(ref mut s) => {
                     // Just forward call to the stream,
                     // do not track its state.
-                    return s.poll();
+                    return s.poll(task);
                 }
                 State::Eof => {
                     (State::Done, Some(Ok(Async::Ready(None))))

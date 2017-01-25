@@ -10,6 +10,7 @@
 
 use {IntoFuture, Poll, StartSend};
 use stream::Stream;
+use task::Task;
 
 mod with;
 // mod with_map;
@@ -29,14 +30,14 @@ if_std! {
         type SinkItem = T;
         type SinkError = (); // Change this to ! once it stabilizes
 
-        fn start_send(&mut self, item: Self::SinkItem)
+        fn start_send(&mut self, _task: &Task, item: Self::SinkItem)
                       -> StartSend<Self::SinkItem, Self::SinkError>
         {
             self.push(item);
             Ok(::AsyncSink::Ready)
         }
 
-        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        fn poll_complete(&mut self, _task: &Task) -> Poll<(), Self::SinkError> {
             Ok(::Async::Ready(()))
         }
     }
@@ -49,13 +50,13 @@ if_std! {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
 
-        fn start_send(&mut self, item: Self::SinkItem)
+        fn start_send(&mut self, task: &Task, item: Self::SinkItem)
                       -> StartSend<Self::SinkItem, Self::SinkError> {
-            (**self).start_send(item)
+            (**self).start_send(task, item)
         }
 
-        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-            (**self).poll_complete()
+        fn poll_complete(&mut self, task: &Task) -> Poll<(), Self::SinkError> {
+            (**self).poll_complete(task)
         }
     }
 }
@@ -142,7 +143,7 @@ pub trait Sink {
     /// - It is called outside of the context of a task.
     /// - A previous call to `start_send` or `poll_complete` yielded a permanent
     /// error.
-    fn start_send(&mut self, item: Self::SinkItem)
+    fn start_send(&mut self, task: &Task, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError>;
 
     /// Make progress on all pending requests, and determine whether they have
@@ -178,7 +179,7 @@ pub trait Sink {
     /// - It is called outside of the context of a task.
     /// - A previous call to `start_send` or `poll_complete` yielded a permanent
     /// error.
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError>;
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), Self::SinkError>;
 
     /// Composes a function *in front of* the sink.
     ///
@@ -284,12 +285,12 @@ impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: Self::SinkItem)
+    fn start_send(&mut self, task: &Task, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError> {
-        (**self).start_send(item)
+        (**self).start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        (**self).poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), Self::SinkError> {
+        (**self).poll_complete(task)
     }
 }

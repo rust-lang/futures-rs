@@ -7,6 +7,7 @@ use futures::future::{ok, err};
 use futures::stream::{iter, Peekable, BoxStream};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
+use futures::task::Task;
 
 mod support;
 use support::*;
@@ -254,13 +255,13 @@ fn peek() {
         type Item = ();
         type Error = u32;
 
-        fn poll(&mut self) -> Poll<(), u32> {
+        fn poll(&mut self, task: &Task) -> Poll<(), u32> {
             {
-                let res = try_ready!(self.inner.peek());
+                let res = try_ready!(self.inner.peek(task));
                 assert_eq!(res, Some(&1));
             }
-            assert_eq!(self.inner.peek().unwrap(), Some(&1).into());
-            assert_eq!(self.inner.poll().unwrap(), Some(1).into());
+            assert_eq!(self.inner.peek(task).unwrap(), Some(&1).into());
+            assert_eq!(self.inner.poll(task).unwrap(), Some(1).into());
             Ok(().into())
         }
     }

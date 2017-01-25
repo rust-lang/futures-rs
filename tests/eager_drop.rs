@@ -5,6 +5,7 @@ use std::sync::mpsc::channel;
 use futures::Poll;
 use futures::future::*;
 use futures::sync::oneshot;
+use futures::task::Task;
 
 mod support;
 use support::*;
@@ -44,8 +45,8 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.future.poll()
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
+        self.future.poll(task)
     }
 }
 

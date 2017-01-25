@@ -100,8 +100,8 @@ if_std! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            (**self).poll()
+        fn poll(&mut self, task: &::task::Task) -> Poll<Self::Item, Self::Error> {
+            (**self).poll(task)
         }
     }
 }
@@ -246,7 +246,7 @@ pub trait Future {
     /// This future may have failed to finish the computation, in which case
     /// the `Err` variant will be returned with an appropriate payload of an
     /// error.
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
+    fn poll(&mut self, task: &::task::Task) -> Poll<Self::Item, Self::Error>;
 
     /// Block the current thread until this future is resolved.
     ///
@@ -627,18 +627,18 @@ pub trait Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::{Stream, Async};
+    /// use futures::{task, Stream, Async};
     /// use futures::future::*;
     ///
     /// let future = ok::<_, bool>(17);
     /// let mut stream = future.into_stream();
-    /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
-    /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll(&task::empty()));
+    /// assert_eq!(Ok(Async::Ready(None)), stream.poll(&task::empty()));
     ///
     /// let future = err::<bool, _>(19);
     /// let mut stream = future.into_stream();
-    /// assert_eq!(Err(19), stream.poll());
-    /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    /// assert_eq!(Err(19), stream.poll(&task::empty()));
+    /// assert_eq!(Ok(Async::Ready(None)), stream.poll(&task::empty()));
     /// ```
     fn into_stream(self) -> IntoStream<Self>
         where Self: Sized
@@ -735,17 +735,18 @@ pub trait Future {
     /// ```rust
     /// use futures::Async;
     /// use futures::future::*;
+    /// use futures::task;
     ///
     /// let mut future = ok::<i32, u32>(2);
-    /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
+    /// assert_eq!(future.poll(&task::empty()), Ok(Async::Ready(2)));
     ///
     /// // Normally, a call such as this would panic:
-    /// //future.poll();
+    /// //future.poll(&task::empty());
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = ok::<i32, u32>(2).fuse();
-    /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
-    /// assert_eq!(future.poll(), Ok(Async::NotReady));
+    /// assert_eq!(future.poll(&task::empty()), Ok(Async::Ready(2)));
+    /// assert_eq!(future.poll(&task::empty()), Ok(Async::NotReady));
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
@@ -843,8 +844,8 @@ impl<'a, F: ?Sized + Future> Future for &'a mut F {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        (**self).poll()
+    fn poll(&mut self, task: &::task::Task) -> Poll<Self::Item, Self::Error> {
+        (**self).poll(task)
     }
 }
 

@@ -9,6 +9,7 @@ use std::fmt;
 use {Poll, Async, Stream, Future, Sink};
 use sink::Send;
 use sync::mpsc;
+use task::Task;
 
 /// Creates an in-memory channel implementation of the `Stream` trait.
 ///
@@ -78,8 +79,8 @@ impl<T, E> Stream for Receiver<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
-        match self.inner.poll().expect("cannot fail") {
+    fn poll(&mut self, task: &Task) -> Poll<Option<T>, E> {
+        match self.inner.poll(task).expect("cannot fail") {
             Async::Ready(Some(Ok(e))) => Ok(Async::Ready(Some(e))),
             Async::Ready(Some(Err(e))) => Err(e),
             Async::Ready(None) => Ok(Async::Ready(None)),
@@ -102,8 +103,8 @@ impl<T, E> Future for FutureSender<T, E> {
     type Item = Sender<T, E>;
     type Error = SendError<T, E>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.inner.poll() {
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
+        match self.inner.poll(task) {
             Ok(a) => Ok(a.map(|a| Sender { inner: a })),
             Err(e) => Err(SendError(e.into_inner())),
         }

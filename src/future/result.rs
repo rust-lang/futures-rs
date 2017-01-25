@@ -3,6 +3,7 @@
 use core::result;
 
 use {Future, Poll, Async};
+use task::Task;
 
 /// A future representing a value that is immediately ready.
 ///
@@ -68,7 +69,7 @@ impl<T, E> Future for FutureResult<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<T, E> {
+    fn poll(&mut self, _task: &Task) -> Poll<T, E> {
         self.inner.take().expect("cannot poll Result twice").map(Async::Ready)
     }
 }

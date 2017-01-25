@@ -1,6 +1,7 @@
 //! Definition of the `PollFn` adapter combinator
 
 use {Future, Poll};
+use task::Task;
 
 /// A future which adapts a function returning `Poll`.
 ///
@@ -18,27 +19,27 @@ pub struct PollFn<F> {
 ///
 /// ```
 /// use futures::future::poll_fn;
-/// use futures::{Async, Poll};
+/// use futures::{Async, Poll, task};
 ///
-/// fn read_line() -> Poll<String, std::io::Error> {
+/// fn read_line(_task: &task::Task) -> Poll<String, std::io::Error> {
 ///     Ok(Async::Ready("Hello, World!".into()))
 /// }
 ///
 /// let read_future = poll_fn(read_line);
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
-    where F: FnMut() -> ::Poll<T, E>
+    where F: FnMut(&Task) -> ::Poll<T, E>
 {
     PollFn { inner: f }
 }
 
 impl<T, E, F> Future for PollFn<F>
-    where F: FnMut() -> Poll<T, E>
+    where F: FnMut(&Task) -> Poll<T, E>
 {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<T, E> {
-        (self.inner)()
+    fn poll(&mut self, task: &Task) -> Poll<T, E> {
+        (self.inner)(task)
     }
 }

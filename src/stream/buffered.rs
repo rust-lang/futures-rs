@@ -4,6 +4,7 @@ use std::mem;
 
 use {Async, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
+use task::Task;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible.
@@ -46,12 +47,12 @@ impl<S> ::sink::Sink for Buffered<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -62,7 +63,7 @@ impl<S> Stream for Buffered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         // First, try to fill in all the futures
         for i in 0..self.futures.len() {
             let mut idx = self.cur + i;
@@ -71,7 +72,7 @@ impl<S> Stream for Buffered<S>
             }
 
             if let State::Empty = self.futures[idx] {
-                match try!(self.stream.poll()) {
+                match try!(self.stream.poll(task)) {
                     Async::Ready(Some(future)) => {
                         let future = future.into_future();
                         self.futures[idx] = State::Running(future);
@@ -86,7 +87,7 @@ impl<S> Stream for Buffered<S>
         for future in self.futures.iter_mut() {
             let result = match *future {
                 State::Running(ref mut s) => {
-                    match s.poll() {
+                    match s.poll(task) {
                         Ok(Async::NotReady) => continue,
                         Ok(Async::Ready(e)) => Ok(e),
                         Err(e) => Err(e),

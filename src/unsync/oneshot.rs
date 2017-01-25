@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use {Future, Poll, Async};
-use task::{self, Task};
+use task::Task;
 
 /// Creates a new futures-aware, one-shot channel.
 ///
@@ -95,10 +95,10 @@ impl<T> Sender<T> {
     /// able to receive a message if sent. The current task, however, is
     /// scheduled to receive a notification if the corresponding `Receiver` goes
     /// away.
-    pub fn poll_cancel(&mut self) -> Poll<(), ()> {
+    pub fn poll_cancel(&mut self, task: &Task) -> Poll<(), ()> {
         match self.inner.upgrade() {
             Some(inner) => {
-                inner.borrow_mut().tx_task = Some(task::park());
+                inner.borrow_mut().tx_task = Some(task.clone());
                 Ok(Async::NotReady)
             }
             None => Ok(().into()),
@@ -150,7 +150,7 @@ impl<T> Future for Receiver<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
         let inner = match self.state {
             State::Open(ref mut inner) => inner,
             State::Closed(ref mut item) => {
@@ -172,7 +172,7 @@ impl<T> Future for Receiver<T> {
         if Rc::get_mut(inner).is_some() {
             Err(Canceled)
         } else {
-            inner.borrow_mut().rx_task = Some(task::park());
+            inner.borrow_mut().rx_task = Some(task.clone());
             Ok(Async::NotReady)
         }
     }

@@ -1,5 +1,6 @@
 use {Async, Poll};
 use stream::Stream;
+use task::Task;
 
 /// A stream combinator which returns a maximum number of elements.
 ///
@@ -26,12 +27,12 @@ impl<S> ::sink::Sink for Take<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -41,11 +42,11 @@ impl<S> Stream for Take<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<S::Item>, S::Error> {
         if self.remaining == 0 {
             Ok(Async::Ready(None))
         } else {
-            let next = try_ready!(self.stream.poll());
+            let next = try_ready!(self.stream.poll(task));
             match next {
                 Some(_) => self.remaining -= 1,
                 None => self.remaining = 0,

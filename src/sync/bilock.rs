@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
 use {Async, Future, Poll};
-use task::{self, Task};
+use task::Task;
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.
@@ -72,7 +72,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self) -> Async<BiLockGuard<T>> {
+    pub fn poll_lock(&self, task: &Task) -> Async<BiLockGuard<T>> {
         loop {
             match self.inner.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -88,7 +88,7 @@ impl<T> BiLock<T> {
                 }
             }
 
-            let me = Box::new(task::park());
+            let me = Box::new(task.clone());
             let me = Box::into_raw(me) as usize;
 
             match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -191,8 +191,8 @@ impl<T> Future for BiLockAcquire<T> {
     type Item = BiLockAcquired<T>;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<BiLockAcquired<T>, ()> {
-        match self.inner.poll_lock() {
+    fn poll(&mut self, task: &Task) -> Poll<BiLockAcquired<T>, ()> {
+        match self.inner.poll_lock(task) {
             Async::Ready(r) => {
                 mem::forget(r);
                 Ok(BiLockAcquired {
