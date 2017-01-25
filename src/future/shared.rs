@@ -83,7 +83,14 @@ impl<F> Future for Shared<F>
                         }
                     }
                     Err(TryLockError::WouldBlock) => {
-                        // This is recursive call to poll()! Try again later.
+                        // A clone of this `Shared`, possibly on the current thread, holds the mutex.
+                        // The mutex will become unlocked again after that clone finishes calling
+                        // original_future.poll(). We yield and then try again, in hopes that
+                        // the original_future.poll() call finishes quickly.
+                        //
+                        // TODO(perf): Is there a better way to deal with the case where the poll()
+                        // does not finish quickly? Does the kind of situation where that might
+                        // matter actually arise much in practice?
                         task::park().unpark();
                         return Ok(Async::NotReady)
                     }
