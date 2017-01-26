@@ -15,7 +15,6 @@
 
 use std::mem;
 use std::sync::{Arc, Mutex, TryLockError};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
 use std::collections::HashMap;
 
@@ -75,23 +74,33 @@ impl<F> Future for Shared<F>
             State::Waiting(ref unparker) => {
                 match self.inner.original_future.try_lock() {
                     Ok(original_future) => {
-                        if unparker.original_future_needs_poll.swap(false, Ordering::SeqCst) {
+                        let mut unparker_inner = unparker.inner.lock().unwrap();
+                        if unparker_inner.original_future_needs_poll {
+                            unparker_inner.original_future_needs_poll = false;
                             (original_future, task::UnparkEvent::new(unparker.clone(), 0))
                         } else {
-                            unparker.insert(self.id, task::park());
+                            unparker_inner.insert(self.id, task::park());
                             return Ok(Async::NotReady)
                         }
                     }
                     Err(TryLockError::WouldBlock) => {
                         // A clone of this `Shared`, possibly on the current thread, holds the mutex.
                         // The mutex will become unlocked again after that clone finishes calling
-                        // original_future.poll(). We yield and then try again, in hopes that
-                        // the original_future.poll() call finishes quickly.
-                        //
-                        // TODO(perf): Is there a better way to deal with the case where the poll()
-                        // does not finish quickly? Does the kind of situation where that might
-                        // matter actually arise much in practice?
-                        task::park().unpark();
+                        // original_future.poll().
+                        let mut unparker_inner = unparker.inner.lock().unwrap();
+                        if unparker_inner.original_future_needs_poll {
+                            // We need to try again to grab the lock on the original future. We
+                            // yield and then try again, in hopes that the original_future.poll()
+                            // call finishes quickly.
+                            //
+                            // TODO(perf): Is there a better way to deal with the case where the poll()
+                            // does not finish quickly? Does the kind of situation where that might
+                            // matter actually arise much in practice?
+                            drop(unparker_inner);
+                            task::park().unpark();
+                        } else {
+                            unparker_inner.insert(self.id, task::park());
+                        }
                         return Ok(Async::NotReady)
                     }
                     Err(TryLockError::Poisoned(e)) => {
@@ -200,10 +209,20 @@ impl<E> Deref for SharedError<E> {
 /// what this implementation does. Instead, it uses `EventSet::insert()` as a hook
 /// to unpark a set of waiting tasks.
 struct Unparker {
-    original_future_needs_poll: AtomicBool,
+    inner: Mutex<UnparkerInner>,
+}
+
+struct UnparkerInner {
+    original_future_needs_poll: bool,
 
     /// Tasks that need to be unparked once the original future resolves.
-    tasks: Mutex<HashMap<u64, task::Task>>,
+    tasks: HashMap<u64, task::Task>,
+}
+
+impl UnparkerInner {
+    fn insert(&mut self, idx: u64, task: task::Task) {
+        self.tasks.insert(idx, task);
+    }
 }
 
 impl task::EventSet for Unparker {
@@ -216,24 +235,27 @@ impl task::EventSet for Unparker {
 impl Unparker {
     fn new() -> Unparker {
         Unparker {
-            original_future_needs_poll: AtomicBool::new(true),
-            tasks: Mutex::new(HashMap::new()),
+            inner: Mutex::new(UnparkerInner{
+                original_future_needs_poll: true,
+                tasks: HashMap::new(),
+            }),
         }
     }
 
-    fn insert(&self, idx: u64, task: task::Task) {
-        self.tasks.lock().unwrap().insert(idx, task);
-    }
-
     fn remove(&self, idx: u64) {
-        if let Ok(mut tasks) = self.tasks.lock() {
-            tasks.remove(&idx);
+        if let Ok(mut inner) = self.inner.lock() {
+            inner.tasks.remove(&idx);
         }
     }
 
     fn unpark(&self) {
-        self.original_future_needs_poll.store(true, Ordering::SeqCst);
-        let tasks = ::std::mem::replace(&mut *self.tasks.lock().unwrap(), HashMap::new());
+        let UnparkerInner { tasks, .. } = mem::replace(
+            &mut *self.inner.lock().unwrap(),
+            UnparkerInner {
+                original_future_needs_poll: true,
+                tasks: HashMap::new(),
+            });
+
         for (_, task) in tasks {
             task.unpark();
         }
