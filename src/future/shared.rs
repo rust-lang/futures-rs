@@ -14,7 +14,7 @@
 //! ```
 
 use std::mem;
-use std::sync::{Arc, Mutex, RwLock, TryLockError};
+use std::sync::{Arc, Mutex, TryLockError};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
 use std::collections::HashMap;
@@ -38,7 +38,7 @@ struct Inner<F: Future> {
     /// without holding a lock on `state`.
     original_future: Mutex<Option<F>>,
 
-    state: RwLock<State<F>>,
+    state: Mutex<State<F>>,
 }
 
 enum State<F: Future> {
@@ -57,7 +57,7 @@ impl<F> Shared<F>
                 Inner {
                     next_clone_id: Mutex::new(1),
                     original_future: Mutex::new(Some(future)),
-                    state: RwLock::new(State::Waiting(Arc::new(Unparker::new()))),
+                    state: Mutex::new(State::Waiting(Arc::new(Unparker::new()))),
                 }),
         }
     }
@@ -70,7 +70,7 @@ impl<F> Future for Shared<F>
     type Error = SharedError<F::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let state = self.inner.state.read().unwrap();
+        let state = self.inner.state.lock().unwrap();
         let (mut original_future, event) = match *state {
             State::Waiting(ref unparker) => {
                 match self.inner.original_future.try_lock() {
@@ -123,7 +123,7 @@ impl<F> Future for Shared<F>
         original_future.take();
         drop(original_future);
 
-        let mut state = self.inner.state.write().unwrap();
+        let mut state = self.inner.state.lock().unwrap();
         match mem::replace(&mut *state, State::Done(done_val.clone())) {
             State::Waiting(ref unparker) => unparker.unpark(),
             _ => unreachable!(),
@@ -153,12 +153,13 @@ impl<F> Clone for Shared<F>
 
 impl<F: Future> Drop for Shared<F> {
     fn drop(&mut self) {
-        let state = self.inner.state.read().unwrap();
-        match *state {
-            State::Waiting(ref unparker) => {
-                unparker.remove(self.id);
+        if let Ok(state) = self.inner.state.lock() {
+            match *state {
+                State::Waiting(ref unparker) => {
+                    unparker.remove(self.id);
+                }
+                State::Done(_) => (),
             }
-            State::Done(_) => (),
         }
     }
 }
