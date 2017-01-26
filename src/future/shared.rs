@@ -226,7 +226,9 @@ impl Unparker {
     }
 
     fn remove(&self, idx: u64) {
-        self.tasks.lock().unwrap().remove(&idx);
+        if let Ok(mut tasks) = self.tasks.lock() {
+            tasks.remove(&idx);
+        }
     }
 
     fn unpark(&self) {
