@@ -128,11 +128,15 @@ impl<F> Future for Shared<F>
             None => unreachable!(),
         };
 
+        // Lock `state` before dropping `original_future` so that another thread
+        // cannot observe a situation where `original_future` is None and `state`
+        // is `Waiting`.
+        let mut state = self.inner.state.lock().unwrap();
+
         // We can now drop the original future to free up any resources it holds.
         original_future.take();
         drop(original_future);
 
-        let mut state = self.inner.state.lock().unwrap();
         match mem::replace(&mut *state, State::Done(done_val.clone())) {
             State::Waiting(ref unparker) => unparker.unpark(),
             _ => unreachable!(),
