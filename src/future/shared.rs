@@ -14,7 +14,7 @@
 //! ```
 
 use std::mem;
-use std::sync::{Arc, Mutex, TryLockError};
+use std::sync::{Arc, Mutex};
 use std::ops::Deref;
 use std::collections::HashMap;
 
@@ -31,17 +31,12 @@ pub struct Shared<F: Future> {
 
 struct Inner<F: Future> {
     next_clone_id: Mutex<u64>,
-
-    /// Only ever `Some` when `state` is `Waiting`. This is not part of the `State`
-    /// enum because we want to be able to call `poll()` on the original future
-    /// without holding a lock on `state`.
-    original_future: Mutex<Option<F>>,
-
     state: Mutex<State<F>>,
 }
 
 enum State<F: Future> {
-    Waiting(Arc<Unparker>),
+    Waiting(Arc<Unparker>, F),
+    Polling(Arc<Unparker>),
     Done(Result<Arc<F::Item>, Arc<F::Error>>),
 }
 
@@ -55,8 +50,7 @@ impl<F> Shared<F>
             inner: Arc::new(
                 Inner {
                     next_clone_id: Mutex::new(1),
-                    original_future: Mutex::new(Some(future)),
-                    state: Mutex::new(State::Waiting(Arc::new(Unparker::new()))),
+                    state: Mutex::new(State::Waiting(Arc::new(Unparker::new()), future)),
                 }),
         }
     }
@@ -69,44 +63,37 @@ impl<F> Future for Shared<F>
     type Error = SharedError<F::Error>;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let state = self.inner.state.lock().unwrap();
-        let (mut original_future, event) = match *state {
-            State::Waiting(ref unparker) => {
-                match self.inner.original_future.try_lock() {
-                    Ok(original_future) => {
-                        let mut unparker_inner = unparker.inner.lock().unwrap();
-                        if unparker_inner.original_future_needs_poll {
-                            unparker_inner.original_future_needs_poll = false;
-                            (original_future, task::UnparkEvent::new(unparker.clone(), 0))
-                        } else {
-                            unparker_inner.insert(self.id, task::park());
-                            return Ok(Async::NotReady)
-                        }
-                    }
-                    Err(TryLockError::WouldBlock) => {
-                        // A clone of this `Shared`, possibly on the current thread, holds the mutex.
-                        // The mutex will become unlocked again after that clone finishes calling
-                        // original_future.poll().
-                        let mut unparker_inner = unparker.inner.lock().unwrap();
-                        if unparker_inner.original_future_needs_poll {
-                            // We need to try again to grab the lock on the original future. We
-                            // yield and then try again, in hopes that the original_future.poll()
-                            // call finishes quickly.
-                            //
-                            // TODO(perf): Is there a better way to deal with the case where the poll()
-                            // does not finish quickly? Does the kind of situation where that might
-                            // matter actually arise much in practice?
-                            drop(unparker_inner);
-                            task::park().unpark();
-                        } else {
-                            unparker_inner.insert(self.id, task::park());
-                        }
-                        return Ok(Async::NotReady)
-                    }
-                    Err(TryLockError::Poisoned(e)) => {
-                        panic!("poisoned mutex: {:?}", e)
-                    }
+        let mut state = self.inner.state.lock().unwrap();
+        let unparker = match *state {
+            State::Waiting(ref unparker, ref _original_future) => {
+                let mut unparker_inner = unparker.inner.lock().unwrap();
+                if unparker_inner.original_future_needs_poll {
+                    unparker_inner.original_future_needs_poll = false;
+                    unparker.clone()
+                } else {
+                    unparker_inner.insert(self.id, task::park());
+                    return Ok(Async::NotReady)
                 }
+            }
+            State::Polling(ref unparker) => {
+                // A clone of this `Shared` is currently calling `original_future.poll()`.
+                let mut unparker_inner = unparker.inner.lock().unwrap();
+                if unparker_inner.original_future_needs_poll {
+                    // We need to poll the original future, but it's not here right now. So we
+                    // yield and then try again, in hopes that the original_future.poll()
+                    // call finishes quickly.
+                    //
+                    // TODO(perf): Is there a better way to deal with the case where the poll()
+                    // does not finish quickly? Does the kind of situation where that might
+                    // matter actually arise much in practice? We can't just call
+                    // `unparker_inner.insert(task::park())`, because there is not guarantee
+                    // that another clone of the `Shared` will come along and call `poll()`.
+                    drop(unparker_inner);
+                    task::park().unpark();
+                } else {
+                    unparker_inner.insert(self.id, task::park());
+                }
+                return Ok(Async::NotReady)
             }
             State::Done(ref r) => {
                 match *r {
@@ -115,30 +102,25 @@ impl<F> Future for Shared<F>
                 }
             }
         };
+        let (unparker, mut original_future) = match mem::replace(&mut *state, State::Polling(unparker)) {
+            State::Waiting(unparker, original_future) => (unparker, original_future),
+            _ => unreachable!(),
+        };
         drop(state);
 
-        let done_val = match *original_future {
-            Some(ref mut future) => {
-                match task::with_unpark_event(event, || future.poll()) {
-                    Ok(Async::NotReady) => return Ok(Async::NotReady),
-                    Ok(Async::Ready(v)) => Ok(Arc::new(v)),
-                    Err(e) => Err(Arc::new(e)),
-                }
+        let event = task::UnparkEvent::new(unparker.clone(), 0);
+        let done_val = match task::with_unpark_event(event, || original_future.poll()) {
+            Ok(Async::NotReady) => {
+                *self.inner.state.lock().unwrap() = State::Waiting(unparker.clone(), original_future);
+                return Ok(Async::NotReady)
             }
-            None => unreachable!(),
+            Ok(Async::Ready(v)) => Ok(Arc::new(v)),
+            Err(e) => Err(Arc::new(e)),
         };
 
-        // Lock `state` before dropping `original_future` so that another thread
-        // cannot observe a situation where `original_future` is None and `state`
-        // is `Waiting`.
         let mut state = self.inner.state.lock().unwrap();
-
-        // We can now drop the original future to free up any resources it holds.
-        original_future.take();
-        drop(original_future);
-
         match mem::replace(&mut *state, State::Done(done_val.clone())) {
-            State::Waiting(ref unparker) => unparker.unpark(),
+            State::Polling(ref unparker) => unparker.unpark(),
             _ => unreachable!(),
         }
         drop(state);
@@ -168,7 +150,10 @@ impl<F: Future> Drop for Shared<F> {
     fn drop(&mut self) {
         if let Ok(state) = self.inner.state.lock() {
             match *state {
-                State::Waiting(ref unparker) => {
+                State::Waiting(ref unparker, _) => {
+                    unparker.remove(self.id);
+                }
+                State::Polling(ref unparker) => {
                     unparker.remove(self.id);
                 }
                 State::Done(_) => (),
