@@ -12,6 +12,11 @@ description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
 """
+categories = ["asynchronous"]
+
+[badges]
+travis-ci = { repository = "alexcrichton/futures-rs" }
+appveyor = { repository = "alexcrichton/futures-rs" }
 
 [dependencies]
 log = { version = "0.3", default-features = false }
