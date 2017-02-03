@@ -56,8 +56,9 @@ impl<F> Shared<F>
         }
     }
 
-    /// If this `Shared` has completed execution, returns its result immediately without
-    // blocking. Otherwise, returns None.
+    /// If any clone of this `Shared` has completed execution, returns its result immediately
+    /// without blocking. Otherwise, returns None without triggering the work represented by
+    /// this `Shared`.
     pub fn peek(&self) -> Option<Result<SharedItem<F::Item>, SharedError<F::Error>>> {
         match *self.inner.state.lock().unwrap() {
             State::Done(Ok(ref v)) => 
