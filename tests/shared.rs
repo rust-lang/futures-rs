@@ -83,6 +83,35 @@ fn drop_in_poll() {
 }
 
 #[test]
+fn peek() {
+    let mut core = ::support::local_executor::Core::new();
+
+    let (tx0, rx0) = oneshot::channel::<u32>();
+    let f1 = rx0.shared();
+    let f2 = f1.clone();
+
+    // Repeated calls on the original or clone do not change the outcome.
+    for _ in 0..2 {
+        assert!(f1.peek().is_none());
+        assert!(f2.peek().is_none());
+    }
+
+    // Completing the underlying future has no effect, because the value has not been `poll`ed in.
+    tx0.complete(42);
+    for _ in 0..2 {
+        assert!(f1.peek().is_none());
+        assert!(f2.peek().is_none());
+    }
+
+    // Once the Shared has been polled, the value is peekable on the clone.
+    core.spawn(f1.map(|_|()).map_err(|_|()));
+    core.run(future::ok::<(),()>(())).unwrap();
+    for _ in 0..2 {
+        assert_eq!(42, *f2.peek().unwrap().unwrap());
+    }
+}
+
+#[test]
 fn polled_then_ignored() {
     let mut core = ::support::local_executor::Core::new();
 
