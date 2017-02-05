@@ -122,9 +122,8 @@ use {Poll, stream};
 /// sentinel value.
 ///
 /// The ergonomics and implementation of the `Future` trait are very similar to
-/// the `Iterator` trait in Rust which is where there is a small handful of
-/// methods to implement and a load of default methods that consume a `Future`,
-/// producing a new value.
+/// the `Iterator` trait in that there is just one methods you need
+/// to implement, but you get a whole lot of others for free as a result.
 ///
 /// # The `poll` method
 ///
