@@ -52,7 +52,20 @@ impl<F> Shared<F>
                 Inner {
                     next_clone_id: Mutex::new(1),
                     state: Mutex::new(State::Waiting(Arc::new(Unparker::new()), future)),
-                }),
+                 }),
+        }
+    }
+
+    /// If any clone of this `Shared` has completed execution, returns its result immediately
+    /// without blocking. Otherwise, returns None without triggering the work represented by
+    /// this `Shared`.
+    pub fn peek(&self) -> Option<Result<SharedItem<F::Item>, SharedError<F::Error>>> {
+        match *self.inner.state.lock().unwrap() {
+            State::Done(Ok(ref v)) => 
+              Some(Ok(SharedItem { item: v.clone() }.into())),
+            State::Done(Err(ref e)) => 
+              Some(Err(SharedError { error: e.clone() }.into())),
+            _ => None,
         }
     }
 }
