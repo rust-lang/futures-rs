@@ -108,8 +108,8 @@ if_std! {
 
 use {Poll, stream};
 
-/// Trait for types which are a placeholder of a value that will become
-/// available at possible some later point in time.
+/// Trait for types which are a placeholder of a value that may become
+/// available at some later point in time.
 ///
 /// In addition to the documentation here you can also find more information
 /// about futures [online] at [https://tokio.rs](https://tokio.rs)
