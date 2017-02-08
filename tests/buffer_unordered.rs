@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate futures;
 
 use std::sync::mpsc as std_mpsc;
