@@ -18,6 +18,7 @@ mod with;
 mod flush;
 mod send;
 mod send_all;
+mod map_err;
 
 if_std! {
     mod buffer;
@@ -64,6 +65,7 @@ pub use self::with::With;
 pub use self::flush::Flush;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
+pub use self::map_err::MapErr;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -213,6 +215,15 @@ pub trait Sink {
         where F: FnMut(U) -> Option<Self::SinkItem>,
               Self: Sized;
      */
+
+    /// Transforms the error returned by the sink.
+    fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
+        where F: FnOnce(Self::SinkError) -> E,
+              Self: Sized,
+    {
+        map_err::new(self, f)
+    }
+
 
     /// Adds a fixed-size buffer to the current sink.
     ///

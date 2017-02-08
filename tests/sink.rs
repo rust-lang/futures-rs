@@ -331,3 +331,16 @@ fn buffer() {
         _ => panic!()
     }
 }
+
+#[test]
+fn map_err() {
+    {
+        let (tx, _rx) = mpsc::channel(1);
+        let mut tx = tx.map_err(|_| ());
+        assert_eq!(tx.start_send(()), Ok(AsyncSink::Ready));
+        assert_eq!(tx.poll_complete(), Ok(Async::Ready(())));
+    }
+
+    let tx = mpsc::channel(0).0;
+    assert_eq!(tx.map_err(|_| ()).start_send(()), Err(()));
+}
