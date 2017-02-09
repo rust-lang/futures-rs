@@ -38,7 +38,6 @@
 
 extern crate crossbeam;
 
-#[macro_use]
 extern crate futures;
 extern crate num_cpus;
 
