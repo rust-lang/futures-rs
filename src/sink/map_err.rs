@@ -2,18 +2,18 @@ use sink::Sink;
 
 use {Poll, StartSend};
 
-/// Sink for the `Sink::map_err` combinator.
+/// Sink for the `Sink::sink_map_err` combinator.
 #[must_use = "sinks do nothing unless polled"]
-pub struct MapErr<S, F> {
+pub struct SinkMapErr<S, F> {
     sink: S,
     f: Option<F>,
 }
 
-pub fn new<S, F>(s: S, f: F) -> MapErr<S, F> {
-    MapErr { sink: s, f: Some(f) }
+pub fn new<S, F>(s: S, f: F) -> SinkMapErr<S, F> {
+    SinkMapErr { sink: s, f: Some(f) }
 }
 
-impl<S, F, E> Sink for MapErr<S, F>
+impl<S, F, E> Sink for SinkMapErr<S, F>
     where S: Sink,
           F: FnOnce(S::SinkError) -> E,
 {

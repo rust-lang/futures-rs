@@ -65,7 +65,7 @@ pub use self::with::With;
 pub use self::flush::Flush;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
-pub use self::map_err::MapErr;
+pub use self::map_err::SinkMapErr;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -217,7 +217,7 @@ pub trait Sink {
      */
 
     /// Transforms the error returned by the sink.
-    fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
+    fn sink_map_err<F, E>(self, f: F) -> SinkMapErr<Self, F>
         where F: FnOnce(Self::SinkError) -> E,
               Self: Sized,
     {
