@@ -136,7 +136,7 @@ fn with_flush() {
     let mut block = rx.boxed();
     let mut sink = Vec::new().with(|elem| {
         mem::replace(&mut block, ok(()).boxed())
-            .map(move |_| elem + 1).map_err(|_| panic!())
+            .map(move |_| elem + 1).map_err(|_| -> () { panic!() })
     });
 
     assert_eq!(sink.start_send(0), Ok(AsyncSink::Ready));
