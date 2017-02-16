@@ -5,6 +5,7 @@ use std::mem;
 use std::prelude::v1::*;
 
 use {Future, IntoFuture, Poll, Async};
+use task::Task;
 
 /// Future for the `select_all` combinator, waiting for one of any of a list of
 /// futures to complete.
@@ -47,9 +48,9 @@ impl<A> Future for SelectAll<A>
     type Item = (A::Item, usize, Vec<A>);
     type Error = (A::Error, usize, Vec<A>);
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-            match f.poll() {
+            match f.poll(task) {
                 Ok(Async::NotReady) => None,
                 Ok(Async::Ready(e)) => Some((i, Ok(e))),
                 Err(e) => Some((i, Err(e))),

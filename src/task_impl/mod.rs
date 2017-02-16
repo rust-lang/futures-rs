@@ -1,6 +1,5 @@
 use std::prelude::v1::*;
 
-use std::cell::Cell;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT};
@@ -13,17 +12,6 @@ use stream::Stream;
 mod unpark_mutex;
 use self::unpark_mutex::UnparkMutex;
 
-mod task_rc;
-mod data;
-#[allow(deprecated)]
-#[cfg(feature = "with-deprecated")]
-pub use self::task_rc::TaskRc;
-pub use self::data::LocalKey;
-
-thread_local!(static CURRENT_TASK: Cell<(*const Task, *const data::LocalMap)> = {
-    Cell::new((0 as *const _, 0 as *const _))
-});
-
 fn fresh_task_id() -> usize {
     // TODO: this assert is a real bummer, need to figure out how to reuse
     //       old IDs that are no longer in use.
@@ -32,32 +20,6 @@ fn fresh_task_id() -> usize {
     assert!(id < usize::max_value() / 2,
             "too many previous tasks have been allocated");
     id
-}
-
-fn set<F, R>(task: &Task, data: &data::LocalMap, f: F) -> R
-    where F: FnOnce() -> R
-{
-    struct Reset((*const Task, *const data::LocalMap));
-    impl Drop for Reset {
-        fn drop(&mut self) {
-            CURRENT_TASK.with(|c| c.set(self.0));
-        }
-    }
-
-    CURRENT_TASK.with(|c| {
-        let _reset = Reset(c.get());
-        c.set((task as *const _, data as *const _));
-        f()
-    })
-}
-
-fn with<F: FnOnce(&Task, &data::LocalMap) -> R, R>(f: F) -> R {
-    let (task, data) = CURRENT_TASK.with(|c| c.get());
-    assert!(!task.is_null(), "no Task is currently running");
-    debug_assert!(!data.is_null());
-    unsafe {
-        f(&*task, &*data)
-    }
 }
 
 /// A handle to a "task", which represents a single lightweight "thread" of
@@ -80,34 +42,13 @@ fn _assert_kinds() {
     _assert_send::<Task>();
 }
 
-/// Returns a handle to the current task to call `unpark` at a later date.
-///
-/// This function is similar to the standard library's `thread::park` function
-/// except that it won't block the current thread but rather the current future
-/// that is being executed.
-///
-/// The returned handle implements the `Send` and `'static` bounds and may also
-/// be cheaply cloned. This is useful for squirreling away the handle into a
-/// location which is then later signaled that a future can make progress.
-///
-/// Implementations of the `Future` trait typically use this function if they
-/// would otherwise perform a blocking operation. When something isn't ready
-/// yet, this `park` function is called to acquire a handle to the current
-/// task, and then the future arranges it such that when the block operation
-/// otherwise finishes (perhaps in the background) it will `unpark` the returned
-/// handle.
-///
-/// It's sometimes necessary to pass extra information to the task when
-/// unparking it, so that the task knows something about *why* it was woken. See
-/// the `with_unpark_event` for details on how to do this.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-pub fn park() -> Task {
-    with(|task, _| task.clone())
+/// Creates a new Task that ignores unpark events.
+pub fn empty() -> Task {
+    Task {
+        id: fresh_task_id(),
+        unpark: Arc::new(IgnoreUnpark),
+        events: Events::new(),
+    }
 }
 
 impl Task {
@@ -124,11 +65,21 @@ impl Task {
         self.unpark.unpark();
     }
 
-    /// Returns `true` when called from within the context of the task. In
-    /// other words, the task is currently running on the thread calling the
-    /// function.
-    pub fn is_current(&self) -> bool {
-        with(|current, _| current.id == self.id)
+    /// Unpark events are used to pass information about what event caused a task to
+    /// be unparked. In some cases, tasks are waiting on a large number of possible
+    /// events, and need precise information about the wakeup to avoid extraneous
+    /// polling.
+    ///
+    /// Every `Task` handle comes with a set of unpark events which will fire when
+    /// `unpark` is called. When fired, these events insert an identifer into a
+    /// concurrent set, which the task can read from to determine what events
+    /// occurred.
+    pub fn with_unpark_event(&self, event: UnparkEvent) -> Task {
+        Task {
+            id: self.id,
+            unpark: self.unpark.clone(),
+            events: self.events.with_event(event),
+        }
     }
 }
 
@@ -138,41 +89,6 @@ impl fmt::Debug for Task {
          .field("id", &self.id)
          .finish()
     }
-}
-
-/// For the duration of the given callback, add an "unpark event" to be
-/// triggered when the task handle is used to unpark the task.
-///
-/// Unpark events are used to pass information about what event caused a task to
-/// be unparked. In some cases, tasks are waiting on a large number of possible
-/// events, and need precise information about the wakeup to avoid extraneous
-/// polling.
-///
-/// Every `Task` handle comes with a set of unpark events which will fire when
-/// `unpark` is called. When fired, these events insert an identifer into a
-/// concurrent set, which the task can read from to determine what events
-/// occurred.
-///
-/// This function immediately invokes the closure, `f`, but arranges things so
-/// that `task::park` will produce a `Task` handle that includes the given
-/// unpark event.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
-    where F: FnOnce() -> R
-{
-    with(|task, data| {
-        let new_task = Task {
-            id: task.id,
-            unpark: task.unpark.clone(),
-            events: task.events.with_event(event),
-        };
-        set(&new_task, data, f)
-    })
 }
 
 #[derive(Clone)]
@@ -256,7 +172,6 @@ impl Events {
 pub struct Spawn<T> {
     obj: T,
     id: usize,
-    data: data::LocalMap,
 }
 
 /// Spawns a new future, returning the fused future and task.
@@ -272,7 +187,6 @@ pub fn spawn<T>(obj: T) -> Spawn<T> {
     Spawn {
         obj: obj,
         id: fresh_task_id(),
-        data: data::local_map(),
     }
 }
 
@@ -308,7 +222,7 @@ impl<F: Future> Spawn<F> {
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
     pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(unpark, |f| f.poll())
+        self.enter(unpark, |f, task| f.poll(task))
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -352,7 +266,6 @@ impl<F: Future> Spawn<F> {
             // link error on nightly: rust-lang/rust#36155
             spawn: Spawn {
                 id: self.id,
-                data: self.data,
                 obj: self.obj.boxed(),
             },
             inner: Arc::new(Inner {
@@ -367,7 +280,7 @@ impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
     pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(unpark, |stream| stream.poll())
+        self.enter(unpark, |stream, task| stream.poll(task))
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
@@ -387,7 +300,7 @@ impl<S: Stream> Spawn<S> {
 
 impl<T> Spawn<T> {
     fn enter<F, R>(&mut self, unpark: Arc<Unpark>, f: F) -> R
-        where F: FnOnce(&mut T) -> R
+        where F: FnOnce(&mut T, &Task) -> R
     {
         let task = Task {
             id: self.id,
@@ -395,7 +308,7 @@ impl<T> Spawn<T> {
             events: Events::new(),
         };
         let obj = &mut self.obj;
-        set(&task, &self.data, || f(obj))
+        f(obj, &task)
     }
 }
 
@@ -498,4 +411,10 @@ impl Unpark for Inner {
             Err(()) => {}
         }
     }
+}
+
+struct IgnoreUnpark;
+
+impl Unpark for IgnoreUnpark {
+    fn unpark(&self) {}
 }

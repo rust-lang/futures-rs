@@ -1,5 +1,6 @@
 use {Poll, Async};
 use stream::Stream;
+use task::Task;
 
 /// A stream combinator which skips a number of elements before continuing.
 ///
@@ -26,12 +27,12 @@ impl<S> ::sink::Sink for Skip<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -41,14 +42,14 @@ impl<S> Stream for Skip<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<S::Item>, S::Error> {
         while self.remaining > 0 {
-            match try_ready!(self.stream.poll()) {
+            match try_ready!(self.stream.poll(task)) {
                 Some(_) => self.remaining -= 1,
                 None => return Ok(Async::Ready(None)),
             }
         }
 
-        self.stream.poll()
+        self.stream.poll(task)
     }
 }

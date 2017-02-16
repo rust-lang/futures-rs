@@ -2,6 +2,7 @@ extern crate futures;
 
 use futures::{Future, StartSend, Sink, Stream, Poll};
 use futures::stream::iter;
+use futures::task::Task;
 
 struct Join<T, U>(T, U);
 
@@ -9,8 +10,8 @@ impl<T: Stream, U> Stream for Join<T, U> {
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self) -> Poll<Option<T::Item>, T::Error> {
-        self.0.poll()
+    fn poll(&mut self, task: &Task) -> Poll<Option<T::Item>, T::Error> {
+        self.0.poll(task)
     }
 }
 
@@ -18,14 +19,14 @@ impl<T, U: Sink> Sink for Join<T, U> {
     type SinkItem = U::SinkItem;
     type SinkError = U::SinkError;
 
-    fn start_send(&mut self, item: U::SinkItem)
+    fn start_send(&mut self, task: &Task, item: U::SinkItem)
         -> StartSend<U::SinkItem, U::SinkError>
     {
-        self.1.start_send(item)
+        self.1.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), U::SinkError> {
-        self.1.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), U::SinkError> {
+        self.1.poll_complete(task)
     }
 }
 

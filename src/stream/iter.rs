@@ -1,5 +1,6 @@
 use {Async, Poll};
 use stream::Stream;
+use task::Task;
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
 ///
@@ -19,10 +20,10 @@ pub struct IterStream<I> {
 /// use futures::*;
 ///
 /// let mut stream = stream::iter(vec![Ok(17), Err(false), Ok(19)]);
-/// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
-/// assert_eq!(Err(false), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll(&task::empty()));
+/// assert_eq!(Err(false), stream.poll(&task::empty()));
+/// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll(&task::empty()));
+/// assert_eq!(Ok(Async::Ready(None)), stream.poll(&task::empty()));
 /// ```
 pub fn iter<J, T, E>(i: J) -> IterStream<J::IntoIter>
     where J: IntoIterator<Item=Result<T, E>>,
@@ -38,7 +39,7 @@ impl<I, T, E> Stream for IterStream<I>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
+    fn poll(&mut self, _task: &Task) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Ok(Async::Ready(Some(e))),
             Some(Err(e)) => Err(e),

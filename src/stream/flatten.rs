@@ -1,5 +1,6 @@
 use {Poll, Async};
 use stream::Stream;
+use task::Task;
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.
@@ -31,12 +32,12 @@ impl<S> ::sink::Sink for Flatten<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -48,16 +49,16 @@ impl<S> Stream for Flatten<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             if self.next.is_none() {
-                match try_ready!(self.stream.poll()) {
+                match try_ready!(self.stream.poll(task)) {
                     Some(e) => self.next = Some(e),
                     None => return Ok(Async::Ready(None)),
                 }
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll() {
+            match self.next.as_mut().unwrap().poll(task) {
                 Ok(Async::Ready(None)) => self.next = None,
                 other => return other,
             }

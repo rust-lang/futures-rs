@@ -1,5 +1,6 @@
 use {Future, IntoFuture, Poll};
 use super::chain::Chain;
+use task::Task;
 
 /// Future for the `then` combinator, chaining computations on the end of
 /// another future regardless of its outcome.
@@ -27,8 +28,8 @@ impl<A, B, F> Future for Then<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Poll<B::Item, B::Error> {
-        self.state.poll(|a, f| {
+    fn poll(&mut self, task: &Task) -> Poll<B::Item, B::Error> {
+        self.state.poll(task, |a, f| {
             Ok(Err(f(a).into_future()))
         })
     }

@@ -1,5 +1,6 @@
 use {Poll, Async, Future};
 use sink::Sink;
+use task::Task;
 
 /// Future for the `Sink::flush` combinator, which polls the sink until all data
 /// has been flushed.
@@ -28,9 +29,9 @@ impl<S: Sink> Future for Flush<S> {
     type Item = S;
     type Error = S::SinkError;
 
-    fn poll(&mut self) -> Poll<S, S::SinkError> {
+    fn poll(&mut self, task: &Task) -> Poll<S, S::SinkError> {
         let mut sink = self.sink.take().expect("Attempted to poll Flush after it completed");
-        if try!(sink.poll_complete()).is_ready() {
+        if try!(sink.poll_complete(task)).is_ready() {
             Ok(Async::Ready(sink))
         } else {
             self.sink = Some(sink);

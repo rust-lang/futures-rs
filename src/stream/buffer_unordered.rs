@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 use std::mem;
 use std::sync::Arc;
 
-use task::{self, UnparkEvent};
+use task::{Task, UnparkEvent};
 
 use {Async, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
@@ -65,14 +65,14 @@ impl<S> BufferUnordered<S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
 {
-    fn poll_pending(&mut self)
+    fn poll_pending(&mut self, task: &Task)
                     -> Option<Poll<Option<<S::Item as IntoFuture>::Item>,
                                    S::Error>> {
         while let Some(idx) = self.pending.next() {
             let result = match self.futures[idx] {
                 Slot::Data(ref mut f) => {
                     let event = UnparkEvent::new(self.stack.clone(), idx);
-                    match task::with_unpark_event(event, || f.poll()) {
+                    match f.poll(&task.with_unpark_event(event)) {
                         Ok(Async::NotReady) => continue,
                         Ok(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
                         Err(e) => Err(e),
@@ -96,11 +96,11 @@ impl<S> Stream for BufferUnordered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.next_future < self.futures.len() {
-            let future = match try!(self.stream.poll()) {
+            let future = match try!(self.stream.poll(task)) {
                 Async::Ready(Some(s)) => s.into_future(),
                 Async::Ready(None) |
                 Async::NotReady => break,
@@ -116,7 +116,7 @@ impl<S> Stream for BufferUnordered<S>
 
         // Next, see if our list of `pending` events from last time has any
         // items, and if so process them here.
-        if let Some(ret) = self.poll_pending() {
+        if let Some(ret) = self.poll_pending(task) {
             return ret
         }
 
@@ -124,7 +124,7 @@ impl<S> Stream for BufferUnordered<S>
         // process all of those.
         assert!(self.pending.next().is_none());
         self.pending = self.stack.drain();
-        if let Some(ret) = self.poll_pending() {
+        if let Some(ret) = self.poll_pending(task) {
             return ret
         }
 
@@ -147,11 +147,11 @@ impl<S> ::sink::Sink for BufferUnordered<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }

@@ -12,7 +12,7 @@ use std::fmt;
 use std::mem;
 use std::rc::{Rc, Weak};
 
-use task::{self, Task};
+use task::Task;
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
 /// Creates a bounded in-memory channel with buffered storage.
@@ -55,7 +55,7 @@ pub struct Sender<T> {
 }
 
 impl<T> Sender<T> {
-    fn do_send(&self, msg: T) -> StartSend<T, SendError<T>> {
+    fn do_send(&self, task: &Task, msg: T) -> StartSend<T, SendError<T>> {
         let shared = match self.shared.upgrade() {
             Some(shared) => shared,
             None => return Err(SendError(msg)),
@@ -64,7 +64,7 @@ impl<T> Sender<T> {
 
         match shared.capacity {
             Some(capacity) if shared.buffer.len() == capacity => {
-                shared.blocked_senders.push_back(task::park());
+                shared.blocked_senders.push_back(task.clone());
                 Ok(AsyncSink::NotReady(msg))
             }
             _ => {
@@ -93,11 +93,11 @@ impl<T> Sink for Sender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.do_send(msg)
+    fn start_send(&mut self, task: &Task, msg: T) -> StartSend<T, SendError<T>> {
+        self.do_send(task, msg)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_complete(&mut self, _task: &Task) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -160,7 +160,7 @@ impl<T> Stream for Receiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         let me = match self.state {
             State::Open(ref mut me) => me,
             State::Closed(ref mut items) => {
@@ -182,7 +182,7 @@ impl<T> Stream for Receiver<T> {
             }
             Ok(Async::Ready(Some(msg)))
         } else {
-            shared.blocked_recv = Some(task::park());
+            shared.blocked_recv = Some(task.clone());
             Ok(Async::NotReady)
         }
     }
@@ -209,10 +209,10 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.0.start_send(msg)
+    fn start_send(&mut self, task: &Task, msg: T) -> StartSend<T, SendError<T>> {
+        self.0.start_send(task, msg)
     }
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_complete(&mut self, _task: &Task) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -221,11 +221,11 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.0.do_send(msg)
+    fn start_send(&mut self, task: &Task, msg: T) -> StartSend<T, SendError<T>> {
+        self.0.do_send(task, msg)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn poll_complete(&mut self, _task: &Task) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -270,8 +270,8 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.0.poll()
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
+        self.0.poll(task)
     }
 }
 

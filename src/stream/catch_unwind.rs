@@ -5,6 +5,7 @@ use std::mem;
 
 use super::super::{Poll, Async};
 use super::Stream;
+use task::Task;
 
 /// Stream for the `catch_unwind` combinator.
 ///
@@ -34,7 +35,7 @@ impl<S> Stream for CatchUnwind<S>
     type Item = Result<S::Item, S::Error>;
     type Error = Box<Any + Send>;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         let mut stream = match mem::replace(&mut self.state, CatchUnwindState::Eof) {
             CatchUnwindState::Done => panic!("cannot poll after eof"),
             CatchUnwindState::Eof => {
@@ -43,7 +44,9 @@ impl<S> Stream for CatchUnwind<S>
             }
             CatchUnwindState::Stream(stream) => stream,
         };
-        let res = catch_unwind(|| (stream.poll(), stream));
+
+        let task = AssertUnwindSafe(task);
+        let res = catch_unwind(|| (stream.poll(&task.0), stream));
         match res {
             Err(e) => Err(e), // and state is already Eof
             Ok((poll, stream)) => {
@@ -63,7 +66,7 @@ impl<S: Stream> Stream for AssertUnwindSafe<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        self.0.poll()
+    fn poll(&mut self, task: &Task) -> Poll<Option<S::Item>, S::Error> {
+        self.0.poll(task)
     }
 }

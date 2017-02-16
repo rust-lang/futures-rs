@@ -2,7 +2,7 @@ use core::mem;
 
 use stream::Stream;
 use {Async, Poll};
-
+use task::Task;
 
 /// State of chain stream.
 enum State<S1, S2> {
@@ -35,14 +35,14 @@ impl<S1, S2> Stream for Chain<S1, S2>
     type Item = S1::Item;
     type Error = S1::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             match self.state {
-                State::First(ref mut s1, ref _s2) => match s1.poll() {
+                State::First(ref mut s1, ref _s2) => match s1.poll(task) {
                     Ok(Async::Ready(None)) => (), // roll
                     x => return x,
                 },
-                State::Second(ref mut s2) => return s2.poll(),
+                State::Second(ref mut s2) => return s2.poll(task),
                 State::Temp => unreachable!(),
             }
 

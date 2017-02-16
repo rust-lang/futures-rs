@@ -7,6 +7,7 @@ use futures::executor;
 use futures::stream::{self, Stream};
 use futures::future::{self, Future};
 use futures::sync::BiLock;
+use futures::task::{self, Task};
 
 mod support;
 use support::*;
@@ -14,22 +15,23 @@ use support::*;
 #[test]
 fn smoke() {
     let future = future::lazy(|| {
+        let task = task::empty();
         let (a, b) = BiLock::new(1);
-        let mut lock = match a.poll_lock() {
+        let mut lock = match a.poll_lock(&task) {
             Async::Ready(l) => l,
             Async::NotReady => panic!("poll not ready"),
         };
         assert_eq!(*lock, 1);
         *lock = 2;
 
-        assert!(b.poll_lock().is_not_ready());
-        assert!(a.poll_lock().is_not_ready());
+        assert!(b.poll_lock(&task).is_not_ready());
+        assert!(a.poll_lock(&task).is_not_ready());
         drop(lock);
 
-        assert!(b.poll_lock().is_ready());
-        assert!(a.poll_lock().is_ready());
+        assert!(b.poll_lock(&task).is_ready());
+        assert!(a.poll_lock(&task).is_ready());
 
-        let lock = match b.poll_lock() {
+        let lock = match b.poll_lock(&task) {
             Async::Ready(l) => l,
             Async::NotReady => panic!("poll not ready"),
         };
@@ -64,11 +66,12 @@ fn concurrent() {
     let b = b.wait().expect("b error");
     let a = t1.join().unwrap().expect("a error");
 
-    match a.poll_lock() {
+    let task = task::empty();
+    match a.poll_lock(&task) {
         Async::Ready(l) => assert_eq!(*l, 2 * N),
         Async::NotReady => panic!("poll not ready"),
     }
-    match b.poll_lock() {
+    match b.poll_lock(&task) {
         Async::Ready(l) => assert_eq!(*l, 2 * N),
         Async::NotReady => panic!("poll not ready"),
     }
@@ -82,14 +85,14 @@ fn concurrent() {
         type Item = BiLock<usize>;
         type Error = ();
 
-        fn poll(&mut self) -> Poll<BiLock<usize>, ()> {
+        fn poll(&mut self, task: &Task) -> Poll<BiLock<usize>, ()> {
             loop {
                 if self.remaining == 0 {
                     return Ok(self.a.take().unwrap().into())
                 }
 
                 let a = self.a.as_ref().unwrap();
-                let mut a = match a.poll_lock() {
+                let mut a = match a.poll_lock(task) {
                     Async::Ready(l) => l,
                     Async::NotReady => return Ok(Async::NotReady),
                 };

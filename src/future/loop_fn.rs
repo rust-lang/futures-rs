@@ -1,6 +1,7 @@
 //! Definition of the `LoopFn` combinator, implementing `Future` loops.
 
 use {Async, Future, IntoFuture, Poll};
+use task::Task;
 
 /// The status of a `loop_fn` loop.
 pub enum Loop<T, S> {
@@ -86,9 +87,9 @@ impl<S, T, A, F> Future for LoopFn<A, F>
     type Item = T;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
         loop {
-            match try_ready!(self.future.poll()) {
+            match try_ready!(self.future.poll(task)) {
                 Loop::Break(x) => return Ok(Async::Ready(x)),
                 Loop::Continue(s) => self.future = (self.func)(s).into_future(),
             }

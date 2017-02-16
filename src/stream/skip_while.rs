@@ -1,5 +1,6 @@
 use {Async, Poll, IntoFuture, Future};
 use stream::Stream;
+use task::Task;
 
 /// A stream combinator which skips elements of a stream while a predicate
 /// holds.
@@ -33,12 +34,12 @@ impl<S, P, R> ::sink::Sink for SkipWhile<S, P, R>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -50,14 +51,14 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<S::Item>, S::Error> {
         if self.done_skipping {
-            return self.stream.poll();
+            return self.stream.poll(task);
         }
 
         loop {
             if self.pending.is_none() {
-                let item = match try_ready!(self.stream.poll()) {
+                let item = match try_ready!(self.stream.poll(task)) {
                     Some(e) => e,
                     None => return Ok(Async::Ready(None)),
                 };
@@ -65,7 +66,7 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
             }
 
             assert!(self.pending.is_some());
-            match self.pending.as_mut().unwrap().0.poll() {
+            match self.pending.as_mut().unwrap().0.poll(task) {
                 Ok(Async::Ready(true)) => self.pending = None,
                 Ok(Async::Ready(false)) => {
                     let (_, item) = self.pending.take().unwrap();

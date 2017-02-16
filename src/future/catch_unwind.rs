@@ -3,6 +3,7 @@ use std::any::Any;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
 use {Future, Poll, Async};
+use task::Task;
 
 /// Future for the `catch_unwind` combinator.
 ///
@@ -26,9 +27,10 @@ impl<F> Future for CatchUnwind<F>
     type Item = Result<F::Item, F::Error>;
     type Error = Box<Any + Send>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
         let mut future = self.future.take().expect("cannot poll twice");
-        let (res, future) = try!(catch_unwind(|| (future.poll(), future)));
+        let task = AssertUnwindSafe(task.clone());
+        let (res, future) = try!(catch_unwind(|| (future.poll(&task.0), future) ));
         match res {
             Ok(Async::NotReady) => {
                 self.future = Some(future);
@@ -44,7 +46,7 @@ impl<F: Future> Future for AssertUnwindSafe<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<F::Item, F::Error> {
-        self.0.poll()
+    fn poll(&mut self, task: &Task) -> Poll<F::Item, F::Error> {
+        self.0.poll(task)
     }
 }

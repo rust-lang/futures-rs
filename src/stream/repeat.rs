@@ -1,7 +1,7 @@
 use core::marker;
 
-
 use stream::Stream;
+use task::Task;
 
 use {Async, Poll};
 
@@ -23,9 +23,9 @@ pub struct Repeat<T, E>
 /// use futures::*;
 ///
 /// let mut stream = stream::repeat::<_, bool>(10);
-/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
+/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll(&task::empty()));
+/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll(&task::empty()));
+/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll(&task::empty()));
 /// ```
 pub fn repeat<T, E>(item: T) -> Repeat<T, E>
     where T: Clone
@@ -42,7 +42,7 @@ impl<T, E> Stream for Repeat<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, _task: &Task) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(Async::Ready(Some(self.item.clone())))
     }
 }

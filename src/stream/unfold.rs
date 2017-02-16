@@ -2,6 +2,7 @@ use core::mem;
 
 use {Future, IntoFuture, Async, Poll};
 use stream::Stream;
+use task::Task;
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///
@@ -72,7 +73,7 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
     type Item = It;
     type Error = Fut::Error;
 
-    fn poll(&mut self) -> Poll<Option<It>, Fut::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<It>, Fut::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 // State::Empty may happen if the future returned an error
@@ -84,7 +85,7 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match try!(fut.poll()) {
+                    match try!(fut.poll(task)) {
                         Async:: Ready((item, next_state)) => {
                             self.state = State::Ready(next_state);
                             return Ok(Async::Ready(Some(item)));

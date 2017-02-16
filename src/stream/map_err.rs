@@ -1,5 +1,6 @@
 use Poll;
 use stream::Stream;
+use task::Task;
 
 /// A stream combinator which will change the error type of a stream from one
 /// type to another.
@@ -28,12 +29,12 @@ impl<S, F> ::sink::Sink for MapErr<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -44,7 +45,7 @@ impl<S, F, U> Stream for MapErr<S, F>
     type Item = S::Item;
     type Error = U;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, U> {
-        self.stream.poll().map_err(&mut self.f)
+    fn poll(&mut self, task: &Task) -> Poll<Option<S::Item>, U> {
+        self.stream.poll(task).map_err(&mut self.f)
     }
 }

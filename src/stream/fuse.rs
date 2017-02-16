@@ -1,5 +1,6 @@
 use {Poll, Async};
 use stream::Stream;
+use task::Task;
 
 /// A stream which "fuse"s a stream once it's terminated.
 ///
@@ -19,12 +20,12 @@ impl<S> ::sink::Sink for Fuse<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -36,11 +37,11 @@ impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<S::Item>, S::Error> {
         if self.done {
             Ok(Async::Ready(None))
         } else {
-            let r = self.stream.poll();
+            let r = self.stream.poll(task);
             if let Ok(Async::Ready(None)) = r {
                 self.done = true;
             }

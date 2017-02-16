@@ -76,7 +76,7 @@ impl<F> Future for Shared<F>
     type Item = SharedItem<F::Item>;
     type Error = SharedError<F::Error>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &task::Task) -> Poll<Self::Item, Self::Error> {
         let mut state = self.inner.state.lock().unwrap();
         let unparker = match *state {
             State::Waiting(ref unparker, ref _original_future) => {
@@ -85,7 +85,7 @@ impl<F> Future for Shared<F>
                     unparker_inner.original_future_needs_poll = false;
                     unparker.clone()
                 } else {
-                    unparker_inner.insert(self.id, task::park());
+                    unparker_inner.insert(self.id, task.clone());
                     return Ok(Async::NotReady)
                 }
             }
@@ -96,9 +96,9 @@ impl<F> Future for Shared<F>
                     // We need to poll the original future, but it's not here right now.
                     // So we store the current task to be unconditionally unparked once
                     // `state` is no longer `Polling`.
-                    waiters.push(task::park());
+                    waiters.push(task.clone());
                 } else {
-                    unparker_inner.insert(self.id, task::park());
+                    unparker_inner.insert(self.id, task.clone());
                 }
                 return Ok(Async::NotReady)
             }
@@ -114,7 +114,7 @@ impl<F> Future for Shared<F>
         drop(state);
 
         let event = task::UnparkEvent::new(unparker.clone(), 0);
-        let new_state = match task::with_unpark_event(event, || original_future.poll()) {
+        let new_state = match original_future.poll(&task.with_unpark_event(event)) {
             Ok(Async::NotReady) => State::Waiting(unparker, original_future),
             Ok(Async::Ready(v)) => State::Done(Ok(Arc::new(v))),
             Err(e) => State::Done(Err(Arc::new(e))),

@@ -3,6 +3,7 @@ extern crate futures;
 use futures::Future;
 use futures::future;
 use futures::unsync::oneshot::{channel, Canceled};
+use futures::task;
 
 #[test]
 fn smoke() {
@@ -20,7 +21,7 @@ fn canceled() {
 #[test]
 fn poll_cancel() {
     let (mut tx, _) = channel::<()>();
-    assert!(tx.poll_cancel().unwrap().is_ready());
+    assert!(tx.poll_cancel(&task::empty()).unwrap().is_ready());
 }
 
 #[test]

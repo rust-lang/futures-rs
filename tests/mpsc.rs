@@ -5,6 +5,7 @@ extern crate futures;
 use futures::{Future, Stream, Sink, Async, AsyncSink};
 use futures::future::lazy;
 use futures::sync::mpsc;
+use futures::task;
 
 use std::time::Duration;
 use std::thread;
@@ -35,25 +36,25 @@ fn send_recv_no_buffer() {
 
     // Run on a task context
     lazy(move || {
-        assert!(tx.poll_complete().unwrap().is_ready());
+        assert!(tx.poll_complete(&task::empty()).unwrap().is_ready());
 
         // Send first message
 
-        let res = tx.start_send(1).unwrap();
+        let res = tx.start_send(&task::empty(), 1).unwrap();
         assert!(is_ready(&res));
 
         // Send second message
-        let res = tx.start_send(2).unwrap();
+        let res = tx.start_send(&task::empty(), 2).unwrap();
         assert!(!is_ready(&res));
 
         // Take the value
-        assert_eq!(rx.poll().unwrap(), Async::Ready(Some(1)));
+        assert_eq!(rx.poll(&task::empty()).unwrap(), Async::Ready(Some(1)));
 
-        let res = tx.start_send(2).unwrap();
+        let res = tx.start_send(&task::empty(), 2).unwrap();
         assert!(is_ready(&res));
 
         // Take the value
-        assert_eq!(rx.poll().unwrap(), Async::Ready(Some(2)));
+        assert_eq!(rx.poll(&task::empty()).unwrap(), Async::Ready(Some(2)));
 
         Ok::<(), ()>(())
     }).wait().unwrap();
@@ -111,7 +112,7 @@ fn recv_close_gets_none() {
     lazy(move || {
         rx.close();
 
-        assert_eq!(rx.poll(), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll(&task::empty()), Ok(Async::Ready(None)));
 
         drop(tx);
 
@@ -126,8 +127,8 @@ fn tx_close_gets_none() {
 
     // Run on a task context
     lazy(move || {
-        assert_eq!(rx.poll(), Ok(Async::Ready(None)));
-        assert_eq!(rx.poll(), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll(&task::empty()), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll(&task::empty()), Ok(Async::Ready(None)));
 
         Ok::<(), ()>(())
     }).wait().unwrap();
@@ -234,7 +235,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                             // Just poll
                             let n = n.clone();
                             let r = lazy(move || {
-                                let r = match rx.poll().unwrap() {
+                                let r = match rx.poll(&task::empty()).unwrap() {
                                     Async::Ready(Some(_)) => {
                                         n.fetch_add(1, Ordering::Relaxed);
                                         *lock = Some(rx);

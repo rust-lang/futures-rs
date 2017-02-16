@@ -8,7 +8,7 @@ use futures::{Future, IntoFuture, Async, Poll};
 use futures::future::FutureResult;
 use futures::stream::Stream;
 use futures::executor::{self, Unpark};
-use futures::task;
+use futures::task::Task;
 
 pub mod local_executor;
 
@@ -112,12 +112,12 @@ impl<F: Future> Future for DelayFuture<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<F::Item,F::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<F::Item,F::Error> {
         if self.1 {
-            self.0.poll()
+            self.0.poll(task)
         } else {
             self.1 = true;
-            task::park().unpark();
+            task.unpark();
             Ok(Async::NotReady)
         }
     }

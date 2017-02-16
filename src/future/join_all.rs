@@ -6,6 +6,7 @@ use std::prelude::v1::*;
 use std::mem;
 
 use {Future, IntoFuture, Poll, Async};
+use task::Task;
 
 enum ElemState<T> where T: Future {
     Pending(T),
@@ -75,13 +76,13 @@ impl<I> Future for JoinAll<I>
     type Error = <I::Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Self::Item, Self::Error> {
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
             let done_val = match &mut self.elems[idx] {
                 &mut ElemState::Pending(ref mut t) => {
-                    match t.poll() {
+                    match t.poll(task) {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::NotReady) => {
                             all_done = false;

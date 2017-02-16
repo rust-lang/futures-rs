@@ -1,4 +1,5 @@
 use {Future, Poll, Async};
+use task::Task;
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -11,8 +12,7 @@ pub struct Map<A, F> where A: Future {
 
 pub fn new<A, F>(future: A, f: F) -> Map<A, F>
     where A: Future,
-{
-    Map {
+{    Map {
         future: future,
         f: Some(f),
     }
@@ -25,8 +25,8 @@ impl<U, A, F> Future for Map<A, F>
     type Item = U;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<U, A::Error> {
-        let e = match self.future.poll() {
+    fn poll(&mut self, task: &Task) -> Poll<U, A::Error> {
+        let e = match self.future.poll(task) {
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Ok(Async::Ready(e)) => Ok(e),
             Err(e) => Err(e),

@@ -1,5 +1,6 @@
 use {Async, IntoFuture, Future, Poll};
 use stream::Stream;
+use task::Task;
 
 /// A stream combinator which chains a computation onto each item produced by a
 /// stream.
@@ -33,12 +34,12 @@ impl<S, F, U> ::sink::Sink for Then<S, F, U>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, task: &Task, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(task, item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn poll_complete(&mut self, task: &Task) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete(task)
     }
 }
 
@@ -50,9 +51,9 @@ impl<S, F, U> Stream for Then<S, F, U>
     type Item = U::Item;
     type Error = U::Error;
 
-    fn poll(&mut self) -> Poll<Option<U::Item>, U::Error> {
+    fn poll(&mut self, task: &Task) -> Poll<Option<U::Item>, U::Error> {
         if self.future.is_none() {
-            let item = match self.stream.poll() {
+            let item = match self.stream.poll(task) {
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Ok(Async::Ready(None)) => return Ok(Async::Ready(None)),
                 Ok(Async::Ready(Some(e))) => Ok(e),
@@ -61,7 +62,7 @@ impl<S, F, U> Stream for Then<S, F, U>
             self.future = Some((self.f)(item).into_future());
         }
         assert!(self.future.is_some());
-        match self.future.as_mut().unwrap().poll() {
+        match self.future.as_mut().unwrap().poll(task) {
             Ok(Async::Ready(e)) => {
                 self.future = None;
                 Ok(Async::Ready(Some(e)))
