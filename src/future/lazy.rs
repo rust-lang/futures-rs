@@ -9,11 +9,13 @@ use {Future, IntoFuture, Poll};
 /// scheduled.
 ///
 /// This is created by the `lazy` function.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Lazy<F, R: IntoFuture> {
     inner: _Lazy<F, R::Future>,
 }
 
+#[derive(Debug)]
 enum _Lazy<F, R> {
     First(F),
     Second(R),

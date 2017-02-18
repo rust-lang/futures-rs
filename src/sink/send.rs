@@ -3,6 +3,7 @@ use sink::Sink;
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
 /// then waits until the sink has fully flushed.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Send<S: Sink> {
     sink: Option<S>,

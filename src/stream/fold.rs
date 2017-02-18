@@ -6,6 +6,7 @@ use stream::Stream;
 /// A future used to collect all the results of a stream into one generic type.
 ///
 /// This future is returned by the `Stream::fold` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Fold<S, F, Fut, T> where Fut: IntoFuture {
     stream: S,
@@ -13,6 +14,7 @@ pub struct Fold<S, F, Fut, T> where Fut: IntoFuture {
     state: State<T, Fut::Future>,
 }
 
+#[derive(Debug)]
 enum State<T, F> where F: Future {
     /// Placeholder state when doing work
     Empty,

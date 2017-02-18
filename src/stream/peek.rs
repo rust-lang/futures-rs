@@ -6,6 +6,7 @@ use stream::{Stream, Fuse};
 /// The `peek` method can be used to retrieve a reference
 /// to the next `Stream::Item` if available. A subsequent
 /// call to `poll` will return the owned item.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Peekable<S: Stream> {
     stream: Fuse<S>,

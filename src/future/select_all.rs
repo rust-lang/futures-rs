@@ -10,6 +10,7 @@ use {Future, IntoFuture, Poll, Async};
 /// futures to complete.
 ///
 /// This is created by the `select_all` function.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectAll<A> where A: Future {
     inner: Vec<A>,

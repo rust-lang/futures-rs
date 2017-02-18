@@ -3,6 +3,7 @@
 use {Async, Future, IntoFuture, Poll};
 
 /// The status of a `loop_fn` loop.
+#[derive(Debug)]
 pub enum Loop<T, S> {
     /// Indicates that the loop has completed with output `T`.
     Break(T),
@@ -15,6 +16,7 @@ pub enum Loop<T, S> {
 /// A future implementing a tail-recursive loop.
 ///
 /// Created by the `loop_fn` function.
+#[derive(Debug)]
 pub struct LoopFn<A, F> where A: IntoFuture {
     future: A::Future,
     func: F,

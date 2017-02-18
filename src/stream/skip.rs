@@ -4,6 +4,7 @@ use stream::Stream;
 /// A stream combinator which skips a number of elements before continuing.
 ///
 /// This structure is produced by the `Stream::skip` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Skip<S> {
     stream: S,

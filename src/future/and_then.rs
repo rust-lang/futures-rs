@@ -5,6 +5,7 @@ use super::chain::Chain;
 /// another future which completes successfully.
 ///
 /// This is created by the `Future::and_then` method.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct AndThen<A, B, F> where A: Future, B: IntoFuture {
     state: Chain<A, B::Future, F>,

@@ -10,6 +10,7 @@ use std::sync::atomic::Ordering::SeqCst;
 
 use task::EventSet;
 
+#[derive(Debug)]
 pub struct Stack<T> {
     head: AtomicUsize,
     _marker: marker::PhantomData<T>,
@@ -20,6 +21,7 @@ struct Node<T> {
     next: *mut Node<T>,
 }
 
+#[derive(Debug)]
 pub struct Drain<T> {
     head: *mut Node<T>,
 }

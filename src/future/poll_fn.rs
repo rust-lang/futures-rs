@@ -5,6 +5,7 @@ use {Future, Poll};
 /// A future which adapts a function returning `Poll`.
 ///
 /// Created by the `poll_fn` function.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct PollFn<F> {
     inner: F,

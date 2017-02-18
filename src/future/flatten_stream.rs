@@ -22,6 +22,7 @@ pub fn new<F>(f: F) -> FlattenStream<F>
     }
 }
 
+#[derive(Debug)]
 enum State<F>
     where F: Future,
           <F as Future>::Item: Stream<Error=F::Error>,

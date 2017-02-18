@@ -4,6 +4,7 @@ use {Future, Poll, Async};
 /// complete.
 ///
 /// This is created by the `Future::select` method.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     inner: Option<(A, B)>,
@@ -13,11 +14,13 @@ pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error>
 ///
 /// This sentinel future represents the completion of the second future to a
 /// `select` which finished second.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectNext<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
     inner: OneOf<A, B>,
 }
 
+#[derive(Debug)]
 enum OneOf<A, B> where A: Future, B: Future {
     A(A),
     B(B),

@@ -2,6 +2,7 @@ use core::mem;
 
 use {Future, Poll, Async};
 
+#[derive(Debug)]
 pub enum Chain<A, B, C> where A: Future {
     First(A, C),
     Second(B),

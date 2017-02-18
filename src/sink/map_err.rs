@@ -3,6 +3,7 @@ use sink::Sink;
 use {Poll, StartSend};
 
 /// Sink for the `Sink::sink_map_err` combinator.
+#[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct SinkMapErr<S, F> {
     sink: S,

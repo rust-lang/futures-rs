@@ -5,6 +5,7 @@ use stream::Stream;
 /// holds.
 ///
 /// This structure is produced by the `Stream::take_while` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TakeWhile<S, P, R> where S: Stream, R: IntoFuture {
     stream: S,

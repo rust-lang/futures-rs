@@ -7,6 +7,7 @@ use stream::Stream;
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
 /// to pushing a value into the underlying sink.
+#[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct With<S, U, F, Fut>
     where S: Sink,
@@ -19,6 +20,7 @@ pub struct With<S, U, F, Fut>
     _phantom: PhantomData<fn(U)>,
 }
 
+#[derive(Debug)]
 enum State<Fut, T> {
     Empty,
     Process(Fut),

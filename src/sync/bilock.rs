@@ -27,10 +27,12 @@ use task::{self, Task};
 /// example a TCP stream could be both a reader and a writer or a framing layer
 /// could be both a stream and a sink for messages. A `BiLock` enables splitting
 /// these two and then using each independently in a futures-powered fashion.
+#[derive(Debug)]
 pub struct BiLock<T> {
     inner: Arc<Inner<T>>,
 }
 
+#[derive(Debug)]
 struct Inner<T> {
     state: AtomicUsize,
     inner: UnsafeCell<T>,
@@ -158,6 +160,7 @@ impl<T> Drop for Inner<T> {
 /// This structure acts as a sentinel to the data in the `BiLock<T>` itself,
 /// implementing `Deref` and `DerefMut` to `T`. When dropped, the lock will be
 /// unlocked.
+#[derive(Debug)]
 pub struct BiLockGuard<'a, T: 'a> {
     inner: &'a BiLock<T>,
 }
@@ -183,6 +186,7 @@ impl<'a, T> Drop for BiLockGuard<'a, T> {
 
 /// Future returned by `BiLock::lock` which will resolve when the lock is
 /// acquired.
+#[derive(Debug)]
 pub struct BiLockAcquire<T> {
     inner: BiLock<T>,
 }
@@ -210,6 +214,7 @@ impl<T> Future for BiLockAcquire<T> {
 /// implementations of `Deref` and `DerefMut`. When dropped will unlock the
 /// lock, and the original unlocked `BiLock<T>` can be recovered through the
 /// `unlock` method.
+#[derive(Debug)]
 pub struct BiLockAcquired<T> {
     inner: BiLock<T>,
 }

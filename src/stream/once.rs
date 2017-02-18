@@ -7,6 +7,7 @@ use stream::Stream;
 /// A stream which emits single element and then EOF.
 ///
 /// This stream will never block and is always ready.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Once<T, E>(stream::IterStream<core::iter::Once<Result<T, E>>>);
 

@@ -5,6 +5,7 @@ use stream::{Stream, Fuse};
 ///
 /// The merged stream produces items from one or both of the underlying
 /// streams as they become available. Errors, however, are not merged: you
+#[derive(Debug)]
 /// get at most one error at a time.
 #[must_use = "streams do nothing unless polled"]
 pub struct Zip<S1: Stream, S2: Stream> {
