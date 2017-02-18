@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use core::fmt;
 use core::mem;
 
 use {Future, Poll, IntoFuture, Async};
@@ -17,6 +18,22 @@ macro_rules! generate {
         {
             a: MaybeDone<A>,
             $($B: MaybeDone<$B>,)*
+        }
+
+        impl<A, $($B),*> fmt::Debug for $Join<A, $($B),*>
+            where A: Future + fmt::Debug,
+                  A::Item: fmt::Debug,
+                  $(
+                      $B: Future<Error=A::Error> + fmt::Debug,
+                      $B::Item: fmt::Debug
+                  ),*
+        {
+            fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+                fmt.debug_struct(stringify!($Join))
+                    .field("a", &self.a)
+                    $(.field(stringify!($B), &self.$B))*
+                    .finish()
+            }
         }
 
         pub fn $new<A, $($B),*>(a: A, $($B: $B),*) -> $Join<A, $($B),*>
@@ -123,6 +140,7 @@ generate! {
     (Join5, new5, <A, B, C, D, E>),
 }
 
+#[derive(Debug)]
 enum MaybeDone<A: Future> {
     NotYet(A),
     Done(A::Item),

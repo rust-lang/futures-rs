@@ -1,4 +1,5 @@
 use std::prelude::v1::*;
+use std::fmt;
 use std::mem;
 use std::sync::Arc;
 
@@ -42,6 +43,24 @@ pub struct BufferUnordered<S>
     active: usize,
 }
 
+impl<S> fmt::Debug for BufferUnordered<S>
+    where S: Stream + fmt::Debug,
+          S::Item: IntoFuture,
+          <S::Item as IntoFuture>::Future: fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("BufferUnordered")
+            .field("stream", &self.stream)
+            .field("futures", &self.futures)
+            .field("next_future", &self.next_future)
+            .field("stack", &self.stack)
+            .field("pending", &self.pending)
+            .field("active", &self.active)
+            .finish()
+    }
+}
+
+#[derive(Debug)]
 enum Slot<T> {
     Next(usize),
     Data(T),

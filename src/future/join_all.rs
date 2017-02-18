@@ -3,10 +3,12 @@
 
 use std::prelude::v1::*;
 
+use std::fmt;
 use std::mem;
 
 use {Future, IntoFuture, Poll, Async};
 
+#[derive(Debug)]
 enum ElemState<T> where T: Future {
     Pending(T),
     Done(T::Item),
@@ -22,6 +24,19 @@ pub struct JoinAll<I>
           I::Item: IntoFuture,
 {
     elems: Vec<ElemState<<I::Item as IntoFuture>::Future>>,
+}
+
+impl<I> fmt::Debug for JoinAll<I>
+    where I: IntoIterator,
+          I::Item: IntoFuture,
+          <I::Item as IntoFuture>::Future: fmt::Debug,
+          <I::Item as IntoFuture>::Item: fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("JoinAll")
+            .field("elems", &self.elems)
+            .finish()
+    }
 }
 
 /// Creates a future which represents a collection of the results of the futures

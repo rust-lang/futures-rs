@@ -1,5 +1,6 @@
 use std::prelude::v1::*;
 
+use std::fmt;
 use std::mem;
 
 use {Async, IntoFuture, Poll, Future};
@@ -21,6 +22,23 @@ pub struct Buffered<S>
     cur: usize,
 }
 
+impl<S> fmt::Debug for Buffered<S>
+    where S: Stream + fmt::Debug,
+          S::Item: IntoFuture,
+          <S::Item as IntoFuture>::Future: fmt::Debug,
+          <S::Item as IntoFuture>::Item: fmt::Debug,
+          <S::Item as IntoFuture>::Error: fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Stream")
+            .field("stream", &self.stream)
+            .field("futures", &self.futures)
+            .field("cur", &self.cur)
+            .finish()
+    }
+}
+
+#[derive(Debug)]
 enum State<S: Future> {
     Empty,
     Running(S),
