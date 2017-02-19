@@ -15,6 +15,7 @@ use task::{self, Task};
 ///
 /// This is created by the `oneshot::channel` function.
 #[must_use = "futures do nothing unless polled"]
+#[derive(Debug)]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
@@ -23,12 +24,14 @@ pub struct Receiver<T> {
 /// computation is signaled.
 ///
 /// This is created by the `oneshot::channel` function.
+#[derive(Debug)]
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
 
 /// Internal state of the `Receiver`/`Sender` pair above. This is all used as
 /// the internal synchronization between the two for send/recv operations.
+#[derive(Debug)]
 struct Inner<T> {
     /// Indicates whether this oneshot is complete yet. This is filled in both
     /// by `Sender::drop` and by `Receiver::drop`, and both sides iterpret it

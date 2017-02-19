@@ -13,6 +13,7 @@
 //! assert_eq!(6, *shared2.wait().unwrap());
 //! ```
 
+use std::fmt;
 use std::mem;
 use std::sync::{Arc, Mutex};
 use std::ops::Deref;
@@ -30,11 +31,38 @@ pub struct Shared<F: Future> {
     inner: Arc<Inner<F>>,
 }
 
+impl<F> fmt::Debug for Shared<F>
+    where F: Future + fmt::Debug,
+          F::Item: fmt::Debug,
+          F::Error: fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Shared")
+            .field("id", &self.id)
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
 struct Inner<F: Future> {
     next_clone_id: Mutex<u64>,
     state: Mutex<State<F>>,
 }
 
+impl<F> fmt::Debug for Inner<F>
+    where F: Future + fmt::Debug,
+          F::Item: fmt::Debug,
+          F::Error: fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Inner")
+            .field("next_clone_id", &self.next_clone_id)
+            .field("state", &self.state)
+            .finish()
+    }
+}
+
+#[derive(Debug)]
 enum State<F: Future> {
     Waiting(Arc<Unparker>, F),
     Polling(Arc<Unparker>, Vec<task::Task>),
@@ -207,10 +235,12 @@ impl<E> Deref for SharedError<E> {
 /// is to gather precise information about what triggered an unpark, but that is *not*
 /// what this implementation does. Instead, it uses `EventSet::insert()` as a hook
 /// to unpark a set of waiting tasks.
+#[derive(Debug)]
 struct Unparker {
     inner: Mutex<UnparkerInner>,
 }
 
+#[derive(Debug)]
 struct UnparkerInner {
     original_future_needs_poll: bool,
 

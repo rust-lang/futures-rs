@@ -15,6 +15,7 @@ use self::core::sync::atomic::AtomicBool;
 ///
 /// This lock only supports the `try_lock` operation, however, and does not
 /// implement poisoning.
+#[derive(Debug)]
 pub struct Lock<T> {
     locked: AtomicBool,
     data: UnsafeCell<T>,
