@@ -777,7 +777,7 @@ pub trait Future {
     /// let mut future = ok::<i32, u32>(2);
     /// assert!(future.catch_unwind().wait().is_ok());
     ///
-    /// let mut future = lazy(|| {
+    /// let mut future = lazy(|| -> FutureResult<i32, u32> {
     ///     panic!();
     ///     ok::<i32, u32>(2)
     /// });
