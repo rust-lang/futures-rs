@@ -5,6 +5,7 @@ use stream::Stream;
 /// type to another.
 ///
 /// This is produced by the `Stream::map_err` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct MapErr<S, F> {
     stream: S,

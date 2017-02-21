@@ -6,6 +6,7 @@ use stream::{Stream, Fuse};
 /// The merged stream produces items from either of the underlying streams as
 /// they become available, and the streams are polled in a round-robin fashion.
 /// Errors, however, are not merged: you get at most one error at a time.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Select<S1, S2> {
     stream1: Fuse<S1>,

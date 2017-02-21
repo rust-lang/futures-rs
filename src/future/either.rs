@@ -2,6 +2,7 @@ use {Future, Poll};
 
 /// Combines two different futures yielding the same item and error
 /// types into a single type.
+#[derive(Debug)]
 pub enum Either<A, B> {
     /// First branch of the type
     A(A),

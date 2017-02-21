@@ -1,4 +1,5 @@
 use {Async, Future, Poll};
+use core::fmt;
 use stream::Stream;
 
 /// Future for the `flatten_stream` combinator, flattening a
@@ -13,6 +14,17 @@ pub struct FlattenStream<F>
     state: State<F>
 }
 
+impl<F> fmt::Debug for FlattenStream<F>
+    where F: Future + fmt::Debug,
+          <F as Future>::Item: Stream<Error=F::Error> + fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("FlattenStream")
+            .field("state", &self.state)
+            .finish()
+    }
+}
+
 pub fn new<F>(f: F) -> FlattenStream<F>
     where F: Future,
           <F as Future>::Item: Stream<Error=F::Error>,
@@ -22,6 +34,7 @@ pub fn new<F>(f: F) -> FlattenStream<F>
     }
 }
 
+#[derive(Debug)]
 enum State<F>
     where F: Future,
           <F as Future>::Item: Stream<Error=F::Error>,

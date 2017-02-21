@@ -53,6 +53,7 @@ impl<T: Send> Opaque for T {}
 /// ensure it lives long enough. When a key is accessed for the first time the
 /// task's data is initialized with the provided initialization expression to
 /// the macro.
+#[derive(Debug)]
 pub struct LocalKey<T> {
     // "private" fields which have to be public to get around macro hygiene, not
     // included in the stability story for this type. Can change at any time.

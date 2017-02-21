@@ -4,6 +4,7 @@ use stream::Stream;
 /// A stream which is just a shim over an underlying instance of `Iterator`.
 ///
 /// This stream will never block and is always ready.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct IterStream<I> {
     iter: I,

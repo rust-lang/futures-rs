@@ -4,6 +4,7 @@ use sink::Sink;
 
 /// Future for the `Stream::forward` combinator, which sends a stream of values
 /// to a sink and then waits until the sink has fully flushed those values.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Forward<T: Stream, U> {
     sink: Option<U>,

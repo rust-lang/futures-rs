@@ -85,6 +85,7 @@ mod queue;
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `channel` method.
+#[derive(Debug)]
 pub struct Sender<T> {
     // Channel state shared between the sender and receiver.
     inner: Arc<Inner<T>>,
@@ -102,6 +103,7 @@ pub struct Sender<T> {
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `unbounded` method.
+#[derive(Debug)]
 pub struct UnboundedSender<T>(Sender<T>);
 
 fn _assert_kinds() {
@@ -119,6 +121,7 @@ fn _assert_kinds() {
 /// This is a concrete implementation of a stream which can be used to represent
 /// a stream of values being computed elsewhere. This is created by the
 /// `channel` method.
+#[derive(Debug)]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
@@ -128,6 +131,7 @@ pub struct Receiver<T> {
 /// This is a concrete implementation of a stream which can be used to represent
 /// a stream of values being computed elsewhere. This is created by the
 /// `unbounded` method.
+#[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
 /// Error type for sending, used when the receiving end of a channel is
@@ -162,6 +166,7 @@ impl<T> SendError<T> {
     }
 }
 
+#[derive(Debug)]
 struct Inner<T> {
     // Max buffer size of the channel. If `None` then the channel is unbounded.
     buffer: Option<usize>,
@@ -193,6 +198,7 @@ struct State {
     num_messages: usize,
 }
 
+#[derive(Debug)]
 struct ReceiverTask {
     unparked: bool,
     task: Option<Task>,

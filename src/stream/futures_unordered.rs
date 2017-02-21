@@ -14,6 +14,7 @@ use std::prelude::v1::*;
 /// This adaptor will return their results in the order that they complete.
 /// This is created by the `futures` method.
 ///
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<F>
     where F: Future

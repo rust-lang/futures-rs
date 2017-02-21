@@ -5,6 +5,7 @@ use stream::Stream;
 /// stream.
 ///
 /// This structure is produced by the `Stream::and_then` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct AndThen<S, F, U>
     where U: IntoFuture,

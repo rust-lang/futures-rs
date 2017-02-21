@@ -6,6 +6,7 @@ use stream::Stream;
 /// Normally streams can behave unpredictably when used after they have already
 /// finished, but `Fuse` continues to return `None` from `poll` forever when
 /// finished.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Fuse<S> {
     stream: S,

@@ -3,6 +3,7 @@ use sink::Sink;
 
 /// Future for the `Sink::flush` combinator, which polls the sink until all data
 /// has been flushed.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Flush<S> {
     sink: Option<S>,

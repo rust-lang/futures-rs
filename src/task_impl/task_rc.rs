@@ -61,6 +61,7 @@ use std::cell::UnsafeCell;
 /// This data is `Send` even when `A` is not `Sync`, because the data stored
 /// within is accessed in a single-threaded way. The thread accessing it may
 /// change over time, if the task migrates, so `A` must be `Send`.
+#[derive(Debug)]
 pub struct TaskRc<A> {
     task_id: usize,
     ptr: Arc<UnsafeCell<A>>,

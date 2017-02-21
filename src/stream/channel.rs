@@ -29,6 +29,7 @@ pub fn channel<T, E>() -> (Sender<T, E>, Receiver<T, E>) {
 /// The transmission end of a channel which is used to send values.
 ///
 /// This is created by the `channel` method in the `stream` module.
+#[derive(Debug)]
 pub struct Sender<T, E> {
     inner: mpsc::Sender<Result<T, E>>,
 }
@@ -39,6 +40,7 @@ pub struct Sender<T, E> {
 /// a stream of values being computed elsewhere. This is created by the
 /// `channel` method in the `stream` module.
 #[must_use = "streams do nothing unless polled"]
+#[derive(Debug)]
 pub struct Receiver<T, E> {
     inner: mpsc::Receiver<Result<T, E>>,
 }
@@ -47,6 +49,7 @@ pub struct Receiver<T, E> {
 pub struct SendError<T, E>(Result<T, E>);
 
 /// Future returned by `Sender::send`.
+#[derive(Debug)]
 pub struct FutureSender<T, E> {
     inner: Send<mpsc::Sender<Result<T, E>>>,
 }

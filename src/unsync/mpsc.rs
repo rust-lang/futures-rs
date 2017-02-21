@@ -38,6 +38,7 @@ fn channel_<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
     (sender, receiver)
 }
 
+#[derive(Debug)]
 struct Shared<T> {
     buffer: VecDeque<T>,
     capacity: Option<usize>,
@@ -50,6 +51,7 @@ struct Shared<T> {
 /// The transmission end of a channel.
 ///
 /// This is created by the `channel` function.
+#[derive(Debug)]
 pub struct Sender<T> {
     shared: Weak<RefCell<Shared<T>>>,
 }
@@ -123,12 +125,14 @@ impl<T> Drop for Sender<T> {
 /// The receiving end of a channel which implements the `Stream` trait.
 ///
 /// This is created by the `channel` function.
+#[derive(Debug)]
 pub struct Receiver<T> {
     state: State<T>,
 }
 
 /// Possible states of a receiver. We're either Open (can receive more messages)
 /// or we're closed with a list of messages we have left to receive.
+#[derive(Debug)]
 enum State<T> {
     Open(Rc<RefCell<Shared<T>>>),
     Closed(VecDeque<T>),
@@ -197,6 +201,7 @@ impl<T> Drop for Receiver<T> {
 /// The transmission end of an unbounded channel.
 ///
 /// This is created by the `unbounded` function.
+#[derive(Debug)]
 pub struct UnboundedSender<T>(Sender<T>);
 
 impl<T> Clone for UnboundedSender<T> {
@@ -254,6 +259,7 @@ impl<T> UnboundedSender<T> {
 /// The receiving end of an unbounded channel.
 ///
 /// This is created by the `unbounded` function.
+#[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
 impl<T> UnboundedReceiver<T> {

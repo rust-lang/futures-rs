@@ -7,6 +7,7 @@ use {Future, Poll, Async};
 /// from `poll` after it has resolved successfully or returned an error.
 ///
 /// This is created by the `Future::fuse` method.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Fuse<A: Future> {
     future: Option<A>,

@@ -2,6 +2,7 @@ use {StartSend, Sink, Stream, Poll, Async, AsyncSink};
 use sync::BiLock;
 
 /// A `Stream` part of the split pair
+#[derive(Debug)]
 pub struct SplitStream<S>(BiLock<S>);
 
 impl<S: Stream> Stream for SplitStream<S> {
@@ -17,6 +18,7 @@ impl<S: Stream> Stream for SplitStream<S> {
 }
 
 /// A `Sink` part of the split pair
+#[derive(Debug)]
 pub struct SplitSink<S>(BiLock<S>);
 
 impl<S: Sink> Sink for SplitSink<S> {

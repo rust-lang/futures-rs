@@ -59,6 +59,7 @@ pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
 /// A stream which creates futures, polls them and return their result
 ///
 /// This stream is returned by the `futures::stream::unfold` method
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Unfold<T, F, Fut> where Fut: IntoFuture {
     f: F,
@@ -100,6 +101,7 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
     }
 }
 
+#[derive(Debug)]
 enum State<T, F> where F: Future {
     /// Placeholder state when doing work, or when the returned Future generated an error
     Empty,

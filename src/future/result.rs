@@ -7,6 +7,7 @@ use {Future, Poll, Async};
 /// A future representing a value that is immediately ready.
 ///
 /// Created by the `done` function.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 // TODO: rename this to `Result` on the next major version
 pub struct FutureResult<T, E> {

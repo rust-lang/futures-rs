@@ -7,6 +7,7 @@ use {Async, Poll};
 
 
 /// Stream that produces the same element repeatedly.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Repeat<T, E>
     where T: Clone

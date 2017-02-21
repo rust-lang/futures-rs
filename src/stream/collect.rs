@@ -8,6 +8,7 @@ use stream::Stream;
 /// A future which collects all of the values of a stream into a vector.
 ///
 /// This future is created by the `Stream::collect` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Collect<S> where S: Stream {
     stream: S,

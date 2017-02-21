@@ -6,6 +6,7 @@ use stream::{Stream, Fuse};
 /// The merged stream produces items from one or both of the underlying
 /// streams as they become available. Errors, however, are not merged: you
 /// get at most one error at a time.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Merge<S1, S2: Stream> {
     stream1: Fuse<S1>,
@@ -25,6 +26,7 @@ pub fn new<S1, S2>(stream1: S1, stream2: S2) -> Merge<S1, S2>
 
 /// An item returned from a merge stream, which represents an item from one or
 /// both of the underlying streams.
+#[derive(Debug)]
 pub enum MergedItem<I1, I2> {
     /// An item from the first stream
     First(I1),

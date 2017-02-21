@@ -5,6 +5,7 @@ use {Async, Poll};
 
 
 /// State of chain stream.
+#[derive(Debug)]
 enum State<S1, S2> {
     /// Emitting elements of first stream
     First(S1, S2),
@@ -18,6 +19,7 @@ enum State<S1, S2> {
 ///
 /// The resulting stream produces items from first stream and then
 /// from second stream.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Chain<S1, S2> {
     state: State<S1, S2>

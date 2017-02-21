@@ -11,6 +11,7 @@ use {Future, IntoFuture, Poll, Async};
 /// but the last error, if there are any.
 ///
 /// This is created by the `select_ok` function.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectOk<A> where A: Future {
     inner: Vec<A>,

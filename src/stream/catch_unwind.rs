@@ -9,6 +9,7 @@ use super::Stream;
 /// Stream for the `catch_unwind` combinator.
 ///
 /// This is created by the `Stream::catch_unwind` method.
+#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct CatchUnwind<S> where S: Stream {
     state: CatchUnwindState<S>,
@@ -22,6 +23,7 @@ pub fn new<S>(stream: S) -> CatchUnwind<S>
     }
 }
 
+#[derive(Debug)]
 enum CatchUnwindState<S> {
     Stream(S),
     Eof,

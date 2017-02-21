@@ -34,6 +34,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
 /// This is created by the `unsync::oneshot::channel` function and is equivalent
 /// in functionality to `sync::oneshot::Sender` except that it cannot be sent
 /// across threads.
+#[derive(Debug)]
 pub struct Sender<T> {
     inner: Weak<RefCell<Inner<T>>>,
 }
@@ -44,11 +45,13 @@ pub struct Sender<T> {
 /// This is created by the `unsync::oneshot::channel` function and is equivalent
 /// in functionality to `sync::oneshot::Receiver` except that it cannot be sent
 /// across threads.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Receiver<T> {
     state: State<T>,
 }
 
+#[derive(Debug)]
 enum State<T> {
     Open(Rc<RefCell<Inner<T>>>),
     Closed(Option<T>),
@@ -58,6 +61,7 @@ enum State<T> {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Canceled;
 
+#[derive(Debug)]
 struct Inner<T> {
     value: Option<T>,
     tx_task: Option<Task>,

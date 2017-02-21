@@ -7,6 +7,7 @@ use stream::Stream;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.
+#[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Buffer<S: Sink> {
     sink: S,
