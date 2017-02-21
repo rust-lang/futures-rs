@@ -787,7 +787,7 @@ pub trait Future {
     fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + ::std::panic::UnwindSafe
     {
-            catch_unwind::new(self)
+        catch_unwind::new(self)
     }
 
     /// Create a cloneable handle to this future where all handles will resolve
