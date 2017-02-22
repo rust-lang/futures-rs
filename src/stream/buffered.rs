@@ -25,9 +25,9 @@ pub struct Buffered<S>
 impl<S> fmt::Debug for Buffered<S>
     where S: Stream + fmt::Debug,
           S::Item: IntoFuture,
-          <S::Item as IntoFuture>::Future: fmt::Debug,
-          <S::Item as IntoFuture>::Item: fmt::Debug,
-          <S::Item as IntoFuture>::Error: fmt::Debug,
+          <<S as Stream>::Item as IntoFuture>::Future: fmt::Debug,
+          <<S as Stream>::Item as IntoFuture>::Item: fmt::Debug,
+          <<S as Stream>::Item as IntoFuture>::Error: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Stream")

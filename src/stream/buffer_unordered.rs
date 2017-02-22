@@ -46,7 +46,7 @@ pub struct BufferUnordered<S>
 impl<S> fmt::Debug for BufferUnordered<S>
     where S: Stream + fmt::Debug,
           S::Item: IntoFuture,
-          <S::Item as IntoFuture>::Future: fmt::Debug,
+          <<S as Stream>::Item as IntoFuture>::Future: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("BufferUnordered")

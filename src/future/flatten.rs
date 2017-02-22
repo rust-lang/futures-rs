@@ -14,7 +14,7 @@ pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
 impl<A> fmt::Debug for Flatten<A>
     where A: Future + fmt::Debug,
           A::Item: IntoFuture,
-          <A::Item as IntoFuture>::Future: fmt::Debug,
+          <<A as IntoFuture>::Item as IntoFuture>::Future: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Flatten")
