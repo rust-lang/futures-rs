@@ -562,6 +562,10 @@ pub trait Future {
     /// Note that this function consumes the receiving futures and returns a
     /// wrapped version of them.
     ///
+    /// Also note that if both this and the second future have the same
+    /// success/error type you can use the `Either::split` method to
+    /// conveniently extract out the value at the end.
+    ///
     /// # Examples
     ///
     /// ```
