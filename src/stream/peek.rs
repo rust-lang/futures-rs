@@ -35,6 +35,10 @@ impl<S> ::sink::Sink for Peekable<S>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 impl<S: Stream> Stream for Peekable<S> {

@@ -41,6 +41,10 @@ impl<S, P, R> ::sink::Sink for SkipWhile<S, P, R>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 impl<S, P, R> Stream for SkipWhile<S, P, R>

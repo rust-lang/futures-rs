@@ -27,6 +27,10 @@ impl<T, U: Sink> Sink for Join<T, U> {
     fn poll_complete(&mut self) -> Poll<(), U::SinkError> {
         self.1.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), U::SinkError> {
+        self.1.close()
+    }
 }
 
 #[test]

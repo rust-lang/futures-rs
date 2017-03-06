@@ -195,6 +195,10 @@ impl<T> Sink for ManualFlush<T> {
             Ok(Async::NotReady)
         }
     }
+
+    fn close(&mut self) -> Poll<(), ()> {
+        Ok(().into())
+    }
 }
 
 impl<T> ManualFlush<T> {
@@ -295,6 +299,10 @@ impl<T> Sink for ManualAllow<T> {
 
     fn poll_complete(&mut self) -> Poll<(), ()> {
         Ok(Async::Ready(()))
+    }
+
+    fn close(&mut self) -> Poll<(), ()> {
+        Ok(().into())
     }
 }
 

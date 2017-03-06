@@ -27,6 +27,10 @@ impl<S> ::sink::Sink for Fuse<S>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 pub fn new<S: Stream>(s: S) -> Fuse<S> {

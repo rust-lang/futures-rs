@@ -34,6 +34,10 @@ impl<S> ::sink::Sink for Take<S>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 impl<S> Stream for Take<S>
