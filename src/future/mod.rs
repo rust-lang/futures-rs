@@ -213,6 +213,13 @@ pub trait Future {
     /// be offloaded to a thread pool (or something similar) to ensure that
     /// `poll` can return quickly.
     ///
+    /// Note that the `poll` function is not called repeatedly in a loop for
+    /// futures typically, but only whenever the future itself is ready. If
+    /// you're familiar with the `poll(2)` or `select(2)` syscalls on Unix
+    /// it's worth noting that futures typically do *not* suffer the same
+    /// problems of "all wakeups must poll all events". Futures have enough
+    /// support for only polling futures which cause a wakeup.
+    ///
     /// # Return value
     ///
     /// This function returns `Async::NotReady` if the future is not ready yet,
