@@ -142,8 +142,7 @@ pub trait Sink {
     /// sink:
     ///
     /// - It is called outside of the context of a task.
-    /// - A previous call to `start_send` or `poll_complete` yielded a permanent
-    /// error.
+    /// - A previous call to `start_send` or `poll_complete` yielded an error.
     fn start_send(&mut self, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError>;
 
@@ -178,8 +177,7 @@ pub trait Sink {
     /// This method may panic in a few situations, depending on the specific sink:
     ///
     /// - It is called outside of the context of a task.
-    /// - A previous call to `start_send` or `poll_complete` yielded a permanent
-    /// error.
+    /// - A previous call to `start_send` or `poll_complete` yielded an error.
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError>;
 
     /// Composes a function *in front of* the sink.
