@@ -6,9 +6,8 @@ use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
 
-use {Poll, Future, Async};
+use {Poll, Future, Async, Stream, Sink, StartSend, AsyncSink};
 use future::BoxFuture;
-use stream::Stream;
 
 mod unpark_mutex;
 use self::unpark_mutex::UnparkMutex;
@@ -390,6 +389,65 @@ impl<S: Stream> Spawn<S> {
                 Ok(Async::Ready(None)) => return None,
                 Err(e) => return Some(Err(e)),
             }
+        }
+    }
+}
+
+impl<S: Sink> Spawn<S> {
+    /// Invokes the underlying `start_send` method with this task in place.
+    ///
+    /// If the underlying operation returns `NotReady` then the `unpark` value
+    /// passed in will receive a notification when the operation is ready to be
+    /// attempted again.
+    pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
+                       -> StartSend<S::SinkItem, S::SinkError> {
+        self.enter(unpark, |sink| sink.start_send(value))
+    }
+
+    /// Invokes the underlying `poll_complete` method with this task in place.
+    ///
+    /// If the underlying operation returns `NotReady` then the `unpark` value
+    /// passed in will receive a notification when the operation is ready to be
+    /// attempted again.
+    pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
+                       -> Poll<(), S::SinkError> {
+        self.enter(unpark, |sink| sink.poll_complete())
+    }
+
+    /// Blocks the current thread until it's able to send `value` on this sink.
+    ///
+    /// This function will send the `value` on the sink that this task wraps. If
+    /// the sink is not ready to send the value yet then the current thread will
+    /// be blocked until it's able to send the value.
+    pub fn wait_send(&mut self, mut value: S::SinkItem)
+                     -> Result<(), S::SinkError> {
+        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark2 = unpark.clone() as Arc<Unpark>;
+        loop {
+            value = match try!(self.start_send(value, &unpark2)) {
+                AsyncSink::NotReady(v) => v,
+                AsyncSink::Ready => return Ok(()),
+            };
+            unpark.park();
+        }
+    }
+
+    /// Blocks the current thread until it's able to flush this sink.
+    ///
+    /// This function will call the underlying sink's `poll_complete` method
+    /// until it returns that it's ready, proxying out errors upwards to the
+    /// caller if one occurs.
+    ///
+    /// The thread will be blocked until `poll_complete` returns that it's
+    /// ready.
+    pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
+        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark2 = unpark.clone() as Arc<Unpark>;
+        loop {
+            if try!(self.poll_flush(&unpark2)).is_ready() {
+                return Ok(())
+            }
+            unpark.park();
         }
     }
 }
