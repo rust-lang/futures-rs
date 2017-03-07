@@ -113,9 +113,9 @@ impl<T: Send + 'static> LocalKey<T> {
         where F: FnOnce(&T) -> R
     {
         let key = (self.__key)();
-        super::with(|_, data| {
+        super::with(|task| {
             let raw_pointer = {
-                let mut data = data.borrow_mut();
+                let mut data = task.map.borrow_mut();
                 let entry = data.entry(key).or_insert_with(|| {
                     Box::new((self.__init)())
                 });
