@@ -146,19 +146,24 @@ pub trait Sink {
     fn start_send(&mut self, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError>;
 
-    /// Make progress on all pending requests, and determine whether they have
-    /// completed.
+    /// Flush all output from this sink, if necessary.
     ///
-    /// Since sinks are asynchronous, no single method completes all of their
-    /// work in one shot. Instead, you use `poll_complete` to repeatedly drive
-    /// the sink to make progress on requests (such as `start_send`). As with
-    /// `Future::poll`, if the pending requests are not able to complete during
-    /// this call, the current task is automatically scheduled to be woken up
-    /// again once more progress is possible.
+    /// Some sinks may buffer intermediate data as an optimization to improve
+    /// throughput. In other words, if a sink has a corresponding receiver then
+    /// a successful `start_send` above may not guarantee that the value is
+    /// actually ready to be received by the receiver. This function is intended
+    /// to be used to ensure that values do indeed make their way to the
+    /// receiver.
+    ///
+    /// This function will attempt to process any pending requests on behalf of
+    /// the sink and drive it to completion. When `Ready`
     ///
     /// # Return value
     ///
-    /// Returns `Ok(Async::Ready(()))` when no unprocessed requests remain.
+    /// Returns `Ok(Async::Ready(()))` when no buffered items remain. If this
+    /// value is returned then it is guaranteed that all previous values sent
+    /// via `start_send` will be guaranteed to available to a listening
+    /// receiver.
     ///
     /// Returns `Ok(Async::NotReady)` if there is more work left to do, in which
     /// case the current task is scheduled to wake up when more progress may be
@@ -178,6 +183,17 @@ pub trait Sink {
     ///
     /// - It is called outside of the context of a task.
     /// - A previous call to `start_send` or `poll_complete` yielded an error.
+    ///
+    /// # Compatibility nodes
+    ///
+    /// The name of this method may be slightly misleading as the original
+    /// intention was to have this method be more general than just flushing
+    /// requests. Over time though it was decided to trim back the ambitions of
+    /// this method to what it's always done, just flushing.
+    ///
+    /// In the 0.2 release series of futures this method will be renamed to
+    /// `poll_flush`. For 0.1, however, the breaking change is not happening
+    /// yet.
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError>;
 
     /// Composes a function *in front of* the sink.
