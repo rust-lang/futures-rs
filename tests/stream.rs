@@ -321,3 +321,12 @@ fn forward() {
     assert_done(move || iter(vec![Ok(4), Ok(5)]).forward(v).map(|(_, s)| s),
                 Ok::<_, ()>(vec![0, 1, 2, 3, 4, 5]));
 }
+
+#[test]
+fn concat() {
+    let a = iter(vec![Ok::<_, ()>(vec![1, 2, 3]), Ok(vec![4, 5, 6]), Ok(vec![7, 8, 9])]);
+    assert_done(move || a.concat(), Ok(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]));
+
+    let b = iter(vec![Ok::<_, ()>(vec![1, 2, 3]), Err(()), Ok(vec![7, 8, 9])]);
+    assert_done(move || b.concat(), Err(()));
+}

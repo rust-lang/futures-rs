@@ -27,6 +27,7 @@ pub use self::repeat::{repeat, Repeat};
 
 mod and_then;
 mod chain;
+mod concat;
 mod empty;
 mod filter;
 mod filter_map;
@@ -52,6 +53,7 @@ mod zip;
 mod forward;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
+pub use self::concat::Concat;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -530,6 +532,40 @@ pub trait Stream {
         where Self: Sized
     {
         collect::new(self)
+    }
+
+    /// Concatenate all results of a stream into a single extendable
+    /// destination, returning a future representing the end result.
+    ///
+    /// This combinator will extend the first item with the contents
+    /// of all the successful results of the stream. If an error
+    /// occurs, all the results will be dropped and the error will be
+    /// returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::thread;
+    ///
+    /// use futures::{Future, Sink, Stream};
+    /// use futures::sync::mpsc;
+    ///
+    /// let (mut tx, rx) = mpsc::channel(1);
+    ///
+    /// thread::spawn(move || {
+    ///     for i in (0..3).rev() {
+    ///         let n = i * 3;
+    ///         tx = tx.send(vec![n + 1, n + 2, n + 3]).wait().unwrap();
+    ///     }
+    /// });
+    /// let result = rx.concat();
+    /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
+    /// ```
+    fn concat(self) -> Concat<Self>
+        where Self: Sized,
+              Self::Item: Extend<<Self::Item as IntoIterator>::Item> + IntoIterator,
+    {
+        concat::new(self)
     }
 
     /// Execute an accumulating computation over a stream, collecting all the
