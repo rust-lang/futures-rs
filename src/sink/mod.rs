@@ -22,8 +22,10 @@ mod map_err;
 
 if_std! {
     mod buffer;
+    mod wait;
 
     pub use self::buffer::Buffer;
+    pub use self::wait::Wait;
 
     // TODO: consider expanding this via e.g. FromIterator
     impl<T> Sink for ::std::vec::Vec<T> {
@@ -179,6 +181,19 @@ pub trait Sink {
     /// - It is called outside of the context of a task.
     /// - A previous call to `start_send` or `poll_complete` yielded an error.
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError>;
+
+    /// Creates a new object which will produce a synchronous sink.
+    ///
+    /// The sink returned does **not** implement the `Sink` trait, and instead
+    /// only has two methods: `send` and `flush`. These two methods correspond
+    /// to `start_send` and `poll_complete` above except are executed in a
+    /// blocking fashion.
+    #[cfg(feature = "use_std")]
+    fn wait(self) -> Wait<Self>
+        where Self: Sized
+    {
+        wait::new(self)
+    }
 
     /// Composes a function *in front of* the sink.
     ///
