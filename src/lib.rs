@@ -162,9 +162,6 @@
 #[cfg(feature = "use_std")]
 extern crate std;
 
-#[macro_use]
-extern crate log;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "use_std")]
