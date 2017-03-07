@@ -198,6 +198,15 @@ impl UnparkEvent {
     }
 }
 
+impl fmt::Debug for UnparkEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("UnparkEvent")
+         .field("set", &"...")
+         .field("item", &self.item)
+         .finish()
+    }
+}
+
 /// A concurrent set which allows for the insertion of `usize` values.
 ///
 /// `EventSet`s are used to communicate precise information about the event(s)
@@ -399,6 +408,15 @@ impl<T> Spawn<T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for Spawn<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Spawn")
+         .field("obj", &self.obj)
+         .field("id", &self.id)
+         .finish()
+    }
+}
+
 /// A trait which represents a sink of notifications that a future is ready to
 /// make progress.
 ///
@@ -488,6 +506,14 @@ impl Run {
                 }
             }
         }
+    }
+}
+
+impl fmt::Debug for Run {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Run")
+         .field("contents", &"...")
+         .finish()
     }
 }
 

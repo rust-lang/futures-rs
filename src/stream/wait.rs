@@ -8,6 +8,7 @@ use executor;
 /// into a standard iterator. This is implemented by blocking the current thread
 /// while items on the underlying stream aren't ready yet.
 #[must_use = "iterators do nothing unless advanced"]
+#[derive(Debug)]
 pub struct Wait<S> {
     stream: executor::Spawn<S>,
 }

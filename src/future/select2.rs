@@ -6,6 +6,7 @@ use future::Either;
 ///
 /// This is created by the `Future::merge` method.
 #[must_use = "futures do nothing unless polled"]
+#[derive(Debug)]
 pub struct Select2<A, B> {
     inner: Option<(A, B)>,
 }
