@@ -17,11 +17,11 @@ fn works_1() {
     let stream = futures_unordered(vec![a_rx, b_rx, c_rx]);
 
     let mut spawn = futures::executor::spawn(stream);
-    b_tx.complete(99);
+    b_tx.send(99).unwrap();
     assert_eq!(Some(Ok(99)), spawn.wait_stream());
 
-    a_tx.complete(33);
-    c_tx.complete(33);
+    a_tx.send(33).unwrap();
+    c_tx.send(33).unwrap();
     assert_eq!(Some(Ok(33)), spawn.wait_stream());
     assert_eq!(Some(Ok(33)), spawn.wait_stream());
     assert_eq!(None, spawn.wait_stream());
@@ -36,10 +36,10 @@ fn works_2() {
     let stream = futures_unordered(vec![a_rx.boxed(), b_rx.join(c_rx).map(|(a, b)| a + b).boxed()]);
 
     let mut spawn = futures::executor::spawn(stream);
-    a_tx.complete(33);
-    b_tx.complete(33);
+    a_tx.send(33).unwrap();
+    b_tx.send(33).unwrap();
     assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_ready());
-    c_tx.complete(33);
+    c_tx.send(33).unwrap();
     assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_ready());
 }
 
@@ -59,10 +59,10 @@ fn finished_future_ok() {
         assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_not_ready());
     }
 
-    b_tx.complete(Box::new(()));
+    b_tx.send(Box::new(())).unwrap();
     let next = spawn.poll_stream(support::unpark_noop()).unwrap();
     assert!(next.is_ready());
-    c_tx.complete(Box::new(()));
+    c_tx.send(Box::new(())).unwrap();
     assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_not_ready());
     assert!(spawn.poll_stream(support::unpark_noop()).unwrap().is_not_ready());
 }

@@ -74,9 +74,17 @@ impl<T> Sender<T> {
     /// This function will consume `self` and indicate to the other end, the
     /// `Receiver`, that the error provided is the result of the computation this
     /// represents.
-    pub fn complete(self, val: T) {
+    ///
+    /// If the value is successfully enqueued for the remote end to receive,
+    /// then `Ok(())` is returned. If the receiving end was deallocated before
+    /// this function was called, however, then `Err` is returned with the value
+    /// provided.
+    pub fn send(self, val: T) -> Result<(), T> {
         if let Some(inner) = self.inner.upgrade() {
             inner.borrow_mut().value = Some(val);
+            Ok(())
+        } else {
+            Err(val)
         }
     }
 

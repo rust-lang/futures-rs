@@ -47,7 +47,7 @@ fn and_then2() {
 #[test]
 fn oneshot1() {
     let (c, p) = oneshot::channel::<i32>();
-    let t = thread::spawn(|| c.complete(1));
+    let t = thread::spawn(|| c.send(1).unwrap());
 
     let (tx, rx) = mpsc::channel();
     p.map(move |e| tx.send(e).unwrap()).forget();
@@ -58,7 +58,7 @@ fn oneshot1() {
 #[test]
 fn oneshot2() {
     let (c, p) = oneshot::channel::<i32>();
-    let t = thread::spawn(|| c.complete(1));
+    let t = thread::spawn(|| c.send(1).unwrap());
     t.join().unwrap();
 
     let (tx, rx) = mpsc::channel();
@@ -72,7 +72,7 @@ fn oneshot3() {
     let (tx, rx) = mpsc::channel();
     p.map(move |e| tx.send(e).unwrap()).forget();
 
-    let t = thread::spawn(|| c.complete(1));
+    let t = thread::spawn(|| c.send(1).unwrap());
     t.join().unwrap();
 
     assert_eq!(rx.recv(), Ok(1));
@@ -102,7 +102,7 @@ fn oneshot5() {
 fn oneshot6() {
     let (c, p) = oneshot::channel::<i32>();
     drop(p);
-    c.complete(2);
+    c.send(2).unwrap_err();
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn or_else1() {
 
     assert!(rx.try_recv().is_err());
     drop(c1);
-    c2.complete(3);
+    c2.send(3).unwrap();
     p1.or_else(|_| p2).map(move |v| tx.send(v).unwrap()).forget();
 
     assert_eq!(rx.recv(), Ok(2));
@@ -165,7 +165,7 @@ fn or_else2() {
         ok::<i32, i32>(1)
     }).forget();
 
-    c1.complete(2);
+    c1.send(2).unwrap();
     assert!(rx.recv().is_err());
 }
 
@@ -186,9 +186,9 @@ fn join2() {
     let (tx, rx) = mpsc::channel();
     p1.join(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.complete(1);
+    c1.send(1).unwrap();
     assert!(rx.try_recv().is_err());
-    c2.complete(2);
+    c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok((1, 2)));
     assert!(rx.recv().is_err());
 }
@@ -227,11 +227,11 @@ fn join5() {
     let (tx, rx) = mpsc::channel();
     p1.join(p2).join(p3).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.complete(1);
+    c1.send(1).unwrap();
     assert!(rx.try_recv().is_err());
-    c2.complete(2);
+    c2.send(2).unwrap();
     assert!(rx.try_recv().is_err());
-    c3.complete(3);
+    c3.send(3).unwrap();
     assert_eq!(rx.recv(), Ok(((1, 2), 3)));
     assert!(rx.recv().is_err());
 }
@@ -243,14 +243,14 @@ fn select1() {
     let (tx, rx) = mpsc::channel();
     p1.select(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
-    c1.complete(1);
+    c1.send(1).unwrap();
     let (v, p2) = rx.recv().unwrap();
     assert_eq!(v, 1);
     assert!(rx.recv().is_err());
 
     let (tx, rx) = mpsc::channel();
     p2.map(move |v| tx.send(v).unwrap()).forget();
-    c2.complete(2);
+    c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
 }
@@ -269,7 +269,7 @@ fn select2() {
 
     let (tx, rx) = mpsc::channel();
     p2.map(move |v| tx.send(v).unwrap()).forget();
-    c2.complete(2);
+    c2.send(2).unwrap();
     assert_eq!(rx.recv(), Ok(2));
     assert!(rx.recv().is_err());
 }
@@ -299,7 +299,7 @@ fn select4() {
 
     let t = thread::spawn(move || {
         for c in rx {
-            c.complete(1);
+            c.send(1).unwrap();
         }
     });
 

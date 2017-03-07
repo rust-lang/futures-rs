@@ -7,7 +7,7 @@ use futures::unsync::oneshot::{channel, Canceled};
 #[test]
 fn smoke() {
     let (tx, rx) = channel();
-    tx.complete(33);
+    tx.send(33).unwrap();
     assert_eq!(rx.wait().unwrap(), 33);
 }
 
@@ -28,7 +28,7 @@ fn tx_complete_rx_unparked() {
     let (tx, rx) = channel();
 
     let res = rx.join(future::lazy(move || {
-        tx.complete(55);
+        tx.send(55).unwrap();
         Ok(11)
     }));
     assert_eq!(res.wait().unwrap(), (55, 11));

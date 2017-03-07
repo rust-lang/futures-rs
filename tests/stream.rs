@@ -165,9 +165,9 @@ fn buffered() {
 
     let mut rx = rx.buffered(2);
     sassert_empty(&mut rx);
-    c.complete(3);
+    c.send(3).unwrap();
     sassert_empty(&mut rx);
-    a.complete(5);
+    a.send(5).unwrap();
     let mut rx = rx.wait();
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
@@ -183,9 +183,9 @@ fn buffered() {
 
     let mut rx = rx.buffered(1);
     sassert_empty(&mut rx);
-    c.complete(3);
+    c.send(3).unwrap();
     sassert_empty(&mut rx);
-    a.complete(5);
+    a.send(5).unwrap();
     let mut rx = rx.wait();
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
@@ -205,9 +205,9 @@ fn unordered() {
     let mut rx = rx.buffer_unordered(2);
     sassert_empty(&mut rx);
     let mut rx = rx.wait();
-    c.complete(3);
+    c.send(3).unwrap();
     assert_eq!(rx.next(), Some(Ok(3)));
-    a.complete(5);
+    a.send(5).unwrap();
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), None);
 
@@ -222,9 +222,9 @@ fn unordered() {
     // We don't even get to see `c` until `a` completes.
     let mut rx = rx.buffer_unordered(1);
     sassert_empty(&mut rx);
-    c.complete(3);
+    c.send(3).unwrap();
     sassert_empty(&mut rx);
-    a.complete(5);
+    a.send(5).unwrap();
     let mut rx = rx.wait();
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));

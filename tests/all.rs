@@ -110,7 +110,7 @@ fn flatten() {
 fn smoke_oneshot() {
     assert_done(|| {
         let (c, p) = oneshot::channel();
-        c.complete(1);
+        c.send(1).unwrap();
         p
     }, Ok(1));
     assert_done(|| {
@@ -149,7 +149,7 @@ fn select_cancels() {
     // assert!(f.poll(&mut Task::new()).is_not_ready());
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
-    a.complete(1);
+    a.send(1).unwrap();
     let res = executor::spawn(f).poll_future(unpark_panic());
     assert!(res.ok().unwrap().is_ready());
     assert_eq!(brx.recv().unwrap(), 1);
@@ -164,7 +164,7 @@ fn select_cancels() {
     let mut f = executor::spawn(b.select(d).then(unselect));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
-    a.complete(1);
+    a.send(1).unwrap();
     assert!(f.poll_future(unpark_panic()).ok().unwrap().is_ready());
     drop((c, f));
     assert!(drx.recv().is_err());
@@ -210,7 +210,7 @@ fn join_incomplete() {
     let mut f = executor::spawn(ok(1).join(b).map(move |r| tx.send(r).unwrap()));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(rx.try_recv().is_err());
-    a.complete(2);
+    a.send(2).unwrap();
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_ready());
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
@@ -219,7 +219,7 @@ fn join_incomplete() {
     let mut f = executor::spawn(b.join(Ok(2)).map(move |r| tx.send(r).unwrap()));
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_not_ready());
     assert!(rx.try_recv().is_err());
-    a.complete(1);
+    a.send(1).unwrap();
     assert!(f.poll_future(unpark_noop()).ok().unwrap().is_ready());
     assert_eq!(rx.recv().unwrap(), (1, 2));
 
@@ -278,7 +278,7 @@ fn select2() {
         let f = b.select(d);
         let (tx, rx) = channel();
         f.map(move |r| tx.send(r).unwrap()).forget();
-        a.complete(1);
+        a.send(1).unwrap();
         let (val, next) = rx.recv().unwrap();
         assert_eq!(val, 1);
         let (tx, rx) = channel();
@@ -300,7 +300,7 @@ fn select2() {
         let (tx, rx) = channel();
         next.map(move |r| tx.send(r).unwrap()).forget();
         assert_eq!(rx.try_recv().err().unwrap(), TryRecvError::Empty);
-        a.complete(2);
+        a.send(2).unwrap();
         assert_eq!(rx.recv().unwrap(), 2);
     }
 

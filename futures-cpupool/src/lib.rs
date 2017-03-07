@@ -283,7 +283,10 @@ impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
             Ok(Async::NotReady) => return Ok(Async::NotReady),
             Err(e) => Err(e),
         };
-        self.tx.take().unwrap().complete(res);
+
+        // if the receiving end has gone away then that's ok, we just ignore the
+        // send error here.
+        drop(self.tx.take().unwrap().send(res));
         Ok(Async::Ready(()))
     }
 }

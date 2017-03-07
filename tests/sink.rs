@@ -144,7 +144,7 @@ fn with_flush() {
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
     assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
-    tx.complete(());
+    tx.send(()).unwrap();
     assert!(flag.get());
 
     let sink = match task.poll_future(flag.clone()).unwrap() {
