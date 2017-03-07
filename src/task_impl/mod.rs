@@ -419,7 +419,7 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
                        -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(unpark.clone(), |sink| sink.start_send(value))
+        self.enter(unpark, |sink| sink.start_send(value))
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
@@ -429,7 +429,7 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
                        -> Poll<(), S::SinkError> {
-        self.enter(unpark.clone(), |sink| sink.poll_complete())
+        self.enter(unpark, |sink| sink.poll_complete())
     }
 
     /// Blocks the current thread until it's able to send `value` on this sink.
