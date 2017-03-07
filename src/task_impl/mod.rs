@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 
 use std::cell::Cell;
 use std::fmt;
+use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
@@ -20,8 +21,15 @@ mod data;
 pub use self::task_rc::TaskRc;
 pub use self::data::LocalKey;
 
-thread_local!(static CURRENT_TASK: Cell<(*const Task, *const data::LocalMap)> = {
-    Cell::new((0 as *const _, 0 as *const _))
+struct BorrowedTask<'a> {
+    id: usize,
+    unpark: &'a Arc<Unpark>,
+    map: &'a data::LocalMap,
+    events: Events,
+}
+
+thread_local!(static CURRENT_TASK: Cell<*const BorrowedTask<'static>> = {
+    Cell::new(0 as *const _)
 });
 
 fn fresh_task_id() -> usize {
@@ -34,29 +42,32 @@ fn fresh_task_id() -> usize {
     id
 }
 
-fn set<F, R>(task: &Task, data: &data::LocalMap, f: F) -> R
+fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     where F: FnOnce() -> R
 {
-    struct Reset((*const Task, *const data::LocalMap));
+    struct Reset(*const BorrowedTask<'static>);
     impl Drop for Reset {
         fn drop(&mut self) {
             CURRENT_TASK.with(|c| c.set(self.0));
         }
     }
 
-    CURRENT_TASK.with(|c| {
+    CURRENT_TASK.with(move |c| {
         let _reset = Reset(c.get());
-        c.set((task as *const _, data as *const _));
+        let task = unsafe {
+            mem::transmute::<&BorrowedTask<'a>,
+                             *const BorrowedTask<'static>>(task)
+        };
+        c.set(task);
         f()
     })
 }
 
-fn with<F: FnOnce(&Task, &data::LocalMap) -> R, R>(f: F) -> R {
-    let (task, data) = CURRENT_TASK.with(|c| c.get());
+fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
+    let task = CURRENT_TASK.with(|c| c.get());
     assert!(!task.is_null(), "no Task is currently running");
-    debug_assert!(!data.is_null());
     unsafe {
-        f(&*task, &*data)
+        f(&*task)
     }
 }
 
@@ -107,7 +118,13 @@ fn _assert_kinds() {
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
 pub fn park() -> Task {
-    with(|task, _| task.clone())
+    with(|task| {
+        Task {
+            id: task.id,
+            events: task.events.clone(),
+            unpark: task.unpark.clone(),
+        }
+    })
 }
 
 impl Task {
@@ -129,7 +146,7 @@ impl Task {
     /// other words, the task is currently running on the thread calling the
     /// function.
     pub fn is_current(&self) -> bool {
-        with(|current, _| current.id == self.id)
+        with(|current| current.id == self.id)
     }
 }
 
@@ -166,13 +183,14 @@ impl fmt::Debug for Task {
 pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     where F: FnOnce() -> R
 {
-    with(|task, data| {
-        let new_task = Task {
+    with(|task| {
+        let new_task = BorrowedTask {
             id: task.id,
-            unpark: task.unpark.clone(),
+            unpark: task.unpark,
             events: task.events.with_event(event),
+            map: task.map,
         };
-        set(&new_task, data, f)
+        set(&new_task, f)
     })
 }
 
@@ -309,7 +327,7 @@ impl<F: Future> Spawn<F> {
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
     pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(unpark, |f| f.poll())
+        self.enter(&unpark, |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -368,7 +386,7 @@ impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
     pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(unpark, |stream| stream.poll())
+        self.enter(&unpark, |stream| stream.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
@@ -387,16 +405,17 @@ impl<S: Stream> Spawn<S> {
 }
 
 impl<T> Spawn<T> {
-    fn enter<F, R>(&mut self, unpark: Arc<Unpark>, f: F) -> R
+    fn enter<F, R>(&mut self, unpark: &Arc<Unpark>, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
-        let task = Task {
+        let task = BorrowedTask {
             id: self.id,
             unpark: unpark,
             events: Events::new(),
+            map: &self.data,
         };
         let obj = &mut self.obj;
-        set(&task, &self.data, || f(obj))
+        set(&task, || f(obj))
     }
 }
 

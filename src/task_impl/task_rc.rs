@@ -88,7 +88,7 @@ impl<A> TaskRc<A> {
     ///
     /// This function will panic if a task is not currently running.
     pub fn new(a: A) -> TaskRc<A> {
-        super::with(|task, _| {
+        super::with(|task| {
             TaskRc {
                 task_id: task.id,
                 ptr: Arc::new(UnsafeCell::new(a)),
@@ -112,7 +112,7 @@ impl<A> TaskRc<A> {
         where F: FnOnce(&A) -> R
     {
         // for safety here, see docs at the top of this module
-        super::with(|task, _| {
+        super::with(|task| {
             assert!(self.task_id == task.id,
                     "TaskRc being accessed on task it does not belong to");
             f(unsafe { &*self.ptr.get() })
