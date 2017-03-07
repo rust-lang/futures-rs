@@ -9,7 +9,7 @@ use stream::Stream;
 /// This stream will never block and is always ready.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Once<T, E>(stream::IterStream<core::iter::Once<Result<T, E>>>);
+pub struct Once<T, E>(stream::Iter<core::iter::Once<Result<T, E>>>);
 
 /// Creates a stream of single element
 ///

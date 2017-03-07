@@ -6,7 +6,7 @@ use stream::Stream;
 /// This stream will never block and is always ready.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct IterStream<I> {
+pub struct Iter<I> {
     iter: I,
 }
 
@@ -25,15 +25,15 @@ pub struct IterStream<I> {
 /// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
 /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
 /// ```
-pub fn iter<J, T, E>(i: J) -> IterStream<J::IntoIter>
+pub fn iter<J, T, E>(i: J) -> Iter<J::IntoIter>
     where J: IntoIterator<Item=Result<T, E>>,
 {
-    IterStream {
+    Iter {
         iter: i.into_iter(),
     }
 }
 
-impl<I, T, E> Stream for IterStream<I>
+impl<I, T, E> Stream for Iter<I>
     where I: Iterator<Item=Result<T, E>>,
 {
     type Item = T;
