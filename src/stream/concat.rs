@@ -19,7 +19,7 @@ pub struct Concat<S>
 
 pub fn new<S>(s: S) -> Concat<S>
     where S: Stream,
-          S::Item: Extend<<S::Item as IntoIterator>::Item> + IntoIterator,
+          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator,
 {
     Concat {
         stream: s,
@@ -29,7 +29,7 @@ pub fn new<S>(s: S) -> Concat<S>
 
 impl<S> Future for Concat<S>
     where S: Stream,
-          S::Item: Extend<<S::Item as IntoIterator>::Item> + IntoIterator,
+          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator,
 
 {
     type Item = S::Item;

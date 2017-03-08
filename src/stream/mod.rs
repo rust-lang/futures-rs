@@ -563,7 +563,7 @@ pub trait Stream {
     /// ```
     fn concat(self) -> Concat<Self>
         where Self: Sized,
-              Self::Item: Extend<<Self::Item as IntoIterator>::Item> + IntoIterator,
+              Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator,
     {
         concat::new(self)
     }
