@@ -64,7 +64,7 @@ impl<T> From<T> for Async<T> {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AsyncSink<T> {
     /// The `start_send` attempt succeeded, so the sending process has
-    /// *started*; you muse use `Sink::poll_complete` to drive the send
+    /// *started*; you must use `Sink::poll_complete` to drive the send
     /// to completion.
     Ready,
 
