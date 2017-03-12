@@ -6,7 +6,7 @@ use {Future, Poll, Async};
 
 /// A future representing a value that is immediately ready.
 ///
-/// Created by the `done` function.
+/// Created by the `result` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 // TODO: rename this to `Result` on the next major version
@@ -35,7 +35,7 @@ pub fn result<T, E>(r: result::Result<T, E>) -> FutureResult<T, E> {
 /// Creates a "leaf future" from an immediate value of a finished and
 /// successful computation.
 ///
-/// The returned future is similar to `done` where it will immediately run a
+/// The returned future is similar to `result` where it will immediately run a
 /// scheduled callback with the provided value.
 ///
 /// # Examples
@@ -51,7 +51,7 @@ pub fn ok<T, E>(t: T) -> FutureResult<T, E> {
 
 /// Creates a "leaf future" from an immediate value of a failed computation.
 ///
-/// The returned future is similar to `done` where it will immediately run a
+/// The returned future is similar to `result` where it will immediately run a
 /// scheduled callback with the provided value.
 ///
 /// # Examples
