@@ -28,4 +28,8 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
         self.sink.poll_complete().map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
     }
+
+    fn close(&mut self) -> Poll<(), Self::SinkError> {
+        self.sink.close().map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    }
 }

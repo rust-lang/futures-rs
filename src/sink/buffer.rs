@@ -80,4 +80,12 @@ impl<S: Sink> Sink for Buffer<S> {
         debug_assert!(self.buf.is_empty());
         self.sink.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), Self::SinkError> {
+        if self.buf.len() > 0 {
+            try_ready!(self.try_empty_buffer());
+        }
+        assert_eq!(self.buf.len(), 0);
+        self.sink.close()
+    }
 }

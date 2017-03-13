@@ -102,6 +102,10 @@ impl<T> Sink for Sender<T> {
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
+
+    fn close(&mut self) -> Poll<(), SendError<T>> {
+        Ok(Async::Ready(()))
+    }
 }
 
 impl<T> Drop for Sender<T> {
@@ -220,6 +224,9 @@ impl<T> Sink for UnboundedSender<T> {
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
+    fn close(&mut self) -> Poll<(), SendError<T>> {
+        Ok(Async::Ready(()))
+    }
 }
 
 impl<'a, T> Sink for &'a UnboundedSender<T> {
@@ -231,6 +238,10 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     }
 
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+        Ok(Async::Ready(()))
+    }
+
+    fn close(&mut self) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }

@@ -40,6 +40,13 @@ impl<S: Sink> Sink for SplitSink<S> {
             Async::NotReady => Ok(Async::NotReady),
         }
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        match self.0.poll_lock() {
+            Async::Ready(mut inner) => inner.close(),
+            Async::NotReady => Ok(Async::NotReady),
+        }
+    }
 }
 
 pub fn split<S: Stream + Sink>(s: S) -> (SplitSink<S>, SplitStream<S>) {

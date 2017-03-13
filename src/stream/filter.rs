@@ -36,6 +36,10 @@ impl<S, F> ::sink::Sink for Filter<S, F>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 impl<S, F> Stream for Filter<S, F>

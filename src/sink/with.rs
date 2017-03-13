@@ -137,4 +137,9 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
         try_ready!(self.sink.poll_complete());
         Ok(me_ready)
     }
+
+    fn close(&mut self) -> Poll<(), Fut::Error> {
+        try_ready!(self.poll());
+        Ok(try!(self.sink.close()))
+    }
 }

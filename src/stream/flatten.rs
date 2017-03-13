@@ -39,6 +39,10 @@ impl<S> ::sink::Sink for Flatten<S>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 impl<S> Stream for Flatten<S>

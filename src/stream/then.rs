@@ -41,6 +41,10 @@ impl<S, F, U> ::sink::Sink for Then<S, F, U>
     fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
         self.stream.poll_complete()
     }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
+    }
 }
 
 impl<S, F, U> Stream for Then<S, F, U>

@@ -42,6 +42,10 @@ if_std! {
         fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
             Ok(::Async::Ready(()))
         }
+
+        fn close(&mut self) -> Poll<(), Self::SinkError> {
+            Ok(::Async::Ready(()))
+        }
     }
 
     /// A type alias for `Box<Stream + Send>`
@@ -59,6 +63,10 @@ if_std! {
 
         fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
             (**self).poll_complete()
+        }
+
+        fn close(&mut self) -> Poll<(), Self::SinkError> {
+            (**self).close()
         }
     }
 }
@@ -198,6 +206,80 @@ pub trait Sink {
     /// yet.
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError>;
 
+    /// A method to indicate that no more values will ever be pushed into this
+    /// sink.
+    ///
+    /// This method is used to indicate that a sink will no longer even be given
+    /// another value by the caller. That is, the `start_send` method above will
+    /// be called no longer (nor `poll_complete`). This method is intended to
+    /// model "graceful shutdown" in various protocols where the intent to shut
+    /// down is followed by a little more blocking work.
+    ///
+    /// Callers of this function should work it it in a similar fashion to
+    /// `poll_complete`. Once called it may return `NotReady` which indicates
+    /// that more external work needs to happen to make progress. The current
+    /// task will be scheduled to receive a notification in such an event,
+    /// however.
+    ///
+    /// Note that this function will imply `poll_complete` above. That is, if a
+    /// sink has buffered data, then it'll be flushed out during a `close`
+    /// operation. It is not necessary to have `poll_complete` return `Ready`
+    /// before a `close` is called. Once a `close` is called, though,
+    /// `poll_complete` cannot be called.
+    ///
+    /// # Return value
+    ///
+    /// This function, like `poll_complete`, returns a `Poll`. The value is
+    /// `Ready` once the close operation has completed. At that point it should
+    /// be safe to drop the sink and deallocate associated resources.
+    ///
+    /// If the value returned is `NotReady` then the sink is not yet closed and
+    /// work needs to be done to close it. The work has been scheduled and the
+    /// current task will recieve a notification when it's next ready to call
+    /// this method again.
+    ///
+    /// Finally, this function may also return an error.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an `Err` if any operation along the way during
+    /// the close operation fails. An error typically is fatal for a sink and is
+    /// unable to be recovered from, but in specific situations this may not
+    /// always be true.
+    ///
+    /// Note that it's also typically an error to call `start_send` or
+    /// `poll_complete` after the `close` function is called. This method will
+    /// *initiate* a close, and continuing to send values after that (or attempt
+    /// to flush) may result in strange behavior, panics, errors, etc. Once this
+    /// method is called, it must be the only method called on this `Sink`.
+    ///
+    /// # Panics
+    ///
+    /// This method may panic or cause panics if:
+    ///
+    /// * It is called outside the context of a future's task
+    /// * It is called and then `start_send` or `poll_complete` is called
+    ///
+    /// # Compatibility notes
+    ///
+    /// Note that this function is currently by default a provided function,
+    /// defaulted to calling `poll_complete` above. This function was added
+    /// in the 0.1 series of the crate as a backwards-compatible addition. It
+    /// is intended that in the 0.2 series the method will no longer be a
+    /// default method.
+    ///
+    /// It is highly recommended to consider this method a required method and
+    /// to implement it whenever you implement `Sink` locally. It is especially
+    /// crucial to be sure to close inner sinks, if applicable.
+    #[cfg(feature = "with-deprecated")]
+    fn close(&mut self) -> Poll<(), Self::SinkError> {
+        self.poll_complete()
+    }
+
+    /// dox (you should see the above, not this)
+    #[cfg(not(feature = "with-deprecated"))]
+    fn close(&mut self) -> Poll<(), Self::SinkError>;
+
     /// Creates a new object which will produce a synchronous sink.
     ///
     /// The sink returned does **not** implement the `Sink` trait, and instead
@@ -331,5 +413,9 @@ impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
 
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
         (**self).poll_complete()
+    }
+
+    fn close(&mut self) -> Poll<(), Self::SinkError> {
+        (**self).close()
     }
 }
