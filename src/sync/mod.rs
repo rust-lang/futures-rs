@@ -13,5 +13,7 @@
 pub mod oneshot;
 pub mod mpsc;
 mod bilock;
+mod mutex;
 
 pub use self::bilock::{BiLock, BiLockGuard, BiLockAcquire, BiLockAcquired};
+pub use self::mutex::{Mutex, MutexGuard, MutexFuture};
