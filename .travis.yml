@@ -19,6 +19,7 @@ script:
   - cargo test
   - cargo test --no-default-features --features use_std
   - cargo test --manifest-path futures-cpupool/Cargo.toml
+  - cargo test --manifest-path futures-cpupool/Cargo.toml --no-default-features
 
   - cargo doc --no-deps
   - cargo doc --no-deps --manifest-path futures-cpupool/Cargo.toml

@@ -20,3 +20,7 @@ path = ".."
 version = "0.1"
 default-features = false
 features = ["use_std"]
+
+[features]
+default = ["with-deprecated"]
+with-deprecated = ["futures/with-deprecated"]
