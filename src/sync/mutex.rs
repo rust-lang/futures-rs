@@ -53,7 +53,7 @@ impl<'a, T> Future for MutexFuture<'a, T> {
     type Error = ();
 
     fn poll(&mut self) -> ::Poll<MutexGuard<'a, T>, ()> {
-        if self.mutex.locked.swap(true, atomic::Ordering::Relaxed) {
+        if self.mutex.locked.swap(true, atomic::Ordering::Acquire) {
             Ok(::Async::NotReady)
         } else {
             Ok(::Async::Ready(MutexGuard {
@@ -85,6 +85,6 @@ impl<'a, T> ops::DerefMut for MutexGuard<'a, T> {
 
 impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
-        self.mutex.locked.store(false, atomic::Ordering::Relaxed);
+        self.mutex.locked.store(false, atomic::Ordering::Release);
     }
 }
