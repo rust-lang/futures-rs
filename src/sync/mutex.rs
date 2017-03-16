@@ -1,6 +1,7 @@
 use std::sync::atomic::{self, AtomicBool};
 use std::cell::UnsafeCell;
 use std::ops;
+use std::marker::Sync;
 use Future;
 
 /// A mutually-exclusive container.
@@ -17,9 +18,20 @@ pub struct Mutex<T> {
 }
 
 impl<T> Mutex<T> {
+    /// Create a new mutex with some initial value.
+    pub fn new(init: T) -> Mutex<T> {
+        Mutex {
+            locked: AtomicBool::new(false),
+            data: UnsafeCell::new(init),
+        }
+    }
+
     /// Create a future to lock this mutex.
     ///
-    /// The future completes with a RAII guard for the inner value when the lock is acquired.
+    /// The future completes with a RAII guard for the inner value when the lock is acquired. Keep
+    /// in mind that this is lazy and will first attempt to acquire the lock when run. That means
+    /// that this method itself does nothing, but constructs a future, which shall then be run for
+    /// actual effect.
     #[inline]
     pub fn lock(&self) -> MutexFuture<T> {
         MutexFuture {
@@ -27,6 +39,8 @@ impl<T> Mutex<T> {
         }
     }
 }
+
+unsafe impl<T> Sync for Mutex<T> {}
 
 /// Future for a pending mutex lock.
 #[derive(Debug)]
