@@ -133,6 +133,10 @@ impl CpuPool {
     /// ```rust
     /// Builder::new().pool_size(size).create()
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if `size == 0`.
     pub fn new(size: usize) -> CpuPool {
         Builder::new().pool_size(size).create()
     }
@@ -342,6 +346,10 @@ impl Builder {
     }
 
     /// Create CpuPool with configured parameters
+    ///
+    /// # Panics
+    ///
+    /// Panics if `pool_size == 0`.
     pub fn create(&mut self) -> CpuPool {
         let pool = CpuPool {
             inner: Arc::new(Inner {
