@@ -16,6 +16,7 @@ mod with;
 // mod with_filter;
 // mod with_filter_map;
 mod flush;
+mod from_err;
 mod send;
 mod send_all;
 mod map_err;
@@ -76,6 +77,7 @@ pub use self::flush::Flush;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
 pub use self::map_err::SinkMapErr;
+pub use self::from_err::SinkFromErr;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -333,6 +335,14 @@ pub trait Sink {
               Self: Sized,
     {
         map_err::new(self, f)
+    }
+
+    /// Map this sink's error to any error implementing `From` for
+    /// this sink's `Error`, returning a new sink.
+    fn sink_from_err<E: From<Self::SinkError>>(self) -> from_err::SinkFromErr<Self, E>
+        where Self: Sized,
+    {
+        from_err::new(self)
     }
 
 
