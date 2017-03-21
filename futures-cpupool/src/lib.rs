@@ -36,17 +36,15 @@
 
 #![deny(missing_docs)]
 
-extern crate crossbeam;
-
 extern crate futures;
 extern crate num_cpus;
 
 use std::panic::{self, AssertUnwindSafe};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc;
 use std::thread;
 
-use crossbeam::sync::MsQueue;
 use futures::{IntoFuture, Future, Poll, Async};
 use futures::future::lazy;
 use futures::sync::oneshot::{channel, Sender, Receiver};
@@ -99,7 +97,8 @@ fn _assert() {
 }
 
 struct Inner {
-    queue: MsQueue<Message>,
+    tx: Mutex<mpsc::Sender<Message>>,
+    rx: Mutex<mpsc::Receiver<Message>>,
     cnt: AtomicUsize,
     size: usize,
     after_start: Option<Arc<Fn() + Send + Sync>>,
@@ -211,15 +210,22 @@ impl CpuPool {
     }
 }
 
-fn work(inner: &Inner) {
-    inner.after_start.as_ref().map(|fun| fun());
-    loop {
-        match inner.queue.pop() {
-            Message::Run(r) => r.run(),
-            Message::Close => break,
-        }
+impl Inner {
+    fn send(&self, msg: Message) {
+        self.tx.lock().unwrap().send(msg).unwrap();
     }
-    inner.before_stop.as_ref().map(|fun| fun());
+
+    fn work(&self) {
+        self.after_start.as_ref().map(|fun| fun());
+        loop {
+            let msg = self.rx.lock().unwrap().recv().unwrap();
+            match msg {
+                Message::Run(r) => r.run(),
+                Message::Close => break,
+            }
+        }
+        self.before_stop.as_ref().map(|fun| fun());
+    }
 }
 
 impl Clone for CpuPool {
@@ -233,7 +239,7 @@ impl Drop for CpuPool {
     fn drop(&mut self) {
         if self.inner.cnt.fetch_sub(1, Ordering::Relaxed) == 1 {
             for _ in 0..self.inner.size {
-                self.inner.queue.push(Message::Close);
+                self.inner.send(Message::Close);
             }
         }
     }
@@ -241,7 +247,7 @@ impl Drop for CpuPool {
 
 impl Executor for Inner {
     fn execute(&self, run: Run) {
-        self.queue.push(Message::Run(run))
+        self.send(Message::Run(run))
     }
 }
 
@@ -351,9 +357,11 @@ impl Builder {
     ///
     /// Panics if `pool_size == 0`.
     pub fn create(&mut self) -> CpuPool {
+        let (tx, rx) = mpsc::channel();
         let pool = CpuPool {
             inner: Arc::new(Inner {
-                queue: MsQueue::new(),
+                tx: Mutex::new(tx),
+                rx: Mutex::new(rx),
                 cnt: AtomicUsize::new(1),
                 size: self.pool_size,
                 after_start: self.after_start.clone(),
@@ -368,7 +376,7 @@ impl Builder {
             if let Some(ref name_prefix) = self.name_prefix {
                 thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
             }
-            thread_builder.spawn(move || work(&inner)).unwrap();
+            thread_builder.spawn(move || inner.work()).unwrap();
         }
 
         return pool

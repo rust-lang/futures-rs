@@ -13,7 +13,6 @@ computation on the threads themselves.
 
 [dependencies]
 num_cpus = "1.0"
-crossbeam = "0.2.10"
 
 [dependencies.futures]
 path = ".."
