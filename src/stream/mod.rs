@@ -34,6 +34,7 @@ mod filter_map;
 mod flatten;
 mod fold;
 mod for_each;
+mod from_err;
 mod fuse;
 mod future;
 mod map;
@@ -60,6 +61,7 @@ pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
+pub use self::from_err::FromErr;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::map::Map;
@@ -686,6 +688,23 @@ pub trait Stream {
               Self: Sized
     {
         for_each::new(self, f)
+    }
+
+    /// Map this stream's error to any error implementing `From` for
+    /// this stream's `Error`, returning a new stream.
+    ///
+    /// This function does for streams what `try!` does for `Result`,
+    /// by letting the compiler infer the type of the resulting error.
+    /// Just as `map_err` above, this is useful for example to ensure
+    /// that streams have the same error type when used with
+    /// combinators.
+    ///
+    /// Note that this function consumes the receiving stream and returns a
+    /// wrapped version of it.
+    fn from_err<E: From<Self::Error>>(self) -> FromErr<Self, E>
+        where Self: Sized,
+    {
+        from_err::new(self)
     }
 
     /// Creates a new stream of at most `amt` items of the underlying stream.
