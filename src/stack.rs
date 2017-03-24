@@ -3,17 +3,16 @@
 
 use std::prelude::v1::*;
 
-use std::sync::atomic::AtomicUsize;
 use std::mem;
-use std::marker;
+use std::ptr;
+use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering::SeqCst;
 
 use task::EventSet;
 
 #[derive(Debug)]
 pub struct Stack<T> {
-    head: AtomicUsize,
-    _marker: marker::PhantomData<T>,
+    head: AtomicPtr<Node<T>>,
 }
 
 struct Node<T> {
@@ -32,18 +31,16 @@ unsafe impl<T: Sync> Sync for Drain<T> {}
 impl<T> Stack<T> {
     pub fn new() -> Stack<T> {
         Stack {
-            head: AtomicUsize::new(0),
-            _marker: marker::PhantomData,
+            head: AtomicPtr::default(),
         }
     }
 
     pub fn push(&self, data: T) {
-        let mut node = Box::new(Node { data: data, next: 0 as *mut _ });
+        let mut node = Box::new(Node { data: data, next: ptr::null_mut() });
         let mut head = self.head.load(SeqCst);
         loop {
-            node.next = head as *mut _;
-            let ptr = &*node as *const Node<T> as usize;
-            match self.head.compare_exchange(head, ptr, SeqCst, SeqCst) {
+            node.next = head;
+            match self.head.compare_exchange(head, &mut *node, SeqCst, SeqCst) {
                 Ok(_) => {
                     mem::forget(node);
                     return
@@ -55,7 +52,7 @@ impl<T> Stack<T> {
 
     pub fn drain(&self) -> Drain<T> {
         Drain {
-            head: self.head.swap(0, SeqCst) as *mut _,
+            head: self.head.swap(ptr::null_mut(), SeqCst),
         }
     }
 }
