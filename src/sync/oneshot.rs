@@ -136,7 +136,7 @@ impl<T> Sender<T> {
         // interfere with `poll` in `Receiver` which is only called when the
         // `complete` flag is true, which we're setting here.
         let mut slot = self.inner.data.try_lock().unwrap();
-        assert!(slot.is_none());
+        debug_assert!(slot.is_none());
         *slot = Some(t);
         drop(slot);
         Ok(())

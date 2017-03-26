@@ -101,7 +101,7 @@ impl<F> Stream for FuturesUnordered<F>
         if let Some(ret) = self.poll_pending(drain) {
             return ret
         }
-        assert!(self.active > 0);
+        debug_assert!(self.active > 0);
         Ok(Async::NotReady)
     }
 }

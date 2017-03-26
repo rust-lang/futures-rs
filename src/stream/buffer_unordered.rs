@@ -141,7 +141,7 @@ impl<S> Stream for BufferUnordered<S>
 
         // And finally, take a look at our stack of events, attempting to
         // process all of those.
-        assert!(self.pending.next().is_none());
+        debug_assert!(self.pending.next().is_none());
         self.pending = self.stack.drain();
         if let Some(ret) = self.poll_pending() {
             return ret

@@ -69,7 +69,7 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
                 self.pending = Some(((self.pred)(&item).into_future(), item));
             }
 
-            assert!(self.pending.is_some());
+            debug_assert!(self.pending.is_some());
             match self.pending.as_mut().unwrap().0.poll() {
                 Ok(Async::Ready(true)) => self.pending = None,
                 Ok(Async::Ready(false)) => {

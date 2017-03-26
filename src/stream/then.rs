@@ -65,7 +65,7 @@ impl<S, F, U> Stream for Then<S, F, U>
             };
             self.future = Some((self.f)(item).into_future());
         }
-        assert!(self.future.is_some());
+        debug_assert!(self.future.is_some());
         match self.future.as_mut().unwrap().poll() {
             Ok(Async::Ready(e)) => {
                 self.future = None;
