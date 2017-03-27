@@ -129,6 +129,7 @@ impl CpuPool {
     /// thread pool.
     ///
     /// This is a shortcut for:
+    ///
     /// ```rust
     /// Builder::new().pool_size(size).create()
     /// ```
@@ -144,6 +145,7 @@ impl CpuPool {
     /// of CPUs on the host.
     ///
     /// This is a shortcut for:
+    ///
     /// ```rust
     /// Builder::new().create()
     /// ```
