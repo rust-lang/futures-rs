@@ -131,7 +131,11 @@ impl CpuPool {
     /// This is a shortcut for:
     ///
     /// ```rust
+    /// # use futures_cpupool::{Builder, CpuPool};
+    /// #
+    /// # fn new(size: usize) -> CpuPool {
     /// Builder::new().pool_size(size).create()
+    /// # }
     /// ```
     ///
     /// # Panics
@@ -147,7 +151,11 @@ impl CpuPool {
     /// This is a shortcut for:
     ///
     /// ```rust
+    /// # use futures_cpupool::{Builder, CpuPool};
+    /// #
+    /// # fn new_num_cpus() -> CpuPool {
     /// Builder::new().create()
+    /// # }
     /// ```
     pub fn new_num_cpus() -> CpuPool {
         Builder::new().create()
