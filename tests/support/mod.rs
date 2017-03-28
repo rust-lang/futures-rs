@@ -27,11 +27,11 @@ pub fn assert_done<T, F>(f: F, result: Result<T::Item, T::Error>)
 }
 
 pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
-    assert!(executor::spawn(f()).poll_future(unpark_panic()).ok().unwrap().is_not_ready());
+    assert!(executor::spawn(f()).poll_future(&{unpark_panic()}).ok().unwrap().is_not_ready());
 }
 
 pub fn sassert_done<S: Stream>(s: &mut S) {
-    match executor::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(&{unpark_panic()}) {
         Ok(Async::Ready(None)) => {}
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),
@@ -40,7 +40,7 @@ pub fn sassert_done<S: Stream>(s: &mut S) {
 }
 
 pub fn sassert_empty<S: Stream>(s: &mut S) {
-    match executor::spawn(s).poll_stream(unpark_noop()) {
+    match executor::spawn(s).poll_stream(&{unpark_noop()}) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => {}
@@ -51,7 +51,7 @@ pub fn sassert_empty<S: Stream>(s: &mut S) {
 pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
     where S::Item: Eq + fmt::Debug
 {
-    match executor::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(&{unpark_panic()}) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(e))) => assert_eq!(e, item),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),
@@ -62,7 +62,7 @@ pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
 pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     where S::Error: Eq + fmt::Debug
 {
-    match executor::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(&{unpark_panic()}) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),
@@ -129,4 +129,3 @@ pub fn delay_future<F>(f: F) -> DelayFuture<F::Future>
 {
     DelayFuture(f.into_future(), false)
 }
-

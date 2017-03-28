@@ -333,8 +333,8 @@ impl<F: Future> Spawn<F> {
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
-    pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(&unpark, |f| f.poll())
+    pub fn poll_future(&mut self, unpark: &Arc<Unpark>) -> Poll<F::Item, F::Error> {
+        self.enter(unpark, |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -344,10 +344,11 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let thread_unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark : Arc<Unpark> = thread_unpark.clone();
         loop {
-            match try!(self.poll_future(unpark.clone())) {
-                Async::NotReady => unpark.park(),
+            match try!(self.poll_future(&unpark)) {
+                Async::NotReady => thread_unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
         }
@@ -391,18 +392,19 @@ impl<F: Future> Spawn<F> {
 
 impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
-    pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
+    pub fn poll_stream(&mut self, unpark: &Arc<Unpark>)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(&unpark, |stream| stream.poll())
+        self.enter(unpark, |stream| stream.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let thread_unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark : Arc<Unpark> = thread_unpark.clone();
         loop {
-            match self.poll_stream(unpark.clone()) {
-                Ok(Async::NotReady) => unpark.park(),
+            match self.poll_stream(&unpark) {
+                Ok(Async::NotReady) => thread_unpark.park(),
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
                 Err(e) => return Some(Err(e)),
@@ -569,9 +571,9 @@ impl Run {
         // we are in the `POLLING`/`REPOLL` state for the mutex.
         unsafe {
             inner.mutex.start_poll();
-
+            let unpark : Arc<Unpark> = inner.clone();
             loop {
-                match spawn.poll_future(inner.clone()) {
+                match spawn.poll_future(&unpark) {
                     Ok(Async::NotReady) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),
