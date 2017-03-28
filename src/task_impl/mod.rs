@@ -6,6 +6,7 @@ use std::mem;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT};
 use std::thread;
+use std::time::Duration;
 
 use {Poll, Future, Async, Stream, Sink, StartSend, AsyncSink};
 use future::BoxFuture;
@@ -283,6 +284,7 @@ pub struct Spawn<T> {
     obj: T,
     id: usize,
     data: data::LocalMap,
+    park_timeout: Option<Duration>,
 }
 
 /// Spawns a new future, returning the fused future and task.
@@ -299,6 +301,7 @@ pub fn spawn<T>(obj: T) -> Spawn<T> {
         obj: obj,
         id: fresh_task_id(),
         data: data::local_map(),
+        park_timeout: None,
     }
 }
 
@@ -316,6 +319,15 @@ impl<T> Spawn<T> {
     /// Consume the Spawn, returning its inner object
     pub fn into_inner(self) -> T {
         self.obj
+    }
+
+    /// Set a timeout to use when parking the current thread in the `wait_*()` methods.
+    ///
+    /// Can be either `Duration` or `Option<Duration>`. Setting the timeout to `None`
+    /// means no timeout will be used.
+    pub fn park_timeout<D: Into<Option<Duration>>>(&mut self, timeout: D) -> &mut Self  {
+        self.park_timeout = timeout.into();
+        self
     }
 }
 
@@ -342,9 +354,10 @@ impl<F: Future> Spawn<F> {
     ///
     /// This function will call `poll_future` in a loop, waiting for the future
     /// to complete. When a future cannot make progress it will use
-    /// `thread::park` to block the current thread.
+    /// `thread::park`, or `thread::park_timeout()` if a timeout was set
+    /// with `park_timeout()`, to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new(thread::current(), self.park_timeout));
         loop {
             match try!(self.poll_future(unpark.clone())) {
                 Async::NotReady => unpark.park(),
@@ -380,6 +393,7 @@ impl<F: Future> Spawn<F> {
                 id: self.id,
                 data: self.data,
                 obj: self.obj.boxed(),
+                park_timeout: self.park_timeout,
             },
             inner: Arc::new(Inner {
                 exec: exec,
@@ -399,7 +413,7 @@ impl<S: Stream> Spawn<S> {
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new(thread::current(), self.park_timeout));
         loop {
             match self.poll_stream(unpark.clone()) {
                 Ok(Async::NotReady) => unpark.park(),
@@ -439,7 +453,7 @@ impl<S: Sink> Spawn<S> {
     /// be blocked until it's able to send the value.
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new(thread::current(), self.park_timeout));
         let unpark2 = unpark.clone() as Arc<Unpark>;
         loop {
             value = match try!(self.start_send(value, &unpark2)) {
@@ -459,7 +473,7 @@ impl<S: Sink> Spawn<S> {
     /// The thread will be blocked until `poll_complete` returns that it's
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new(thread::current(), self.park_timeout));
         let unpark2 = unpark.clone() as Arc<Unpark>;
         loop {
             if try!(self.poll_flush(&unpark2)).is_ready() {
@@ -523,19 +537,25 @@ pub trait Executor: Send + Sync + 'static {
 struct ThreadUnpark {
     thread: thread::Thread,
     ready: AtomicBool,
+    timeout: Option<Duration>,
 }
 
 impl ThreadUnpark {
-    fn new(thread: thread::Thread) -> ThreadUnpark {
+    fn new(thread: thread::Thread, timeout: Option<Duration>) -> ThreadUnpark {
         ThreadUnpark {
             thread: thread,
             ready: AtomicBool::new(false),
+            timeout: timeout,
         }
     }
 
     fn park(&self) {
         if !self.ready.swap(false, Ordering::SeqCst) {
-            thread::park();
+            if let Some(timeout) = self.timeout {
+                thread::park_timeout(timeout);
+            } else {
+                thread::park();
+            }
         }
     }
 }
