@@ -95,7 +95,7 @@
 //!     // to all come back. The `select` combinator here returns a future which
 //!     // resolves to the first value that's ready plus the next future.
 //!     //
-//!     // Note we can also use the `then` combinator which which is similar to
+//!     // Note we can also use the `then` combinator which is similar to
 //!     // `and_then` above except that it receives the result of the
 //!     // computation, not just the successful value.
 //!     //
