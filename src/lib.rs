@@ -199,6 +199,7 @@ pub use future::{
 if_std! {
     mod lock;
     mod task_impl;
+    mod task_impl2;
     mod stack;
 
     pub mod task;
