@@ -202,10 +202,19 @@ if_std! {
     mod task_impl2;
     mod stack;
 
-    pub mod task;
+    #[deprecated(since = "0.1.11", note = "use task2 module instead")]
+    #[cfg(feature = "with-deprecated")]
+    #[doc(hidden)]
     pub mod executor;
+
+    #[deprecated(since = "0.1.11", note = "use task2 module instead")]
+    #[cfg(feature = "with-deprecated")]
+    #[doc(hidden)]
+    pub mod task;
+
     pub mod sync;
     pub mod unsync;
+    pub mod task2;
 
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::channel instead")]

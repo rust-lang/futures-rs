@@ -3,8 +3,7 @@ use stream::Stream;
 use poll::Poll;
 use Async;
 use stack::{Stack, Drain};
-use std::sync::Arc;
-use task::{self, UnparkEvent};
+use task2::UnparkContext;
 
 use std::prelude::v1::*;
 
@@ -20,7 +19,7 @@ pub struct FuturesUnordered<F>
     where F: Future
 {
     futures: Vec<Option<F>>,
-    stack: Arc<Stack<usize>>,
+    stack: UnparkContext<Stack<usize>>,
     pending: Option<Drain<usize>>,
     active: usize,
 }
@@ -40,9 +39,9 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
                          .map(IntoFuture::into_future)
                          .map(Some)
                          .collect::<Vec<_>>();
-    let stack = Arc::new(Stack::new());
+    let stack = UnparkContext::new(Stack::new());
     for i in 0..futures.len() {
-        stack.push(i);
+        stack.get_ref().push(i);
     }
     FuturesUnordered {
         active: futures.len(),
@@ -62,13 +61,17 @@ impl<F> FuturesUnordered<F>
             if self.futures[id].is_none() {
                 continue
             }
-            let event = UnparkEvent::new(self.stack.clone(), id);
-            let ret = match task::with_unpark_event(event, || {
-                self.futures[id]
-                    .as_mut()
-                    .unwrap()
-                    .poll()
-            }) {
+
+            let res = {
+                let f = &mut self.futures[id];
+                self.stack.with(id as u64, || {
+                    f.as_mut()
+                        .unwrap()
+                        .poll()
+                })
+            };
+
+            let ret = match res {
                 Ok(Async::NotReady) => continue,
                 Ok(Async::Ready(val)) => Ok(Async::Ready(Some(val))),
                 Err(e) => Err(e),
@@ -97,7 +100,7 @@ impl<F> Stream for FuturesUnordered<F>
                 return ret
             }
         }
-        let drain = self.stack.drain();
+        let drain = self.stack.get_ref().drain();
         if let Some(ret) = self.poll_pending(drain) {
             return ret
         }

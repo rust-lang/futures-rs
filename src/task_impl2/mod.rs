@@ -150,14 +150,19 @@ impl Task {
                 return false;
             }
 
-            let a = &**current.unpark as *const Unpark;
-            let b = &*self.unpark as *const Unpark;
+            if let Some(eq) = self.unpark.is_current() {
+                // Handles legacy task system...
+                eq
+            } else {
+                let a = &**current.unpark as *const Unpark;
+                let b = &*self.unpark as *const Unpark;
 
-            if a != b {
-                return false;
+                if a != b {
+                    return false;
+                }
+
+                true
             }
-
-            true
         })
     }
 }
@@ -232,10 +237,10 @@ impl<F: Future> Spawn<F> {
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
-    pub fn poll_future(&mut self, unpark: Arc<Unpark>, unpark_id: u64)
+    pub fn poll_future(&mut self, unpark: &Arc<Unpark>, unpark_id: u64)
         -> Poll<F::Item, F::Error>
     {
-        self.enter(&unpark, unpark_id, |f| f.poll())
+        self.enter(unpark, unpark_id, |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -246,8 +251,10 @@ impl<F: Future> Spawn<F> {
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
         let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark2: Arc<Unpark> = unpark.clone();
+
         loop {
-            match try!(self.poll_future(unpark.clone(), 0)) {
+            match try!(self.poll_future(&unpark2, 0)) {
                 Async::NotReady => unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
@@ -257,18 +264,20 @@ impl<F: Future> Spawn<F> {
 
 impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
-    pub fn poll_stream(&mut self, unpark: Arc<Unpark>, unpark_id: u64)
+    pub fn poll_stream(&mut self, unpark: &Arc<Unpark>, unpark_id: u64)
         -> Poll<Option<S::Item>, S::Error>
     {
-        self.enter(&unpark, unpark_id, |stream| stream.poll())
+        self.enter(unpark, unpark_id, |stream| stream.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
         let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark2: Arc<Unpark> = unpark.clone();
+
         loop {
-            match self.poll_stream(unpark.clone(), 0) {
+            match self.poll_stream(&unpark2, 0) {
                 Ok(Async::NotReady) => unpark.park(),
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
@@ -381,6 +390,14 @@ pub trait Unpark: Send + Sync {
 
     /// A `Task` handle referencing `id` has been dropped.
     fn ref_dec(&self, id: u64) {}
+
+    /// This fn only exists to support the legacy task system. It should **not**
+    /// be implemented and will go away in the near future
+    #[deprecated(since = "0.1.12", note = "do not use")]
+    #[doc(hidden)]
+    fn is_current(&self) -> Option<bool> {
+        None
+    }
 }
 
 // ===== UnparkContext =====
@@ -487,4 +504,109 @@ impl Unpark for ThreadUnpark {
         self.ready.store(true, Ordering::SeqCst);
         self.thread.unpark()
     }
+}
+
+// ===== Legacy task system =====
+
+/// For the duration of the given callback, add an "unpark event" to be
+/// triggered when the task handle is used to unpark the task.
+///
+/// Unpark events are used to pass information about what event caused a task to
+/// be unparked. In some cases, tasks are waiting on a large number of possible
+/// events, and need precise information about the wakeup to avoid extraneous
+/// polling.
+///
+/// Every `Task` handle comes with a set of unpark events which will fire when
+/// `unpark` is called. When fired, these events insert an identifer into a
+/// concurrent set, which the task can read from to determine what events
+/// occurred.
+///
+/// This function immediately invokes the closure, `f`, but arranges things so
+/// that `task::park` will produce a `Task` handle that includes the given
+/// unpark event.
+///
+/// # Panics
+///
+/// This function will panic if a task is not currently being executed. That
+/// is, this method can be dangerous to call outside of an implementation of
+/// `poll`.
+pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
+    where F: FnOnce() -> R
+{
+    struct ChainedUnpark {
+        parent: Arc<Unpark>,
+        parent_id: u64,
+        event: UnparkEvent,
+    }
+
+    impl Unpark for ChainedUnpark {
+        fn unpark(&self, unpark_id: u64) {
+            self.event.unpark();
+            self.parent.unpark(self.parent_id);
+        }
+
+        fn is_current(&self) -> Option<bool> {
+            self.parent.is_current()
+        }
+    }
+
+    let unpark2 = with(|t| {
+        Arc::new(ChainedUnpark {
+            parent: t.unpark.clone(),
+            parent_id: t.unpark_id,
+            event: event,
+        })
+    });
+
+    let unpark_id = unpark2.parent_id;
+
+    let mut s = spawn(());
+    let unpark2: Arc<Unpark> = unpark2;
+
+    s.enter(&unpark2, unpark_id, |_| f())
+}
+
+#[derive(Clone)]
+/// A set insertion to trigger upon `unpark`.
+///
+/// Unpark events are used to communicate information about *why* an unpark
+/// occured, in particular populating sets with event identifiers so that the
+/// unparked task can avoid extraneous polling. See `with_unpark_event` for
+/// more.
+pub struct UnparkEvent {
+    set: Arc<EventSet>,
+    item: usize,
+}
+
+impl UnparkEvent {
+    /// Construct an unpark event that will insert `id` into `set` when
+    /// triggered.
+    pub fn new(set: Arc<EventSet>, id: usize) -> UnparkEvent {
+        UnparkEvent {
+            set: set,
+            item: id,
+        }
+    }
+
+    fn unpark(&self) {
+        self.set.insert(self.item);
+    }
+}
+
+impl fmt::Debug for UnparkEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("UnparkEvent")
+         .field("set", &"...")
+         .field("item", &self.item)
+         .finish()
+    }
+}
+
+/// A concurrent set which allows for the insertion of `usize` values.
+///
+/// `EventSet`s are used to communicate precise information about the event(s)
+/// that trigged a task notification. See `task::with_unpark_event` for details.
+pub trait EventSet: Send + Sync + 'static {
+    /// Insert the given ID into the set
+    fn insert(&self, id: usize);
 }

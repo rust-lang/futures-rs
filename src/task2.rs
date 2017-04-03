@@ -18,7 +18,7 @@
 //!
 //! More information about the task model can be found [online at tokio.rs].
 //!
-//! [online at tokio.rs]: https://tokio.rs/docs/going-deeper-futures/futures-model/
+//! [online at tokio.rs]: https://tokio.rs/docs/going-deeper/futures-model/
 //!
 //! ## Functions
 //!
@@ -26,16 +26,4 @@
 //! function is similar to the standard library's `thread::park` method where it
 //! returns a handle to wake up a task at a later date (via an `unpark` method).
 
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "import through the executor module instead")]
-#[cfg(feature = "with-deprecated")]
-pub use task_impl::{Spawn, spawn, Unpark, Executor, Run};
-
-pub use task_impl::{Task, park};
-pub use task_impl2::{LocalKey, with_unpark_event, UnparkEvent, EventSet};
-
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "import through the executor module instead")]
-#[cfg(feature = "with-deprecated")]
-#[allow(deprecated)]
-pub use task_impl::TaskRc;
+pub use task_impl2::{Task, UnparkContext, LocalKey, park, Spawn, spawn, Unpark};
