@@ -1,13 +1,12 @@
 #![allow(dead_code)]
 
 use std::fmt;
-use std::sync::Arc;
 use std::thread;
 
 use futures::{Future, IntoFuture, Async, Poll};
 use futures::future::FutureResult;
 use futures::stream::Stream;
-use futures::executor::{self, Unpark};
+use futures::executor::{self, Unpark, UnparkHandle};
 use futures::task;
 
 pub mod local_executor;
@@ -70,26 +69,29 @@ pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     }
 }
 
-pub fn unpark_panic() -> Arc<Unpark> {
-    struct Foo;
+#[derive(Copy)]
+struct UnparkFn(fn());
 
-    impl Unpark for Foo {
-        fn unpark(&self) {
-            panic!("should not be unparked");
-        }
-    }
-
-    Arc::new(Foo)
+impl Clone for UnparkFn {
+    fn clone(&self) -> Self { UnparkFn(self.0) }
 }
 
-pub fn unpark_noop() -> Arc<Unpark> {
-    struct Foo;
+impl Unpark for UnparkFn {
+    fn unpark(&self) { (self.0)() }
+}
 
-    impl Unpark for Foo {
-        fn unpark(&self) {}
-    }
+fn p() { panic!("should not be unparked"); }
+static mut PANIC : UnparkFn = UnparkFn(p);
 
-    Arc::new(Foo)
+fn np() {}
+static mut NOOP : UnparkFn = UnparkFn(np);
+
+pub fn unpark_panic() -> UnparkHandle<'static> {
+    UnparkHandle::new(unsafe { &mut PANIC })
+}
+
+pub fn unpark_noop() -> UnparkHandle<'static> {
+    UnparkHandle::new(unsafe { &mut NOOP })
 }
 
 pub trait ForgetExt {
@@ -129,4 +131,3 @@ pub fn delay_future<F>(f: F) -> DelayFuture<F::Future>
 {
     DelayFuture(f.into_future(), false)
 }
-

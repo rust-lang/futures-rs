@@ -323,7 +323,7 @@ fn select2() {
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let f = b.select(d);
-        drop(executor::spawn(f).poll_future(support::unpark_noop()));
+        drop(executor::spawn(f).poll_future(unpark_noop()));
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());
     }

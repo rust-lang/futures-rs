@@ -12,17 +12,19 @@ use future::BoxFuture;
 
 mod unpark_mutex;
 use self::unpark_mutex::UnparkMutex;
-
+mod unpark_handle;
+use self::unpark_handle::UnparkObj;
 mod task_rc;
 mod data;
 #[allow(deprecated)]
 #[cfg(feature = "with-deprecated")]
 pub use self::task_rc::TaskRc;
 pub use self::data::LocalKey;
+pub use self::unpark_handle::UnparkHandle;
 
 struct BorrowedTask<'a> {
     id: usize,
-    unpark: &'a Arc<Unpark>,
+    unpark: UnparkHandle<'a>,
     map: &'a data::LocalMap,
     events: Events,
 }
@@ -81,7 +83,7 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 #[derive(Clone)]
 pub struct Task {
     id: usize,
-    unpark: Arc<Unpark>,
+    unpark: UnparkObj,
     events: Events,
 }
 
@@ -121,7 +123,7 @@ pub fn park() -> Task {
         Task {
             id: task.id,
             events: task.events.clone(),
-            unpark: task.unpark.clone(),
+            unpark: UnparkObj::from(task.unpark),
         }
     })
 }
@@ -333,8 +335,8 @@ impl<F: Future> Spawn<F> {
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
-    pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(&unpark, |f| f.poll())
+    pub fn poll_future(&mut self, unpark: UnparkHandle) -> Poll<F::Item, F::Error> {
+        self.enter(unpark, |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -344,9 +346,11 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new());
+        let mut unpark2 = unpark.clone();
+        let handle = UnparkHandle::new(&mut unpark2);
         loop {
-            match try!(self.poll_future(unpark.clone())) {
+            match try!(self.poll_future(handle)) {
                 Async::NotReady => unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
@@ -391,17 +395,19 @@ impl<F: Future> Spawn<F> {
 
 impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
-    pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
+    pub fn poll_stream(&mut self, unpark: UnparkHandle)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(&unpark, |stream| stream.poll())
+        self.enter(unpark, |stream| stream.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new());
+        let mut unpark2 = unpark.clone();
+        let handle = UnparkHandle::new(&mut unpark2);
         loop {
-            match self.poll_stream(unpark.clone()) {
+            match self.poll_stream(handle) {
                 Ok(Async::NotReady) => unpark.park(),
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
@@ -417,7 +423,7 @@ impl<S: Sink> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `unpark` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
+    pub fn start_send(&mut self, value: S::SinkItem, unpark: UnparkHandle)
                        -> StartSend<S::SinkItem, S::SinkError> {
         self.enter(unpark, |sink| sink.start_send(value))
     }
@@ -427,7 +433,7 @@ impl<S: Sink> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `unpark` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
+    pub fn poll_flush(&mut self, unpark: UnparkHandle)
                        -> Poll<(), S::SinkError> {
         self.enter(unpark, |sink| sink.poll_complete())
     }
@@ -439,10 +445,11 @@ impl<S: Sink> Spawn<S> {
     /// be blocked until it's able to send the value.
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = unpark.clone() as Arc<Unpark>;
+        let unpark = Arc::new(ThreadUnpark::new());
+        let mut unpark2 = unpark.clone();
+        let handle = UnparkHandle::new(&mut unpark2);
         loop {
-            value = match try!(self.start_send(value, &unpark2)) {
+            value = match try!(self.start_send(value, handle)) {
                 AsyncSink::NotReady(v) => v,
                 AsyncSink::Ready => return Ok(()),
             };
@@ -459,10 +466,11 @@ impl<S: Sink> Spawn<S> {
     /// The thread will be blocked until `poll_complete` returns that it's
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = unpark.clone() as Arc<Unpark>;
+        let unpark = Arc::new(ThreadUnpark::new());
+        let mut unpark2 = unpark.clone();
+        let handle = UnparkHandle::new(&mut unpark2);
         loop {
-            if try!(self.poll_flush(&unpark2)).is_ready() {
+            if try!(self.poll_flush(handle)).is_ready() {
                 return Ok(())
             }
             unpark.park();
@@ -471,7 +479,7 @@ impl<S: Sink> Spawn<S> {
 }
 
 impl<T> Spawn<T> {
-    fn enter<F, R>(&mut self, unpark: &Arc<Unpark>, f: F) -> R
+    fn enter<F, R>(&mut self, unpark: UnparkHandle, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
         let task = BorrowedTask {
@@ -501,13 +509,19 @@ impl<T: fmt::Debug> fmt::Debug for Spawn<T> {
 /// `Spawn::poll_stream` functions. It's transitively used as part of the
 /// `Task::unpark` method to internally deliver notifications of readiness of a
 /// future to move forward.
-pub trait Unpark: Send + Sync {
+pub trait Unpark: Send {
     /// Indicates that an associated future and/or task are ready to make
     /// progress.
     ///
     /// Typically this means that the receiver of the notification should
     /// arrange for the future to get poll'd in a prompt fashion.
     fn unpark(&self);
+}
+
+impl<T: Unpark + Sync> Unpark for Arc<T> {
+    fn unpark(&self) {
+        (**self).unpark();
+    }
 }
 
 /// A trait representing requests to poll futures.
@@ -526,9 +540,9 @@ struct ThreadUnpark {
 }
 
 impl ThreadUnpark {
-    fn new(thread: thread::Thread) -> ThreadUnpark {
+    fn new() -> ThreadUnpark {
         ThreadUnpark {
-            thread: thread,
+            thread: thread::current(),
             ready: AtomicBool::new(false),
         }
     }
@@ -563,15 +577,14 @@ impl Run {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
     pub fn run(self) {
-        let Run { mut spawn, inner } = self;
-
+        let Run { mut spawn, mut inner } = self;
         // SAFETY: the ownership of this `Run` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
         unsafe {
             inner.mutex.start_poll();
 
             loop {
-                match spawn.poll_future(inner.clone()) {
+                match spawn.poll_future(UnparkHandle::new(&mut inner)) {
                     Ok(Async::NotReady) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),
