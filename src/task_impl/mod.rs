@@ -1,74 +1,20 @@
 use std::prelude::v1::*;
 
-use std::cell::Cell;
 use std::fmt;
-use std::mem;
 use std::sync::Arc;
-use std::sync::atomic::{Ordering, AtomicBool, AtomicUsize, ATOMIC_USIZE_INIT};
-use std::thread;
 
-use {Poll, Future, Async, Stream, Sink, StartSend, AsyncSink};
+use {Poll, Future, Async, Stream, Sink, StartSend};
 use future::BoxFuture;
+
+use task_impl2;
 
 mod unpark_mutex;
 use self::unpark_mutex::UnparkMutex;
 
 mod task_rc;
-mod data;
 #[allow(deprecated)]
 #[cfg(feature = "with-deprecated")]
 pub use self::task_rc::TaskRc;
-pub use self::data::LocalKey;
-
-struct BorrowedTask<'a> {
-    id: usize,
-    unpark: &'a Arc<Unpark>,
-    map: &'a data::LocalMap,
-    events: Events,
-}
-
-thread_local!(static CURRENT_TASK: Cell<*const BorrowedTask<'static>> = {
-    Cell::new(0 as *const _)
-});
-
-fn fresh_task_id() -> usize {
-    // TODO: this assert is a real bummer, need to figure out how to reuse
-    //       old IDs that are no longer in use.
-    static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    assert!(id < usize::max_value() / 2,
-            "too many previous tasks have been allocated");
-    id
-}
-
-fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
-    where F: FnOnce() -> R
-{
-    struct Reset(*const BorrowedTask<'static>);
-    impl Drop for Reset {
-        fn drop(&mut self) {
-            CURRENT_TASK.with(|c| c.set(self.0));
-        }
-    }
-
-    CURRENT_TASK.with(move |c| {
-        let _reset = Reset(c.get());
-        let task = unsafe {
-            mem::transmute::<&BorrowedTask<'a>,
-                             *const BorrowedTask<'static>>(task)
-        };
-        c.set(task);
-        f()
-    })
-}
-
-fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
-    let task = CURRENT_TASK.with(|c| c.get());
-    assert!(!task.is_null(), "no Task is currently running");
-    unsafe {
-        f(&*task)
-    }
-}
 
 /// A handle to a "task", which represents a single lightweight "thread" of
 /// execution driving a future to completion.
@@ -80,9 +26,7 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 /// This is obtained by the `task::park` function.
 #[derive(Clone)]
 pub struct Task {
-    id: usize,
-    unpark: Arc<Unpark>,
-    events: Events,
+    inner: task_impl2::Task,
 }
 
 fn _assert_kinds() {
@@ -117,13 +61,7 @@ fn _assert_kinds() {
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
 pub fn park() -> Task {
-    with(|task| {
-        Task {
-            id: task.id,
-            events: task.events.clone(),
-            unpark: task.unpark.clone(),
-        }
-    })
+    Task { inner: task_impl2::park() }
 }
 
 impl Task {
@@ -136,136 +74,20 @@ impl Task {
     /// must poll the future *again* afterwards, ensuring that all relevant
     /// events are eventually observed by the future.
     pub fn unpark(&self) {
-        self.events.trigger();
-        self.unpark.unpark();
+        self.inner.unpark();
     }
 
     /// Returns `true` when called from within the context of the task. In
     /// other words, the task is currently running on the thread calling the
     /// function.
     pub fn is_current(&self) -> bool {
-        with(|current| current.id == self.id)
+        self.inner.is_current()
     }
 }
 
 impl fmt::Debug for Task {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Task")
-         .field("id", &self.id)
-         .finish()
-    }
-}
-
-/// For the duration of the given callback, add an "unpark event" to be
-/// triggered when the task handle is used to unpark the task.
-///
-/// Unpark events are used to pass information about what event caused a task to
-/// be unparked. In some cases, tasks are waiting on a large number of possible
-/// events, and need precise information about the wakeup to avoid extraneous
-/// polling.
-///
-/// Every `Task` handle comes with a set of unpark events which will fire when
-/// `unpark` is called. When fired, these events insert an identifer into a
-/// concurrent set, which the task can read from to determine what events
-/// occurred.
-///
-/// This function immediately invokes the closure, `f`, but arranges things so
-/// that `task::park` will produce a `Task` handle that includes the given
-/// unpark event.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
-    where F: FnOnce() -> R
-{
-    with(|task| {
-        let new_task = BorrowedTask {
-            id: task.id,
-            unpark: task.unpark,
-            events: task.events.with_event(event),
-            map: task.map,
-        };
-        set(&new_task, f)
-    })
-}
-
-#[derive(Clone)]
-/// A set insertion to trigger upon `unpark`.
-///
-/// Unpark events are used to communicate information about *why* an unpark
-/// occured, in particular populating sets with event identifiers so that the
-/// unparked task can avoid extraneous polling. See `with_unpark_event` for
-/// more.
-pub struct UnparkEvent {
-    set: Arc<EventSet>,
-    item: usize,
-}
-
-impl UnparkEvent {
-    /// Construct an unpark event that will insert `id` into `set` when
-    /// triggered.
-    pub fn new(set: Arc<EventSet>, id: usize) -> UnparkEvent {
-        UnparkEvent {
-            set: set,
-            item: id,
-        }
-    }
-}
-
-impl fmt::Debug for UnparkEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("UnparkEvent")
-         .field("set", &"...")
-         .field("item", &self.item)
-         .finish()
-    }
-}
-
-/// A concurrent set which allows for the insertion of `usize` values.
-///
-/// `EventSet`s are used to communicate precise information about the event(s)
-/// that trigged a task notification. See `task::with_unpark_event` for details.
-pub trait EventSet: Send + Sync + 'static {
-    /// Insert the given ID into the set
-    fn insert(&self, id: usize);
-}
-
-// A collection of UnparkEvents to trigger on `unpark`
-#[derive(Clone)]
-enum Events {
-    Zero,
-    One(UnparkEvent),
-    Lots(Vec<UnparkEvent>),
-}
-
-impl Events {
-    fn new() -> Events {
-        Events::Zero
-    }
-
-    fn trigger(&self) {
-        match *self {
-            Events::Zero => {}
-            Events::One(ref event) => event.set.insert(event.item),
-            Events::Lots(ref list) => {
-                for event in list {
-                    event.set.insert(event.item);
-                }
-            }
-        }
-    }
-
-    fn with_event(&self, event: UnparkEvent) -> Events {
-        let mut list = match *self {
-            Events::Zero => return Events::One(event),
-            Events::One(ref event) => vec![event.clone()],
-            Events::Lots(ref list) => list.clone(),
-        };
-        list.push(event);
-        Events::Lots(list)
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
@@ -280,9 +102,17 @@ impl Events {
 /// with either futures or streams, with different methods being available on
 /// `Spawn` depending which is used.
 pub struct Spawn<T> {
-    obj: T,
-    id: usize,
-    data: data::LocalMap,
+    inner: task_impl2::Spawn<T>,
+}
+
+struct LegacyUnpark {
+    legacy: Arc<Unpark>,
+}
+
+impl task_impl2::Unpark for LegacyUnpark {
+    fn unpark(&self, _: u64) {
+        self.legacy.unpark();
+    }
 }
 
 /// Spawns a new future, returning the fused future and task.
@@ -296,26 +126,24 @@ pub struct Spawn<T> {
 /// until the methods on `Spawn` are called in turn.
 pub fn spawn<T>(obj: T) -> Spawn<T> {
     Spawn {
-        obj: obj,
-        id: fresh_task_id(),
-        data: data::local_map(),
+        inner: task_impl2::spawn(obj),
     }
 }
 
 impl<T> Spawn<T> {
     /// Get a shared reference to the object the Spawn is wrapping.
     pub fn get_ref(&self) -> &T {
-        &self.obj
+        self.inner.get_ref()
     }
 
     /// Get a mutable reference to the object the Spawn is wrapping.
     pub fn get_mut(&mut self) -> &mut T {
-        &mut self.obj
+        self.inner.get_mut()
     }
 
     /// Consume the Spawn, returning its inner object
     pub fn into_inner(self) -> T {
-        self.obj
+        self.inner.into_inner()
     }
 }
 
@@ -334,7 +162,10 @@ impl<F: Future> Spawn<F> {
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
     pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(&unpark, |f| f.poll())
+        let unpark2: Arc<task_impl2::Unpark> =
+            Arc::new(LegacyUnpark { legacy: unpark });
+
+        self.inner.poll_future(&unpark2, 0)
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -344,13 +175,7 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        loop {
-            match try!(self.poll_future(unpark.clone())) {
-                Async::NotReady => unpark.park(),
-                Async::Ready(e) => return Ok(e),
-            }
-        }
+        self.inner.wait_future()
     }
 
     /// A specialized function to request running a future to completion on the
@@ -376,11 +201,7 @@ impl<F: Future> Spawn<F> {
             // `Spawn<BoxFuture<(), ()>>` so we wouldn't have to box here and
             // it'd be more explicit, but unfortunately that currently has a
             // link error on nightly: rust-lang/rust#36155
-            spawn: Spawn {
-                id: self.id,
-                data: self.data,
-                obj: self.obj.boxed(),
-            },
+            spawn: task_impl2::spawn(self.into_inner().boxed()),
             inner: Arc::new(Inner {
                 exec: exec,
                 mutex: UnparkMutex::new()
@@ -393,21 +214,16 @@ impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
     pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(&unpark, |stream| stream.poll())
+        let unpark2: Arc<task_impl2::Unpark> =
+            Arc::new(LegacyUnpark { legacy: unpark });
+
+        self.inner.poll_stream(&unpark2, 0)
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        loop {
-            match self.poll_stream(unpark.clone()) {
-                Ok(Async::NotReady) => unpark.park(),
-                Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
-                Ok(Async::Ready(None)) => return None,
-                Err(e) => return Some(Err(e)),
-            }
-        }
+        self.inner.wait_stream()
     }
 }
 
@@ -419,7 +235,10 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
                        -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(unpark, |sink| sink.start_send(value))
+        let unpark2: Arc<task_impl2::Unpark> =
+            Arc::new(LegacyUnpark { legacy: unpark.clone() });
+
+        self.inner.start_send(value, &unpark2, 0)
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
@@ -429,7 +248,10 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
                        -> Poll<(), S::SinkError> {
-        self.enter(unpark, |sink| sink.poll_complete())
+        let unpark2: Arc<task_impl2::Unpark> =
+            Arc::new(LegacyUnpark { legacy: unpark.clone() });
+
+        self.inner.poll_flush(&unpark2, 0)
     }
 
     /// Blocks the current thread until it's able to send `value` on this sink.
@@ -437,17 +259,9 @@ impl<S: Sink> Spawn<S> {
     /// This function will send the `value` on the sink that this task wraps. If
     /// the sink is not ready to send the value yet then the current thread will
     /// be blocked until it's able to send the value.
-    pub fn wait_send(&mut self, mut value: S::SinkItem)
+    pub fn wait_send(&mut self, value: S::SinkItem)
                      -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = unpark.clone() as Arc<Unpark>;
-        loop {
-            value = match try!(self.start_send(value, &unpark2)) {
-                AsyncSink::NotReady(v) => v,
-                AsyncSink::Ready => return Ok(()),
-            };
-            unpark.park();
-        }
+        self.inner.wait_send(value)
     }
 
     /// Blocks the current thread until it's able to flush this sink.
@@ -459,38 +273,13 @@ impl<S: Sink> Spawn<S> {
     /// The thread will be blocked until `poll_complete` returns that it's
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = unpark.clone() as Arc<Unpark>;
-        loop {
-            if try!(self.poll_flush(&unpark2)).is_ready() {
-                return Ok(())
-            }
-            unpark.park();
-        }
-    }
-}
-
-impl<T> Spawn<T> {
-    fn enter<F, R>(&mut self, unpark: &Arc<Unpark>, f: F) -> R
-        where F: FnOnce(&mut T) -> R
-    {
-        let task = BorrowedTask {
-            id: self.id,
-            unpark: unpark,
-            events: Events::new(),
-            map: &self.data,
-        };
-        let obj = &mut self.obj;
-        set(&task, || f(obj))
+        self.inner.wait_flush()
     }
 }
 
 impl<T: fmt::Debug> fmt::Debug for Spawn<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Spawn")
-         .field("obj", &self.obj)
-         .field("id", &self.id)
-         .finish()
+        fmt::Debug::fmt(&self.inner, f)
     }
 }
 
@@ -520,37 +309,10 @@ pub trait Executor: Send + Sync + 'static {
     fn execute(&self, r: Run);
 }
 
-struct ThreadUnpark {
-    thread: thread::Thread,
-    ready: AtomicBool,
-}
-
-impl ThreadUnpark {
-    fn new(thread: thread::Thread) -> ThreadUnpark {
-        ThreadUnpark {
-            thread: thread,
-            ready: AtomicBool::new(false),
-        }
-    }
-
-    fn park(&self) {
-        if !self.ready.swap(false, Ordering::SeqCst) {
-            thread::park();
-        }
-    }
-}
-
-impl Unpark for ThreadUnpark {
-    fn unpark(&self) {
-        self.ready.store(true, Ordering::SeqCst);
-        self.thread.unpark()
-    }
-}
-
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 pub struct Run {
-    spawn: Spawn<BoxFuture<(), ()>>,
+    spawn: task_impl2::Spawn<BoxFuture<(), ()>>,
     inner: Arc<Inner>,
 }
 
@@ -571,7 +333,8 @@ impl Run {
             inner.mutex.start_poll();
 
             loop {
-                match spawn.poll_future(inner.clone()) {
+                let unpark: Arc<task_impl2::Unpark> = inner.clone();
+                match spawn.poll_future(&unpark, 0) {
                     Ok(Async::NotReady) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),
@@ -594,8 +357,8 @@ impl fmt::Debug for Run {
     }
 }
 
-impl Unpark for Inner {
-    fn unpark(&self) {
+impl task_impl2::Unpark for Inner {
+    fn unpark(&self, _unpark_id: u64) {
         match self.mutex.notify() {
             Ok(run) => self.exec.execute(run),
             Err(()) => {}

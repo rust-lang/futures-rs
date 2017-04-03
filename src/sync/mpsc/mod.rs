@@ -77,7 +77,7 @@ use std::thread;
 use std::usize;
 
 use sync::mpsc::queue::{Queue, PopResult};
-use task::{self, Task};
+use task2::{self as task, Task};
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
 mod queue;

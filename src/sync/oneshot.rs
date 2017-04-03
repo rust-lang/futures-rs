@@ -8,7 +8,7 @@ use std::fmt;
 
 use {Future, Poll, Async};
 use lock::Lock;
-use task::{self, Task};
+use task2::{self as task, Task};
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
