@@ -168,13 +168,13 @@ pub trait Sink {
     /// receiver.
     ///
     /// This function will attempt to process any pending requests on behalf of
-    /// the sink and drive it to completion. When `Ready`
+    /// the sink and drive it to completion.
     ///
     /// # Return value
     ///
     /// Returns `Ok(Async::Ready(()))` when no buffered items remain. If this
     /// value is returned then it is guaranteed that all previous values sent
-    /// via `start_send` will be guaranteed to available to a listening
+    /// via `start_send` will be guaranteed to be available to a listening
     /// receiver.
     ///
     /// Returns `Ok(Async::NotReady)` if there is more work left to do, in which
