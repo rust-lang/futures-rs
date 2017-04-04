@@ -48,6 +48,7 @@ mod fuse;
 mod into_stream;
 mod join;
 mod map;
+mod map_result;
 mod map_err;
 mod from_err;
 mod or_else;
@@ -66,6 +67,7 @@ pub use self::fuse::Fuse;
 pub use self::into_stream::IntoStream;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::map::Map;
+pub use self::map_result::MapResult;
 pub use self::map_err::MapErr;
 pub use self::from_err::FromErr;
 pub use self::or_else::OrElse;
@@ -338,6 +340,19 @@ pub trait Future {
               Self: Sized,
     {
         assert_future::<U, Self::Error, _>(map::new(self, f))
+    }
+
+    /// Map this future's result to a different type or an error, returning
+    /// a new future of the resulting type.
+    ///
+    /// This function works exactly like `map`, but also allows the mapping function
+    /// to fail with an Error. In this case, the returned `Future` will also
+    /// resolve to an Error.
+    fn map_result<F, U>(self, f: F) -> MapResult<Self, F>
+        where F: FnOnce(Self::Item) -> Result<U, Self::Error>,
+              Self: Sized,
+    {
+        assert_future::<U, Self::Error, _>(map_result::new(self, f))
     }
 
     /// Map this future's error to a different error, returning a new future.
