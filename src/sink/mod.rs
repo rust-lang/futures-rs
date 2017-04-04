@@ -337,8 +337,10 @@ pub trait Sink {
         map_err::new(self, f)
     }
 
-    /// Map this sink's error to any error implementing `From` for
-    /// this sink's `Error`, returning a new sink.
+    /// Map this sink's error to any error implementing `From` for this sink's
+    /// `Error`, returning a new sink.
+    ///
+    /// If wanting to map errors of a `Sink + Stream`, use `.sink_from_err().from_err()`.
     fn sink_from_err<E: From<Self::SinkError>>(self) -> from_err::SinkFromErr<Self, E>
         where Self: Sized,
     {
