@@ -1,6 +1,5 @@
 use core::ptr;
 use core::mem::{forget, size_of};
-use core::marker::PhantomData;
 use super::Unpark;
 
 /// Maximum size in bytes that will fit in a `UnparkObject`.
@@ -42,18 +41,7 @@ impl UnparkVtable {
     /// The caller owns the new data and is responsible for dropping it with `drop_in_place<T>`.
     fn clone_to_byte_buffer<T: Clone>(data: *const ()) -> [u8; MAX_OBJ_BYTES] {
         let downcasted = unsafe { &*(data as *const _ as *const T) };
-        let cloned = downcasted.clone();
-        let mut buffer = [0; MAX_OBJ_BYTES];
-        // View cloned and buffer as raw bytes.
-        let cloned_ptr = &cloned as *const _ as *const u8;
-        let buffer_ptr = &mut buffer as *mut _ as *mut u8;
-        // Copy from cloned to the buffer and forget cloned.
-        // Semantically, the buffer now owns cloned.
-        unsafe {
-            ptr::copy_nonoverlapping(cloned_ptr, buffer_ptr, size_of::<T>());
-        }
-        forget(cloned);
-        buffer
+        obliviate(downcasted.clone())
     }
 
     /// Make sure the original value is forgotten to avoid double free.
@@ -76,17 +64,18 @@ impl UnparkVtable {
 /// An `Arc` will cost an allocation upfront and updates an atomic ref count on park,
 /// while no `Arc` has no upfront cost but will cost a clone on park.
 /// The best strategy depends on how often your futures park and how costly it is to clone `unpark`.
-#[derive(Copy, Clone)]
-// Safe to copy because `UnparkHandle` never mutates itself.
 #[allow(missing_debug_implementations)]
-pub struct UnparkHandle<'a> {
-    // Trait object that can clone `data` into an 'UnparkObj` to be put in a `Task`.
-    data: *const (),
-    data_lifetime: PhantomData<&'a ()>,
+pub struct UnparkHandle {
+    // A custom trait object that takes ownership of the data as a slice of bytes.
+    // Can clone it's `data`, goes inside a `Task`.
+    data: [u8; MAX_OBJ_BYTES],
     vtable: UnparkVtable,
 }
 
-impl<'a> UnparkHandle<'a> {
+// Means `Task` is not `Sync`.
+//impl !Sync for UnparkHandle {}
+
+impl UnparkHandle {
     /// Constructs a `UnparkHandle`.
     /// A `Task` handle returned by `park` will contain a clone of the `unpark`
     /// argument provided here. You may want to wrap `unpark` in an `Arc`.
@@ -94,32 +83,25 @@ impl<'a> UnparkHandle<'a> {
     /// # Panic
     /// Panics if the size of 'T' is too large. If you get a panic try wrapping the argument
     /// in an `Arc`.
-
-    // Take unpark as &mut data to make sure it dosen't change under our feet due to inner mutability.
-    // T must be static so we don't clone around references to a stack or something.
-    pub fn new<T: Unpark + Clone + 'static>(unpark: &mut T) -> UnparkHandle<'a> {
+    pub fn new<T: Unpark + Clone + 'static>(unpark: T) -> UnparkHandle {
         if size_of::<T>() > MAX_OBJ_BYTES {
             // TODO: Panicking here seems reasonable and could be a compile time error when we
             // get a const sytem in Rust. But what about libraries that pass a user supplied type as T?
             // Should we expose MAX_OBJ_BYTES? Offer a version that return an error?
+            // We could auto-fallback to Arc, with the downside that we need two UnparkHandle constructors,
+            // one with fallback where the user doesn't care because Arc doesn't change his semantics,
+            // one without fallback where he cares and wants to decide for himself between Arc or no Arc.
             panic!("The size of T is {} bytes which is too large. Try wrapping the unpark argument in an Arc.");
         }
 
         UnparkHandle {
-            data: unpark as *const _ as *const (),
-            data_lifetime: PhantomData,
+            data: obliviate(unpark),
             vtable: UnparkVtable::new::<T>(),
         }
     }
 }
 
-/// A custom trait object that takes ownership of the data as a slice of bytes.
-pub struct UnparkObj {
-    data: [u8; MAX_OBJ_BYTES],
-    vtable: UnparkVtable,
-}
-
-impl Drop for UnparkObj {
+impl Drop for UnparkHandle {
     fn drop(&mut self) {
         unsafe {
             (self.vtable.drop_in_place)(&mut self.data as *mut _ as *mut ());
@@ -127,29 +109,33 @@ impl Drop for UnparkObj {
     }
 }
 
-impl UnparkObj {
-    fn new(data: *const (), vtable: UnparkVtable) -> Self {
-        UnparkObj {
-            data: (vtable.clone_to_byte_buffer)(data),
-            vtable: vtable,
+impl Clone for UnparkHandle {
+    fn clone(&self) -> Self {
+        UnparkHandle {
+            data: (self.vtable.clone_to_byte_buffer)(&self.data as *const _ as *const ()),
+            vtable: self.vtable,
         }
     }
 }
 
-impl Clone for UnparkObj {
-    fn clone(&self) -> Self {
-        UnparkObj::new(&self.data as *const _ as *const (), self.vtable)
-    }
-}
-
-impl<'a> From<UnparkHandle<'a>> for UnparkObj {
-    fn from(handle: UnparkHandle) -> UnparkObj {
-        UnparkObj::new(handle.data, handle.vtable)
-    }
-}
-
-impl Unpark for UnparkObj {
+impl Unpark for UnparkHandle {
     fn unpark(&self) {
         (self.vtable.unpark)(&self.data as *const _ as *const ())
     }
+}
+
+/// Turns the victim into raw bytes and forgets it.
+/// The caller now owns the value and is responsible for dropping it with 'drop_in_place<T>'.
+fn obliviate<T>(victim : T) -> [u8; MAX_OBJ_BYTES] {
+    let size = size_of::<T>();
+    assert!(size < MAX_OBJ_BYTES);
+    let mut buffer = [0; MAX_OBJ_BYTES];
+    // View victim and buffer as raw bytes.
+    let victim_ptr = &victim as *const _ as *const u8;
+    let buffer_ptr = &mut buffer as *mut _ as *mut u8;
+    // Copy from 'victim' to 'buffer' and forget 'victim'.
+    // Semantically, 'buffer' now owns 'victim'.
+    unsafe { ptr::copy_nonoverlapping(victim_ptr, buffer_ptr, size); }
+    forget(victim);
+    buffer
 }
