@@ -47,7 +47,7 @@ impl<F> fmt::Debug for Shared<F>
 
 struct Inner<F: Future> {
     next_clone_id: AtomicUsize,
-    future: UnsafeCell<Spawn<F>>,
+    future: UnsafeCell<Option<Spawn<F>>>,
     result: UnsafeCell<Option<Result<SharedItem<F::Item>, SharedError<F::Error>>>>,
     unparker: Arc<Unparker>,
 }
@@ -71,7 +71,7 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
                 state: AtomicUsize::new(IDLE),
                 waiters: Mutex::new(HashMap::new()),
             }),
-            future: UnsafeCell::new(executor::spawn(future)),
+            future: UnsafeCell::new(Some(executor::spawn(future))),
             result: UnsafeCell::new(None),
         }),
         waiter: 0,
@@ -114,6 +114,7 @@ impl<F> Shared<F> where F: Future {
     }
 
     fn complete(&self) {
+        unsafe { *self.inner.future.get() = None };
         self.inner.unparker.state.store(COMPLETE, SeqCst);
         self.inner.unparker.unpark();
     }
@@ -164,7 +165,7 @@ impl<F> Future for Shared<F>
             let unpark: Arc<Unpark> = self.inner.unparker.clone();
 
             // Poll the future
-            match unsafe { (*self.inner.future.get()).poll_future(unpark) } {
+            match unsafe { (*self.inner.future.get()).as_mut().unwrap().poll_future(unpark) } {
                 Ok(Async::NotReady) => {
                     // Not ready, try to release the handle
                     match self.inner.unparker.state.compare_and_swap(POLLING, IDLE, SeqCst) {
