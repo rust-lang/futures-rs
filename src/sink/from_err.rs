@@ -40,3 +40,12 @@ impl<S, E> Sink for SinkFromErr<S, E>
         self.sink.close().map_err(|e| e.into())
     }
 }
+
+impl<S: ::stream::Stream, E> ::stream::Stream for SinkFromErr<S, E> where S: Sink {
+    type Item = S::Item;
+    type Error = S::Error;
+
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll()
+    }
+}

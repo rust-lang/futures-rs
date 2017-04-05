@@ -40,6 +40,20 @@ fn map_err() {
     assert_done(|| err_list().map_err(|a| a + 1).collect(), Err(4));
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+struct FromErrTest(u32);
+
+impl From<u32> for FromErrTest {
+    fn from(i: u32) -> FromErrTest {
+        FromErrTest(i)
+    }
+}
+
+#[test]
+fn from_err() {
+    assert_done(|| err_list().from_err().collect(), Err(FromErrTest(3)));
+}
+
 #[test]
 fn fold() {
     assert_done(|| list().fold(0, |a, b| ok::<i32, u32>(a + b)), Ok(6));

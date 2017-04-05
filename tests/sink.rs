@@ -351,3 +351,25 @@ fn map_err() {
     let tx = mpsc::channel(0).0;
     assert_eq!(tx.sink_map_err(|_| ()).start_send(()), Err(()));
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+struct FromErrTest;
+
+impl<T> From<mpsc::SendError<T>> for FromErrTest {
+    fn from(_: mpsc::SendError<T>) -> FromErrTest {
+        FromErrTest
+    }
+}
+
+#[test]
+fn from_err() {
+    {
+        let (tx, _rx) = mpsc::channel(1);
+        let mut tx: SinkFromErr<mpsc::Sender<()>, FromErrTest> = tx.sink_from_err();
+        assert_eq!(tx.start_send(()), Ok(AsyncSink::Ready));
+        assert_eq!(tx.poll_complete(), Ok(Async::Ready(())));
+    }
+
+    let tx = mpsc::channel(0).0;
+    assert_eq!(tx.sink_from_err().start_send(()), Err(FromErrTest));
+}
