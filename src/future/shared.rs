@@ -63,24 +63,28 @@ const REPOLL: usize = 2;
 const COMPLETE: usize = 3;
 const POISONED: usize = 4;
 
+pub fn new<F: Future>(future: F) -> Shared<F> {
+    Shared {
+        inner: Arc::new(Inner {
+            next_clone_id: AtomicUsize::new(1),
+            unparker: Arc::new(Unparker {
+                state: AtomicUsize::new(IDLE),
+                waiters: Mutex::new(HashMap::new()),
+            }),
+            future: UnsafeCell::new(executor::spawn(future)),
+            result: UnsafeCell::new(None),
+        }),
+        waiter: 0,
+    }
+}
+
 impl<F> Shared<F> where F: Future {
     // TODO: make this private
     #[deprecated(since = "0.1.12", note = "use `Future::shared` instead")]
     #[cfg(feature = "with-deprecated")]
     #[doc(hidden)]
     pub fn new(future: F) -> Self {
-        Shared {
-            inner: Arc::new(Inner {
-                next_clone_id: AtomicUsize::new(1),
-                unparker: Arc::new(Unparker {
-                    state: AtomicUsize::new(IDLE),
-                    waiters: Mutex::new(HashMap::new()),
-                }),
-                future: UnsafeCell::new(executor::spawn(future)),
-                result: UnsafeCell::new(None),
-            }),
-            waiter: 0,
-        }
+        new(future)
     }
 
     /// If any clone of this `Shared` has completed execution, returns its result immediately
