@@ -885,6 +885,7 @@ pub trait Future {
     fn shared(self) -> Shared<Self>
         where Self: Sized
     {
+        #[allow(deprecated)]
         Shared::new(self)
     }
 }

@@ -40,6 +40,7 @@ impl<F> fmt::Debug for Shared<F>
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Shared")
             .field("inner", &self.inner)
+            .field("waiter", &self.waiter)
             .finish()
     }
 }
@@ -63,7 +64,10 @@ const COMPLETE: usize = 3;
 const POISONED: usize = 4;
 
 impl<F> Shared<F> where F: Future {
-    /// Creates a new `Shared` from another future.
+    // TODO: make this private
+    #[deprecated(since = "0.1.12", note = "use `Future::shared` instead")]
+    #[cfg(feature = "with-deprecated")]
+    #[doc(hidden)]
     pub fn new(future: F) -> Self {
         Shared {
             inner: Arc::new(Inner {
@@ -178,19 +182,20 @@ impl<F> Future for Shared<F>
                         (*self.inner.result.get()) = Some(Ok(SharedItem { item: Arc::new(i) }));
                     }
 
-                    self.complete();
-                    return unsafe { self.clone_result().map(Async::Ready) };
+                    break;
                 }
                 Err(e) => {
                     unsafe {
                         (*self.inner.result.get()) = Some(Err(SharedError { error: Arc::new(e) }));
                     }
 
-                    self.complete();
-                    return unsafe { self.clone_result().map(Async::Ready) };
+                    break;
                 }
             }
         }
+
+        self.complete();
+        unsafe { self.clone_result().map(Async::Ready) }
     }
 }
 
@@ -227,10 +232,6 @@ impl<F> fmt::Debug for Inner<F>
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Inner")
-            /*
-            .field("next_clone_id", &self.next_clone_id)
-            .field("state", &self.state)
-            */
             .finish()
     }
 }
