@@ -210,6 +210,13 @@ impl<F> Clone for Shared<F> where F: Future {
     }
 }
 
+impl<F> Drop for Shared<F> where F: Future {
+    fn drop(&mut self) {
+        let mut waiters = self.inner.unparker.waiters.lock().unwrap();
+        waiters.remove(&self.waiter);
+    }
+}
+
 impl Unpark for Unparker {
     fn unpark(&self) {
         self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
