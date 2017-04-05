@@ -107,8 +107,8 @@ impl<F> Shared<F> where F: Future {
 
     unsafe fn clone_result(&self) -> Result<SharedItem<F::Item>, SharedError<F::Error>> {
         match *self.inner.result.get() {
-            Some(Ok(ref item)) => Ok(item.clone()),
-            Some(Err(ref e)) => Err(e.clone()),
+            Some(Ok(ref item)) => Ok(SharedItem { item: item.item.clone() }),
+            Some(Err(ref e)) => Err(SharedError { error: e.error.clone() }),
             _ => unreachable!(),
         }
     }
@@ -262,12 +262,6 @@ impl<T> ops::Deref for SharedItem<T> {
     }
 }
 
-impl<T> Clone for SharedItem<T> {
-    fn clone(&self) -> Self {
-        SharedItem { item: self.item.clone() }
-    }
-}
-
 /// A wrapped error of the original future that is clonable and implements Deref
 /// for ease of use.
 #[derive(Debug)]
@@ -280,11 +274,5 @@ impl<E> ops::Deref for SharedError<E> {
 
     fn deref(&self) -> &E {
         &self.error.as_ref()
-    }
-}
-
-impl<T> Clone for SharedError<T> {
-    fn clone(&self) -> Self {
-        SharedError { error: self.error.clone() }
     }
 }
