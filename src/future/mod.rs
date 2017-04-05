@@ -885,7 +885,7 @@ pub trait Future {
     fn shared(self) -> Shared<Self>
         where Self: Sized
     {
-        Shared::new(self)
+        shared::new(self)
     }
 }
 
