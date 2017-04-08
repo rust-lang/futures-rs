@@ -121,6 +121,9 @@ fn _assert_kinds() {
 /// `poll`.
 pub fn park() -> Task {
     with(|borrowed| {
+        // A new handle is being created, increment the ref count
+        borrowed.unpark.ref_inc(borrowed.unpark_id);
+
         Task {
             unpark: borrowed.unpark.clone(),
             unpark_id: borrowed.unpark_id,
