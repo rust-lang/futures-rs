@@ -36,6 +36,14 @@ impl<S: Sink> Buffer<S> {
         &mut self.sink
     }
 
+    /// Consumes this combinator, returning the underlying sink.
+    ///
+    /// Note that this may discard intermediate state of this combinator, so
+    /// care should be taken to avoid losing resources when this is called.
+    pub fn into_inner(self) -> S {
+        self.sink
+    }
+
     fn try_empty_buffer(&mut self) -> Poll<(), S::SinkError> {
         while let Some(item) = self.buf.pop_front() {
             if let AsyncSink::NotReady(item) = try!(self.sink.start_send(item)) {

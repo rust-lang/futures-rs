@@ -14,6 +14,26 @@ pub fn new<S, F>(s: S, f: F) -> SinkMapErr<S, F> {
     SinkMapErr { sink: s, f: Some(f) }
 }
 
+impl<S, E> SinkMapErr<S, E> {
+    /// Get a shared reference to the inner sink.
+    pub fn get_ref(&self) -> &S {
+        &self.sink
+    }
+
+    /// Get a mutable reference to the inner sink.
+    pub fn get_mut(&mut self) -> &mut S {
+        &mut self.sink
+    }
+
+    /// Consumes this combinator, returning the underlying sink.
+    ///
+    /// Note that this may discard intermediate state of this combinator, so
+    /// care should be taken to avoid losing resources when this is called.
+    pub fn into_inner(self) -> S {
+        self.sink
+    }
+}
+
 impl<S, F, E> Sink for SinkMapErr<S, F>
     where S: Sink,
           F: FnOnce(S::SinkError) -> E,

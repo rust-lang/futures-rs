@@ -81,6 +81,14 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
         &mut self.sink
     }
 
+    /// Consumes this combinator, returning the underlying sink.
+    ///
+    /// Note that this may discard intermediate state of this combinator, so
+    /// care should be taken to avoid losing resources when this is called.
+    pub fn into_inner(self) -> S {
+        self.sink
+    }
+
     fn poll(&mut self) -> Poll<(), Fut::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {

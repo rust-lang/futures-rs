@@ -56,6 +56,34 @@ pub fn new<S>(s: S, amt: usize) -> Buffered<S>
     }
 }
 
+impl<S> Buffered<S>
+    where S: Stream,
+          S::Item: IntoFuture,
+{
+    /// Acquires a reference to the underlying stream that this combinator is
+    /// pulling from.
+    pub fn get_ref(&self) -> &S {
+        self.stream.get_ref()
+    }
+
+    /// Acquires a mutable reference to the underlying stream that this
+    /// combinator is pulling from.
+    ///
+    /// Note that care must be taken to avoid tampering with the state of the
+    /// stream which may otherwise confuse this combinator.
+    pub fn get_mut(&mut self) -> &mut S {
+        self.stream.get_mut()
+    }
+
+    /// Consumes this combinator, returning the underlying stream.
+    ///
+    /// Note that this may discard intermediate state of this combinator, so
+    /// care should be taken to avoid losing resources when this is called.
+    pub fn into_inner(self) -> S {
+        self.stream.into_inner()
+    }
+}
+
 // Forwarding impl of Sink from the underlying stream
 impl<S> ::sink::Sink for Buffered<S>
     where S: ::sink::Sink + Stream,
