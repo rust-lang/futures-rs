@@ -20,6 +20,7 @@ mod data;
 pub use self::task_rc::TaskRc;
 pub use self::data::LocalKey;
 pub use self::unpark_handle::UnparkHandle;
+pub use self::unpark_handle::MAX_UNPARK_BYTES;
 
 struct BorrowedTask<'a> {
     id: usize,

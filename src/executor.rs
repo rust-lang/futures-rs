@@ -7,4 +7,4 @@
 //!
 //! [online]: https://tokio.rs/docs/going-deeper/tasks/
 
-pub use task_impl::{Spawn, spawn, Unpark, Executor, Run, UnparkHandle};
+pub use task_impl::{Spawn, spawn, Unpark, Executor, Run, UnparkHandle, MAX_UNPARK_BYTES};

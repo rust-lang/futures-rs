@@ -1,18 +1,18 @@
 use core::ptr;
 use core::mem::{forget, size_of};
+use core::marker::PhantomData;
+use core::cell::Cell;
 use super::Unpark;
 
-/// Maximum size in bytes that will fit in a `UnparkObject`.
-/// TODO: What should this value be?
-/// Should we expose this?
-/// We probably want to say that this value may increase but never decrease in a 1.x release.
-const MAX_OBJ_BYTES: usize = 64;
+/// Maximum size of `T` in `UnparkHandle<T>`, in bytes.
+/// Configurable by the FUTURES_MAX_UNPARK_BYTES env var at compile-time.
+pub const MAX_UNPARK_BYTES: usize = include!(concat!(env!("OUT_DIR"), "/max_unpark_bytes.txt"));
 
 /// A VTable that knows how to clone because the data has a maximum size.
 #[derive(Copy)]
 struct UnparkVtable {
     unpark: fn(*const ()),
-    clone_to_byte_buffer: fn(*const ()) -> [u8; MAX_OBJ_BYTES],
+    clone_to_byte_buffer: fn(*const ()) -> [u8; MAX_UNPARK_BYTES],
     drop_in_place: unsafe fn(*mut ()),
 }
 
@@ -24,7 +24,7 @@ impl Clone for UnparkVtable {
 
 impl UnparkVtable {
     fn new<T: Unpark + Clone>() -> UnparkVtable {
-        assert!(size_of::<T>() <= MAX_OBJ_BYTES);
+        assert!(size_of::<T>() <= MAX_UNPARK_BYTES);
         UnparkVtable {
             unpark: Self::call_unpark::<T>,
             clone_to_byte_buffer: Self::clone_to_byte_buffer::<T>,
@@ -37,9 +37,9 @@ impl UnparkVtable {
         downcasted.unpark()
     }
 
-    /// Returns array with bytes of the cloned data. Make sure data is shorter than MAX_OBJ_BYTES.
+    /// Returns array with bytes of the cloned data. Safe if data is shorter than MAX_UNPARK_BYTES.
     /// The caller owns the new data and is responsible for dropping it with `drop_in_place<T>`.
-    fn clone_to_byte_buffer<T: Clone>(data: *const ()) -> [u8; MAX_OBJ_BYTES] {
+    fn clone_to_byte_buffer<T: Clone>(data: *const ()) -> [u8; MAX_UNPARK_BYTES] {
         let downcasted = unsafe { &*(data as *const _ as *const T) };
         obliviate(downcasted.clone())
     }
@@ -57,7 +57,6 @@ impl UnparkVtable {
 ///  an `Arc` before passing it to the `UnparkHandle`.
 ///
 /// # Deciding whether to use an `Arc`
-/// If your `unpark` is not `Clone` or has lifetime parameters then you must use an `Arc`.
 /// If you use inner mutability in your `unpark`, then you should carefully
 /// consider what happens when it is cloned and what is the behaviour you want.
 /// Inner mutability aside, the only difference between using or not an `Arc` should be performance.
@@ -68,12 +67,10 @@ impl UnparkVtable {
 pub struct UnparkHandle {
     // A custom trait object that takes ownership of the data as a slice of bytes.
     // Can clone it's `data`, goes inside a `Task`.
-    data: [u8; MAX_OBJ_BYTES],
+    data: [u8; MAX_UNPARK_BYTES],
     vtable: UnparkVtable,
+    not_sync : PhantomData<Cell<()>> // Cell is Send but not Sync, convenient.
 }
-
-// Means `Task` is not `Sync`.
-//impl !Sync for UnparkHandle {}
 
 impl UnparkHandle {
     /// Constructs a `UnparkHandle`.
@@ -82,21 +79,20 @@ impl UnparkHandle {
     ///
     /// # Panic
     /// Panics if the size of 'T' is too large. If you get a panic try wrapping the argument
-    /// in an `Arc`.
+    /// in an `Arc` or setting the FUTURES_MAX_UNPARK_BYTES env var to the size of `T`.
+    /// After changing FUTURES_MAX_UNPARK_BYTES you need to recompile `futures`.
     pub fn new<T: Unpark + Clone + 'static>(unpark: T) -> UnparkHandle {
-        if size_of::<T>() > MAX_OBJ_BYTES {
-            // TODO: Panicking here seems reasonable and could be a compile time error when we
-            // get a const sytem in Rust. But what about libraries that pass a user supplied type as T?
-            // Should we expose MAX_OBJ_BYTES? Offer a version that return an error?
-            // We could auto-fallback to Arc, with the downside that we need two UnparkHandle constructors,
-            // one with fallback where the user doesn't care because Arc doesn't change his semantics,
-            // one without fallback where he cares and wants to decide for himself between Arc or no Arc.
-            panic!("The size of T is {} bytes which is too large. Try wrapping the unpark argument in an Arc.");
+        if size_of::<T>() > MAX_UNPARK_BYTES {
+            // Panicking is reasonable since it's easy to catch and fix when testing.
+            // Could be a compile time error when we get a const system in Rust.
+            // Libraries that pass a user supplied T should do this check themselves if they want to avoid the panic.
+            panic!("The size of T is {} bytes which is too large. Try wrapping the unpark argument in an Arc or setting the FUTURES_MAX_UNPARK_BYTES env var.");
         }
 
         UnparkHandle {
             data: obliviate(unpark),
             vtable: UnparkVtable::new::<T>(),
+            not_sync: PhantomData
         }
     }
 }
@@ -113,7 +109,7 @@ impl Clone for UnparkHandle {
     fn clone(&self) -> Self {
         UnparkHandle {
             data: (self.vtable.clone_to_byte_buffer)(&self.data as *const _ as *const ()),
-            vtable: self.vtable,
+            ..*self
         }
     }
 }
@@ -126,10 +122,10 @@ impl Unpark for UnparkHandle {
 
 /// Turns the victim into raw bytes and forgets it.
 /// The caller now owns the value and is responsible for dropping it with 'drop_in_place<T>'.
-fn obliviate<T>(victim : T) -> [u8; MAX_OBJ_BYTES] {
+fn obliviate<T>(victim : T) -> [u8; MAX_UNPARK_BYTES] {
     let size = size_of::<T>();
-    assert!(size < MAX_OBJ_BYTES);
-    let mut buffer = [0; MAX_OBJ_BYTES];
+    assert!(size < MAX_UNPARK_BYTES);
+    let mut buffer = [0; MAX_UNPARK_BYTES];
     // View victim and buffer as raw bytes.
     let victim_ptr = &victim as *const _ as *const u8;
     let buffer_ptr = &mut buffer as *mut _ as *mut u8;

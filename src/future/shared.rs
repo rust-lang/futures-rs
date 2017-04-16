@@ -14,7 +14,7 @@
 //! ```
 
 use {Future, Poll, Async};
-use executor::{self, Spawn, Unpark};
+use executor::{self, Spawn, Unpark, UnparkHandle};
 use task::{self, Task};
 
 use std::{fmt, mem, ops};
@@ -146,6 +146,9 @@ impl<F> Future for Shared<F>
             _ => unreachable!(),
         }
 
+        // Get a handle to the unparker
+        let unpark = UnparkHandle::new(self.inner.unparker.clone());
+        
         loop {
             struct Reset<'a>(&'a AtomicUsize);
 
@@ -161,11 +164,8 @@ impl<F> Future for Shared<F>
 
             let _reset = Reset(&self.inner.unparker.state);
 
-            // Get a handle to the unparker
-            let unpark: Arc<Unpark> = self.inner.unparker.clone();
-
             // Poll the future
-            match unsafe { (*self.inner.future.get()).as_mut().unwrap().poll_future(unpark) } {
+            match unsafe { (*self.inner.future.get()).as_mut().unwrap().poll_future(&unpark) } {
                 Ok(Async::NotReady) => {
                     // Not ready, try to release the handle
                     match self.inner.unparker.state.compare_and_swap(POLLING, IDLE, SeqCst) {
