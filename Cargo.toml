@@ -13,7 +13,6 @@ An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
 """
 categories = ["asynchronous"]
-build = "build.rs"
 
 [badges]
 travis-ci = { repository = "alexcrichton/futures-rs" }
@@ -25,6 +24,10 @@ appveyor = { repository = "alexcrichton/futures-rs" }
 use_std = []
 with-deprecated = []
 default = ["use_std", "with-deprecated"]
+MaxUnparkBytes128 = []
+MaxUnparkBytes256 = []
+MaxUnparkBytes512 = []
+MaxUnparkBytes1024 = []
 
 [workspace]
 members = ["futures-cpupool"]

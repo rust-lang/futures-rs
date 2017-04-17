@@ -4,9 +4,52 @@ use core::marker::PhantomData;
 use core::cell::Cell;
 use super::Unpark;
 
+// Stolen from https://gist.github.com/alexcrichton/29b618d75cde5b57d797
+macro_rules! cascade {
+    ($(
+        if #[cfg($($meta:meta),*)] { $($it:item)* }
+    ) else * else {
+        $($it2:item)*
+    }) => {
+        __items! {
+            () ;
+            $( ( ($($meta),*) ($($it)*) ), )*
+            ( () ($($it2)*) ),
+        }
+    }
+}
+
+macro_rules! __items {
+    (($($not:meta,)*) ; ) => {};
+    (($($not:meta,)*) ; ( ($($m:meta),*) ($($it:item)*) ), $($rest:tt)*) => {
+        __apply! { cfg(all($($m,)* not(any($($not),*)))), $($it)* }
+        __items! { ($($not,)* $($m,)*) ; $($rest)* }
+    }
+}
+
+macro_rules! __apply {
+    ($m:meta, $($it:item)*) => {
+        $(#[$m] $it)*
+    }
+}
+
+cascade! {
+    if #[cfg(feature="MaxUnparkBytes1024")] {
+        const _MAX_UNPARK_BYTES: usize = 1024;
+    } else if #[cfg(feature="MaxUnparkBytes512")] {
+        const _MAX_UNPARK_BYTES: usize = 512;
+    } else if #[cfg(feature="MaxUnparkBytes256")] {
+        const _MAX_UNPARK_BYTES: usize = 256;
+    } else if #[cfg(feature="MaxUnparkBytes128")] {
+        const _MAX_UNPARK_BYTES: usize = 128;
+    } else {
+        const _MAX_UNPARK_BYTES: usize = 64;
+    }
+}
+
 /// Maximum size of `T` in `UnparkHandle<T>`, in bytes.
-/// Configurable by the FUTURES_MAX_UNPARK_BYTES env var at compile-time.
-pub const MAX_UNPARK_BYTES: usize = include!(concat!(env!("OUT_DIR"), "/max_unpark_bytes.txt"));
+/// Configurable by the MaxUnparkBytes features.
+pub const MAX_UNPARK_BYTES : usize = _MAX_UNPARK_BYTES;
 
 /// A VTable that knows how to clone because the data has a maximum size.
 #[derive(Copy)]
@@ -78,15 +121,15 @@ impl UnparkHandle {
     /// argument provided here. You may want to wrap `unpark` in an `Arc`.
     ///
     /// # Panic
-    /// Panics if the size of 'T' is too large. If you get a panic try wrapping the argument
-    /// in an `Arc` or setting the FUTURES_MAX_UNPARK_BYTES env var to the size of `T`.
-    /// After changing FUTURES_MAX_UNPARK_BYTES you need to recompile `futures`.
+    /// Panics if the size of 'T' is too large. If you get a panic wrap `unpark`
+    /// in an `Arc` or use the MaxUnparkBytes features to increase the maximum size.
     pub fn new<T: Unpark + Clone + 'static>(unpark: T) -> UnparkHandle {
         if size_of::<T>() > MAX_UNPARK_BYTES {
-            // Panicking is reasonable since it's easy to catch and fix when testing.
+            // Just panic since this is easy to catch and fix when testing.
             // Could be a compile time error when we get a const system in Rust.
             // Libraries that pass a user supplied T should do this check themselves if they want to avoid the panic.
-            panic!("The size of T is {} bytes which is too large. Try wrapping the unpark argument in an Arc or setting the FUTURES_MAX_UNPARK_BYTES env var.");
+            panic!("The size of T is {} bytes which is larger than MAX_UNPARK_BYTES={}. 
+                    Wrap the unpark parameter in an Arc or use a sufficiently large MaxUnparkBytes feature.", size_of::<T>(), MAX_UNPARK_BYTES);
         }
 
         UnparkHandle {
