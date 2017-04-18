@@ -1,5 +1,5 @@
 use core::ptr;
-use core::mem::{forget, size_of};
+use core::mem::{self, forget, size_of};
 use core::marker::PhantomData;
 use core::cell::Cell;
 use super::Unpark;
@@ -54,9 +54,9 @@ pub const MAX_UNPARK_BYTES : usize = _MAX_UNPARK_BYTES;
 /// A VTable that knows how to clone because the data has a maximum size.
 #[derive(Copy)]
 struct UnparkVtable {
-    unpark: fn(*const ()),
-    clone_to_byte_buffer: fn(*const ()) -> [u8; MAX_UNPARK_BYTES],
-    drop_in_place: unsafe fn(*mut ()),
+    unpark: unsafe fn(*const ()),
+    clone_to_byte_buffer: unsafe fn(*const ()) -> [u8; MAX_UNPARK_BYTES],
+    manual_drop: unsafe fn(*const ()),
 }
 
 impl Clone for UnparkVtable {
@@ -67,29 +67,31 @@ impl Clone for UnparkVtable {
 
 impl UnparkVtable {
     fn new<T: Unpark + Clone>() -> UnparkVtable {
-        assert!(size_of::<T>() <= MAX_UNPARK_BYTES);
         UnparkVtable {
             unpark: Self::call_unpark::<T>,
             clone_to_byte_buffer: Self::clone_to_byte_buffer::<T>,
-            drop_in_place: Self::drop_in_place::<T>,
+            manual_drop: Self::manual_drop::<T>,
         }
     }
 
-    fn call_unpark<T: Unpark>(data: *const ()) {
-        let downcasted = unsafe { &*(data as *const _ as *const T) };
-        downcasted.unpark()
+    /// Safe if data points to T.
+    unsafe fn call_unpark<T: Unpark>(data: *const ()) {
+        let downcasted = read_unaligned(data as *const _ as *const T);
+        downcasted.unpark();
+        forget(downcasted)
     }
 
-    /// Returns array with bytes of the cloned data. Safe if data is shorter than MAX_UNPARK_BYTES.
+    /// Returns array with bytes of the cloned data. Safe if data points to T.
     /// The caller owns the new data and is responsible for dropping it with `drop_in_place<T>`.
-    fn clone_to_byte_buffer<T: Clone>(data: *const ()) -> [u8; MAX_UNPARK_BYTES] {
-        let downcasted = unsafe { &*(data as *const _ as *const T) };
-        obliviate(downcasted.clone())
+    unsafe fn clone_to_byte_buffer<T: Clone>(data: *const ()) -> [u8; MAX_UNPARK_BYTES] {
+        let downcasted = read_unaligned(data as *const _ as *const T);
+        let raw = obliviate(downcasted.clone());
+        forget(downcasted);
+        raw
     }
 
-    /// Make sure the original value is forgotten to avoid double free.
-    unsafe fn drop_in_place<T>(data: *mut ()) {
-        ptr::drop_in_place(&mut *(data as *mut _ as *mut T));
+    unsafe fn manual_drop<T>(data: *const ()) {
+        read_unaligned(data as *const _ as *const T);
     }
 }
 
@@ -143,7 +145,7 @@ impl UnparkHandle {
 impl Drop for UnparkHandle {
     fn drop(&mut self) {
         unsafe {
-            (self.vtable.drop_in_place)(&mut self.data as *mut _ as *mut ());
+            (self.vtable.manual_drop)(&self.data as *const _ as *const ());
         }
     }
 }
@@ -151,7 +153,7 @@ impl Drop for UnparkHandle {
 impl Clone for UnparkHandle {
     fn clone(&self) -> Self {
         UnparkHandle {
-            data: (self.vtable.clone_to_byte_buffer)(&self.data as *const _ as *const ()),
+            data: unsafe { (self.vtable.clone_to_byte_buffer)(&self.data as *const _ as *const ()) },
             ..*self
         }
     }
@@ -159,7 +161,9 @@ impl Clone for UnparkHandle {
 
 impl Unpark for UnparkHandle {
     fn unpark(&self) {
-        (self.vtable.unpark)(&self.data as *const _ as *const ())
+        unsafe {
+            (self.vtable.unpark)(&self.data as *const _ as *const ())
+        }
     }
 }
 
@@ -177,4 +181,14 @@ fn obliviate<T>(victim : T) -> [u8; MAX_UNPARK_BYTES] {
     unsafe { ptr::copy_nonoverlapping(victim_ptr, buffer_ptr, size); }
     forget(victim);
     buffer
+}
+
+/// As implemented in core::ptr.
+/// When we drop support for rust < 1.17, use core::ptr::read_unaligned instead.
+unsafe fn read_unaligned<T>(src: *const T) -> T {
+    let mut tmp: T = mem::uninitialized();
+    ptr::copy_nonoverlapping(src as *const u8,
+                            &mut tmp as *mut T as *mut u8,
+                            size_of::<T>());
+    tmp
 }
