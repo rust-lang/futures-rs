@@ -4,7 +4,7 @@ extern crate futures;
 use futures::{Poll, Future, Stream, Sink};
 use futures::executor;
 use futures::future::{ok, err};
-use futures::stream::{iter, Peekable, BoxStream};
+use futures::stream::{empty, iter, Peekable, BoxStream};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
 
@@ -343,4 +343,16 @@ fn concat() {
 
     let b = iter(vec![Ok::<_, ()>(vec![1, 2, 3]), Err(()), Ok(vec![7, 8, 9])]);
     assert_done(move || b.concat(), Err(()));
+}
+
+#[test]
+fn concat2() {
+    let a = iter(vec![Ok::<_, ()>(vec![1, 2, 3]), Ok(vec![4, 5, 6]), Ok(vec![7, 8, 9])]);
+    assert_done(move || a.concat2(), Ok(vec![1, 2, 3, 4, 5, 6, 7, 8, 9]));
+
+    let b = iter(vec![Ok::<_, ()>(vec![1, 2, 3]), Err(()), Ok(vec![7, 8, 9])]);
+    assert_done(move || b.concat2(), Err(()));
+
+    let c = empty::<Vec<()>, ()>();
+    assert_done(move || c.concat2(), Ok(vec![]))
 }

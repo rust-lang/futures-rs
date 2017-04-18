@@ -54,7 +54,7 @@ mod zip;
 mod forward;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
-pub use self::concat::Concat;
+pub use self::concat::{Concat, Concat2};
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -540,9 +540,48 @@ pub trait Stream {
     /// destination, returning a future representing the end result.
     ///
     /// This combinator will extend the first item with the contents
-    /// of all the successful results of the stream. If an error
-    /// occurs, all the results will be dropped and the error will be
-    /// returned.
+    /// of all the successful results of the stream. If the stream is
+    /// empty, the default value will be returned. If an error occurs,
+    /// all the results will be dropped and the error will be returned.
+    ///
+    /// The name `concat2` is an intermediate measure until the release of
+    /// futures 0.2, at which point it will be renamed back to `concat`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::thread;
+    ///
+    /// use futures::{Future, Sink, Stream};
+    /// use futures::sync::mpsc;
+    ///
+    /// let (mut tx, rx) = mpsc::channel(1);
+    ///
+    /// thread::spawn(move || {
+    ///     for i in (0..3).rev() {
+    ///         let n = i * 3;
+    ///         tx = tx.send(vec![n + 1, n + 2, n + 3]).wait().unwrap();
+    ///     }
+    /// });
+    /// let result = rx.concat2();
+    /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
+    /// ```
+    fn concat2(self) -> Concat2<Self>
+        where Self: Sized,
+              Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
+    {
+        concat::new2(self)
+    }
+
+    /// Concatenate all results of a stream into a single extendable
+    /// destination, returning a future representing the end result.
+    ///
+    /// This combinator will extend the first item with the contents
+    /// of all the successful results of the stream. If an error occurs,
+    /// all the results will be dropped and the error will be returned.
+    ///
+    /// It's important to note that this function will panic if the stream
+    /// is empty, which is the reason for its deprecation.
     ///
     /// # Examples
     ///
@@ -563,6 +602,7 @@ pub trait Stream {
     /// let result = rx.concat();
     /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
     /// ```
+    #[deprecated(since="0.1.14", note="please use `Stream::concat2` instead")]
     fn concat(self) -> Concat<Self>
         where Self: Sized,
               Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator,
