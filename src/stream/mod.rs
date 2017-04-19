@@ -580,9 +580,6 @@ pub trait Stream {
     /// of all the successful results of the stream. If an error occurs,
     /// all the results will be dropped and the error will be returned.
     ///
-    /// It's important to note that this function will panic if the stream
-    /// is empty, which is the reason for its deprecation.
-    ///
     /// # Examples
     ///
     /// ```
@@ -602,6 +599,11 @@ pub trait Stream {
     /// let result = rx.concat();
     /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// It's important to note that this function will panic if the stream
+    /// is empty, which is the reason for its deprecation.
     #[deprecated(since="0.1.14", note="please use `Stream::concat2` instead")]
     fn concat(self) -> Concat<Self>
         where Self: Sized,
