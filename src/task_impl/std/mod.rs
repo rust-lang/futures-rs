@@ -274,6 +274,10 @@ impl<F: Future> Spawn<F> {
     /// This method is not appropriate for all futures, and other kinds of
     /// executors typically provide a similar function with perhaps relaxed
     /// bounds as well.
+    ///
+    /// Note that this method is likely to be deprecated in favor of the
+    /// `futures::Executor` trait and `execute` method, but if this'd cause
+    /// difficulty for you please let us know!
     pub fn execute(self, exec: Arc<Executor>)
         where F: Future<Item=(), Error=()> + Send + 'static,
     {
@@ -398,6 +402,10 @@ pub trait Unpark: Send + Sync {
 /// This trait is an argument to the `Spawn::execute` which is used to run a
 /// future to completion. An executor will receive requests to run a future and
 /// an executor is responsible for ensuring that happens in a timely fashion.
+///
+/// Note that this trait is likely to be deprecated and/or renamed to avoid
+/// clashing with the `future::Executor` trait. If you've got a use case for
+/// this or would like to comment on the name please let us know!
 pub trait Executor: Send + Sync + 'static {
     /// Requests that `Run` is executed soon on the given executor.
     fn execute(&self, r: Run);

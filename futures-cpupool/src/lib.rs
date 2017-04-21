@@ -46,9 +46,9 @@ use std::sync::mpsc;
 use std::thread;
 
 use futures::{IntoFuture, Future, Poll, Async};
-use futures::future::lazy;
+use futures::future::{lazy, Executor, ExecuteError};
 use futures::sync::oneshot::{channel, Sender, Receiver};
-use futures::executor::{self, Run, Executor};
+use futures::executor::{self, Run, Executor as OldExecutor};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -220,6 +220,15 @@ impl CpuPool {
     }
 }
 
+impl<F> Executor<F> for CpuPool
+    where F: Future<Item = (), Error = ()> + Send + 'static,
+{
+    fn execute(&self, future: F) -> Result<(), ExecuteError<F>> {
+        executor::spawn(future).execute(self.inner.clone());
+        Ok(())
+    }
+}
+
 impl Inner {
     fn send(&self, msg: Message) {
         self.tx.lock().unwrap().send(msg).unwrap();
@@ -255,7 +264,7 @@ impl Drop for CpuPool {
     }
 }
 
-impl Executor for Inner {
+impl OldExecutor for Inner {
     fn execute(&self, run: Run) {
         self.send(Message::Run(run))
     }
