@@ -36,6 +36,17 @@ pub enum MergedItem<I1, I2> {
     Both(I1, I2),
 }
 
+impl<I1, I2> Into<(Option<I1>, Option<I2>)> for MergedItem<I1, I2> {
+    fn into(self) -> (Option<I1>, Option<I2>) {
+        use self::MergedItem::*;
+        match self {
+            First(first) => (Some(first), None),
+            Second(second) => (None, Some(second)),
+            Both(first, second) => (Some(first), Some(second)),
+        }
+    }
+}
+
 impl<S1, S2> Stream for Merge<S1, S2>
     where S1: Stream, S2: Stream<Error = S1::Error>
 {
