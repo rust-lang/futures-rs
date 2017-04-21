@@ -39,7 +39,7 @@ fn smoke() {
     });
 
     assert!(executor::spawn(future)
-                .poll_future(unpark_noop())
+                .poll_future_notify(&notify_noop(), 0)
                 .expect("failure in poll")
                 .is_ready());
 }

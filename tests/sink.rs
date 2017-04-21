@@ -11,7 +11,7 @@ use futures::future::ok;
 use futures::stream;
 use futures::sync::{oneshot, mpsc};
 use futures::task::{self, Task};
-use futures::executor::{self, Unpark};
+use futures::executor::{self, Notify};
 use futures::sink::*;
 
 mod support;
@@ -72,8 +72,8 @@ impl Flag {
     }
 }
 
-impl Unpark for Flag {
-    fn unpark(&self) {
+impl Notify for Flag {
+    fn notify(&self, _id: u64) {
         self.set(true)
     }
 }
@@ -115,12 +115,12 @@ fn mpsc_blocking_start_send() {
         let flag = Flag::new();
         let mut task = executor::spawn(StartSendFut::new(tx, 1));
 
-        assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
+        assert!(task.poll_future_notify(&flag.clone().into(), 0).unwrap().is_not_ready());
         assert!(!flag.get());
         sassert_next(&mut rx, 0);
         assert!(flag.get());
         flag.set(false);
-        assert!(task.poll_future(flag.clone()).unwrap().is_ready());
+        assert!(task.poll_future_notify(&flag.clone().into(), 0).unwrap().is_ready());
         assert!(!flag.get());
         sassert_next(&mut rx, 1);
 
@@ -143,11 +143,11 @@ fn with_flush() {
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
-    assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag.clone().into(), 0).unwrap().is_not_ready());
     tx.send(()).unwrap();
     assert!(flag.get());
 
-    let sink = match task.poll_future(flag.clone()).unwrap() {
+    let sink = match task.poll_future_notify(&flag.clone().into(), 0).unwrap() {
         Async::Ready(sink) => sink,
         _ => panic!()
     };
@@ -191,7 +191,7 @@ impl<T> Sink for ManualFlush<T> {
         if self.data.is_empty() {
             Ok(Async::Ready(()))
         } else {
-            self.waiting_tasks.push(task::park());
+            self.waiting_tasks.push(task::current());
             Ok(Async::NotReady)
         }
     }
@@ -211,7 +211,7 @@ impl<T> ManualFlush<T> {
 
     fn force_flush(&mut self) -> Vec<T> {
         for task in self.waiting_tasks.drain(..) {
-            task.unpark()
+            task.notify()
         }
         mem::replace(&mut self.data, Vec::new())
     }
@@ -227,11 +227,11 @@ fn with_flush_propagate() {
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
-    assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag.clone().into(), 0).unwrap().is_not_ready());
     assert!(!flag.get());
     assert_eq!(task.get_mut().get_mut().get_mut().force_flush(), vec![0, 1]);
     assert!(flag.get());
-    assert!(task.poll_future(flag.clone()).unwrap().is_ready());
+    assert!(task.poll_future_notify(&flag.clone().into(), 0).unwrap().is_ready());
 }
 
 #[test]
@@ -270,7 +270,7 @@ impl Allow {
         if self.flag.get() {
             true
         } else {
-            self.tasks.borrow_mut().push(task::park());
+            self.tasks.borrow_mut().push(task::current());
             false
         }
     }
@@ -279,7 +279,7 @@ impl Allow {
         self.flag.set(true);
         let mut tasks = self.tasks.borrow_mut();
         for task in tasks.drain(..) {
-            task.unpark();
+            task.notify();
         }
     }
 }
@@ -327,11 +327,11 @@ fn buffer() {
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.send(2));
-    assert!(task.poll_future(flag.clone()).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag.clone().into(), 0).unwrap().is_not_ready());
     assert!(!flag.get());
     allow.start();
     assert!(flag.get());
-    match task.poll_future(flag.clone()).unwrap() {
+    match task.poll_future_notify(&flag.clone().into(), 0).unwrap() {
         Async::Ready(sink) => {
             assert_eq!(sink.get_ref().data, vec![0, 1, 2]);
         }

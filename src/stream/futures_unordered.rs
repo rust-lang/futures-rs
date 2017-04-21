@@ -3,7 +3,7 @@ use stream::Stream;
 use poll::Poll;
 use Async;
 use stack::{Stack, Drain};
-use task2::UnparkContext;
+use task::NotifyContext;
 
 use std::prelude::v1::*;
 
@@ -19,7 +19,7 @@ pub struct FuturesUnordered<F>
     where F: Future
 {
     futures: Vec<Option<F>>,
-    stack: UnparkContext<Stack<usize>>,
+    stack: NotifyContext<Stack<usize>>,
     pending: Option<Drain<usize>>,
     active: usize,
 }
@@ -39,7 +39,7 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
                          .map(IntoFuture::into_future)
                          .map(Some)
                          .collect::<Vec<_>>();
-    let stack = UnparkContext::new(Stack::new());
+    let stack = NotifyContext::new(Stack::new());
     for i in 0..futures.len() {
         stack.get_ref().push(i);
     }

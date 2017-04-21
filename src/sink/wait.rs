@@ -1,5 +1,5 @@
 use sink::Sink;
-use task2 as task;
+use executor;
 
 /// A sink combinator which converts an asynchronous sink to a **blocking
 /// sink**.
@@ -10,12 +10,12 @@ use task2 as task;
 #[must_use = "sinks do nothing unless used"]
 #[derive(Debug)]
 pub struct Wait<S> {
-    sink: task::Spawn<S>,
+    sink: executor::Spawn<S>,
 }
 
 pub fn new<S: Sink>(s: S) -> Wait<S> {
     Wait {
-        sink: task::spawn(s),
+        sink: executor::spawn(s),
     }
 }
 

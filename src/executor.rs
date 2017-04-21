@@ -7,4 +7,7 @@
 //!
 //! [online]: https://tokio.rs/docs/going-deeper-futures/tasks/
 
-pub use task_impl::{Spawn, spawn, Unpark, Executor, Run};
+#[allow(deprecated)]
+pub use task_impl::{Spawn, spawn, Unpark, Notify, Executor, Run};
+
+pub use task_impl::{UnsafeNotify, NotifyHandle};
