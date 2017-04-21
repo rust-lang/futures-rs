@@ -70,9 +70,10 @@ impl Core {
 
     fn turn(&mut self) {
         let task = self.unpark.recv().unwrap(); // Safe to unwrap because self.unpark_send keeps the channel alive
-        let unpark = Arc::new(Unpark { task: task, send: Mutex::new(self.unpark_send.clone()), });
+        let notify = Arc::new(Notify { task: task, send: Mutex::new(self.unpark_send.clone()), });
+        let notify = executor::NotifyHandle::from(notify);
         let mut task = if let hash_map::Entry::Occupied(x) = self.live.entry(task) { x } else { return };
-        let result = task.get_mut().poll_future(unpark);
+        let result = task.get_mut().poll_future_notify(&notify, 0);
         match result {
             Ok(Async::Ready(())) => { task.remove(); }
             Err(()) => { task.remove(); }
@@ -81,13 +82,13 @@ impl Core {
     }
 }
 
-struct Unpark {
+struct Notify {
     task: u64,
     send: Mutex<mpsc::Sender<u64>>,
 }
 
-impl executor::Unpark for Unpark {
-    fn unpark(&self) {
+impl executor::Notify for Notify {
+    fn notify(&self, _id: u64) {
         let _ = self.send.lock().unwrap().send(self.task);
     }
 }

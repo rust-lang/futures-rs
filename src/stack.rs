@@ -8,7 +8,7 @@ use std::ptr;
 use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering::SeqCst;
 
-use task2::Unpark;
+use executor::Notify;
 
 #[derive(Debug)]
 pub struct Stack<T> {
@@ -133,8 +133,8 @@ mod tests {
     }
 }
 
-impl Unpark for Stack<usize> {
-    fn unpark(&self, id: u64) {
+impl Notify for Stack<usize> {
+    fn notify(&self, id: u64) {
         self.push(id as usize);
     }
 }

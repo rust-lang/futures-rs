@@ -7,7 +7,7 @@
 use std::prelude::v1::*;
 use std::sync::Arc;
 use std::cell::UnsafeCell;
-use task_impl2;
+use task_impl;
 
 // One critical piece of this module's contents are the `TaskRc<A>` handles.
 // The purpose of this is to conceptually be able to store data in a task,
@@ -64,7 +64,7 @@ use task_impl2;
 /// change over time, if the task migrates, so `A` must be `Send`.
 #[derive(Debug)]
 pub struct TaskRc<A> {
-    task: task_impl2::Task,
+    task: task_impl::Task,
     ptr: Arc<UnsafeCell<A>>,
 }
 
@@ -91,7 +91,7 @@ impl<A> TaskRc<A> {
     /// This function will panic if a task is not currently running.
     pub fn new(a: A) -> TaskRc<A> {
         TaskRc {
-            task: task_impl2::park(),
+            task: task_impl::park(),
             ptr: Arc::new(UnsafeCell::new(a)),
         }
     }

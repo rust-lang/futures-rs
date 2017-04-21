@@ -25,13 +25,13 @@ const WAITING: usize = 2;
 /// update the task cell.
 const LOCKED_WRITE: usize = 0;
 
-/// At least one call to `unpark` happened concurrently to `park` updating the
+/// At least one call to `notify` happened concurrently to `park` updating the
 /// task cell. This state is detected when `park` exits the mutation code and
 /// signals to `park` that it is responsible for notifying its own task.
 const LOCKED_WRITE_NOTIFIED: usize = 1;
 
 
-/// The `unpark` function has locked access to the task cell for notification.
+/// The `notify` function has locked access to the task cell for notification.
 ///
 /// The constant is left here mostly for documentation reasons.
 #[allow(dead_code)]
@@ -52,15 +52,15 @@ impl AtomicTask {
 
     /// The caller must ensure mutual exclusion
     pub unsafe fn park(&self) {
-        if let Some(ref task) = *self.task.get() {
-            if task.is_current() {
+        //if let Some(ref task) = *self.task.get() {
+            //if task.is_current() {
                 // Nothing more to do
-                return;
-            }
-        }
+                //return;
+            //}
+        //}
 
         // Get a new task handle
-        let task = super::park();
+        let task = super::current();
 
         match self.state.compare_and_swap(WAITING, LOCKED_WRITE, Acquire) {
             WAITING => {
@@ -68,25 +68,25 @@ impl AtomicTask {
                 *self.task.get() = Some(task);
 
                 // Release the lock. If the state transitioned to
-                // `LOCKED_NOTIFIED`, this means that an unpark has been
-                // signaled, so unpark the task.
+                // `LOCKED_NOTIFIED`, this means that an notify has been
+                // signaled, so notify the task.
                 if LOCKED_WRITE_NOTIFIED == self.state.swap(WAITING, Release) {
-                    (*self.task.get()).as_ref().unwrap().unpark();
+                    (*self.task.get()).as_ref().unwrap().notify();
                 }
             }
             state => {
                 debug_assert!(state != LOCKED_WRITE, "unexpected state LOCKED_WRITE");
                 debug_assert!(state != LOCKED_WRITE_NOTIFIED, "unexpected state LOCKED_WRITE_NOTIFIED");
 
-                // Currently in a read locked state, this implies that `unpark`
+                // Currently in a read locked state, this implies that `notify`
                 // is currently being called on the old task handle. So, we call
-                // unpark on the new task handle
-                task.unpark();
+                // notify on the new task handle
+                task.notify();
             }
         }
     }
 
-    pub fn unpark(&self) {
+    pub fn notify(&self) {
         let mut curr = WAITING;
 
         loop {
@@ -115,8 +115,8 @@ impl AtomicTask {
                 if actual == curr {
                     // Notify the task
                     unsafe {
-                        if let Some(ref task) = (*self.task.get()) {
-                            task.unpark();
+                        if let Some(ref task) = *self.task.get() {
+                            task.notify();
                         }
                     }
 

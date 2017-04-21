@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 use std::fmt;
 use std::mem;
 
-use task2::UnparkContext;
+use task::NotifyContext;
 
 use {Async, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
@@ -35,7 +35,7 @@ pub struct BufferUnordered<S>
     // futures. This is filled in and used with the `with_unpark_event`
     // function. The `pending` list here is the last time we drained events from
     // our stack.
-    stack: UnparkContext<Stack<usize>>,
+    stack: NotifyContext<Stack<usize>>,
     pending: Drain<usize>,
 
     // Number of active futures running in the `futures` slab
@@ -74,7 +74,7 @@ pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
         futures: (0..amt).map(|i| Slot::Next(i + 1)).collect(),
         next_future: 0,
         pending: Stack::new().drain(),
-        stack: UnparkContext::new(Stack::new()),
+        stack: NotifyContext::new(Stack::new()),
         active: 0,
     }
 }

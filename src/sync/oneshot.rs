@@ -8,7 +8,7 @@ use std::fmt;
 
 use {Future, Poll, Async};
 use lock::Lock;
-use task2::{self as task, Task};
+use task::{self, Task};
 
 /// A future representing the completion of a computation happening elsewhere in
 /// memory.
@@ -183,7 +183,7 @@ impl<T> Sender<T> {
         // may have been dropped. The first thing it does is set the flag, and
         // if it fails to acquire the lock it assumes that we'll see the flag
         // later on. So... we then try to see the flag later on!
-        let handle = task::park();
+        let handle = task::current();
         match self.inner.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Ok(Async::Ready(())),
@@ -222,7 +222,7 @@ impl<T> Drop for Sender<T> {
         if let Some(mut slot) = self.inner.rx_task.try_lock() {
             if let Some(task) = slot.take() {
                 drop(slot);
-                task.unpark();
+                task.notify();
             }
         }
     }
@@ -259,7 +259,7 @@ impl<T> Receiver<T> {
         if let Some(mut handle) = self.inner.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
-                task.unpark()
+                task.notify()
             }
         }
     }
@@ -282,7 +282,7 @@ impl<T> Future for Receiver<T> {
         if self.inner.complete.load(SeqCst) {
             done = true;
         } else {
-            let task = task::park();
+            let task = task::current();
             match self.inner.rx_task.try_lock() {
                 Some(mut slot) => *slot = Some(task),
                 None => done = true,
@@ -334,7 +334,7 @@ impl<T> Drop for Receiver<T> {
         if let Some(mut handle) = self.inner.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
-                task.unpark()
+                task.notify()
             }
         }
     }
