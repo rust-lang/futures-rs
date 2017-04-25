@@ -148,7 +148,7 @@ use {Poll, stream};
 /// More information about the details of `poll` and the nitty-gritty of tasks
 /// can be [found online at tokio.rs][poll-dox].
 ///
-/// [poll-dox]: https://tokio.rs/docs/going-deeper/futures-model/
+/// [poll-dox]: https://tokio.rs/docs/going-deeper-futures/futures-model/
 ///
 /// # Combinators
 ///
@@ -166,7 +166,7 @@ use {Poll, stream};
 ///
 /// More information about combinators can be found [on tokio.rs].
 ///
-/// [on tokio.rs]: https://tokio.rs/docs/going-deeper/futures-mechanics/
+/// [on tokio.rs]: https://tokio.rs/docs/going-deeper-futures/futures-mechanics/
 pub trait Future {
     /// The type of value that this future will resolved with if it is
     /// successful.
@@ -194,7 +194,7 @@ pub trait Future {
     /// More information about the details of `poll` and the nitty-gritty of
     /// tasks can be [found online at tokio.rs][poll-dox].
     ///
-    /// [poll-dox]: https://tokio.rs/docs/going-deeper/futures-model/
+    /// [poll-dox]: https://tokio.rs/docs/going-deeper-futures/futures-model/
     ///
     /// # Runtime characteristics
     ///

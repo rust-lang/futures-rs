@@ -18,7 +18,7 @@
 //!
 //! More information about the task model can be found [online at tokio.rs].
 //!
-//! [online at tokio.rs]: https://tokio.rs/docs/going-deeper/futures-model/
+//! [online at tokio.rs]: https://tokio.rs/docs/going-deeper-futures/futures-model/
 //!
 //! ## Functions
 //!
