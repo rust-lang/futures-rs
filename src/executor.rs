@@ -5,6 +5,6 @@
 //!
 //! More information about executors can be [found online at tokio.rs][online].
 //!
-//! [online]: https://tokio.rs/docs/going-deeper/tasks/
+//! [online]: https://tokio.rs/docs/going-deeper-futures/tasks/
 
 pub use task_impl::{Spawn, spawn, Unpark, Executor, Run};
