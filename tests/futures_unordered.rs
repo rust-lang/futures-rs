@@ -7,7 +7,7 @@ use futures::stream::futures_unordered;
 use futures::Future;
 
 mod support;
-use support::unpark_noop;
+use support::UNPARK_NOOP;
 
 #[test]
 fn works_1() {
@@ -39,9 +39,9 @@ fn works_2() {
     let mut spawn = futures::executor::spawn(stream);
     a_tx.send(33).unwrap();
     b_tx.send(33).unwrap();
-    assert!(spawn.poll_stream(&unpark_noop()).unwrap().is_ready());
+    assert!(spawn.poll_stream(UNPARK_NOOP).unwrap().is_ready());
     c_tx.send(33).unwrap();
-    assert!(spawn.poll_stream(&unpark_noop()).unwrap().is_ready());
+    assert!(spawn.poll_stream(UNPARK_NOOP).unwrap().is_ready());
 }
 
 #[test]
@@ -57,13 +57,13 @@ fn finished_future_ok() {
 
     let mut spawn = futures::executor::spawn(stream);
     for _ in 0..10 {
-        assert!(spawn.poll_stream(&unpark_noop()).unwrap().is_not_ready());
+        assert!(spawn.poll_stream(UNPARK_NOOP).unwrap().is_not_ready());
     }
 
     b_tx.send(Box::new(())).unwrap();
-    let next = spawn.poll_stream(&unpark_noop()).unwrap();
+    let next = spawn.poll_stream(UNPARK_NOOP).unwrap();
     assert!(next.is_ready());
     c_tx.send(Box::new(())).unwrap();
-    assert!(spawn.poll_stream(&unpark_noop()).unwrap().is_not_ready());
-    assert!(spawn.poll_stream(&unpark_noop()).unwrap().is_not_ready());
+    assert!(spawn.poll_stream(UNPARK_NOOP).unwrap().is_not_ready());
+    assert!(spawn.poll_stream(UNPARK_NOOP).unwrap().is_not_ready());
 }

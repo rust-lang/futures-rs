@@ -11,7 +11,7 @@ use futures::future::ok;
 use futures::stream;
 use futures::sync::{oneshot, mpsc};
 use futures::task::{self, Task};
-use futures::executor::{self, Unpark, UnparkHandle};
+use futures::executor::{self, Unpark};
 use futures::sink::*;
 
 mod support;
@@ -113,15 +113,14 @@ fn mpsc_blocking_start_send() {
         assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
 
         let flag = Flag::new();
-        let handle = UnparkHandle::new(flag.clone());
         let mut task = executor::spawn(StartSendFut::new(tx, 1));
 
-        assert!(task.poll_future(&handle).unwrap().is_not_ready());
+        assert!(task.poll_future(&flag).unwrap().is_not_ready());
         assert!(!flag.get());
         sassert_next(&mut rx, 0);
         assert!(flag.get());
         flag.set(false);
-        assert!(task.poll_future(&handle).unwrap().is_ready());
+        assert!(task.poll_future(&flag).unwrap().is_ready());
         assert!(!flag.get());
         sassert_next(&mut rx, 1);
 
@@ -143,13 +142,12 @@ fn with_flush() {
     assert_eq!(sink.start_send(0), Ok(AsyncSink::Ready));
 
     let flag = Flag::new();
-    let handle = UnparkHandle::new(flag.clone());
     let mut task = executor::spawn(sink.flush());
-    assert!(task.poll_future(&handle).unwrap().is_not_ready());
+    assert!(task.poll_future(&flag).unwrap().is_not_ready());
     tx.send(()).unwrap();
     assert!(flag.get());
 
-    let sink = match task.poll_future(&handle).unwrap() {
+    let sink = match task.poll_future(&flag).unwrap() {
         Async::Ready(sink) => sink,
         _ => panic!()
     };
@@ -228,13 +226,12 @@ fn with_flush_propagate() {
     assert_eq!(sink.start_send(Some(1)).unwrap(), AsyncSink::Ready);
 
     let flag = Flag::new();
-    let handle = UnparkHandle::new(flag.clone());
     let mut task = executor::spawn(sink.flush());
-    assert!(task.poll_future(&handle).unwrap().is_not_ready());
+    assert!(task.poll_future(&flag).unwrap().is_not_ready());
     assert!(!flag.get());
     assert_eq!(task.get_mut().get_mut().get_mut().force_flush(), vec![0, 1]);
     assert!(flag.get());
-    assert!(task.poll_future(&handle).unwrap().is_ready());
+    assert!(task.poll_future(&flag).unwrap().is_ready());
 }
 
 #[test]
@@ -329,13 +326,12 @@ fn buffer() {
     let sink = StartSendFut::new(sink, 1).wait().unwrap();
 
     let flag = Flag::new();
-    let handle = UnparkHandle::new(flag.clone());
     let mut task = executor::spawn(sink.send(2));
-    assert!(task.poll_future(&handle).unwrap().is_not_ready());
+    assert!(task.poll_future(&flag).unwrap().is_not_ready());
     assert!(!flag.get());
     allow.start();
     assert!(flag.get());
-    match task.poll_future(&handle).unwrap() {
+    match task.poll_future(&flag).unwrap() {
         Async::Ready(sink) => {
             assert_eq!(sink.get_ref().data, vec![0, 1, 2]);
         }
