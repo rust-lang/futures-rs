@@ -388,8 +388,8 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_err_1 = err::<u32, u32>(1);
-    /// let future_of_err_4 = future_of_err_1.from_err::<u32>();
+    /// let future_with_err_u8 = err::<(), u8>(1);
+    /// let future_with_err_u32 = future_with_err_u8.from_err::<u32>();
     /// ```
     fn from_err<E:From<Self::Error>>(self) -> FromErr<Self, E>
         where Self: Sized,
