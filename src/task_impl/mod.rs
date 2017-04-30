@@ -652,7 +652,7 @@ impl Unpark for RunInner {
 /// Instances of `Notify` must be safe to share across threads, and the methods
 /// be be invoked concurrently. They must also live for the `'static` lifetime,
 /// not containing any stack references.
-pub trait Notify: Send + Sync {
+pub trait Notify: Send + Sync + 'static {
     /// Indicates that an associated future and/or task are ready to make
     /// progress.
     ///
@@ -691,7 +691,7 @@ pub struct NotifyContext<T> {
     inner: Arc<NotifyContextInner<T>>,
 }
 
-impl<T: Notify + 'static> NotifyContext<T> {
+impl<T: Notify> NotifyContext<T> {
     /// Create a new `NotifyContext` backed by the provided instance of
     /// `notify`.
     ///
@@ -1080,7 +1080,7 @@ impl Drop for NotifyHandle {
 
 struct ArcWrapped<T>(PhantomData<T>);
 
-impl<T: Notify + 'static> Notify for ArcWrapped<T> {
+impl<T: Notify> Notify for ArcWrapped<T> {
     fn notify(&self, id: u64) {
         unsafe {
             let me: *const ArcWrapped<T> = self;
@@ -1090,7 +1090,7 @@ impl<T: Notify + 'static> Notify for ArcWrapped<T> {
     }
 }
 
-unsafe impl<T: Notify + 'static> UnsafeNotify for ArcWrapped<T> {
+unsafe impl<T: Notify> UnsafeNotify for ArcWrapped<T> {
     unsafe fn clone_raw(&self) -> NotifyHandle {
         let me: *const ArcWrapped<T> = self;
         let ptr = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
@@ -1104,8 +1104,7 @@ unsafe impl<T: Notify + 'static> UnsafeNotify for ArcWrapped<T> {
     }
 }
 
-impl<T> From<Arc<T>> for NotifyHandle
-    where T: Notify + 'static,
+impl<T> From<Arc<T>> for NotifyHandle where T: Notify,
 {
     fn from(rc: Arc<T>) -> NotifyHandle {
         unsafe {
