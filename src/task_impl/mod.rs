@@ -977,7 +977,7 @@ pub unsafe trait UnsafeNotify: Notify {
     /// review the trait documentation as well as the implementation for `Arc`
     /// in this crate. When in doubt ping the `futures` authors to clarify
     /// an unsafety question here.
-    unsafe fn drop_raw(&self);
+    unsafe fn drop_raw(&mut self);
 }
 
 /// A `NotifyHandle` is the core value through which notifications are routed
@@ -1062,54 +1062,68 @@ impl Drop for NotifyHandle {
 }
 
 // Safe implementation of `UnsafeNotify` for `Arc` in the standard library.
-//
-// Note that this is a very unsafe implementation! The crucial pieces is that
-// these two values are considered equivalent:
-//
-// * Arc<T>
-// * *const ArcWrapped<T>
-//
-// We don't actually know the layout of `ArcWrapped<T>` as it's an
-// implementation detail in the standard library. We can work, though, by
-// casting it through and back an `Arc<T>`.
-//
-// This also means that you wn't actually fine `UnsafeNotify for Arc<T>`
-// because it's the wrong level of indirection. These methods are sort of
-// receiving Arc<T>, but not an owned version. It's... complicated. We may be
-// one of the first users of unsafe trait objects!
-
+// `ArcWrapped` is just a marker for a `T` that is in an `Arc`.
 struct ArcWrapped<T>(PhantomData<T>);
 
 impl<T: Notify> Notify for ArcWrapped<T> {
     fn notify(&self, id: u64) {
-        unsafe {
-            let me: *const ArcWrapped<T> = self;
-            T::notify(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                      id)
-        }
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.notify(id);
+    }
+
+    fn ref_inc(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_inc(id);
+    }
+
+    fn ref_dec(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_dec(id);
     }
 }
 
 unsafe impl<T: Notify> UnsafeNotify for ArcWrapped<T> {
     unsafe fn clone_raw(&self) -> NotifyHandle {
-        let me: *const ArcWrapped<T> = self;
-        let ptr = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
-        NotifyHandle::from(ptr)
+        let me = self as *const _ as *const T;
+        NotifyHandle::from(Arc::from_raw(me).clone())
     }
 
-    unsafe fn drop_raw(&self) {
-        let mut me: *const ArcWrapped<T> = self;
-        let me = &mut me as *mut *const ArcWrapped<T> as *mut Arc<T>;
-        ptr::drop_in_place(me);
+    unsafe fn drop_raw(&mut self) {
+        Arc::from_raw(self as *const _ as *const T);
     }
 }
 
-impl<T> From<Arc<T>> for NotifyHandle where T: Notify,
+impl<T: Notify> Notify for Arc<T> {
+    fn notify(&self, id: u64) {
+        (**self).notify(id);
+    }
+
+    fn ref_inc(&self, id: u64) {
+        (**self).ref_inc(id);
+    }
+
+    fn ref_dec(&self, id: u64) {
+        (**self).ref_dec(id);
+    }
+}
+
+unsafe impl<T: Notify> UnsafeNotify for Arc<T> {
+    unsafe fn clone_raw(&self) -> NotifyHandle {
+        NotifyHandle::from(self.clone())
+    }
+
+    unsafe fn drop_raw(&mut self) {
+        ptr::drop_in_place(self);
+    }
+}
+
+impl<T: Notify> From<Arc<T>> for NotifyHandle
 {
     fn from(rc: Arc<T>) -> NotifyHandle {
-        unsafe {
-            let ptr = mem::transmute::<Arc<T>, *mut ArcWrapped<T>>(rc);
-            NotifyHandle::new(ptr)
-        }
+        let ptr = Arc::into_raw(rc);
+        // Cast *const T to *mut ArcWrapped<T>.
+        // It's ok to cast to *mut because we dont rely on
+        // mutability in drop_raw.
+        unsafe { NotifyHandle::new(ptr as *mut ArcWrapped<T>) }
     }
 }
