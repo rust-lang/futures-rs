@@ -664,17 +664,65 @@ pub trait Notify: Send + Sync + 'static {
 
 #[allow(deprecated)]
 impl Notify for Arc<Unpark> {
-    #[allow(unused_variables)]
+    fn notify(&self, _: u64) { self.unpark(); }
+    fn ref_inc(&self, _: u64) {}
+    fn ref_dec(&self, _: u64) {}
+}
+
+impl Notify for fn() {
+    fn notify(&self, _: u64) { (*self)(); }
+    fn ref_inc(&self, _: u64) {}
+    fn ref_dec(&self, _: u64) {}
+}
+
+impl<T: Notify + ?Sized> Notify for Box<T> {
+    fn notify(&self, id: u64) { (**self).notify(id); }
+    fn ref_inc(&self, id: u64) { (**self).ref_inc(id); }
+    fn ref_dec(&self, id: u64) { (**self).ref_dec(id); }
+}
+
+impl<T: Notify> Notify for &'static T {
+    fn notify(&self, id: u64) { (*self).notify(id); }
+    fn ref_inc(&self, id: u64) { (*self).ref_inc(id); }
+    fn ref_dec(&self, id: u64) { (*self).ref_dec(id); }
+}
+
+// Marker for a `T` that is behind &'static.
+struct StaticRef<T>(PhantomData<T>);
+
+impl<T: Notify> Notify for StaticRef<T> {
     fn notify(&self, id: u64) {
-        self.unpark();
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.notify(id);
     }
 
-    #[allow(unused_variables)]
-    fn ref_inc(&self, id: u64) {}
+    fn ref_inc(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_inc(id);
+    }
 
-    #[allow(unused_variables)]
-    fn ref_dec(&self, id: u64) {}
+    fn ref_dec(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_dec(id);
+    }
 }
+
+unsafe impl<T: Notify> UnsafeNotify for StaticRef<T> {
+    unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
+        self as *const _ as *mut Self
+    }
+
+    unsafe fn drop_raw(&mut self) {}
+}
+
+unsafe impl<T: Notify> UnsafeNotify for &'static T {
+    unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
+        *self as *const _ as *mut StaticRef<T>
+    }
+
+    unsafe fn drop_raw(&mut self) {}
+}
+
 
 // ===== NotifyContext =====
 
@@ -929,7 +977,7 @@ pub trait EventSet: Send + Sync + 'static {
 /// the implementation for `Arc` in this crate. When in doubt ping the
 /// `futures` authors to clarify an unsafety question here.
 pub unsafe trait UnsafeNotify: Notify {
-    /// Creates a new `NotifyHandle` from this instance of `UnsafeNotify`.
+    /// Creates a new `UnsafeNotify` from this instance of `UnsafeNotify`.
     ///
     /// This function will create a new uniquely owned handle that under the
     /// hood references the same notification instance. In other words calls
@@ -1008,17 +1056,9 @@ unsafe impl<T: Notify> UnsafeNotify for ArcWrapped<T> {
 }
 
 impl<T: Notify> Notify for Arc<T> {
-    fn notify(&self, id: u64) {
-        (**self).notify(id);
-    }
-
-    fn ref_inc(&self, id: u64) {
-        (**self).ref_inc(id);
-    }
-
-    fn ref_dec(&self, id: u64) {
-        (**self).ref_dec(id);
-    }
+    fn notify(&self, id: u64) { (**self).notify(id); }
+    fn ref_inc(&self, id: u64) { (**self).ref_inc(id); }
+    fn ref_dec(&self, id: u64) { (**self).ref_dec(id); }
 }
 
 unsafe impl<T: Notify> UnsafeNotify for Arc<T> {
