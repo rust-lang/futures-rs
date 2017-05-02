@@ -995,8 +995,11 @@ impl<T: Notify> Notify for ArcWrapped<T> {
 
 unsafe impl<T: Notify> UnsafeNotify for ArcWrapped<T> {
     unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
-        let me = self as *const _ as *const T;
-        arc_to_notify(Arc::from_raw(me).clone())
+        let arc = Arc::from_raw(self as *const _ as *const T);
+        let notify = arc_to_notify(arc.clone());
+        // Dropping `arc` would invalidate `self`.
+        mem::forget(arc);
+        notify
     }
 
     unsafe fn drop_raw(&mut self) {
@@ -1024,6 +1027,7 @@ unsafe impl<T: Notify> UnsafeNotify for Arc<T> {
     }
 
     unsafe fn drop_raw(&mut self) {
+        // Never used internally, provided for completeness.
         ptr::drop_in_place(self);
     }
 }
