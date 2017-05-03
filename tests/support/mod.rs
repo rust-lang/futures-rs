@@ -1,13 +1,12 @@
 #![allow(dead_code)]
 
 use std::fmt;
-use std::sync::Arc;
 use std::thread;
 
 use futures::{Future, IntoFuture, Async, Poll};
 use futures::future::FutureResult;
 use futures::stream::Stream;
-use futures::executor::{self, NotifyHandle, Notify};
+use futures::executor;
 use futures::task;
 
 pub mod local_executor;
@@ -70,26 +69,20 @@ pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     }
 }
 
-pub fn notify_panic() -> NotifyHandle {
-    struct Foo;
+const UNPARK_PANIC : &'static fn() = &(panic as fn());
 
-    impl Notify for Foo {
-        fn notify(&self, _id: u64) {
-            panic!("should not be notified");
-        }
-    }
+const UNPARK_NOOP : &'static fn() = &(noop as fn());
 
-    NotifyHandle::from(Arc::new(Foo))
+fn panic() { panic!("should not be notified"); }
+
+fn noop() { }
+
+pub fn notify_panic() -> &'static fn() {
+    UNPARK_PANIC
 }
 
-pub fn notify_noop() -> NotifyHandle {
-    struct Foo;
-
-    impl Notify for Foo {
-        fn notify(&self, _id: u64) {}
-    }
-
-    NotifyHandle::from(Arc::new(Foo))
+pub fn notify_noop() -> &'static fn() {
+    UNPARK_NOOP
 }
 
 pub trait ForgetExt {

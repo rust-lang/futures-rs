@@ -10,4 +10,4 @@
 #[allow(deprecated)]
 pub use task_impl::{Spawn, spawn, Unpark, Notify, Executor, Run};
 
-pub use task_impl::{UnsafeNotify, NotifyHandle};
+pub use task_impl::UnsafeNotify;

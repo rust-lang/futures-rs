@@ -4,7 +4,6 @@ use std::cell::Cell;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
-use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -27,17 +26,11 @@ mod task_rc;
 pub use self::task_rc::TaskRc;
 
 struct BorrowedTask<'a> {
-    unpark: BorrowedUnpark<'a>,
+    unpark: &'a OuterUnsafeNotify,
+    unpark_id: u64,
     events: BorrowedEvents<'a>,
     // Task-local storage
     map: &'a data::LocalMap,
-}
-
-#[derive(Copy, Clone)]
-#[allow(deprecated)]
-enum BorrowedUnpark<'a> {
-    Old(&'a Arc<Unpark>),
-    New(&'a NotifyHandle, u64),
 }
 
 #[derive(Copy, Clone)]
@@ -88,19 +81,17 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 ///
 /// This is obtained by the `task::current` function.
 pub struct Task {
-    unpark: TaskUnpark,
+    unpark: *mut UnsafeNotify,
+    unpark_id: u64,
     events: UnparkEvents,
 }
+
+unsafe impl Send for Task {}
+unsafe impl Sync for Task {}
 
 fn _assert_kinds() {
     fn _assert_send<T: Send>() {}
     _assert_send::<Task>();
-}
-
-enum TaskUnpark {
-    #[allow(deprecated)]
-    Old(Arc<Unpark>),
-    New(NotifyHandle, u64),
 }
 
 #[derive(Clone)]
@@ -134,14 +125,8 @@ enum UnparkEvents {
 /// `poll`.
 pub fn current() -> Task {
     with(|borrowed| {
-        let unpark = match borrowed.unpark {
-            BorrowedUnpark::Old(old) => TaskUnpark::Old(old.clone()),
-            BorrowedUnpark::New(new, id) => {
-                // A new handle is being created, increment the ref count
-                new.ref_inc(id);
-                TaskUnpark::New(new.clone(), id)
-            }
-        };
+        let unpark = borrowed.unpark.clone_to_inner();
+        unsafe { (*unpark).ref_inc(borrowed.unpark_id) };
 
         let mut one_event = None;
         let mut list = Vec::new();
@@ -167,6 +152,7 @@ pub fn current() -> Task {
 
         Task {
             unpark: unpark,
+            unpark_id: borrowed.unpark_id,
             events: events,
         }
     })
@@ -198,11 +184,9 @@ impl Task {
                 }
             }
         }
-
-        match self.unpark {
-            TaskUnpark::Old(ref old) => old.unpark(),
-            TaskUnpark::New(ref new, id) => new.notify(id),
-        }
+        // self.unpark is valid here.
+        let unpark = unsafe { &*self.unpark };
+        unpark.notify(self.unpark_id);
     }
 
     #[doc(hidden)]
@@ -247,16 +231,11 @@ impl fmt::Debug for Task {
 
 impl Clone for Task {
     fn clone(&self) -> Task {
-        let unpark = match self.unpark {
-            TaskUnpark::Old(ref old) => TaskUnpark::Old(old.clone()),
-            TaskUnpark::New(ref new, id) => {
-                new.ref_inc(id);
-                TaskUnpark::New(new.clone(), id)
-            }
-        };
-
+        let unpark = unsafe { &*self.unpark };
+        unpark.ref_inc(self.unpark_id);
         Task {
-            unpark: unpark,
+            unpark: unsafe { unpark.clone_raw() },
+            unpark_id: self.unpark_id,
             events: self.events.clone(),
         }
     }
@@ -264,9 +243,11 @@ impl Clone for Task {
 
 impl Drop for Task {
     fn drop(&mut self) {
-        if let TaskUnpark::New(ref new, id) = self.unpark {
-            new.ref_dec(id);
-        }
+        // self.unpark is valid here, we will invalidate
+        // it by calling drop_raw.
+        let unpark = unsafe { &mut *self.unpark };
+        unpark.ref_dec(self.unpark_id);
+        unsafe { unpark.drop_raw(); }
     }
 }
 
@@ -335,7 +316,7 @@ impl<F: Future> Spawn<F> {
     #[deprecated(note = "recommended to use `poll_future_notify` instead")]
     #[allow(deprecated)]
     pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(BorrowedUnpark::Old(&unpark), |f| f.poll())
+        self.poll_future_notify(&Arc::new(unpark), 0)
     }
 
     /// Polls the internal future, scheduling notifications to be sent to the
@@ -352,9 +333,9 @@ impl<F: Future> Spawn<F> {
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
     pub fn poll_future_notify(&mut self,
-                              notify: &NotifyHandle,
+                              notify: &OuterUnsafeNotify,
                               id: u64) -> Poll<F::Item, F::Error> {
-        self.enter(BorrowedUnpark::New(notify, id), |f| f.poll())
+        self.enter(notify, id, |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -365,10 +346,9 @@ impl<F: Future> Spawn<F> {
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
         let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = NotifyHandle::from(unpark.clone());
 
         loop {
-            match try!(self.poll_future_notify(&unpark2, 0)) {
+            match try!(self.poll_future_notify(&unpark, 0)) {
                 Async::NotReady => unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
@@ -413,25 +393,24 @@ impl<S: Stream> Spawn<S> {
     #[allow(deprecated)]
     pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(BorrowedUnpark::Old(&unpark), |s| s.poll())
+        self.poll_stream_notify(&Arc::new(unpark), 0)
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.
     pub fn poll_stream_notify(&mut self,
-                              unpark: &NotifyHandle,
+                              unpark: &OuterUnsafeNotify,
                               id: u64)
                               -> Poll<Option<S::Item>, S::Error> {
-        self.enter(BorrowedUnpark::New(unpark, id), |s| s.poll())
+        self.enter(unpark, id, |s| s.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
         let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = NotifyHandle::from(unpark.clone());
 
         loop {
-            match self.poll_stream_notify(&unpark2, 0) {
+            match self.poll_stream_notify(&unpark, 0) {
                 Ok(Async::NotReady) => unpark.park(),
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
@@ -451,7 +430,7 @@ impl<S: Sink> Spawn<S> {
     #[allow(deprecated)]
     pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
                        -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(BorrowedUnpark::Old(unpark), |s| s.start_send(value))
+        self.start_send_notify(value, &Arc::new(unpark.clone()), 0)
     }
 
     /// Invokes the underlying `start_send` method with this task in place.
@@ -461,10 +440,10 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn start_send_notify(&mut self,
                              value: S::SinkItem,
-                             notify: &NotifyHandle,
+                             notify: &OuterUnsafeNotify,
                              id: u64)
                             -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(BorrowedUnpark::New(notify, id), |s| s.start_send(value))
+        self.enter(notify, id, |s| s.start_send(value))
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
@@ -476,7 +455,7 @@ impl<S: Sink> Spawn<S> {
     #[allow(deprecated)]
     pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
                        -> Poll<(), S::SinkError> {
-        self.enter(BorrowedUnpark::Old(unpark), |s| s.poll_complete())
+        self.poll_flush_notify(&Arc::new(unpark.clone()), 0)
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
@@ -485,10 +464,10 @@ impl<S: Sink> Spawn<S> {
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
     pub fn poll_flush_notify(&mut self,
-                             notify: &NotifyHandle,
+                             notify: &OuterUnsafeNotify,
                              id: u64)
                              -> Poll<(), S::SinkError> {
-        self.enter(BorrowedUnpark::New(notify, id), |s| s.poll_complete())
+        self.enter(notify, id, |s| s.poll_complete())
     }
 
     /// Blocks the current thread until it's able to send `value` on this sink.
@@ -499,9 +478,9 @@ impl<S: Sink> Spawn<S> {
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
         let notify = Arc::new(ThreadUnpark::new(thread::current()));
-        let notify2 = NotifyHandle::from(notify.clone());
+        
         loop {
-            value = match try!(self.start_send_notify(value, &notify2, 0)) {
+            value = match try!(self.start_send_notify(value, &notify, 0)) {
                 AsyncSink::NotReady(v) => v,
                 AsyncSink::Ready => return Ok(()),
             };
@@ -519,9 +498,9 @@ impl<S: Sink> Spawn<S> {
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
         let notify = Arc::new(ThreadUnpark::new(thread::current()));
-        let notify2 = NotifyHandle::from(notify.clone());
+
         loop {
-            if try!(self.poll_flush_notify(&notify2, 0)).is_ready() {
+            if try!(self.poll_flush_notify(&notify, 0)).is_ready() {
                 return Ok(())
             }
             notify.park();
@@ -530,11 +509,12 @@ impl<S: Sink> Spawn<S> {
 }
 
 impl<T> Spawn<T> {
-    fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
+    fn enter<F, R>(&mut self, unpark: &OuterUnsafeNotify, unpark_id: u64, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
         let borrowed = BorrowedTask {
             unpark: unpark,
+            unpark_id: unpark_id,
             events: BorrowedEvents::None,
             map: &self.data,
         };
@@ -652,7 +632,7 @@ impl Unpark for RunInner {
 /// Instances of `Notify` must be safe to share across threads, and the methods
 /// be be invoked concurrently. They must also live for the `'static` lifetime,
 /// not containing any stack references.
-pub trait Notify: Send + Sync {
+pub trait Notify: Send + Sync + 'static {
     /// Indicates that an associated future and/or task are ready to make
     /// progress.
     ///
@@ -681,6 +661,60 @@ pub trait Notify: Send + Sync {
     }
 }
 
+#[allow(deprecated)]
+impl Notify for Arc<Unpark> {
+    fn notify(&self, _: u64) { self.unpark(); }
+    fn ref_inc(&self, _: u64) {}
+    fn ref_dec(&self, _: u64) {}
+}
+
+impl Notify for fn() {
+    fn notify(&self, _: u64) { (*self)(); }
+    fn ref_inc(&self, _: u64) {}
+    fn ref_dec(&self, _: u64) {}
+}
+
+impl<T: Notify + ?Sized> Notify for Box<T> {
+    fn notify(&self, id: u64) { (**self).notify(id); }
+    fn ref_inc(&self, id: u64) { (**self).ref_inc(id); }
+    fn ref_dec(&self, id: u64) { (**self).ref_dec(id); }
+}
+
+// Marker for a `T` that is behind &'static.
+struct StaticRef<T>(PhantomData<T>);
+
+impl<T: Notify> Notify for StaticRef<T> {
+    fn notify(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.notify(id);
+    }
+
+    fn ref_inc(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_inc(id);
+    }
+
+    fn ref_dec(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_dec(id);
+    }
+}
+
+unsafe impl<T: Notify> UnsafeNotify for StaticRef<T> {
+    unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
+        self as *const _ as *mut Self
+    }
+
+    unsafe fn drop_raw(&mut self) {}
+}
+
+impl<T: Notify> OuterUnsafeNotify for &'static T {
+    fn clone_to_inner(&self) -> *mut UnsafeNotify {
+        *self as *const _ as *mut StaticRef<T>
+    }
+}
+
+
 // ===== NotifyContext =====
 
 /// A notify context allows for more fine grained notification events.
@@ -691,7 +725,7 @@ pub struct NotifyContext<T> {
     inner: Arc<NotifyContextInner<T>>,
 }
 
-impl<T: Notify + 'static> NotifyContext<T> {
+impl<T: Notify> NotifyContext<T> {
     /// Create a new `NotifyContext` backed by the provided instance of
     /// `notify`.
     ///
@@ -744,7 +778,7 @@ impl<T: Notify + 'static> NotifyContext<T> {
     pub fn with<F, R>(&mut self, unpark_id: u64, f: F) -> R
         where F: FnOnce() -> R
     {
-        let unpark = NotifyHandle::from(self.inner.clone());
+        let unpark : &OuterUnsafeNotify = &self.inner.clone();
 
         unsafe {
             // `park` on atomic task requires a guarantee of mutal exclusion.
@@ -754,7 +788,8 @@ impl<T: Notify + 'static> NotifyContext<T> {
 
         with(|task| {
             let new_task = BorrowedTask {
-                unpark: BorrowedUnpark::New(&unpark, unpark_id),
+                unpark: unpark,
+                unpark_id: unpark_id,
                 events: task.events,
                 map: task.map,
             };
@@ -837,6 +872,7 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     with(|task| {
         let new_task = BorrowedTask {
             unpark: task.unpark,
+            unpark_id: 0,
             events: BorrowedEvents::One(&event, &task.events),
             map: task.map,
         };
@@ -890,18 +926,20 @@ pub trait EventSet: Send + Sync + 'static {
     fn insert(&self, id: usize);
 }
 
-/// An unsafe trait for implementing custom forms of memory management behind a
-/// `Task`.
-///
+/// `UnsafeNotify` is the core trait through which notifications are routed
+/// in the `futures` crate. 
+/// All instances of `Task` will contain a `*mut UnsafeNotify` handle internally.
+/// 
 /// The `futures` critically relies on "notification handles" to extract for
 /// futures to contain and then later inform that they're ready to make
 /// progress. These handles, however, must be cheap to create and cheap
 /// to clone to ensure that this operation is efficient throughout the
 /// execution of a program.
 ///
-/// Typically this sort of memory management is done in the standard library
-/// with the `Arc` type. An `Arc` is relatively cheap to allocate an is
-/// quite cheap to clone and pass around. Plus, it's 100% safe!
+/// If you're working with the standard library then it's recommended to
+/// work with the `Arc` type. If you have a struct, `T`, which implements the
+/// `Notify` trait, the coercion to `UnsafeNotify` will
+/// happen automatically and safely for you.
 ///
 /// When working outside the standard library, however, you don't always have
 /// and `Arc` type available to you. This trait, `UnsafeNotify`, is intended
@@ -909,17 +947,10 @@ pub trait EventSet: Send + Sync + 'static {
 /// memory management operations of a `Task`'s notification handle, allowing
 /// custom implementations for the memory management of a notification handle.
 ///
-/// Put another way, the core notification type in this library,
-/// `NotifyHandle`, simply internally contains an instance of
-/// `*mut UnsafeNotify`. This "unsafe trait object" is then used exclusively
-/// to operate with, dynamically dispatching calls to clone, drop, and notify.
-/// Critically though as a raw pointer it doesn't require a particular form
-/// of memory management, allowing external implementations.
-///
-/// A default implementatino of the `UnsafeNotify` trait is provided for the
+/// A default implementation of the `UnsafeNotify` trait is provided for the
 /// `Arc` type in the standard library. If the `use_std` feature of this crate
 /// is not available however, you'll be required to implement your own
-/// instance of this trait to pass it into `NotifyHandle::new`.
+/// instance of this trait.
 ///
 /// # Unsafety
 ///
@@ -937,7 +968,7 @@ pub trait EventSet: Send + Sync + 'static {
 /// the implementation for `Arc` in this crate. When in doubt ping the
 /// `futures` authors to clarify an unsafety question here.
 pub unsafe trait UnsafeNotify: Notify {
-    /// Creates a new `NotifyHandle` from this instance of `UnsafeNotify`.
+    /// Creates a new `UnsafeNotify` from this instance of `UnsafeNotify`.
     ///
     /// This function will create a new uniquely owned handle that under the
     /// hood references the same notification instance. In other words calls
@@ -952,7 +983,7 @@ pub unsafe trait UnsafeNotify: Notify {
     /// review the trait documentation as well as the implementation for `Arc`
     /// in this crate. When in doubt ping the `futures` authors to clarify
     /// an unsafety question here.
-    unsafe fn clone_raw(&self) -> NotifyHandle;
+    unsafe fn clone_raw(&self) -> *mut UnsafeNotify;
 
     /// Drops this instance of `UnsafeNotify`, deallocating resources
     /// associated with it.
@@ -977,140 +1008,57 @@ pub unsafe trait UnsafeNotify: Notify {
     /// review the trait documentation as well as the implementation for `Arc`
     /// in this crate. When in doubt ping the `futures` authors to clarify
     /// an unsafety question here.
-    unsafe fn drop_raw(&self);
+    unsafe fn drop_raw(&mut self);
 }
 
-/// A `NotifyHandle` is the core value through which notifications are routed
-/// in the `futures` crate.
-///
-/// All instances of `Task` will contain a `NotifyHandle` handle internally.
-/// This handle itself contains a trait object pointing to an instance of the
-/// `Notify` trait, allowing notifications to get routed through it.
-///
-/// The `NotifyHandle` type internally does not codify any particular memory
-/// management strategy. Internally it contains an instance of `*mut
-/// UnsafeNotify`, and more details about that trait can be found on its own
-/// documentation. Consequently, though, the one constructor of this type,
-/// `NotifyHandle::new`, is `unsafe` to call. It is not recommended to call
-/// this constructor directly.
-///
-/// If you're working with the standard library then it's recommended to
-/// work with the `Arc` type. If you have a struct, `T`, which implements the
-/// `Notify` trait, then you can construct this with
-/// `NotifyHandle::from(t: Arc<T>)`. The coercion to `UnsafeNotify` will
-/// happen automatically and safely for you.
-///
-/// When working externally from the standard library it's recommended to
-/// provide a similar safe constructor for your custom type as opposed to
-/// recommending an invocation of `NotifyHandle::new` directly.
-pub struct NotifyHandle {
-    inner: *mut UnsafeNotify,
-}
-
-unsafe impl Send for NotifyHandle {}
-unsafe impl Sync for NotifyHandle {}
-
-impl NotifyHandle {
-    /// Constructs a new `NotifyHandle` directly.
-    ///
-    /// Note that most code will not need to call this. Implementors of the
-    /// `UnsafeNotify` trait will typically provide a wrapper that calls this
-    /// but you otherwise shouldn't call it directly.
-    ///
-    /// If you're working with the standard library then it's recommended to
-    /// use the `NotifyHandle::from` function instead which works with the safe
-    /// `Arc` type and the safe `Notify` trait.
-    pub unsafe fn new(inner: *mut UnsafeNotify) -> NotifyHandle {
-        NotifyHandle { inner: inner }
-    }
-
-    /// Invokes the underlying instance of `Notify` with the provided `id`.
-    pub fn notify(&self, id: u64) {
-        unsafe { (*self.inner).notify(id) }
-    }
-
-    fn ref_inc(&self, id: u64) {
-        unsafe { (*self.inner).ref_inc(id) }
-    }
-
-    fn ref_dec(&self, id: u64) {
-        unsafe { (*self.inner).ref_dec(id) }
-    }
-}
-
-impl Clone for NotifyHandle {
-    fn clone(&self) -> Self {
-        unsafe {
-            (*self.inner).clone_raw()
-        }
-    }
-}
-
-impl fmt::Debug for NotifyHandle {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("NotifyHandle")
-         .finish()
-    }
-}
-
-impl Drop for NotifyHandle {
-    fn drop(&mut self) {
-        unsafe {
-            (*self.inner).drop_raw()
-        }
-    }
+pub trait OuterUnsafeNotify {
+    fn clone_to_inner(&self) -> *mut UnsafeNotify;
 }
 
 // Safe implementation of `UnsafeNotify` for `Arc` in the standard library.
-//
-// Note that this is a very unsafe implementation! The crucial pieces is that
-// these two values are considered equivalent:
-//
-// * Arc<T>
-// * *const ArcWrapped<T>
-//
-// We don't actually know the layout of `ArcWrapped<T>` as it's an
-// implementation detail in the standard library. We can work, though, by
-// casting it through and back an `Arc<T>`.
-//
-// This also means that you wn't actually fine `UnsafeNotify for Arc<T>`
-// because it's the wrong level of indirection. These methods are sort of
-// receiving Arc<T>, but not an owned version. It's... complicated. We may be
-// one of the first users of unsafe trait objects!
-
+// `ArcWrapped` is just a marker for a `T` that is in an `Arc`.
 struct ArcWrapped<T>(PhantomData<T>);
 
-impl<T: Notify + 'static> Notify for ArcWrapped<T> {
+impl<T: Notify> Notify for ArcWrapped<T> {
     fn notify(&self, id: u64) {
-        unsafe {
-            let me: *const ArcWrapped<T> = self;
-            T::notify(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                      id)
-        }
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.notify(id);
+    }
+
+    fn ref_inc(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_inc(id);
+    }
+
+    fn ref_dec(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_dec(id);
     }
 }
 
-unsafe impl<T: Notify + 'static> UnsafeNotify for ArcWrapped<T> {
-    unsafe fn clone_raw(&self) -> NotifyHandle {
-        let me: *const ArcWrapped<T> = self;
-        let ptr = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
-        NotifyHandle::from(ptr)
+unsafe impl<T: Notify> UnsafeNotify for ArcWrapped<T> {
+    unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
+        let arc = Arc::from_raw(self as *const _ as *const T);
+        let notify = arc_to_notify(arc.clone());
+        // Dropping `arc` would invalidate `self`.
+        mem::forget(arc);
+        notify
     }
 
-    unsafe fn drop_raw(&self) {
-        let mut me: *const ArcWrapped<T> = self;
-        let me = &mut me as *mut *const ArcWrapped<T> as *mut Arc<T>;
-        ptr::drop_in_place(me);
+    unsafe fn drop_raw(&mut self) {
+        Arc::from_raw(self as *const _ as *const T);
     }
 }
 
-impl<T> From<Arc<T>> for NotifyHandle
-    where T: Notify + 'static,
-{
-    fn from(rc: Arc<T>) -> NotifyHandle {
-        unsafe {
-            let ptr = mem::transmute::<Arc<T>, *mut ArcWrapped<T>>(rc);
-            NotifyHandle::new(ptr)
-        }
+impl<T: Notify> OuterUnsafeNotify for Arc<T> {
+    fn clone_to_inner(&self) -> *mut UnsafeNotify {
+        arc_to_notify(self.clone())
     }
+}
+
+fn arc_to_notify<T: Notify>(rc: Arc<T>) -> *mut UnsafeNotify {
+    // Cast *const T to *mut ArcWrapped<T>.
+    // It's ok to cast to *mut because we dont rely on
+    // mutability in drop_raw.
+    Arc::into_raw(rc) as *mut ArcWrapped<T>
 }
