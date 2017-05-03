@@ -4,7 +4,6 @@ use std::cell::Cell;
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
-use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -27,7 +26,7 @@ mod task_rc;
 pub use self::task_rc::TaskRc;
 
 struct BorrowedTask<'a> {
-    unpark: &'a UnsafeNotify,
+    unpark: &'a OuterUnsafeNotify,
     unpark_id: u64,
     events: BorrowedEvents<'a>,
     // Task-local storage
@@ -126,8 +125,8 @@ enum UnparkEvents {
 /// `poll`.
 pub fn current() -> Task {
     with(|borrowed| {
-        borrowed.unpark.ref_inc(borrowed.unpark_id);
-        let unpark = unsafe { borrowed.unpark.clone_raw() };
+        let unpark = borrowed.unpark.clone_to_inner();
+        unsafe { (*unpark).ref_inc(borrowed.unpark_id) };
 
         let mut one_event = None;
         let mut list = Vec::new();
@@ -334,7 +333,7 @@ impl<F: Future> Spawn<F> {
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
     pub fn poll_future_notify(&mut self,
-                              notify: &UnsafeNotify,
+                              notify: &OuterUnsafeNotify,
                               id: u64) -> Poll<F::Item, F::Error> {
         self.enter(notify, id, |f| f.poll())
     }
@@ -399,7 +398,7 @@ impl<S: Stream> Spawn<S> {
 
     /// Like `poll_future_notify`, except polls the underlying stream.
     pub fn poll_stream_notify(&mut self,
-                              unpark: &UnsafeNotify,
+                              unpark: &OuterUnsafeNotify,
                               id: u64)
                               -> Poll<Option<S::Item>, S::Error> {
         self.enter(unpark, id, |s| s.poll())
@@ -441,7 +440,7 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn start_send_notify(&mut self,
                              value: S::SinkItem,
-                             notify: &UnsafeNotify,
+                             notify: &OuterUnsafeNotify,
                              id: u64)
                             -> StartSend<S::SinkItem, S::SinkError> {
         self.enter(notify, id, |s| s.start_send(value))
@@ -465,7 +464,7 @@ impl<S: Sink> Spawn<S> {
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
     pub fn poll_flush_notify(&mut self,
-                             notify: &UnsafeNotify,
+                             notify: &OuterUnsafeNotify,
                              id: u64)
                              -> Poll<(), S::SinkError> {
         self.enter(notify, id, |s| s.poll_complete())
@@ -510,7 +509,7 @@ impl<S: Sink> Spawn<S> {
 }
 
 impl<T> Spawn<T> {
-    fn enter<F, R>(&mut self, unpark: &UnsafeNotify, unpark_id: u64, f: F) -> R
+    fn enter<F, R>(&mut self, unpark: &OuterUnsafeNotify, unpark_id: u64, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
         let borrowed = BorrowedTask {
@@ -681,12 +680,6 @@ impl<T: Notify + ?Sized> Notify for Box<T> {
     fn ref_dec(&self, id: u64) { (**self).ref_dec(id); }
 }
 
-impl<T: Notify> Notify for &'static T {
-    fn notify(&self, id: u64) { (*self).notify(id); }
-    fn ref_inc(&self, id: u64) { (*self).ref_inc(id); }
-    fn ref_dec(&self, id: u64) { (*self).ref_dec(id); }
-}
-
 // Marker for a `T` that is behind &'static.
 struct StaticRef<T>(PhantomData<T>);
 
@@ -715,12 +708,10 @@ unsafe impl<T: Notify> UnsafeNotify for StaticRef<T> {
     unsafe fn drop_raw(&mut self) {}
 }
 
-unsafe impl<T: Notify> UnsafeNotify for &'static T {
-    unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
+impl<T: Notify> OuterUnsafeNotify for &'static T {
+    fn clone_to_inner(&self) -> *mut UnsafeNotify {
         *self as *const _ as *mut StaticRef<T>
     }
-
-    unsafe fn drop_raw(&mut self) {}
 }
 
 
@@ -787,7 +778,7 @@ impl<T: Notify> NotifyContext<T> {
     pub fn with<F, R>(&mut self, unpark_id: u64, f: F) -> R
         where F: FnOnce() -> R
     {
-        let unpark : &UnsafeNotify = &self.inner.clone();
+        let unpark : &OuterUnsafeNotify = &self.inner.clone();
 
         unsafe {
             // `park` on atomic task requires a guarantee of mutal exclusion.
@@ -937,7 +928,7 @@ pub trait EventSet: Send + Sync + 'static {
 
 /// `UnsafeNotify` is the core trait through which notifications are routed
 /// in the `futures` crate. 
-/// All instances of `Task` will contain a `&UnsafeNotify` handle internally.
+/// All instances of `Task` will contain a `*mut UnsafeNotify` handle internally.
 /// 
 /// The `futures` critically relies on "notification handles" to extract for
 /// futures to contain and then later inform that they're ready to make
@@ -1020,6 +1011,10 @@ pub unsafe trait UnsafeNotify: Notify {
     unsafe fn drop_raw(&mut self);
 }
 
+pub trait OuterUnsafeNotify {
+    fn clone_to_inner(&self) -> *mut UnsafeNotify;
+}
+
 // Safe implementation of `UnsafeNotify` for `Arc` in the standard library.
 // `ArcWrapped` is just a marker for a `T` that is in an `Arc`.
 struct ArcWrapped<T>(PhantomData<T>);
@@ -1055,20 +1050,9 @@ unsafe impl<T: Notify> UnsafeNotify for ArcWrapped<T> {
     }
 }
 
-impl<T: Notify> Notify for Arc<T> {
-    fn notify(&self, id: u64) { (**self).notify(id); }
-    fn ref_inc(&self, id: u64) { (**self).ref_inc(id); }
-    fn ref_dec(&self, id: u64) { (**self).ref_dec(id); }
-}
-
-unsafe impl<T: Notify> UnsafeNotify for Arc<T> {
-    unsafe fn clone_raw(&self) -> *mut UnsafeNotify {
+impl<T: Notify> OuterUnsafeNotify for Arc<T> {
+    fn clone_to_inner(&self) -> *mut UnsafeNotify {
         arc_to_notify(self.clone())
-    }
-
-    unsafe fn drop_raw(&mut self) {
-        // Never used internally, provided for completeness.
-        ptr::drop_in_place(self);
     }
 }
 
