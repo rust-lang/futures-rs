@@ -196,16 +196,25 @@ pub use future::{
     SelectNext, Then
 };
 
+
+#[cfg(feature = "use_std")]
+mod lock;
+#[cfg(feature = "use_std")]
+mod task_impl;
+#[cfg(feature = "use_std")]
+mod stack;
+
+#[cfg(feature = "use_std")]
+pub mod task;
+#[cfg(feature = "use_std")]
+pub mod executor;
+#[cfg(feature = "use_std")]
+pub mod sync;
+#[cfg(feature = "use_std")]
+pub mod unsync;
+
+
 if_std! {
-    mod lock;
-    mod task_impl;
-    mod stack;
-
-    pub mod task;
-    pub mod executor;
-    pub mod sync;
-    pub mod unsync;
-
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "use sync::oneshot::channel instead")]
     #[cfg(feature = "with-deprecated")]
