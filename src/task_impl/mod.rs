@@ -37,7 +37,7 @@ struct BorrowedTask<'a> {
 #[allow(deprecated)]
 enum BorrowedUnpark<'a> {
     Old(&'a Arc<Unpark>),
-    New(&'a NotifyHandle, u64),
+    New(&'a CloneIntoNotifyHandle, u64),
 }
 
 #[derive(Copy, Clone)]
@@ -139,9 +139,10 @@ pub fn current() -> Task {
         let unpark = match borrowed.unpark {
             BorrowedUnpark::Old(old) => TaskUnpark::Old(old.clone()),
             BorrowedUnpark::New(new, id) => {
+                let notify = new.clone_into_handle();
                 // A new handle is being created, increment the ref count
-                new.ref_inc(id);
-                TaskUnpark::New(new.clone(), id)
+                notify.ref_inc(id);
+                TaskUnpark::New(notify, id)
             }
         };
 
@@ -354,7 +355,7 @@ impl<F: Future> Spawn<F> {
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
     pub fn poll_future_notify(&mut self,
-                              notify: &NotifyHandle,
+                              notify: &CloneIntoNotifyHandle,
                               id: u64) -> Poll<F::Item, F::Error> {
         self.enter(BorrowedUnpark::New(notify, id), |f| f.poll())
     }
@@ -366,12 +367,10 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = NotifyHandle::from(unpark.clone());
-
+        let notify = Arc::new(ThreadUnpark::new(thread::current()));
         loop {
-            match try!(self.poll_future_notify(&unpark2, 0)) {
-                Async::NotReady => unpark.park(),
+            match try!(self.poll_future_notify(&notify, 0)) {
+                Async::NotReady => notify.park(),
                 Async::Ready(e) => return Ok(e),
             }
         }
@@ -420,7 +419,7 @@ impl<S: Stream> Spawn<S> {
 
     /// Like `poll_future_notify`, except polls the underlying stream.
     pub fn poll_stream_notify(&mut self,
-                              unpark: &NotifyHandle,
+                              unpark: &CloneIntoNotifyHandle,
                               id: u64)
                               -> Poll<Option<S::Item>, S::Error> {
         self.enter(BorrowedUnpark::New(unpark, id), |s| s.poll())
@@ -430,10 +429,8 @@ impl<S: Stream> Spawn<S> {
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
         let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = NotifyHandle::from(unpark.clone());
-
         loop {
-            match self.poll_stream_notify(&unpark2, 0) {
+            match self.poll_stream_notify(&unpark, 0) {
                 Ok(Async::NotReady) => unpark.park(),
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
@@ -463,7 +460,7 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn start_send_notify(&mut self,
                              value: S::SinkItem,
-                             notify: &NotifyHandle,
+                             notify: &CloneIntoNotifyHandle,
                              id: u64)
                             -> StartSend<S::SinkItem, S::SinkError> {
         self.enter(BorrowedUnpark::New(notify, id), |s| s.start_send(value))
@@ -487,7 +484,7 @@ impl<S: Sink> Spawn<S> {
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
     pub fn poll_flush_notify(&mut self,
-                             notify: &NotifyHandle,
+                             notify: &CloneIntoNotifyHandle,
                              id: u64)
                              -> Poll<(), S::SinkError> {
         self.enter(BorrowedUnpark::New(notify, id), |s| s.poll_complete())
@@ -501,9 +498,8 @@ impl<S: Sink> Spawn<S> {
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
         let notify = Arc::new(ThreadUnpark::new(thread::current()));
-        let notify2 = NotifyHandle::from(notify.clone());
         loop {
-            value = match try!(self.start_send_notify(value, &notify2, 0)) {
+            value = match try!(self.start_send_notify(value, &notify, 0)) {
                 AsyncSink::NotReady(v) => v,
                 AsyncSink::Ready => return Ok(()),
             };
@@ -521,9 +517,8 @@ impl<S: Sink> Spawn<S> {
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
         let notify = Arc::new(ThreadUnpark::new(thread::current()));
-        let notify2 = NotifyHandle::from(notify.clone());
         loop {
-            if try!(self.poll_flush_notify(&notify2, 0)).is_ready() {
+            if try!(self.poll_flush_notify(&notify, 0)).is_ready() {
                 return Ok(())
             }
             notify.park();
@@ -652,7 +647,7 @@ impl Unpark for RunInner {
 /// to reuse an instance of `Notify` across many futures.
 ///
 /// Instances of `Notify` must be safe to share across threads, and the methods
-/// be be invoked concurrently. They must also live for the `'static` lifetime,
+/// be invoked concurrently. They must also live for the `'static` lifetime,
 /// not containing any stack references.
 pub trait Notify: Send + Sync {
     /// Indicates that an associated future and/or task are ready to make
@@ -842,7 +837,7 @@ pub trait EventSet: Send + Sync + 'static {
 /// Critically though as a raw pointer it doesn't require a particular form
 /// of memory management, allowing external implementations.
 ///
-/// A default implementatino of the `UnsafeNotify` trait is provided for the
+/// A default implementation of the `UnsafeNotify` trait is provided for the
 /// `Arc` type in the standard library. If the `use_std` feature of this crate
 /// is not available however, you'll be required to implement your own
 /// instance of this trait to pass it into `NotifyHandle::new`.
@@ -1035,8 +1030,8 @@ impl<T: Notify + 'static> Notify for ArcWrapped<T> {
 unsafe impl<T: Notify + 'static> UnsafeNotify for ArcWrapped<T> {
     unsafe fn clone_raw(&self) -> NotifyHandle {
         let me: *const ArcWrapped<T> = self;
-        let ptr = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
-        NotifyHandle::from(ptr)
+        let arc = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
+        NotifyHandle::from(arc)
     }
 
     unsafe fn drop_raw(&self) {
@@ -1054,5 +1049,28 @@ impl<T> From<Arc<T>> for NotifyHandle
             let ptr = mem::transmute::<Arc<T>, *mut ArcWrapped<T>>(rc);
             NotifyHandle::new(ptr)
         }
+    }
+}
+
+/// When creating a `Task` handle through `current`, `clone_into_handle`
+/// will be used to obtain a new `NotifyHandle`.
+///
+/// Notably `Arc<T>` implements this when `T: Notify + Sized + 'static`.
+/// If you have a `Notify` and you are wondering how to pass it to a
+/// polling method, the answer is just wrap your `Notify` in an `Arc`.
+pub trait CloneIntoNotifyHandle {
+    /// Obtain an owned `NotifyHandle`.
+    fn clone_into_handle(&self) -> NotifyHandle;
+}
+
+impl<T: Notify> CloneIntoNotifyHandle for Arc<T> where T: Notify + 'static {
+    fn clone_into_handle(&self) -> NotifyHandle {
+        NotifyHandle::from(self.clone())
+    }
+}
+
+impl CloneIntoNotifyHandle for NotifyHandle {
+    fn clone_into_handle(&self) -> NotifyHandle {
+        self.clone()
     }
 }
