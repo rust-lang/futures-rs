@@ -15,7 +15,7 @@
 
 use {Future, Poll, Async};
 use task::{self, Task, Spawn};
-use executor::{Notify, NotifyHandle};
+use executor::Notify;
 
 use std::{fmt, mem, ops};
 use std::cell::UnsafeCell;
@@ -163,9 +163,8 @@ impl<F> Future for Shared<F>
 
             // Poll the future
             let res = unsafe {
-                let notify  = NotifyHandle::from(self.inner.notifier.clone());
                 (*self.inner.future.get()).as_mut().unwrap()
-                    .poll_future_notify(&notify, 0)
+                    .poll_future_notify(&self.inner.notifier, 0)
             };
             match res {
                 Ok(Async::NotReady) => {
