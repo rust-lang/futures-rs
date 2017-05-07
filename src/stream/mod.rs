@@ -636,8 +636,7 @@ pub trait Stream {
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut,
-              Fut: IntoFuture<Item = T>,
-              Self::Error: From<Fut::Error>,
+              Fut: IntoFuture<Item = T, Error = Self::Error>,
               Self: Sized
     {
         fold::new(self, f, init)
