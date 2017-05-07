@@ -81,6 +81,7 @@ use task::{self, Task};
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
 mod queue;
+pub mod unbounded;
 
 /// The transmission end of a channel which is used to send values.
 ///
@@ -285,18 +286,14 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
         maybe_parked: false,
     };
 
-    let rx = Receiver {
-        inner: inner,
-    };
+    let rx = Receiver { inner: inner };
 
     (tx, rx)
 }
 
-/*
- *
- * ===== impl Sender =====
- *
- */
+// ===== impl Sender =====
+//
+//
 
 impl<T> Sender<T> {
     // Do the send without failing
@@ -383,8 +380,8 @@ impl<T> Sender<T> {
             // This probably is never hit? Odds are the process will run out of
             // memory first. It may be worth to return something else in this
             // case?
-            assert!(state.num_messages < MAX_CAPACITY, "buffer space exhausted; \
-                    sending this messages would overflow the state");
+            assert!(state.num_messages < MAX_CAPACITY,
+                    "buffer space exhausted; sending this messages would overflow the state");
 
             state.num_messages += 1;
 
@@ -442,11 +439,7 @@ impl<T> Sender<T> {
     fn park(&mut self, can_park: bool) {
         // TODO: clean up internal state if the task::park will fail
 
-        let task = if can_park {
-            Some(task::park())
-        } else {
-            None
-        };
+        let task = if can_park { Some(task::park()) } else { None };
 
         *self.sender_task.lock().unwrap() = task;
 
@@ -469,7 +462,7 @@ impl<T> Sender<T> {
 
             if task.is_none() {
                 self.maybe_parked = false;
-                return Async::Ready(())
+                return Async::Ready(());
             }
 
             // At this point, an unpark request is pending, so there will be an
@@ -610,11 +603,9 @@ impl<T> Drop for Sender<T> {
     }
 }
 
-/*
- *
- * ===== impl Receiver =====
- *
- */
+// ===== impl Receiver =====
+//
+//
 
 impl<T> Receiver<T> {
     /// Closes the receiving half
@@ -828,11 +819,9 @@ impl<T> Stream for UnboundedReceiver<T> {
     }
 }
 
-/*
- *
- * ===== impl Inner =====
- *
- */
+// ===== impl Inner =====
+//
+//
 
 impl<T> Inner<T> {
     // The return value is such that the total number of messages that can be
@@ -848,11 +837,9 @@ impl<T> Inner<T> {
 unsafe impl<T: Send> Send for Inner<T> {}
 unsafe impl<T: Send> Sync for Inner<T> {}
 
-/*
- *
- * ===== Helpers =====
- *
- */
+// ===== Helpers =====
+//
+//
 
 fn decode_state(num: usize) -> State {
     State {
