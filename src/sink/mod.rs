@@ -398,11 +398,13 @@ pub trait Sink {
     ///
     /// This future will drive the stream to keep producing items until it is
     /// exhausted, sending each item to the sink. It will complete once both the
-    /// stream is exhausted, and the sink has fully processed and flushed all of
-    /// the items sent to it.
+    /// stream is exhausted, the sink has received all items, the sink has been
+    /// flushed, and the sink has been closed.
     ///
     /// Doing `sink.send_all(stream)` is roughly equivalent to
-    /// `stream.forward(sink)`.
+    /// `stream.forward(sink)`. The returned future will exhaust all items from
+    /// `stream` and send them to `self`, closing `self` when all items have ben
+    /// received.
     ///
     /// On completion, the pair `(sink, source)` is returned.
     fn send_all<S>(self, stream: S) -> SendAll<Self, S>
