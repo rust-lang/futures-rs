@@ -801,6 +801,30 @@ pub trait Stream {
         fuse::new(self)
     }
 
+    /// Borrows a stream, rather than consuming it.
+    ///
+    /// This is useful to allow applying stream adaptors while still retaining
+    /// ownership of the original stream.
+    ///
+    /// ```
+    /// use futures::future::{ok, Future};
+    /// use futures::stream::{self, Stream};
+    ///
+    /// let mut stream = stream::iter::<_, _, ()>((1..5).map(Ok));
+    ///
+    /// let sum = stream.by_ref().take(2).fold(0, |a, b| ok(a + b)).wait();
+    /// assert_eq!(sum, Ok(3));
+    ///
+    /// // You can use the stream again
+    /// let sum = stream.take(2).fold(0, |a, b| ok(a + b)).wait();
+    /// assert_eq!(sum, Ok(7));
+    /// ```
+    fn by_ref(&mut self) -> &mut Self
+        where Self: Sized
+    {
+        self
+    }
+
     /// Catches unwinding panics while polling the stream.
     ///
     /// Caught panic (if any) will be the last element of the resulting stream.
