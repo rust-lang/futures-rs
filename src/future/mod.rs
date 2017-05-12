@@ -74,6 +74,12 @@ pub use self::select2::Select2;
 pub use self::then::Then;
 pub use self::either::Either;
 
+#[cfg(feature = "use_std")]
+mod ready_queue;
+
+#[cfg(feature = "use_std")]
+pub use self::ready_queue::ReadyQueue;
+
 if_std! {
     mod catch_unwind;
     mod join_all;

@@ -19,7 +19,7 @@ mod data;
 pub use self::data::LocalKey;
 
 mod atomic_task;
-use self::atomic_task::AtomicTask;
+pub use self::atomic_task::AtomicTask;
 
 mod task_rc;
 #[allow(deprecated)]
@@ -838,6 +838,20 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
         let new_task = BorrowedTask {
             unpark: task.unpark,
             events: BorrowedEvents::One(&event, &task.events),
+            map: task.map,
+        };
+
+        set(&new_task, f)
+    })
+}
+
+pub fn with_notify<F, R>(notify: &NotifyHandle, id: u64, f: F) -> R
+    where F: FnOnce() -> R
+{
+    with(|task| {
+        let new_task = BorrowedTask {
+            unpark: BorrowedUnpark::New(notify, id),
+            events: task.events,
             map: task.map,
         };
 
