@@ -1088,6 +1088,22 @@ impl<T: Notify + 'static> Notify for ArcWrapped<T> {
                       id)
         }
     }
+
+    fn ref_inc(&self, id: u64) {
+        unsafe {
+            let me: *const ArcWrapped<T> = self;
+            T::ref_inc(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
+                      id)
+        }
+    }
+
+    fn ref_dec(&self, id: u64) {
+        unsafe {
+            let me: *const ArcWrapped<T> = self;
+            T::ref_dec(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
+                      id)
+        }
+    }
 }
 
 unsafe impl<T: Notify + 'static> UnsafeNotify for ArcWrapped<T> {
