@@ -93,7 +93,7 @@ fn dropping_ready_queue() {
 
 #[test]
 fn stress() {
-    const ITER: usize = 500;
+    const ITER: usize = 300;
 
     use std::sync::{Arc, Barrier};
     use std::thread;
@@ -102,33 +102,40 @@ fn stress() {
         let n = (i % 10) + 1;
 
         let mut queue = ReadyQueue::new();
-        let barrier = Arc::new(Barrier::new(n + 1));
 
-        for num in 0..n {
-            let barrier = barrier.clone();
-            let (tx, rx) = oneshot::channel();
+        for _ in 0..5 {
+            let barrier = Arc::new(Barrier::new(n + 1));
 
-            queue.push(rx);
+            for num in 0..n {
+                let barrier = barrier.clone();
+                let (tx, rx) = oneshot::channel();
 
-            thread::spawn(move || {
-                barrier.wait();
-                tx.send(num).unwrap();
-            });
-        }
+                queue.push(rx);
 
-        barrier.wait();
+                thread::spawn(move || {
+                    barrier.wait();
+                    tx.send(num).unwrap();
+                });
+            }
 
-        let mut rx: Vec<_> = queue.wait()
-            .take(n)
-            .map(|res| res.unwrap())
-            .collect();
+            barrier.wait();
 
-        assert_eq!(rx.len(), n);
+            let mut sync = queue.wait();
 
-        rx.sort();
+            let mut rx: Vec<_> = (&mut sync)
+                .take(n)
+                .map(|res| res.unwrap())
+                .collect();
 
-        for num in 0..n {
-            assert_eq!(rx[num], num);
+            assert_eq!(rx.len(), n);
+
+            rx.sort();
+
+            for num in 0..n {
+                assert_eq!(rx[num], num);
+            }
+
+            queue = sync.into_inner();
         }
     }
 }
