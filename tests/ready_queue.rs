@@ -6,6 +6,15 @@ use futures::future::{self, ReadyQueue};
 use futures::sync::oneshot;
 
 #[test]
+fn bounds() {
+    fn is_send<T: Send>() {}
+    fn is_sync<T: Sync>() {}
+
+    is_send::<ReadyQueue<()>>();
+    is_sync::<ReadyQueue<()>>();
+}
+
+#[test]
 fn basic_usage() {
     future::lazy(move || {
         let mut queue = ReadyQueue::new();
@@ -29,7 +38,7 @@ fn basic_usage() {
 
         assert_eq!(Ready(Some("world")), queue.poll().unwrap());
         assert_eq!(Ready(Some("world2")), queue.poll().unwrap());
-        assert!(!queue.poll().unwrap().is_ready());
+        assert_eq!(Ready(None), queue.poll().unwrap());
 
         Ok::<_, ()>(())
     }).wait().unwrap();
@@ -59,7 +68,7 @@ fn resolving_errors() {
 
         assert!(queue.poll().is_err());
         assert_eq!(Ready(Some("world2")), queue.poll().unwrap());
-        assert!(!queue.poll().unwrap().is_ready());
+        assert_eq!(Ready(None), queue.poll().unwrap());
 
         Ok::<_, ()>(())
     }).wait().unwrap();
