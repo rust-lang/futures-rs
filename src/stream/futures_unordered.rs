@@ -1,9 +1,6 @@
-use future::{Future, IntoFuture};
+use future::{Future, IntoFuture, ReadyQueue};
 use stream::Stream;
 use poll::Poll;
-use Async;
-use stack::{Stack, Drain};
-use task::NotifyContext;
 
 use std::prelude::v1::*;
 
@@ -18,10 +15,7 @@ use std::prelude::v1::*;
 pub struct FuturesUnordered<F>
     where F: Future
 {
-    futures: Vec<Option<F>>,
-    stack: NotifyContext<Stack<usize>>,
-    pending: Option<Drain<usize>>,
-    active: usize,
+    queue: ReadyQueue<F>,
 }
 
 /// Converts a list of futures into a `Stream` of results from the futures.
@@ -35,54 +29,13 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
     where I: IntoIterator,
           I::Item: IntoFuture
 {
-    let futures = futures.into_iter()
-                         .map(IntoFuture::into_future)
-                         .map(Some)
-                         .collect::<Vec<_>>();
-    let stack = NotifyContext::new(Stack::new());
-    for i in 0..futures.len() {
-        stack.get_ref().push(i);
-    }
-    FuturesUnordered {
-        active: futures.len(),
-        futures: futures,
-        pending: None,
-        stack: stack,
-    }
-}
+    let mut queue = ReadyQueue::new();
 
-impl<F> FuturesUnordered<F>
-    where F: Future
-{
-    fn poll_pending(&mut self, mut drain: Drain<usize>)
-                    -> Option<Poll<Option<F::Item>, F::Error>> {
-        while let Some(id) = drain.next() {
-            // If this future was already done just skip the notification
-            if self.futures[id].is_none() {
-                continue
-            }
-
-            let res = {
-                let f = &mut self.futures[id];
-                self.stack.with(id as u64, || {
-                    f.as_mut()
-                        .unwrap()
-                        .poll()
-                })
-            };
-
-            let ret = match res {
-                Ok(Async::NotReady) => continue,
-                Ok(Async::Ready(val)) => Ok(Async::Ready(Some(val))),
-                Err(e) => Err(e),
-            };
-            self.pending = Some(drain);
-            self.active -= 1;
-            self.futures[id] = None;
-            return Some(ret)
-        }
-        None
+    for future in futures {
+        queue.push(future.into_future());
     }
+
+    FuturesUnordered { queue: queue }
 }
 
 impl<F> Stream for FuturesUnordered<F>
@@ -92,19 +45,6 @@ impl<F> Stream for FuturesUnordered<F>
     type Error = F::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        if self.active == 0 {
-            return Ok(Async::Ready(None))
-        }
-        if let Some(drain) = self.pending.take() {
-            if let Some(ret) = self.poll_pending(drain) {
-                return ret
-            }
-        }
-        let drain = self.stack.get_ref().drain();
-        if let Some(ret) = self.poll_pending(drain) {
-            return ret
-        }
-        assert!(self.active > 0);
-        Ok(Async::NotReady)
+        self.queue.poll()
     }
 }
