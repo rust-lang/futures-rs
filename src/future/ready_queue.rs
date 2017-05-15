@@ -7,7 +7,7 @@ use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::sync::atomic::{AtomicUsize, AtomicPtr};
-use std::sync::atomic::Ordering::{Relaxed, AcqRel, Acquire, Release};
+use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
 
 /// An unbounded queue of futures.
 ///
@@ -30,6 +30,7 @@ use std::sync::atomic::Ordering::{Relaxed, AcqRel, Acquire, Release};
 /// either return the future's resolved value **or** `Ok(Async::NotReady)` if
 /// the future has not yet completed.
 pub struct ReadyQueue<T> {
+    stub: Box<Node<T>>,
     inner: *mut Inner<T>,
     len: usize,
     head_all: *mut Node<T>,
@@ -60,9 +61,6 @@ pub struct ReadyQueue<T> {
 // isn't currently inserted.
 
 struct Inner<T> {
-    // Stub node
-    stub: Box<Node<T>>,
-
     // The task using `ReadyQueue`.
     parent: AtomicTask,
 
@@ -125,11 +123,15 @@ impl<T> ReadyQueue<T>
         let inner = Box::new(Inner {
             parent: AtomicTask::new(),
             head_readiness: AtomicPtr::new(&mut *stub as *mut _),
-            stub: stub,
+
+            // This reference count is initialized with one to be held by the
+            // `ReadyQueue` itself. It's then decremented as part of the `Drop`
+            // implementation for `ReadyQueue`.
             ref_count: AtomicUsize::new(1),
         });
 
         ReadyQueue {
+            stub: stub,
             len: 0,
             head_all: ptr::null_mut(),
             tail_readiness: stub_ptr,
@@ -163,20 +165,29 @@ impl<T> ReadyQueue<T> {
             next_all: UnsafeCell::new(self.head_all),
             prev_all: UnsafeCell::new(ptr::null_mut()),
             next_readiness: AtomicPtr::new(ptr::null_mut()),
+
+            // This node is initialized with a strong reference count of one
+            // which is held by the internal `head_all` linked list of futures.
+            //
+            // This'll get decremented when the node's future is completed, or
+            // the `ReadyQueue` is dropped.
             state: AtomicUsize::new(QUEUED | 1),
         });
 
         let ptr = Box::into_raw(node);
 
         unsafe {
-            if let Some(curr_head) = self.head_all.as_mut() {
-                *curr_head.prev_all.get() = ptr;
+            if !self.head_all.is_null() {
+                *(*self.head_all).prev_all.get() = ptr;
             }
         }
 
         self.head_all = ptr;
 
-        // Enqueue the node
+        // We'll need to get the future "into the system" to start tracking it,
+        // e.g. getting its unpark notifications going to us tracking which
+        // futures are ready. To do that we unconditionally enqueue it for
+        // polling here.
         self.inner().enqueue(ptr);
 
         self.len += 1;
@@ -191,7 +202,7 @@ impl<T> ReadyQueue<T> {
             let mut tail = self.tail_readiness;
             let mut next = (*tail).next_readiness.load(Acquire);
 
-            if tail == self.inner().stub() {
+            if tail == self.stub() {
                 if next.is_null() {
                     return Dequeue::Empty;
                 }
@@ -203,7 +214,7 @@ impl<T> ReadyQueue<T> {
 
             if !next.is_null() {
                 self.tail_readiness = next;
-                debug_assert!(tail != self.inner().stub());
+                debug_assert!(tail != self.stub());
                 return Dequeue::Data(tail);
             }
 
@@ -212,7 +223,7 @@ impl<T> ReadyQueue<T> {
             }
 
             // Push the stub node
-            self.inner().enqueue(self.inner().stub());
+            self.inner().enqueue(self.stub());
 
             next = (*tail).next_readiness.load(Acquire);
 
@@ -225,13 +236,13 @@ impl<T> ReadyQueue<T> {
         }
     }
 
-    fn release_node(&mut self, node: &mut Node<T>) {
+    unsafe fn release_node(&mut self, node: *mut Node<T>) {
         // The future is done, try to reset the queued flag. This will prevent
         // `notify` from doing any work in the future
-        let prev = node.state.fetch_or(QUEUED, AcqRel);
+        let prev = (*node).state.fetch_or(QUEUED, SeqCst);
 
-        // Drop the future...
-        let _ = unsafe { (*node.future.get()).take() };
+        // Drop the future, even if it hasn't finished yet.
+        drop((*(*node).future.get()).take());
 
         // Unlink the node
         self.unlink(node);
@@ -241,28 +252,35 @@ impl<T> ReadyQueue<T> {
             // node. If this doesn't happen, the node was requeued in the
             // readiness queue, so we will see it again, but next time the `&mut
             // None` branch will be hit freeing the node.
-            unsafe { release(node) };
+            release(node);
         }
     }
 
     /// Remove the node from the linked list tracking all nodes currently
     /// managed by `ReadyQueue`.
-    fn unlink(&mut self, node: &mut Node<T>) {
-        unsafe {
-            if let Some(next) = (*node.next_all.get()).as_mut() {
-                *next.prev_all.get() = *node.prev_all.get();
-            }
+    unsafe fn unlink(&mut self, node: *mut Node<T>) {
+        let next = *(*node).next_all.get();
+        let prev = *(*node).prev_all.get();
+        *(*node).next_all.get() = ptr::null_mut();
+        *(*node).prev_all.get() = ptr::null_mut();
 
-            if let Some(prev) = (*node.prev_all.get()).as_mut() {
-                *prev.next_all.get() = *node.next_all.get();
-            } else {
-                self.head_all = *node.next_all.get();
-            }
+        if !next.is_null() {
+            *(*next).prev_all.get() = prev;
+        }
+
+        if !prev.is_null() {
+            *(*prev).next_all.get() = next;
+        } else {
+            self.head_all = next;
         }
     }
 
     fn inner(&self) -> &Inner<T> {
         unsafe { &*self.inner }
+    }
+
+    fn stub(&self) -> *mut Node<T> {
+        &*self.stub as *const Node<T> as *mut Node<T>
     }
 }
 
@@ -273,11 +291,14 @@ impl<T> Stream for ReadyQueue<T>
     type Error = T::Error;
 
     fn poll(&mut self) -> Poll<Option<T::Item>, T::Error> {
-        // Ensure `parent` is correctly set
+        // Ensure `parent` is correctly set. Note that the `unsafe` here is
+        // because the `park` method underneath needs mutual exclusion from
+        // other calls to `park`, which we guarantee with `&mut self` above and
+        // this is the only method which calls park.
         unsafe { self.inner().parent.park() };
 
         loop {
-            match self.dequeue() {
+            let node = match self.dequeue() {
                 Dequeue::Empty => {
                     if self.is_empty() {
                         return Ok(Async::Ready(None));
@@ -292,53 +313,69 @@ impl<T> Stream for ReadyQueue<T>
                     task::current().notify();
                     return Ok(Async::NotReady);
                 }
-                Dequeue::Data(node) => {
-                    debug_assert!(node != self.inner().stub());
-                    let node = unsafe { &mut *node };
+                Dequeue::Data(node) => node,
+            };
 
-                    // Only try running the future if it hasn't already been
-                    // completed.
-                    match unsafe { &mut *node.future.get() } {
-                        &mut Some(ref mut f) => {
-                            // Unset queued flag... this must be done before
-                            // polling. This ensures that the future gets
-                            // rescheduled if it is notified **during** a call
-                            // to `poll`.
-                            node.state.fetch_and(!QUEUED, AcqRel);
+            debug_assert!(node != self.stub());
 
-                            // Create the notify handler.
-                            //
-                            // TODO: Attempt to avoid the Arc clone
-                            let notify = unsafe { (*self.inner).clone_raw() };
-                            let id = node as *const _ as u64;
-
-                            // Poll the future
-                            let res = task_impl::with_notify(&notify, id, || {
-                                f.poll()
-                            });
-
-                            match res {
-                                Ok(Async::NotReady) => {
-                                    // Nothing more to do
-                                }
-                                res => {
-                                    self.len -= 1;
-                                    self.release_node(node);
-
-                                    return match res {
-                                        Ok(Async::Ready(v)) => Ok(Async::Ready(Some(v))),
-                                        Err(e) => Err(e),
-                                        _ => unreachable!(),
-                                    };
-                                }
-                            }
-                        }
-                        &mut None => {
-                            // Release the node
-                            unsafe { release(node) };
-                        }
-                    }
+            unsafe {
+                // If the future has already gone away then we're just cleaning
+                // out this node.
+                if (*(*node).future.get()).is_none() {
+                    assert!((*(*node).next_all.get()).is_null());
+                    assert!((*(*node).prev_all.get()).is_null());
+                    release(node);
+                    continue
                 }
+
+                // Unset queued flag... this must be done before
+                // polling. This ensures that the future gets
+                // rescheduled if it is notified **during** a call
+                // to `poll`.
+                let prev = (*node).state.fetch_and(!QUEUED, SeqCst);
+                assert!(prev & QUEUED == QUEUED);
+
+                // Poll the underlying future with the appropriate `notify`
+                // implementation and `id`. This is where a large bit of the
+                // unsafety starts to stem from internally. The `notify`
+                // instance itself is basically just our `*mut Inner<T>` and
+                // tracks the mpsc queue of ready futures. The `id`, however, is
+                // the `*mut Node<T>` cast to a `u64`.
+                //
+                // We then override the `ref_inc` and `ref_dec` functions below
+                // in `Notify for Inner<T>` to track the reference count of the
+                // `*mut Node<T>`.
+                //
+                // Critically though neither `Inner<T>` nor `Node<T>` will
+                // actually access `T`, the future, while they're floating
+                // around inside of `Task` instances. These structs will
+                // basically just use `T` to size the internal allocation,
+                // appropriately accessing fields and deallocating the node if
+                // need be.
+                //
+                // You can sort of think of `*mut Node<T>` as a `Weak<T>`, but
+                // not exactly because we statically know that we won't attempt
+                // to upgrade it, hence the looser restrictions around safety
+                // here.
+                //
+                // TODO: Attempt to avoid the Arc clone here when creating
+                //       `notify`.
+                let notify = (*self.inner).clone_raw();
+                let id = node as u64;
+                let res = task_impl::with_notify(&notify, id, || {
+                    let future = (*node).future.get();
+                    (*future).as_mut().unwrap().poll()
+                });
+
+                let ret = match res {
+                    Ok(Async::NotReady) => continue,
+                    Ok(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
+                    Err(e) => Err(e),
+                };
+                self.len -= 1;
+                self.release_node(node);
+
+                return ret
             }
         }
     }
@@ -346,9 +383,18 @@ impl<T> Stream for ReadyQueue<T>
 
 impl<T> Drop for ReadyQueue<T> {
     fn drop(&mut self) {
+        // When a `ReadyQueue` is dropped we want to drop all futures associated
+        // with it. At the same time though there may be tons of `Task` handles
+        // flying around which contain `Node<T>` references inside them. We'll
+        // let those naturally get deallocated when the `Task` itself goes out
+        // of scope or gets notified.
+        //
+        // Note that the `inner.drop_raw()` here is dropping our own reference
+        // count of `inner`, it may not get deallocated until later as well.
         unsafe {
-            while let Some(node) = self.head_all.as_mut() {
-                self.release_node(node);
+            while !self.head_all.is_null() {
+                let head = self.head_all;
+                self.release_node(head);
             }
 
             (*self.inner).drop_raw();
@@ -374,32 +420,29 @@ impl<T> Inner<T> {
             // This action does not require any coordination
             (*node).next_readiness.store(ptr::null_mut(), Relaxed);
 
+            // Note that these atomic orderings come from 1024cores
             let prev = self.head_readiness.swap(node, AcqRel);
             (*prev).next_readiness.store(node, Release);
         }
-    }
-
-    fn stub(&self) -> *mut Node<T> {
-        let ret = &*self.stub as *const _ as *mut _;
-        debug_assert!(self.stub.state.load(Relaxed) & QUEUED == QUEUED);
-        ret
     }
 }
 
 impl<T> Notify for Inner<T> {
     fn notify(&self, id: u64) {
         unsafe {
-            let node: &Node<T> = Node::from_id(id);
+            let node = Node::<T>::from_id(id);
 
-            debug_assert!(node as *const _ as *mut _ != self.stub());
-
-            let prev = node.state.fetch_or(QUEUED, AcqRel);
-
+            // It's our job to notify the node that it's ready to get polled,
+            // meaning that we need to enqueue it into the readiness queue. To
+            // do this we flag that we're ready to be queued, and if successful
+            // we then do the literal queueing operation, ensuring that we're
+            // only queued once.
+            //
+            // Once the node is inserted we be sure to notify the parent task,
+            // as it'll want to come along and pick up our node now.
+            let prev = (*node).state.fetch_or(QUEUED, SeqCst);
             if prev & QUEUED == 0 {
-                // Enqueue the task
-                self.enqueue(node as *const _ as *mut _);
-
-                // Notify the parent after the task has been enqueued
+                self.enqueue(node);
                 self.parent.notify();
             }
         }
@@ -407,32 +450,20 @@ impl<T> Notify for Inner<T> {
 
     fn ref_inc(&self, id: u64) {
         unsafe {
-            let node: &Node<T> = Node::from_id(id);
+            let node = Node::<T>::from_id(id);
 
-            // Using a relaxed ordering is alright here, as knowledge of the
-            // original reference prevents other threads from erroneously
-            // deleting the object.
-            //
-            // As explained in the [Boost documentation][1], Increasing the
-            // reference counter can always be done with memory_order_relaxed:
-            // New references to an object can only be formed from an existing
-            // reference, and passing an existing reference from one thread to
-            // another must already provide any required synchronization.
-            //
-            // [1]: (www.boost.org/doc/libs/1_55_0/doc/html/atomic/usage_examples.html)
-            debug_assert!(node as *const _ as *mut _ != self.stub());
-            let old_size = node.state.fetch_add(1, Relaxed);
-
+            // This is basically the same as Arc::clone, and see Arc::clone for
+            // rationale on the Relaxed fetch_add
+            let old_size = (*node).state.fetch_add(1, Relaxed);
             if old_size > MAX_REFS {
-                panic!(); // TODO: abort
+                abort("refcount overflow");
             }
         }
     }
 
     fn ref_dec(&self, id: u64) {
         unsafe {
-            let node: &Node<T> = Node::from_id(id);
-            debug_assert!(node as *const _ as *mut _ != self.stub());
+            let node = Node::<T>::from_id(id);
             release(node);
         }
     }
@@ -440,43 +471,18 @@ impl<T> Notify for Inner<T> {
 
 unsafe impl<T> UnsafeNotify for Inner<T> {
     unsafe fn clone_raw(&self) -> NotifyHandle {
-        /*
-        let me: *const ArcWrapped<T> = self;
-        let ptr = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
-        NotifyHandle::from(ptr)
-        */
-
-        // Using a relaxed ordering is alright here, as knowledge of the
-        // original reference prevents other threads from erroneously deleting
-        // the object.
-        //
-        // As explained in the [Boost documentation][1], Increasing the
-        // reference counter can always be done with memory_order_relaxed: New
-        // references to an object can only be formed from an existing
-        // reference, and passing an existing reference from one thread to
-        // another must already provide any required synchronization.
-        //
-        // [1]: (www.boost.org/doc/libs/1_55_0/doc/html/atomic/usage_examples.html)
+        // This is basically the same as Arc::clone, and see Arc::clone for
+        // rationale on the Relaxed fetch_add
         let old_size = self.ref_count.fetch_add(1, Relaxed);
-
-        // However we need to guard against massive refcounts in case someone
-        // is `mem::forget`ing Arcs. If we don't do this the count can overflow
-        // and users will use-after free. We racily saturate to `isize::MAX` on
-        // the assumption that there aren't ~2 billion threads incrementing
-        // the reference count at once. This branch will never be taken in
-        // any realistic program.
-        //
-        // We abort because such a program is incredibly degenerate, and we
-        // don't care to support it.
         if old_size > MAX_REFS {
-            panic!(); // TODO: abort
+            abort("refcount overflow");
         }
 
-        NotifyHandle::new(hide_lt(self as &UnsafeNotify as *const _ as *mut _))
+        NotifyHandle::new(hide_lt(self))
     }
 
     unsafe fn drop_raw(&self) {
-        if self.ref_count.fetch_sub(1, AcqRel) != 1 {
+        if self.ref_count.fetch_sub(1, SeqCst) != 1 {
             return;
         }
 
@@ -484,28 +490,53 @@ unsafe impl<T> UnsafeNotify for Inner<T> {
     }
 }
 
+// Note that these are all basically a lie. The safety here, though, derives
+// from how `Inner<T>` will never touch `T` in terms of memory, drops, etc. We
+// basically only use it to statically know the size of the `Node<T>` instances
+// that we are dropping.
 unsafe impl<T> Send for Inner<T> {}
 unsafe impl<T> Sync for Inner<T> {}
 
+unsafe fn hide_lt<T>(p: *const Inner<T>) -> *mut UnsafeNotify {
+    mem::transmute(p as *mut Inner<T> as *mut UnsafeNotify)
+}
+
 impl<T> Node<T> {
-    unsafe fn from_id<'a>(id: u64) -> &'a Node<T> {
-        mem::transmute(id as usize)
+    unsafe fn from_id(id: u64) -> *mut Node<T> {
+        id as *mut Node<T>
     }
 }
 
-unsafe fn release<T>(node: &Node<T>) {
-    let old_state = node.state.fetch_sub(1, AcqRel);
+// Note that this function needs to critically *be blind to T*. This can run on
+// any thread or in any lifetime, irrespective to `T` itself and whether it
+// would safely allow that. As a result it's critical this function doesn't
+// access `T` at all via dtor, deref, etc.
+unsafe fn release<T>(node: *mut Node<T>) {
+    let old_state = (*node).state.fetch_sub(1, SeqCst);
 
     if (old_state & !QUEUED) != 1 {
         return;
     }
 
-    // The future should have already been cleared
-    debug_assert!((*node.future.get()).is_none());
+    // The future should have already been cleared, and if not we're not allowed
+    // to touch `T` so we need to abort.
+    if (*(*node).future.get()).is_some() {
+        abort("future should already be dropped");
+    }
 
-    let _: Box<Node<T>> = Box::from_raw(node as *const _ as *mut _);
+    drop(Box::from_raw(node));
 }
 
-fn hide_lt<'a>(p: *mut (UnsafeNotify + 'a)) -> *mut UnsafeNotify {
-    unsafe { mem::transmute(p) }
+fn abort(s: &str) -> ! {
+    struct DoublePanic;
+
+    impl Drop for DoublePanic {
+        fn drop(&mut self) {
+            panic!("panicking twice to abort the program");
+        }
+    }
+
+    let _bomb = DoublePanic;
+    panic!("{}", s);
+
 }
