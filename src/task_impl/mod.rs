@@ -125,7 +125,7 @@ enum UnparkEvents {
 ///
 /// It's sometimes necessary to pass extra information to the task when
 /// unparking it, so that the task knows something about *why* it was woken.
-/// See the `NotifyContext` documentation for details on how to do this.
+/// See the `FutureQueue` documentation for details on how to do this.
 ///
 /// # Panics
 ///
@@ -678,102 +678,6 @@ pub trait Notify: Send + Sync {
     #[doc(hidden)]
     fn is_current(&self) -> Option<bool> {
         None
-    }
-}
-
-// ===== NotifyContext =====
-
-/// A notify context allows for more fine grained notification events.
-///
-/// See `with` function documentation for more detail.
-#[derive(Debug)]
-pub struct NotifyContext<T> {
-    inner: Arc<NotifyContextInner<T>>,
-}
-
-impl<T: Notify + 'static> NotifyContext<T> {
-    /// Create a new `NotifyContext` backed by the provided instance of
-    /// `notify`.
-    ///
-    /// When the `with` method below is called it will schedule the `notify_id`
-    /// argument passed to the `with` method to get passed into this instance of
-    /// `notify`. The `notify` instance here will likely live for the duration
-    /// of the `NotifyContext` context returned.
-    pub fn new(notify: T) -> NotifyContext<T> {
-        NotifyContext {
-            inner: Arc::new(NotifyContextInner{
-                obj: notify,
-                parent: AtomicTask::new(),
-            }),
-        }
-    }
-
-    /// Gets a reference to the underlying instance of `Notify`
-    pub fn get_ref(&self) -> &T {
-        &self.inner.obj
-    }
-
-    /// Execute the closure within the given notify context.
-    ///
-    /// Notify contexts are used to pass information about what event caused a
-    /// task to be notified. In some cases, tasks are waiting on a large number
-    /// of possible events and need precise information about the wakeup to
-    /// avoid extraneous polling. Knowledge of precisely what woke up a task
-    /// allows a task to drill into the exact future which became ready,
-    /// completely bypassing work with "not ready" futures.
-    ///
-    /// For the duration of the provided closure all calls to `task::current()`
-    /// will return a `Task` handle that is configured to deliver notifications
-    /// to the internal instance of `Notify` inside this `NotifyContext`.
-    ///
-    /// For example let's say the `notify_id` provided here is 3. During the
-    /// closure `f` we at some point call `task::current`, and squirrel that
-    /// away to await on an event. Later on once this task becomes ready, the
-    /// `Task::notify` method is invoked. At that time is `NotifyContext`'s
-    /// internal instance of `Notify` will be invoked with 3, and then the task
-    /// outside of this `NotifyContext` will also be invoked as usual.
-    ///
-    /// The `with` function supports nesting. You can nest arbitrarily many
-    /// calls to `with` TODO: broken
-    ///
-    /// # Panics
-    ///
-    /// This function must be called from within the context of an already
-    /// running task. If a task is not currently running then this function will
-    /// panic.
-    pub fn with<F, R>(&mut self, unpark_id: u64, f: F) -> R
-        where F: FnOnce() -> R
-    {
-        let unpark = NotifyHandle::from(self.inner.clone());
-
-        unsafe {
-            // `park` on atomic task requires a guarantee of mutal exclusion.
-            // This is enforced by having `&mut self` on `with`.
-            self.inner.parent.park();
-        }
-
-        with(|task| {
-            let new_task = BorrowedTask {
-                unpark: BorrowedUnpark::New(&unpark, unpark_id),
-                events: task.events,
-                map: task.map,
-            };
-
-            set(&new_task, f)
-        })
-    }
-}
-
-#[derive(Debug)]
-struct NotifyContextInner<T> {
-    obj: T,
-    parent: AtomicTask,
-}
-
-impl<T: Notify> Notify for NotifyContextInner<T> {
-    fn notify(&self, unpark_id: u64) {
-        self.obj.notify(unpark_id);
-        self.parent.notify();
     }
 }
 

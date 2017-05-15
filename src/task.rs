@@ -37,7 +37,6 @@ pub use task_impl::{Spawn, spawn, Unpark, Executor, Run};
 pub use task_impl::{Task, park, current};
 #[allow(deprecated)]
 pub use task_impl::{LocalKey, with_unpark_event, UnparkEvent, EventSet};
-pub use task_impl::NotifyContext;
 
 #[doc(hidden)]
 #[deprecated(since = "0.1.4", note = "import through the executor module instead")]
