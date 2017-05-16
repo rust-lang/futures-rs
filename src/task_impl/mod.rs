@@ -27,6 +27,7 @@ mod task_rc;
 pub use self::task_rc::TaskRc;
 
 struct BorrowedTask<'a> {
+    id: usize,
     unpark: BorrowedUnpark<'a>,
     events: BorrowedEvents<'a>,
     // Task-local storage
@@ -45,6 +46,21 @@ enum BorrowedUnpark<'a> {
 enum BorrowedEvents<'a> {
     None,
     One(&'a UnparkEvent, &'a BorrowedEvents<'a>),
+}
+
+fn fresh_task_id() -> usize {
+    use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+
+    // TODO: this assert is a real bummer, need to figure out how to reuse
+    //       old IDs that are no longer in use.
+    //
+    // Note, though, that it is intended that these ids go away entirely
+    // eventually, see the comment on `is_current` below.
+    static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    assert!(id < usize::max_value() / 2,
+            "too many previous tasks have been allocated");
+    id
 }
 
 thread_local!(static CURRENT_TASK: Cell<*const BorrowedTask<'static>> = {
@@ -89,6 +105,7 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 ///
 /// This is obtained by the `task::current` function.
 pub struct Task {
+    id: usize,
     unpark: TaskUnpark,
     events: UnparkEvents,
 }
@@ -169,6 +186,7 @@ pub fn current() -> Task {
         };
 
         Task {
+            id: borrowed.id,
             unpark: unpark,
             events: events,
         }
@@ -214,30 +232,97 @@ impl Task {
         self.notify()
     }
 
-    /// Returns `true` when called from within the context of the task. In
-    /// other words, the task is currently running on the thread calling the
-    /// function.
+    /// Returns `true` when called from within the context of the task.
+    ///
+    /// In other words, the task is currently running on the thread calling the
+    /// function. Note that this is currently, and has historically, been
+    /// implemented by tracking an `id` on every instance of `Spawn` created.
+    /// When a `Spawn` is being polled it stores in thread-local-storage the id
+    /// of the instance, and then `task::current` will return a `Task` that also
+    /// stores this id.
+    ///
+    /// The intention of this function was to answer questions like "if I
+    /// `notify` this task, is it equivalent to `task::current().notify()`?"
+    /// The answer "yes" may be able to avoid some extra work to block the
+    /// current task, such as sending a task along a channel or updating a
+    /// stored `Task` somewhere. An answer of "no" typically results in doing
+    /// the work anyway.
+    ///
+    /// Unfortunately this function has been somewhat buggy in the past and is
+    /// not intended to be supported in the future. By simply matching `id` the
+    /// intended question above isn't accurately taking into account, for
+    /// example, unpark events (now deprecated, but still a feature). Thus many
+    /// old users of this API weren't fully accounting for the question it was
+    /// intended they were asking.
+    ///
+    /// This API continues to be implemented but will in the future, e.g. in the
+    /// 0.1.x series of this crate, eventually return `false` unconditionally.
+    /// It is intended that this function will be removed in the next breaking
+    /// change of this crate. If you'd like to continue to be able to answer the
+    /// example question above, it's recommended you use the
+    /// `will_notify_current` method.
+    ///
+    /// If you've got questions about this though please let us know! We'd like
+    /// to learn about other use cases here that we did not consider.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if no current future is being polled.
+    #[deprecated(note = "intended to be removed, see docs for details")]
     pub fn is_current(&self) -> bool {
-        panic!()
-        // with(|current| {
-        //     if current.unpark_id != self.unpark_id {
-        //         return false;
-        //     }
-        //
-        //     if let Some(eq) = self.unpark.is_current() {
-        //         // Handles legacy task system...
-        //         eq
-        //     } else {
-        //         let a = &**current.unpark as *const Unpark;
-        //         let b = &*self.unpark as *const Unpark;
-        //
-        //         if a != b {
-        //             return false;
-        //         }
-        //
-        //         true
-        //     }
-        // })
+        with(|current| current.id == self.id)
+    }
+
+    /// This function is intended as a performance optimization for structures
+    /// which store a `Task` internally.
+    ///
+    /// The purpose of this function is to answer the question "if I `notify`
+    /// this task is it equivalent to `task::current().notify()`". An answer
+    /// "yes" may mean that you don't actually need to call `task::current()`
+    /// and store it, but rather you can simply leave a stored task in place. An
+    /// answer of "no" typically means that you need to call `task::current()`
+    /// and store it somewhere.
+    ///
+    /// As this is purely a peformance optimization a valid implementation for
+    /// this function is to always return `false`. A best effort is done to
+    /// return `true` where possible, but false negatives may happen.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if no current future is being polled.
+    #[allow(deprecated)]
+    pub fn will_notify_current(&self) -> bool {
+        with(|current| {
+            let unpark_same = match (&current.unpark, &self.unpark) {
+                (&BorrowedUnpark::Old(old1),
+                 &TaskUnpark::Old(ref old2)) => {
+                    &**old1 as *const Unpark == &**old2 as *const Unpark
+                }
+                (&BorrowedUnpark::New(new1, id1),
+                 &TaskUnpark::New(ref new2, id2)) => {
+                    // TODO: should cache this invocation of `new1` in the
+                    //       borrowed storage so we know we have an owned value
+                    //       on hand.
+                    id1 == id2 && new1().inner == new2.inner
+                }
+                _ => false,
+            };
+            if !unpark_same {
+                return false
+            }
+
+            // Pessimistically assume that any unpark events mean that we're not
+            // equivalent to the current task.
+            match self.events {
+                UnparkEvents::None => {}
+                _ => return false,
+            }
+
+            match current.events {
+                BorrowedEvents::None => true,
+                _ => false,
+            }
+        })
     }
 }
 
@@ -259,6 +344,7 @@ impl Clone for Task {
         };
 
         Task {
+            id: self.id,
             unpark: unpark,
             events: self.events.clone(),
         }
@@ -284,6 +370,7 @@ impl Drop for Task {
 /// with either futures or streams, with different methods being available on
 /// `Spawn` depending which is used.
 pub struct Spawn<T> {
+    id: usize,
     obj: T,
     data: data::LocalMap,
 }
@@ -299,6 +386,7 @@ pub struct Spawn<T> {
 /// until the methods on `Spawn` are called in turn.
 pub fn spawn<T>(obj: T) -> Spawn<T> {
     Spawn {
+        id: fresh_task_id(),
         obj: obj,
         data: data::local_map(),
     }
@@ -550,6 +638,7 @@ impl<T> Spawn<T> {
         where F: FnOnce(&mut T) -> R
     {
         let borrowed = BorrowedTask {
+            id: self.id,
             unpark: unpark,
             events: BorrowedEvents::None,
             map: &self.data,
@@ -687,14 +776,6 @@ pub trait Notify: Send + Sync {
     /// A `Task` handle referencing `id` has been dropped.
     #[allow(unused_variables)]
     fn ref_dec(&self, id: u64) {}
-
-    /// This fn only exists to support the legacy task system. It should **not**
-    /// be implemented and will go away in the near future
-    #[deprecated(since = "0.1.12", note = "do not use")]
-    #[doc(hidden)]
-    fn is_current(&self) -> Option<bool> {
-        None
-    }
 }
 
 // ===== ThreadUnpark =====
@@ -757,6 +838,7 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
 {
     with(|task| {
         let new_task = BorrowedTask {
+            id: task.id,
             unpark: task.unpark,
             events: BorrowedEvents::One(&event, &task.events),
             map: task.map,
@@ -773,6 +855,7 @@ pub fn with_notify<F, T, R>(notify: &T, id: u64, f: F) -> R
     with(|task| {
         let mk = || notify.clone().into();
         let new_task = BorrowedTask {
+            id: task.id,
             unpark: BorrowedUnpark::New(&mk, id),
             events: task.events,
             map: task.map,
