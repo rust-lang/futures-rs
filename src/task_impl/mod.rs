@@ -285,7 +285,8 @@ impl Task {
     ///
     /// As this is purely a peformance optimization a valid implementation for
     /// this function is to always return `false`. A best effort is done to
-    /// return `true` where possible, but false negatives may happen.
+    /// return `true` where possible, but false negatives may happen. Note that
+    /// this function will not return a false positive, however.
     ///
     /// # Panics
     ///
