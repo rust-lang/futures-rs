@@ -734,7 +734,7 @@ impl Notify for ThreadUnpark {
 /// This function will panic if a task is not currently being executed. That
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
-#[deprecated(note = "recommended to use `NotifyContext` instead")]
+#[deprecated(note = "recommended to use `FuturesUnordered` instead")]
 pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     where F: FnOnce() -> R
 {
