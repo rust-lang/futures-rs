@@ -41,6 +41,7 @@ enum BorrowedUnpark<'a> {
 }
 
 #[derive(Copy, Clone)]
+#[allow(deprecated)]
 enum BorrowedEvents<'a> {
     None,
     One(&'a UnparkEvent, &'a BorrowedEvents<'a>),
@@ -104,6 +105,7 @@ enum TaskUnpark {
 }
 
 #[derive(Clone)]
+#[allow(deprecated)]
 enum UnparkEvents {
     None,
     One(UnparkEvent),
@@ -735,6 +737,7 @@ impl Notify for ThreadUnpark {
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
 #[deprecated(note = "recommended to use `FuturesUnordered` instead")]
+#[allow(deprecated)]
 pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     where F: FnOnce() -> R
 {
@@ -770,14 +773,18 @@ pub fn with_notify<F, R>(notify: &NotifyHandle, id: u64, f: F) -> R
 /// unparked task can avoid extraneous polling. See `with_unpark_event` for
 /// more.
 #[derive(Clone)]
+#[deprecated(note = "recommended to use `FuturesUnordered` instead")]
+#[allow(deprecated)]
 pub struct UnparkEvent {
     set: Arc<EventSet>,
     item: usize,
 }
 
+#[allow(deprecated)]
 impl UnparkEvent {
     /// Construct an unpark event that will insert `id` into `set` when
     /// triggered.
+    #[deprecated(note = "recommended to use `FuturesUnordered` instead")]
     pub fn new(set: Arc<EventSet>, id: usize) -> UnparkEvent {
         UnparkEvent {
             set: set,
@@ -790,6 +797,7 @@ impl UnparkEvent {
     }
 }
 
+#[allow(deprecated)]
 impl fmt::Debug for UnparkEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("UnparkEvent")
