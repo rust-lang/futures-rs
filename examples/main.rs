@@ -1,19 +1,15 @@
 #![feature(proc_macro, conservative_impl_trait)]
 
 extern crate futures_await;
-extern crate futures_await_runtime;
 extern crate futures;
 
-use futures_await::async;
-use futures::future;
+use futures::Future;
 
-#[async]
+#[futures_await::async]
 fn foo(a: i32) -> Result<i32, i32> {
-    future::ok(a)
+    ::futures::future::ok(a)
 }
 
-fn assert_future<F: futures::Future>(_f: F) {}
-
 fn main() {
-    assert_future(foo(2));
+    println!("{:?}", foo(2).wait());
 }
