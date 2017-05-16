@@ -1,10 +1,8 @@
 use std::prelude::v1::*;
 use std::fmt;
 
-use future::ReadyQueue;
-
 use {Async, IntoFuture, Poll};
-use stream::{Stream, Fuse};
+use stream::{Stream, Fuse, FuturesUnordered};
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible, delivering results as they become available.
@@ -20,7 +18,7 @@ pub struct BufferUnordered<S>
     stream: Fuse<S>,
 
     // Handles "in-flight" futures
-    queue: ReadyQueue<<S::Item as IntoFuture>::Future>,
+    queue: FuturesUnordered<<S::Item as IntoFuture>::Future>,
 
     // Max number of futures
     max: usize,
@@ -46,7 +44,7 @@ pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
 {
     BufferUnordered {
         stream: super::fuse::new(s),
-        queue: ReadyQueue::new(),
+        queue: FuturesUnordered::new(),
         max: amt,
     }
 }

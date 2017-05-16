@@ -2,7 +2,8 @@ extern crate futures;
 
 use futures::{Future, Stream};
 use futures::Async::*;
-use futures::future::{self, ReadyQueue};
+use futures::future;
+use futures::stream::FuturesUnordered;
 use futures::sync::oneshot;
 
 #[test]
@@ -10,14 +11,14 @@ fn bounds() {
     fn is_send<T: Send>() {}
     fn is_sync<T: Sync>() {}
 
-    is_send::<ReadyQueue<()>>();
-    is_sync::<ReadyQueue<()>>();
+    is_send::<FuturesUnordered<()>>();
+    is_sync::<FuturesUnordered<()>>();
 }
 
 #[test]
 fn basic_usage() {
     future::lazy(move || {
-        let mut queue = ReadyQueue::new();
+        let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
         let (tx3, rx3) = oneshot::channel();
@@ -47,7 +48,7 @@ fn basic_usage() {
 #[test]
 fn resolving_errors() {
     future::lazy(move || {
-        let mut queue = ReadyQueue::new();
+        let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
         let (tx3, rx3) = oneshot::channel();
@@ -77,7 +78,7 @@ fn resolving_errors() {
 #[test]
 fn dropping_ready_queue() {
     future::lazy(move || {
-        let mut queue = ReadyQueue::new();
+        let mut queue = FuturesUnordered::new();
         let (mut tx1, rx1) = oneshot::channel::<()>();
         let (mut tx2, rx2) = oneshot::channel::<()>();
         let (mut tx3, rx3) = oneshot::channel::<()>();
@@ -110,7 +111,7 @@ fn stress() {
     for i in 0..ITER {
         let n = (i % 10) + 1;
 
-        let mut queue = ReadyQueue::new();
+        let mut queue = FuturesUnordered::new();
 
         for _ in 0..5 {
             let barrier = Arc::new(Barrier::new(n + 1));
