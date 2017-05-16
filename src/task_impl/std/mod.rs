@@ -5,8 +5,9 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::{Arc, Once, ONCE_INIT};
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Once, ONCE_INIT};
 use std::thread;
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
@@ -239,14 +240,15 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-
-        loop {
-            match try!(self.poll_future_notify(&unpark, 0)) {
-                Async::NotReady => unpark.park(),
-                Async::Ready(e) => return Ok(e),
+        with_current_wait(|wait| {
+            let handle = WaitToHandle(wait);
+            loop {
+                match try!(self.poll_future_notify(&handle, wait.notify_id())) {
+                    Async::NotReady => wait.wait(),
+                    Async::Ready(e) => return Ok(e),
+                }
             }
-        }
+        })
     }
 
     /// A specialized function to request running a future to completion on the
@@ -297,15 +299,17 @@ impl<S: Stream> Spawn<S> {
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        loop {
-            match self.poll_stream_notify(&unpark, 0) {
-                Ok(Async::NotReady) => unpark.park(),
-                Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
-                Ok(Async::Ready(None)) => return None,
-                Err(e) => return Some(Err(e)),
+        with_current_wait(|wait| {
+            let handle = WaitToHandle(wait);
+            loop {
+                match self.poll_stream_notify(&handle, wait.notify_id()) {
+                    Ok(Async::NotReady) => wait.wait(),
+                    Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
+                    Ok(Async::Ready(None)) => return None,
+                    Err(e) => return Some(Err(e)),
+                }
             }
-        }
+        })
     }
 }
 
@@ -341,14 +345,18 @@ impl<S: Sink> Spawn<S> {
     /// be blocked until it's able to send the value.
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
-        let notify = Arc::new(ThreadUnpark::new(thread::current()));
-        loop {
-            value = match try!(self.start_send_notify(value, &notify, 0)) {
-                AsyncSink::NotReady(v) => v,
-                AsyncSink::Ready => return Ok(()),
-            };
-            notify.park();
-        }
+        with_current_wait(|wait| {
+            let handle = WaitToHandle(wait);
+            loop {
+                value = match try!(self.start_send_notify(value,
+                                                          &handle,
+                                                          wait.notify_id())) {
+                    AsyncSink::NotReady(v) => v,
+                    AsyncSink::Ready => return Ok(()),
+                };
+                wait.wait();
+            }
+        })
     }
 
     /// Blocks the current thread until it's able to flush this sink.
@@ -360,13 +368,15 @@ impl<S: Sink> Spawn<S> {
     /// The thread will be blocked until `poll_complete` returns that it's
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
-        let notify = Arc::new(ThreadUnpark::new(thread::current()));
-        loop {
-            if try!(self.poll_flush_notify(&notify, 0)).is_ready() {
-                return Ok(())
+        with_current_wait(|wait| {
+            let handle = WaitToHandle(wait);
+            loop {
+                if try!(self.poll_flush_notify(&handle, wait.notify_id())).is_ready() {
+                    return Ok(())
+                }
+                wait.wait();
             }
-            notify.park();
-        }
+        })
     }
 }
 
@@ -457,35 +467,6 @@ impl Unpark for RunInner {
             Ok(run) => self.exec.execute(run),
             Err(()) => {}
         }
-    }
-}
-
-// ===== ThreadUnpark =====
-
-struct ThreadUnpark {
-    thread: thread::Thread,
-    ready: AtomicBool,
-}
-
-impl ThreadUnpark {
-    fn new(thread: thread::Thread) -> ThreadUnpark {
-        ThreadUnpark {
-            thread: thread,
-            ready: AtomicBool::new(false),
-        }
-    }
-
-    fn park(&self) {
-        if !self.ready.swap(false, Ordering::SeqCst) {
-            thread::park();
-        }
-    }
-}
-
-impl Notify for ThreadUnpark {
-    fn notify(&self, _unpark_id: usize) {
-        self.ready.store(true, Ordering::SeqCst);
-        self.thread.unpark()
     }
 }
 
@@ -648,4 +629,283 @@ impl<T> From<Arc<T>> for NotifyHandle
             NotifyHandle::new(ptr)
         }
     }
+}
+
+/// A trait to supply an implementation of functions like `Future::wait`.
+///
+/// This trait is used by the `Future::wait` method and various other
+/// `wait`-related methods on `Stream` and `Sink`. Runtimes can leverage this
+/// trait to inject their own behavior for how to block waiting for a future
+/// to complete. For example a simple application may not use this at all,
+/// simply blocking the thread via standard `std::thread` mechanisms. An
+/// application using an event loop may install the event loop as a local
+/// executor so calls to `Future::wait` will simply turn the event loop while
+/// blocking.
+///
+/// Note that this trait is a relatively low level detail that you likely won't
+/// have to interact much with. It's recommended to consult your local
+/// runtime's documentation to see if it's necessary to install it as an
+/// executor. Crates such as `tokio-core`, for example, have a method to
+/// install the `Core` as a local executor for the duration of a closure.
+/// Crates like `rayon`, however, will automatically take care of this
+/// trait.
+pub trait Wait {
+    /// Returns an identifier to pass to the `poll_*_notify` function that's
+    /// about to be used.
+    ///
+    /// The identifier is called each time before `poll_*_notify` is called and
+    /// is immediately passed to the relevant function. Most waiters may not end
+    /// up using this and will also ignore the id passed to their
+    /// `NotifyHandle`.
+    fn notify_id(&self) -> usize;
+
+    /// Extract's a `NotifyHandle` to unblock this waiter.
+    ///
+    /// The purpose of the `wait_*`-style functions of this crate is to block
+    /// the calling context until a value becomes available. The `wait` method
+    /// below will be invoked to actually perform the blocking operation, but
+    /// we've also got to know when to wake up!
+    ///
+    /// This function returns a `NotifyHandle` suitable for use in a `Task` that
+    /// will be handed out as part of `task::current`. If a future returns
+    /// `NotReady` then we'll call `wait` below to block until the future is
+    /// ready. The future will internally use the `NotifyHandle` returned here
+    /// to indicate that it's ready to make progress.
+    ///
+    /// It is expected that the handle returned from this function can be used
+    /// to unblock calls to `wait` below.
+    fn notify_handle(&self) -> NotifyHandle;
+
+    /// Blocks execution of the current thread until this instance's
+    /// `NotifyHandle` is notified.
+    ///
+    /// This crate implements the various `wait` methods it provides with this
+    /// function. When an object is polled and determined to be not ready this
+    /// function is invoked to block the current thread. This may literally
+    /// block the thread immediately, or it may do other "useful work" in the
+    /// meantime, such as running an event loop.
+    ///
+    /// The crucial detail of this method is that it does not return until
+    /// the object being polled is ready to get polled again. That is defined
+    /// as when the `NotifyHandle` returned through the `notify` method above
+    /// is notified. Once a notification is received implementors of this trait
+    /// should ensure that this method is scheduled to be unblocked. Recursive
+    /// calls to `wait` may mean that a precise call to `wait` may still take
+    /// some time to unblock though.
+    ///
+    /// Note that it is permissible for this function to have spurious wakeups.
+    /// If this function returns without the above handle being notified, that's
+    /// ok.
+    ///
+    /// # Panics
+    ///
+    /// Implementations of this trait may panic on calls to this method if the
+    /// calling context does not support blocking the current thread. Many
+    /// implementations do not, but it's recommended to consult the
+    /// documentation for the local context you're running in to see whether
+    /// calls to `Future::wait` will panic. By default `Future::wait` will not
+    /// panic.
+    ///
+    /// This method may be called recursively due to multiple invocations of
+    /// `Future::wait` on the stack. In other words its expected for executors
+    /// to handle waits-in-waits correctly.
+    fn wait(&self);
+}
+
+impl<'a, T: Wait + ?Sized> Wait for &'a T {
+    fn notify_id(&self) -> usize {
+        (**self).notify_id()
+    }
+    fn notify_handle(&self) -> NotifyHandle {
+        (**self).notify_handle()
+    }
+    fn wait(&self) {
+        (**self).wait()
+    }
+}
+
+impl<'a, T: Wait + ?Sized> Wait for &'a mut T {
+    fn notify_id(&self) -> usize {
+        (**self).notify_id()
+    }
+    fn notify_handle(&self) -> NotifyHandle {
+        (**self).notify_handle()
+    }
+    fn wait(&self) {
+        (**self).wait()
+    }
+}
+
+impl<T: Wait + ?Sized> Wait for Box<T> {
+    fn notify_id(&self) -> usize {
+        (**self).notify_id()
+    }
+    fn notify_handle(&self) -> NotifyHandle {
+        (**self).notify_handle()
+    }
+    fn wait(&self) {
+        (**self).wait()
+    }
+}
+
+impl<T: Wait + ?Sized> Wait for Rc<T> {
+    fn notify_id(&self) -> usize {
+        (**self).notify_id()
+    }
+    fn notify_handle(&self) -> NotifyHandle {
+        (**self).notify_handle()
+    }
+    fn wait(&self) {
+        (**self).wait()
+    }
+}
+
+impl<T: Wait + ?Sized> Wait for Arc<T> {
+    fn notify_id(&self) -> usize {
+        (**self).notify_id()
+    }
+    fn notify_handle(&self) -> NotifyHandle {
+        (**self).notify_handle()
+    }
+    fn wait(&self) {
+        (**self).wait()
+    }
+}
+
+#[derive(Clone)]
+#[allow(missing_debug_implementations)]
+struct WaitToHandle<'a, 'b: 'a>(&'a (Wait + 'b));
+
+impl<'a, 'b> From<WaitToHandle<'a, 'b>> for NotifyHandle {
+    fn from(handle: WaitToHandle<'a, 'b>) -> NotifyHandle {
+        handle.0.notify_handle()
+    }
+}
+
+/// A simple "current thread" executor.
+///
+/// This executor implements the `Executor2` trait in this crate to block the
+/// current thread via `std::thread::park` when the `block` method is invoked.
+/// This is also the default executor for `Future::wait`, blocking the current
+/// thread until a future is resolved.
+///
+/// You'll likely not need to use this type much, but it can serve as a
+/// good example of how to implement an executor!
+struct ThreadWait {
+    unpark: Arc<ThreadUnpark>,
+    _not_send: PhantomData<Rc<()>>,
+}
+
+struct ThreadUnpark {
+    thread: thread::Thread,
+    ready: AtomicBool,
+}
+
+impl ThreadWait {
+    /// Acquires an executor for the current thread.
+    fn current() -> ThreadWait {
+        let unpark = Arc::new(ThreadUnpark {
+            thread: thread::current(),
+            ready: AtomicBool::new(false),
+        });
+        ThreadWait {
+            unpark: unpark,
+            _not_send: PhantomData,
+        }
+    }
+}
+
+impl Wait for ThreadWait {
+    fn notify_handle(&self) -> NotifyHandle {
+        self.unpark.clone().into()
+    }
+
+    fn notify_id(&self) -> usize {
+        0
+    }
+
+    fn wait(&self) {
+        if !self.unpark.ready.swap(false, Ordering::SeqCst) {
+            thread::park();
+        }
+    }
+}
+
+impl Notify for ThreadUnpark {
+    fn notify(&self, _id: usize) {
+        self.ready.store(true, Ordering::SeqCst);
+        self.thread.unpark()
+    }
+}
+
+impl fmt::Debug for ThreadWait {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ThreadWait")
+         .field("thread", &self.unpark.thread)
+         .finish()
+    }
+}
+
+/// Installs an instance of `Executor2` as the local executor for the duration
+/// of the closure, `f`.
+///
+/// This function will update this local thread's executor for the duration of
+/// the closure specified. While the closure is being called all invocations
+/// of `Future::wait` or other `wait` related functions will get routed to the
+/// `ex` argument here.
+///
+/// If `with_executor` has been previously called then the `ex` specified here
+/// will override the previously specified one. The previous executor will
+/// again take over once this function returns.
+///
+/// This typically doesn't need to be called that often in your application,
+/// nor does it typically need to be called directly. Runtimes such as
+/// `tokio-core` and `rayon` will normally provide a method that invokes this
+/// or simply take care of it for you.
+///
+/// # Panics
+///
+/// This function does not panic itself, but if the closure `f` panics then the
+/// panic will be propagated outwards towards the caller.
+pub fn with_wait<F, R>(wait: &Wait, f: F) -> R
+    where F: FnOnce() -> R,
+{
+    unsafe {
+        struct Reset(*const Cell<Option<*const Wait>>, Option<*const Wait>);
+
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                unsafe {
+                    (*self.0).set(self.1);
+                }
+            }
+        }
+
+        let slot = wait_tls_slot();
+        let wait = mem::transmute::<&Wait, *const Wait>(wait);
+        let _reset = Reset(slot, (*slot).get());
+        (*slot).set(Some(wait));
+        f()
+    }
+}
+
+fn with_current_wait<F: FnOnce(&Wait) -> R, R>(f: F) -> R {
+    fn default_wait() -> *const Wait {
+        thread_local!(static DEFAULT_WAIT: ThreadWait = ThreadWait::current());
+        DEFAULT_WAIT.with(|w| w as *const Wait)
+    }
+
+    unsafe {
+        match (*wait_tls_slot()).get() {
+            Some(ptr) => f(&*ptr),
+            None => f(&*default_wait()),
+        }
+    }
+}
+
+fn wait_tls_slot() -> *const Cell<Option<*const Wait>> {
+    thread_local!(static CURRENT_WAIT: Cell<Option<*const Wait>> = {
+        Cell::new(None)
+    });
+    CURRENT_WAIT.with(|c| c as *const _)
 }
