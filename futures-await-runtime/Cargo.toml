@@ -1,0 +1,7 @@
+[package]
+name = "futures-await-runtime"
+version = "0.1.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+
+[dependencies]
+futures = "0.1"
