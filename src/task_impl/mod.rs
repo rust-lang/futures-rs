@@ -354,6 +354,12 @@ impl<F: Future> Spawn<F> {
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
+    ///
+    /// Note that `notify` itself is passed as a shared reference, and is itself
+    /// not required to be a `NotifyHandle`. The `Clone` and `Into` trait bounds
+    /// will be used to convert this `notify` to a `NotifyHandle` if necessary.
+    /// This construction can avoid an unnecessary atomic reference count bump
+    /// in some situations.
     pub fn poll_future_notify<T>(&mut self,
                                  notify: &T,
                                  id: u64) -> Poll<F::Item, F::Error>
