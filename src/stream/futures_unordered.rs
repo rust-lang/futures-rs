@@ -1,9 +1,10 @@
-use std::{mem, ptr, usize};
 use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
-use std::sync::atomic::{AtomicUsize, AtomicPtr};
+use std::ops::Deref;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
+use std::sync::atomic::{AtomicUsize, AtomicPtr};
+use std::{mem, ptr, usize};
 
 use {task, Stream, Future, Poll, Async, IntoFuture};
 use executor::{Notify, UnsafeNotify, NotifyHandle};
@@ -40,7 +41,7 @@ use task_impl::{self, AtomicTask};
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<F> {
     stub: Box<Node<F>>,
-    inner: *mut Inner<F>,
+    inner: MyInner<F>,
     len: usize,
     head_all: *mut Node<F>,
     tail_readiness: *mut Node<F>,
@@ -95,6 +96,7 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
 // future is notified, it will only insert itself into the linked list if it
 // isn't currently inserted.
 
+#[allow(missing_debug_implementations)]
 struct Inner<T> {
     // The task using `FuturesUnordered`.
     parent: AtomicTask,
@@ -170,7 +172,7 @@ impl<T> FuturesUnordered<T>
             len: 0,
             head_all: ptr::null_mut(),
             tail_readiness: stub_ptr,
-            inner: Box::into_raw(inner),
+            inner: MyInner(Box::into_raw(inner)),
         }
     }
 }
@@ -223,7 +225,7 @@ impl<T> FuturesUnordered<T> {
         // e.g. getting its unpark notifications going to us tracking which
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
-        self.inner().enqueue(ptr);
+        self.inner.enqueue(ptr);
 
         self.len += 1;
     }
@@ -253,12 +255,12 @@ impl<T> FuturesUnordered<T> {
                 return Dequeue::Data(tail);
             }
 
-            if self.inner().head_readiness.load(Acquire) != tail {
+            if self.inner.head_readiness.load(Acquire) != tail {
                 return Dequeue::Inconsistent;
             }
 
             // Push the stub node
-            self.inner().enqueue(self.stub());
+            self.inner.enqueue(self.stub());
 
             next = (*tail).next_readiness.load(Acquire);
 
@@ -310,10 +312,6 @@ impl<T> FuturesUnordered<T> {
         }
     }
 
-    fn inner(&self) -> &Inner<T> {
-        unsafe { &*self.inner }
-    }
-
     fn stub(&self) -> *mut Node<T> {
         &*self.stub as *const Node<T> as *mut Node<T>
     }
@@ -330,7 +328,7 @@ impl<T> Stream for FuturesUnordered<T>
         // because the `park` method underneath needs mutual exclusion from
         // other calls to `park`, which we guarantee with `&mut self` above and
         // this is the only method which calls park.
-        unsafe { self.inner().parent.park() };
+        unsafe { self.inner.parent.park() };
 
         loop {
             let node = match self.dequeue() {
@@ -392,12 +390,8 @@ impl<T> Stream for FuturesUnordered<T>
                 // not exactly because we statically know that we won't attempt
                 // to upgrade it, hence the looser restrictions around safety
                 // here.
-                //
-                // TODO: Attempt to avoid the Arc clone here when creating
-                //       `notify`.
-                let notify = (*self.inner).clone_raw();
                 let id = node as u64;
-                let res = task_impl::with_notify(&notify, id, || {
+                let res = task_impl::with_notify(&self.inner, id, || {
                     let future = (*node).future.get();
                     (*future).as_mut().unwrap().poll()
                 });
@@ -439,6 +433,44 @@ impl<T> Drop for FuturesUnordered<T> {
             }
 
             (*self.inner).drop_raw();
+        }
+    }
+}
+
+#[allow(missing_debug_implementations)]
+struct MyInner<T>(*mut Inner<T>);
+
+impl<T> Deref for MyInner<T> {
+    type Target = Inner<T>;
+
+    fn deref(&self) -> &Inner<T> {
+        unsafe { &*self.0 }
+    }
+}
+
+impl<T> Clone for MyInner<T> {
+    fn clone(&self) -> MyInner<T> {
+        unsafe {
+            mem::forget((*self.0).clone_raw());
+        }
+        MyInner(self.0)
+    }
+}
+
+impl<T> From<MyInner<T>> for NotifyHandle {
+    fn from(me: MyInner<T>) -> NotifyHandle {
+        unsafe {
+            let handle = NotifyHandle::new(hide_lt(me.0));
+            mem::forget(me);
+            return handle
+        }
+    }
+}
+
+impl<T> Drop for MyInner<T> {
+    fn drop(&mut self) {
+        unsafe {
+            (*self.0).drop_raw()
         }
     }
 }

@@ -37,7 +37,7 @@ struct BorrowedTask<'a> {
 #[allow(deprecated)]
 enum BorrowedUnpark<'a> {
     Old(&'a Arc<Unpark>),
-    New(&'a CloneIntoNotifyHandle, u64),
+    New(&'a Fn() -> NotifyHandle, u64),
 }
 
 #[derive(Copy, Clone)]
@@ -139,10 +139,10 @@ pub fn current() -> Task {
         let unpark = match borrowed.unpark {
             BorrowedUnpark::Old(old) => TaskUnpark::Old(old.clone()),
             BorrowedUnpark::New(new, id) => {
-                let notify = new.clone_into_handle();
                 // A new handle is being created, increment the ref count
-                notify.ref_inc(id);
-                TaskUnpark::New(notify, id)
+                let handle = new();
+                handle.ref_inc(id);
+                TaskUnpark::New(handle, id)
             }
         };
 
@@ -354,10 +354,13 @@ impl<F: Future> Spawn<F> {
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
-    pub fn poll_future_notify(&mut self,
-                              notify: &CloneIntoNotifyHandle,
-                              id: u64) -> Poll<F::Item, F::Error> {
-        self.enter(BorrowedUnpark::New(notify, id), |f| f.poll())
+    pub fn poll_future_notify<T>(&mut self,
+                                 notify: &T,
+                                 id: u64) -> Poll<F::Item, F::Error>
+        where T: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::New(&mk, id), |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -367,10 +370,11 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let notify = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+
         loop {
-            match try!(self.poll_future_notify(&notify, 0)) {
-                Async::NotReady => notify.park(),
+            match try!(self.poll_future_notify(&unpark, 0)) {
+                Async::NotReady => unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
         }
@@ -418,11 +422,14 @@ impl<S: Stream> Spawn<S> {
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.
-    pub fn poll_stream_notify(&mut self,
-                              unpark: &CloneIntoNotifyHandle,
-                              id: u64)
-                              -> Poll<Option<S::Item>, S::Error> {
-        self.enter(BorrowedUnpark::New(unpark, id), |s| s.poll())
+    pub fn poll_stream_notify<T>(&mut self,
+                                 notify: &T,
+                                 id: u64)
+                                 -> Poll<Option<S::Item>, S::Error>
+        where T: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::New(&mk, id), |s| s.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
@@ -458,12 +465,15 @@ impl<S: Sink> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `notify` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn start_send_notify(&mut self,
-                             value: S::SinkItem,
-                             notify: &CloneIntoNotifyHandle,
-                             id: u64)
-                            -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(BorrowedUnpark::New(notify, id), |s| s.start_send(value))
+    pub fn start_send_notify<T>(&mut self,
+                                value: S::SinkItem,
+                                notify: &T,
+                                id: u64)
+                               -> StartSend<S::SinkItem, S::SinkError>
+        where T: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::New(&mk, id), |s| s.start_send(value))
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
@@ -483,11 +493,14 @@ impl<S: Sink> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `notify` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn poll_flush_notify(&mut self,
-                             notify: &CloneIntoNotifyHandle,
-                             id: u64)
-                             -> Poll<(), S::SinkError> {
-        self.enter(BorrowedUnpark::New(notify, id), |s| s.poll_complete())
+    pub fn poll_flush_notify<T>(&mut self,
+                                notify: &T,
+                                id: u64)
+                                -> Poll<(), S::SinkError>
+        where T: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::New(&mk, id), |s| s.poll_complete())
     }
 
     /// Blocks the current thread until it's able to send `value` on this sink.
@@ -747,12 +760,14 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
     })
 }
 
-pub fn with_notify<F, R>(notify: &NotifyHandle, id: u64, f: F) -> R
-    where F: FnOnce() -> R
+pub fn with_notify<F, T, R>(notify: &T, id: u64, f: F) -> R
+    where F: FnOnce() -> R,
+          T: Clone + Into<NotifyHandle>,
 {
     with(|task| {
+        let mk = || notify.clone().into();
         let new_task = BorrowedTask {
-            unpark: BorrowedUnpark::New(notify, id),
+            unpark: BorrowedUnpark::New(&mk, id),
             events: task.events,
             map: task.map,
         };
@@ -1049,28 +1064,5 @@ impl<T> From<Arc<T>> for NotifyHandle
             let ptr = mem::transmute::<Arc<T>, *mut ArcWrapped<T>>(rc);
             NotifyHandle::new(ptr)
         }
-    }
-}
-
-/// When creating a `Task` handle through `current`, `clone_into_handle`
-/// will be used to obtain a new `NotifyHandle`.
-///
-/// Notably `Arc<T>` implements this when `T: Notify + Sized + 'static`.
-/// If you have a `Notify` and you are wondering how to pass it to a
-/// polling method, the answer is just wrap your `Notify` in an `Arc`.
-pub trait CloneIntoNotifyHandle {
-    /// Obtain an owned `NotifyHandle`.
-    fn clone_into_handle(&self) -> NotifyHandle;
-}
-
-impl<T: Notify> CloneIntoNotifyHandle for Arc<T> where T: Notify + 'static {
-    fn clone_into_handle(&self) -> NotifyHandle {
-        NotifyHandle::from(self.clone())
-    }
-}
-
-impl CloneIntoNotifyHandle for NotifyHandle {
-    fn clone_into_handle(&self) -> NotifyHandle {
-        self.clone()
     }
 }
