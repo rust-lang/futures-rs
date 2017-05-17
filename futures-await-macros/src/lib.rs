@@ -25,17 +25,42 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     };
     let (decl, unsafety, constness, abi, generics, block) = all;
     let FnDecl { inputs, output, variadic } = { *decl };
+    let ref inputs = inputs;
     let output = match output {
         FunctionRetTy::Default => Ty::Tup(Vec::new()),
         FunctionRetTy::Ty(t) => t,
     };
+    let ref bindings = inputs.iter().enumerate().map(|(i, input)| {
+        match *input {
+            FnArg::Captured(_, ref ty) => {
+                let pat = Pat::Ident(BindingMode::ByValue(Mutability::Immutable),
+                                     Ident::from(format!("__arg_{}", i)),
+                                     None);
+                FnArg::Captured(pat, ty.clone())
+            }
+            ref other => other.clone()
+        }
+    }).collect::<Vec<_>>();
+    let binding_names = bindings.iter().filter_map(|input| {
+        match *input {
+            FnArg::Captured(Pat::Ident(_, ref name, _), _) => Some(name),
+            _ => None,
+        }
+    }).collect::<Vec<_>>();
     let block = ExpandAsyncFor.fold_block(*block);
     assert!(!variadic, "variadic functions cannot be async");
 
     // Actual #[async] transformation
+    let generator_name = Ident::from(format!("__{}_generator", ident));
+    let maybe_self = if binding_names.len() == bindings.len() {
+        None
+    } else {
+        Some(Ident::from("self.")) // a bit jank...
+    };
     let output = quote! {
         #(#attrs)*
-        #vis #unsafety #abi #constness fn #ident #generics(#(#inputs),*)
+        #vis #unsafety #abi #constness
+        fn #ident #generics(#(#bindings),*)
             -> Box<::futures_await::Future<
                     Item = <#output as ::futures_await::FutureType>::Item,
                     Error = <#output as ::futures_await::FutureType>::Error,
@@ -44,18 +69,22 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
             Box::new({
                 extern crate futures_await;
                 futures_await::gen
-            }((move || {
-                // Ensure that this closure is a generator, even if it doesn't
-                // have any `yield` statements.
-                #[allow(unreachable_code)]
-                {
-                    if false {
-                        yield
-                    }
-                }
+            }(#maybe_self #generator_name(#(#binding_names),*)))
+        }
 
-                #block
-            })()))
+        #unsafety #constness fn #generator_name #generics(#(#inputs),*)
+            -> impl ::futures_await::Generator<Yield = (), Return = #output>
+        {
+            // Ensure that this closure is a generator, even if it doesn't
+            // have any `yield` statements.
+            #[allow(unreachable_code)]
+            {
+                if false {
+                    yield
+                }
+            }
+
+            #block
         }
     };
     output.parse().unwrap()

@@ -1,4 +1,4 @@
-#![feature(proc_macro, conservative_impl_trait, generators)]
+#![feature(proc_macro, conservative_impl_trait, generators, generator_trait)]
 
 extern crate futures_await;
 extern crate futures;
@@ -34,8 +34,13 @@ pub fn _foo4() -> io::Result<i32> {
 }
 
 #[async]
-fn _foo5<T>() -> Result<T, i32> {
+fn _foo5<T: 'static>() -> Result<T, i32> {
     Err(1)
+}
+
+#[async]
+fn _foo6(ref a: i32) -> Result<i32, i32> {
+    Err(*a)
 }
 
 #[async]
@@ -66,10 +71,21 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
+struct A(i32);
+
+impl A {
+    #[async]
+    fn a_foo(self) -> Result<i32, i32> {
+        Ok(self.0)
+    }
+}
+
 fn main() {
     assert_eq!(foo().wait(), Ok(1));
     assert_eq!(_bar().wait(), Ok(1));
     assert_eq!(_bar2().wait(), Ok(2));
     assert_eq!(_bar3().wait(), Ok(2));
     assert_eq!(_bar4().wait(), Ok(10));
+    assert_eq!(_foo6(8).wait(), Err(8));
+    assert_eq!(A(11).a_foo().wait(), Ok(11));
 }

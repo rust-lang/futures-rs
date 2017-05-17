@@ -8,15 +8,30 @@ pub use futures::{Future, Stream, Async};
 pub use std::result::Result::{Ok, Err};
 pub use std::option::Option::{Some, None};
 pub use std::boxed::Box;
+pub use std::ops::Generator;
 
-use std::ops::{Generator, State};
+use std::ops::State;
 use futures::Poll;
+
+// Convenience trait to project from `Result` and get the item/error types
+//
+// This is how we work with type aliases like `io::Result` without knowing
+// whether you're using a type alias.
 
 pub trait FutureType {
     type Item;
     type Error;
 
     fn into_result(self) -> Result<Self::Item, Self::Error>;
+}
+
+impl<T, E> FutureType for Result<T, E> {
+    type Item = T;
+    type Error = E;
+
+    fn into_result(self) -> Result<Self::Item, Self::Error> {
+        self
+    }
 }
 
 // Right now this doesn't work:
@@ -28,14 +43,7 @@ pub trait FutureType {
 pub trait MyFuture<T: FutureType>: Future<Item=T::Item, Error=T::Error> {}
 impl<F: Future + ?Sized> MyFuture<Result<F::Item, F::Error>> for F {}
 
-impl<T, E> FutureType for Result<T, E> {
-    type Item = T;
-    type Error = E;
-
-    fn into_result(self) -> Result<Self::Item, Self::Error> {
-        self
-    }
-}
+// Small shim to translate from a generator to a future.
 
 pub struct GenFuture<T>(T);
 
@@ -60,6 +68,10 @@ impl<T> Future for GenFuture<T>
         }
     }
 }
+
+// Ye Olde Await Macro
+//
+// Basically a translation of polling to yielding
 
 #[macro_export]
 macro_rules! await {
