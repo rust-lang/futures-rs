@@ -12,4 +12,4 @@ quote = "0.3"
 [dependencies.syn]
 git = 'https://github.com/alexcrichton/syn'
 branch = 'yield'
-features = ["full"]
+features = ["full", "fold"]

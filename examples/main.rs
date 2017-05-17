@@ -43,15 +43,33 @@ fn _bar() -> Result<i32, i32> {
     await!(foo())
 }
 
-// fn foo (a: i32) -> impl ::futures_await::MyFuture<Result<i32, i32>> {
-//     ::futures_await::gen((move || {
-//         if false {
-//             yield loop { }
-//         }
-//         Ok(1)
-//     })())
-// }
+#[async]
+fn _bar2() -> Result<i32, i32> {
+    let a = await!(foo())?;
+    let b = await!(foo())?;
+    Ok(a + b)
+}
+
+#[async]
+fn _bar3() -> Result<i32, i32> {
+    let (a, b) = await!(foo().join(foo()))?;
+    Ok(a + b)
+}
+
+#[async]
+fn _bar4() -> Result<i32, i32> {
+    let mut cnt = 0;
+    #[async]
+    for x in futures::stream::iter(vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Ok(4)]) {
+        cnt += x;
+    }
+    Ok(cnt)
+}
 
 fn main() {
-    println!("{:?}", foo().wait());
+    assert_eq!(foo().wait(), Ok(1));
+    assert_eq!(_bar().wait(), Ok(1));
+    assert_eq!(_bar2().wait(), Ok(2));
+    assert_eq!(_bar3().wait(), Ok(2));
+    assert_eq!(_bar4().wait(), Ok(10));
 }

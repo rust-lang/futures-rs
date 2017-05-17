@@ -4,8 +4,9 @@ extern crate futures_await_macros; // the compiler lies that this has no effect
 extern crate futures;
 
 pub use futures_await_macros::*;
-pub use futures::{Future, Async};
+pub use futures::{Future, Stream, Async};
 pub use std::result::Result::{Ok, Err};
+pub use std::option::Option::{Some, None};
 pub use std::boxed::Box;
 
 use std::ops::{Generator, State};
@@ -60,5 +61,24 @@ impl<T> Future for GenFuture<T>
     }
 }
 
-#[inline]
-pub fn always_false() -> bool { false }
+#[macro_export]
+macro_rules! await {
+    ($e:expr) => ({
+        let mut future = $e;
+        let ret;
+        loop {
+            match $crate::Future::poll(&mut future) {
+                $crate::Ok($crate::Async::Ready(e)) => {
+                    ret = $crate::Ok(e);
+                    break
+                }
+                $crate::Ok($crate::Async::NotReady) => yield,
+                $crate::Err(e) => {
+                    ret = $crate::Err(e);
+                    break
+                }
+            }
+        }
+        ret
+    })
+}

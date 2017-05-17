@@ -8,3 +8,7 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 [dependencies]
 futures-await-macros = { path = "futures-await-macros" }
 futures = "0.1"
+
+[dev-dependencies]
+tokio-core = "0.1"
+tokio-io = "0.1"

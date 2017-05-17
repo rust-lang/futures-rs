@@ -8,6 +8,7 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use syn::*;
+use syn::fold::Folder;
 
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
@@ -28,6 +29,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         FunctionRetTy::Default => Ty::Tup(Vec::new()),
         FunctionRetTy::Ty(t) => t,
     };
+    let block = ExpandAsyncFor.fold_block(*block);
     assert!(!variadic, "variadic functions cannot be async");
 
     // Actual #[async] transformation
@@ -59,34 +61,47 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     output.parse().unwrap()
 }
 
-#[proc_macro]
-pub fn await(future: TokenStream) -> TokenStream {
-    let future = syn::parse_expr(&future.to_string())
-                    .expect("failed to parse expression");
+struct ExpandAsyncFor;
 
-    // Basically just expand to a `poll` loop
-    let tokens = quote! {{
-        let mut future = #future;
-        {
-            extern crate futures_await;
-            let ret;
-            loop {
-                match futures_await::Future::poll(&mut future) {
-                    futures_await::Ok(futures_await::Async::Ready(e)) => {
-                        ret = futures_await::Ok(e);
-                        break
-                    }
-                    futures_await::Ok(futures_await::Async::NotReady) => {
-                        yield
-                    }
-                    futures_await::Err(e) => {
-                        ret = futures_await::Err(e);
-                        break
-                    }
-                }
-            }
-            ret
+impl Folder for ExpandAsyncFor {
+    fn fold_expr(&mut self, expr: Expr) -> Expr {
+        if expr.attrs.len() != 1 {
+            return expr
         }
-    }};
-    tokens.parse().unwrap()
+        // TODO: more validation here
+        if expr.attrs[0].path.segments[0].ident != "async" {
+            return expr
+        }
+        let all = match expr.node {
+            ExprKind::ForLoop(a, b, c, d) => (a, b, c, d),
+            _ => panic!("only for expressions can have #[async]"),
+        };
+        let (pat, expr, block, ident) = all;
+
+        // Basically just expand to a `poll` loop
+        let tokens = quote! {{
+            let mut __stream = #expr;
+            #ident
+            loop {
+                let #pat = {
+                    extern crate futures_await;
+                    match futures_await::Stream::poll(&mut __stream)? {
+                        futures_await::Async::Ready(e) => {
+                            match e {
+                                futures_await::Some(e) => e,
+                                futures_await::None => break,
+                            }
+                        }
+                        futures_await::Async::NotReady => {
+                            yield;
+                            continue
+                        }
+                    }
+                };
+
+                #block
+            }
+        }};
+        parse_expr(tokens.as_str()).unwrap()
+    }
 }
