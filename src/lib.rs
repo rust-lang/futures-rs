@@ -1,15 +1,15 @@
 #![feature(generator_trait)]
 
 extern crate futures_await_macros; // the compiler lies that this has no effect
-pub use futures_await_macros::*;
-
 extern crate futures;
-pub use futures::Future;
 
+pub use futures_await_macros::*;
+pub use futures::{Future, Async};
+pub use std::result::Result::{Ok, Err};
 pub use std::boxed::Box;
 
 use std::ops::{Generator, State};
-use futures::{Poll, Async};
+use futures::Poll;
 
 pub trait FutureType {
     type Item;
