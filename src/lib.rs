@@ -34,12 +34,12 @@ impl<T, E> FutureType for Result<T, E> {
     }
 }
 
-// Right now this doesn't work:
+// Random hack for this ICEing in the compiler somewhere
 //
 //     -> impl Future<Item = <T as FutureType>::Item,
 //                    Error = <T as FutureType>::Error>
 //
-// presumably due to a compiler bug? Try to hack around that for now
+// but also this strategy ICEs elsewhere, so not used yet.
 pub trait MyFuture<T: FutureType>: Future<Item=T::Item, Error=T::Error> {}
 impl<F: Future + ?Sized> MyFuture<Result<F::Item, F::Error>> for F {}
 

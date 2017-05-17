@@ -61,15 +61,26 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         #(#attrs)*
         #vis #unsafety #abi #constness
         fn #ident #generics(#(#bindings),*)
+            // Dunno why this is buggy, hits an ICE when compiling
+            // `examples/main.rs`
+            // -> impl ::futures_await::MyFuture<#output>
+
+            // Dunno why this is buggy, hits an ICE when compiling
+            // `examples/main.rs`
+            // -> impl ::futures_await::Future<
+            //         Item = <#output as ::futures_await::FutureType>::Item,
+            //         Error = <#output as ::futures_await::FutureType>::Error,
+            //    >
+
             -> Box<::futures_await::Future<
                     Item = <#output as ::futures_await::FutureType>::Item,
                     Error = <#output as ::futures_await::FutureType>::Error,
                >>
         {
-            Box::new({
-                extern crate futures_await;
-                futures_await::gen
-            }(#maybe_self #generator_name(#(#binding_names),*)))
+            Box::new(::futures_await::gen(
+                #maybe_self
+                #generator_name(#(#binding_names),*)
+            ))
         }
 
         #unsafety #constness fn #generator_name #generics(#(#inputs),*)
