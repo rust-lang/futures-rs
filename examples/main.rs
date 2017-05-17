@@ -34,13 +34,20 @@ pub fn _foo4() -> io::Result<i32> {
 }
 
 #[async]
-fn _foo5<T: 'static>() -> Result<T, i32> {
-    Err(1)
+fn _foo5<T: Clone + 'static>(t: T) -> Result<T, i32> {
+    Ok(t.clone())
 }
 
 #[async]
 fn _foo6(ref a: i32) -> Result<i32, i32> {
     Err(*a)
+}
+
+#[async]
+fn _foo7<T>(t: T) -> Result<T, i32>
+    where T: Clone + 'static,
+{
+    Ok(t.clone())
 }
 
 #[async]

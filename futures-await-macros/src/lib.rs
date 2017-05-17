@@ -24,6 +24,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         _ => panic!("#[async] can only be applied to functions"),
     };
     let (decl, unsafety, constness, abi, generics, block) = all;
+    let where_clause = &generics.where_clause;
     let FnDecl { inputs, output, variadic } = { *decl };
     let ref inputs = inputs;
     let output = match output {
@@ -76,6 +77,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                     Item = <#output as ::futures_await::FutureType>::Item,
                     Error = <#output as ::futures_await::FutureType>::Error,
                >>
+            #where_clause
         {
             Box::new(::futures_await::gen(
                 #maybe_self
@@ -85,6 +87,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
 
         #unsafety #constness fn #generator_name #generics(#(#inputs),*)
             -> impl ::futures_await::Generator<Yield = (), Return = #output>
+            #where_clause
         {
             // Ensure that this closure is a generator, even if it doesn't
             // have any `yield` statements.
