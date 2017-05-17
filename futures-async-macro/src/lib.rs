@@ -129,7 +129,7 @@ struct ExpandAsyncFor;
 impl Folder for ExpandAsyncFor {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         if expr.attrs.len() != 1 {
-            return expr
+            return fold::noop_fold_expr(self, expr)
         }
         // TODO: more validation here
         if expr.attrs[0].path.segments[0].ident != "async" {
@@ -177,12 +177,12 @@ impl Folder for ExpandAsyncFor {
 struct RewriteSelfReferences;
 
 impl Folder for RewriteSelfReferences {
-    fn fold_path(&mut self, mut path: Path) -> Path {
-        if path.segments.len() == 1 && !path.global &&
-            path.segments[0].ident == "self" {
-            path.segments[0].ident = Ident::from("__self");
+    fn fold_ident(&mut self, ident: Ident) -> Ident {
+        if ident == "self" {
+            Ident::from("__self")
+        } else {
+            ident
         }
-        path
     }
 
     // Don't recurse into items
