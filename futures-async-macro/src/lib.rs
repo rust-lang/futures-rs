@@ -106,10 +106,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                >>
             #where_clause
         {
-            // Box::new(::futures::__rt::gen(
-            //     #maybe_self
-            //     #generator_name(#(#binding_names),*)
-            // ))
             Box::new(::futures::__rt::gen((|#(#inputs_mapped),*| {
                 // Ensure that this closure is a generator, even if it doesn't
                 // have any `yield` statements.
@@ -123,22 +119,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                 #block
             })(#(#binding_names),*)))
         }
-
-    //     #unsafety #constness fn #generator_name #generics(#(#inputs),*)
-    //         -> impl ::futures::__rt::Generator<Yield = (), Return = #output>
-    //         #where_clause
-    //     {
-    //         // Ensure that this closure is a generator, even if it doesn't
-    //         // have any `yield` statements.
-    //         #[allow(unreachable_code)]
-    //         {
-    //             if false {
-    //                 yield
-    //             }
-    //         }
-    //
-    //         #block
-    //     }
     };
     // println!("{}", output);
     output.parse().unwrap()
