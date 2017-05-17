@@ -15,7 +15,6 @@ pub mod prelude {
 }
 
 pub mod __rt {
-
     pub use std::result::Result::{Ok, Err};
     pub use std::option::Option::{Some, None};
     pub use std::boxed::Box;
