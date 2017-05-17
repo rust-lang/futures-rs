@@ -42,22 +42,49 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
             ref other => other.clone()
         }
     }).collect::<Vec<_>>();
-    let binding_names = bindings.iter().filter_map(|input| {
+    let ref inputs_mapped = inputs.iter().map(|input| {
         match *input {
-            FnArg::Captured(Pat::Ident(_, ref name, _), _) => Some(name),
-            _ => None,
+            FnArg::Captured(Pat::Ident(ref mutability,
+                                       ref ident,
+                                       ref pat),
+                            ref ty) => {
+                let ident = if ident == "self" {
+                    Ident::from("__self")
+                } else {
+                    ident.clone()
+                };
+                FnArg::Captured(Pat::Ident(mutability.clone(), ident, pat.clone()),
+                                ty.clone())
+            }
+            ref cap @ FnArg::Captured(..) => cap.clone(),
+            FnArg::Ignored(_) => panic!("can't work with ignored fn args"),
+            FnArg::SelfRef(..) => panic!("self reference async methods are unsound"),
+            FnArg::SelfValue(mutability) => {
+                let me = Path {
+                    global: false,
+                    segments: vec![PathSegment {
+                        ident: Ident::from("Self"),
+                        parameters: PathParameters::AngleBracketed(Default::default()),
+                    }],
+                };
+                FnArg::Captured(Pat::Ident(BindingMode::ByValue(mutability),
+                                           Ident::from("__self"),
+                                           None),
+                                Ty::Path(None, me))
+            }
+        }
+    }).collect::<Vec<_>>();
+    let binding_names = bindings.iter().map(|input| {
+        match *input {
+            FnArg::Captured(Pat::Ident(_, ref name, _), _) => name.clone(),
+            _ => Ident::from("self"),
         }
     }).collect::<Vec<_>>();
     let block = ExpandAsyncFor.fold_block(*block);
+    let block = RewriteSelfReferences.fold_block(block);
     assert!(!variadic, "variadic functions cannot be async");
 
     // Actual #[async] transformation
-    let generator_name = Ident::from(format!("__{}_generator", ident));
-    let maybe_self = if binding_names.len() == bindings.len() {
-        None
-    } else {
-        Some(Ident::from("self.")) // a bit jank...
-    };
     let output = quote! {
         #(#attrs)*
         #vis #unsafety #abi #constness
@@ -79,28 +106,41 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                >>
             #where_clause
         {
-            Box::new(::futures::__rt::gen(
-                #maybe_self
-                #generator_name(#(#binding_names),*)
-            ))
-        }
-
-        #unsafety #constness fn #generator_name #generics(#(#inputs),*)
-            -> impl ::futures::__rt::Generator<Yield = (), Return = #output>
-            #where_clause
-        {
-            // Ensure that this closure is a generator, even if it doesn't
-            // have any `yield` statements.
-            #[allow(unreachable_code)]
-            {
-                if false {
-                    yield
+            // Box::new(::futures::__rt::gen(
+            //     #maybe_self
+            //     #generator_name(#(#binding_names),*)
+            // ))
+            Box::new(::futures::__rt::gen((|#(#inputs_mapped),*| {
+                // Ensure that this closure is a generator, even if it doesn't
+                // have any `yield` statements.
+                #[allow(unreachable_code)]
+                {
+                    if false {
+                        yield
+                    }
                 }
-            }
 
-            #block
+                #block
+            })(#(#binding_names),*)))
         }
+
+    //     #unsafety #constness fn #generator_name #generics(#(#inputs),*)
+    //         -> impl ::futures::__rt::Generator<Yield = (), Return = #output>
+    //         #where_clause
+    //     {
+    //         // Ensure that this closure is a generator, even if it doesn't
+    //         // have any `yield` statements.
+    //         #[allow(unreachable_code)]
+    //         {
+    //             if false {
+    //                 yield
+    //             }
+    //         }
+    //
+    //         #block
+    //     }
     };
+    // println!("{}", output);
     output.parse().unwrap()
 }
 
@@ -146,5 +186,27 @@ impl Folder for ExpandAsyncFor {
             }
         }};
         parse_expr(tokens.as_str()).unwrap()
+    }
+
+    // Don't recurse into items
+    fn fold_item(&mut self, item: Item) -> Item {
+        item
+    }
+}
+
+struct RewriteSelfReferences;
+
+impl Folder for RewriteSelfReferences {
+    fn fold_path(&mut self, mut path: Path) -> Path {
+        if path.segments.len() == 1 && !path.global &&
+            path.segments[0].ident == "self" {
+            path.segments[0].ident = Ident::from("__self");
+        }
+        path
+    }
+
+    // Don't recurse into items
+    fn fold_item(&mut self, item: Item) -> Item {
+        item
     }
 }

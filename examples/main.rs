@@ -83,6 +83,23 @@ impl A {
     fn a_foo(self) -> Result<i32, i32> {
         Ok(self.0)
     }
+
+    #[async]
+    fn _a_foo2(self: Box<Self>) -> Result<i32, i32> {
+        Ok(self.0)
+    }
+}
+
+trait B {
+    #[async]
+    fn b(self) -> Result<i32, i32>;
+}
+
+impl B for A {
+    #[async]
+    fn b(self) -> Result<i32, i32> {
+        Ok(self.0)
+    }
 }
 
 fn main() {
