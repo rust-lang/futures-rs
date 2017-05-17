@@ -25,6 +25,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         _ => panic!("#[async] can only be applied to functions"),
     }
     let output = quote! { #ast };
+    println!("t1: {}", output);
     output.parse().unwrap()
 }
 
@@ -110,6 +111,78 @@ fn return_impl_future(decl: &mut FnDecl) {
 }
 
 fn futureify(block: &mut Block) {
+    // let mut always_false = futures_await_runtime();
+    // always_false.segments.push(segment("always_false"));
+    // let always_false = Box::new(Expr {
+    //     attrs: Vec::new(),
+    //     node: ExprKind::Path(None, always_false),
+    // });
+    let expr_false = Box::new(Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Lit(Lit::Bool(false)),
+        // node: ExprKind::Call(always_false, Vec::new()),
+    });
+    let loop_expr = Box::new(Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Loop(Block { stmts: Vec::new() }, None),
+    });
+    let yield_block = Block {
+        stmts: vec![Stmt::Expr(Box::new(Expr {
+            attrs: Vec::new(),
+            node: ExprKind::Yield(Some(loop_expr)),
+        }))],
+    };
+    let mut stmts = mem::replace(&mut block.stmts, Vec::new());
+    stmts.insert(0, Stmt::Expr(Box::new(Expr {
+        attrs: vec![Attribute {
+            style: AttrStyle::Inner,
+            path: Path {
+                global: false,
+                segments: vec![segment("allow")],
+            },
+            tts: vec![TokenTree::Delimited(Delimited {
+                delim: DelimToken::Paren,
+                tts: vec![TokenTree::Token(Token::Ident("unreachable_code".into()))],
+            })],
+            is_sugared_doc: false,
+        }],
+        // attrs: Vec::new(),
+        node: ExprKind::If(expr_false, yield_block, None),
+    })));
+
+    let mut gen = futures_await_runtime();
+    gen.segments.push(segment("gen"));
+    let gen = Box::new(Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Path(None, gen),
+    });
+
+    let decl = Box::new(FnDecl {
+        inputs: Vec::new(),
+        output: FunctionRetTy::Default,
+        variadic: false,
+    });
+    let closure = Box::new(Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Closure(CaptureBy::Value, decl, Box::new(Expr {
+            attrs: Vec::new(),
+            node: ExprKind::Block(Unsafety::Normal, Block { stmts: stmts }),
+        })),
+    });
+    let closure = Box::new(Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Paren(closure),
+    });
+
+    let generator = Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Call(closure, Vec::new()),
+    };
+
+    block.stmts.push(Stmt::Expr(Box::new(Expr {
+        attrs: Vec::new(),
+        node: ExprKind::Call(gen, vec![generator]),
+    })));
 }
 
 fn segment(ident: &str) -> PathSegment {
@@ -124,11 +197,11 @@ fn segment(ident: &str) -> PathSegment {
     }
 }
 
-fn futures() -> Path {
-    let mut p = futures_await_runtime();
-    p.segments.push(segment("futures"));
-    return p
-}
+// fn futures() -> Path {
+//     let mut p = futures_await_runtime();
+//     p.segments.push(segment("futures"));
+//     return p
+// }
 
 fn futures_await_runtime() -> Path {
     Path {

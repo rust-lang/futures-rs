@@ -1,4 +1,4 @@
-#![feature(proc_macro, conservative_impl_trait)]
+#![feature(proc_macro, conservative_impl_trait, generators)]
 
 extern crate futures_await;
 extern crate futures;
@@ -6,10 +6,19 @@ extern crate futures;
 use futures::Future;
 
 #[futures_await::async]
-fn foo(a: i32) -> Result<i32, i32> {
-    ::futures::future::ok(a)
+fn foo() -> Result<i32, i32> {
+    Ok(1)
 }
 
+// fn foo (a: i32) -> impl ::futures_await::MyFuture<Result<i32, i32>> {
+//     ::futures_await::gen((move || {
+//         if false {
+//             yield loop { }
+//         }
+//         Ok(1)
+//     })())
+// }
+
 fn main() {
-    println!("{:?}", foo(2).wait());
+    println!("{:?}", foo().wait());
 }
