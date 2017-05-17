@@ -64,29 +64,29 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         fn #ident #generics(#(#bindings),*)
             // Dunno why this is buggy, hits an ICE when compiling
             // `examples/main.rs`
-            // -> impl ::futures_await::MyFuture<#output>
+            // -> impl ::futures::__rt::MyFuture<#output>
 
             // Dunno why this is buggy, hits an ICE when compiling
             // `examples/main.rs`
-            // -> impl ::futures_await::Future<
-            //         Item = <#output as ::futures_await::FutureType>::Item,
-            //         Error = <#output as ::futures_await::FutureType>::Error,
+            // -> impl ::futures::__rt::Future<
+            //         Item = <#output as ::futures::__rt::FutureType>::Item,
+            //         Error = <#output as ::futures::__rt::FutureType>::Error,
             //    >
 
-            -> Box<::futures_await::Future<
-                    Item = <#output as ::futures_await::FutureType>::Item,
-                    Error = <#output as ::futures_await::FutureType>::Error,
+            -> Box<::futures::Future<
+                    Item = <#output as ::futures::__rt::FutureType>::Item,
+                    Error = <#output as ::futures::__rt::FutureType>::Error,
                >>
             #where_clause
         {
-            Box::new(::futures_await::gen(
+            Box::new(::futures::__rt::gen(
                 #maybe_self
                 #generator_name(#(#binding_names),*)
             ))
         }
 
         #unsafety #constness fn #generator_name #generics(#(#inputs),*)
-            -> impl ::futures_await::Generator<Yield = (), Return = #output>
+            -> impl ::futures::__rt::Generator<Yield = (), Return = #output>
             #where_clause
         {
             // Ensure that this closure is a generator, even if it doesn't
@@ -131,8 +131,8 @@ impl Folder for ExpandAsyncFor {
                     match futures_await::Stream::poll(&mut __stream)? {
                         futures_await::Async::Ready(e) => {
                             match e {
-                                futures_await::Some(e) => e,
-                                futures_await::None => break,
+                                futures_await::__rt::Some(e) => e,
+                                futures_await::__rt::None => break,
                             }
                         }
                         futures_await::Async::NotReady => {

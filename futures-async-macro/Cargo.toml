@@ -1,5 +1,5 @@
 [package]
-name = "futures-await-macros"
+name = "futures-async-macro"
 version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 

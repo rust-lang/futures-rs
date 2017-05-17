@@ -1,12 +1,10 @@
 #![feature(proc_macro, conservative_impl_trait, generators, generator_trait)]
 
-extern crate futures_await;
-extern crate futures;
+extern crate futures_await as futures;
 
 use std::io;
 
-use futures::Future;
-use futures_await::{async, await};
+use futures::prelude::*;
 
 #[async]
 fn foo() -> Result<i32, i32> {

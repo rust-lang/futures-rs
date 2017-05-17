@@ -1,14 +1,12 @@
 #![feature(proc_macro, conservative_impl_trait, generators, generator_trait)]
 
-extern crate futures_await;
-extern crate futures;
+extern crate futures_await as futures;
 extern crate tokio_core;
 extern crate tokio_io;
 
 use std::io::{self, BufReader};
 
-use futures::Future;
-use futures_await::{async, await};
+use futures::prelude::*;
 use tokio_core::net::{TcpListener, TcpStream};
 use tokio_core::reactor::{Core, Handle};
 use tokio_io::{AsyncRead};
