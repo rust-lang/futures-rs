@@ -31,64 +31,42 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         FunctionRetTy::Default => Ty::Tup(Vec::new()),
         FunctionRetTy::Ty(t) => t,
     };
-    let ref bindings = inputs.iter().enumerate().map(|(i, input)| {
+
+    let mut inputs_no_patterns = Vec::new();
+    let mut patterns = Vec::new();
+    let mut temp_bindings = Vec::new();
+    for (i, input) in inputs.iter().enumerate() {
         match *input {
-            FnArg::Captured(_, ref ty) => {
+            // `self: Box<Self>` will get captured naturally
+            FnArg::Captured(Pat::Ident(_, ref ident, _), _) if ident == "self" => {
+                inputs_no_patterns.push(input.clone());
+            }
+
+            // `a: B`
+            FnArg::Captured(ref pat, ref ty) => {
+                patterns.push(pat);
+                let ident = Ident::from(format!("__arg_{}", i));
+                temp_bindings.push(ident.clone());
                 let pat = Pat::Ident(BindingMode::ByValue(Mutability::Immutable),
-                                     Ident::from(format!("__arg_{}", i)),
+                                     ident,
                                      None);
-                FnArg::Captured(pat, ty.clone())
+                inputs_no_patterns.push(FnArg::Captured(pat, ty.clone()));
             }
-            ref other => other.clone()
-        }
-    }).collect::<Vec<_>>();
-    let ref inputs_mapped = inputs.iter().map(|input| {
-        match *input {
-            FnArg::Captured(Pat::Ident(ref mutability,
-                                       ref ident,
-                                       ref pat),
-                            ref ty) => {
-                let ident = if ident == "self" {
-                    Ident::from("__self")
-                } else {
-                    ident.clone()
-                };
-                FnArg::Captured(Pat::Ident(mutability.clone(), ident, pat.clone()),
-                                ty.clone())
-            }
-            ref cap @ FnArg::Captured(..) => cap.clone(),
-            FnArg::Ignored(_) => panic!("can't work with ignored fn args"),
-            FnArg::SelfRef(..) => panic!("self reference async methods are unsound"),
-            FnArg::SelfValue(mutability) => {
-                let me = Path {
-                    global: false,
-                    segments: vec![PathSegment {
-                        ident: Ident::from("Self"),
-                        parameters: PathParameters::AngleBracketed(Default::default()),
-                    }],
-                };
-                FnArg::Captured(Pat::Ident(BindingMode::ByValue(mutability),
-                                           Ident::from("__self"),
-                                           None),
-                                Ty::Path(None, me))
+
+            // Other `self`-related arguments get captured naturally
+            _ => {
+                inputs_no_patterns.push(input.clone());
             }
         }
-    }).collect::<Vec<_>>();
-    let binding_names = bindings.iter().map(|input| {
-        match *input {
-            FnArg::Captured(Pat::Ident(_, ref name, _), _) => name.clone(),
-            _ => Ident::from("self"),
-        }
-    }).collect::<Vec<_>>();
+    }
     let block = ExpandAsyncFor.fold_block(*block);
-    let block = RewriteSelfReferences.fold_block(block);
     assert!(!variadic, "variadic functions cannot be async");
 
     // Actual #[async] transformation
     let output = quote! {
         #(#attrs)*
         #vis #unsafety #abi #constness
-        fn #ident #generics(#(#bindings),*)
+        fn #ident #generics(#(#inputs_no_patterns),*)
             // Dunno why this is buggy, hits an ICE when compiling
             // `examples/main.rs`
             // -> impl ::futures::__rt::MyFuture<#output>
@@ -106,7 +84,10 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                >>
             #where_clause
         {
-            Box::new(::futures::__rt::gen((|#(#inputs_mapped),*| {
+            Box::new(::futures::__rt::gen((move || {
+                #( let #patterns = #temp_bindings; )*
+                return { #block };
+
                 // Ensure that this closure is a generator, even if it doesn't
                 // have any `yield` statements.
                 #[allow(unreachable_code)]
@@ -114,10 +95,9 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                     if false {
                         yield
                     }
+                    loop {}
                 }
-
-                #block
-            })(#(#binding_names),*)))
+            })()))
         }
     };
     // println!("{}", output);
@@ -166,23 +146,6 @@ impl Folder for ExpandAsyncFor {
             }
         }};
         parse_expr(tokens.as_str()).unwrap()
-    }
-
-    // Don't recurse into items
-    fn fold_item(&mut self, item: Item) -> Item {
-        item
-    }
-}
-
-struct RewriteSelfReferences;
-
-impl Folder for RewriteSelfReferences {
-    fn fold_ident(&mut self, ident: Ident) -> Ident {
-        if ident == "self" {
-            Ident::from("__self")
-        } else {
-            ident
-        }
     }
 
     // Don't recurse into items
