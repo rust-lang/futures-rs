@@ -133,6 +133,14 @@ entire hierarchy and just augmenting it with the necessary runtime support, the
 `async` attribute, and the `await!` macro. These imports are all contained in
 `futures::prelude::*` when you import it.
 
+For a whole mess of examples in a whole mess of code, you can also check out the
+[`async-await` branch of `sccache`][branch] which is an in-progress transition
+to using async/await syntax in many locations. You'll typically find that the
+code is much more readable afterwards, especially [these changes]
+
+[branch]: https://github.com/alexcrichton/sccache/tree/async-await
+[these changes]: https://github.com/alexcrichton/sccache/commit/927fe00d466ce8a61c37e48c236ac5fe82cb6280#diff-67d38c24e74f3822389d7fe6916b9e69L98
+
 ## What's next?
 
 This crate is very much in flux at the moment due to everything being super
