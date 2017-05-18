@@ -1,6 +1,10 @@
-// Ye Olde Await Macro
-//
-// Basically a translation of polling to yielding
+/// Ye Olde Await Macro
+///
+/// Basically a translation of polling to yielding. This crate's macro is
+/// reexported in the `futures_await` crate, you should not use this crate
+/// specifically. If I knew how to define this macro in the `futures_await`
+/// crate I would. Ideally this crate would not exist.
+
 #[macro_export]
 macro_rules! await {
     ($e:expr) => ({

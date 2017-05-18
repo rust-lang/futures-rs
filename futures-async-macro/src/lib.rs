@@ -1,3 +1,15 @@
+//! Procedural macro for the `#[async]` attribute.
+//!
+//! This crate is an implementation of the `#[async]` attribute as a procedural
+//! macro. This is nightly-only for now as it's using the unstable features of
+//! procedural macros. Furthermore it's generating code that's using a new
+//! keyword, `yield`, and a new construct, generators, both of which are also
+//! unstable.
+//!
+//! Currently this crate depends on `syn` and `quote` to do all the heavy
+//! lifting, this is just a very small shim around creating a closure/future out
+//! of a generator.
+
 #![feature(proc_macro)]
 #![recursion_limit = "128"]
 
@@ -12,15 +24,19 @@ use syn::fold::Folder;
 
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async] attribute, if any
     let attribute = attribute.to_string();
     let boxed = if attribute == "( boxed )" {
         true
     } else if attribute == "" {
         false
     } else {
-        panic!("the #[async] attribute currently takes no arguments");
+        panic!("the #[async] attribute currently only takes `boxed` as an arg");
     };
 
+    // Parse our item, expecting a function. This function may be an actual
+    // top-level function or it could be a method (typically dictated by the
+    // arguments). We then extract everything we'd like to use.
     let ast = syn::parse_item(&function.to_string())
                     .expect("failed to parse item");
     let Item { ident, vis, attrs, node } = ast;
@@ -31,12 +47,36 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let (decl, unsafety, constness, abi, generics, block) = all;
     let where_clause = &generics.where_clause;
     let FnDecl { inputs, output, variadic } = { *decl };
+    assert!(!variadic, "variadic functions cannot be async");
     let ref inputs = inputs;
     let output = match output {
         FunctionRetTy::Default => Ty::Tup(Vec::new()),
         FunctionRetTy::Ty(t) => t,
     };
 
+    // We've got to get a bit creative with our handling of arguments. For a
+    // number of reasons we translate this:
+    //
+    //      fn foo(ref a: u32) -> Result<u32, u32> {
+    //          // ...
+    //      }
+    //
+    // into roughly:
+    //
+    //      fn foo(__arg_0: u32) -> impl Future<...> {
+    //          gen(move || {
+    //              let ref a = __arg0;
+    //
+    //              // ...
+    //          })
+    //      }
+    //
+    // The intention here is to ensure that all local function variables get
+    // moved into the generator we're creating, and they're also all then bound
+    // appropriately according to their patterns and whatnot.
+    //
+    // We notably skip everything related to `self` which typically doesn't have
+    // many patterns with it and just gets captured naturally.
     let mut inputs_no_patterns = Vec::new();
     let mut patterns = Vec::new();
     let mut temp_bindings = Vec::new();
@@ -64,8 +104,15 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
             }
         }
     }
+
+    // This is the point where we Handle
+    //
+    //      #[async]
+    //      for x in y {
+    //      }
+    //
+    // Basically just take all those expression and expand them.
     let block = ExpandAsyncFor.fold_block(*block);
-    assert!(!variadic, "variadic functions cannot be async");
 
     let return_ty = if boxed {
         quote! {
@@ -91,7 +138,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         quote! { }
     };
 
-    // Actual #[async] transformation
     let output = quote! {
         #(#attrs)*
         #vis #unsafety #abi #constness
@@ -114,6 +160,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
             })()))
         }
     };
+
     // println!("{}", output);
     output.parse().unwrap()
 }

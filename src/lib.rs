@@ -1,3 +1,17 @@
+//! Runtime support for the async/await syntax for futures.
+//!
+//! This crate serves as a masquerade over the `futures` crate itself,
+//! reexporting all of its contents. It's intended that you'll do:
+//!
+//! ```
+//! extern crate futures_await as futures;
+//! ```
+//!
+//! This crate adds a `prelude` module which contains various traits as well as
+//! the `async` and `await` macros you'll likely want to use.
+//!
+//! See the crates's README for more information about usage.
+
 #![feature(generator_trait)]
 #![feature(use_extern_macros)]
 
@@ -14,6 +28,16 @@ pub mod prelude {
     pub use futures_await_macro::await;
 }
 
+/// A hidden module that's the "runtime support" for the async/await syntax.
+///
+/// The `async` attribute and the `await` macro both assume that they can find
+/// this module and use its contents. All of their dependencies are defined or
+/// reexported here in one way shape or form.
+///
+/// This module has absolutely not stability at all. All contents may change at
+/// any time without notice. Do not use this module in your code if you wish
+/// your code to be stable.
+#[doc(hidden)]
 pub mod __rt {
     pub use std::result::Result::{Ok, Err};
     pub use std::option::Option::{Some, None};
@@ -24,11 +48,10 @@ pub mod __rt {
     use futures::{Future, Async};
     use std::ops::State;
 
-    // Convenience trait to project from `Result` and get the item/error types
-    //
-    // This is how we work with type aliases like `io::Result` without knowing
-    // whether you're using a type alias.
-
+    /// Convenience trait to project from `Result` and get the item/error types
+    ///
+    /// This is how we work with type aliases like `io::Result` without knowing
+    /// whether you're using a type alias.
     pub trait FutureType {
         type Item;
         type Error;
@@ -45,17 +68,18 @@ pub mod __rt {
         }
     }
 
-    // Random hack for this ICEing in the compiler somewhere
-    //
-    //     -> impl Future<Item = <T as FutureType>::Item,
-    //                    Error = <T as FutureType>::Error>
-    //
-    // but also this strategy ICEs elsewhere, so not used yet.
+    /// Random hack for this causing problems in the compiler's typechecking
+    /// pass. Ideally this trait and impl would not be needed.
+    ///
+    ///     -> impl Future<Item = <T as FutureType>::Item,
+    ///                    Error = <T as FutureType>::Error>
     pub trait MyFuture<T: FutureType>: Future<Item=T::Item, Error=T::Error> {}
     impl<F: Future + ?Sized> MyFuture<Result<F::Item, F::Error>> for F {}
 
-    // Small shim to translate from a generator to a future.
-
+    /// Small shim to translate from a generator to a future.
+    ///
+    /// This is the translation layer from the generator/coroutine protocol to
+    /// the futures protocol.
     pub struct GenFuture<T>(T);
 
     pub fn gen<T>(t: T) -> GenFuture<T>
