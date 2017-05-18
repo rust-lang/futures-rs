@@ -1,3 +1,8 @@
+/// A bunch of ways to use async/await syntax.
+///
+/// This is mostly a test for this repository itself, not necessarily serving
+/// much more purpose than that.
+
 #![feature(proc_macro, conservative_impl_trait, generators)]
 
 extern crate futures_await as futures;
