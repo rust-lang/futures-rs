@@ -12,9 +12,14 @@ use syn::fold::Folder;
 
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
-    if attribute.to_string() != "" {
+    let attribute = attribute.to_string();
+    let boxed = if attribute == "( boxed )" {
+        true
+    } else if attribute == "" {
+        false
+    } else {
         panic!("the #[async] attribute currently takes no arguments");
-    }
+    };
 
     let ast = syn::parse_item(&function.to_string())
                     .expect("failed to parse item");
@@ -35,7 +40,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let mut inputs_no_patterns = Vec::new();
     let mut patterns = Vec::new();
     let mut temp_bindings = Vec::new();
-    let mut tys = Vec::new();
     for (i, input) in inputs.iter().enumerate() {
         match *input {
             // `self: Box<Self>` will get captured naturally
@@ -52,7 +56,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                                      ident,
                                      None);
                 inputs_no_patterns.push(FnArg::Captured(pat, ty.clone()));
-                tys.push(ty);
             }
 
             // Other `self`-related arguments get captured naturally
@@ -64,31 +67,39 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let block = ExpandAsyncFor.fold_block(*block);
     assert!(!variadic, "variadic functions cannot be async");
 
+    let return_ty = if boxed {
+        quote! {
+            Box<::futures::Future<
+                Item = <#output as ::futures::__rt::FutureType>::Item,
+                Error = <#output as ::futures::__rt::FutureType>::Error,
+            >>
+        }
+    } else {
+        // Dunno why this is buggy, hits weird typecheck errors in
+        // `examples/main.rs`
+        // -> impl ::futures::Future<
+        //         Item = <#output as ::futures::__rt::FutureType>::Item,
+        //         Error = <#output as ::futures::__rt::FutureType>::Error,
+        //    >
+
+        quote! { impl ::futures::__rt::MyFuture<#output> }
+    };
+
+    let maybe_boxed = if boxed {
+        quote! { Box::new }
+    } else {
+        quote! { }
+    };
+
     // Actual #[async] transformation
     let output = quote! {
         #(#attrs)*
         #vis #unsafety #abi #constness
-        fn #ident #generics(#(#inputs_no_patterns),*)
-            // Dunno why this is buggy, hits an ICE when compiling
-            // `examples/main.rs`
-            // -> impl ::futures::__rt::MyFuture<#output>
-
-            // Dunno why this is buggy, hits an ICE when compiling
-            // `examples/main.rs`
-            // -> impl ::futures::__rt::Future<
-            //         Item = <#output as ::futures::__rt::FutureType>::Item,
-            //         Error = <#output as ::futures::__rt::FutureType>::Error,
-            //    >
-
-            -> Box<::futures::Future<
-                    Item = <#output as ::futures::__rt::FutureType>::Item,
-                    Error = <#output as ::futures::__rt::FutureType>::Error,
-               >>
+        fn #ident #generics(#(#inputs_no_patterns),*) -> #return_ty
             #where_clause
         {
-            Box::new(::futures::__rt::gen((move |#(#patterns: #tys),*| {
-            // Box::new(::futures::__rt::gen((move || {
-            //     #( let #patterns = #temp_bindings; )*
+            #maybe_boxed (::futures::__rt::gen((move || {
+                #( let #patterns = #temp_bindings; )*
                 return { #block };
 
                 // Ensure that this closure is a generator, even if it doesn't
@@ -100,8 +111,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                     }
                     loop {}
                 }
-            // })()))
-            })(#(#temp_bindings),*)))
+            })()))
         }
     };
     // println!("{}", output);

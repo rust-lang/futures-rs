@@ -48,7 +48,7 @@ fn _foo7<T>(t: T) -> Result<T, i32>
     Ok(t.clone())
 }
 
-#[async]
+#[async(box)]
 fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
     Ok(a + b)
 }
