@@ -147,6 +147,113 @@ issue][issue]!
 
 [issue]: https://github.com/alexcrichton/futures-await/issues/new
 
+## Caveats
+
+As can be expected with many nightly features, there are a number of caveats to
+be aware of when working with this project. The main one is that this is early
+stages work. Nothing is upstream yet. Things will break! That being said bug
+reports are more than welcome, always good to know what needs to be rixed
+regardless!
+
+### Compiler errors
+
+Compiler error messages aren't the best. Right now the `proc-macro` system in
+the compiler will attribute all compiler errors in a function to the literal
+`#[async]` label. For example this code:
+
+```rust
+#[async]
+fn foo() -> Result<i32, i32> {
+    Ok(e)
+}
+```
+
+This is missing the definition of the variable `e`, but when run through the
+compiler the error looks like:
+
+```
+error[E0425]: cannot find value `e` in this scope
+ --> examples/foo.rs:9:1
+  |
+9 | #[async]
+  | ^^^^^^^^ not found in this scope
+
+error: aborting due to previous error
+```
+
+This isn't just a local problem, *all* compiler errors with spans that would
+otherwise be in the async function are attributed to the `#[async]` attribute.
+This is unfortunately just how procedural macros work today, but lots of work
+is happening in the compiler to improve this! As soon as that's available
+this crate will try to help take advantage of it.
+
+### Borrowing
+
+Borrowing doesn't really work so well today. The compiler will either reject
+many borrows or there may be some unsafety lurking as the generators feature
+is being developed. For example if you have a function such as:
+
+```rust
+#[async]
+fn foo(s: &str) -> io::Result<()> {
+    // ..
+}
+```
+
+This may not compile! The reason for this is that the returned future
+typically needs to adhere to the `'static` bound. Async functions currently
+execute no code when called, they only make progress when polled. This means
+that when you call an async function what happens is it creates a future,
+packages up the arguments, and then returns that to you. In this case it'd
+have to return the `&str` back up, which doesn't always have the lifetimes
+work out.
+
+An example of how to get the above function compiling would be to do:
+
+```rust
+#[async]
+fn foo(s: String) -> io::Result<()> {
+    // ...
+}
+```
+
+or somehow otherwise use an owned value instead of a borrowed reference.
+
+Note that arguments are not the only point of pain with borrowing. For example
+code like this will (or at least shouldn't) compile today:
+
+```rust
+for line in string.lines() {
+    await!(process(line));
+    println!("processed: {}", line);
+}
+```
+
+The problem here is that `line` is a borrowed value that is alive across a yield
+point, namely the call to `await!`. This means that when the future may return
+back up the stack was part of the `await!` process it'd have to restore the
+`line` variable when it reenters the future. This isn't really all implemented
+and may be unsafe today. As a rule of thumb for now you'll need to only have
+owned values (no borrowed internals) alive across calls to `await!` or during
+async `for` loops.
+
+Lots of thought is being put in to figure out how to alleviate this restriction!
+Borrowing is the crux of many ergonomic patterns in Rust, and we'd like this to
+work!
+
+As one final point, a consequence of the "no borrowed arguments" today is that
+function signatures like:
+
+```rust
+#[async]
+fn foo(&self) -> io::Result<()> {
+    // ...
+}
+```
+
+unfortunately will not work. You'll either need to take `self` by value or defer
+to a different `#[async]` function.
+
 # License
 
 `futures-await` is primarily distributed under the terms of both the MIT
