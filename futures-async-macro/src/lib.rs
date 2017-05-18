@@ -114,6 +114,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     // Basically just take all those expression and expand them.
     let block = ExpandAsyncFor.fold_block(*block);
 
+    // TODO: can we lift the restriction that `futures` must be at the root of
+    //       the crate?
     let return_ty = if boxed {
         quote! {
             Box<::futures::Future<

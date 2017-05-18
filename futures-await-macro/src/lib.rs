@@ -5,6 +5,9 @@
 /// specifically. If I knew how to define this macro in the `futures_await`
 /// crate I would. Ideally this crate would not exist.
 
+// TODO: how to define this in the `futures_await` crate but have it still
+// importable via `futurses_await::prelude::await`?
+
 #[macro_export]
 macro_rules! await {
     ($e:expr) => ({
