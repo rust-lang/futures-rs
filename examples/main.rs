@@ -49,6 +49,11 @@ fn _foo7<T>(t: T) -> Result<T, i32>
 }
 
 #[async]
+fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
+    Ok(a + b)
+}
+
+#[async]
 fn _bar() -> Result<i32, i32> {
     await!(foo())
 }

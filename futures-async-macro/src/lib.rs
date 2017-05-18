@@ -35,6 +35,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let mut inputs_no_patterns = Vec::new();
     let mut patterns = Vec::new();
     let mut temp_bindings = Vec::new();
+    let mut tys = Vec::new();
     for (i, input) in inputs.iter().enumerate() {
         match *input {
             // `self: Box<Self>` will get captured naturally
@@ -51,6 +52,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                                      ident,
                                      None);
                 inputs_no_patterns.push(FnArg::Captured(pat, ty.clone()));
+                tys.push(ty);
             }
 
             // Other `self`-related arguments get captured naturally
@@ -84,8 +86,9 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                >>
             #where_clause
         {
-            Box::new(::futures::__rt::gen((move || {
-                #( let #patterns = #temp_bindings; )*
+            Box::new(::futures::__rt::gen((move |#(#patterns: #tys),*| {
+            // Box::new(::futures::__rt::gen((move || {
+            //     #( let #patterns = #temp_bindings; )*
                 return { #block };
 
                 // Ensure that this closure is a generator, even if it doesn't
@@ -97,7 +100,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                     }
                     loop {}
                 }
-            })()))
+            // })()))
+            })(#(#temp_bindings),*)))
         }
     };
     // println!("{}", output);
