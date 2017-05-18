@@ -133,6 +133,20 @@ entire hierarchy and just augmenting it with the necessary runtime support, the
 `async` attribute, and the `await!` macro. These imports are all contained in
 `futures::prelude::*` when you import it.
 
+## What's next?
+
+This crate is very much in flux at the moment due to everything being super
+unstable and nothing's even in the master branch of rust-lang/rust. I hope to
+get this more "stable" on nightly at least in terms of breaking less often as
+well as fixing bugs that arise.
+
+At the moment it's definitely not recommended to use this in production at all,
+if you'd like though please feel more than welcome to try it out! If you run
+into any questions or have any issues, you're more than welcome to [open an
+issue][issue]!
+
+[issue]: https://github.com/alexcrichton/futures-await/issues/new
+
 # License
 
 `futures-await` is primarily distributed under the terms of both the MIT
