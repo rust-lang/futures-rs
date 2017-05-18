@@ -1,9 +1,10 @@
-/// A bunch of ways to use async/await syntax.
-///
-/// This is mostly a test for this repository itself, not necessarily serving
-/// much more purpose than that.
+//! A bunch of ways to use async/await syntax.
+//!
+//! This is mostly a test for this repository itself, not necessarily serving
+//! much more purpose than that.
 
 #![feature(proc_macro, conservative_impl_trait, generators)]
+#![deny(warnings)]
 
 extern crate futures_await as futures;
 
@@ -53,9 +54,9 @@ fn _foo7<T>(t: T) -> Result<T, i32>
     Ok(t.clone())
 }
 
-#[async(box)]
+#[async(boxed)]
 fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
-    Ok(a + b)
+    return Ok(a + b)
 }
 
 #[async]
