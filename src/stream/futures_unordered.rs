@@ -2,8 +2,9 @@ use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::ops::Deref;
+use std::sync::Arc;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
-use std::sync::atomic::{AtomicUsize, AtomicPtr};
+use std::sync::atomic::{AtomicUsize, AtomicPtr, AtomicBool};
 use std::{mem, ptr, usize};
 
 use {task, Stream, Future, Poll, Async, IntoFuture};
@@ -40,11 +41,11 @@ use task_impl::{self, AtomicTask};
 /// blank queue with the `FuturesUnordered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<F> {
-    stub: Box<Node<F>>,
+    stub: Arc<Node<F>>,
     inner: MyInner<F>,
     len: usize,
-    head_all: *mut Node<F>,
-    tail_readiness: *mut Node<F>,
+    head_all: *const Node<F>,
+    tail_readiness: *const Node<F>,
 }
 
 unsafe impl<T: Send> Send for FuturesUnordered<T> {}
@@ -113,29 +114,26 @@ struct Node<T> {
     future: UnsafeCell<Option<T>>,
 
     // Next pointer for linked list tracking all active nodes
-    next_all: UnsafeCell<*mut Node<T>>,
+    next_all: UnsafeCell<*const Node<T>>,
 
     // Previous node in linked list tracking all active nodes
-    prev_all: UnsafeCell<*mut Node<T>>,
+    prev_all: UnsafeCell<*const Node<T>>,
 
     // Next pointer in readiness queue
     next_readiness: AtomicPtr<Node<T>>,
 
-    // Atomic state, includes the ref count
-    state: AtomicUsize,
+    // Whether or not this node is currently in the mpsc queue.
+    queued: AtomicBool,
 }
 
 enum Dequeue<T> {
-    Data(*mut Node<T>),
+    Data(*const Node<T>),
     Empty,
     Inconsistent,
 }
 
 /// Max number of references to a single node
 const MAX_REFS: usize = usize::MAX >> 1;
-
-/// Flag tracking that a node has been queued.
-const QUEUED: usize = usize::MAX - (usize::MAX >> 1);
 
 impl<T> FuturesUnordered<T>
     where T: Future,
@@ -145,21 +143,19 @@ impl<T> FuturesUnordered<T>
     /// The returned `FuturesUnordered` does not contain any futures and, in this
     /// state, `FuturesUnordered::poll` will return `Ok(Async::Ready(None))`.
     pub fn new() -> FuturesUnordered<T> {
-        let mut stub = Box::new(Node {
+        let stub = Arc::new(Node {
             future: UnsafeCell::new(None),
-            next_all: UnsafeCell::new(ptr::null_mut()),
-            prev_all: UnsafeCell::new(ptr::null_mut()),
+            next_all: UnsafeCell::new(ptr::null()),
+            prev_all: UnsafeCell::new(ptr::null()),
             next_readiness: AtomicPtr::new(ptr::null_mut()),
-            state: AtomicUsize::new(QUEUED | 1),
+            queued: AtomicBool::new(true),
         });
 
-        debug_assert!(stub.state.load(Relaxed) & QUEUED == QUEUED);
-
-        let stub_ptr = &mut *stub as *mut _;
+        let stub_ptr = &*stub as *const Node<T>;
 
         let inner = Box::new(Inner {
             parent: AtomicTask::new(),
-            head_readiness: AtomicPtr::new(&mut *stub as *mut _),
+            head_readiness: AtomicPtr::new(stub_ptr as *mut _),
 
             // This reference count is initialized with one to be held by the
             // `FuturesUnordered` itself. It's then decremented as part of the
@@ -197,21 +193,18 @@ impl<T> FuturesUnordered<T> {
     /// ensure that `FuturesUnordered::poll` is called in order to receive task
     /// notifications.
     pub fn push(&mut self, future: T) {
-        let node = Box::new(Node {
+        let node = Arc::new(Node {
             future: UnsafeCell::new(Some(future)),
             next_all: UnsafeCell::new(self.head_all),
             prev_all: UnsafeCell::new(ptr::null_mut()),
             next_readiness: AtomicPtr::new(ptr::null_mut()),
-
-            // This node is initialized with a strong reference count of one
-            // which is held by the internal `head_all` linked list of futures.
-            //
-            // This'll get decremented when the node's future is completed, or
-            // the `FuturesUnordered` is dropped.
-            state: AtomicUsize::new(QUEUED | 1),
+            queued: AtomicBool::new(true),
         });
 
-        let ptr = Box::into_raw(node);
+        // Right now our node has a strong reference count of 1. We transfer
+        // ownership of this reference count to our internal linked list
+        // and we'll reclaim ownership through the `unlink` function below.
+        let ptr = arc2ptr(node);
 
         unsafe {
             if !self.head_all.is_null() {
@@ -255,7 +248,7 @@ impl<T> FuturesUnordered<T> {
                 return Dequeue::Data(tail);
             }
 
-            if self.inner.head_readiness.load(Acquire) != tail {
+            if self.inner.head_readiness.load(Acquire) as *const _ != tail {
                 return Dequeue::Inconsistent;
             }
 
@@ -273,33 +266,42 @@ impl<T> FuturesUnordered<T> {
         }
     }
 
-    unsafe fn release_node(&mut self, node: *mut Node<T>) {
+    unsafe fn release_node(&mut self, node: *const Node<T>) {
         // The future is done, try to reset the queued flag. This will prevent
         // `notify` from doing any work in the future
-        let prev = (*node).state.fetch_or(QUEUED, SeqCst);
+        let prev = (*node).queued.swap(true, SeqCst);
 
         // Drop the future, even if it hasn't finished yet.
         drop((*(*node).future.get()).take());
 
-        // Unlink the node
-        self.unlink(node);
+        // Unlink the node, reclaiming ownership of the reference count that
+        // our internal linked list previously had.
+        let node = self.unlink(node);
 
-        if prev & QUEUED == 0 {
-            // The queued flag has been set, this means we can safely drop the
-            // node. If this doesn't happen, the node was requeued in the
-            // readiness queue, so we will see it again, but next time the `&mut
-            // None` branch will be hit freeing the node.
-            release(node);
+        // If the queued flag was previously set then it means that this node
+        // is still in our internal mpsc queue. We then transfer ownership
+        // of our reference count to the mpsc queue, and it'll come along and
+        // free it later, noticing that the future is `None`.
+        //
+        // If, however, the queued flag was *not* set then we're safe to
+        // release our reference count on the internal node. The queued flag
+        // was set above so all future `enqueue` operations will not actually
+        // enqueue the node, so our node will never see the mpsc queue again.
+        // The node itself will be deallocated once all reference counts have
+        // been dropped by the various owning tasks elsewhere.
+        if prev {
+            mem::forget(node);
         }
     }
 
     /// Remove the node from the linked list tracking all nodes currently
     /// managed by `FuturesUnordered`.
-    unsafe fn unlink(&mut self, node: *mut Node<T>) {
-        let next = *(*node).next_all.get();
-        let prev = *(*node).prev_all.get();
-        *(*node).next_all.get() = ptr::null_mut();
-        *(*node).prev_all.get() = ptr::null_mut();
+    unsafe fn unlink(&mut self, node: *const Node<T>) -> Arc<Node<T>> {
+        let node = ptr2arc(node);
+        let next = *node.next_all.get();
+        let prev = *node.prev_all.get();
+        *node.next_all.get() = ptr::null_mut();
+        *node.prev_all.get() = ptr::null_mut();
 
         if !next.is_null() {
             *(*next).prev_all.get() = prev;
@@ -310,6 +312,7 @@ impl<T> FuturesUnordered<T> {
         } else {
             self.head_all = next;
         }
+        return node
     }
 
     fn stub(&self) -> *mut Node<T> {
@@ -353,11 +356,13 @@ impl<T> Stream for FuturesUnordered<T>
 
             unsafe {
                 // If the future has already gone away then we're just cleaning
-                // out this node.
+                // out this node. See the comment in `release_node` for more
+                // information, but we're basically just taking ownership of
+                // our reference count here.
                 if (*(*node).future.get()).is_none() {
-                    assert!((*(*node).next_all.get()).is_null());
-                    assert!((*(*node).prev_all.get()).is_null());
-                    release(node);
+                    let node = ptr2arc(node);
+                    assert!((*node.next_all.get()).is_null());
+                    assert!((*node.prev_all.get()).is_null());
                     continue
                 }
 
@@ -365,8 +370,8 @@ impl<T> Stream for FuturesUnordered<T>
                 // polling. This ensures that the future gets
                 // rescheduled if it is notified **during** a call
                 // to `poll`.
-                let prev = (*node).state.fetch_and(!QUEUED, SeqCst);
-                assert!(prev & QUEUED == QUEUED);
+                let prev = (*node).queued.swap(false, SeqCst);
+                assert!(prev);
 
                 // Poll the underlying future with the appropriate `notify`
                 // implementation and `id`. This is where a large bit of the
@@ -477,14 +482,15 @@ impl<T> Drop for MyInner<T> {
 
 impl<T> Inner<T> {
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
-    fn enqueue(&self, node: *mut Node<T>) {
+    fn enqueue(&self, node: *const Node<T>) {
         unsafe {
-            debug_assert!((*node).state.load(Relaxed) & QUEUED == QUEUED);
+            debug_assert!((*node).queued.load(Relaxed));
 
             // This action does not require any coordination
             (*node).next_readiness.store(ptr::null_mut(), Relaxed);
 
             // Note that these atomic orderings come from 1024cores
+            let node = node as *mut _;
             let prev = self.head_readiness.swap(node, AcqRel);
             (*prev).next_readiness.store(node, Release);
         }
@@ -504,31 +510,26 @@ impl<T> Notify for Inner<T> {
             //
             // Once the node is inserted we be sure to notify the parent task,
             // as it'll want to come along and pick up our node now.
-            let prev = (*node).state.fetch_or(QUEUED, SeqCst);
-            if prev & QUEUED == 0 {
+            let prev = (*node).queued.swap(true, SeqCst);
+            if !prev {
                 self.enqueue(node);
                 self.parent.notify();
             }
         }
     }
 
-    fn ref_inc(&self, id: u64) {
+    fn clone_id(&self, id: u64) -> u64 {
         unsafe {
-            let node = Node::<T>::from_id(id);
-
-            // This is basically the same as Arc::clone, and see Arc::clone for
-            // rationale on the Relaxed fetch_add
-            let old_size = (*node).state.fetch_add(1, Relaxed);
-            if old_size > MAX_REFS {
-                abort("refcount overflow");
-            }
+            let node = ptr2arc(Node::<T>::from_id(id));
+            let next = node.clone();
+            mem::forget(node);
+            arc2ptr(next) as u64
         }
     }
 
-    fn ref_dec(&self, id: u64) {
+    fn drop_id(&self, id: u64) {
         unsafe {
-            let node = Node::<T>::from_id(id);
-            release(node);
+            drop(ptr2arc(Node::<T>::from_id(id)));
         }
     }
 }
@@ -566,29 +567,23 @@ unsafe fn hide_lt<T>(p: *const Inner<T>) -> *mut UnsafeNotify {
 }
 
 impl<T> Node<T> {
-    unsafe fn from_id(id: u64) -> *mut Node<T> {
+    unsafe fn from_id(id: u64) -> *const Node<T> {
         id as *mut Node<T>
     }
 }
 
-// Note that this function needs to critically *be blind to T*. This can run on
-// any thread or in any lifetime, irrespective to `T` itself and whether it
-// would safely allow that. As a result it's critical this function doesn't
-// access `T` at all via dtor, deref, etc.
-unsafe fn release<T>(node: *mut Node<T>) {
-    let old_state = (*node).state.fetch_sub(1, SeqCst);
+fn arc2ptr<T>(ptr: Arc<T>) -> *const T {
+    let addr = &*ptr as *const T;
+    mem::forget(ptr);
+    return addr
+}
 
-    if (old_state & !QUEUED) != 1 {
-        return;
-    }
-
-    // The future should have already been cleared, and if not we're not allowed
-    // to touch `T` so we need to abort.
-    if (*(*node).future.get()).is_some() {
-        abort("future should already be dropped");
-    }
-
-    drop(Box::from_raw(node));
+unsafe fn ptr2arc<T>(ptr: *const T) -> Arc<T> {
+    let anchor = mem::transmute::<usize, Arc<T>>(0x10);
+    let addr = &*anchor as *const T;
+    mem::forget(anchor);
+    let offset = addr as isize - 0x10;
+    mem::transmute::<isize, Arc<T>>(ptr as isize - offset)
 }
 
 fn abort(s: &str) -> ! {

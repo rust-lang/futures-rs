@@ -158,7 +158,7 @@ pub fn current() -> Task {
             BorrowedUnpark::New(new, id) => {
                 // A new handle is being created, increment the ref count
                 let handle = new();
-                handle.ref_inc(id);
+                let id = handle.clone_id(id);
                 TaskUnpark::New(handle, id)
             }
         };
@@ -339,7 +339,7 @@ impl Clone for Task {
         let unpark = match self.unpark {
             TaskUnpark::Old(ref old) => TaskUnpark::Old(old.clone()),
             TaskUnpark::New(ref new, id) => {
-                new.ref_inc(id);
+                let id = new.clone_id(id);
                 TaskUnpark::New(new.clone(), id)
             }
         };
@@ -355,7 +355,7 @@ impl Clone for Task {
 impl Drop for Task {
     fn drop(&mut self) {
         if let TaskUnpark::New(ref new, id) = self.unpark {
-            new.ref_dec(id);
+            new.drop_id(id);
         }
     }
 }
@@ -449,6 +449,16 @@ impl<F: Future> Spawn<F> {
     /// will be used to convert this `notify` to a `NotifyHandle` if necessary.
     /// This construction can avoid an unnecessary atomic reference count bump
     /// in some situations.
+    ///
+    /// ## Unsafety and `id`
+    ///
+    /// This function and all other `*_notify` functions on this type will treat
+    /// the `id` specified very carefully, explicitly calling functions like the
+    /// `notify` argument's `clone_id` and `drop_id` functions. It should be
+    /// safe to encode a pointer itself into the `id` specified, such as an
+    /// `Arc<T>` or a `Box<T>`. The `clone_id` and `drop_id` functions are then
+    /// intended to be sufficient for the memory management related to that
+    /// pointer.
     pub fn poll_future_notify<T>(&mut self,
                                  notify: &T,
                                  id: u64) -> Poll<F::Item, F::Error>
@@ -770,13 +780,40 @@ pub trait Notify: Send + Sync {
     /// disambiguate which precise future became ready for polling.
     fn notify(&self, id: u64);
 
-    /// A new `Task` handle referencing `id` has been created.
-    #[allow(unused_variables)]
-    fn ref_inc(&self, id: u64) {}
+    /// This function is called whenever a new copy of `id` is needed.
+    ///
+    /// This is called in one of two situations:
+    ///
+    /// * A `Task` is being created through `task::current` while a future is
+    ///   being polled. In that case the instance of `Notify` passed in to one
+    ///   of the `poll_*` functions is called with the `id` passed into the same
+    ///   `poll_*` function.
+    /// * A `Task` is itself being cloned. Each `Task` contains its own id and a
+    ///   handle to the `Notify` behind it, and the task's `Notify` is used to
+    ///   clone the internal `id` to assign to the new task.
+    ///
+    /// The `id` returned here will be stored in the `Task`-to-be and used later
+    /// to pass to `notify` when the `Task::notify` function is called on that
+    /// `Task`.
+    ///
+    /// Note that typically this is just the identity function, passing through
+    /// the identifier. For more unsafe situations, however, if `id` is itself a
+    /// pointer of some kind this can be used as a hook to "clone" the pointer,
+    /// depending on what that means for the specified pointer.
+    fn clone_id(&self, id: u64) -> u64 {
+        id
+    }
 
-    /// A `Task` handle referencing `id` has been dropped.
-    #[allow(unused_variables)]
-    fn ref_dec(&self, id: u64) {}
+    /// All instances of `Task` store an `id` that they're going to internally
+    /// notify with, and this function is called when the `Task` is dropped.
+    ///
+    /// This function provides a hook for schemes which encode pointers in this
+    /// `id` argument to deallocate resources associated with the pointer. It's
+    /// guaranteed that after this function is called the `Task` containing this
+    /// `id` will no longer use the `id`.
+    fn drop_id(&self, id: u64) {
+        drop(id);
+    }
 }
 
 // ===== ThreadUnpark =====
@@ -1055,12 +1092,12 @@ impl NotifyHandle {
         unsafe { (*self.inner).notify(id) }
     }
 
-    fn ref_inc(&self, id: u64) {
-        unsafe { (*self.inner).ref_inc(id) }
+    fn clone_id(&self, id: u64) -> u64 {
+        unsafe { (*self.inner).clone_id(id) }
     }
 
-    fn ref_dec(&self, id: u64) {
-        unsafe { (*self.inner).ref_dec(id) }
+    fn drop_id(&self, id: u64) {
+        unsafe { (*self.inner).drop_id(id) }
     }
 }
 
@@ -1115,19 +1152,19 @@ impl<T: Notify + 'static> Notify for ArcWrapped<T> {
         }
     }
 
-    fn ref_inc(&self, id: u64) {
+    fn clone_id(&self, id: u64) -> u64 {
         unsafe {
             let me: *const ArcWrapped<T> = self;
-            T::ref_inc(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                      id)
+            T::clone_id(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
+                        id)
         }
     }
 
-    fn ref_dec(&self, id: u64) {
+    fn drop_id(&self, id: u64) {
         unsafe {
             let me: *const ArcWrapped<T> = self;
-            T::ref_dec(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                      id)
+            T::drop_id(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
+                       id)
         }
     }
 }
