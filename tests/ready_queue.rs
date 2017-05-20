@@ -1,6 +1,8 @@
 extern crate futures;
 
-use futures::{Future, Stream};
+use std::panic::{self, AssertUnwindSafe};
+
+use futures::{Future, Stream, Poll};
 use futures::Async::*;
 use futures::future;
 use futures::stream::FuturesUnordered;
@@ -148,4 +150,21 @@ fn stress() {
             queue = sync.into_inner();
         }
     }
+}
+
+#[test]
+fn panicking_future_dropped() {
+    future::lazy(move || {
+        let mut queue = FuturesUnordered::new();
+        queue.push(future::poll_fn(|| -> Poll<i32, i32> {
+            panic!()
+        }));
+
+        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll()));
+        assert!(r.is_err());
+        assert!(queue.is_empty());
+        assert_eq!(Ready(None), queue.poll().unwrap());
+
+        Ok::<_, ()>(())
+    }).wait().unwrap();
 }
