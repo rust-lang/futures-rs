@@ -262,6 +262,82 @@ fn foo(&self) -> io::Result<()> {
 unfortunately will not work. You'll either need to take `self` by value or defer
 to a different `#[async]` function.
 
+### Futures in traits
+
+Let's say you've got a trait like so:
+
+```rust
+trait MyStuff {
+    fn do_async_task(??self) -> Box<Future<...>>;
+}
+```
+
+We'll gloss over the `self` details here for a bit, but in essence we've got a
+function in a trait tha twants to return a future. Unfortunately it's actually
+quite difficult to use this! Right now there's a few of caveats:
+
+* Ideally you want to tag this `#[async]` but this is (a) not implemented in the
+  procedural macro right now (it doesn't rewrite trait function declarations)
+  but also (b) it doesn't work because a trait function returning `impl Future`
+  is not implemented in the compiler today. I'm told that this will eventually
+  work, though!
+* Ok so then the next best thing is `#[async(boxed)]` to return a boxed trait
+  object instead of `impl Future` for the meantime. This still isn't actually
+  implemented in the `futures-await` implementation of `#[async]` (it doesn't
+  rewrite trait functions) but it's plausible!
+* But now this brings us to the handling of `self`. Because of the limitations
+  of `#[async]` today we only have two options, `self` and `self: Box<Self>`.
+  The former is unfortunately not object safe (now we can't use virtual dispatch
+  with this trait) and the latter is typically wasteful (every invocation now
+  requires a fresh allocation). Ideally `self: Rc<Self>` is exactly what we want
+  here! But unfortunately this isn't implemented in the compiler :frowning:
+
+So basically in summary you've got one of two options to return futures in
+traits today:
+
+```rust
+trait MyStuff {
+    // Trait is not object safe because of `self` so can't have virtual
+    // dispatch, and the allocation of `Box<..>` as a return value is required
+    // until the compiler implements returning `impl Future` from traits.
+    //
+    // Note that the upside of this approach, though, is that `self` could be
+    // something like `Rc` or have a bunch fo `Rc` inside of `self`, so this
+    // could be cheap to call.
+    fn do_async_task(self) -> Box<Future<...>>;
+}
+```
+
+or the alternative:
+
+```rust
+trait MyStuff {
+    // Like above we returned a trait object but here the trait is indeed object
+    // safe, allowing virtual dispatch. The downside is that we must have a
+    // `Box` on hand every time we call this function, which may be costly in
+    // some situations.
+    fn do_async_task(self: Box<Self>) -> Box<Future<...>>;
+}
+```
+
+The *ideal end goal* for futures-in-traits is this:
+
+```rust
+trait MyStuff {
+    #[async]
+    fn do_async_task(self: Rc<Self>) -> Result<i32, u32>;
+}
+```
+
+but this needs three pieces to be implemented:
+
+* The compiler must accept trait functions returning `impl Trait`
+* The compiler needs support for `self: Rc<Self>`, basically object-safe custom
+  smart pointers in traits.
+* And finally, the compiler needs to support `proc_macro_attribute` expansion on
+  trait functions like this, allowing the `#[async]` implementation to rewrite
+  this signature.
+
 # License
 
 `futures-await` is primarily distributed under the terms of both the MIT
