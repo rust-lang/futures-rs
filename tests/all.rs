@@ -27,10 +27,10 @@ fn result_smoke() {
 
     is_future_v::<i32, u32, _>(f_ok(1).map(|a| a + 1));
     is_future_v::<i32, u32, _>(f_ok(1).map_err(|a| a + 1));
-    is_future_v::<i32, u32, _>(f_ok(1).and_then(|a| Ok(a)));
-    is_future_v::<i32, u32, _>(f_ok(1).or_else(|a| Err(a)));
+    is_future_v::<i32, u32, _>(f_ok(1).and_then(Ok));
+    is_future_v::<i32, u32, _>(f_ok(1).or_else(Err));
     is_future_v::<(i32, i32), u32, _>(f_ok(1).join(Err(3)));
-    is_future_v::<i32, u32, _>(f_ok(1).map(move |a| f_ok(a)).flatten());
+    is_future_v::<i32, u32, _>(f_ok(1).map(f_ok).flatten());
 
     assert_done(|| f_ok(1), r_ok(1));
     assert_done(|| f_err(1), r_err(1));

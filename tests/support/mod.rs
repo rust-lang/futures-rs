@@ -125,7 +125,7 @@ impl<F: Future> Future for DelayFuture<F> {
     }
 }
 
-/// Introduces one Ok(Async::NotReady) before polling the given future
+/// Introduces one `Ok(Async::NotReady)` before polling the given future
 pub fn delay_future<F>(f: F) -> DelayFuture<F::Future>
     where F: IntoFuture,
 {

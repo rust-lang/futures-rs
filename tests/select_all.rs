@@ -22,5 +22,5 @@ fn smoke() {
     assert_eq!(i, 3);
     assert_eq!(idx, 0);
 
-    assert!(v.len() == 0);
+    assert!(v.is_empty());
 }

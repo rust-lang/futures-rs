@@ -69,7 +69,7 @@ fn mpsc_backpressure() {
             .forward(tx)
             .map_err(|e: SendError<i32>| panic!("{}", e))
             .join(rx.take(3).collect().map(|xs| {
-                assert!(xs == [1, 2, 3]);
+                assert_eq!(xs, [1, 2, 3]);
             }))
     }).wait().unwrap();
 }
@@ -82,7 +82,7 @@ fn mpsc_unbounded() {
             .forward(tx)
             .map_err(|e: SendError<i32>| panic!("{}", e))
             .join(rx.take(3).collect().map(|xs| {
-                assert!(xs == [1, 2, 3]);
+                assert_eq!(xs, [1, 2, 3]);
             }))
     }).wait().unwrap();
 }
@@ -92,7 +92,7 @@ fn mpsc_recv_unpark() {
     let mut core = Core::new();
     let (tx, rx) = mpsc::channel::<i32>(1);
     let tx2 = tx.clone();
-    core.spawn(rx.collect().map(|xs| assert!(xs == [1, 2])));
+    core.spawn(rx.collect().map(|xs| assert_eq!(xs, [1, 2])));
     core.spawn(lazy(move || tx.send(1).map(|_| ()).map_err(|e| panic!("{}", e))));
     core.run(lazy(move || tx2.send(2))).unwrap();
 }
