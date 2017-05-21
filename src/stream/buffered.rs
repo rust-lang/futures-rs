@@ -133,7 +133,7 @@ impl<S> Stream for Buffered<S>
         }
 
         // Next, try and step all the futures forward
-        for future in self.futures.iter_mut() {
+        for future in &mut self.futures {
             let result = match *future {
                 State::Running(ref mut s) => {
                     match s.poll() {

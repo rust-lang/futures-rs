@@ -55,11 +55,10 @@ impl<S1, S2> Stream for Select<S1, S2>
                 if !a_done {
                     self.flag = !self.flag;
                 }
-                return Ok(Some(item).into())
+                Ok(Some(item).into())
             }
             Async::Ready(None) if a_done => Ok(None.into()),
-            Async::Ready(None) => Ok(Async::NotReady),
-            Async::NotReady => Ok(Async::NotReady),
+            Async::Ready(None) | Async::NotReady => Ok(Async::NotReady),
         }
     }
 }

@@ -43,7 +43,7 @@ impl<T, U> SendAll<T, U>
             .expect("Attempted to poll Forward after completion");
         let fuse = self.stream.take()
             .expect("Attempted to poll Forward after completion");
-        return (sink, fuse.into_inner());
+        (sink, fuse.into_inner())
     }
 
     fn try_start_send(&mut self, item: U::Item) -> Poll<(), T::SinkError> {
