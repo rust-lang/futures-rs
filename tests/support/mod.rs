@@ -83,13 +83,15 @@ pub fn notify_panic() -> NotifyHandle {
 }
 
 pub fn notify_noop() -> NotifyHandle {
-    struct Foo;
+    struct Noop;
 
-    impl Notify for Foo {
+    impl Notify for Noop {
         fn notify(&self, _id: u64) {}
     }
 
-    NotifyHandle::from(Arc::new(Foo))
+    const NOOP : &'static Noop = &Noop;
+
+    NotifyHandle::from(NOOP)
 }
 
 pub trait ForgetExt {

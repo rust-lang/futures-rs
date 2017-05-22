@@ -1156,3 +1156,38 @@ impl<T> From<Arc<T>> for NotifyHandle
         }
     }
 }
+
+/// Marker for a `T` that is behind &'static.
+struct StaticRef<T>(PhantomData<T>);
+
+impl<T: Notify> Notify for StaticRef<T> {
+    fn notify(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.notify(id);
+    }
+
+    fn ref_inc(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_inc(id);
+    }
+
+    fn ref_dec(&self, id: u64) {
+        let me = unsafe { &*(self as *const _ as *const T) };
+        me.ref_dec(id);
+    }
+}
+
+unsafe impl<T: Notify + 'static> UnsafeNotify for StaticRef<T> {
+    unsafe fn clone_raw(&self) -> NotifyHandle {
+        NotifyHandle::new(self as *const _ as *mut StaticRef<T>)
+    }
+
+    unsafe fn drop_raw(&self) {}
+}
+
+impl<T: Notify> From<&'static T> for NotifyHandle {
+    fn from(src : &'static T) -> NotifyHandle {
+        unsafe { NotifyHandle::new(src as *const _ as *mut StaticRef<T>) }
+    }
+}
+
