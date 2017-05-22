@@ -1203,14 +1203,14 @@ impl<T: Notify> Notify for StaticRef<T> {
         me.notify(id);
     }
 
-    fn ref_inc(&self, id: u64) {
+    fn clone_id(&self, id: u64) -> u64 {
         let me = unsafe { &*(self as *const _ as *const T) };
-        me.ref_inc(id);
+        me.clone_id(id)
     }
 
-    fn ref_dec(&self, id: u64) {
+    fn drop_id(&self, id: u64) {
         let me = unsafe { &*(self as *const _ as *const T) };
-        me.ref_dec(id);
+        me.drop_id(id);
     }
 }
 
