@@ -120,7 +120,7 @@ impl<T> Sender<T> {
     /// Completes this oneshot with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the
-    /// `Receiver`, that the error provided is the result of the computation this
+    /// `Receiver`, that the value provided is the result of the computation this
     /// represents.
     ///
     /// If the value is successfully enqueued for the remote end to receive,
