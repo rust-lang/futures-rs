@@ -12,17 +12,19 @@ use future::BoxFuture;
 
 mod unpark_mutex;
 use self::unpark_mutex::UnparkMutex;
-
+mod unpark_handle;
+use self::unpark_handle::{UnparkHandle, UnparkObj};
 mod task_rc;
 mod data;
 #[allow(deprecated)]
 #[cfg(feature = "with-deprecated")]
 pub use self::task_rc::TaskRc;
 pub use self::data::LocalKey;
+pub use self::unpark_handle::MAX_UNPARK_BYTES;
 
 struct BorrowedTask<'a> {
     id: usize,
-    unpark: &'a Arc<Unpark>,
+    unpark: UnparkHandle<'a>,
     map: &'a data::LocalMap,
     events: Events,
 }
@@ -81,7 +83,7 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 #[derive(Clone)]
 pub struct Task {
     id: usize,
-    unpark: Arc<Unpark>,
+    unpark: UnparkObj,
     events: Events,
 }
 
@@ -121,7 +123,7 @@ pub fn park() -> Task {
         Task {
             id: task.id,
             events: task.events.clone(),
-            unpark: task.unpark.clone(),
+            unpark: UnparkObj::from(task.unpark),
         }
     })
 }
@@ -279,6 +281,33 @@ impl Events {
 /// can be blocked indefinitely until a notification arrives. This can be used
 /// with either futures or streams, with different methods being available on
 /// `Spawn` depending which is used.
+///
+/// # Notes on `unpark` parameters
+///
+/// A `Task` handle returned by `task::park` will contain a fresh
+/// clone of the `unpark` argument provided. Depending on your use case,
+/// you may want to wrap your `unpark` value in an `Arc`.
+/// 
+/// If you use inner mutability in your `unpark`, then you should carefully
+/// consider what happens when it is cloned and what is the behaviour you want.
+/// Inner mutability aside, the only difference between using or not an `Arc`
+/// should be performance. An `Arc` will cost an allocation upfront and updates
+/// an atomic ref count on park,  while no `Arc` has no upfront cost but will
+/// cost a clone on park. The best strategy depends on how often your futures
+/// park and how costly it is to clone `unpark`.
+///
+/// ## Panics
+///
+/// Many `Spawn` methods take an `unpark` parameter, notably the polling
+/// methods. If the size of `unpark` is too large, these methods will panic.
+/// If you get a panic either wrap `unpark` in an `Arc` or use the
+/// MaxUnparkBytes features to increase the maximum size.
+/// The panic depends only on the type and not the value, so you
+/// should not fear unexpected panics, simply testing the function
+/// for each type of `unpark` used will suffice. If you need to check
+/// whether your `unpark` is too large, use the `MAX_UNPARK_BYTES` constant.
+/// if `mem::size_of<U>() <= MAX_UNPARK_BYTES` where `U` is the type of
+/// your unpark, then you are good.
 pub struct Spawn<T> {
     obj: T,
     id: usize,
@@ -326,15 +355,16 @@ impl<F: Future> Spawn<F> {
     /// This method will poll the internal future, testing if it's completed
     /// yet. The `unpark` argument is used as a sink for notifications sent to
     /// this future. That is, while the future is being polled, any call to
-    /// `task::park()` will return a handle that contains the `unpark`
-    /// specified.
+    /// `task::park()` will return a handle that contains a fresh clone of 
+    /// the `unpark` specified. You may want to wrap `unpark` in an `Arc`.
+    /// See `Spawn` documentation for more.
     ///
     /// If this function returns `NotReady`, then the `unpark` should have been
     /// scheduled to receive a notification when poll can be called again.
     /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
     /// safely destroyed.
-    pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(&unpark, |f| f.poll())
+    pub fn poll_future<U : Unpark + Clone>(&mut self, unpark: &U) -> Poll<F::Item, F::Error> {
+        self.enter(UnparkHandle::from(unpark), |f| f.poll())
     }
 
     /// Waits for the internal future to complete, blocking this thread's
@@ -344,9 +374,9 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new());
         loop {
-            match try!(self.poll_future(unpark.clone())) {
+            match try!(self.poll_future(&unpark)) {
                 Async::NotReady => unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
@@ -391,17 +421,17 @@ impl<F: Future> Spawn<F> {
 
 impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
-    pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
+    pub fn poll_stream<U : Unpark + Clone>(&mut self, unpark: &U)
                        -> Poll<Option<S::Item>, S::Error> {
-        self.enter(&unpark, |stream| stream.poll())
+        self.enter(UnparkHandle::from(unpark), |stream| stream.poll())
     }
 
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadUnpark::new());
         loop {
-            match self.poll_stream(unpark.clone()) {
+            match self.poll_stream(&unpark) {
                 Ok(Async::NotReady) => unpark.park(),
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
@@ -417,19 +447,19 @@ impl<S: Sink> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `unpark` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
+    pub fn start_send<U : Unpark + Clone>(&mut self, value: S::SinkItem, unpark: &U)
                        -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(unpark, |sink| sink.start_send(value))
+        self.enter(UnparkHandle::from(unpark), |sink| sink.start_send(value))
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
     ///
-    /// If the underlying operation returns `NotReady` then the `unpark` value
-    /// passed in will receive a notification when the operation is ready to be
-    /// attempted again.
-    pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
+    /// If the underlying operation returns `NotReady` then a clone of 
+    /// the `unpark` value passed in will receive a notification
+    /// when the operation is ready to be attempted again.
+    pub fn poll_flush<U : Unpark + Clone>(&mut self, unpark: &U)
                        -> Poll<(), S::SinkError> {
-        self.enter(unpark, |sink| sink.poll_complete())
+        self.enter(UnparkHandle::from(unpark), |sink| sink.poll_complete())
     }
 
     /// Blocks the current thread until it's able to send `value` on this sink.
@@ -439,10 +469,9 @@ impl<S: Sink> Spawn<S> {
     /// be blocked until it's able to send the value.
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = unpark.clone() as Arc<Unpark>;
+        let unpark = Arc::new(ThreadUnpark::new());
         loop {
-            value = match try!(self.start_send(value, &unpark2)) {
+            value = match try!(self.start_send(value, &unpark)) {
                 AsyncSink::NotReady(v) => v,
                 AsyncSink::Ready => return Ok(()),
             };
@@ -459,10 +488,9 @@ impl<S: Sink> Spawn<S> {
     /// The thread will be blocked until `poll_complete` returns that it's
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
-        let unpark2 = unpark.clone() as Arc<Unpark>;
+        let unpark = Arc::new(ThreadUnpark::new());
         loop {
-            if try!(self.poll_flush(&unpark2)).is_ready() {
+            if try!(self.poll_flush(&unpark)).is_ready() {
                 return Ok(())
             }
             unpark.park();
@@ -471,7 +499,7 @@ impl<S: Sink> Spawn<S> {
 }
 
 impl<T> Spawn<T> {
-    fn enter<F, R>(&mut self, unpark: &Arc<Unpark>, f: F) -> R
+    fn enter<F, R>(&mut self, unpark: UnparkHandle, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
         let task = BorrowedTask {
@@ -501,13 +529,19 @@ impl<T: fmt::Debug> fmt::Debug for Spawn<T> {
 /// `Spawn::poll_stream` functions. It's transitively used as part of the
 /// `Task::unpark` method to internally deliver notifications of readiness of a
 /// future to move forward.
-pub trait Unpark: Send + Sync {
+pub trait Unpark: Send + 'static {
     /// Indicates that an associated future and/or task are ready to make
     /// progress.
     ///
     /// Typically this means that the receiver of the notification should
     /// arrange for the future to get poll'd in a prompt fashion.
     fn unpark(&self);
+}
+
+impl<T: Unpark + Sync> Unpark for Arc<T> {
+    fn unpark(&self) {
+        (**self).unpark();
+    }
 }
 
 /// A trait representing requests to poll futures.
@@ -526,9 +560,9 @@ struct ThreadUnpark {
 }
 
 impl ThreadUnpark {
-    fn new(thread: thread::Thread) -> ThreadUnpark {
+    fn new() -> ThreadUnpark {
         ThreadUnpark {
-            thread: thread,
+            thread: thread::current(),
             ready: AtomicBool::new(false),
         }
     }
@@ -564,14 +598,14 @@ impl Run {
     /// thread.
     pub fn run(self) {
         let Run { mut spawn, inner } = self;
-
+        
         // SAFETY: the ownership of this `Run` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
         unsafe {
             inner.mutex.start_poll();
 
             loop {
-                match spawn.poll_future(inner.clone()) {
+                match spawn.poll_future(&inner) {
                     Ok(Async::NotReady) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),

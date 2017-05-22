@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use std::fmt;
-use std::sync::Arc;
 use std::thread;
 
 use futures::{Future, IntoFuture, Async, Poll};
@@ -27,11 +26,11 @@ pub fn assert_done<T, F>(f: F, result: Result<T::Item, T::Error>)
 }
 
 pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
-    assert!(executor::spawn(f()).poll_future(unpark_panic()).ok().unwrap().is_not_ready());
+    assert!(executor::spawn(f()).poll_future(UNPARK_PANIC).ok().unwrap().is_not_ready());
 }
 
 pub fn sassert_done<S: Stream>(s: &mut S) {
-    match executor::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(UNPARK_PANIC) {
         Ok(Async::Ready(None)) => {}
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),
@@ -40,7 +39,7 @@ pub fn sassert_done<S: Stream>(s: &mut S) {
 }
 
 pub fn sassert_empty<S: Stream>(s: &mut S) {
-    match executor::spawn(s).poll_stream(unpark_noop()) {
+    match executor::spawn(s).poll_stream(UNPARK_NOOP) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => {}
@@ -51,7 +50,7 @@ pub fn sassert_empty<S: Stream>(s: &mut S) {
 pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
     where S::Item: Eq + fmt::Debug
 {
-    match executor::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(UNPARK_PANIC) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(e))) => assert_eq!(e, item),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),
@@ -62,7 +61,7 @@ pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
 pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     where S::Error: Eq + fmt::Debug
 {
-    match executor::spawn(s).poll_stream(unpark_panic()) {
+    match executor::spawn(s).poll_stream(UNPARK_PANIC) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
         Ok(Async::NotReady) => panic!("stream wasn't ready"),
@@ -70,26 +69,20 @@ pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     }
 }
 
-pub fn unpark_panic() -> Arc<Unpark> {
-    struct Foo;
+pub const UNPARK_PANIC : &'static UnparkFn = &UnparkFn(panic as fn());
+pub const UNPARK_NOOP : &'static UnparkFn = &UnparkFn(noop as fn());
 
-    impl Unpark for Foo {
-        fn unpark(&self) {
-            panic!("should not be unparked");
-        }
-    }
+fn panic() { panic!("should not be unparked"); }
+fn noop() { }
 
-    Arc::new(Foo)
+#[derive(Copy)]
+pub struct UnparkFn(fn());
+
+impl Clone for UnparkFn {
+    fn clone(&self) -> UnparkFn { UnparkFn(self.0) }
 }
-
-pub fn unpark_noop() -> Arc<Unpark> {
-    struct Foo;
-
-    impl Unpark for Foo {
-        fn unpark(&self) {}
-    }
-
-    Arc::new(Foo)
+impl Unpark for UnparkFn {
+    fn unpark(&self) { (self.0)(); }
 }
 
 pub trait ForgetExt {
@@ -129,4 +122,3 @@ pub fn delay_future<F>(f: F) -> DelayFuture<F::Future>
 {
     DelayFuture(f.into_future(), false)
 }
-

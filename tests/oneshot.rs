@@ -21,7 +21,7 @@ fn smoke_poll() {
         assert!(tx.poll_cancel().unwrap().is_ready());
         ok::<(), ()>(())
     }));
-    assert!(task.poll_future(unpark_noop()).unwrap().is_ready());
+    assert!(task.poll_future(UNPARK_NOOP).unwrap().is_ready());
 }
 
 #[test]

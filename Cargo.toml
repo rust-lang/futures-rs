@@ -24,6 +24,8 @@ appveyor = { repository = "alexcrichton/futures-rs" }
 use_std = []
 with-deprecated = []
 default = ["use_std", "with-deprecated"]
+MaxUnparkBytes128 = []
+MaxUnparkBytes256 = []
 
 [workspace]
 members = ["futures-cpupool"]
