@@ -124,7 +124,7 @@ impl<D> UnparkMutex<D> {
             // guaranteed to be in REPOLL state; just clobber the
             // state and run again.
             Err(status) => {
-                assert_eq!(status, REPOLL);
+                debug_assert_eq!(status, REPOLL);
                 self.status.store(POLLING, SeqCst);
                 Err((*self.inner.get()).take().unwrap())
             }

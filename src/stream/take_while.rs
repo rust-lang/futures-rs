@@ -68,7 +68,7 @@ impl<S, P, R> Stream for TakeWhile<S, P, R>
             self.pending = Some(((self.pred)(&item).into_future(), item));
         }
 
-        assert!(self.pending.is_some());
+        debug_assert!(self.pending.is_some());
         match self.pending.as_mut().unwrap().0.poll() {
             Ok(Async::Ready(true)) => {
                 let (_, item) = self.pending.take().unwrap();

@@ -93,7 +93,7 @@ impl<S: Sink> Sink for Buffer<S> {
         if self.buf.len() > 0 {
             try_ready!(self.try_empty_buffer());
         }
-        assert_eq!(self.buf.len(), 0);
+        debug_assert_eq!(self.buf.len(), 0);
         self.sink.close()
     }
 }

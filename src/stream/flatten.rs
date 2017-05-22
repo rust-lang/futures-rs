@@ -86,7 +86,7 @@ impl<S> Stream for Flatten<S>
                     None => return Ok(Async::Ready(None)),
                 }
             }
-            assert!(self.next.is_some());
+            debug_assert!(self.next.is_some());
             match self.next.as_mut().unwrap().poll() {
                 Ok(Async::Ready(None)) => self.next = None,
                 other => return other,

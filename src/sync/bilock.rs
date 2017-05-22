@@ -151,7 +151,7 @@ impl<T> BiLock<T> {
 
 impl<T> Drop for Inner<T> {
     fn drop(&mut self) {
-        assert_eq!(self.state.load(SeqCst), 0);
+        debug_assert_eq!(self.state.load(SeqCst), 0);
     }
 }
 
