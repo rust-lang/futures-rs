@@ -196,7 +196,7 @@ impl CpuPool {
             tx: Some(tx),
             keep_running_flag: keep_running_flag.clone(),
         };
-        executor::spawn(sender).execute(self.inner.clone());
+        executor::spawn(sender.boxed()).execute(self.inner.clone());
         CpuFuture { inner: rx , keep_running_flag: keep_running_flag.clone() }
     }
 
