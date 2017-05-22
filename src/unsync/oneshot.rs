@@ -110,7 +110,7 @@ impl<T> Sender<T> {
     pub fn poll_cancel(&mut self) -> Poll<(), ()> {
         match self.inner.upgrade() {
             Some(inner) => {
-                inner.borrow_mut().tx_task = Some(task::park());
+                inner.borrow_mut().tx_task = Some(task::current());
                 Ok(Async::NotReady)
             }
             None => Ok(().into()),
@@ -130,7 +130,7 @@ impl<T> Drop for Sender<T> {
             borrow.rx_task.take()
         };
         if let Some(task) = rx_task {
-            task.unpark();
+            task.notify();
         }
     }
 }
@@ -153,7 +153,7 @@ impl<T> Receiver<T> {
         };
         self.state = State::Closed(item);
         if let Some(task) = task {
-            task.unpark();
+            task.notify();
         }
     }
 }
@@ -184,7 +184,7 @@ impl<T> Future for Receiver<T> {
         if Rc::get_mut(inner).is_some() {
             Err(Canceled)
         } else {
-            inner.borrow_mut().rx_task = Some(task::park());
+            inner.borrow_mut().rx_task = Some(task::current());
             Ok(Async::NotReady)
         }
     }

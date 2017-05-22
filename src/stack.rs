@@ -8,7 +8,7 @@ use std::ptr;
 use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering::SeqCst;
 
-use task::EventSet;
+use executor::Notify;
 
 #[derive(Debug)]
 pub struct Stack<T> {
@@ -133,8 +133,8 @@ mod tests {
     }
 }
 
-impl EventSet for Stack<usize> {
-    fn insert(&self, id: usize) {
-        self.push(id);
+impl Notify for Stack<usize> {
+    fn notify(&self, id: u64) {
+        self.push(id as usize);
     }
 }

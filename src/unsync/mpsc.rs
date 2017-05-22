@@ -66,14 +66,14 @@ impl<T> Sender<T> {
 
         match shared.capacity {
             Some(capacity) if shared.buffer.len() == capacity => {
-                shared.blocked_senders.push_back(task::park());
+                shared.blocked_senders.push_back(task::current());
                 Ok(AsyncSink::NotReady(msg))
             }
             _ => {
                 shared.buffer.push_back(msg);
                 if let Some(task) = shared.blocked_recv.take() {
                     drop(shared);
-                    task.unpark();
+                    task.notify();
                 }
                 Ok(AsyncSink::Ready)
             }
@@ -120,7 +120,7 @@ impl<T> Drop for Sender<T> {
             if let Some(task) = shared.blocked_recv.take() {
                 // Wake up receiver as its stream has ended
                 drop(shared);
-                task.unpark();
+                task.notify();
             }
         }
     }
@@ -159,7 +159,7 @@ impl<T> Receiver<T> {
         };
         self.state = State::Closed(items);
         for task in blockers {
-            task.unpark();
+            task.notify();
         }
     }
 }
@@ -186,11 +186,11 @@ impl<T> Stream for Receiver<T> {
         if let Some(msg) = shared.buffer.pop_front() {
             if let Some(task) = shared.blocked_senders.pop_front() {
                 drop(shared);
-                task.unpark();
+                task.notify();
             }
             Ok(Async::Ready(Some(msg)))
         } else {
-            shared.blocked_recv = Some(task::park());
+            shared.blocked_recv = Some(task::current());
             Ok(Async::NotReady)
         }
     }
@@ -261,7 +261,7 @@ impl<T> UnboundedSender<T> {
         shared.buffer.push_back(msg);
         if let Some(task) = shared.blocked_recv.take() {
             drop(shared);
-            task.unpark();
+            task.notify();
         }
         Ok(())
     }

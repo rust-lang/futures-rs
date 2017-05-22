@@ -22,16 +22,22 @@
 //!
 //! ## Functions
 //!
-//! There is an important bare function in this module: `park`. The `park`
-//! function is similar to the standard library's `thread::park` method where it
-//! returns a handle to wake up a task at a later date (via an `unpark` method).
+//! There is an important bare function in this module: `current`. The
+//! `current` function returns a handle to the currently running task, panicking
+//! if one isn't present. This handle is then used to later notify the task that
+//! it's ready to make progress through the `Task::notify` method.
 
 #[doc(hidden)]
 #[deprecated(since = "0.1.4", note = "import through the executor module instead")]
 #[cfg(feature = "with-deprecated")]
+#[allow(deprecated)]
 pub use task_impl::{Spawn, spawn, Unpark, Executor, Run};
 
-pub use task_impl::{Task, LocalKey, park, with_unpark_event, UnparkEvent, EventSet};
+#[allow(deprecated)]
+pub use task_impl::{Task, park, current};
+#[allow(deprecated)]
+pub use task_impl::{LocalKey, with_unpark_event, UnparkEvent, EventSet};
+pub use task_impl::NotifyContext;
 
 #[doc(hidden)]
 #[deprecated(since = "0.1.4", note = "import through the executor module instead")]

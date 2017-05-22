@@ -1,9 +1,8 @@
 use std::prelude::v1::*;
 use std::fmt;
 use std::mem;
-use std::sync::Arc;
 
-use task::{self, UnparkEvent};
+use task::NotifyContext;
 
 use {Async, IntoFuture, Poll, Future};
 use stream::{Stream, Fuse};
@@ -36,7 +35,7 @@ pub struct BufferUnordered<S>
     // futures. This is filled in and used with the `with_unpark_event`
     // function. The `pending` list here is the last time we drained events from
     // our stack.
-    stack: Arc<Stack<usize>>,
+    stack: NotifyContext<Stack<usize>>,
     pending: Drain<usize>,
 
     // Number of active futures running in the `futures` slab
@@ -75,7 +74,7 @@ pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
         futures: (0..amt).map(|i| Slot::Next(i + 1)).collect(),
         next_future: 0,
         pending: Stack::new().drain(),
-        stack: Arc::new(Stack::new()),
+        stack: NotifyContext::new(Stack::new()),
         active: 0,
     }
 }
@@ -90,8 +89,7 @@ impl<S> BufferUnordered<S>
         while let Some(idx) = self.pending.next() {
             let result = match self.futures[idx] {
                 Slot::Data(ref mut f) => {
-                    let event = UnparkEvent::new(self.stack.clone(), idx);
-                    match task::with_unpark_event(event, || f.poll()) {
+                    match self.stack.with(idx as u64, || f.poll()) {
                         Ok(Async::NotReady) => continue,
                         Ok(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
                         Err(e) => Err(e),
@@ -148,7 +146,7 @@ impl<S> Stream for BufferUnordered<S>
                 Async::NotReady => break,
             };
             self.active += 1;
-            self.stack.push(self.next_future);
+            self.stack.get_ref().push(self.next_future);
             match mem::replace(&mut self.futures[self.next_future],
                                Slot::Data(future)) {
                 Slot::Next(next) => self.next_future = next,
@@ -165,7 +163,7 @@ impl<S> Stream for BufferUnordered<S>
         // And finally, take a look at our stack of events, attempting to
         // process all of those.
         assert!(self.pending.next().is_none());
-        self.pending = self.stack.drain();
+        self.pending = self.stack.get_ref().drain();
         if let Some(ret) = self.poll_pending() {
             return ret
         }
