@@ -1,9 +1,11 @@
+#![allow(dead_code)]
+
 use super::Task;
 
-use std::fmt;
-use std::cell::UnsafeCell;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::{Acquire, Release};
+use core::fmt;
+use core::cell::UnsafeCell;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::{Acquire, Release};
 
 /// A coordinated `Task` handle enabling concurrent operations on a task.
 pub struct AtomicTask {

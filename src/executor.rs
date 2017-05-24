@@ -8,6 +8,9 @@
 //! [online]: https://tokio.rs/docs/going-deeper-futures/tasks/
 
 #[allow(deprecated)]
-pub use task_impl::{Spawn, spawn, Unpark, Notify, Executor, Run};
+#[cfg(feature = "use_std")]
+pub use task_impl::{Unpark, Executor, Run};
+
+pub use task_impl::{Spawn, spawn, Notify};
 
 pub use task_impl::{UnsafeNotify, NotifyHandle};
