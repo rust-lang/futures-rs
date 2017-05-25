@@ -90,7 +90,7 @@ impl<T> BiLock<T> {
                 }
             }
 
-            let me = Box::new(task::park());
+            let me = Box::new(task::current());
             let me = Box::into_raw(me) as usize;
 
             match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -143,7 +143,7 @@ impl<T> BiLock<T> {
             // Another task has parked themselves on this lock, let's wake them
             // up as its now their turn.
             n => unsafe {
-                Box::from_raw(n as *mut Task).unpark();
+                Box::from_raw(n as *mut Task).notify();
             }
         }
     }

@@ -331,7 +331,7 @@ impl<T> Sender<T> {
         // be parked. This will send the task handle on the parked task queue.
         //
         // However, when `do_send` is called while dropping the `Sender`,
-        // `task::park()` can't be called safely. In this case, in order to
+        // `task::current()` can't be called safely. In this case, in order to
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
@@ -435,15 +435,15 @@ impl<T> Sender<T> {
         };
 
         if let Some(task) = task {
-            task.unpark();
+            task.notify();
         }
     }
 
     fn park(&mut self, can_park: bool) {
-        // TODO: clean up internal state if the task::park will fail
+        // TODO: clean up internal state if the task::current will fail
 
         let task = if can_park {
-            Some(task::park())
+            Some(task::current())
         } else {
             None
         };
@@ -478,7 +478,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            *task = Some(task::park());
+            *task = Some(task::current());
 
             Async::NotReady
         } else {
@@ -647,7 +647,7 @@ impl<T> Receiver<T> {
                 PopResult::Data(task) => {
                     let task = task.lock().unwrap().take();
                     if let Some(task) = task {
-                        task.unpark();
+                        task.notify();
                     }
                 }
                 PopResult::Empty => break,
@@ -675,7 +675,7 @@ impl<T> Receiver<T> {
                     //
                     // 1) Spin
                     // 2) thread::yield_now()
-                    // 3) task::park().unwrap() & return NotReady
+                    // 3) task::current().unwrap() & return NotReady
                     //
                     // For now, thread::yield_now() is used, but it would
                     // probably be better to spin a few times then yield.
@@ -695,7 +695,7 @@ impl<T> Receiver<T> {
                     let task = task.lock().unwrap().take();
 
                     if let Some(task) = task {
-                        task.unpark();
+                        task.notify();
                     }
 
                     return;
@@ -731,7 +731,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(task::park());
+        recv_task.task = Some(task::current());
         TryPark::Parked
     }
 

@@ -196,17 +196,11 @@ pub use future::{
     SelectNext, Then
 };
 
-
 #[cfg(feature = "use_std")]
 mod lock;
-#[cfg(feature = "use_std")]
 mod task_impl;
-#[cfg(feature = "use_std")]
-mod stack;
 
-#[cfg(feature = "use_std")]
 pub mod task;
-#[cfg(feature = "use_std")]
 pub mod executor;
 #[cfg(feature = "use_std")]
 pub mod sync;

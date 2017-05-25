@@ -17,10 +17,10 @@ use futures::executor::{self, Spawn};
 
 /// Main loop object
 pub struct Core {
-    unpark_send: mpsc::Sender<u64>,
-    unpark: mpsc::Receiver<u64>,
-    live: HashMap<u64, Spawn<Box<Future<Item=(), Error=()>>>>,
-    next_id: u64,
+    unpark_send: mpsc::Sender<usize>,
+    unpark: mpsc::Receiver<usize>,
+    live: HashMap<usize, Spawn<Box<Future<Item=(), Error=()>>>>,
+    next_id: usize,
 }
 
 impl Core {
@@ -70,9 +70,9 @@ impl Core {
 
     fn turn(&mut self) {
         let task = self.unpark.recv().unwrap(); // Safe to unwrap because self.unpark_send keeps the channel alive
-        let unpark = Arc::new(Unpark { task: task, send: Mutex::new(self.unpark_send.clone()), });
+        let notify = Arc::new(Notify { task: task, send: Mutex::new(self.unpark_send.clone()), });
         let mut task = if let hash_map::Entry::Occupied(x) = self.live.entry(task) { x } else { return };
-        let result = task.get_mut().poll_future(unpark);
+        let result = task.get_mut().poll_future_notify(&notify, 0);
         match result {
             Ok(Async::Ready(())) => { task.remove(); }
             Err(()) => { task.remove(); }
@@ -81,13 +81,13 @@ impl Core {
     }
 }
 
-struct Unpark {
-    task: u64,
-    send: Mutex<mpsc::Sender<u64>>,
+struct Notify {
+    task: usize,
+    send: Mutex<mpsc::Sender<usize>>,
 }
 
-impl executor::Unpark for Unpark {
-    fn unpark(&self) {
+impl executor::Notify for Notify {
+    fn notify(&self, _id: usize) {
         let _ = self.send.lock().unwrap().send(self.task);
     }
 }
