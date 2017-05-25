@@ -17,10 +17,10 @@ use futures::executor::{self, Spawn};
 
 /// Main loop object
 pub struct Core {
-    unpark_send: mpsc::Sender<u64>,
-    unpark: mpsc::Receiver<u64>,
-    live: HashMap<u64, Spawn<Box<Future<Item=(), Error=()>>>>,
-    next_id: u64,
+    unpark_send: mpsc::Sender<usize>,
+    unpark: mpsc::Receiver<usize>,
+    live: HashMap<usize, Spawn<Box<Future<Item=(), Error=()>>>>,
+    next_id: usize,
 }
 
 impl Core {
@@ -82,12 +82,12 @@ impl Core {
 }
 
 struct Notify {
-    task: u64,
-    send: Mutex<mpsc::Sender<u64>>,
+    task: usize,
+    send: Mutex<mpsc::Sender<usize>>,
 }
 
 impl executor::Notify for Notify {
-    fn notify(&self, _id: u64) {
+    fn notify(&self, _id: usize) {
         let _ = self.send.lock().unwrap().send(self.task);
     }
 }

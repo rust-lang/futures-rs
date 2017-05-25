@@ -539,7 +539,7 @@ unsafe impl<T> Send for ArcNode<T> {}
 unsafe impl<T> Sync for ArcNode<T> {}
 
 impl<T> Notify for ArcNode<T> {
-    fn notify(&self, _id: u64) {
+    fn notify(&self, _id: usize) {
         unsafe {
             let me: *const ArcNode<T> = self;
             let me: *const *const ArcNode<T> = &me;

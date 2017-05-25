@@ -73,7 +73,7 @@ impl Flag {
 }
 
 impl Notify for Flag {
-    fn notify(&self, _id: u64) {
+    fn notify(&self, _id: usize) {
         self.set(true)
     }
 }

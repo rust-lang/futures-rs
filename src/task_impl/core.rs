@@ -17,12 +17,12 @@ pub struct BorrowedEvents<'a>(marker::PhantomData<&'a ()>);
 #[derive(Copy, Clone)]
 pub struct BorrowedUnpark<'a> {
     f: &'a Fn() -> NotifyHandle,
-    id: u64,
+    id: usize,
 }
 
 pub struct TaskUnpark {
     handle: NotifyHandle,
-    id: u64,
+    id: usize,
 }
 
 #[derive(Clone)]
@@ -40,7 +40,7 @@ impl<'a> BorrowedEvents<'a> {
 
 impl<'a> BorrowedUnpark<'a> {
     #[inline]
-    pub fn new(f: &'a Fn() -> NotifyHandle, id: u64) -> BorrowedUnpark<'a> {
+    pub fn new(f: &'a Fn() -> NotifyHandle, id: usize) -> BorrowedUnpark<'a> {
         BorrowedUnpark { f: f, id: id }
     }
 

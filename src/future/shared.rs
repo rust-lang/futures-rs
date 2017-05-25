@@ -224,7 +224,7 @@ impl<F> Drop for Shared<F> where F: Future {
 }
 
 impl Notify for Notifier {
-    fn notify(&self, _id: u64) {
+    fn notify(&self, _id: usize) {
         self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
         let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), HashMap::new());

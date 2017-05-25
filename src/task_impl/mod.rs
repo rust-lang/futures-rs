@@ -284,7 +284,7 @@ impl<F: Future> Spawn<F> {
     /// pointer.
     pub fn poll_future_notify<T>(&mut self,
                                  notify: &T,
-                                 id: u64) -> Poll<F::Item, F::Error>
+                                 id: usize) -> Poll<F::Item, F::Error>
         where T: Clone + Into<NotifyHandle>,
     {
         let mk = || notify.clone().into();
@@ -296,7 +296,7 @@ impl<S: Stream> Spawn<S> {
     /// Like `poll_future_notify`, except polls the underlying stream.
     pub fn poll_stream_notify<T>(&mut self,
                                  notify: &T,
-                                 id: u64)
+                                 id: usize)
                                  -> Poll<Option<S::Item>, S::Error>
         where T: Clone + Into<NotifyHandle>,
     {
@@ -314,7 +314,7 @@ impl<S: Sink> Spawn<S> {
     pub fn start_send_notify<T>(&mut self,
                                 value: S::SinkItem,
                                 notify: &T,
-                                id: u64)
+                                id: usize)
                                -> StartSend<S::SinkItem, S::SinkError>
         where T: Clone + Into<NotifyHandle>,
     {
@@ -329,7 +329,7 @@ impl<S: Sink> Spawn<S> {
     /// attempted again.
     pub fn poll_flush_notify<T>(&mut self,
                                 notify: &T,
-                                id: u64)
+                                id: usize)
                                 -> Poll<(), S::SinkError>
         where T: Clone + Into<NotifyHandle>,
     {
@@ -386,7 +386,7 @@ pub trait Notify: Send + Sync {
     /// This method takes an `id` as an argument which was transitively passed
     /// in from the original call to `Spawn::*_notify`. This id can be used to
     /// disambiguate which precise future became ready for polling.
-    fn notify(&self, id: u64);
+    fn notify(&self, id: usize);
 
     /// This function is called whenever a new copy of `id` is needed.
     ///
@@ -408,7 +408,7 @@ pub trait Notify: Send + Sync {
     /// the identifier. For more unsafe situations, however, if `id` is itself a
     /// pointer of some kind this can be used as a hook to "clone" the pointer,
     /// depending on what that means for the specified pointer.
-    fn clone_id(&self, id: u64) -> u64 {
+    fn clone_id(&self, id: usize) -> usize {
         id
     }
 
@@ -419,12 +419,12 @@ pub trait Notify: Send + Sync {
     /// `id` argument to deallocate resources associated with the pointer. It's
     /// guaranteed that after this function is called the `Task` containing this
     /// `id` will no longer use the `id`.
-    fn drop_id(&self, id: u64) {
+    fn drop_id(&self, id: usize) {
         drop(id);
     }
 }
 
-pub fn with_notify<F, T, R>(notify: &T, id: u64, f: F) -> R
+pub fn with_notify<F, T, R>(notify: &T, id: usize, f: F) -> R
     where F: FnOnce() -> R,
           T: Clone + Into<NotifyHandle>,
 {
@@ -577,15 +577,15 @@ impl NotifyHandle {
     }
 
     /// Invokes the underlying instance of `Notify` with the provided `id`.
-    pub fn notify(&self, id: u64) {
+    pub fn notify(&self, id: usize) {
         unsafe { (*self.inner).notify(id) }
     }
 
-    fn clone_id(&self, id: u64) -> u64 {
+    fn clone_id(&self, id: usize) -> usize {
         unsafe { (*self.inner).clone_id(id) }
     }
 
-    fn drop_id(&self, id: u64) {
+    fn drop_id(&self, id: usize) {
         unsafe { (*self.inner).drop_id(id) }
     }
 }
@@ -618,17 +618,17 @@ impl Drop for NotifyHandle {
 struct StaticRef<T>(PhantomData<T>);
 
 impl<T: Notify> Notify for StaticRef<T> {
-    fn notify(&self, id: u64) {
+    fn notify(&self, id: usize) {
         let me = unsafe { &*(self as *const _ as *const T) };
         me.notify(id);
     }
 
-    fn clone_id(&self, id: u64) -> u64 {
+    fn clone_id(&self, id: usize) -> usize {
         let me = unsafe { &*(self as *const _ as *const T) };
         me.clone_id(id)
     }
 
-    fn drop_id(&self, id: u64) {
+    fn drop_id(&self, id: usize) {
         let me = unsafe { &*(self as *const _ as *const T) };
         me.drop_id(id);
     }

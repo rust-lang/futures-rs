@@ -13,7 +13,7 @@ fn notify_noop() -> NotifyHandle {
     struct Noop;
 
     impl Notify for Noop {
-        fn notify(&self, _id: u64) {}
+        fn notify(&self, _id: usize) {}
     }
 
     const NOOP : &'static Noop = &Noop;

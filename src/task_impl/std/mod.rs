@@ -125,7 +125,7 @@ pub enum UnparkEvents {
 
 impl<'a> BorrowedUnpark<'a> {
     #[inline]
-    pub fn new(f: &'a Fn() -> NotifyHandle, id: u64) -> BorrowedUnpark<'a> {
+    pub fn new(f: &'a Fn() -> NotifyHandle, id: usize) -> BorrowedUnpark<'a> {
         BorrowedUnpark::New(core::BorrowedUnpark::new(f, id))
     }
 
@@ -485,7 +485,7 @@ impl ThreadUnpark {
 }
 
 impl Notify for ThreadUnpark {
-    fn notify(&self, _unpark_id: u64) {
+    fn notify(&self, _unpark_id: usize) {
         self.ready.store(true, Ordering::SeqCst);
         self.thread.unpark()
     }
@@ -602,7 +602,7 @@ pub trait EventSet: Send + Sync + 'static {
 struct ArcWrapped<T>(PhantomData<T>);
 
 impl<T: Notify + 'static> Notify for ArcWrapped<T> {
-    fn notify(&self, id: u64) {
+    fn notify(&self, id: usize) {
         unsafe {
             let me: *const ArcWrapped<T> = self;
             T::notify(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
@@ -610,7 +610,7 @@ impl<T: Notify + 'static> Notify for ArcWrapped<T> {
         }
     }
 
-    fn clone_id(&self, id: u64) -> u64 {
+    fn clone_id(&self, id: usize) -> usize {
         unsafe {
             let me: *const ArcWrapped<T> = self;
             T::clone_id(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
@@ -618,7 +618,7 @@ impl<T: Notify + 'static> Notify for ArcWrapped<T> {
         }
     }
 
-    fn drop_id(&self, id: u64) {
+    fn drop_id(&self, id: usize) {
         unsafe {
             let me: *const ArcWrapped<T> = self;
             T::drop_id(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),

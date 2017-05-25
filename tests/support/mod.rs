@@ -74,7 +74,7 @@ pub fn notify_panic() -> NotifyHandle {
     struct Foo;
 
     impl Notify for Foo {
-        fn notify(&self, _id: u64) {
+        fn notify(&self, _id: usize) {
             panic!("should not be notified");
         }
     }
@@ -86,7 +86,7 @@ pub fn notify_noop() -> NotifyHandle {
     struct Noop;
 
     impl Notify for Noop {
-        fn notify(&self, _id: u64) {}
+        fn notify(&self, _id: usize) {}
     }
 
     const NOOP : &'static Noop = &Noop;
