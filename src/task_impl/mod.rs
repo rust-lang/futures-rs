@@ -41,16 +41,8 @@ fn fresh_task_id() -> usize {
 fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     where F: FnOnce() -> R
 {
-    struct Reset(*mut u8);
-    impl Drop for Reset {
-        fn drop(&mut self) {
-            set_ptr(self.0);
-        }
-    }
+    with_ptr(task as *const BorrowedTask<'a> as *mut u8, f)
 
-    let _reset = Reset(get_ptr());
-    set_ptr(task as *const BorrowedTask<'a> as *mut u8);
-    f()
 }
 
 fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {

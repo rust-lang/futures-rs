@@ -29,24 +29,64 @@ pub use task_impl::core::init;
 
 thread_local!(static CURRENT_TASK: Cell<*mut u8> = Cell::new(ptr::null_mut()));
 
+// This function and the one below are never used, but they are used to pass in
+// as arguments to the task system initialization. However, thread local logic
+// is special cased before, and `tls_get_ptr` is used as a token to check that
+// TLS is being used to track the current task.
+//
+// This function should never be inlined as it is used as a token in the
+// conditional below.
+#[inline(never)]
 fn tls_get_ptr() -> *mut u8 {
-    CURRENT_TASK.with(|c| c.get())
+    unreachable!();
 }
 
-fn tls_set_ptr(ptr: *mut u8) {
-    CURRENT_TASK.with(|c| c.set(ptr))
+#[inline(never)]
+fn tls_set_ptr(_: *mut u8) {
+    unreachable!();
 }
 
 static INIT: Once = ONCE_INIT;
 
-pub fn set_ptr(ptr: *mut u8) {
-    INIT.call_once(|| unsafe { init(tls_get_ptr, tls_set_ptr); });
-    core::set_ptr(ptr);
+#[inline]
+pub fn get_ptr() -> *mut u8 {
+    // Since this condition will always return true when TLS task storage is
+    // used (the default), the branch predictor will be able to optimize the
+    // branching and a dynamic dispatch will be avoided, which makes the
+    // compiler happier.
+    if core::is_get_ptr(tls_get_ptr as *mut u8) {
+        CURRENT_TASK.with(|c| c.get())
+    } else {
+        core::get_ptr()
+    }
 }
 
-pub fn get_ptr() -> *mut u8 {
+#[inline]
+pub fn with_ptr<'a, F, R>(ptr: *mut u8, f: F) -> R
+    where F: FnOnce() -> R
+{
+    // Lazily initialze the get / set ptrs
     INIT.call_once(|| unsafe { init(tls_get_ptr, tls_set_ptr); });
-    core::get_ptr()
+
+    // Same as above.
+    if core::is_get_ptr(tls_get_ptr as *mut u8) {
+        struct Reset(*mut u8);
+
+        impl Drop for Reset {
+            #[inline]
+            fn drop(&mut self) {
+                CURRENT_TASK.with(|c| c.set(self.0));
+            }
+        }
+
+        CURRENT_TASK.with(move |c| {
+            let _reset = Reset(c.get());
+            c.set(ptr);
+            f()
+        })
+    } else {
+        core::with_ptr(ptr, f)
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -79,10 +119,12 @@ pub enum UnparkEvents {
 }
 
 impl<'a> BorrowedUnpark<'a> {
+    #[inline]
     pub fn new(f: &'a Fn() -> NotifyHandle, id: u64) -> BorrowedUnpark<'a> {
         BorrowedUnpark::New(core::BorrowedUnpark::new(f, id))
     }
 
+    #[inline]
     pub fn to_owned(&self) -> TaskUnpark {
         match *self {
             BorrowedUnpark::Old(old) => TaskUnpark::Old(old.clone()),
@@ -92,10 +134,12 @@ impl<'a> BorrowedUnpark<'a> {
 }
 
 impl<'a> BorrowedEvents<'a> {
+    #[inline]
     pub fn new() -> BorrowedEvents<'a> {
         BorrowedEvents::None
     }
 
+    #[inline]
     pub fn to_owned(&self) -> UnparkEvents {
         let mut one_event = None;
         let mut list = Vec::new();

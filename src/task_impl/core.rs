@@ -39,10 +39,12 @@ impl<'a> BorrowedEvents<'a> {
 }
 
 impl<'a> BorrowedUnpark<'a> {
+    #[inline]
     pub fn new(f: &'a Fn() -> NotifyHandle, id: u64) -> BorrowedUnpark<'a> {
         BorrowedUnpark { f: f, id: id }
     }
 
+    #[inline]
     pub fn to_owned(&self) -> TaskUnpark {
         let handle = (self.f)();
         let id = handle.clone_id(self.id);
@@ -134,6 +136,7 @@ pub unsafe fn init(get: fn() -> *mut u8, set: fn(*mut u8)) -> bool {
     }
 }
 
+#[inline]
 pub fn set_ptr(ptr: *mut u8) {
     match SET.load(Relaxed) {
         0 => panic!("not initialized"),
@@ -141,9 +144,33 @@ pub fn set_ptr(ptr: *mut u8) {
     }
 }
 
+#[inline]
 pub fn get_ptr() -> *mut u8 {
     match GET.load(Relaxed) {
         0 => panic!("not initialized"),
         n => unsafe { mem::transmute::<usize, fn() -> *mut u8>(n)() },
     }
+}
+
+#[cfg(feature = "use_std")]
+#[inline]
+pub fn is_get_ptr(ptr: *mut u8) -> bool {
+    GET.load(Relaxed) == ptr as usize
+}
+
+#[inline]
+pub fn with_ptr<'a, F, R>(ptr: *mut u8, f: F) -> R
+    where F: FnOnce() -> R
+{
+    struct Reset(*mut u8);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            set_ptr(self.0);
+        }
+    }
+
+    let _reset = Reset(get_ptr());
+    set_ptr(ptr);
+
+    f()
 }
