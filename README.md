@@ -86,10 +86,10 @@ be used inside of an `#[async]` function.
 This implementation is currently fundamentally built on generators/coroutines.
 This feature has not landed in the rust-lang/rust master branch of the Rust
 compiler. To work with this repository currently you'll need to build your own
-compiler from this branch https://github.com/Zoxc/rust/tree/gen3.
+compiler from this branch https://github.com/Zoxc/rust/tree/gen.
 
 ```
-git clone https://github.com/Zoxc/rust --branch gen3
+git clone https://github.com/Zoxc/rust --branch gen
 cd rust
 ./x.py build
 ```
