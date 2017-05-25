@@ -5,7 +5,7 @@ use core::mem;
 use core::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use core::sync::atomic::Ordering::{SeqCst, Relaxed};
 
-use super::NotifyHandle;
+use super::{BorrowedTask, NotifyHandle};
 
 pub struct LocalKey;
 pub struct LocalMap;
@@ -137,14 +137,6 @@ pub unsafe fn init(get: fn() -> *mut u8, set: fn(*mut u8)) -> bool {
 }
 
 #[inline]
-pub fn set_ptr(ptr: *mut u8) {
-    match SET.load(Relaxed) {
-        0 => panic!("not initialized"),
-        n => unsafe { mem::transmute::<usize, fn(*mut u8)>(n)(ptr) },
-    }
-}
-
-#[inline]
 pub fn get_ptr() -> *mut u8 {
     match GET.load(Relaxed) {
         0 => panic!("not initialized"),
@@ -154,23 +146,28 @@ pub fn get_ptr() -> *mut u8 {
 
 #[cfg(feature = "use_std")]
 #[inline]
-pub fn is_get_ptr(ptr: *mut u8) -> bool {
-    GET.load(Relaxed) == ptr as usize
+pub fn is_get_ptr(f: usize) -> bool {
+    GET.load(Relaxed) == f
 }
 
-#[inline]
-pub fn with_ptr<'a, F, R>(ptr: *mut u8, f: F) -> R
+pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     where F: FnOnce() -> R
 {
-    struct Reset(*mut u8);
+    let set = match SET.load(Relaxed) {
+        0 => panic!("not initialized"),
+        n => unsafe { mem::transmute::<usize, fn(*mut u8)>(n) },
+    };
+
+    struct Reset(fn(*mut u8), *mut u8);
+
     impl Drop for Reset {
+        #[inline]
         fn drop(&mut self) {
-            set_ptr(self.0);
+            (self.0)(self.1);
         }
     }
 
-    let _reset = Reset(get_ptr());
-    set_ptr(ptr);
-
+    let _reset = Reset(set, get_ptr());
+    set(task as *const _ as *mut u8);
     f()
 }

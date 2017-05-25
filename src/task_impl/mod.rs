@@ -15,7 +15,7 @@ pub use self::std::*;
 #[cfg(not(feature = "use_std"))]
 pub use self::core::*;
 
-struct BorrowedTask<'a> {
+pub struct BorrowedTask<'a> {
     id: usize,
     unpark: BorrowedUnpark<'a>,
     events: BorrowedEvents<'a>,
@@ -36,13 +36,6 @@ fn fresh_task_id() -> usize {
     assert!(id < usize::max_value() / 2,
             "too many previous tasks have been allocated");
     id
-}
-
-fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
-    where F: FnOnce() -> R
-{
-    with_ptr(task as *const BorrowedTask<'a> as *mut u8, f)
-
 }
 
 fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
@@ -578,6 +571,7 @@ impl NotifyHandle {
     /// If you're working with the standard library then it's recommended to
     /// use the `NotifyHandle::from` function instead which works with the safe
     /// `Arc` type and the safe `Notify` trait.
+    #[inline]
     pub unsafe fn new(inner: *mut UnsafeNotify) -> NotifyHandle {
         NotifyHandle { inner: inner }
     }
@@ -597,6 +591,7 @@ impl NotifyHandle {
 }
 
 impl Clone for NotifyHandle {
+    #[inline]
     fn clone(&self) -> Self {
         unsafe {
             (*self.inner).clone_raw()

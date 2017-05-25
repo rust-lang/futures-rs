@@ -48,44 +48,49 @@ fn tls_set_ptr(_: *mut u8) {
 
 static INIT: Once = ONCE_INIT;
 
-#[inline]
 pub fn get_ptr() -> *mut u8 {
     // Since this condition will always return true when TLS task storage is
     // used (the default), the branch predictor will be able to optimize the
     // branching and a dynamic dispatch will be avoided, which makes the
     // compiler happier.
-    if core::is_get_ptr(tls_get_ptr as *mut u8) {
+    if core::is_get_ptr(tls_get_ptr as usize) {
         CURRENT_TASK.with(|c| c.get())
     } else {
         core::get_ptr()
     }
 }
 
-#[inline]
-pub fn with_ptr<'a, F, R>(ptr: *mut u8, f: F) -> R
+fn tls_slot() -> *const Cell<*mut u8> {
+    CURRENT_TASK.with(|c| c as *const _)
+}
+
+pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     where F: FnOnce() -> R
 {
     // Lazily initialze the get / set ptrs
     INIT.call_once(|| unsafe { init(tls_get_ptr, tls_set_ptr); });
 
     // Same as above.
-    if core::is_get_ptr(tls_get_ptr as *mut u8) {
-        struct Reset(*mut u8);
+    if core::is_get_ptr(tls_get_ptr as usize) {
+        struct Reset(*const Cell<*mut u8>, *mut u8);
 
         impl Drop for Reset {
             #[inline]
             fn drop(&mut self) {
-                CURRENT_TASK.with(|c| c.set(self.0));
+                unsafe {
+                    (*self.0).set(self.1);
+                }
             }
         }
 
-        CURRENT_TASK.with(move |c| {
-            let _reset = Reset(c.get());
-            c.set(ptr);
+        unsafe {
+            let slot = tls_slot();
+            let _reset = Reset(slot, (*slot).get());
+            (*slot).set(task as *const _ as *mut u8);
             f()
-        })
+        }
     } else {
-        core::with_ptr(ptr, f)
+        core::set(task, f)
     }
 }
 
