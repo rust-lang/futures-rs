@@ -99,3 +99,38 @@ fn concurrent() {
         }
     }
 }
+
+#[test]
+fn try_lock() {
+    let future = future::lazy(|| {
+        let (a, b) = BiLock::new(10);
+
+        let mut lock = a.try_lock().unwrap();
+        assert!(a.try_lock().is_none());
+        assert!(b.try_lock().is_none());
+        assert_eq!(10, *lock);
+        *lock = 20;
+        drop(lock);
+
+        let mut lock = b.try_lock().unwrap();
+        assert!(a.try_lock().is_none());
+        assert!(b.try_lock().is_none());
+        assert_eq!(20, *lock);
+        *lock = 30;
+        drop(lock);
+
+        let mut lock = b.try_lock().unwrap();
+        assert!(a.try_lock().is_none());
+        assert!(b.try_lock().is_none());
+        assert_eq!(30, *lock);
+        *lock = 40;
+        drop(lock);
+
+        Ok::<(), ()>(())
+    });
+
+    assert!(executor::spawn(future)
+                .poll_future(unpark_noop())
+                .expect("failure in poll")
+                .is_ready());
+}

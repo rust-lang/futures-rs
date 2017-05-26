@@ -116,6 +116,23 @@ impl<T> BiLock<T> {
         }
     }
 
+    /// Try lock this lock.
+    ///
+    /// Return lock guard if lock is successful, and `None` otherwise.
+    ///
+    /// Note that unlike `poll_lock` operation, if lock is unsuccessful
+    /// this function does not register current task to wake up when
+    /// lock is released.
+    ///
+    /// This operations is useful when client definitely knows that
+    /// other party does not hold the lock.
+    pub fn try_lock(&self) -> Option<BiLockGuard<T>> {
+        match self.inner.state.compare_exchange(0, 1, SeqCst, SeqCst) {
+            Ok(_) => Some(BiLockGuard { inner: self }),
+            Err(_) => None,
+        }
+    }
+
     /// Perform a "blocking lock" of this lock, consuming this lock handle and
     /// returning a future to the acquired lock.
     ///
