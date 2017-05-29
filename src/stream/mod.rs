@@ -631,7 +631,7 @@ pub trait Stream {
     /// use futures::future::{ok, Future};
     ///
     /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
-    /// let sum = number_stream.fold(0, |a, b| ok(a + b));
+    /// let sum = number_stream.fold(0, |acc, x| ok(acc + x));
     /// assert_eq!(sum.wait(), Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
