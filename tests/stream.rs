@@ -152,6 +152,36 @@ fn take_passes_errors_through() {
 }
 
 #[test]
+fn yeild_after() {
+    let mut s = list().yield_after(1).wait();
+
+    assert_eq!(s.next(), Some(Ok(1)));
+    assert_eq!(s.next(), Some(Ok(2)));
+    assert_eq!(s.next(), Some(Ok(3)));
+    assert_eq!(s.next(), None);
+}
+
+#[test]
+fn yield_after_properly_yields() {
+    let mut s = list().yield_after(1);
+
+    // TODO: how to test this? There is no active task, since we have
+    // not submitted the stream for execution anywhere.
+    //assert_eq!(s.poll(), Ok(futures::Async::Ready(Some(1))));
+
+}
+
+#[test]
+fn yield_does_not_intervene() {
+    let mut s = list()
+        .yield_after(2)
+        .yield_after(3); // This will have no effect
+
+    // TODO: how to test this? There is no active task, since we have
+    // not submitted the stream for execution anywhere.
+}
+
+#[test]
 fn peekable() {
     assert_done(|| list().peekable().collect(), Ok(vec![1, 2, 3]));
 }
