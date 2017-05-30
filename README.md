@@ -39,7 +39,7 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures = { version = "0.1.13", default-features = false }
+futures = { version = "0.1.14", default-features = false }
 ```
 
 # License
