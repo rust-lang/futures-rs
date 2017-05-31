@@ -221,10 +221,14 @@ pub struct BiLockAcquired<T> {
 
 impl<T> BiLockAcquired<T> {
     /// Recovers the original `BiLock<T>`, unlocking this lock.
-    pub fn unlock(self) -> BiLock<T> {
-        // note that unlocked is implemented in `Drop`, so we don't do anything
-        // here other than creating a new handle to return.
-        BiLock { inner: self.inner.inner.clone() }
+    pub fn unlock(mut self) -> BiLock<T> {
+        let bi_lock = mem::replace(&mut self.inner, unsafe { mem::uninitialized() });
+
+        mem::forget(self);
+
+        bi_lock.unlock();
+
+        bi_lock
     }
 }
 
