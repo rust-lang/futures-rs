@@ -4,7 +4,7 @@
 //! much more purpose than that.
 
 #![feature(proc_macro, conservative_impl_trait, generators)]
-#![deny(warnings)]
+// #![deny(warnings)]
 
 extern crate futures_await as futures;
 

@@ -7,7 +7,9 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 proc-macro = true
 
 [dependencies]
-quote = "0.3"
+quote = { git = 'https://github.com/dtolnay/quote' }
+proc-macro2 = { git = 'https://github.com/alexcrichton/proc-macro2' }
+
 
 [dependencies.syn]
 git = 'https://github.com/alexcrichton/syn'

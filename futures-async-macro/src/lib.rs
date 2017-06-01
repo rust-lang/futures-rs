@@ -14,6 +14,7 @@
 #![recursion_limit = "128"]
 
 extern crate proc_macro;
+extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
 extern crate syn;
@@ -37,21 +38,32 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     // Parse our item, expecting a function. This function may be an actual
     // top-level function or it could be a method (typically dictated by the
     // arguments). We then extract everything we'd like to use.
-    let ast = syn::parse_item(&function.to_string())
-                    .expect("failed to parse item");
-    let Item { ident, vis, attrs, node } = ast;
-    let all = match node {
-        ItemKind::Fn(a, b, c, d, e, f) => (a, b, c, d, e, f),
+    let function = proc_macro2::TokenStream::from(function);
+    let Item { ident, vis, attrs, node } = function.into();
+    let ItemFn {
+        unsafety,
+        constness,
+        abi,
+        block,
+        decl,
+        ..
+    } = match node {
+        ItemKind::Fn(item) => item,
         _ => panic!("#[async] can only be applied to functions"),
     };
-    let (decl, unsafety, constness, abi, generics, block) = all;
+    let FnDecl { inputs, output, variadic, generics, .. } = { *decl };
     let where_clause = &generics.where_clause;
-    let FnDecl { inputs, output, variadic } = { *decl };
     assert!(!variadic, "variadic functions cannot be async");
     let ref inputs = inputs;
     let output = match output {
-        FunctionRetTy::Default => Ty::Tup(Vec::new()),
-        FunctionRetTy::Ty(t) => t,
+        FunctionRetTy::Ty(t, _) => t,
+        FunctionRetTy::Default => {
+            TyTup {
+                tys: Default::default(),
+                lone_comma: Default::default(),
+                paren_token: Default::default(),
+            }.into()
+        }
     };
 
     // We've got to get a bit creative with our handling of arguments. For a
@@ -81,21 +93,35 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let mut patterns = Vec::new();
     let mut temp_bindings = Vec::new();
     for (i, input) in inputs.iter().enumerate() {
-        match *input {
-            // `self: Box<Self>` will get captured naturally
-            FnArg::Captured(Pat::Ident(_, ref ident, _), _) if ident == "self" => {
-                inputs_no_patterns.push(input.clone());
-            }
+        let input = *input.item();
 
+        // `self: Box<Self>` will get captured naturally
+        if let FnArg::Captured(ref arg) = *input {
+            if let Pat::Ident(PatIdent { ref ident, ..}) = arg.pat {
+                if ident == "self" {
+                    inputs_no_patterns.push(input.clone());
+                    continue
+                }
+            }
+        }
+
+        match *input {
             // `a: B`
-            FnArg::Captured(ref pat, ref ty) => {
+            FnArg::Captured(ArgCaptured { ref pat, ref ty, .. }) => {
                 patterns.push(pat);
                 let ident = Ident::from(format!("__arg_{}", i));
                 temp_bindings.push(ident.clone());
-                let pat = Pat::Ident(BindingMode::ByValue(Mutability::Immutable),
-                                     ident,
-                                     None);
-                inputs_no_patterns.push(FnArg::Captured(pat, ty.clone()));
+                let pat = PatIdent {
+                    mode: BindingMode::ByValue(Mutability::Immutable),
+                    ident: ident,
+                    at_token: None,
+                    subpat: None,
+                };
+                inputs_no_patterns.push(ArgCaptured {
+                    pat: pat.into(),
+                    ty: ty.clone(),
+                    colon_token: Default::default(),
+                }.into());
             }
 
             // Other `self`-related arguments get captured naturally
@@ -167,7 +193,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     };
 
     // println!("{}", output);
-    output.parse().unwrap()
+    let output: proc_macro2::TokenStream = output.into();
+    output.into()
 }
 
 struct ExpandAsyncFor;
@@ -178,19 +205,20 @@ impl Folder for ExpandAsyncFor {
             return fold::noop_fold_expr(self, expr)
         }
         // TODO: more validation here
-        if expr.attrs[0].path.segments[0].ident != "async" {
+        if expr.attrs[0].path.segments.get(0).item().ident != "async" {
             return expr
         }
         let all = match expr.node {
-            ExprKind::ForLoop(a, b, c, d) => (a, b, c, d),
+            ExprKind::ForLoop(item) => item,
             _ => panic!("only for expressions can have #[async]"),
         };
-        let (pat, expr, block, ident) = all;
+        let ExprForLoop { pat, expr, body, label, colon_token, .. } = all;
 
         // Basically just expand to a `poll` loop
         let tokens = quote! {{
             let mut __stream = #expr;
-            #ident
+            #label
+            #colon_token
             loop {
                 let #pat = {
                     extern crate futures_await;
@@ -208,10 +236,10 @@ impl Folder for ExpandAsyncFor {
                     }
                 };
 
-                #block
+                #body
             }
         }};
-        parse_expr(tokens.as_str()).unwrap()
+        proc_macro2::TokenStream::from(tokens).into()
     }
 
     // Don't recurse into items
