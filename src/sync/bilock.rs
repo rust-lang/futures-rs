@@ -127,7 +127,7 @@ impl<T> BiLock<T> {
     /// Note that the returned future will never resolve to an error.
     pub fn lock(self) -> BiLockAcquire<T> {
         BiLockAcquire {
-            inner: self,
+            inner: Some(self),
         }
     }
 
@@ -188,7 +188,7 @@ impl<'a, T> Drop for BiLockGuard<'a, T> {
 /// acquired.
 #[derive(Debug)]
 pub struct BiLockAcquire<T> {
-    inner: BiLock<T>,
+    inner: Option<BiLock<T>>,
 }
 
 impl<T> Future for BiLockAcquire<T> {
@@ -196,15 +196,13 @@ impl<T> Future for BiLockAcquire<T> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<BiLockAcquired<T>, ()> {
-        match self.inner.poll_lock() {
+        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock() {
             Async::Ready(r) => {
                 mem::forget(r);
-                Ok(BiLockAcquired {
-                    inner: BiLock { inner: self.inner.inner.clone() },
-                }.into())
             }
-            Async::NotReady => Ok(Async::NotReady),
+            Async::NotReady => return Ok(Async::NotReady),
         }
+        Ok(Async::Ready(BiLockAcquired { inner: self.inner.take() }))
     }
 }
 
@@ -216,33 +214,37 @@ impl<T> Future for BiLockAcquire<T> {
 /// `unlock` method.
 #[derive(Debug)]
 pub struct BiLockAcquired<T> {
-    inner: BiLock<T>,
+    inner: Option<BiLock<T>>,
 }
 
 impl<T> BiLockAcquired<T> {
     /// Recovers the original `BiLock<T>`, unlocking this lock.
-    pub fn unlock(self) -> BiLock<T> {
-        // note that unlocked is implemented in `Drop`, so we don't do anything
-        // here other than creating a new handle to return.
-        BiLock { inner: self.inner.inner.clone() }
+    pub fn unlock(mut self) -> BiLock<T> {
+        let bi_lock = self.inner.take().unwrap();
+
+        bi_lock.unlock();
+
+        bi_lock
     }
 }
 
 impl<T> Deref for BiLockAcquired<T> {
     type Target = T;
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.inner.inner.get() }
+        unsafe { &*self.inner.as_ref().unwrap().inner.inner.get() }
     }
 }
 
 impl<T> DerefMut for BiLockAcquired<T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.inner.inner.inner.get() }
+        unsafe { &mut *self.inner.as_mut().unwrap().inner.inner.get() }
     }
 }
 
 impl<T> Drop for BiLockAcquired<T> {
     fn drop(&mut self) {
-        self.inner.unlock();
+        if let Some(ref bi_lock) = self.inner {
+            bi_lock.unlock();
+        }
     }
 }
