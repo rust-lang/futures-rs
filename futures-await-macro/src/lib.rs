@@ -19,12 +19,13 @@ macro_rules! await {
                     ret = ::futures::__rt::Ok(e);
                     break
                 }
-                ::futures::__rt::Ok(::futures::Async::NotReady) => yield,
+                ::futures::__rt::Ok(::futures::Async::NotReady) => {}
                 ::futures::__rt::Err(e) => {
                     ret = ::futures::__rt::Err(e);
                     break
                 }
             }
+            yield
         }
         ret
     })

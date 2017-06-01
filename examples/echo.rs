@@ -1,6 +1,6 @@
-/// A "souped up" echo server example.
-///
-/// Very similar to the example at https://tokio.rs
+//! A "souped up" echo server example.
+//!
+//! Very similar to the example at https://tokio.rs
 
 #![feature(proc_macro, conservative_impl_trait, generators)]
 

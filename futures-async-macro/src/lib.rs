@@ -183,10 +183,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                 #[allow(unreachable_code)]
                 {
                     return __e;
-                    if false {
-                        yield
-                    }
-                    loop {}
+                    loop { yield }
                 }
             })()))
         }
@@ -222,7 +219,8 @@ impl Folder for ExpandAsyncFor {
             loop {
                 let #pat = {
                     extern crate futures_await;
-                    match futures_await::Stream::poll(&mut __stream)? {
+                    let r = futures_await::Stream::poll(&mut __stream)?;
+                    match r {
                         futures_await::Async::Ready(e) => {
                             match e {
                                 futures_await::__rt::Some(e) => e,
