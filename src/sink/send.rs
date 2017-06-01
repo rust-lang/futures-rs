@@ -45,7 +45,7 @@ impl<S: Sink> Future for Send<S> {
         if let Some(item) = self.item.take() {
             if let AsyncSink::NotReady(item) = try!(self.sink_mut().start_send(item)) {
                 self.item = Some(item);
-                return Ok(Async::NotReady)
+                return Ok(Async::NotReady);
             }
         }
 
@@ -54,6 +54,6 @@ impl<S: Sink> Future for Send<S> {
         try_ready!(self.sink_mut().poll_complete());
 
         // now everything's emptied, so return the sink for further use
-        return Ok(Async::Ready(self.take_sink()))
+        Ok(Async::Ready(self.take_sink()))
     }
 }

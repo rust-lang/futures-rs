@@ -16,11 +16,11 @@ fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     let threads = (0..threads_number).map(|_| {
         let cloned_future = f.clone();
         thread::spawn(move || {
-            assert!(*cloned_future.wait().unwrap() == 6);
+            assert_eq!(*cloned_future.wait().unwrap(), 6);
         })
     }).collect::<Vec<_>>();
     tx.send(6).unwrap();
-    assert!(*f.wait().unwrap() == 6);
+    assert_eq!(*f.wait().unwrap(), 6);
     for f in threads {
         f.join().unwrap();
     }
@@ -57,7 +57,7 @@ fn drop_on_one_task_ok() {
     let (tx3, rx3) = oneshot::channel::<u32>();
 
     let t2 = thread::spawn(|| {
-        drop(f2.map(|x| tx3.send(*x).unwrap()).map_err(|_| ()).wait());
+        let _ = f2.map(|x| tx3.send(*x).unwrap()).map_err(|_| ()).wait();
     });
 
     tx2.send(11).unwrap(); // cancel `f1`

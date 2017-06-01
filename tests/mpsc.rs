@@ -151,11 +151,11 @@ fn stress_shared_unbounded() {
     });
 
     for _ in 0..NTHREADS {
-        let mut tx = tx.clone();
+        let tx = tx.clone();
 
         thread::spawn(move|| {
             for _ in 0..AMT {
-                mpsc::UnboundedSender::send(&mut tx, 1).unwrap();
+                mpsc::UnboundedSender::send(&tx, 1).unwrap();
             }
         });
     }

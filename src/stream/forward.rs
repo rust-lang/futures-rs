@@ -45,7 +45,7 @@ impl<T, U> Forward<T, U>
             .expect("Attempted to poll Forward after completion");
         let fuse = self.stream.take()
             .expect("Attempted to poll Forward after completion");
-        return (fuse.into_inner(), sink)
+        (fuse.into_inner(), sink)
     }
 
     fn try_start_send(&mut self, item: T::Item) -> Poll<(), U::SinkError> {

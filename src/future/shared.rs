@@ -25,7 +25,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
 
 /// A future that is cloneable and can be polled in multiple threads.
-/// Use Future::shared() method to convert any future into a `Shared` future.
+/// Use `Future::shared()` method to convert any future into a `Shared` future.
 #[must_use = "futures do nothing unless polled"]
 pub struct Shared<F: Future> {
     inner: Arc<Inner<F>>,

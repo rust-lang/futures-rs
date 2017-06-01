@@ -1,4 +1,4 @@
-//! Definition of the JoinAll combinator, waiting for all of a list of futures
+//! Definition of the `JoinAll` combinator, waiting for all of a list of futures
 //! to finish.
 
 use std::prelude::v1::*;
@@ -94,8 +94,8 @@ impl<I> Future for JoinAll<I>
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
-            let done_val = match &mut self.elems[idx] {
-                &mut ElemState::Pending(ref mut t) => {
+            let done_val = match self.elems[idx] {
+                ElemState::Pending(ref mut t) => {
                     match t.poll() {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::NotReady) => {
@@ -105,7 +105,7 @@ impl<I> Future for JoinAll<I>
                         Err(e) => Err(e),
                     }
                 }
-                &mut ElemState::Done(ref mut _v) => continue,
+                ElemState::Done(ref mut _v) => continue,
             };
 
             match done_val {
