@@ -300,7 +300,9 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
 
 impl<T> Sender<T> {
     // Do the send without failing
-    fn do_send(&mut self, msg: Option<T>, can_park: bool) -> Result<(), SendError<T>> {
+    // None means close
+    fn do_send(&mut self, msg: Option<T>) -> Result<(), SendError<T>> {
+
         // First, increment the number of messages contained by the channel.
         // This operation will also atomically determine if the sender task
         // should be parked.
@@ -335,7 +337,7 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(can_park);
+            self.park(msg.is_some());
         }
 
         self.queue_push_and_signal(msg);
@@ -499,7 +501,7 @@ impl<T> Sink for Sender<T> {
         }
 
         // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg), true));
+        try!(self.do_send(Some(msg)));
 
         Ok(AsyncSink::Ready)
     }
@@ -605,7 +607,7 @@ impl<T> Drop for Sender<T> {
         let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
-            let _ = self.do_send(None, false);
+            let _ = self.do_send(None);
         }
     }
 }
