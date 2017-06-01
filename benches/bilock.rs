@@ -3,10 +3,14 @@
 extern crate futures;
 extern crate test;
 
-use futures::Async;
+use futures::{Async, Poll};
 use futures::executor;
 use futures::executor::{Notify, NotifyHandle};
 use futures::sync::BiLock;
+use futures::sync::BiLockAcquire;
+use futures::sync::BiLockAcquired;
+use futures::future::Future;
+use futures::stream::Stream;
 
 
 use test::Bencher;
@@ -23,60 +27,95 @@ fn notify_noop() -> NotifyHandle {
     NotifyHandle::from(NOOP)
 }
 
+
+/// Pseudo-stream which simply calls `lock.poll()` on `poll`
+struct LockStream {
+    lock: BiLockAcquire<u32>,
+}
+
+impl LockStream {
+    fn new(lock: BiLock<u32>) -> LockStream {
+        LockStream {
+            lock: lock.lock()
+        }
+    }
+
+    /// Release a lock after it was acquired in `poll`,
+    /// so `poll` could be called again.
+    fn release_lock(&mut self, guard: BiLockAcquired<u32>) {
+        self.lock = guard.unlock().lock()
+    }
+}
+
+impl Stream for LockStream {
+    type Item = BiLockAcquired<u32>;
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.lock.poll().map(|a| match a {
+            Async::Ready(a) => Async::Ready(Some(a)),
+            Async::NotReady => Async::NotReady,
+        })
+    }
+}
+
+
 #[bench]
 fn contended(b: &mut Bencher) {
     b.iter(|| {
-        let mut t = BiLock::new(1);
+        let (x, y) = BiLock::new(1);
+
+        let mut x = executor::spawn(LockStream::new(x));
+        let mut y = executor::spawn(LockStream::new(y));
+
         for _ in 0..1000 {
-            let (x, y) = t;
-            let x_lock = match executor::spawn(x.lock()).poll_future_notify(&notify_noop(), 11).unwrap() {
-                Async::Ready(lock) => lock,
-                Async::NotReady => panic!(),
+            let x_guard = match x.poll_stream_notify(&notify_noop(), 11) {
+                Ok(Async::Ready(Some(guard))) => guard,
+                _ => panic!(),
             };
 
             // Try poll second lock while first lock still holds the lock
-            let mut y = executor::spawn(y.lock());
-            match y.poll_future_notify(&notify_noop(), 11).unwrap() {
-                Async::Ready(_) => panic!(),
-                Async::NotReady => (),
+            match y.poll_stream_notify(&notify_noop(), 11) {
+                Ok(Async::NotReady) => (),
+                _ => panic!(),
             };
 
-            let x = x_lock.unlock();
+            x.get_mut().release_lock(x_guard);
 
-            let y_lock = match y.poll_future_notify(&notify_noop(), 11).unwrap() {
-                Async::Ready(lock) => lock,
-                Async::NotReady => panic!(),
+            let y_guard = match y.poll_stream_notify(&notify_noop(), 11) {
+                Ok(Async::Ready(Some(guard))) => guard,
+                _ => panic!(),
             };
 
-            let y = y_lock.unlock();
-            t = (x, y);
+            y.get_mut().release_lock(y_guard);
         }
-        t
+        (x, y)
     });
 }
 
 #[bench]
 fn lock_unlock(b: &mut Bencher) {
     b.iter(|| {
-        let mut t = BiLock::new(1);
+        let (x, y) = BiLock::new(1);
+
+        let mut x = executor::spawn(LockStream::new(x));
+        let mut y = executor::spawn(LockStream::new(y));
+
         for _ in 0..1000 {
-            let (x, y) = t;
-            let x_lock = match executor::spawn(x.lock()).poll_future_notify(&notify_noop(), 11).unwrap() {
-                Async::Ready(lock) => lock,
-                Async::NotReady => panic!(),
+            let x_guard = match x.poll_stream_notify(&notify_noop(), 11) {
+                Ok(Async::Ready(Some(guard))) => guard,
+                _ => panic!(),
             };
 
-            let x = x_lock.unlock();
+            x.get_mut().release_lock(x_guard);
 
-            let mut y = executor::spawn(y.lock());
-            let y_lock = match y.poll_future_notify(&notify_noop(), 11).unwrap() {
-                Async::Ready(lock) => lock,
-                Async::NotReady => panic!(),
+            let y_guard = match y.poll_stream_notify(&notify_noop(), 11) {
+                Ok(Async::Ready(Some(guard))) => guard,
+                _ => panic!(),
             };
 
-            let y = y_lock.unlock();
-            t = (x, y);
+            y.get_mut().release_lock(y_guard);
         }
-        t
+        (x, y)
     })
 }
