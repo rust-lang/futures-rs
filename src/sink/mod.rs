@@ -23,9 +23,11 @@ mod map_err;
 
 if_std! {
     mod buffer;
+    mod buffer_one;
     mod wait;
 
     pub use self::buffer::Buffer;
+    pub use self::buffer_one::BufferOne;
     pub use self::wait::Wait;
 
     // TODO: consider expanding this via e.g. FromIterator
