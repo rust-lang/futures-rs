@@ -40,6 +40,10 @@ fn result_smoke() {
     assert_done(|| err(1), r_err(1));
     assert_done(|| f_ok(1).map(|a| a + 2), r_ok(3));
     assert_done(|| f_err(1).map(|a| a + 2), r_err(1));
+    assert_done(|| f_ok(1).map_result(|a| Ok(a + 2)), r_ok(3));
+    assert_done(|| f_err(1).map_result(|a| Ok(a + 2)), r_err(1));
+    assert_done(|| f_ok(1).map_result(|a| Err((a as u32) + 3)), r_err(4));
+    assert_done(|| f_err(1).map_result(|a| Err((a as u32) + 10)), r_err(1));
     assert_done(|| f_ok(1).map_err(|a| a + 2), r_ok(1));
     assert_done(|| f_err(1).map_err(|a| a + 2), r_err(3));
     assert_done(|| f_ok(1).and_then(|a| Ok(a + 2)), r_ok(3));
