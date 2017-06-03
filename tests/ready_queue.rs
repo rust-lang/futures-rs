@@ -8,14 +8,8 @@ use futures::future;
 use futures::stream::FuturesUnordered;
 use futures::sync::oneshot;
 
-#[test]
-fn bounds() {
-    fn is_send<T: Send>() {}
-    fn is_sync<T: Sync>() {}
-
-    is_send::<FuturesUnordered<()>>();
-    is_sync::<FuturesUnordered<()>>();
-}
+trait AssertSendSync: Send + Sync {}
+impl AssertSendSync for FuturesUnordered<()> {}
 
 #[test]
 fn basic_usage() {
