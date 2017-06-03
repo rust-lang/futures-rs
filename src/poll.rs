@@ -11,6 +11,18 @@ macro_rules! try_ready {
     })
 }
 
+/// A macro for extracting a `Result<T, E>` from a `Poll<T, E>`.
+///
+/// The macro returns early if an expression is `NotReady`.
+#[macro_export]
+macro_rules! try_result {
+    ($e:expr) => (match $e {
+        Ok($crate::Async::Ready(t)) => Ok(t),
+        Ok($crate::Async::NotReady) => return Ok($crate::Async::NotReady),
+        Err(e) => Err(e),
+    })
+}
+
 /// Return type of the `Future::poll` method, indicates whether a future's value
 /// is ready or not.
 ///
