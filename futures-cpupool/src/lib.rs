@@ -89,12 +89,8 @@ struct MySender<F, T> {
     keep_running_flag: Arc<AtomicBool>,
 }
 
-fn _assert() {
-    fn _assert_send<T: Send>() {}
-    fn _assert_sync<T: Sync>() {}
-    _assert_send::<CpuPool>();
-    _assert_sync::<CpuPool>();
-}
+trait AssertSendSync: Send + Sync {}
+impl AssertSendSync for CpuPool {}
 
 struct Inner {
     tx: Mutex<mpsc::Sender<Message>>,

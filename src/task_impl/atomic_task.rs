@@ -43,8 +43,8 @@ impl AtomicTask {
     /// Create an `AtomicTask` initialized with the given `Task`
     pub fn new() -> AtomicTask {
         // Make sure that task is Sync
-        fn is_sync<T: Sync>() {}
-        is_sync::<Task>();
+        trait AssertSync: Sync {}
+        impl AssertSync for Task {}
 
         AtomicTask {
             state: AtomicUsize::new(WAITING),

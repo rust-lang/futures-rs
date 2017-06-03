@@ -106,14 +106,8 @@ pub struct Sender<T> {
 #[derive(Debug)]
 pub struct UnboundedSender<T>(Sender<T>);
 
-fn _assert_kinds() {
-    fn _assert_send<T: Send>() {}
-    fn _assert_sync<T: Sync>() {}
-    fn _assert_clone<T: Clone>() {}
-    _assert_send::<UnboundedSender<u32>>();
-    _assert_sync::<UnboundedSender<u32>>();
-    _assert_clone::<UnboundedSender<u32>>();
-}
+trait AssertKinds: Send + Sync + Clone {}
+impl AssertKinds for UnboundedSender<u32> {}
 
 
 /// The receiving end of a channel which implements the `Stream` trait.

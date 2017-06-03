@@ -11,13 +11,9 @@ use std::thread;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-fn is_send<T: Send>() {}
-
-#[test]
-fn bounds() {
-    is_send::<mpsc::Sender<i32>>();
-    is_send::<mpsc::Receiver<i32>>();
-}
+trait AssertSend: Send {}
+impl AssertSend for mpsc::Sender<i32> {}
+impl AssertSend for mpsc::Receiver<i32> {}
 
 #[test]
 fn send_recv() {

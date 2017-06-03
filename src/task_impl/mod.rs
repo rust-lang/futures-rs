@@ -61,10 +61,8 @@ pub struct Task {
     events: UnparkEvents,
 }
 
-fn _assert_kinds() {
-    fn _assert_send<T: Send>() {}
-    _assert_send::<Task>();
-}
+trait AssertSend: Send {}
+impl AssertSend for Task {}
 
 /// Returns a handle to the current task to call `notify` at a later date.
 ///
