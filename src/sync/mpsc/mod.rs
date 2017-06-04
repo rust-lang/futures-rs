@@ -72,14 +72,18 @@ use std::error::Error;
 use std::any::Any;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
+use std::isize;
+use std::boxed::Box;
 
 use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
+mod atomic_box_option;
 mod queue;
 
 /// The transmission end of a channel which is used to send values.
@@ -88,7 +92,7 @@ mod queue;
 #[derive(Debug)]
 pub struct Sender<T> {
     // Channel state shared between the sender and receiver.
-    inner: Arc<Inner<T>>,
+    inner: Arc<BoundedInner<T>>,
 
     // Handle to the task that is blocked on this sender. This handle is sent
     // to the receiver half in order to be notified when the sender becomes
@@ -104,7 +108,10 @@ pub struct Sender<T> {
 ///
 /// This is created by the `unbounded` method.
 #[derive(Debug)]
-pub struct UnboundedSender<T>(Sender<T>);
+pub struct UnboundedSender<T> {
+    // Channel state shared between the sender and receiver.
+    inner: Arc<UnboundedInner<T>>,
+}
 
 trait AssertKinds: Send + Sync + Clone {}
 impl AssertKinds for UnboundedSender<u32> {}
@@ -117,7 +124,7 @@ impl AssertKinds for UnboundedSender<u32> {}
 /// `channel` method.
 #[derive(Debug)]
 pub struct Receiver<T> {
-    inner: Arc<Inner<T>>,
+    inner: Arc<BoundedInner<T>>,
 }
 
 /// The receiving end of a channel which implements the `Stream` trait.
@@ -126,7 +133,9 @@ pub struct Receiver<T> {
 /// a stream of values being computed elsewhere. This is created by the
 /// `unbounded` method.
 #[derive(Debug)]
-pub struct UnboundedReceiver<T>(Receiver<T>);
+pub struct UnboundedReceiver<T> {
+    inner: Arc<UnboundedInner<T>>,
+}
 
 /// Error type for sending, used when the receiving end of a channel is
 /// dropped
@@ -162,59 +171,31 @@ impl<T> SendError<T> {
 }
 
 #[derive(Debug)]
-struct Inner<T> {
-    // Max buffer size of the channel. If `None` then the channel is unbounded.
-    buffer: Option<usize>,
-
-    // Internal channel state. Consists of the number of messages stored in the
-    // channel as well as a flag signalling that the channel is closed.
-    state: AtomicUsize,
+struct UnboundedInner<T> {
+    task: atomic_box_option::AtomicBoxOption<Task>,
+    // `0` if closed, otherwise number of senders
+    open_state: AtomicUsize,
 
     // Atomic, FIFO queue used to send messages to the receiver
-    message_queue: Queue<Option<T>>,
-
-    // Atomic, FIFO queue used to send parked task handles to the receiver.
-    parked_queue: Queue<SenderTask>,
-
-    // Number of senders in existence
-    num_senders: AtomicUsize,
-
-    // Handle to the receiver's task.
-    recv_task: Mutex<ReceiverTask>,
-}
-
-// Struct representation of `Inner::state`.
-#[derive(Debug, Clone, Copy)]
-struct State {
-    // `true` when the channel is open
-    is_open: bool,
-
-    // Number of messages in the channel
-    num_messages: usize,
+    message_queue: Queue<T>,
 }
 
 #[derive(Debug)]
-struct ReceiverTask {
-    unparked: bool,
-    task: Option<Task>,
+struct BoundedInner<T> {
+    // Max buffer size of the channel.
+    buffer: usize,
+
+    // Internal channel state. Consists of the number of messages stored in the channel.
+    num_messages: AtomicUsize,
+
+    common: UnboundedInner<T>,
+
+    // Atomic, FIFO queue used to send parked task handles to the receiver.
+    parked_queue: Queue<SenderTask>,
 }
 
-// Returned from Receiver::try_park()
-enum TryPark {
-    Parked,
-    Closed,
-    NotEmpty,
-}
-
-// The `is_open` flag is stored in the left-most bit of `Inner::state`
-const OPEN_MASK: usize = usize::MAX - (usize::MAX >> 1);
-
-// When a new channel is created, it is created in the open state with no
-// pending messages.
-const INIT_STATE: usize = OPEN_MASK;
-
-// The maximum number of messages that a channel can track is `usize::MAX >> 1`
-const MAX_CAPACITY: usize = !(OPEN_MASK);
+// The maximum number of messages that a channel can track is `isize::MAX`
+const MAX_CAPACITY: usize = isize::MAX as usize;
 
 // The maximum requested buffer size must be less than the maximum capacity of
 // a channel. This is because each sender gets a guaranteed slot.
@@ -240,37 +221,16 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.
     assert!(buffer < MAX_BUFFER, "requested buffer size too large");
-    channel2(Some(buffer))
-}
 
-/// Creates an in-memory channel implementation of the `Stream` trait with
-/// unbounded capacity.
-///
-/// This method creates a concrete implementation of the `Stream` trait which
-/// can be used to send values across threads in a streaming fashion. A `send`
-/// on this channel will always succeed as long as the receive half has not
-/// been closed. If the receiver falls behind, messages will be buffered
-/// internally.
-///
-/// **Note** that the amount of available system memory is an implicit bound to
-/// the channel. Using an `unbounded` channel has the ability of causing the
-/// process to run out of memory. In this case, the process will be aborted.
-pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
-    let (tx, rx) = channel2(None);
-    (UnboundedSender(tx), UnboundedReceiver(rx))
-}
-
-fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
-    let inner = Arc::new(Inner {
+    let inner = Arc::new(BoundedInner {
         buffer: buffer,
-        state: AtomicUsize::new(INIT_STATE),
-        message_queue: Queue::new(),
+        num_messages: AtomicUsize::new(0),
+        common: UnboundedInner {
+            task: atomic_box_option::AtomicBoxOption::new(),
+            open_state: AtomicUsize::new(1),
+            message_queue: Queue::new(),
+        },
         parked_queue: Queue::new(),
-        num_senders: AtomicUsize::new(1),
-        recv_task: Mutex::new(ReceiverTask {
-            unparked: false,
-            task: None,
-        }),
     });
 
     let tx = Sender {
@@ -286,6 +246,36 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
     (tx, rx)
 }
 
+/// Creates an in-memory channel implementation of the `Stream` trait with
+/// unbounded capacity.
+///
+/// This method creates a concrete implementation of the `Stream` trait which
+/// can be used to send values across threads in a streaming fashion. A `send`
+/// on this channel will always succeed as long as the receive half has not
+/// been closed. If the receiver falls behind, messages will be buffered
+/// internally.
+///
+/// **Note** that the amount of available system memory is an implicit bound to
+/// the channel. Using an `unbounded` channel has the ability of causing the
+/// process to run out of memory. In this case, the process will be aborted.
+pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
+    let inner = Arc::new(UnboundedInner {
+        task: atomic_box_option::AtomicBoxOption::new(),
+        open_state: AtomicUsize::new(1),
+        message_queue: Queue::new(),
+    });
+
+    let tx = UnboundedSender {
+        inner: inner.clone(),
+    };
+
+    let rx = UnboundedReceiver {
+        inner: inner,
+    };
+
+    (tx, rx)
+}
+
 /*
  *
  * ===== impl Sender =====
@@ -295,7 +285,10 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
 impl<T> Sender<T> {
     // Do the send without failing
     // None means close
-    fn do_send(&mut self, msg: Option<T>) -> Result<(), SendError<T>> {
+    fn do_send(&mut self, msg: T) -> Result<(), SendError<T>> {
+        if !self.inner.common.is_open() {
+            return Err(SendError(msg));
+        }
 
         // First, increment the number of messages contained by the channel.
         // This operation will also atomically determine if the sender task
@@ -304,24 +297,7 @@ impl<T> Sender<T> {
         // None is returned in the case that the channel has been closed by the
         // receiver. This happens when `Receiver::close` is called or the
         // receiver is dropped.
-        let park_self = match self.inc_num_messages(msg.is_none()) {
-            Some(park_self) => park_self,
-            None => {
-                // The receiver has closed the channel. Only abort if actually
-                // sending a message. It is important that the stream
-                // termination (None) is always sent. This technically means
-                // that it is possible for the queue to contain the following
-                // number of messages:
-                //
-                //     num-senders + buffer + 1
-                //
-                if let Some(msg) = msg {
-                    return Err(SendError(msg));
-                } else {
-                    return Ok(());
-                }
-            }
-        };
+        let park_self = self.inc_num_messages();
 
         // If the channel has reached capacity, then the sender task needs to
         // be parked. This will send the task handle on the parked task queue.
@@ -331,118 +307,47 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(msg.is_some());
+            self.park();
         }
 
-        self.queue_push_and_signal(msg);
-
-        Ok(())
-    }
-
-    // Do the send without parking current task.
-    //
-    // To be called from unbounded sender.
-    fn do_send_nb(&self, msg: T) -> Result<(), SendError<T>> {
-        match self.inc_num_messages(false) {
-            Some(park_self) => assert!(!park_self),
-            None => return Err(SendError(msg)),
-        };
-
-        self.queue_push_and_signal(Some(msg));
-
-        Ok(())
-    }
-
-    // Push message to the queue and signal to the receiver
-    fn queue_push_and_signal(&self, msg: Option<T>) {
         // Push the message onto the message queue
-        self.inner.message_queue.push(msg);
+        self.inner.common.message_queue.push(msg);
 
         // Signal to the receiver that a message has been enqueued. If the
         // receiver is parked, this will unpark the task.
-        self.signal();
+        self.inner.common.receiver_notify();
+
+        Ok(())
     }
 
     // Increment the number of queued messages. Returns if the sender should
     // block.
-    fn inc_num_messages(&self, close: bool) -> Option<bool> {
-        let mut curr = self.inner.state.load(SeqCst);
+    fn inc_num_messages(&self) -> bool {
+        let mut curr = self.inner.num_messages.load(SeqCst);
 
         loop {
-            let mut state = decode_state(curr);
-
-            // The receiver end closed the channel.
-            if !state.is_open {
-                return None;
-            }
-
             // This probably is never hit? Odds are the process will run out of
             // memory first. It may be worth to return something else in this
             // case?
-            assert!(state.num_messages < MAX_CAPACITY, "buffer space exhausted; \
+            assert!(curr < MAX_CAPACITY, "buffer space exhausted; \
                     sending this messages would overflow the state");
 
-            state.num_messages += 1;
-
-            // The channel is closed by all sender handles being dropped.
-            if close {
-                state.is_open = false;
-            }
-
-            let next = encode_state(&state);
-            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+            let next = curr + 1;
+            match self.inner.num_messages.compare_exchange(curr, next, SeqCst, SeqCst) {
                 Ok(_) => {
                     // Block if the current number of pending messages has exceeded
                     // the configured buffer size
-                    let park_self = match self.inner.buffer {
-                        Some(buffer) => state.num_messages > buffer,
-                        None => false,
-                    };
-
-                    return Some(park_self)
+                    return next > self.inner.buffer;
                 }
                 Err(actual) => curr = actual,
             }
         }
     }
 
-    // Signal to the receiver task that a message has been enqueued
-    fn signal(&self) {
-        // TODO
-        // This logic can probably be improved by guarding the lock with an
-        // atomic.
-        //
-        // Do this step first so that the lock is dropped when
-        // `unpark` is called
-        let task = {
-            let mut recv_task = self.inner.recv_task.lock().unwrap();
-
-            // If the receiver has already been unparked, then there is nothing
-            // more to do
-            if recv_task.unparked {
-                return;
-            }
-
-            // Setting this flag enables the receiving end to detect that
-            // an unpark event happened in order to avoid unecessarily
-            // parking.
-            recv_task.unparked = true;
-            recv_task.task.take()
-        };
-
-        if let Some(task) = task {
-            task.notify();
-        }
-    }
-
-    fn park(&mut self, can_park: bool) {
+    fn park(&mut self) {
         // TODO: clean up internal state if the task::current will fail
 
-        let task = if can_park {
-            Some(task::current())
-        } else {
-            None
-        };
+        let task = Some(task::current());
 
         *self.sender_task.lock().unwrap() = task;
 
@@ -452,8 +357,7 @@ impl<T> Sender<T> {
 
         // Check to make sure we weren't closed after we sent our task on the
         // queue
-        let state = decode_state(self.inner.state.load(SeqCst));
-        self.maybe_parked = state.is_open;
+        self.maybe_parked = self.inner.common.is_open();
     }
 
     fn poll_unparked(&mut self) -> Async<()> {
@@ -495,7 +399,7 @@ impl<T> Sink for Sender<T> {
         }
 
         // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg)));
+        try!(self.do_send(msg));
 
         Ok(AsyncSink::Ready)
     }
@@ -510,13 +414,22 @@ impl<T> Sink for Sender<T> {
 }
 
 impl<T> UnboundedSender<T> {
+
     /// Sends the provided message along this channel.
     ///
     /// This is an unbounded sender, so this function differs from `Sink::send`
     /// by ensuring the return type reflects that the channel is always ready to
     /// receive messages.
     pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        self.0.do_send_nb(msg)
+        if !self.inner.is_open() {
+            return Err(SendError(msg));
+        }
+
+        self.inner.message_queue.push(msg);
+
+        self.inner.receiver_notify();
+
+        Ok(())
     }
 }
 
@@ -525,11 +438,14 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkError = SendError<T>;
 
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.0.start_send(msg)
+        // The channel has capacity to accept the message, so send it.
+        try!(UnboundedSender::send(self, msg));
+
+        Ok(AsyncSink::Ready)
     }
 
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
-        self.0.poll_complete()
+        Ok(Async::Ready(()))
     }
 
     fn close(&mut self) -> Poll<(), SendError<T>> {
@@ -542,7 +458,7 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkError = SendError<T>;
 
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        try!(self.0.do_send_nb(msg));
+        try!(UnboundedSender::send(self, msg));
         Ok(AsyncSink::Ready)
     }
 
@@ -557,52 +473,38 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
 
 impl<T> Clone for UnboundedSender<T> {
     fn clone(&self) -> UnboundedSender<T> {
-        UnboundedSender(self.0.clone())
+        self.inner.inc_senders();
+        
+        UnboundedSender {
+            inner: self.inner.clone(),
+        }
     }
 }
 
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
-        // Since this atomic op isn't actually guarding any memory and we don't
-        // care about any orderings besides the ordering on the single atomic
-        // variable, a relaxed ordering is acceptable.
-        let mut curr = self.inner.num_senders.load(SeqCst);
+        assert!(self.inner.common.open_state.load(SeqCst) < self.inner.max_senders());
 
-        loop {
-            // If the maximum number of senders has been reached, then fail
-            if curr == self.inner.max_senders() {
-                panic!("cannot clone `Sender` -- too many outstanding senders");
-            }
+        self.inner.common.inc_senders();
 
-            debug_assert!(curr < self.inner.max_senders());
-
-            let next = curr + 1;
-            let actual = self.inner.num_senders.compare_and_swap(curr, next, SeqCst);
-
-            // The ABA problem doesn't matter here. We only care that the
-            // number of senders never exceeds the maximum.
-            if actual == curr {
-                return Sender {
-                    inner: self.inner.clone(),
-                    sender_task: Arc::new(Mutex::new(None)),
-                    maybe_parked: false,
-                };
-            }
-
-            curr = actual;
+        Sender {
+            inner: self.inner.clone(),
+            sender_task: Arc::new(Mutex::new(None)),
+            maybe_parked: false,
         }
     }
 }
 
 impl<T> Drop for Sender<T> {
     fn drop(&mut self) {
-        // Ordering between variables don't matter here
-        let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
+        self.inner.common.dec_senders();
+    }
+}
 
-        if prev == 1 {
-            let _ = self.do_send(None);
-        }
+impl<T> Drop for UnboundedSender<T> {
+    fn drop(&mut self) {
+        self.inner.dec_senders();
     }
 }
 
@@ -618,23 +520,7 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        let mut curr = self.inner.state.load(SeqCst);
-
-        loop {
-            let mut state = decode_state(curr);
-
-            if !state.is_open {
-                break
-            }
-
-            state.is_open = false;
-
-            let next = encode_state(&state);
-            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
-                Ok(_) => break,
-                Err(actual) => curr = actual,
-            }
-        }
+        self.inner.common.close();
 
         // Wake up any threads waiting as they'll see that we've closed the
         // channel and will continue on their merry way.
@@ -648,35 +534,6 @@ impl<T> Receiver<T> {
                 }
                 PopResult::Empty => break,
                 PopResult::Inconsistent => thread::yield_now(),
-            }
-        }
-    }
-
-    fn next_message(&mut self) -> Async<Option<T>> {
-        // Pop off a message
-        loop {
-            match unsafe { self.inner.message_queue.pop() } {
-                PopResult::Data(msg) => {
-                    return Async::Ready(msg);
-                }
-                PopResult::Empty => {
-                    // The queue is empty, return NotReady
-                    return Async::NotReady;
-                }
-                PopResult::Inconsistent => {
-                    // Inconsistent means that there will be a message to pop
-                    // in a short time. This branch can only be reached if
-                    // values are being produced from another thread, so there
-                    // are a few ways that we can deal with this:
-                    //
-                    // 1) Spin
-                    // 2) thread::yield_now()
-                    // 3) task::current().unwrap() & return NotReady
-                    //
-                    // For now, thread::yield_now() is used, but it would
-                    // probably be better to spin a few times then yield.
-                    thread::yield_now();
-                }
             }
         }
     }
@@ -708,39 +565,12 @@ impl<T> Receiver<T> {
         }
     }
 
-    // Try to park the receiver task
-    fn try_park(&self) -> TryPark {
-        let curr = self.inner.state.load(SeqCst);
-        let state = decode_state(curr);
-
-        // If the channel is closed, then there is no need to park.
-        if !state.is_open && state.num_messages == 0 {
-            return TryPark::Closed;
-        }
-
-        // First, track the task in the `recv_task` slot
-        let mut recv_task = self.inner.recv_task.lock().unwrap();
-
-        if recv_task.unparked {
-            // Consume the `unpark` signal without actually parking
-            recv_task.unparked = false;
-            return TryPark::NotEmpty;
-        }
-
-        recv_task.task = Some(task::current());
-        TryPark::Parked
-    }
-
     fn dec_num_messages(&self) {
-        let mut curr = self.inner.state.load(SeqCst);
+        let mut curr = self.inner.num_messages.load(SeqCst);
 
         loop {
-            let mut state = decode_state(curr);
-
-            state.num_messages -= 1;
-
-            let next = encode_state(&state);
-            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+            let next = curr - 1;
+            match self.inner.num_messages.compare_exchange(curr, next, SeqCst, SeqCst) {
                 Ok(_) => break,
                 Err(actual) => curr = actual,
             }
@@ -753,55 +583,39 @@ impl<T> Stream for Receiver<T> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<Option<T>, ()> {
-        loop {
-            // Try to read a message off of the message queue.
-            let msg = match self.next_message() {
-                Async::Ready(msg) => msg,
-                Async::NotReady => {
-                    // There are no messages to read, in this case, attempt to
-                    // park. The act of parking will verify that the channel is
-                    // still empty after the park operation has completed.
-                    match self.try_park() {
-                        TryPark::Parked => {
-                            // The task was parked, and the channel is still
-                            // empty, return NotReady.
-                            return Ok(Async::NotReady);
-                        }
-                        TryPark::Closed => {
-                            // The channel is closed, there will be no further
-                            // messages.
-                            return Ok(Async::Ready(None));
-                        }
-                        TryPark::NotEmpty => {
-                            // A message has been sent while attempting to
-                            // park. Loop again, the next iteration is
-                            // guaranteed to get the message.
-                            continue;
-                        }
-                    }
-                }
-            };
+        // Try to read a message off of the message queue.
+        let msg = self.inner.common.poll_queue_and_open();
 
+        if let Ok(Async::Ready(Some(_))) = msg {
             // If there are any parked task handles in the parked queue, pop
             // one and unpark it.
             self.unpark_one();
 
             // Decrement number of messages
             self.dec_num_messages();
-
-            // Return the message
-            return Ok(Async::Ready(msg));
         }
+
+        // Return the message
+        msg
     }
 }
+
+
+
 
 impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         // Drain the channel of all pending messages
         self.close();
-        while self.next_message().is_ready() {
-            // ...
-        }
+        self.inner.common.drain_queue();
+    }
+}
+
+impl<T> Drop for UnboundedReceiver<T> {
+    fn drop(&mut self) {
+        // Drain the channel of all pending messages
+        self.close();
+        self.inner.drain_queue();
     }
 }
 
@@ -811,7 +625,7 @@ impl<T> UnboundedReceiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        self.0.close();
+        self.inner.close();
     }
 }
 
@@ -820,7 +634,7 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<Option<T>, ()> {
-        self.0.poll()
+        self.inner.poll_queue_and_open()
     }
 }
 
@@ -830,39 +644,145 @@ impl<T> Stream for UnboundedReceiver<T> {
  *
  */
 
-impl<T> Inner<T> {
+impl<T> BoundedInner<T> {
     // The return value is such that the total number of messages that can be
     // enqueued into the channel will never exceed MAX_CAPACITY
     fn max_senders(&self) -> usize {
-        match self.buffer {
-            Some(buffer) => MAX_CAPACITY - buffer,
-            None => MAX_BUFFER,
+        MAX_CAPACITY - self.buffer
+    }
+}
+
+
+impl<T> UnboundedInner<T> {
+    fn receiver_notify(&self) {
+        if !self.task.load_is_some(SeqCst) {
+            return;
+        }
+
+        if let Some(task) = self.task.swap_null(SeqCst) {
+            task.notify();
         }
     }
-}
 
-unsafe impl<T: Send> Send for Inner<T> {}
-unsafe impl<T: Send> Sync for Inner<T> {}
-
-/*
- *
- * ===== Helpers =====
- *
- */
-
-fn decode_state(num: usize) -> State {
-    State {
-        is_open: num & OPEN_MASK == OPEN_MASK,
-        num_messages: num & MAX_CAPACITY,
-    }
-}
-
-fn encode_state(state: &State) -> usize {
-    let mut num = state.num_messages;
-
-    if state.is_open {
-        num |= OPEN_MASK;
+    fn receiver_park(&self) {
+        self.task.swap_box(Box::new(task::current()), SeqCst);
     }
 
-    num
+    fn is_open(&self) -> bool {
+        self.open_state.load(SeqCst) != 0
+    }
+
+    fn close(&self) {
+        self.open_state.store(0, SeqCst);
+        self.receiver_notify();
+    }
+
+    fn inc_senders(&self) {
+        loop {
+            let open_state = self.open_state.load(SeqCst);
+            if open_state == 0 {
+                // Signal is closed, let it remain that way.
+                break;
+            }
+            if let Ok(_) = self.open_state.compare_exchange(
+                open_state, open_state + 1, SeqCst, Relaxed)
+            {
+                break;
+            }
+        }
+    }
+
+    fn dec_senders(&self) {
+        loop {
+            let open_state = self.open_state.load(SeqCst);
+            if open_state == 0 {
+                break;
+            }
+
+            if let Ok(_) = self.open_state.compare_exchange(
+                open_state, open_state - 1, SeqCst, Relaxed)
+            {
+                if open_state == 1 {
+                    // Notify receiver of sender death
+                    // so receiver gets EOF
+                    self.receiver_notify();
+                }
+
+                break;
+            }
+        }
+    }
+
+    fn queue_pop_spin(&self) -> Async<T> {
+        // Pop off a message
+        loop {
+            match unsafe { self.message_queue.pop() } {
+                PopResult::Data(msg) => {
+                    return Async::Ready(msg);
+                }
+                PopResult::Empty => {
+                    // The queue is empty, return NotReady
+                    return Async::NotReady;
+                }
+                PopResult::Inconsistent => {
+                    // Inconsistent means that there will be a message to pop
+                    // in a short time. This branch can only be reached if
+                    // values are being produced from another thread, so there
+                    // are a few ways that we can deal with this:
+                    //
+                    // 1) Spin
+                    // 2) thread::yield_now()
+                    // 3) task::current().unwrap() & return NotReady
+                    //
+                    // For now, thread::yield_now() is used, but it would
+                    // probably be better to spin a few times then yield.
+                    thread::yield_now();
+                }
+            }
+        }
+    }
+
+    /// Poll queue and open flag together.
+    fn poll_queue_and_open(&self) -> Poll<Option<T>, ()> {
+        // Try to read a message off of the message queue.
+        return Ok(match self.queue_pop_spin() {
+            Async::Ready(msg) => Async::Ready(Some(msg)),
+            Async::NotReady => {
+
+                // Park only if open, otherwise it will be unnecessary work.
+                if self.is_open() {
+
+                    // AT THIS POINT other thread may call `notify`,
+                    // so we need to check for `is_open` again later.
+
+                    self.receiver_park();
+                }
+
+                // It is possible that channel is closed before we parked
+                // so we need to check for openness again.
+                // Because nobody is going to call `notify`.
+
+                // Call for `is_open` must come before queue pop,
+                // because channel is closed after queue updated.
+                let open = self.is_open();
+
+                match self.queue_pop_spin() {
+                    Async::NotReady => {
+                        if open {
+                            Async::NotReady
+                        } else {
+                            Async::Ready(None)
+                        }
+                    },
+                    Async::Ready(msg) => Async::Ready(Some(msg)),
+                }
+            }
+        });
+    }
+
+    /// Drain queue on receiver drop to release memory early
+    fn drain_queue(&self) {
+        while self.queue_pop_spin().is_ready() {
+        }
+    }
 }
