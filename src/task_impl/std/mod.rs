@@ -494,8 +494,8 @@ impl ThreadUnpark {
 
 impl Notify for ThreadUnpark {
     fn notify(&self, _unpark_id: usize) {
+        self.thread.unpark();
         self.ready.store(true, Ordering::SeqCst);
-        self.thread.unpark()
     }
 }
 
