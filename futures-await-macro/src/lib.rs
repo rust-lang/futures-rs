@@ -12,21 +12,17 @@
 macro_rules! await {
     ($e:expr) => ({
         let mut future = $e;
-        let ret;
         loop {
             match ::futures::Future::poll(&mut future) {
                 ::futures::__rt::Ok(::futures::Async::Ready(e)) => {
-                    ret = ::futures::__rt::Ok(e);
-                    break
+                    break ::futures::__rt::Ok(e)
                 }
                 ::futures::__rt::Ok(::futures::Async::NotReady) => {}
                 ::futures::__rt::Err(e) => {
-                    ret = ::futures::__rt::Err(e);
-                    break
+                    break ::futures::__rt::Err(e)
                 }
             }
             yield
         }
-        ret
     })
 }
