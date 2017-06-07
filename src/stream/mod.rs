@@ -92,6 +92,7 @@ if_std! {
     mod wait;
     mod channel;
     mod split;
+    mod futures_ordered;
     mod futures_unordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
@@ -100,6 +101,7 @@ if_std! {
     pub use self::collect::Collect;
     pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink};
+    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
     pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
 
     #[doc(hidden)]
