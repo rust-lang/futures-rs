@@ -1,6 +1,6 @@
 use sink::Sink;
 
-use {Poll, StartSend};
+use {Poll, StartSend, Stream};
 
 /// Sink for the `Sink::sink_map_err` combinator.
 #[derive(Debug)]
@@ -51,5 +51,14 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
 
     fn close(&mut self) -> Poll<(), Self::SinkError> {
         self.sink.close().map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    }
+}
+
+impl<S: Stream, F> Stream for SinkMapErr<S, F> {
+    type Item = S::Item;
+    type Error = S::Error;
+
+    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll()
     }
 }
