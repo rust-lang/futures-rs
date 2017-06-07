@@ -309,6 +309,46 @@ fn chunks_panic_on_cap_zero() {
 }
 
 #[test]
+fn batched() {
+    // do 100 iteration because `batched` is non-deterministic
+
+    for _ in 0..100 {
+        for batch_size in 1..3 {
+            let r = list().batched(batch_size).collect().wait().unwrap();
+
+            assert_eq!(vec![1, 2, 3], r.iter().flat_map(|i| i).cloned().collect::<Vec<_>>());
+
+            for batch in &r {
+                assert!(batch.len() > 0);
+                assert!(batch.len() <= batch_size);
+            }
+        }
+    }
+
+    for _ in 0..100 {
+        let mut list = executor::spawn(err_list().batched(3));
+        let i = list.wait_stream().unwrap().unwrap();
+        if i == vec![1, 2] {
+            // ok
+        } else if i == vec![1] {
+            let i = list.wait_stream().unwrap().unwrap();
+            assert_eq!(vec![2], i);
+        } else {
+            unreachable!();
+        }
+        let i = list.wait_stream().unwrap().unwrap_err();
+        assert_eq!(i, 3);
+    }
+}
+
+#[test]
+#[should_panic]
+fn batched_panic_on_cap_zero() {
+    let _ = list().batched(0);
+}
+
+
+#[test]
 fn select() {
     let a = iter(vec![Ok::<_, u32>(1), Ok(2), Ok(3)]);
     let b = iter(vec![Ok(4), Ok(5), Ok(6)]);
