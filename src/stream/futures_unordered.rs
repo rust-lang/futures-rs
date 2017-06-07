@@ -12,13 +12,13 @@ use {task, Stream, Future, Poll, Async, IntoFuture};
 use executor::{Notify, UnsafeNotify, NotifyHandle};
 use task_impl::{self, AtomicTask};
 
-/// An unbounded queue of futures.
+/// An unbounded set of futures.
 ///
 /// This "combinator" also serves a special function in this library, providing
-/// the ability to maintain a queue of futures that and manage driving them all
+/// the ability to maintain a set of futures that and manage driving them all
 /// to completion.
 ///
-/// Futures are pushed into this queue and their realized values are yielded as
+/// Futures are pushed into this set and their realized values are yielded as
 /// they are ready. This structure is optimized to manage a large number of
 /// futures. Futures managed by `FuturesUnordered` will only be polled when they
 /// generate notifications. This reduces the required amount of work needed to
@@ -26,20 +26,20 @@ use task_impl::{self, AtomicTask};
 ///
 /// When a `FuturesUnordered` is first created, it does not contain any futures.
 /// Calling `poll` in this state will result in `Ok(Async::Ready(None))` to be
-/// returned. Futures are submitted to the queue using `push`; however, the
+/// returned. Futures are submitted to the set using `push`; however, the
 /// future will **not** be polled at this point. `FuturesUnordered` will only
 /// poll managged futures when `FuturesUnordered::poll` is called. As such, it
 /// is important to call `poll` after pushing new futures.
 ///
 /// If `FuturesUnordered::poll` returns `Ok(Async::Ready(None))` this means that
-/// the queue is currently not managing any futures. A future may be submitted
-/// to the queue at a later time. At that point, a call to
+/// the set is currently not managing any futures. A future may be submitted
+/// to the set at a later time. At that point, a call to
 /// `FuturesUnordered::poll` will either return the future's resolved value
 /// **or** `Ok(Async::NotReady)` if the future has not yet completed.
 ///
 /// Note that you can create a ready-made `FuturesUnordered` via the
-/// `futures_unordered` function in the `stream` module, or you can start with a
-/// blank queue with the `FuturesUnordered::new` constructor.
+/// `futures_unordered` function in the `stream` module, or you can start with an
+/// empty set with the `FuturesUnordered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<F> {
     inner: Arc<Inner<F>>,
@@ -58,19 +58,19 @@ unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
 /// available. This function is similar to `buffer_unordered` in that it may
 /// return items in a different order than in the list specified.
 ///
-/// Note that the returned queue can also be used to dynamically push more
-/// futures onto the queue as they become available.
+/// Note that the returned set can also be used to dynamically push more
+/// futures into the set as they become available.
 pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
     where I: IntoIterator,
           I::Item: IntoFuture
 {
-    let mut queue = FuturesUnordered::new();
+    let mut set = FuturesUnordered::new();
 
     for future in futures {
-        queue.push(future.into_future());
+        set.push(future.into_future());
     }
 
-    return queue
+    return set
 }
 
 // FuturesUnordered is implemented using two linked lists. One which links all
@@ -80,7 +80,7 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
 // second linked list is an implementation of the intrusive MPSC queue algorithm
 // described by 1024cores.net.
 //
-// When a future is submitted to the queue a node is allocated and inserted in
+// When a future is submitted to the set a node is allocated and inserted in
 // both linked lists. The next call to `poll` will (eventually) see this node
 // and call `poll` on the future.
 //
@@ -166,21 +166,21 @@ impl<T> FuturesUnordered<T>
 }
 
 impl<T> FuturesUnordered<T> {
-    /// Returns the number of futures contained by the queue.
+    /// Returns the number of futures contained in the set.
     ///
     /// This represents the total number of in-flight futures.
     pub fn len(&self) -> usize {
         self.len
     }
 
-    /// Returns `true` if the queue contains no futures
+    /// Returns `true` if the set contains no futures
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 
-    /// Push a future into the queue.
+    /// Push a future into the set.
     ///
-    /// This function submits the given future to the queue for managing. This
+    /// This function submits the given future to the set for managing. This
     /// function will not call `poll` on the submitted future. The caller must
     /// ensure that `FuturesUnordered::poll` is called in order to receive task
     /// notifications.
