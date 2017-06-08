@@ -93,6 +93,7 @@ if_std! {
     mod channel;
     mod split;
     mod futures_unordered;
+    mod futures_ordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
@@ -101,6 +102,7 @@ if_std! {
     pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink};
     pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
     #[doc(hidden)]
     #[cfg(feature = "with-deprecated")]
