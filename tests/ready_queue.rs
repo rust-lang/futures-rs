@@ -5,7 +5,7 @@ use std::panic::{self, AssertUnwindSafe};
 use futures::{Future, Stream, Poll};
 use futures::Async::*;
 use futures::future;
-use futures::stream::FuturesUnordered;
+use futures::stream::{FuturesSet, FuturesUnordered};
 use futures::sync::oneshot;
 
 trait AssertSendSync: Send + Sync {}

@@ -1,8 +1,9 @@
 use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 use std::collections::BinaryHeap;
+use std::fmt::{self, Debug};
 
 use {Async, Future, IntoFuture, Poll, Stream};
-use stream::FuturesUnordered;
+use stream::{FuturesSet, FuturesUnordered};
 
 #[derive(Debug)]
 struct OrderWrapper<T> {
@@ -79,7 +80,6 @@ impl<T> Future for OrderWrapper<T>
 /// `futures_ordered` function in the `stream` module, or you can start with an
 /// empty queue with the `FuturesOrdered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
-#[derive(Debug)]
 pub struct FuturesOrdered<T>
     where T: Future
 {
@@ -113,14 +113,14 @@ pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<<I::Item as IntoFuture>:
     return queue
 }
 
-impl<T> FuturesOrdered<T>
+impl<T> FuturesSet<T> for FuturesOrdered<T>
     where T: Future
 {
     /// Constructs a new, empty `FuturesOrdered`
     ///
     /// The returned `FuturesOrdered` does not contain any futures and, in this
     /// state, `FuturesOrdered::poll` will return `Ok(Async::Ready(None))`.
-    pub fn new() -> FuturesOrdered<T> {
+    fn new() -> FuturesOrdered<T> {
         FuturesOrdered {
             in_progress: FuturesUnordered::new(),
             queued_results: BinaryHeap::new(),
@@ -134,13 +134,8 @@ impl<T> FuturesOrdered<T>
     /// This represents the total number of in-flight futures, both
     /// those currently processing and those that have completed but
     /// which are waiting for earlier futures to complete.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.in_progress.len() + self.queued_results.len()
-    }
-
-    /// Returns `true` if the queue contains no futures
-    pub fn is_empty(&self) -> bool {
-        self.in_progress.is_empty() && self.queued_results.is_empty()
     }
 
     /// Push a future into the queue.
@@ -149,13 +144,22 @@ impl<T> FuturesOrdered<T>
     /// This function will not call `poll` on the submitted future. The caller
     /// must ensure that `FuturesOrdered::poll` is called in order to receive
     /// task notifications.
-    pub fn push(&mut self, future: T) {
+    fn push(&mut self, future: T) {
         let wrapped = OrderWrapper {
             item: future,
             index: self.next_incoming_index,
         };
         self.next_incoming_index += 1;
         self.in_progress.push(wrapped);
+    }
+}
+
+impl<T> FuturesOrdered<T>
+    where T: Future
+{
+    /// Returns `true` if the queue contains no futures
+    pub fn is_empty(&self) -> bool {
+        self.in_progress.is_empty() && self.queued_results.is_empty()
     }
 }
 
@@ -188,5 +192,13 @@ impl<T> Stream for FuturesOrdered<T>
         let next_result = self.queued_results.pop().unwrap();
         self.next_outgoing_index += 1;
         Ok(Async::Ready(Some(next_result.item)))
+    }
+}
+
+impl<T: Debug> Debug for FuturesOrdered<T>
+    where T: Future
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "FuturesOrdered {{ ... }}")
     }
 }
