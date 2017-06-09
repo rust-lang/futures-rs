@@ -76,6 +76,19 @@ fn unbounded_100_tx(b: &mut Bencher) {
     })
 }
 
+#[bench]
+fn unbounded_uncontended(b: &mut Bencher) {
+    b.iter(|| {
+        let (tx, mut rx) = unbounded();
+
+        for i in 0..1000 {
+            UnboundedSender::send(&tx, i).expect("send");
+            // No need to create a task, because poll is not going to park.
+            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll());
+        }
+    })
+}
+
 
 /// A Stream that continuously sends incrementing number of the queue
 struct TestSender {
