@@ -11,6 +11,10 @@ use std::thread;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+mod support;
+use support::*;
+
+
 trait AssertSend: Send {}
 impl AssertSend for mpsc::Sender<i32> {}
 impl AssertSend for mpsc::Receiver<i32> {}
@@ -272,6 +276,23 @@ fn stress_receiver_multi_task_bounded_hard() {
     }
 
     assert_eq!(AMT, n.load(Ordering::Relaxed));
+}
+
+#[test]
+fn stress_drop_sender() {
+    fn list() -> Box<Stream<Item=i32, Error=u32>> {
+        let (tx, rx) = mpsc::channel(1);
+        tx.send(Ok(1))
+          .and_then(|tx| tx.send(Ok(2)))
+          .and_then(|tx| tx.send(Ok(3)))
+          .forget();
+        rx.then(|r| r.unwrap()).boxed()
+    }
+
+    for _ in 0..10000 {
+        assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
+        Ok(vec![1, 2, 3]));
+    }
 }
 
 fn is_ready<T>(res: &AsyncSink<T>) -> bool {
