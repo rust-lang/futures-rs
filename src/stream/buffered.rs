@@ -11,7 +11,7 @@ use stream::{Stream, Fuse, FuturesSet};
 pub struct Buffered<Q, S>
     where S: Stream,
           S::Item: IntoFuture,
-          Q: FuturesSet<<S::Item as IntoFuture>::Future>,
+          Q: FuturesSet<<<S as Stream>::Item as IntoFuture>::Future>,
 {
     stream: Fuse<S>,
 
@@ -29,7 +29,7 @@ impl<Q, S> fmt::Debug for Buffered<Q, S>
     where S: Stream + fmt::Debug,
           S::Item: IntoFuture,
           <<S as Stream>::Item as IntoFuture>::Future: fmt::Debug,
-          Q: FuturesSet<<S::Item as IntoFuture>::Future> + fmt::Debug,
+          Q: FuturesSet<<<S as Stream>::Item as IntoFuture>::Future> + fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Buffered")
@@ -45,7 +45,7 @@ impl<Q, S> fmt::Debug for Buffered<Q, S>
 pub fn new<Q, S>(s: S, amt: usize) -> Buffered<Q, S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
-          Q: FuturesSet<<S::Item as IntoFuture>::Future>,
+          Q: FuturesSet<<<S as Stream>::Item as IntoFuture>::Future>,
 {
     Buffered {
         stream: super::fuse::new(s),
@@ -57,7 +57,7 @@ pub fn new<Q, S>(s: S, amt: usize) -> Buffered<Q, S>
 impl<Q, S> Buffered<Q, S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
-          Q: FuturesSet<<S::Item as IntoFuture>::Future>,
+          Q: FuturesSet<<<S as Stream>::Item as IntoFuture>::Future>,
 {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
@@ -86,7 +86,7 @@ impl<Q, S> Buffered<Q, S>
 impl<Q, S> Stream for Buffered<Q, S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
-          Q: FuturesSet<<S::Item as IntoFuture>::Future>,
+          Q: FuturesSet<<<S as Stream>::Item as IntoFuture>::Future>,
 {
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
@@ -124,7 +124,7 @@ impl<Q, S> Stream for Buffered<Q, S>
 impl<Q, S> ::sink::Sink for Buffered<Q, S>
     where S: ::sink::Sink + Stream,
           S::Item: IntoFuture,
-          Q: FuturesSet<<S::Item as IntoFuture>::Future>,
+          Q: FuturesSet<<<S as Stream>::Item as IntoFuture>::Future>,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;

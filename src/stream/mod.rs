@@ -882,7 +882,7 @@ pub trait Stream {
     /// This method is only available when the `use_std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
-    fn buffered(self, amt: usize) -> Buffered<FuturesOrdered<<Self::Item as IntoFuture>::Future>, Self>
+    fn buffered(self, amt: usize) -> Buffered<FuturesOrdered<<<Self as Stream>::Item as IntoFuture>::Future>, Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
     {
@@ -903,7 +903,7 @@ pub trait Stream {
     /// This method is only available when the `use_std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
-    fn buffer_unordered(self, amt: usize) -> Buffered<FuturesUnordered<<Self::Item as IntoFuture>::Future>, Self>
+    fn buffer_unordered(self, amt: usize) -> Buffered<FuturesUnordered<<<Self as Stream>::Item as IntoFuture>::Future>, Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
     {
