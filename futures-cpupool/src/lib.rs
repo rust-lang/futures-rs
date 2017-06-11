@@ -44,6 +44,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
+use std::fmt;
 
 use futures::{IntoFuture, Future, Poll, Async};
 use futures::future::{lazy, Executor, ExecuteError};
@@ -99,6 +100,14 @@ struct Inner {
     size: usize,
     after_start: Option<Arc<Fn() + Send + Sync>>,
     before_stop: Option<Arc<Fn() + Send + Sync>>,
+}
+
+impl fmt::Debug for CpuPool {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("CpuPool")
+            .field("size", &self.inner.size)
+            .finish()
+    }
 }
 
 /// The type of future returned from the `CpuPool::spawn` function, which
