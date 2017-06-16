@@ -84,7 +84,7 @@ impl Core {
         let mut f = executor::spawn(f);
         loop {
             if self.turn() {
-                match f.poll_future_notify(&self.notify, id)? {
+                match try!(f.poll_future_notify(&self.notify, id)) {
                     Async::Ready(e) => return Ok(e),
                     Async::NotReady => {}
                 }
