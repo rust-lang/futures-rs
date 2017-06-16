@@ -84,7 +84,7 @@ fn drop_in_poll() {
 
 #[test]
 fn peek() {
-    let mut core = ::support::local_executor::Core::new();
+    let core = ::support::local_executor::Core::new();
 
     let (tx0, rx0) = oneshot::channel::<u32>();
     let f1 = rx0.shared();
@@ -113,7 +113,7 @@ fn peek() {
 
 #[test]
 fn polled_then_ignored() {
-    let mut core = ::support::local_executor::Core::new();
+    let core = ::support::local_executor::Core::new();
 
     let (tx0, rx0) = oneshot::channel::<u32>();
     let f1 = rx0.shared();
@@ -146,7 +146,7 @@ fn recursive_poll() {
     use futures::sync::mpsc;
     use futures::Stream;
 
-    let mut core = ::support::local_executor::Core::new();
+    let core = ::support::local_executor::Core::new();
     let (tx0, rx0) = mpsc::unbounded::<Box<Future<Item=(),Error=()>>>();
     let run_stream = rx0.for_each(|f| f);
 
@@ -176,7 +176,7 @@ fn recursive_poll_with_unpark() {
     use futures::sync::mpsc;
     use futures::{Stream, task};
 
-    let mut core = ::support::local_executor::Core::new();
+    let core = ::support::local_executor::Core::new();
     let (tx0, rx0) = mpsc::unbounded::<Box<Future<Item=(),Error=()>>>();
     let run_stream = rx0.for_each(|f| f);
 

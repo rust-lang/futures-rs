@@ -5,6 +5,7 @@ extern crate futures;
 mod support;
 
 use futures::{Future, Stream, Sink, Async};
+use futures::unsync::oneshot;
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
 use futures::stream::iter;
@@ -89,7 +90,7 @@ fn mpsc_unbounded() {
 
 #[test]
 fn mpsc_recv_unpark() {
-    let mut core = Core::new();
+    let core = Core::new();
     let (tx, rx) = mpsc::channel::<i32>(1);
     let tx2 = tx.clone();
     core.spawn(rx.collect().map(|xs| assert_eq!(xs, [1, 2])));
@@ -99,10 +100,15 @@ fn mpsc_recv_unpark() {
 
 #[test]
 fn mpsc_send_unpark() {
-    let mut core = Core::new();
+    let core = Core::new();
     let (tx, rx) = mpsc::channel::<i32>(1);
+    let (donetx, donerx) = oneshot::channel();
     core.spawn(iter(vec![1, 2].into_iter().map(Ok)).forward(tx)
-               .then(|x: Result<_, SendError<i32>>| { assert!(x.is_err()); Ok(()) }));
+        .then(|x: Result<_, SendError<i32>>| {
+            assert!(x.is_err());
+            donetx.send(()).unwrap();
+            Ok(())
+        }));
     core.spawn(lazy(move || { let _ = rx; Ok(()) }));
-    core.wait();
+    core.run(donerx).unwrap();
 }
