@@ -172,7 +172,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         fn #ident #generics(#(#inputs_no_patterns),*) -> #return_ty
             #where_clause
         {
-            #maybe_boxed (::futures::__rt::gen((move || {
+            #maybe_boxed (::futures::__rt::gen(move || {
                 let __e = {
                     #( let #patterns = #temp_bindings; )*
                     #block
@@ -185,7 +185,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                     return __e;
                     loop { yield }
                 }
-            })()))
+            }))
         }
     };
 
