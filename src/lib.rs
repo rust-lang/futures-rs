@@ -157,6 +157,7 @@
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
+#![feature(specialization)]
 
 #[macro_use]
 #[cfg(feature = "use_std")]

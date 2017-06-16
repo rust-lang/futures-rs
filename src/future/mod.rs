@@ -308,7 +308,7 @@ pub trait Future {
     fn boxed(self) -> BoxFuture<Self::Item, Self::Error>
         where Self: Sized + Send + 'static
     {
-        ::std::boxed::Box::new(self)
+        Boxed::boxed(self)
     }
 
     /// Map this future's result to a different type, returning a new future of
@@ -1042,5 +1042,21 @@ impl<F> fmt::Debug for ExecuteError<F> {
             ExecuteErrorKind::NoCapacity => "executor has no more capacity".fmt(f),
             ExecuteErrorKind::__Nonexhaustive => panic!(),
         }
+    }
+}
+
+trait Boxed: Future {
+    fn boxed(self) -> BoxFuture<Self::Item, Self::Error>;
+}
+
+impl<F> Boxed for F where F: Future + Sized + Send + 'static {
+    default fn boxed(self) -> BoxFuture<Self::Item, Self::Error> {
+        ::std::boxed::Box::new(self)
+    }
+}
+
+impl<I, E> Boxed for BoxFuture<I, E> {
+    fn boxed(self) -> BoxFuture<Self::Item, Self::Error> {
+        self
     }
 }
