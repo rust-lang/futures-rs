@@ -3,7 +3,7 @@ use std::collections::BinaryHeap;
 use std::fmt::{self, Debug};
 
 use {Async, Future, IntoFuture, Poll, Stream};
-use stream::{FuturesSet, FuturesUnordered};
+use stream::FuturesUnordered;
 
 #[derive(Debug)]
 struct OrderWrapper<T> {
@@ -113,14 +113,14 @@ pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<<I::Item as IntoFuture>:
     return queue
 }
 
-impl<T> FuturesSet<T> for FuturesOrdered<T>
+impl<T> FuturesOrdered<T>
     where T: Future
 {
     /// Constructs a new, empty `FuturesOrdered`
     ///
     /// The returned `FuturesOrdered` does not contain any futures and, in this
     /// state, `FuturesOrdered::poll` will return `Ok(Async::Ready(None))`.
-    fn new() -> FuturesOrdered<T> {
+    pub fn new() -> FuturesOrdered<T> {
         FuturesOrdered {
             in_progress: FuturesUnordered::new(),
             queued_results: BinaryHeap::new(),
@@ -134,8 +134,13 @@ impl<T> FuturesSet<T> for FuturesOrdered<T>
     /// This represents the total number of in-flight futures, both
     /// those currently processing and those that have completed but
     /// which are waiting for earlier futures to complete.
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.in_progress.len() + self.queued_results.len()
+    }
+
+    /// Returns `true` if the queue contains no futures
+    pub fn is_empty(&self) -> bool {
+        self.in_progress.is_empty() && self.queued_results.is_empty()
     }
 
     /// Push a future into the queue.
@@ -144,22 +149,13 @@ impl<T> FuturesSet<T> for FuturesOrdered<T>
     /// This function will not call `poll` on the submitted future. The caller
     /// must ensure that `FuturesOrdered::poll` is called in order to receive
     /// task notifications.
-    fn push(&mut self, future: T) {
+    pub fn push(&mut self, future: T) {
         let wrapped = OrderWrapper {
             item: future,
             index: self.next_incoming_index,
         };
         self.next_incoming_index += 1;
         self.in_progress.push(wrapped);
-    }
-}
-
-impl<T> FuturesOrdered<T>
-    where T: Future
-{
-    /// Returns `true` if the queue contains no futures
-    pub fn is_empty(&self) -> bool {
-        self.in_progress.is_empty() && self.queued_results.is_empty()
     }
 }
 

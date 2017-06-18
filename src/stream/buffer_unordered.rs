@@ -1,33 +1,31 @@
 use std::fmt;
 
 use {Async, IntoFuture, Poll};
-use stream::{Stream, Fuse, FuturesOrdered};
+use stream::{Stream, Fuse, FuturesUnordered};
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
-/// possible.
+/// possible, delivering results as they become available.
 ///
 /// This adaptor will buffer up a list of pending futures, and then return their
-/// results in the order that they were pulled out of the original stream. This
-/// is created by the `Stream::buffered` method.
+/// results in the order that they complete. This is created by the
+/// `Stream::buffer_unordered` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Buffered<S>
+pub struct BufferUnordered<S>
     where S: Stream,
           S::Item: IntoFuture,
 {
     stream: Fuse<S>,
-    queue: FuturesOrdered<<S::Item as IntoFuture>::Future>,
+    queue: FuturesUnordered<<S::Item as IntoFuture>::Future>,
     max: usize,
 }
 
-impl<S> fmt::Debug for Buffered<S>
+impl<S> fmt::Debug for BufferUnordered<S>
     where S: Stream + fmt::Debug,
           S::Item: IntoFuture,
           <<S as Stream>::Item as IntoFuture>::Future: fmt::Debug,
-          <<S as Stream>::Item as IntoFuture>::Item: fmt::Debug,
-          <<S as Stream>::Item as IntoFuture>::Error: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("Buffered")
+        fmt.debug_struct("BufferUnordered")
             .field("stream", &self.stream)
             .field("queue", &self.queue)
             .field("max", &self.max)
@@ -35,18 +33,18 @@ impl<S> fmt::Debug for Buffered<S>
     }
 }
 
-pub fn new<S>(s: S, amt: usize) -> Buffered<S>
+pub fn new<S>(s: S, amt: usize) -> BufferUnordered<S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
 {
-    Buffered {
+    BufferUnordered {
         stream: super::fuse::new(s),
-        queue: FuturesOrdered::new(),
+        queue: FuturesUnordered::new(),
         max: amt,
     }
 }
 
-impl<S> Buffered<S>
+impl<S> BufferUnordered<S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
 {
@@ -74,28 +72,7 @@ impl<S> Buffered<S>
     }
 }
 
-// Forwarding impl of Sink from the underlying stream
-impl<S> ::sink::Sink for Buffered<S>
-    where S: ::sink::Sink + Stream,
-          S::Item: IntoFuture,
-{
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
-
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
-    }
-
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
-    }
-}
-
-impl<S> Stream for Buffered<S>
+impl<S> Stream for BufferUnordered<S>
     where S: Stream,
           S::Item: IntoFuture<Error=<S as Stream>::Error>,
 {
@@ -128,5 +105,26 @@ impl<S> Stream for Buffered<S>
         } else {
             Ok(Async::NotReady)
         }
+    }
+}
+
+// Forwarding impl of Sink from the underlying stream
+impl<S> ::sink::Sink for BufferUnordered<S>
+    where S: ::sink::Sink + Stream,
+          S::Item: IntoFuture,
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(item)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.poll_complete()
+    }
+
+    fn close(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.close()
     }
 }

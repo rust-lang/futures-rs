@@ -10,7 +10,6 @@ use std::usize;
 
 use {task, Stream, Future, Poll, Async, IntoFuture};
 use executor::{Notify, UnsafeNotify, NotifyHandle};
-use stream::{FuturesSet};
 use task_impl::{self, AtomicTask};
 
 /// An unbounded set of futures.
@@ -134,14 +133,14 @@ enum Dequeue<T> {
     Inconsistent,
 }
 
-impl<T> FuturesSet<T> for FuturesUnordered<T>
+impl<T> FuturesUnordered<T>
     where T: Future,
 {
     /// Constructs a new, empty `FuturesUnordered`
     ///
     /// The returned `FuturesUnordered` does not contain any futures and, in this
     /// state, `FuturesUnordered::poll` will return `Ok(Async::Ready(None))`.
-    fn new() -> FuturesUnordered<T> {
+    pub fn new() -> FuturesUnordered<T> {
         let stub = Arc::new(Node {
             future: UnsafeCell::new(None),
             next_all: UnsafeCell::new(ptr::null()),
@@ -164,12 +163,19 @@ impl<T> FuturesSet<T> for FuturesUnordered<T>
             inner: inner,
         }
     }
+}
 
+impl<T> FuturesUnordered<T> {
     /// Returns the number of futures contained in the set.
     ///
     /// This represents the total number of in-flight futures.
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.len
+    }
+
+    /// Returns `true` if the set contains no futures
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     /// Push a future into the set.
@@ -178,7 +184,7 @@ impl<T> FuturesSet<T> for FuturesUnordered<T>
     /// function will not call `poll` on the submitted future. The caller must
     /// ensure that `FuturesUnordered::poll` is called in order to receive task
     /// notifications.
-    fn push(&mut self, future: T) {
+    pub fn push(&mut self, future: T) {
         let node = Arc::new(Node {
             future: UnsafeCell::new(Some(future)),
             next_all: UnsafeCell::new(ptr::null_mut()),
@@ -198,13 +204,6 @@ impl<T> FuturesSet<T> for FuturesUnordered<T>
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.inner.enqueue(ptr);
-    }
-}
-
-impl<T> FuturesUnordered<T> {
-    /// Returns `true` if the set contains no futures
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
     }
 
     fn release_node(&mut self, node: Arc<Node<T>>) {
