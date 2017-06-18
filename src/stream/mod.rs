@@ -37,6 +37,7 @@ mod for_each;
 mod from_err;
 mod fuse;
 mod future;
+mod futures_set;
 mod map;
 mod map_err;
 mod merge;
@@ -64,6 +65,7 @@ pub use self::for_each::ForEach;
 pub use self::from_err::FromErr;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
+pub use self::futures_set::FuturesSet;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::merge::{Merge, MergedItem};
@@ -85,7 +87,6 @@ if_std! {
     use std;
 
     mod buffered;
-    mod buffer_unordered;
     mod catch_unwind;
     mod chunks;
     mod collect;
@@ -93,14 +94,15 @@ if_std! {
     mod channel;
     mod split;
     mod futures_unordered;
+    mod futures_ordered;
     pub use self::buffered::Buffered;
-    pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink};
     pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
     #[doc(hidden)]
     #[cfg(feature = "with-deprecated")]
@@ -880,7 +882,7 @@ pub trait Stream {
     /// This method is only available when the `use_std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
-    fn buffered(self, amt: usize) -> Buffered<Self>
+    fn buffered(self, amt: usize) -> Buffered<FuturesOrdered<<<Self as Stream>::Item as IntoFuture>::Future>, Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
     {
@@ -901,11 +903,11 @@ pub trait Stream {
     /// This method is only available when the `use_std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "use_std")]
-    fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
+    fn buffer_unordered(self, amt: usize) -> Buffered<FuturesUnordered<<<Self as Stream>::Item as IntoFuture>::Future>, Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
     {
-        buffer_unordered::new(self, amt)
+        buffered::new(self, amt)
     }
 
     /// An adapter for merging the output of two streams.
