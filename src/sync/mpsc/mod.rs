@@ -80,7 +80,10 @@ use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
 use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
 
+mod task_cell;
 mod queue;
+
+use self::task_cell::TaskCell;
 
 /// The transmission end of a channel which is used to send values.
 ///
@@ -180,7 +183,7 @@ struct Inner<T> {
     num_senders: AtomicUsize,
 
     // Handle to the receiver's task.
-    recv_task: Mutex<ReceiverTask>,
+    recv_task: TaskCell,
 }
 
 // Struct representation of `Inner::state`.
@@ -191,19 +194,6 @@ struct State {
 
     // Number of messages in the channel
     num_messages: usize,
-}
-
-#[derive(Debug)]
-struct ReceiverTask {
-    unparked: bool,
-    task: Option<Task>,
-}
-
-// Returned from Receiver::try_park()
-enum TryPark {
-    Parked,
-    Closed,
-    NotEmpty,
 }
 
 // The `is_open` flag is stored in the left-most bit of `Inner::state`
@@ -267,10 +257,7 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
         message_queue: Queue::new(),
         parked_queue: Queue::new(),
         num_senders: AtomicUsize::new(1),
-        recv_task: Mutex::new(ReceiverTask {
-            unparked: false,
-            task: None,
-        }),
+        recv_task: TaskCell::new(),
     });
 
     let tx = Sender {
@@ -408,31 +395,7 @@ impl<T> Sender<T> {
 
     // Signal to the receiver task that a message has been enqueued
     fn signal(&self) {
-        // TODO
-        // This logic can probably be improved by guarding the lock with an
-        // atomic.
-        //
-        // Do this step first so that the lock is dropped when
-        // `unpark` is called
-        let task = {
-            let mut recv_task = self.inner.recv_task.lock().unwrap();
-
-            // If the receiver has already been unparked, then there is nothing
-            // more to do
-            if recv_task.unparked {
-                return;
-            }
-
-            // Setting this flag enables the receiving end to detect that
-            // an unpark event happened in order to avoid unecessarily
-            // parking.
-            recv_task.unparked = true;
-            recv_task.task.take()
-        };
-
-        if let Some(task) = task {
-            task.notify();
-        }
+        self.inner.recv_task.notify();
     }
 
     fn park(&mut self, can_park: bool) {
@@ -652,6 +615,7 @@ impl<T> Receiver<T> {
         }
     }
 
+    // Pop a message from the underlying queue, and nothing more.
     fn next_message(&mut self) -> Async<Option<T>> {
         // Pop off a message
         loop {
@@ -677,6 +641,28 @@ impl<T> Receiver<T> {
                     // probably be better to spin a few times then yield.
                     thread::yield_now();
                 }
+            }
+        }
+    }
+
+    // Pop a message from underlying queue,
+    // and if successful, decrement number of messages and unpark one sender.
+    fn next_message_decrement_unpark(&mut self) -> Async<Option<T>> {
+        // Try to read a message off of the message queue.
+        match self.next_message() {
+            Async::Ready(msg) => {
+                // If there are any parked task handles in the parked queue, pop
+                // one and unpark it.
+                self.unpark_one();
+
+                // Decrement number of messages
+                self.dec_num_messages();
+
+                // Return the message
+                Async::Ready(msg)
+            }
+            Async::NotReady => {
+                Async::NotReady
             }
         }
     }
@@ -708,29 +694,6 @@ impl<T> Receiver<T> {
         }
     }
 
-    // Try to park the receiver task
-    fn try_park(&self) -> TryPark {
-        let curr = self.inner.state.load(SeqCst);
-        let state = decode_state(curr);
-
-        // If the channel is closed, then there is no need to park.
-        if !state.is_open && state.num_messages == 0 {
-            return TryPark::Closed;
-        }
-
-        // First, track the task in the `recv_task` slot
-        let mut recv_task = self.inner.recv_task.lock().unwrap();
-
-        if recv_task.unparked {
-            // Consume the `unpark` signal without actually parking
-            recv_task.unparked = false;
-            return TryPark::NotEmpty;
-        }
-
-        recv_task.task = Some(task::current());
-        TryPark::Parked
-    }
-
     fn dec_num_messages(&self) {
         let mut curr = self.inner.state.load(SeqCst);
 
@@ -753,45 +716,35 @@ impl<T> Stream for Receiver<T> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<Option<T>, ()> {
-        loop {
-            // Try to read a message off of the message queue.
-            let msg = match self.next_message() {
-                Async::Ready(msg) => msg,
-                Async::NotReady => {
-                    // There are no messages to read, in this case, attempt to
-                    // park. The act of parking will verify that the channel is
-                    // still empty after the park operation has completed.
-                    match self.try_park() {
-                        TryPark::Parked => {
-                            // The task was parked, and the channel is still
-                            // empty, return NotReady.
-                            return Ok(Async::NotReady);
+        // First pop is optimistic.
+        //
+        // If channel is not empty, `poll` simply returns `Ready` and going to poll again
+        // (unless of course popped value is `None` which means EOF).
+        Ok(match self.next_message_decrement_unpark() {
+            Async::Ready(msg) => Async::Ready(msg),
+            Async::NotReady => {
+                // Unconditional park.
+                // So if queue is updated after next `pop` below,
+                // `poll` will be called again.
+                self.inner.recv_task.store_current();
+
+                match self.next_message_decrement_unpark() {
+                    Async::NotReady => {
+                        let state = decode_state(self.inner.state.load(SeqCst));
+                        let open = state.is_open || state.num_messages != 0;
+
+                        if open {
+                            Async::NotReady
+                        } else {
+                            // It is safe to return EOF here,
+                            // because of check above that queue is empty and closed.
+                            Async::Ready(None)
                         }
-                        TryPark::Closed => {
-                            // The channel is closed, there will be no further
-                            // messages.
-                            return Ok(Async::Ready(None));
-                        }
-                        TryPark::NotEmpty => {
-                            // A message has been sent while attempting to
-                            // park. Loop again, the next iteration is
-                            // guaranteed to get the message.
-                            continue;
-                        }
-                    }
+                    },
+                    Async::Ready(msg) => Async::Ready(msg),
                 }
-            };
-
-            // If there are any parked task handles in the parked queue, pop
-            // one and unpark it.
-            self.unpark_one();
-
-            // Decrement number of messages
-            self.dec_num_messages();
-
-            // Return the message
-            return Ok(Async::Ready(msg));
-        }
+            }
+        })
     }
 }
 
