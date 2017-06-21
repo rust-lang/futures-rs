@@ -422,6 +422,27 @@ pub trait Notify: Send + Sync {
     }
 }
 
+/// Sets the `NotifyHandle` of the current task for the duration of the provided
+/// closure.
+///
+/// This function takes a type that can be converted into a notify handle,
+/// `notify` and `id`, and a closure `f`. The closure `f` will be executed such
+/// that calls to `task::current()` will store a reference to the notify handle
+/// provided, not the one previously in the environment.
+///
+/// Note that calls to `task::current()` in the closure provided *will not* be
+/// equivalent to `task::current()` before this method is called. The two tasks
+/// returned will notify different handles, and the task handles pulled out
+/// during the duration of this closure will not notify the previous task. It's
+/// recommended that you call `task::current()` in some capacity before calling
+/// this function to ensure that calls to `task::current()` inside of this
+/// closure can transitively wake up the outer task.
+///
+/// # Panics
+///
+/// This function will panic if it is called outside the context of a future's
+/// task. This is only valid to call once you've already entered a future via
+/// `Spawn::poll_*` functions.
 pub fn with_notify<F, T, R>(notify: &T, id: usize, f: F) -> R
     where F: FnOnce() -> R,
           T: Clone + Into<NotifyHandle>,
