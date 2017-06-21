@@ -29,23 +29,6 @@ pub use task_impl::core::init;
 
 thread_local!(static CURRENT_TASK: Cell<*mut u8> = Cell::new(ptr::null_mut()));
 
-// This function and the one below are never used, but they are used to pass in
-// as arguments to the task system initialization. However, thread local logic
-// is special cased before, and `tls_get_ptr` is used as a token to check that
-// TLS is being used to track the current task.
-//
-// This function should never be inlined as it is used as a token in the
-// conditional below.
-#[inline(never)]
-fn tls_get_ptr() -> *mut u8 {
-    unreachable!();
-}
-
-#[inline(never)]
-fn tls_set_ptr(_: *mut u8) {
-    unreachable!();
-}
-
 static INIT: Once = ONCE_INIT;
 
 pub fn get_ptr() -> Option<*mut u8> {
@@ -53,7 +36,7 @@ pub fn get_ptr() -> Option<*mut u8> {
     // used (the default), the branch predictor will be able to optimize the
     // branching and a dynamic dispatch will be avoided, which makes the
     // compiler happier.
-    if core::is_get_ptr(tls_get_ptr as usize) {
+    if core::is_get_ptr(0x1) {
         Some(CURRENT_TASK.with(|c| c.get()))
     } else {
         core::get_ptr()
@@ -68,10 +51,17 @@ pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     where F: FnOnce() -> R
 {
     // Lazily initialze the get / set ptrs
-    INIT.call_once(|| unsafe { init(tls_get_ptr, tls_set_ptr); });
+    //
+    // Note that we won't actually use these functions ever, we'll instead be
+    // testing the pointer's value elsewhere and calling our own functions.
+    INIT.call_once(|| unsafe {
+        let get = mem::transmute::<usize, _>(0x1);
+        let set = mem::transmute::<usize, _>(0x2);
+        init(get, set);
+    });
 
     // Same as above.
-    if core::is_get_ptr(tls_get_ptr as usize) {
+    if core::is_get_ptr(0x1) {
         struct Reset(*const Cell<*mut u8>, *mut u8);
 
         impl Drop for Reset {
