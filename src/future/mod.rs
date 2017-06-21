@@ -235,6 +235,14 @@ pub trait Future {
     /// notification (through the `unpark` method) once the value is ready to be
     /// produced or the future can make progress.
     ///
+    /// Note that if `NotReady` is returned it only means that *this* task will
+    /// receive a notification. Historical calls to `poll` with different tasks
+    /// will not receive notifications. In other words, implementors of the
+    /// `Future` trait need not store a queue of tasks to notify, but only the
+    /// last task that called this method. Alternatively callers of this method
+    /// can only rely on the most recent task which call `poll` being notified
+    /// when a future is ready.
+    ///
     /// # Panics
     ///
     /// Once a future has completed (returned `Ready` or `Err` from `poll`),
