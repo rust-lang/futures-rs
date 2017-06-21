@@ -137,10 +137,10 @@ pub unsafe fn init(get: fn() -> *mut u8, set: fn(*mut u8)) -> bool {
 }
 
 #[inline]
-pub fn get_ptr() -> *mut u8 {
+pub fn get_ptr() -> Option<*mut u8> {
     match GET.load(Relaxed) {
-        0 => panic!("not initialized"),
-        n => unsafe { mem::transmute::<usize, fn() -> *mut u8>(n)() },
+        0 => None,
+        n => Some(unsafe { mem::transmute::<usize, fn() -> *mut u8>(n)() }),
     }
 }
 
@@ -167,7 +167,7 @@ pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
         }
     }
 
-    let _reset = Reset(set, get_ptr());
+    let _reset = Reset(set, get_ptr().unwrap());
     set(task as *const _ as *mut u8);
     f()
 }

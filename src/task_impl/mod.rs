@@ -40,7 +40,7 @@ fn fresh_task_id() -> usize {
 
 fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
     unsafe {
-        let task = get_ptr();
+        let task = get_ptr().expect("no Task is currently running");
         assert!(!task.is_null(), "no Task is currently running");
         f(&*(task as *const BorrowedTask))
     }

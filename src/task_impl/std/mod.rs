@@ -48,13 +48,13 @@ fn tls_set_ptr(_: *mut u8) {
 
 static INIT: Once = ONCE_INIT;
 
-pub fn get_ptr() -> *mut u8 {
+pub fn get_ptr() -> Option<*mut u8> {
     // Since this condition will always return true when TLS task storage is
     // used (the default), the branch predictor will be able to optimize the
     // branching and a dynamic dispatch will be avoided, which makes the
     // compiler happier.
     if core::is_get_ptr(tls_get_ptr as usize) {
-        CURRENT_TASK.with(|c| c.get())
+        Some(CURRENT_TASK.with(|c| c.get()))
     } else {
         core::get_ptr()
     }
