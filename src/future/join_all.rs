@@ -43,10 +43,11 @@ impl<I> fmt::Debug for JoinAll<I>
 /// given.
 ///
 /// The returned future will drive execution for all of its underlying futures,
-/// collecting the results into a destination `Vec<T>`. If any future returns
-/// an error then all other futures will be canceled and an error will be
-/// returned immediately. If all futures complete successfully, however, then
-/// the returned future will succeed with a `Vec` of all the successful results.
+/// collecting the results into a destination `Vec<T>` in the same order as they
+/// were provided. If any future returns an error then all other futures will be
+/// canceled and an error will be returned immediately. If all futures complete
+/// successfully, however, then the returned future will succeed with a `Vec` of
+/// all the successful results.
 ///
 /// # Examples
 ///
