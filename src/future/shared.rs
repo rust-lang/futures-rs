@@ -256,6 +256,13 @@ pub struct SharedItem<T> {
     item: Arc<T>,
 }
 
+impl<T> SharedItem<T> {
+    /// Returns the inner thread-safe reference counted item.
+    pub fn take(self) -> Arc<T> {
+        self.item
+    }
+}
+
 impl<T> ops::Deref for SharedItem<T> {
     type Target = T;
 
@@ -269,6 +276,13 @@ impl<T> ops::Deref for SharedItem<T> {
 #[derive(Clone, Debug)]
 pub struct SharedError<E> {
     error: Arc<E>,
+}
+
+impl<E> SharedError<E> {
+    /// Returns the inner thread-safe reference counted error.
+    pub fn take(self) -> Arc<E> {
+        self.error
+    }
 }
 
 impl<E> ops::Deref for SharedError<E> {
