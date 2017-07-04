@@ -251,9 +251,16 @@ impl<F> fmt::Debug for Inner<F>
 
 /// A wrapped item of the original future that is clonable and implements Deref
 /// for ease of use.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SharedItem<T> {
     item: Arc<T>,
+}
+
+impl<T> SharedItem<T> {
+    /// Returns the inner thread-safe reference counted item.
+    pub fn take(self) -> Arc<T> {
+        self.item
+    }
 }
 
 impl<T> ops::Deref for SharedItem<T> {
@@ -266,9 +273,16 @@ impl<T> ops::Deref for SharedItem<T> {
 
 /// A wrapped error of the original future that is clonable and implements Deref
 /// for ease of use.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SharedError<E> {
     error: Arc<E>,
+}
+
+impl<E> SharedError<E> {
+    /// Returns the inner thread-safe reference counted error.
+    pub fn take(self) -> Arc<E> {
+        self.error
+    }
 }
 
 impl<E> ops::Deref for SharedError<E> {
