@@ -565,10 +565,30 @@ pub trait Future {
     ///
     /// # Examples
     ///
+    /// ```no_run
+    /// use futures::future::*;
+    /// use std::thread;
+    /// use std::time;
+    ///
+    /// let future1 = lazy(|| {
+    ///     thread::sleep(time::Duration::from_secs(5));
+    ///     ok::<char, ()>('a')
+    /// });
+    ///
+    /// let future2 = lazy(|| {
+    ///     thread::sleep(time::Duration::from_secs(3));
+    ///     ok::<char, ()>('b')
+    /// });
+    ///
+    /// let (value, last_future) = future1.select(future2).wait().ok().unwrap();
+    /// assert_eq!(value, 'a');
+    /// assert_eq!(last_future.wait().unwrap(), 'b');
+    /// ```
+    ///
+    /// A poor-man's `join` implemented on top of `select`:
+    ///
     /// ```
     /// use futures::future::*;
-    ///
-    /// // A poor-man's join implemented on top of select
     ///
     /// fn join<A>(a: A, b: A) -> BoxFuture<(u32, u32), u32>
     ///     where A: Future<Item = u32, Error = u32> + Send + 'static,
