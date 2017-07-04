@@ -379,8 +379,19 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_err_1 = err::<u32, u32>(1);
-    /// let future_of_err_4 = future_of_err_1.map_err(|x| x + 3);
+    /// let future = err::<u32, u32>(1);
+    /// let new_future = future.map_err(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Err(4));
+    /// ```
+    ///
+    /// Calling `map_err` on a successful `Future` has no effect:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<u32, u32>(1);
+    /// let new_future = future.map_err(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Ok(1));
     /// ```
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
