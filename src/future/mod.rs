@@ -339,8 +339,19 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_1 = ok::<u32, u32>(1);
-    /// let future_of_4 = future_of_1.map(|x| x + 3);
+    /// let future = ok::<u32, u32>(1);
+    /// let new_future = future.map(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Ok(4));
+    /// ```
+    ///
+    /// Calling `map` on an errored `Future` has no effect:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = err::<u32, u32>(1);
+    /// let new_future = future.map(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Err(1));
     /// ```
     fn map<F, U>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U,
