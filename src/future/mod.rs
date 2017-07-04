@@ -339,8 +339,19 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_1 = ok::<u32, u32>(1);
-    /// let future_of_4 = future_of_1.map(|x| x + 3);
+    /// let future = ok::<u32, u32>(1);
+    /// let new_future = future.map(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Ok(4));
+    /// ```
+    ///
+    /// Calling `map` on an errored `Future` has no effect:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = err::<u32, u32>(1);
+    /// let new_future = future.map(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Err(1));
     /// ```
     fn map<F, U>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U,
@@ -368,8 +379,19 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_err_1 = err::<u32, u32>(1);
-    /// let future_of_err_4 = future_of_err_1.map_err(|x| x + 3);
+    /// let future = err::<u32, u32>(1);
+    /// let new_future = future.map_err(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Err(4));
+    /// ```
+    ///
+    /// Calling `map_err` on a successful `Future` has no effect:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<u32, u32>(1);
+    /// let new_future = future.map_err(|x| x + 3);
+    /// assert_eq!(new_future.wait(), Ok(1));
     /// ```
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
@@ -543,10 +565,30 @@ pub trait Future {
     ///
     /// # Examples
     ///
+    /// ```no_run
+    /// use futures::future::*;
+    /// use std::thread;
+    /// use std::time;
+    ///
+    /// let future1 = lazy(|| {
+    ///     thread::sleep(time::Duration::from_secs(5));
+    ///     ok::<char, ()>('a')
+    /// });
+    ///
+    /// let future2 = lazy(|| {
+    ///     thread::sleep(time::Duration::from_secs(3));
+    ///     ok::<char, ()>('b')
+    /// });
+    ///
+    /// let (value, last_future) = future1.select(future2).wait().ok().unwrap();
+    /// assert_eq!(value, 'a');
+    /// assert_eq!(last_future.wait().unwrap(), 'b');
+    /// ```
+    ///
+    /// A poor-man's `join` implemented on top of `select`:
+    ///
     /// ```
     /// use futures::future::*;
-    ///
-    /// // A poor-man's join implemented on top of select
     ///
     /// fn join<A>(a: A, b: A) -> BoxFuture<(u32, u32), u32>
     ///     where A: Future<Item = u32, Error = u32> + Send + 'static,
