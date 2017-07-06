@@ -766,8 +766,20 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_a_future = ok::<_, u32>(ok::<u32, u32>(1));
-    /// let future_of_1 = future_of_a_future.flatten();
+    /// let nested_future = ok::<_, u32>(ok::<u32, u32>(1));
+    /// let future = nested_future.flatten();
+    /// assert_eq!(future.wait(), Ok(1));
+    /// ```
+    ///
+    /// Calling `flatten` on an errored `Future`, or if the inner `Future` is
+    /// errored, will result in an errored `Future`:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let nested_future = ok::<_, u32>(err::<u32, u32>(1));
+    /// let future = nested_future.flatten();
+    /// assert_eq!(future.wait(), Err(1));
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: IntoFuture,
