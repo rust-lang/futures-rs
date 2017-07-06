@@ -674,10 +674,20 @@ pub trait Future {
     /// let b = ok::<u32, u32>(2);
     /// let pair = a.join(b);
     ///
-    /// pair.map(|(a, b)| {
-    ///     assert_eq!(a, 1);
-    ///     assert_eq!(b, 2);
-    /// });
+    /// assert_eq!(pair.wait(), Ok((1, 2)));
+    /// ```
+    ///
+    /// If one or both of the joined `Future`s is errored, the resulting
+    /// `Future` will be errored:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let a = ok::<u32, u32>(1);
+    /// let b = err::<u32, u32>(2);
+    /// let pair = a.join(b);
+    ///
+    /// assert_eq!(pair.wait(), Err(2));
     /// ```
     fn join<B>(self, other: B) -> Join<Self, B::Future>
         where B: IntoFuture<Error=Self::Error>,
@@ -766,8 +776,20 @@ pub trait Future {
     /// ```
     /// use futures::future::*;
     ///
-    /// let future_of_a_future = ok::<_, u32>(ok::<u32, u32>(1));
-    /// let future_of_1 = future_of_a_future.flatten();
+    /// let nested_future = ok::<_, u32>(ok::<u32, u32>(1));
+    /// let future = nested_future.flatten();
+    /// assert_eq!(future.wait(), Ok(1));
+    /// ```
+    ///
+    /// Calling `flatten` on an errored `Future`, or if the inner `Future` is
+    /// errored, will result in an errored `Future`:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let nested_future = ok::<_, u32>(err::<u32, u32>(1));
+    /// let future = nested_future.flatten();
+    /// assert_eq!(future.wait(), Err(1));
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: IntoFuture,
