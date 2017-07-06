@@ -676,6 +676,19 @@ pub trait Future {
     ///
     /// assert_eq!(pair.wait(), Ok((1, 2)));
     /// ```
+    ///
+    /// If one or both of the joined `Future`s is errored, the resulting
+    /// `Future` will be errored:
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let a = ok::<u32, u32>(1);
+    /// let b = err::<u32, u32>(2);
+    /// let pair = a.join(b);
+    ///
+    /// assert_eq!(pair.wait(), Err(2));
+    /// ```
     fn join<B>(self, other: B) -> Join<Self, B::Future>
         where B: IntoFuture<Error=Self::Error>,
               Self: Sized,
