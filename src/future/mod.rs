@@ -674,10 +674,7 @@ pub trait Future {
     /// let b = ok::<u32, u32>(2);
     /// let pair = a.join(b);
     ///
-    /// pair.map(|(a, b)| {
-    ///     assert_eq!(a, 1);
-    ///     assert_eq!(b, 2);
-    /// });
+    /// assert_eq!(pair.wait(), Ok((1, 2)));
     /// ```
     fn join<B>(self, other: B) -> Join<Self, B::Future>
         where B: IntoFuture<Error=Self::Error>,
