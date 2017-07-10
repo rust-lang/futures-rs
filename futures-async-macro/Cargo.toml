@@ -9,9 +9,4 @@ proc-macro = true
 [dependencies]
 quote = { git = 'https://github.com/dtolnay/quote' }
 proc-macro2 = { version = "0.1", features = ["unstable"] }
-
-
-[dependencies.syn]
-git = 'https://github.com/alexcrichton/syn'
-branch = 'yield'
-features = ["full", "fold"]
+syn = { git = 'https://github.com/dtolnay/syn', features = ["full", "fold"] }

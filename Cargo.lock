@@ -32,7 +32,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (git+https://github.com/dtolnay/quote)",
- "syn 0.11.11 (git+https://github.com/alexcrichton/syn?branch=yield)",
+ "syn 0.11.11 (git+https://github.com/dtolnay/syn)",
 ]
 
 [[package]]
@@ -147,18 +147,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "syn"
 version = "0.11.11"
-source = "git+https://github.com/alexcrichton/syn?branch=yield#d1c1de84a8dafeca35962ebc84df4b035fb1db6e"
+source = "git+https://github.com/dtolnay/syn#5640be2854cf4efcc24106afec6b0dc62a55325d"
 dependencies = [
  "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (git+https://github.com/dtolnay/quote)",
- "synom 0.11.3 (git+https://github.com/alexcrichton/syn?branch=yield)",
+ "synom 0.11.3 (git+https://github.com/dtolnay/syn)",
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "synom"
 version = "0.11.3"
-source = "git+https://github.com/alexcrichton/syn?branch=yield#d1c1de84a8dafeca35962ebc84df4b035fb1db6e"
+source = "git+https://github.com/dtolnay/syn#5640be2854cf4efcc24106afec6b0dc62a55325d"
 dependencies = [
  "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (git+https://github.com/dtolnay/quote)",
@@ -231,8 +231,8 @@ dependencies = [
 "checksum quote 0.3.15 (git+https://github.com/dtolnay/quote)" = "<none>"
 "checksum scoped-tls 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f417c22df063e9450888a7561788e9bd46d3bb3c1466435b4eccb903807f147d"
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
-"checksum syn 0.11.11 (git+https://github.com/alexcrichton/syn?branch=yield)" = "<none>"
-"checksum synom 0.11.3 (git+https://github.com/alexcrichton/syn?branch=yield)" = "<none>"
+"checksum syn 0.11.11 (git+https://github.com/dtolnay/syn)" = "<none>"
+"checksum synom 0.11.3 (git+https://github.com/dtolnay/syn)" = "<none>"
 "checksum tokio-core 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6a20ba4738d283cac7495ca36e045c80c2a8df3e05dd0909b17a06646af5a7ed"
 "checksum tokio-io 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c2c3ce9739f7387a0fa65b5421e81feae92e04d603f008898f4257790ce8c2db"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
