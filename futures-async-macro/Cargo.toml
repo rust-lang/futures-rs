@@ -8,7 +8,7 @@ proc-macro = true
 
 [dependencies]
 quote = { git = 'https://github.com/dtolnay/quote' }
-proc-macro2 = { git = 'https://github.com/alexcrichton/proc-macro2' }
+proc-macro2 = { version = "0.1", features = ["unstable"] }
 
 
 [dependencies.syn]

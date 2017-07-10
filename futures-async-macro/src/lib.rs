@@ -38,9 +38,11 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     // Parse our item, expecting a function. This function may be an actual
     // top-level function or it could be a method (typically dictated by the
     // arguments). We then extract everything we'd like to use.
-    let function = proc_macro2::TokenStream::from(function);
-    let Item { ident, vis, attrs, node } = function.into();
+    let Item { attrs, node } = syn::parse(function)
+        .expect("failed to parse tokens as a function");
     let ItemFn {
+        ident,
+        vis,
         unsafety,
         constness,
         abi,
@@ -190,7 +192,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     };
 
     // println!("{}", output);
-    let output: proc_macro2::TokenStream = output.into();
     output.into()
 }
 
@@ -237,7 +238,7 @@ impl Folder for ExpandAsyncFor {
                 #body
             }
         }};
-        proc_macro2::TokenStream::from(tokens).into()
+        syn::parse(tokens.into()).unwrap()
     }
 
     // Don't recurse into items
