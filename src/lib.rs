@@ -71,8 +71,10 @@ pub mod __rt {
     /// Random hack for this causing problems in the compiler's typechecking
     /// pass. Ideally this trait and impl would not be needed.
     ///
-    ///     -> impl Future<Item = <T as FutureType>::Item,
-    ///                    Error = <T as FutureType>::Error>
+    /// ```ignore
+    /// -> impl Future<Item = <T as FutureType>::Item,
+    ///                Error = <T as FutureType>::Error>
+    /// ```
     pub trait MyFuture<T: FutureType>: Future<Item=T::Item, Error=T::Error> {}
     impl<F: Future + ?Sized> MyFuture<Result<F::Item, F::Error>> for F {}
 
