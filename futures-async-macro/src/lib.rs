@@ -19,7 +19,7 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use proc_macro::TokenStream;
+use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
 use syn::*;
 use syn::fold::Folder;
 
@@ -136,7 +136,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         }
     }
 
-    // This is the point where we Handle
+    // This is the point where we handle
     //
     //      #[async]
     //      for x in y {
@@ -150,17 +150,19 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let return_ty = if boxed {
         quote! {
             Box<::futures::Future<
-                Item = <#output as ::futures::__rt::FutureType>::Item,
-                Error = <#output as ::futures::__rt::FutureType>::Error,
+                Item = <#output as ::futures::__rt::Try>::Ok,
+                Error = <#output as ::futures::__rt::Try>::Error,
             >>
         }
     } else {
-        // Dunno why this is buggy, hits weird typecheck errors in
-        // `examples/main.rs`
-        // -> impl ::futures::Future<
-        //         Item = <#output as ::futures::__rt::FutureType>::Item,
-        //         Error = <#output as ::futures::__rt::FutureType>::Error,
-        //    >
+        // Dunno why this is buggy, hits weird typecheck errors in tests
+        //
+        // quote! {
+        //     impl ::futures::Future<
+        //         Item = <#output as ::futures::__rt::Try>::Ok,
+        //         Error = <#output as ::futures::__rt::Try>::Error,
+        //     >
+        // }
 
         quote! { impl ::futures::__rt::MyFuture<#output> }
     };
@@ -196,6 +198,21 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
 
     // println!("{}", output);
     output.into()
+}
+
+#[proc_macro]
+pub fn async_block(input: TokenStream) -> TokenStream {
+    let input = TokenStream::from(TokenTree {
+        kind: TokenNode::Group(Delimiter::Brace, input),
+        span: Default::default(),
+    });
+    let expr = syn::parse(input)
+        .expect("failed to parse tokens as an expression");
+    let expr = ExpandAsyncFor.fold_expr(expr);
+
+    (quote! {
+        ::futures::__rt::gen(move || { #expr })
+    }).into()
 }
 
 struct ExpandAsyncFor;

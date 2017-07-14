@@ -12,34 +12,33 @@ use std::io::{self, BufReader};
 
 use futures::prelude::*;
 use tokio_core::net::{TcpListener, TcpStream};
-use tokio_core::reactor::{Core, Handle};
+use tokio_core::reactor::Core;
 use tokio_io::{AsyncRead};
 
 fn main() {
     // Create the event loop that will drive this server
     let mut core = Core::new().unwrap();
     let handle = core.handle();
-    core.run(serve(handle)).unwrap();
-}
 
-#[async]
-fn serve(handle: Handle) -> io::Result<()> {
     // Bind the server's socket
     let addr = "127.0.0.1:12345".parse().unwrap();
-    let tcp = TcpListener::bind(&addr, &handle)?;
+    let tcp = TcpListener::bind(&addr, &handle).expect("failed to bind listener");
 
-    #[async]
-    for (client, _) in tcp.incoming() {
-        handle.spawn(handle_client(client).then(|result| {
-            match result {
-                Ok(n) => println!("wrote {} bytes", n),
-                Err(e) => println!("IO error {:?}", e),
-            }
-            Ok(())
-        }));
-    }
+    let server = async_block! {
+        #[async]
+        for (client, _) in tcp.incoming() {
+            handle.spawn(handle_client(client).then(|result| {
+                match result {
+                    Ok(n) => println!("wrote {} bytes", n),
+                    Err(e) => println!("IO error {:?}", e),
+                }
+                Ok(())
+            }));
+        }
 
-    Ok(())
+        Ok::<(), io::Error>(())
+    };
+    core.run(server).unwrap();
 }
 
 #[async]

@@ -26,7 +26,7 @@ pub use futures::*;
 pub mod prelude {
     pub use {Future, Stream, Sink, Poll, Async, AsyncSink, StartSend};
     pub use {IntoFuture};
-    pub use futures_async_macro::*; // TODO: can we selectively import just `async`?
+    pub use futures_async_macro::{async, async_block};
     pub use futures_await_macro::await;
 }
 
