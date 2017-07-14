@@ -150,8 +150,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let return_ty = if boxed {
         quote! {
             Box<::futures::Future<
-                Item = <#output as ::futures::__rt::Try>::Ok,
-                Error = <#output as ::futures::__rt::Try>::Error,
+                Item = <#output as ::futures::__rt::MyTry>::MyOk,
+                Error = <#output as ::futures::__rt::MyTry>::MyError,
             >>
         }
     } else {
@@ -159,8 +159,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         //
         // quote! {
         //     impl ::futures::Future<
-        //         Item = <#output as ::futures::__rt::Try>::Ok,
-        //         Error = <#output as ::futures::__rt::Try>::Error,
+        //         Item = <#output as ::futures::__rt::MyTry>::MyOk,
+        //         Error = <#output as ::futures::__rt::MyTry>::MyError,
         //     >
         // }
 

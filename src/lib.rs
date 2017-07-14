@@ -42,7 +42,6 @@ pub mod prelude {
 #[doc(hidden)]
 pub mod __rt {
     pub use std::boxed::Box;
-    pub use std::ops::Try;
     pub use std::option::Option::{Some, None};
     pub use std::result::Result::{Ok, Err};
     pub use std::ops::Generator;
@@ -50,6 +49,7 @@ pub mod __rt {
     use futures::Poll;
     use futures::{Future, Async};
     use std::ops::State;
+    use std::ops::Try;
 
     /// Random hack for this causing problems in the compiler's typechecking
     /// pass. Ideally this trait and impl would not be needed.
@@ -64,6 +64,15 @@ pub mod __rt {
         where F: Future<Item = T::Ok, Error = T::Error> + ?Sized,
               T: Try,
     {}
+
+    pub trait MyTry {
+        type MyOk;
+        type MyError;
+    }
+    impl<T: Try> MyTry for T {
+        type MyOk = T::Ok;
+        type MyError = T::Error;
+    }
 
     /// Small shim to translate from a generator to a future.
     ///
