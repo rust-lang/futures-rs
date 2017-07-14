@@ -180,7 +180,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
             #where_clause
         {
             #maybe_boxed (::futures::__rt::gen(move || {
-                let __e = {
+                let __e: #output = {
                     #( let #patterns = #temp_bindings; )*
                     #block
                 };
