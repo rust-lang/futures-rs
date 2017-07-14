@@ -121,4 +121,21 @@ fn main() {
     assert_eq!(_bar4().wait(), Ok(10));
     assert_eq!(_foo6(8).wait(), Err(8));
     // assert_eq!(A(11).a_foo().wait(), Ok(11));
+    assert_eq!(loop_in_loop().wait(), Ok(true));
+}
+
+#[async]
+fn loop_in_loop() -> Result<bool, i32> {
+    let mut cnt = 0;
+    let vec = vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Ok(4)];
+    #[async]
+    for x in futures::stream::iter(vec.clone()) {
+        #[async]
+        for y in futures::stream::iter(vec.clone()) {
+            cnt += x * y;
+        }
+    }
+
+    let sum = (1..5).map(|x| (1..5).map(|y| x * y).sum::<i32>()).sum::<i32>();
+    Ok(cnt == sum)
 }

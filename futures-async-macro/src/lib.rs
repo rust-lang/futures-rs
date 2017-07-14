@@ -219,8 +219,9 @@ struct ExpandAsyncFor;
 
 impl Folder for ExpandAsyncFor {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
+        let expr = fold::noop_fold_expr(self, expr);
         if expr.attrs.len() != 1 {
-            return fold::noop_fold_expr(self, expr)
+            return expr
         }
         // TODO: more validation here
         if expr.attrs[0].path.segments.get(0).item().ident != "async" {
