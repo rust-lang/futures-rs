@@ -12,7 +12,9 @@
 //!
 //! See the crates's README for more information about usage.
 
+#![feature(conservative_impl_trait)]
 #![feature(generator_trait)]
+#![feature(try_trait)]
 #![feature(use_extern_macros)]
 
 extern crate futures_async_macro; // the compiler lies that this has no effect
@@ -39,67 +41,53 @@ pub mod prelude {
 /// your code to be stable.
 #[doc(hidden)]
 pub mod __rt {
-    pub use std::result::Result::{Ok, Err};
-    pub use std::option::Option::{Some, None};
     pub use std::boxed::Box;
+    pub use std::ops::Try;
+    pub use std::option::Option::{Some, None};
+    pub use std::result::Result::{Ok, Err};
     pub use std::ops::Generator;
 
     use futures::Poll;
     use futures::{Future, Async};
     use std::ops::State;
 
-    /// Convenience trait to project from `Result` and get the item/error types
-    ///
-    /// This is how we work with type aliases like `io::Result` without knowing
-    /// whether you're using a type alias.
-    pub trait FutureType {
-        type Item;
-        type Error;
-
-        fn into_result(self) -> Result<Self::Item, Self::Error>;
-    }
-
-    impl<T, E> FutureType for Result<T, E> {
-        type Item = T;
-        type Error = E;
-
-        fn into_result(self) -> Result<Self::Item, Self::Error> {
-            self
-        }
-    }
-
     /// Random hack for this causing problems in the compiler's typechecking
     /// pass. Ideally this trait and impl would not be needed.
     ///
     /// ```ignore
-    /// -> impl Future<Item = <T as FutureType>::Item,
-    ///                Error = <T as FutureType>::Error>
+    /// -> impl Future<Item = <T as Try>::Ok,
+    ///                Error = <T as Try>::Error>
     /// ```
-    pub trait MyFuture<T: FutureType>: Future<Item=T::Item, Error=T::Error> {}
-    impl<F: Future + ?Sized> MyFuture<Result<F::Item, F::Error>> for F {}
+    pub trait MyFuture<T: Try>: Future<Item=T::Ok, Error=T::Error> {}
+
+    impl<F, T> MyFuture<T> for F
+        where F: Future<Item = T::Ok, Error = T::Error> + ?Sized,
+              T: Try,
+    {}
 
     /// Small shim to translate from a generator to a future.
     ///
     /// This is the translation layer from the generator/coroutine protocol to
     /// the futures protocol.
-    pub struct GenFuture<T>(T);
+    struct GenFuture<T>(T);
 
-    pub fn gen<T>(t: T) -> GenFuture<T>
+    pub fn gen<T>(t: T) -> impl Future<Item = <T::Return as Try>::Ok,
+                                       Error = <T::Return as Try>::Error>
         where T: Generator<Yield = ()>,
-              T::Return: FutureType,
+              T::Return: Try,
     {
         GenFuture(t)
     }
 
     impl<T> Future for GenFuture<T>
         where T: Generator<Yield = ()>,
-              T::Return: FutureType,
+              T::Return: Try,
     {
-        type Item = <T::Return as FutureType>::Item;
-        type Error = <T::Return as FutureType>::Error;
+        type Item = <T::Return as Try>::Ok;
+        type Error = <T::Return as Try>::Error;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            match self.0.resume(()) {
+            match self.0.resume() {
                 State::Yielded(()) => Ok(Async::NotReady),
                 State::Complete(e) => e.into_result().map(Async::Ready),
             }
