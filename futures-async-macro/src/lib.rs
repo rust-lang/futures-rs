@@ -56,7 +56,6 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let FnDecl { inputs, output, variadic, generics, .. } = { *decl };
     let where_clause = &generics.where_clause;
     assert!(!variadic, "variadic functions cannot be async");
-    let ref inputs = inputs;
     let output = match output {
         FunctionRetTy::Ty(t, _) => t,
         FunctionRetTy::Default => {
@@ -94,22 +93,26 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let mut inputs_no_patterns = Vec::new();
     let mut patterns = Vec::new();
     let mut temp_bindings = Vec::new();
-    for (i, input) in inputs.iter().enumerate() {
-        let input = *input.item();
+    for (i, input) in inputs.into_iter().enumerate() {
+        let input = input.into_item();
 
         // `self: Box<Self>` will get captured naturally
-        if let FnArg::Captured(ref arg) = *input {
+        let mut is_input_no_pattern = false;
+        if let FnArg::Captured(ref arg) = input {
             if let Pat::Ident(PatIdent { ref ident, ..}) = arg.pat {
                 if ident == "self" {
-                    inputs_no_patterns.push(input.clone());
-                    continue
+                    is_input_no_pattern = true;
                 }
             }
         }
+        if is_input_no_pattern {
+            inputs_no_patterns.push(input);
+            continue
+        }
 
-        match *input {
+        match input {
             // `a: B`
-            FnArg::Captured(ArgCaptured { ref pat, ref ty, .. }) => {
+            FnArg::Captured(ArgCaptured { pat, ty, .. }) => {
                 patterns.push(pat);
                 let ident = Ident::from(format!("__arg_{}", i));
                 temp_bindings.push(ident.clone());
@@ -121,14 +124,14 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                 };
                 inputs_no_patterns.push(ArgCaptured {
                     pat: pat.into(),
-                    ty: ty.clone(),
+                    ty: ty,
                     colon_token: Default::default(),
                 }.into());
             }
 
             // Other `self`-related arguments get captured naturally
             _ => {
-                inputs_no_patterns.push(input.clone());
+                inputs_no_patterns.push(input);
             }
         }
     }
