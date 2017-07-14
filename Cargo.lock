@@ -30,7 +30,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "futures-async-macro"
 version = "0.1.0"
 dependencies = [
- "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (git+https://github.com/dtolnay/quote)",
  "syn 0.11.11 (git+https://github.com/dtolnay/syn)",
 ]
@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -131,7 +131,7 @@ name = "quote"
 version = "0.3.15"
 source = "git+https://github.com/dtolnay/quote#5714c8f6a84c18a7a1cfe04dc3176607eed8d272"
 dependencies = [
- "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -147,9 +147,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "syn"
 version = "0.11.11"
-source = "git+https://github.com/dtolnay/syn#5640be2854cf4efcc24106afec6b0dc62a55325d"
+source = "git+https://github.com/dtolnay/syn#24f128215d93f197ae0d7750c5248eee7df0272e"
 dependencies = [
- "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (git+https://github.com/dtolnay/quote)",
  "synom 0.11.3 (git+https://github.com/dtolnay/syn)",
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -158,9 +158,9 @@ dependencies = [
 [[package]]
 name = "synom"
 version = "0.11.3"
-source = "git+https://github.com/dtolnay/syn#5640be2854cf4efcc24106afec6b0dc62a55325d"
+source = "git+https://github.com/dtolnay/syn#24f128215d93f197ae0d7750c5248eee7df0272e"
 dependencies = [
- "proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.15 (git+https://github.com/dtolnay/quote)",
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -227,7 +227,7 @@ dependencies = [
 "checksum mio 0.6.9 (registry+https://github.com/rust-lang/crates.io-index)" = "9e965267d4d58496fc4f740e9861118367f13570cadf66316ed2c3f2f14d87c7"
 "checksum miow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1f2f3b1cf331de6896aabf6e9d55dca90356cc9960cca7eaaf408a355ae919"
 "checksum net2 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)" = "bc01404e7568680f1259aa5729539f221cb1e6d047a0d9053cab4be8a73b5d67"
-"checksum proc-macro2 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "37d41985877037b72a8fd88b61273d5c41ae6f0deec976339d96b9f30c4c1384"
+"checksum proc-macro2 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "50a8f8fe0fe6ec1a67569bb52dafa0b37716249e9f45336bcd6dd3ba3b93b81c"
 "checksum quote 0.3.15 (git+https://github.com/dtolnay/quote)" = "<none>"
 "checksum scoped-tls 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f417c22df063e9450888a7561788e9bd46d3bb3c1466435b4eccb903807f147d"
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
