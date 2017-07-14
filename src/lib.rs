@@ -58,10 +58,10 @@ pub mod __rt {
     /// -> impl Future<Item = <T as Try>::Ok,
     ///                Error = <T as Try>::Error>
     /// ```
-    pub trait MyFuture<T: Try>: Future<Item=T::Ok, Error=T::Error> {}
+    pub trait MyFuture<T: Try>: Future<Item=T::Ok, Error=T::Error> + 'static {}
 
     impl<F, T> MyFuture<T> for F
-        where F: Future<Item = T::Ok, Error = T::Error> + ?Sized,
+        where F: Future<Item = T::Ok, Error = T::Error> + ?Sized + 'static,
               T: Try,
     {}
 
