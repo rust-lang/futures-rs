@@ -65,6 +65,9 @@ pub mod __rt {
               T: Try,
     {}
 
+    // Helper trait to use projections to get access to the `Try` trait's
+    // projections without using the `try_trait` feature in consumer crates,
+    // just our own crate.
     pub trait MyTry {
         type MyOk;
         type MyError;
