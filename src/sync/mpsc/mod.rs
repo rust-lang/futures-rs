@@ -78,7 +78,8 @@ use std::usize;
 
 use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
-use {Async, AsyncSink, Poll, StartSend, Sink, Stream};
+use future::Executor;
+use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 mod queue;
 
@@ -821,6 +822,131 @@ impl<T> Stream for UnboundedReceiver<T> {
 
     fn poll(&mut self) -> Poll<Option<T>, ()> {
         self.0.poll()
+    }
+}
+
+/// Handle returned from the `spawn` function.
+///
+/// This handle is a stream that proxies a stream on a seperate `Executor`.
+/// Created through the `mpsc::spawn` function, this handle will produce
+/// the same values as the proxied stream, as they are produced in the executor,
+/// and uses a limited buffer to exert back-pressure on the remote stream.
+///
+/// If this handle is dropped, then the stream will no longer be polled and is
+/// scheduled to be dropped.
+pub struct SpawnHandle<Item, Error> {
+    rx: Receiver<Result<Item, Error>>
+}
+
+/// Type of future which `Executor` instances must be able to execute for `spawn`.
+pub struct Execute<S: Stream> {
+    tx: Sender<Result<S::Item, S::Error>>,
+    stream: S,
+    buffer: Option<Result<S::Item, S::Error>>
+}
+
+/// Spawns a `stream` onto the instance of `Executor` provided, `executor`,
+/// returning a handle representing the remote stream.
+///
+/// The `stream` will be canceled if the `SpawnHandle` is dropped.
+///
+/// The `SpawnHandle` returned is a stream that is a proxy for `stream` itself.
+/// When `stream` has additional items available, then the `SpawnHandle`
+/// will have those same items available.
+///
+/// At most `buffer + 1` elements will be buffered at a time. If the buffer
+/// is full, then `stream` will stop progressing until more space is available.
+/// This allows the `SpawnHandle` to exert backpressure on the `stream`.
+///
+/// # Panics
+///
+/// This function will panic if `executor` is unable spawn a `Future` containing
+/// the entirety of the `stream`.
+pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Item, S::Error>
+    where S: Stream,
+          E: Executor<Execute<S>>
+{
+    let (tx, rx) = channel2(Some(buffer));
+    executor.execute(Execute {
+        tx: tx,
+        stream: stream,
+        buffer: None
+    }).expect("failed to spawn stream");
+    SpawnHandle {
+        rx: rx
+    }
+}
+
+impl<I, E> Stream for SpawnHandle<I, E> {
+    type Item = I;
+    type Error = E;
+
+    fn poll(&mut self) -> Poll<Option<I>, E> {
+        match self.rx.poll() {
+            Ok(Async::Ready(Some(Ok(t)))) => Ok(Async::Ready(Some(t.into()))),
+            Ok(Async::Ready(Some(Err(e)))) => Err(e),
+            Ok(Async::Ready(None)) => Ok(Async::Ready(None)),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Err(_) => panic!("stream was canceled before completion"),
+        }
+    }
+}
+
+impl<I, E> fmt::Debug for SpawnHandle<I, E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("SpawnHandle")
+         .finish()
+    }
+}
+
+impl<S: Stream> Execute<S> {
+    fn try_start_send(&mut self, item: Result<S::Item, S::Error>) -> Poll<(), ()> {
+        debug_assert!(self.buffer.is_none());
+        match self.tx.start_send(item) {
+            Ok(AsyncSink::Ready) => Ok(Async::Ready(())),
+            Ok(AsyncSink::NotReady(item)) => {
+                self.buffer = Some(item);
+                Ok(Async::NotReady)
+            },
+            Err(_) => Err(())
+        }
+    }
+}
+
+impl<S: Stream> Future for Execute<S> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<(), ()> {
+        // If we have a buffered item, try to send that first.
+        if let Some(item) = self.buffer.take() {
+            try_ready!(self.try_start_send(item));
+        }
+
+        loop {
+            match self.stream.poll() {
+                Ok(Async::Ready(Some(item))) => try_ready!(self.try_start_send(Ok(item))),
+                Ok(Async::Ready(None)) => {
+                    try_ready!(self.tx.close().map_err(|_| ()));
+                    return Ok(Async::Ready(()));
+                },
+                Ok(Async::NotReady) => {
+                    try_ready!(self.tx.poll_complete().map_err(|_| ()));
+                    return Ok(Async::NotReady);
+                },
+                Err(e) => {
+                    try_ready!(self.try_start_send(Err(e)));
+                    return Ok(Async::Ready(()));
+                }
+            }
+        }
+    }
+}
+
+impl<S: Stream> fmt::Debug for Execute<S> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Execute")
+         .finish()
     }
 }
 

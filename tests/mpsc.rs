@@ -3,7 +3,8 @@
 extern crate futures;
 
 use futures::{Future, Stream, Sink, Async, AsyncSink};
-use futures::future::lazy;
+use futures::future::{lazy, ok};
+use futures::stream::unfold;
 use futures::sync::mpsc;
 
 use std::time::Duration;
@@ -131,6 +132,15 @@ fn tx_close_gets_none() {
 
         Ok::<(), ()>(())
     }).wait().unwrap();
+}
+
+#[test]
+fn spawn_sends_items() {
+    let core = local_executor::Core::new();
+    let stream = unfold(0, |i| Some(ok::<_,u8>((i, i + 1))));
+    let rx = mpsc::spawn(stream, &core, 1);
+    assert_eq!(core.run(rx.take(4).collect()).unwrap(),
+               [0, 1, 2, 3]);
 }
 
 #[test]
