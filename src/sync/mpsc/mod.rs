@@ -79,6 +79,7 @@ use std::usize;
 use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
 use future::Executor;
+use sink::SendAll;
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 mod queue;
@@ -840,10 +841,10 @@ pub struct SpawnHandle<Item, Error> {
 
 /// Type of future which `Executor` instances must be able to execute for `spawn`.
 pub struct Execute<S: Stream> {
-    tx: Sender<Result<S::Item, S::Error>>,
-    stream: S,
-    buffer: Option<Result<S::Item, S::Error>>
+    inner: SendAll<Sender<Result<S::Item, S::Error>>, ResultStream<S>>
 }
+
+struct ResultStream<S: Stream>(S);
 
 /// Spawns a `stream` onto the instance of `Executor` provided, `executor`,
 /// returning a handle representing the remote stream.
@@ -868,9 +869,7 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
 {
     let (tx, rx) = channel(buffer);
     executor.execute(Execute {
-        tx: tx,
-        stream: stream,
-        buffer: None
+        inner: tx.send_all(ResultStream(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         rx: rx
@@ -899,46 +898,14 @@ impl<I, E> fmt::Debug for SpawnHandle<I, E> {
     }
 }
 
-impl<S: Stream> Execute<S> {
-    fn try_start_send(&mut self, item: Result<S::Item, S::Error>) -> Poll<(), ()> {
-        debug_assert!(self.buffer.is_none());
-        match self.tx.start_send(item) {
-            Ok(AsyncSink::Ready) => Ok(Async::Ready(())),
-            Ok(AsyncSink::NotReady(item)) => {
-                self.buffer = Some(item);
-                Ok(Async::NotReady)
-            },
-            Err(_) => Err(())
-        }
-    }
-}
-
 impl<S: Stream> Future for Execute<S> {
     type Item = ();
     type Error = ();
 
     fn poll(&mut self) -> Poll<(), ()> {
-        // If we have a buffered item, try to send that first.
-        if let Some(item) = self.buffer.take() {
-            try_ready!(self.try_start_send(item));
-        }
-
-        loop {
-            match self.stream.poll() {
-                Ok(Async::Ready(Some(item))) => try_ready!(self.try_start_send(Ok(item))),
-                Ok(Async::Ready(None)) => {
-                    try_ready!(self.tx.close().map_err(|_| ()));
-                    return Ok(Async::Ready(()));
-                },
-                Ok(Async::NotReady) => {
-                    try_ready!(self.tx.poll_complete().map_err(|_| ()));
-                    return Ok(Async::NotReady);
-                },
-                Err(e) => {
-                    try_ready!(self.try_start_send(Err(e)));
-                    return Ok(Async::Ready(()));
-                }
-            }
+        match self.inner.poll() {
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            _ => Ok(Async::Ready(()))
         }
     }
 }
@@ -947,6 +914,19 @@ impl<S: Stream> fmt::Debug for Execute<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Execute")
          .finish()
+    }
+}
+
+impl<S: Stream> Stream for ResultStream<S> {
+    type Item = Result<S::Item, S::Error>;
+    type Error = SendError<Self::Item>;
+    fn poll(&mut self) -> Poll<Option<Result<S::Item, S::Error>>, Self::Error> {
+        match self.0.poll() {
+            Ok(Async::Ready(Some(item))) => Ok(Async::Ready(Some(Ok(item)))),
+            Err(e) => Ok(Async::Ready(Some(Err(e)))),
+            Ok(Async::Ready(None)) => Ok(Async::Ready(None)),
+            Ok(Async::NotReady) => Ok(Async::NotReady)
+        }
     }
 }
 
