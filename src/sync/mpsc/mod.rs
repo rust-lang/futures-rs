@@ -866,7 +866,7 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
     where S: Stream,
           E: Executor<Execute<S>>
 {
-    let (tx, rx) = channel2(Some(buffer));
+    let (tx, rx) = channel(buffer);
     executor.execute(Execute {
         tx: tx,
         stream: stream,
