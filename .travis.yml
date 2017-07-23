@@ -3,6 +3,7 @@ language: rust
 matrix:
   include:
     - os: osx
+    - rust: stable
     - rust: beta
     - rust: nightly
       env: BENCH=1
