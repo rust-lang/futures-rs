@@ -356,3 +356,8 @@ fn concat2() {
     let c = empty::<Vec<()>, ()>();
     assert_done(move || c.concat2(), Ok(vec![]))
 }
+
+#[test]
+fn end_after() {
+    assert_done(|| list().end_after(|x| *x >= 2).collect(), Ok(vec![1, 2]))
+}
