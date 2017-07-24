@@ -886,7 +886,7 @@ impl<I, E> Stream for SpawnHandle<I, E> {
             Ok(Async::Ready(Some(Err(e)))) => Err(e),
             Ok(Async::Ready(None)) => Ok(Async::Ready(None)),
             Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(_) => panic!("stream was canceled before completion"),
+            Err(_) => unreachable!("mpsc::Receiver should never return Err"),
         }
     }
 }
