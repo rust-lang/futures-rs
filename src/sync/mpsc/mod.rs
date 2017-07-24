@@ -876,6 +876,37 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
     }
 }
 
+/// Spawns a `stream` onto the instance of `Executor` provided, `executor`,
+/// returning a handle representing the remote stream, with unbounded buffering.
+///
+/// The `stream` will be canceled if the `SpawnHandle` is dropped.
+///
+/// The `SpawnHandle` returned is a stream that is a proxy for `stream` itself.
+/// When `stream` has additional items available, then the `SpawnHandle`
+/// will have those same items available.
+///
+/// An unbounded buffer is used, which means that values will be buffered as
+/// fast as `stream` can produce them, without any backpressure. Therefore, if
+/// `stream` is an infinite stream, it can use an unbounded amount of memory, and
+/// potentially hog CPU resources.
+///
+/// # Panics
+///
+/// This function will panic if `executor` is unable spawn a `Future` containing
+/// the entirety of the `stream`.
+pub fn spawn_unbounded<S, E>(stream: S, executor: &E) -> SpawnHandle<S::Item, S::Error>
+    where S: Stream,
+          E: Executor<Execute<S>>
+{
+    let (tx, rx) = channel2(None);
+    executor.execute(Execute {
+        inner: tx.send_all(ResultStream(stream))
+    }).expect("failed to spawn stream");
+    SpawnHandle {
+        rx: rx
+    }
+}
+
 impl<I, E> Stream for SpawnHandle<I, E> {
     type Item = I;
     type Error = E;
