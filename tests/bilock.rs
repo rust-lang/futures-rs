@@ -15,25 +15,31 @@ use support::*;
 fn smoke() {
     let future = future::lazy(|| {
         let (a, b) = BiLock::new(1);
-        let mut lock = match a.poll_lock() {
-            Async::Ready(l) => l,
-            Async::NotReady => panic!("poll not ready"),
-        };
-        assert_eq!(*lock, 1);
-        *lock = 2;
 
-        assert!(b.poll_lock().is_not_ready());
-        assert!(a.poll_lock().is_not_ready());
-        drop(lock);
+        {
+            let mut lock = match a.poll_lock() {
+                Async::Ready(l) => l,
+                Async::NotReady => panic!("poll not ready"),
+            };
+            assert_eq!(*lock, 1);
+            *lock = 2;
+
+            assert!(b.poll_lock().is_not_ready());
+            assert!(a.poll_lock().is_not_ready());
+        }
 
         assert!(b.poll_lock().is_ready());
         assert!(a.poll_lock().is_ready());
 
-        let lock = match b.poll_lock() {
-            Async::Ready(l) => l,
-            Async::NotReady => panic!("poll not ready"),
-        };
-        assert_eq!(*lock, 2);
+        {
+            let lock = match b.poll_lock() {
+                Async::Ready(l) => l,
+                Async::NotReady => panic!("poll not ready"),
+            };
+            assert_eq!(*lock, 2);
+        }
+
+        assert_eq!(a.reunite(b).expect("bilock/smoke: reunite error"), 2);
 
         Ok::<(), ()>(())
     });
@@ -72,6 +78,8 @@ fn concurrent() {
         Async::Ready(l) => assert_eq!(*l, 2 * N),
         Async::NotReady => panic!("poll not ready"),
     }
+
+    assert_eq!(a.reunite(b).expect("bilock/concurrent: reunite error"), 2 * N);
 
     struct Increment {
         remaining: usize,

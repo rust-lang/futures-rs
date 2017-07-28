@@ -1,5 +1,7 @@
 use std::boxed::Box;
 use std::cell::UnsafeCell;
+use std::error::Error;
+use std::fmt;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -35,7 +37,7 @@ pub struct BiLock<T> {
 #[derive(Debug)]
 struct Inner<T> {
     state: AtomicUsize,
-    inner: UnsafeCell<T>,
+    inner: Option<UnsafeCell<T>>,
 }
 
 unsafe impl<T: Send> Send for Inner<T> {}
@@ -50,7 +52,7 @@ impl<T> BiLock<T> {
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
         let inner = Arc::new(Inner {
             state: AtomicUsize::new(0),
-            inner: UnsafeCell::new(t),
+            inner: Some(UnsafeCell::new(t)),
         });
 
         (BiLock { inner: inner.clone() }, BiLock { inner: inner })
@@ -131,6 +133,21 @@ impl<T> BiLock<T> {
         }
     }
 
+    /// Attempts to put the two "halves" of a `BiLock<T>` back together and
+    /// recover the original value. Succeeds only if the two `BiLock<T>`s
+    /// originated from the same call to `BiLock::new`.
+    pub fn reunite(self, other: Self) -> Result<T, ReuniteError<T>> {
+        if Arc::ptr_eq(&self.inner, &other.inner) {
+            drop(other);
+            let inner = Arc::try_unwrap(self.inner)
+                .ok()
+                .expect("futures: try_unwrap failed in BiLock<T>::reunite");
+            Ok(unsafe { inner.into_inner() })
+        } else {
+            Err(ReuniteError(self, other))
+        }
+    }
+
     fn unlock(&self) {
         match self.inner.state.swap(0, SeqCst) {
             // we've locked the lock, shouldn't be possible for us to see an
@@ -149,9 +166,39 @@ impl<T> BiLock<T> {
     }
 }
 
+impl<T> Inner<T> {
+    unsafe fn into_inner(mut self) -> T {
+        mem::replace(&mut self.inner, None).unwrap().into_inner()
+    }
+}
+
 impl<T> Drop for Inner<T> {
     fn drop(&mut self) {
         assert_eq!(self.state.load(SeqCst), 0);
+    }
+}
+
+/// Error indicating two `BiLock<T>`s were not two halves of a whole, and
+/// thus could not be `reunite`d.
+pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
+
+impl<T> fmt::Debug for ReuniteError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("ReuniteError")
+            .field(&"...")
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for ReuniteError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "tried to reunite two BiLocks that don't form a pair")
+    }
+}
+
+impl<T> Error for ReuniteError<T> {
+    fn description(&self) -> &str {
+        "tried to reunite two BiLocks that don't form a pair"
     }
 }
 
@@ -168,13 +215,13 @@ pub struct BiLockGuard<'a, T: 'a> {
 impl<'a, T> Deref for BiLockGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.inner.inner.get() }
+        unsafe { &*self.inner.inner.inner.as_ref().unwrap().get() }
     }
 }
 
 impl<'a, T> DerefMut for BiLockGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.inner.inner.inner.get() }
+        unsafe { &mut *self.inner.inner.inner.as_ref().unwrap().get() }
     }
 }
 
@@ -231,13 +278,13 @@ impl<T> BiLockAcquired<T> {
 impl<T> Deref for BiLockAcquired<T> {
     type Target = T;
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.as_ref().unwrap().inner.inner.get() }
+        unsafe { &*self.inner.as_ref().unwrap().inner.inner.as_ref().unwrap().get() }
     }
 }
 
 impl<T> DerefMut for BiLockAcquired<T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.inner.as_mut().unwrap().inner.inner.get() }
+        unsafe { &mut *self.inner.as_mut().unwrap().inner.inner.as_ref().unwrap().get() }
     }
 }
 
