@@ -52,6 +52,7 @@ mod then;
 mod unfold;
 mod zip;
 mod forward;
+mod results;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
 pub use self::concat::{Concat, Concat2};
@@ -79,6 +80,7 @@ pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::forward::Forward;
+pub use self::results::Results;
 use sink::{Sink};
 
 if_std! {
@@ -1050,6 +1052,19 @@ pub trait Stream {
         where Self: super::sink::Sink + Sized
     {
         split::split(self)
+    }
+
+    /// Converts a Stream<Item=T,Error=E> into a `Stream<Item=Result<T,E>>`.
+    ///
+    /// The returned `Stream` will never return an `Err` on poll.
+    /// Instead, the item type is a result, matching the result
+    /// of polling the original stream.
+    ///
+    /// This is useful if the stream is attached to a sink,
+    /// and the sink should handle any errors rather than the
+    /// stream itself.
+    fn results<E>(self) -> Results<Self, E> where Self: Sized {
+        results::new(self)
     }
 }
 
