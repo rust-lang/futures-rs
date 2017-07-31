@@ -163,38 +163,6 @@ stages work. Nothing is upstream yet. Things will break! That being said bug
 reports are more than welcome, always good to know what needs to be rixed
 regardless!
 
-### Compiler errors
-
-Compiler error messages aren't the best. Right now the `proc-macro` system in
-the compiler will attribute all compiler errors in a function to the literal
-`#[async]` label. For example this code:
-
-```rust
-#[async]
-fn foo() -> Result<i32, i32> {
-    Ok(e)
-}
-```
-
-This is missing the definition of the variable `e`, but when run through the
-compiler the error looks like:
-
-```
-error[E0425]: cannot find value `e` in this scope
- --> examples/foo.rs:9:1
-  |
-9 | #[async]
-  | ^^^^^^^^ not found in this scope
-
-error: aborting due to previous error
-```
-
-This isn't just a local problem, *all* compiler errors with spans that would
-otherwise be in the async function are attributed to the `#[async]` attribute.
-This is unfortunately just how procedural macros work today, but lots of work
-is happening in the compiler to improve this! As soon as that's available
-this crate will try to help take advantage of it.
-
 ### Borrowing
 
 Borrowing doesn't really work so well today. The compiler will either reject
