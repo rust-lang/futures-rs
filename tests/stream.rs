@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate futures;
 
-use futures::{Poll, Future, Stream, Sink};
+use futures::{Async, Future, Poll, Sink, Stream};
 use futures::executor;
-use futures::future::{ok, err};
-use futures::stream::{empty, iter, Peekable, BoxStream};
+use futures::future::{err, ok};
+use futures::stream::{empty, iter, poll_fn, BoxStream, Peekable};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
 
@@ -355,4 +355,19 @@ fn concat2() {
 
     let c = empty::<Vec<()>, ()>();
     assert_done(move || c.concat2(), Ok(vec![]))
+}
+
+#[test]
+fn stream_poll_fn() {
+    let mut counter = 5usize;
+
+    let read_stream = poll_fn(move || -> Poll<Option<usize>, std::io::Error> {
+        if counter == 0 {
+            return Ok(Async::Ready(None));
+        }
+        counter -= 1;
+        Ok(Async::Ready(Some(counter)))
+    });
+
+    assert_eq!(read_stream.wait().count(), 5);
 }
