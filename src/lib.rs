@@ -48,7 +48,7 @@ pub mod __rt {
 
     use futures::Poll;
     use futures::{Future, Async};
-    use std::ops::State;
+    use std::ops::GeneratorState;
     use std::ops::Try;
 
     /// Random hack for this causing problems in the compiler's typechecking
@@ -100,8 +100,8 @@ pub mod __rt {
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
             match self.0.resume() {
-                State::Yielded(()) => Ok(Async::NotReady),
-                State::Complete(e) => e.into_result().map(Async::Ready),
+                GeneratorState::Yielded(()) => Ok(Async::NotReady),
+                GeneratorState::Complete(e) => e.into_result().map(Async::Ready),
             }
         }
     }
