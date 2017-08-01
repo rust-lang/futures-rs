@@ -322,15 +322,34 @@ pub trait Sink {
     /// This adapter produces a new sink that passes each value through the
     /// given function `f` before sending it to `self`.
     ///
-    /// To process each value, `f` produces an *iterator*, each value of which
+    /// To process each value, `f` produces a *stream*, of which each value
     /// is passed to the underlying sink. A new value will not be accepted until
-    /// the iterator has been drained
+    /// the stream has been drained
     ///
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::flat_map`.
-    fn with_flat_map<U, F, I>(self, f: F) -> WithFlatMap<Self, U, F, I>
-        where F: FnMut(U) -> I,
-              I: IntoIterator<Item = Self::SinkItem>,
+    ///
+    /// # Examples
+    /// ---
+    /// Using this function with an iterator through use of the `stream::iter()`
+    /// function
+    ///
+    /// ```
+    /// use futures::{Sink,Future,Stream};
+    /// use futures::stream;
+    /// use futures::sync::mpsc;
+    /// 
+    /// let (tx, rx) = mpsc::channel::<i32>(5);
+    ///
+    /// let tx = tx.with_flat_map(|x| {
+    ///     stream::iter(vec![42; x].into_iter().map(|y|Ok(y)))
+    /// });
+    /// tx.send(5).wait().unwrap();
+    /// assert_eq!(rx.collect().wait(), Ok(vec![42, 42, 42, 42, 42]))
+    /// ```
+    fn with_flat_map<U, F, St>(self, f: F) -> WithFlatMap<Self, U, F, St>
+        where F: FnMut(U) -> St,
+              St: Stream<Item = Self::SinkItem, Error=Self::SinkError>,
               Self: Sized
         {
             with_flat_map::new(self, f)

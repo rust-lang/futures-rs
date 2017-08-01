@@ -8,39 +8,39 @@ use stream::Stream;
 /// to run prior to pushing a value into the underlying sink
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct WithFlatMap<S, U, F, I>
+pub struct WithFlatMap<S, U, F, St>
 where
     S: Sink,
-    F: FnMut(U) -> I,
-    I: IntoIterator<Item = S::SinkItem>,
+    F: FnMut(U) -> St,
+    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     sink: S,
     f: F,
-    iter: Option<I::IntoIter>,
+    stream: Option<St>,
     buffer: Option<S::SinkItem>,
     _phantom: PhantomData<fn(U)>,
 }
 
-pub fn new<S, U, F, I>(sink: S, f: F) -> WithFlatMap<S, U, F, I>
+pub fn new<S, U, F, St>(sink: S, f: F) -> WithFlatMap<S, U, F, St>
 where
     S: Sink,
-    F: FnMut(U) -> I,
-    I: IntoIterator<Item = S::SinkItem>,
+    F: FnMut(U) -> St,
+    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     WithFlatMap {
         sink: sink,
         f: f,
-        iter: None,
+        stream: None,
         buffer: None,
-        _phantom: PhantomData
+        _phantom: PhantomData,
     }
 }
 
-impl<S, U, F, I> WithFlatMap<S, U, F, I>
+impl<S, U, F, St> WithFlatMap<S, U, F, St>
 where
     S: Sink,
-    F: FnMut(U) -> I,
-    I: IntoIterator<Item = S::SinkItem>,
+    F: FnMut(U) -> St,
+    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &S {
@@ -60,17 +60,17 @@ where
         self.sink
     }
 
-    fn try_empty_iter(&mut self) -> Poll<(), S::SinkError> {
+    fn try_empty_stream(&mut self) -> Poll<(), S::SinkError> {
         if let Some(x) = self.buffer.take() {
             if let AsyncSink::NotReady(x) = try!(self.sink.start_send(x)) {
                 self.buffer = Some(x);
                 return Ok(Async::NotReady);
             }
         }
-        if let Some(mut iter) = self.iter.take() {
-            while let Some(x) = iter.next() {
+        if let Some(mut stream) = self.stream.take() {
+            while let Some(x) = try_ready!(stream.poll()) {
                 if let AsyncSink::NotReady(x) = try!(self.sink.start_send(x)) {
-                    self.iter = Some(iter);
+                    self.stream = Some(stream);
                     self.buffer = Some(x);
                     return Ok(Async::NotReady);
                 }
@@ -80,11 +80,11 @@ where
     }
 }
 
-impl<S, U, F, I> Stream for WithFlatMap<S, U, F, I>
+impl<S, U, F, St> Stream for WithFlatMap<S, U, F, St>
 where
     S: Stream + Sink,
-    F: FnMut(U) -> I,
-    I: IntoIterator<Item = S::SinkItem>,
+    F: FnMut(U) -> St,
+    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     type Item = S::Item;
     type Error = S::Error;
@@ -93,34 +93,34 @@ where
     }
 }
 
-impl<S, U, F, I> Sink for WithFlatMap<S, U, F, I>
+impl<S, U, F, St> Sink for WithFlatMap<S, U, F, St>
 where
     S: Sink,
-    F: FnMut(U) -> I,
-    I: IntoIterator<Item = S::SinkItem>,
+    F: FnMut(U) -> St,
+    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     type SinkItem = U;
     type SinkError = S::SinkError;
     fn start_send(&mut self, i: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        if try!(self.try_empty_iter()).is_not_ready() {
+        if try!(self.try_empty_stream()).is_not_ready() {
             return Ok(AsyncSink::NotReady(i));
         }
-        assert!(self.iter.is_none());
-        self.iter = Some((self.f)(i).into_iter());
-        try!(self.try_empty_iter());
+        assert!(self.stream.is_none());
+        self.stream = Some((self.f)(i));
+        try!(self.try_empty_stream());
         Ok(AsyncSink::Ready)
     }
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        if try!(self.try_empty_iter()).is_not_ready() {
+        if try!(self.try_empty_stream()).is_not_ready() {
             return Ok(Async::NotReady);
         }
         self.sink.poll_complete()
     }
     fn close(&mut self) -> Poll<(), Self::SinkError> {
-        if try!(self.try_empty_iter()).is_not_ready() {
+        if try!(self.try_empty_stream()).is_not_ready() {
             return Ok(Async::NotReady);
         }
-        assert!(self.iter.is_none());
+        assert!(self.stream.is_none());
         self.sink.close()
     }
 }

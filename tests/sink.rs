@@ -171,7 +171,7 @@ fn with_as_map() {
 // test simple use of with_flat_map
 fn with_flat_map() {
     let sink = Vec::new().with_flat_map(|item| {
-        vec!(item; item)
+        stream::iter(vec!(item; item).into_iter().map(Ok))
     });
     let sink = sink.send(0).wait().unwrap();
     let sink = sink.send(1).wait().unwrap();
