@@ -8,7 +8,7 @@ use futures::{Future, Stream, Sink, Async};
 use futures::unsync::oneshot;
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
-use futures::stream::iter;
+use futures::stream::{iter, unfold};
 
 use support::local_executor::Core;
 
@@ -111,4 +111,13 @@ fn mpsc_send_unpark() {
         }));
     core.spawn(lazy(move || { let _ = rx; Ok(()) }));
     core.run(donerx).unwrap();
+}
+
+#[test]
+fn spawn_sends_items() {
+    let core = Core::new();
+    let stream = unfold(0, |i| Some(Ok::<_,u8>((i, i + 1))));
+    let rx = mpsc::spawn(stream, &core, 1);
+    assert_eq!(core.run(rx.take(4).collect()).unwrap(),
+               [0, 1, 2, 3]);
 }
