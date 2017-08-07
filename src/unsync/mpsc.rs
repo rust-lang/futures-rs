@@ -15,7 +15,7 @@ use std::rc::{Rc, Weak};
 use task::{self, Task};
 use future::Executor;
 use sink::SendAll;
-use stream::Results;
+use stream::results::{self, Results};
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 /// Creates a bounded in-memory channel with buffered storage.
@@ -375,7 +375,7 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
 {
     let (tx, rx) = channel(buffer);
     executor.execute(Execute {
-        inner: tx.send_all(stream.results())
+        inner: tx.send_all(results::new(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         inner: rx
@@ -408,7 +408,7 @@ pub fn spawn_unbounded<S,E>(stream: S, executor: &E) -> SpawnHandle<S::Item, S::
 {
     let (tx, rx) = channel_(None);
     executor.execute(Execute {
-        inner: tx.send_all(stream.results())
+        inner: tx.send_all(results::new(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         inner: rx
