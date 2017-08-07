@@ -167,6 +167,19 @@ fn with_as_map() {
     assert_eq!(sink.get_ref(), &[0, 2, 4]);
 }
 
+#[test]
+// test simple use of with_flat_map
+fn with_flat_map() {
+    let sink = Vec::new().with_flat_map(|item| {
+        stream::iter(vec!(item; item).into_iter().map(Ok))
+    });
+    let sink = sink.send(0).wait().unwrap();
+    let sink = sink.send(1).wait().unwrap();
+    let sink = sink.send(2).wait().unwrap();
+    let sink = sink.send(3).wait().unwrap();
+    assert_eq!(sink.get_ref(), &[1,2,2,3,3,3]);
+}
+
 // Immediately accepts all requests to start pushing, but completion is managed
 // by manually flushing
 struct ManualFlush<T> {
