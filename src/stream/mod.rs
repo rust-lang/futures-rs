@@ -52,7 +52,6 @@ mod then;
 mod unfold;
 mod zip;
 mod forward;
-pub(crate) mod results;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
 pub use self::concat::{Concat, Concat2};

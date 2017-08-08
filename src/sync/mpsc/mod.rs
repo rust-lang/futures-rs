@@ -80,7 +80,7 @@ use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
 use future::Executor;
 use sink::SendAll;
-use stream::results::{self, Results};
+use resultstream::{self, Results};
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 mod queue;
@@ -868,7 +868,7 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
 {
     let (tx, rx) = channel(buffer);
     executor.execute(Execute {
-        inner: tx.send_all(results::new(stream))
+        inner: tx.send_all(resultstream::new(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         rx: rx
@@ -899,7 +899,7 @@ pub fn spawn_unbounded<S, E>(stream: S, executor: &E) -> SpawnHandle<S::Item, S:
 {
     let (tx, rx) = channel2(None);
     executor.execute(Execute {
-        inner: tx.send_all(results::new(stream))
+        inner: tx.send_all(resultstream::new(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         rx: rx

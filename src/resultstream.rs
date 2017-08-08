@@ -1,3 +1,7 @@
+// This should really be in the the stream module,
+// but `pub(crate)` isn't available until Rust 1.18,
+// and pre-1.18 there isn't a really good way to have a sub-module
+// available to the crate, but not without it.
 use core::marker::PhantomData;
 
 use {Poll, Async};
