@@ -29,6 +29,7 @@ mod and_then;
 mod chain;
 mod concat;
 mod empty;
+mod end_after;
 mod filter;
 mod filter_map;
 mod flatten;
@@ -56,6 +57,7 @@ pub use self::and_then::AndThen;
 pub use self::chain::Chain;
 pub use self::concat::{Concat, Concat2};
 pub use self::empty::{Empty, empty};
+pub use self::end_after::EndAfter;
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
@@ -1051,6 +1053,27 @@ pub trait Stream {
     {
         split::split(self)
     }
+
+    /// End the stream after the element for which the provided predicate
+    /// returns `true`.
+    ///
+    /// As values of this stream are made available, the provided predicate will
+    /// be run against them. The stream yields all of the elements for which
+    /// the predicate returns false and then yields the element for which the
+    /// predicate returned true as the stream's final element.
+    ///
+    /// All errors are passed through without filtering in this combinator.
+    ///
+    /// Note that this function consumes the receiving stream and returns a
+    /// wrapped version of it, similar to the existing `filter` methods in the
+    /// standard library.
+    fn end_after<P>(self, pred: P) -> EndAfter<Self, P>
+        where P: FnMut(&Self::Item) -> bool,
+              Self: Sized
+    {
+        end_after::new(self, pred)
+    }
+
 }
 
 impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
