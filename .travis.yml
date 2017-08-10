@@ -12,7 +12,7 @@ matrix:
       after_success:
         - travis-cargo doc-upload
     - os: linux
-      rust: 1.17.0
+      rust: 1.10.0
       script: cargo test
 sudo: false
 script:

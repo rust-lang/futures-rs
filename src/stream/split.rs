@@ -1,6 +1,8 @@
-use {StartSend, Sink, Stream, Poll, Async, AsyncSink};
+use std::any::Any;
 use std::error::Error;
 use std::fmt;
+
+use {StartSend, Sink, Stream, Poll, Async, AsyncSink};
 use sync::BiLock;
 
 /// A `Stream` part of the split pair
@@ -96,7 +98,7 @@ impl<T> fmt::Display for ReuniteError<T> {
     }
 }
 
-impl<T> Error for ReuniteError<T> {
+impl<T: Any> Error for ReuniteError<T> {
     fn description(&self) -> &str {
         "tried to reunite a SplitStream and SplitSink that don't form a pair"
     }

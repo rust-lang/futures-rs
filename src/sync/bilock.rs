@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::error::Error;
@@ -137,7 +138,7 @@ impl<T> BiLock<T> {
     /// recover the original value. Succeeds only if the two `BiLock<T>`s
     /// originated from the same call to `BiLock::new`.
     pub fn reunite(self, other: Self) -> Result<T, ReuniteError<T>> {
-        if Arc::ptr_eq(&self.inner, &other.inner) {
+        if &*self.inner as *const _ == &*other.inner as *const _ {
             drop(other);
             let inner = Arc::try_unwrap(self.inner)
                 .ok()
@@ -196,7 +197,7 @@ impl<T> fmt::Display for ReuniteError<T> {
     }
 }
 
-impl<T> Error for ReuniteError<T> {
+impl<T: Any> Error for ReuniteError<T> {
     fn description(&self) -> &str {
         "tried to reunite two BiLocks that don't form a pair"
     }
