@@ -200,6 +200,8 @@ pub use future::{
 mod lock;
 mod task_impl;
 
+mod resultstream;
+
 pub mod task;
 pub mod executor;
 #[cfg(feature = "use_std")]

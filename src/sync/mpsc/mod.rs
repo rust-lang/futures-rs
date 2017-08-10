@@ -80,6 +80,7 @@ use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
 use future::Executor;
 use sink::SendAll;
+use resultstream::{self, Results};
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 mod queue;
@@ -841,10 +842,8 @@ pub struct SpawnHandle<Item, Error> {
 
 /// Type of future which `Executor` instances must be able to execute for `spawn`.
 pub struct Execute<S: Stream> {
-    inner: SendAll<Sender<Result<S::Item, S::Error>>, ResultStream<S>>
+    inner: SendAll<Sender<Result<S::Item, S::Error>>, Results<S, SendError<Result<S::Item, S::Error>>>>
 }
-
-struct ResultStream<S: Stream>(S);
 
 /// Spawns a `stream` onto the instance of `Executor` provided, `executor`,
 /// returning a handle representing the remote stream.
@@ -869,7 +868,7 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
 {
     let (tx, rx) = channel(buffer);
     executor.execute(Execute {
-        inner: tx.send_all(ResultStream(stream))
+        inner: tx.send_all(resultstream::new(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         rx: rx
@@ -900,7 +899,7 @@ pub fn spawn_unbounded<S, E>(stream: S, executor: &E) -> SpawnHandle<S::Item, S:
 {
     let (tx, rx) = channel2(None);
     executor.execute(Execute {
-        inner: tx.send_all(ResultStream(stream))
+        inner: tx.send_all(resultstream::new(stream))
     }).expect("failed to spawn stream");
     SpawnHandle {
         rx: rx
@@ -945,19 +944,6 @@ impl<S: Stream> fmt::Debug for Execute<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Execute")
          .finish()
-    }
-}
-
-impl<S: Stream> Stream for ResultStream<S> {
-    type Item = Result<S::Item, S::Error>;
-    type Error = SendError<Self::Item>;
-    fn poll(&mut self) -> Poll<Option<Result<S::Item, S::Error>>, Self::Error> {
-        match self.0.poll() {
-            Ok(Async::Ready(Some(item))) => Ok(Async::Ready(Some(Ok(item)))),
-            Err(e) => Ok(Async::Ready(Some(Err(e)))),
-            Ok(Async::Ready(None)) => Ok(Async::Ready(None)),
-            Ok(Async::NotReady) => Ok(Async::NotReady)
-        }
     }
 }
 
