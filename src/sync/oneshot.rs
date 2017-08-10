@@ -25,7 +25,7 @@ pub struct Receiver<T> {
 /// computation is signaled.
 ///
 /// This is created by the `oneshot::channel` function.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }

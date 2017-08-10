@@ -3,7 +3,7 @@ extern crate futures;
 use std::sync::mpsc;
 use std::thread;
 
-use futures::{Future, Poll};
+use futures::{Async, Future, Poll};
 use futures::future::{lazy, ok};
 use futures::sync::oneshot::*;
 
@@ -88,4 +88,25 @@ fn close_wakes() {
     WaitForCancel { tx: tx }.wait().unwrap();
     tx2.send(()).unwrap();
     t.join().unwrap();
+}
+
+#[test]
+fn clone_sender() {
+    {
+        let (tx, mut rx) = channel::<u32>();
+        let tx2 = tx.clone();
+        assert!(tx.send(42).is_ok()); // send from the original
+        assert!(tx2.send(24).is_err());
+        assert_eq!(rx.poll(), Ok(Async::Ready(42)));
+        assert!(rx.poll().is_err());
+    }
+
+    {
+        let (tx, mut rx) = channel::<u32>();
+        let tx2 = tx.clone();
+        assert!(tx2.send(42).is_ok()); // send from the clone
+        assert!(tx.send(24).is_err());
+        assert_eq!(rx.poll(), Ok(Async::Ready(42)));
+        assert!(rx.poll().is_err());
+    }
 }
