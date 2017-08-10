@@ -39,6 +39,8 @@ fn test_split() {
     {
         let j = Join(iter(vec![Ok(10), Ok(20), Ok(30)]), &mut dest);
         let (sink, stream) = j.split();
+        let j = sink.reunite(stream).expect("test_split: reunite error");
+        let (sink, stream) = j.split();
         sink.send_all(stream).wait().unwrap();
     }
     assert_eq!(dest, vec![10, 20, 30]);
