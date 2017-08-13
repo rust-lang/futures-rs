@@ -283,7 +283,7 @@ impl<T> Stream for FuturesUnordered<T>
         // because the `park` method underneath needs mutual exclusion from
         // other calls to `park`, which we guarantee with `&mut self` above and
         // this is the only method which calls park.
-        unsafe { self.inner.parent.park() };
+        self.inner.parent.park();
 
         loop {
             let node = match unsafe { self.inner.dequeue() } {
