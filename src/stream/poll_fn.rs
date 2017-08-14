@@ -31,7 +31,7 @@ pub struct PollFn<F> {
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
 where
-    F: FnMut() -> Poll<T, E>,
+    F: FnMut() -> Poll<Option<T>, E>,
 {
     PollFn { inner: f }
 }
