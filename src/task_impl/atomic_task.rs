@@ -73,7 +73,18 @@ impl AtomicTask {
     /// Sets the current task to be notified on calls to `notify`.
     ///
     /// The new task will take place of any previous tasks that were registered
-    /// by previous calls to `park`.
+    /// by previous calls to `park`. Any calls to `notify` that happen after
+    /// a call to `park` (as defined by the memory ordering rules), will notify
+    /// the `park` caller's task.
+    ///
+    /// It is safe to call `park` with multiple other threads concurrently
+    /// calling `notify`. This will result in the `park` caller's current task
+    /// being notified once.
+    ///
+    /// This function is safe to call concurrently, but this is generally a bad
+    /// idea. Concurrent calls to `park` will attempt to register different
+    /// tasks to be notified. One of the callers will win and have its task set,
+    /// but there is no guarantee as to which caller will succeed.
     pub fn park(&self) {
         // Get a new task handle
         let task = super::current();
