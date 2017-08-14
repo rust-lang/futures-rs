@@ -20,6 +20,9 @@ appveyor = { repository = "alexcrichton/futures-rs" }
 
 [dependencies]
 
+[build-dependencies]
+regex = "0.2"
+
 [features]
 use_std = []
 with-deprecated = []

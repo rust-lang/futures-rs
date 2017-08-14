@@ -254,7 +254,7 @@ pub trait Stream {
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
         where Self: Sized + Send + 'static,
     {
-        ::std::boxed::Box::new(self)
+        Boxed::boxed(self)
     }
 
     /// Converts this stream into a `Future`.
@@ -1061,5 +1061,32 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         (**self).poll()
+    }
+}
+
+
+#[cfg(feature = "use_std")]
+trait Boxed: Stream {
+    fn boxed(self) -> BoxStream<Self::Item, Self::Error>;
+}
+
+#[cfg(feature = "use_std")]
+impl<F> Boxed for F where F: Stream + Sized + Send + 'static {
+    #[cfg(rust_nightly)]
+    default fn boxed(self) -> BoxStream<Self::Item, Self::Error> {
+        ::std::boxed::Box::new(self)
+    }
+
+    #[cfg(not(rust_nightly))]
+    fn boxed(self) -> BoxStream<Self::Item, Self::Error> {
+        ::std::boxed::Box::new(self)
+    }
+}
+
+#[cfg(feature = "use_std")]
+#[cfg(rust_nightly)]
+impl<I, E> Boxed for BoxStream<I, E> {
+    fn boxed(self) -> BoxStream<Self::Item, Self::Error> {
+        self
     }
 }

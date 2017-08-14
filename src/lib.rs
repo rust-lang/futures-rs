@@ -1,3 +1,5 @@
+#![cfg_attr(rust_nightly, feature(specialization))]
+
 //! Zero-cost Futures in Rust
 //!
 //! This library is an implementation of futures in Rust which aims to provide
