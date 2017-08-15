@@ -384,6 +384,14 @@ pub trait Notify: Send + Sync {
     /// This method takes an `id` as an argument which was transitively passed
     /// in from the original call to `Spawn::*_notify`. This id can be used to
     /// disambiguate which precise future became ready for polling.
+    ///
+    /// # Panics
+    ///
+    /// Since `unpark` may be invoked from arbitrary contexts, it should
+    /// endeavor not to panic and to do as little work as possible. However, it
+    /// is not guaranteed not to panic, and callers should be wary. If a panic
+    /// occurs, that panic may or may not be propagated to the end-user of the
+    /// future that you'd otherwise wake up.
     fn notify(&self, id: usize);
 
     /// This function is called whenever a new copy of `id` is needed.
