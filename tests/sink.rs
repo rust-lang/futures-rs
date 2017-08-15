@@ -133,9 +133,9 @@ fn mpsc_blocking_start_send() {
 // until a oneshot is completed
 fn with_flush() {
     let (tx, rx) = oneshot::channel();
-    let mut block = rx.boxed();
+    let mut block = Box::new(rx) as Box<Future<Item = _, Error = _>>;
     let mut sink = Vec::new().with(|elem| {
-        mem::replace(&mut block, ok(()).boxed())
+        mem::replace(&mut block, Box::new(ok(())))
             .map(move |_| elem + 1).map_err(|_| -> () { panic!() })
     });
 

@@ -298,7 +298,7 @@ fn stress_drop_sender() {
           .and_then(|tx| tx.send(Ok(2)))
           .and_then(|tx| tx.send(Ok(3)))
           .forget();
-        rx.then(|r| r.unwrap()).boxed()
+        Box::new(rx.then(|r| r.unwrap()))
     }
 
     for _ in 0..10000 {

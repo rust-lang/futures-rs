@@ -34,7 +34,10 @@ fn works_2() {
     let (b_tx, b_rx) = oneshot::channel::<u32>();
     let (c_tx, c_rx) = oneshot::channel::<u32>();
 
-    let stream = futures_ordered(vec![a_rx.boxed(), b_rx.join(c_rx).map(|(a, b)| a + b).boxed()]);
+    let stream = futures_ordered(vec![
+        Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
+        Box::new(b_rx.join(c_rx).map(|(a, b)| a + b)),
+    ]);
 
     let mut spawn = futures::executor::spawn(stream);
     a_tx.send(33).unwrap();
@@ -52,8 +55,8 @@ fn queue_never_unblocked() {
     let (c_tx, c_rx) = oneshot::channel::<Box<Any+Send>>();
 
     let stream = futures_ordered(vec![
-        a_rx.boxed(),
-        b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>)).boxed(),
+        Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
+        Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))),
     ]);
 
     let mut spawn = futures::executor::spawn(stream);

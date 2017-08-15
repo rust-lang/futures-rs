@@ -234,6 +234,7 @@ if_std! {
     #[doc(hidden)]
     #[deprecated(since = "0.1.4", note = "import through the future module instead")]
     #[cfg(feature = "with-deprecated")]
+    #[allow(deprecated)]
     pub use future::{BoxFuture, collect, select_all, select_ok};
 
     #[doc(hidden)]

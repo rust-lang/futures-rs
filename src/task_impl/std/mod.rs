@@ -10,7 +10,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
-use future::BoxFuture;
 use super::core;
 use super::{BorrowedTask, NotifyHandle, Spawn, spawn, Notify, UnsafeNotify};
 
@@ -276,7 +275,7 @@ impl<F: Future> Spawn<F> {
             // `Spawn<BoxFuture<(), ()>>` so we wouldn't have to box here and
             // it'd be more explicit, but unfortunately that currently has a
             // link error on nightly: rust-lang/rust#36155
-            spawn: spawn(self.into_inner().boxed()),
+            spawn: spawn(Box::new(self.into_inner())),
             inner: Arc::new(RunInner {
                 exec: exec,
                 mutex: UnparkMutex::new()
@@ -404,7 +403,7 @@ pub trait Executor: Send + Sync + 'static {
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 pub struct Run {
-    spawn: Spawn<BoxFuture<(), ()>>,
+    spawn: Spawn<Box<Future<Item = (), Error = ()> + Send>>,
     inner: Arc<RunInner>,
 }
 
