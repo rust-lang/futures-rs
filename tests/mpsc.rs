@@ -354,3 +354,23 @@ fn is_ready<T>(res: &AsyncSink<T>) -> bool {
         _ => false,
     }
 }
+
+#[test]
+fn try_send() {
+    const N: usize = 3000;
+    let (tx, rx) = mpsc::channel(0);
+
+    let t = thread::spawn(move || {
+        for i in 0..N {
+            loop {
+                if tx.try_send(i).is_ok() {
+                    break
+                }
+            }
+        }
+    });
+    for (i, j) in rx.wait().enumerate() {
+        assert_eq!(i, j.unwrap());
+    }
+    t.join().unwrap();
+}
