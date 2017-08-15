@@ -18,9 +18,13 @@
 use {IntoFuture, Poll};
 
 mod iter;
+#[allow(deprecated)]
 pub use self::iter::{iter, Iter};
 #[cfg(feature = "with-deprecated")]
+#[allow(deprecated)]
 pub use self::Iter as IterStream;
+mod iter_ok;
+pub use self::iter_ok::{iter_ok, IterOk};
 
 mod repeat;
 pub use self::repeat::{repeat, Repeat};

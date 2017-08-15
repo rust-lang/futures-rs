@@ -44,14 +44,14 @@ fn send() {
 fn send_all() {
     let v = Vec::new();
 
-    let (v, _) = v.send_all(stream::iter(vec![Ok(0), Ok(1)])).wait().unwrap();
+    let (v, _) = v.send_all(stream::iter_ok(vec![0, 1])).wait().unwrap();
     assert_eq!(v, vec![0, 1]);
 
-    let (v, _) = v.send_all(stream::iter(vec![Ok(2), Ok(3)])).wait().unwrap();
+    let (v, _) = v.send_all(stream::iter_ok(vec![2, 3])).wait().unwrap();
     assert_eq!(v, vec![0, 1, 2, 3]);
 
     assert_done(
-        move || v.send_all(stream::iter(vec![Ok(4), Ok(5)])).map(|(v, _)| v),
+        move || v.send_all(stream::iter_ok(vec![4, 5])).map(|(v, _)| v),
         Ok(vec![0, 1, 2, 3, 4, 5]));
 }
 
@@ -171,7 +171,7 @@ fn with_as_map() {
 // test simple use of with_flat_map
 fn with_flat_map() {
     let sink = Vec::new().with_flat_map(|item| {
-        stream::iter(vec!(item; item).into_iter().map(Ok))
+        stream::iter_ok(vec![item; item])
     });
     let sink = sink.send(0).wait().unwrap();
     let sink = sink.send(1).wait().unwrap();

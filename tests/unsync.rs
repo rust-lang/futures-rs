@@ -8,7 +8,7 @@ use futures::{Future, Stream, Sink, Async};
 use futures::unsync::oneshot;
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;
-use futures::stream::{iter, unfold};
+use futures::stream::{iter_ok, unfold};
 
 use support::local_executor::Core;
 
@@ -66,7 +66,7 @@ fn mpsc_tx_err() {
 fn mpsc_backpressure() {
     let (tx, rx) = mpsc::channel::<i32>(1);
     lazy(move || {
-        iter(vec![1, 2, 3].into_iter().map(Ok))
+        iter_ok(vec![1, 2, 3])
             .forward(tx)
             .map_err(|e: SendError<i32>| panic!("{}", e))
             .join(rx.take(3).collect().map(|xs| {
@@ -79,7 +79,7 @@ fn mpsc_backpressure() {
 fn mpsc_unbounded() {
     let (tx, rx) = mpsc::unbounded::<i32>();
     lazy(move || {
-        iter(vec![1, 2, 3].into_iter().map(Ok))
+        iter_ok(vec![1, 2, 3])
             .forward(tx)
             .map_err(|e: SendError<i32>| panic!("{}", e))
             .join(rx.take(3).collect().map(|xs| {
@@ -103,7 +103,7 @@ fn mpsc_send_unpark() {
     let core = Core::new();
     let (tx, rx) = mpsc::channel::<i32>(1);
     let (donetx, donerx) = oneshot::channel();
-    core.spawn(iter(vec![1, 2].into_iter().map(Ok)).forward(tx)
+    core.spawn(iter_ok(vec![1, 2]).forward(tx)
         .then(|x: Result<_, SendError<i32>>| {
             assert!(x.is_err());
             donetx.send(()).unwrap();
