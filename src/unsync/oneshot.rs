@@ -59,9 +59,7 @@ enum State<T> {
     Closed(Option<T>),
 }
 
-/// Represents that the `Sender` dropped before sending a message.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Canceled;
+pub use sync::oneshot::Canceled;
 
 #[derive(Debug)]
 struct Inner<T> {
