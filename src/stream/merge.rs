@@ -1,3 +1,6 @@
+#![deprecated(note = "functionality provided by `select` now")]
+#![allow(deprecated)]
+
 use {Poll, Async};
 use stream::{Stream, Fuse};
 
