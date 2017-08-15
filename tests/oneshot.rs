@@ -89,3 +89,11 @@ fn close_wakes() {
     tx2.send(()).unwrap();
     t.join().unwrap();
 }
+
+#[test]
+fn is_canceled() {
+    let (tx, rx) = channel::<u32>();
+    assert!(!tx.is_canceled());
+    drop(rx);
+    assert!(tx.is_canceled());
+}
