@@ -155,7 +155,7 @@ fn recursive_poll() {
     let f1 = run_stream.shared();
     let f2 = f1.clone();
     let f3 = f1.clone();
-    tx0.send(Box::new(
+    tx0.unbounded_send(Box::new(
         f1.map(|_|()).map_err(|_|())
             .select(rx1.map_err(|_|()))
             .map(|_| ()).map_err(|_|()))).unwrap();
@@ -185,7 +185,7 @@ fn recursive_poll_with_unpark() {
     let f1 = run_stream.shared();
     let f2 = f1.clone();
     let f3 = f1.clone();
-    tx0.send(Box::new(future::lazy(move || {
+    tx0.unbounded_send(Box::new(future::lazy(move || {
         task::current().notify();
         f1.map(|_|()).map_err(|_|())
             .select(rx1.map_err(|_|()))

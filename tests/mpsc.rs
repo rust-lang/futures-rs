@@ -165,7 +165,7 @@ fn stress_shared_unbounded() {
 
         thread::spawn(move|| {
             for _ in 0..AMT {
-                mpsc::UnboundedSender::send(&tx, 1).unwrap();
+                tx.unbounded_send(1).unwrap();
             }
         });
     }
@@ -314,7 +314,7 @@ fn stress_close_receiver_iter() {
     let (unwritten_tx, unwritten_rx) = std::sync::mpsc::channel();
     thread::spawn(move || {
         for i in 1.. {
-            if let Err(_) = mpsc::UnboundedSender::send(&tx, i) {
+            if let Err(_) = tx.unbounded_send(i) {
                 unwritten_tx.send(i).expect("unwritten_tx");
                 return;
             }
