@@ -279,11 +279,8 @@ impl<T> Stream for FuturesUnordered<T>
     type Error = T::Error;
 
     fn poll(&mut self) -> Poll<Option<T::Item>, T::Error> {
-        // Ensure `parent` is correctly set. Note that the `unsafe` here is
-        // because the `park` method underneath needs mutual exclusion from
-        // other calls to `park`, which we guarantee with `&mut self` above and
-        // this is the only method which calls park.
-        unsafe { self.inner.parent.park() };
+        // Ensure `parent` is correctly set.
+        self.inner.parent.register();
 
         loop {
             let node = match unsafe { self.inner.dequeue() } {
