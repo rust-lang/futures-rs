@@ -164,6 +164,10 @@ impl<T> Inner<T> {
         }
     }
 
+    fn is_canceled(&self) -> bool {
+        self.complete.load(SeqCst)
+    }
+
     fn drop_tx(&self) {
         // Flag that we're a completed `Sender` and try to wake up a receiver.
         // Whether or not we actually stored any data will get picked up and
@@ -302,11 +306,7 @@ impl<T> Sender<T> {
     ///
     /// This function can be used to learn about when the `Receiver` (consumer)
     /// half has gone away and nothing will be able to receive a message sent
-    /// from `complete`.
-    ///
-    /// Like `Future::poll`, this function will panic if it's not called from
-    /// within the context of a task. In otherwords, this should only ever be
-    /// called from inside another future.
+    /// from `send`.
     ///
     /// If `Ready` is returned then it means that the `Receiver` has disappeared
     /// and the result this `Sender` would otherwise produce should no longer
@@ -316,8 +316,34 @@ impl<T> Sender<T> {
     /// able to receive a message if sent. The current task, however, is
     /// scheduled to receive a notification if the corresponding `Receiver` goes
     /// away.
+    ///
+    /// # Panics
+    ///
+    /// Like `Future::poll`, this function will panic if it's not called from
+    /// within the context of a task. In other words, this should only ever be
+    /// called from inside another future.
+    ///
+    /// If you're calling this function from a context that does not have a
+    /// task, then you can use the `is_canceled` API instead.
     pub fn poll_cancel(&mut self) -> Poll<(), ()> {
         self.inner.poll_cancel()
+    }
+
+    /// Tests to see whether this `Sender`'s corresponding `Receiver`
+    /// has gone away.
+    ///
+    /// This function can be used to learn about when the `Receiver` (consumer)
+    /// half has gone away and nothing will be able to receive a message sent
+    /// from `send`.
+    ///
+    /// Note that this function is intended to *not* be used in the context of a
+    /// future. If you're implementing a future you probably want to call the
+    /// `poll_cancel` function which will block the current task if the
+    /// cancellation hasn't happened yet. This can be useful when working on a
+    /// non-futures related thread, though, which would otherwise panic if
+    /// `poll_cancel` were called.
+    pub fn is_canceled(&self) -> bool {
+        self.inner.is_canceled()
     }
 }
 
