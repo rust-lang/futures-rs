@@ -112,6 +112,10 @@ if_std! {
     pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
 
     /// A type alias for `Box<Stream + Send>`
+    #[doc(hidden)]
+    #[deprecated(note = "removed without replacement, recommended to use a \
+                         local extension trait or function if needed, more \
+                         details in #228")]
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
 
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
@@ -251,6 +255,11 @@ pub trait Stream {
     /// let a: BoxStream<i32, ()> = rx.boxed();
     /// ```
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[deprecated(note = "removed without replacement, recommended to use a \
+                         local extension trait or function if needed, more \
+                         details in #228")]
+    #[allow(deprecated)]
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
         where Self: Sized + Send + 'static,
     {

@@ -8,9 +8,9 @@ use futures::future::{ok, Future};
 fn lots() {
     fn doit(n: usize) -> Box<Future<Item=(), Error=()> + Send> {
         if n == 0 {
-            ok(()).boxed()
+            Box::new(ok(()))
         } else {
-            ok(n - 1).and_then(doit).boxed()
+            Box::new(ok(n - 1).and_then(doit))
         }
     }
 

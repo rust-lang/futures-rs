@@ -4,7 +4,7 @@ extern crate futures;
 use futures::{Async, Future, Poll, Sink, Stream};
 use futures::executor;
 use futures::future::{err, ok};
-use futures::stream::{empty, iter, poll_fn, BoxStream, Peekable};
+use futures::stream::{empty, iter, poll_fn, Peekable};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
 
@@ -12,22 +12,22 @@ mod support;
 use support::*;
 
 
-fn list() -> BoxStream<i32, u32> {
+fn list() -> Box<Stream<Item=i32, Error=u32> + Send> {
     let (tx, rx) = mpsc::channel(1);
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Ok(3)))
       .forget();
-    rx.then(|r| r.unwrap()).boxed()
+    Box::new(rx.then(|r| r.unwrap()))
 }
 
-fn err_list() -> BoxStream<i32, u32> {
+fn err_list() -> Box<Stream<Item=i32, Error=u32> + Send> {
     let (tx, rx) = mpsc::channel(1);
     tx.send(Ok(1))
       .and_then(|tx| tx.send(Ok(2)))
       .and_then(|tx| tx.send(Err(3)))
       .forget();
-    rx.then(|r| r.unwrap()).boxed()
+    Box::new(rx.then(|r| r.unwrap()))
 }
 
 #[test]
@@ -173,8 +173,8 @@ fn buffered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(b.map_err(|_| ()).boxed())
-      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
+    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
       .forget();
 
     let mut rx = rx.buffered(2);
@@ -191,8 +191,8 @@ fn buffered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(b.map_err(|_| ()).boxed())
-      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
+    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
       .forget();
 
     let mut rx = rx.buffered(1);
@@ -212,8 +212,8 @@ fn unordered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(b.map_err(|_| ()).boxed())
-      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
+    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
       .forget();
 
     let mut rx = rx.buffer_unordered(2);
@@ -229,8 +229,8 @@ fn unordered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(b.map_err(|_| ()).boxed())
-      .and_then(|tx| tx.send(d.map_err(|_| ()).boxed()))
+    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
       .forget();
 
     // We don't even get to see `c` until `a` completes.
@@ -261,7 +261,7 @@ fn zip() {
 #[test]
 fn peek() {
     struct Peek {
-        inner: Peekable<BoxStream<i32, u32>>
+        inner: Peekable<Box<Stream<Item = i32, Error =u32> + Send>>
     }
 
     impl Future for Peek {

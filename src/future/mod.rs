@@ -97,6 +97,10 @@ if_std! {
     pub use self::join_all::JoinAll as Collect;
 
     /// A type alias for `Box<Future + Send>`
+    #[doc(hidden)]
+    #[deprecated(note = "removed without replacement, recommended to use a \
+                         local extension trait or function if needed, more \
+                         details in #228")]
     pub type BoxFuture<T, E> = ::std::boxed::Box<Future<Item = T, Error = E> + Send>;
 
     impl<F: ?Sized + Future> Future for ::std::boxed::Box<F> {
@@ -313,6 +317,11 @@ pub trait Future {
     /// let a: BoxFuture<i32, i32> = result(Ok(1)).boxed();
     /// ```
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[deprecated(note = "removed without replacement, recommended to use a \
+                         local extension trait or function if needed, more \
+                         details in #228")]
+    #[allow(deprecated)]
     fn boxed(self) -> BoxFuture<Self::Item, Self::Error>
         where Self: Sized + Send + 'static
     {

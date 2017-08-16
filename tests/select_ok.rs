@@ -5,10 +5,10 @@ use futures::future::*;
 #[test]
 fn ignore_err() {
     let v = vec![
-        err(1).boxed(),
-        err(2).boxed(),
-        ok(3).boxed(),
-        ok(4).boxed(),
+        err(1),
+        err(2),
+        ok(3),
+        ok(4),
     ];
 
     let (i, v) = select_ok(v).wait().ok().unwrap();
@@ -25,9 +25,9 @@ fn ignore_err() {
 #[test]
 fn last_err() {
     let v = vec![
-        ok(1).boxed(),
-        err(2).boxed(),
-        err(3).boxed(),
+        ok(1),
+        err(2),
+        err(3),
     ];
 
     let (i, v) = select_ok(v).wait().ok().unwrap();
