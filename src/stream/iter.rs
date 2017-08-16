@@ -1,3 +1,6 @@
+#![deprecated(note = "implemention moved to `iter_ok`")]
+#![allow(deprecated)]
+
 use {Async, Poll};
 use stream::Stream;
 
