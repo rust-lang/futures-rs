@@ -85,7 +85,7 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match try!(fut.poll()) {
+                    match fut.poll()? {
                         Async:: Ready((item, next_state)) => {
                             self.state = State::Ready(next_state);
                             return Ok(Async::Ready(Some(item)));

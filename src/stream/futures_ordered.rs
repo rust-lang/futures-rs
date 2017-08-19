@@ -168,7 +168,7 @@ impl<T> Stream for FuturesOrdered<T>
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         // Get any completed futures from the unordered set.
         loop {
-            match try!(self.in_progress.poll()) {
+            match self.in_progress.poll()? {
                 Async::Ready(Some(result)) => self.queued_results.push(result),
                 Async::Ready(None) | Async::NotReady => break,
             }

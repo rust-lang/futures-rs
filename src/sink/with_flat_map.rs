@@ -62,14 +62,14 @@ where
 
     fn try_empty_stream(&mut self) -> Poll<(), S::SinkError> {
         if let Some(x) = self.buffer.take() {
-            if let AsyncSink::NotReady(x) = try!(self.sink.start_send(x)) {
+            if let AsyncSink::NotReady(x) = self.sink.start_send(x)? {
                 self.buffer = Some(x);
                 return Ok(Async::NotReady);
             }
         }
         if let Some(mut stream) = self.stream.take() {
             while let Some(x) = try_ready!(stream.poll()) {
-                if let AsyncSink::NotReady(x) = try!(self.sink.start_send(x)) {
+                if let AsyncSink::NotReady(x) = self.sink.start_send(x)? {
                     self.stream = Some(stream);
                     self.buffer = Some(x);
                     return Ok(Async::NotReady);
@@ -102,22 +102,22 @@ where
     type SinkItem = U;
     type SinkError = S::SinkError;
     fn start_send(&mut self, i: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        if try!(self.try_empty_stream()).is_not_ready() {
+        if self.try_empty_stream()?.is_not_ready() {
             return Ok(AsyncSink::NotReady(i));
         }
         assert!(self.stream.is_none());
         self.stream = Some((self.f)(i));
-        try!(self.try_empty_stream());
+        self.try_empty_stream()?;
         Ok(AsyncSink::Ready)
     }
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        if try!(self.try_empty_stream()).is_not_ready() {
+        if self.try_empty_stream()?.is_not_ready() {
             return Ok(Async::NotReady);
         }
         self.sink.poll_complete()
     }
     fn close(&mut self) -> Poll<(), Self::SinkError> {
-        if try!(self.try_empty_stream()).is_not_ready() {
+        if self.try_empty_stream()?.is_not_ready() {
             return Ok(Async::NotReady);
         }
         assert!(self.stream.is_none());

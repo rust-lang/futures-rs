@@ -106,7 +106,7 @@ impl<S> Stream for Buffered<S>
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.queue.len() < self.max {
-            let future = match try!(self.stream.poll()) {
+            let future = match self.stream.poll()? {
                 Async::Ready(Some(s)) => s.into_future(),
                 Async::Ready(None) |
                 Async::NotReady => break,
