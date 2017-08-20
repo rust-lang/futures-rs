@@ -94,7 +94,7 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => break,
                 State::Process(mut fut) => {
-                    match try!(fut.poll()) {
+                    match fut.poll()? {
                         Async::Ready(item) => {
                             self.state = State::Buffered(item);
                         }
@@ -105,7 +105,7 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
                     }
                 }
                 State::Buffered(item) => {
-                    if let AsyncSink::NotReady(item) = try!(self.sink.start_send(item)) {
+                    if let AsyncSink::NotReady(item) = self.sink.start_send(item)? {
                         self.state = State::Buffered(item);
                         break
                     }
@@ -131,7 +131,7 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
     type SinkError = Fut::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Fut::Error> {
-        if try!(self.poll()).is_not_ready() {
+        if self.poll()?.is_not_ready() {
             return Ok(AsyncSink::NotReady(item))
         }
         self.state = State::Process((self.f)(item).into_future());
@@ -140,7 +140,7 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
 
     fn poll_complete(&mut self) -> Poll<(), Fut::Error> {
         // poll ourselves first, to push data downward
-        let me_ready = try!(self.poll());
+        let me_ready = self.poll()?;
         // always propagate `poll_complete` downward to attempt to make progress
         try_ready!(self.sink.poll_complete());
         Ok(me_ready)
@@ -148,6 +148,6 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
 
     fn close(&mut self) -> Poll<(), Fut::Error> {
         try_ready!(self.poll());
-        Ok(try!(self.sink.close()))
+        Ok(self.sink.close()?)
     }
 }

@@ -241,7 +241,7 @@ impl<F: Future> Spawn<F> {
         let unpark = Arc::new(ThreadUnpark::new(thread::current()));
 
         loop {
-            match try!(self.poll_future_notify(&unpark, 0)) {
+            match self.poll_future_notify(&unpark, 0)? {
                 Async::NotReady => unpark.park(),
                 Async::Ready(e) => return Ok(e),
             }
@@ -342,7 +342,7 @@ impl<S: Sink> Spawn<S> {
                      -> Result<(), S::SinkError> {
         let notify = Arc::new(ThreadUnpark::new(thread::current()));
         loop {
-            value = match try!(self.start_send_notify(value, &notify, 0)) {
+            value = match self.start_send_notify(value, &notify, 0)? {
                 AsyncSink::NotReady(v) => v,
                 AsyncSink::Ready => return Ok(()),
             };
@@ -361,7 +361,7 @@ impl<S: Sink> Spawn<S> {
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
         let notify = Arc::new(ThreadUnpark::new(thread::current()));
         loop {
-            if try!(self.poll_flush_notify(&notify, 0)).is_ready() {
+            if self.poll_flush_notify(&notify, 0)?.is_ready() {
                 return Ok(())
             }
             notify.park();

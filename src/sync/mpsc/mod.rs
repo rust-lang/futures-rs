@@ -516,7 +516,7 @@ impl<T> Sink for Sender<T> {
         }
 
         // The channel has capacity to accept the message, so send it.
-        try!(self.do_send(Some(msg)));
+        self.do_send(Some(msg))?;
 
         Ok(AsyncSink::Ready)
     }
@@ -574,7 +574,7 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkError = SendError<T>;
 
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        try!(self.0.do_send_nb(msg));
+        self.0.do_send_nb(msg)?;
         Ok(AsyncSink::Ready)
     }
 

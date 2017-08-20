@@ -43,7 +43,7 @@ impl<S: Sink> Future for Send<S> {
 
     fn poll(&mut self) -> Poll<S, S::SinkError> {
         if let Some(item) = self.item.take() {
-            if let AsyncSink::NotReady(item) = try!(self.sink_mut().start_send(item)) {
+            if let AsyncSink::NotReady(item) = self.sink_mut().start_send(item)? {
                 self.item = Some(item);
                 return Ok(Async::NotReady);
             }

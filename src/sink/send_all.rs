@@ -48,7 +48,7 @@ impl<T, U> SendAll<T, U>
 
     fn try_start_send(&mut self, item: U::Item) -> Poll<(), T::SinkError> {
         debug_assert!(self.buffered.is_none());
-        if let AsyncSink::NotReady(item) = try!(self.sink_mut().start_send(item)) {
+        if let AsyncSink::NotReady(item) = self.sink_mut().start_send(item)? {
             self.buffered = Some(item);
             return Ok(Async::NotReady)
         }
@@ -72,7 +72,7 @@ impl<T, U> Future for SendAll<T, U>
         }
 
         loop {
-            match try!(self.stream_mut().poll()) {
+            match self.stream_mut().poll()? {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(item)),
                 Async::Ready(None) => {
                     try_ready!(self.sink_mut().close());

@@ -92,7 +92,7 @@ impl<S: Sink> Future for StartSendFut<S> {
     type Error = S::SinkError;
 
     fn poll(&mut self) -> Poll<S, S::SinkError> {
-        match try!(self.0.as_mut().unwrap().start_send(self.1.take().unwrap())) {
+        match self.0.as_mut().unwrap().start_send(self.1.take().unwrap())? {
             AsyncSink::Ready => Ok(Async::Ready(self.0.take().unwrap())),
             AsyncSink::NotReady(item) => {
                 self.1 = Some(item);
