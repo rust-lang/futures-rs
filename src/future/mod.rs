@@ -56,6 +56,9 @@ mod select;
 mod select2;
 mod then;
 mod either;
+mod with;
+mod and_with;
+mod else_with;
 
 // impl details
 mod chain;
@@ -74,6 +77,9 @@ pub use self::select::{Select, SelectNext};
 pub use self::select2::Select2;
 pub use self::then::Then;
 pub use self::either::Either;
+pub use self::with::With;
+pub use self::and_with::AndWith;
+pub use self::else_with::ElseWith;
 
 if_std! {
     mod catch_unwind;
@@ -968,6 +974,102 @@ pub trait Future {
         where Self: Sized
     {
         shared::new(self)
+    }
+
+    /// Pass some context along into the result of this future, whether or
+    /// not it completes successfully.
+    ///
+    /// If `A` is the original future and `T` is the type of the context, this
+    /// returns a future whose `Item` is `(A::Item, T)` and `Error` is
+    /// `(A::Error, T)`. The context is first moved into the intermediate
+    /// future and then into either variant of the `Result` from `poll` once
+    /// the inner future completes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    /// use std::io::{Error, ErrorKind};
+    ///
+    /// #[derive(Debug)]
+    /// struct Client;
+    /// impl Client {
+    ///     // To chain a series of operations on the Client, we need to consume it
+    ///     // and carry it along between the Futures. At the end we give it back to
+    ///     // the caller along with the output value, or along with an error if
+    ///     // something goes wrong.
+    ///     fn do_a_series_of_things(self) -> Box<Future<Item = (u8, Self), Error = (Error, Self)>>
+    ///     {
+    ///         Box::new(self.do_thing().with((self, 0))
+    ///             .and_then(|(n, (client, sum))| client.do_other_thing().with((client, n + sum)))
+    ///             .and_then(|(n, (client, sum))| client.do_third_thing().with((client, n + sum)))
+    ///             .map(|(n, (client, sum))| (n + sum, client))
+    ///             .map_err(|(err, (client, _sum))| (err, client)))
+    ///     }
+    ///
+    ///     fn do_thing(&self) -> Box<Future<Item = u8, Error = Error>> { Box::new(ok(1)) }
+    ///     fn do_other_thing(&self) -> Box<Future<Item = u8, Error = Error>> { Box::new(ok(2)) }
+    ///     fn do_third_thing(&self) -> Box<Future<Item = u8, Error = Error>> { Box::new(ok(3)) }
+    /// }
+    ///
+    /// let (sum, client) = Client.do_a_series_of_things().wait().unwrap();
+    /// assert_eq!(sum, 6);
+    /// ```
+    fn with<T>(self, context: T) -> With<Self, T>
+        where Self: Sized,
+              T: Sized,
+    {
+        with::new(self, context)
+    }
+
+    /// Pass some context along into the result of this future if it completes
+    /// successfully.
+    ///
+    /// If `A` is the original future and `T` is the type of the context, this
+    /// returns a future whose `Item` is `(A::Item, T)` and `Error` is
+    /// `A::Error`. The context is first moved into the intermediate
+    /// future and then, if the inner future completes successfully, into the
+    /// `Ok` variant of the `Result` from `poll`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let towel = "towel"; // very important, can't leave it behind
+    /// let consult_deep_thought = ok::<u8, ()>(42).and_with(towel);
+    /// assert_eq!(consult_deep_thought.wait(), Ok((42, "towel")));
+    /// ```
+    fn and_with<T>(self, context: T) -> AndWith<Self, T>
+        where Self: Sized,
+              T: Sized,
+    {
+        and_with::new(self, context)
+    }
+
+    /// Pass some context along into the result of this future if it produces
+    /// an error.
+    ///
+    /// If `A` is the original future and `T` is the type of the context, this
+    /// returns a future whose `Item` is `A::Item` and `Error` is
+    /// `(A::Error, T)`. The context is first moved into the intermediate
+    /// future and then, if the inner future produces an error, into the
+    /// `Err` variant of the `Result` from `poll`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let towel = "towel"; // very important, can't leave it behind
+    /// let consult_deep_thought = err::<(), &'static str>("Don't Panic").else_with(towel);
+    /// assert_eq!(consult_deep_thought.wait(), Err(("Don't Panic", "towel")));
+    /// ```
+    fn else_with<T>(self, context: T) -> ElseWith<Self, T>
+        where Self: Sized,
+              T: Sized,
+    {
+        else_with::new(self, context)
     }
 }
 
