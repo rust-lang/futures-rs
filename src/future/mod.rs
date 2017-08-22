@@ -56,6 +56,7 @@ mod select;
 mod select2;
 mod then;
 mod either;
+mod inspect;
 
 // impl details
 mod chain;
@@ -74,6 +75,7 @@ pub use self::select::{Select, SelectNext};
 pub use self::select2::Select2;
 pub use self::then::Then;
 pub use self::either::Either;
+pub use self::inspect::Inspect;
 
 if_std! {
     mod catch_unwind;
@@ -884,6 +886,28 @@ pub trait Future {
     {
         let f = fuse::new(self);
         assert_future::<Self::Item, Self::Error, _>(f)
+    }
+
+    /// Do something with the item of a future, passing it on.
+    ///
+    /// When using futures, you'll often chain several of them together.
+    /// While working on such code, you might want to check out what's happening at
+    /// various parts in the pipeline. To do that, insert a call to inspect().
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let future = ok::<u32, u32>(1);
+    /// let new_future = future.inspect(|&x| println!("about to resolve: {}", x));
+    /// assert_eq!(new_future.wait(), Ok(1));
+    /// ```
+    fn inspect<F>(self, f: F) -> Inspect<Self, F>
+        where F: FnOnce(&Self::Item) -> (),
+              Self: Sized,
+    {
+        assert_future::<Self::Item, Self::Error, _>(inspect::new(self, f))
     }
 
     /// Catches unwinding panics while polling the future.
