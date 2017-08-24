@@ -1,4 +1,4 @@
-# 0.1.15 - unreleased
+# 0.1.15 - 2017-08-24
 
 * Improve performance of `BiLock` methods
 * Implement `Clone` for `FutureResult`
@@ -6,6 +6,31 @@
 * Add `stream::futures_ordered` next to `futures_unordered`
 * Reimplement `Stream::buffered` on top of `stream::futures_ordered` (much more
   efficient at scale).
+* Add a `with_notify` function for abstractions which previously required
+  `UnparkEvent`.
+* Add `get_ref`/`get_mut`/`into_inner` functions for stream take/skip methods
+* Add a `Clone` implementation for `SharedItem` and `SharedError`
+* Add a `mpsc::spawn` function to spawn a `Stream` into an `Executor`
+* Add a `reunite` function for `BiLock` and the split stream/sink types to
+  rejoin two halves and reclaim the original item.
+* Add `stream::poll_fn` to behave similarly to `future::poll_fn`
+* Add `Sink::with_flat_map` like `Iterator::flat_map`
+* Bump the minimum Rust version to 1.13.0
+* Expose `AtomicTask` in the public API for managing synchronization around task
+  notifications.
+* Unify the `Canceled` type of the `sync` and `unsync` modules.
+* Deprecate the `boxed` methods. These methods have caused more confusion than
+  they've solved historically, so it's recommended to use a local extension
+  trait or a local helper instead of the trait-based methods.
+* Deprecate the `Stream::merge` method as it's less ergonomic than `select`.
+* Add `oneshot::Sender::is_canceled` to test if a oneshot is canceled off a
+  task.
+* Deprecates `UnboundedSender::send` in favor of a method named `unbounded_send`
+  to avoid a conflict with `Sink::send`.
+* Deprecate the `stream::iter` function in favor of an `stream::iter_ok` adaptor
+  to avoid the need to deal with `Result` manually.
+* Add an `inspect` function to the `Future` and `Stream` traits along the lines
+  of `Iterator::inspect`
 
 # 0.1.14 - 2017-05-30
 
