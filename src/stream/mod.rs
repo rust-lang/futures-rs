@@ -41,6 +41,7 @@ mod for_each;
 mod from_err;
 mod fuse;
 mod future;
+mod inspect;
 mod map;
 mod map_err;
 mod merge;
@@ -69,6 +70,7 @@ pub use self::for_each::ForEach;
 pub use self::from_err::FromErr;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
+pub use self::inspect::Inspect;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
 #[allow(deprecated)]
@@ -1068,6 +1070,18 @@ pub trait Stream {
         where Self: super::sink::Sink + Sized
     {
         split::split(self)
+    }
+
+    /// Do something with each item of this stream, afterwards passing it on.
+    ///
+    /// This is similar to the `Iterator::inspect` method in the standard
+    /// library where it allows easily inspecting each value as it passes
+    /// through the stream, for example to debug what's going.
+    fn inspect<F>(self, f: F) -> Inspect<Self, F>
+        where F: FnMut(&Self::Item),
+              Self: Sized,
+    {
+        inspect::new(self, f)
     }
 }
 
