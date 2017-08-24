@@ -110,10 +110,13 @@ if_std! {
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
-    pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink};
     pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
+
+    #[allow(deprecated)]
+    #[doc(hidden)]
+    pub use self::wait::Wait;
 
     #[doc(hidden)]
     #[cfg(feature = "with-deprecated")]
@@ -237,6 +240,9 @@ pub trait Stream {
     /// The returned iterator does not attempt to catch panics. If the `poll`
     /// function panics, panics will be propagated to the caller of `next`.
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[deprecated(note = "renamed to `current_thread::BlockingStream")]
+    #[allow(deprecated)]
     fn wait(self) -> Wait<Self>
         where Self: Sized
     {

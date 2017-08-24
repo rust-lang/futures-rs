@@ -1,3 +1,7 @@
+#![doc(hidden)]
+#![deprecated(note = "renamed to `current_thread::BlockingSink")]
+#![allow(deprecated)]
+
 use sink::Sink;
 use executor;
 

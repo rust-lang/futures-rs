@@ -293,6 +293,9 @@ pub trait Future {
     /// This function does not attempt to catch panics. If the `poll` function
     /// of this future panics, panics will be propagated to the caller.
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "renamed to `current_thread::block_until")]
     fn wait(self) -> result::Result<Self::Item, Self::Error>
         where Self: Sized
     {

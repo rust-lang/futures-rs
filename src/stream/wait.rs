@@ -1,3 +1,7 @@
+#![deprecated(note = "renamed to `current_thread::BlockingSink")]
+#![allow(deprecated)]
+#![doc(hidden)]
+
 use stream::Stream;
 use executor;
 

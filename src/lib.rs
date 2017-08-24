@@ -209,7 +209,8 @@ pub mod executor;
 pub mod sync;
 #[cfg(feature = "use_std")]
 pub mod unsync;
-
+#[cfg(feature = "use_std")]
+pub mod thread;
 
 if_std! {
     #[doc(hidden)]

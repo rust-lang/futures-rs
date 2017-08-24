@@ -27,6 +27,9 @@ if_std! {
     mod wait;
 
     pub use self::buffer::Buffer;
+
+    #[allow(deprecated)]
+    #[doc(hidden)]
     pub use self::wait::Wait;
 
     // TODO: consider expanding this via e.g. FromIterator
@@ -291,6 +294,9 @@ pub trait Sink {
     /// to `start_send` and `poll_complete` above except are executed in a
     /// blocking fashion.
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[deprecated(note = "renamed to `current_thread::BlockingSink")]
+    #[allow(deprecated)]
     fn wait(self) -> Wait<Self>
         where Self: Sized
     {

@@ -14,7 +14,7 @@ fn successful_future() {
 
     let stream = future_of_a_stream.flatten_stream();
 
-    let mut iter = stream.wait();
+    let mut iter = (stream);
     assert_eq!(Ok(17), iter.next().unwrap());
     assert_eq!(Ok(19), iter.next().unwrap());
     assert_eq!(None, iter.next());
