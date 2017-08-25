@@ -194,9 +194,9 @@ pub trait Future {
     /// When a future is not ready yet, the `Async::NotReady` value will be
     /// returned. In this situation the future will *also* register interest of
     /// the current task in the value being produced. This is done by calling
-    /// `task::park` to retrieve a handle to the current `Task`. When the future
-    /// is then ready to make progress (e.g. it should be `poll`ed again) the
-    /// `unpark` method is called on the `Task`.
+    /// `task::current` to retrieve a handle to the current `Task`. When the
+    /// future is then ready to make progress (e.g. it should be `poll`ed again)
+    /// the `notify` method is called on the `Task`.
     ///
     /// More information about the details of `poll` and the nitty-gritty of
     /// tasks can be [found online at tokio.rs][poll-dox].
@@ -237,8 +237,8 @@ pub trait Future {
     ///
     /// If `NotReady` is returned, then the future will internally register
     /// interest in the value being produced for the current task (through
-    /// `task::park`). In other words, the current task will receive a
-    /// notification (through the `unpark` method) once the value is ready to be
+    /// `task::current`). In other words, the current task will receive a
+    /// notification (through the `notify` method) once the value is ready to be
     /// produced or the future can make progress.
     ///
     /// Note that if `NotReady` is returned it only means that *this* task will
