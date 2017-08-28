@@ -87,6 +87,8 @@ This implementation is currently fundamentally built on generators/coroutines.
 This feature has [just landed][genpr] and will be in the nightly channel of Rust
 as of 2017-08-29. You can acquire the nightly channel via;
 
+[genpr]: https://github.com/rust-lang/rust/pull/43076
+
 ```
 rustup update nightly
 ```
