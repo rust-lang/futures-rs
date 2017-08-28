@@ -209,6 +209,8 @@ pub mod sync;
 #[cfg(feature = "use_std")]
 pub mod unsync;
 
+mod never;
+pub use never::Never;
 
 if_std! {
     #[doc(hidden)]
