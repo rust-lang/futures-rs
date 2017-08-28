@@ -427,15 +427,12 @@ We'll gloss over the `self` details here for a bit, but in essence we've got a
 function in a trait tha twants to return a future. Unfortunately it's actually
 quite difficult to use this! Right now there's a few of caveats:
 
-* Ideally you want to tag this `#[async]` but this is (a) not implemented in the
-  procedural macro right now (it doesn't rewrite trait function declarations)
-  but also (b) it doesn't work because a trait function returning `impl Future`
-  is not implemented in the compiler today. I'm told that this will eventually
-  work, though!
+* Ideally you want to tag this `#[async]` but this doesn't work because a trait
+  function returning `impl Future` is not implemented in the compiler today. I'm
+  told that this will eventually work, though!
 * Ok so then the next best thing is `#[async(boxed)]` to return a boxed trait
-  object instead of `impl Future` for the meantime. This still isn't actually
-  implemented in the `futures-await` implementation of `#[async]` (it doesn't
-  rewrite trait functions) but it's plausible!
+  object instead of `impl Future` for the meantime. This may not be quite what
+  we want runtime-wise but we also have problems with...
 * But now this brings us to the handling of `self`. Because of the limitations
   of `#[async]` today we only have two options, `self` and `self: Box<Self>`.
   The former is unfortunately not object safe (now we can't use virtual dispatch
@@ -455,6 +452,7 @@ trait MyStuff {
     // Note that the upside of this approach, though, is that `self` could be
     // something like `Rc` or have a bunch fo `Rc` inside of `self`, so this
     // could be cheap to call.
+    #[async]
     fn do_async_task(self) -> Box<Future<...>>;
 }
 ```
@@ -467,6 +465,7 @@ trait MyStuff {
     // safe, allowing virtual dispatch. The downside is that we must have a
     // `Box` on hand every time we call this function, which may be costly in
     // some situations.
+    #[async]
     fn do_async_task(self: Box<Self>) -> Box<Future<...>>;
 }
 ```
@@ -485,9 +484,22 @@ but this needs three pieces to be implemented:
 * The compiler must accept trait functions returning `impl Trait`
 * The compiler needs support for `self: Rc<Self>`, basically object-safe custom
   smart pointers in traits.
-* And finally, the compiler needs to support `proc_macro_attribute` expansion on
-  trait functions like this, allowing the `#[async]` implementation to rewrite
-  this signature.
+
+You can emulate this today with a non-object-safe implementation via:
+
+```rust
+trait Foo {
+    #[async]
+    fn do_async_task(me: Rc<Self>) -> Result<i32, u32>;
+}
+
+fn foo<T: Foo>(t: Rc<T>) {
+    let x = Foo::trait_fn(t);
+    // ...
+}
+```
+
+But that's not exactly the most ergonomic!
 
 # License
 
