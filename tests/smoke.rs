@@ -80,7 +80,7 @@ fn _bar3() -> Result<i32, i32> {
 fn _bar4() -> Result<i32, i32> {
     let mut cnt = 0;
     #[async]
-    for x in futures::stream::iter(vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Ok(4)]) {
+    for x in futures::stream::iter_ok::<_, i32>(vec![1, 2, 3, 4]) {
         cnt += x;
     }
     Ok(cnt)
@@ -127,11 +127,11 @@ fn main() {
 #[async]
 fn loop_in_loop() -> Result<bool, i32> {
     let mut cnt = 0;
-    let vec = vec![Ok::<i32, i32>(1), Ok(2), Ok(3), Ok(4)];
+    let vec = vec![1, 2, 3, 4];
     #[async]
-    for x in futures::stream::iter(vec.clone()) {
+    for x in futures::stream::iter_ok::<_, i32>(vec.clone()) {
         #[async]
-        for y in futures::stream::iter(vec.clone()) {
+        for y in futures::stream::iter_ok::<_, i32>(vec.clone()) {
             cnt += x * y;
         }
     }

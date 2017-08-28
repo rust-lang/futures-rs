@@ -40,7 +40,7 @@ The notable points here are:
   use the `?` operator as well as simple `return Err` statements. With the
   combinators in the [`futures`] crate this is generally much more cumbersome.
 * The future returned from `fetch_rust_lang` is actually a state machine
-  generated at compile time and does not implicit memory allocation. This is
+  generated at compile time and does no implicit memory allocation. This is
   built on top of generators, described below.
 
 You can also have async methods:
@@ -84,22 +84,23 @@ be used inside of an `#[async]` function.
 ## How do I use this?
 
 This implementation is currently fundamentally built on generators/coroutines.
-This feature has not landed in the rust-lang/rust master branch of the Rust
-compiler. To work with this repository currently you'll need to build your own
-compiler from this branch https://github.com/Zoxc/rust/tree/gen.
+This feature has [just landed][genpr] and will be in the nightly channel of Rust
+as of 2017-08-29. You can acquire the nightly channel via;
 
 ```
-git clone https://github.com/Zoxc/rust --branch gen
-cd rust
-./x.py build
+rustup update nightly
 ```
 
-Once that's done you can use the compiler in `build/$target/stage2/bin/rustc`.
+After doing this you'll want to ensure that Cargo's using the nightly toolchain
+by invoking it like:
 
-To actually use this crate you use a skeleton like this:
+```
+cargo +nightly build
+```
+
+Next you'll add this to your `Cargo.toml`
 
 ```toml
-# In your Cargo.toml ...
 [dependencies]
 futures-await = { git = 'https://github.com/alexcrichton/futures-await' }
 ```
@@ -141,16 +142,199 @@ code is much more readable afterwards, especially [these changes]
 [branch]: https://github.com/alexcrichton/sccache/tree/async-await
 [these changes]: https://github.com/alexcrichton/sccache/commit/927fe00d466ce8a61c37e48c236ac5fe82cb6280#diff-67d38c24e74f3822389d7fe6916b9e69L98
 
+## Technical Details
+
+As mentioned before this crate is fundamentally built on the feature of
+*generators* in Rust. Generators, otherwise known in this case as stackless
+coroutines, allow the compiler to generate an optimal implementation for a
+`Future` for a function to transform a synchronous-looking block of code into a
+`Future` that can execute asynchronously. The desugaring here is surprisingly
+straightforward from code you write to code rustc compiles, and you can browse
+the source of the `futures-async-macro` crate for more details here.
+
+Otherwise there's a few primary "APIs" provided by this crate:
+
+* `#[async]` - this attribute can be applied to methods and functions to signify
+  that it's an *asynchronous function*. The function's signature *must* return a
+  `Result` of some form (although it can return a typedef of results).
+  Additionally, **the function's arguments must all be owned values**, or in
+  other words must contain no references. This restriction may be lifted in the
+  future!
+
+  Some examples are:
+
+  ```rust
+  // attribute on a bare function
+  #[async]
+  fn foo(a: i32) -> Result<u32, String> {
+      // ...
+  }
+
+  // returning a typedef works too!
+  #[async]
+  fn foo() -> io::Result<u32> {
+      // ...
+  }
+
+  impl Foo {
+      // methods also work!
+      #[async]
+      fn foo(self) -> io::Result<u32> {
+          // ...
+      }
+  }
+
+  // For now, however, these do not work, they both have arguments which contain
+  // references! This may work one day, but it does not work today.
+  //
+  // #[async]
+  // fn foo(a: &i32) -> io::Result<u32> { /* ... */ }
+  //
+  // impl Foo {
+  //     #[async]
+  //     fn foo(&self) -> io::Result<u32> { /* ... */ }
+  // }
+  ```
+
+  Note that an `#[async]` function is intended to behave very similarly to that
+  of its synchronous version. For example the `?` operator works internally, you
+  can use an early `return` statement, etc.
+
+  Under the hood an `#[async]` function is compiled t oa state machine which
+  represents a future for this function, and the state machine's suspension
+  points will be where the `await!` macro is located.
+
+* `async_block!` - this macro is similar to `#[async]` in that it creates a
+  future, but unlike `#[async]` it can be used in an expression context and
+  doesn't need a dedicated function. This macro can be considered as "run this
+  block of code asynchronously" where the block of code provided, like an async
+  function, returns a result of some form. For example:
+
+  ```rust
+  let server = TcpListener::bind(..);
+  let future = async_block! {
+      #[async]
+      for connection in server.incoming() {
+          spawn(hande_connection(connection));
+      }
+      Ok(())
+  };
+  core.run(future).unwrap();
+  ```
+
+  or if you'd like to do some precomputation in a function:
+
+  ```rust
+  fn hash_file(path: &Path, pool: &CpuPool)
+      -> impl Future<Item = u32, Error = io::Error>
+  {
+      let abs_path = calculate_abs_path(path);
+      async_block! {
+          let contents = await!(read_file)?;
+          Ok(hash(&contents))
+      }
+  }
+  ```
+
+* `await!` - this is a macro provided in the `futures-await-macro` crate which
+  allows waiting on a future to complete. The `await!` macro can only be used
+  inside of an `#[async]` function or an `async_block!` and can be thought of as
+  a function that looks like:
+
+  ```rust
+  fn await!<F: Future>(future: F) -> Result<F::Item, F::Error> {
+      // magic
+  }
+  ```
+
+  Some examples of this macro are:
+
+  ```rust
+  #[async]
+  fn fetch_url(client: hyper::Client, url: String) -> io::Result<Vec<u8>> {
+      // note the trailing `?` to propagate errors
+      let response = await!(client.get(url))?;
+      await!(response.body().concat())
+  }
+  ```
+
+* `#[async]` for loops - and finally, the last feature provided by this crate is
+  the ability to iterate asynchronously over a `Stream`. You can do this by
+  attaching the `#[async]` attribute to a `for` loop where the object being
+  iterated over implements the `Stream` trait.
+
+  Errors from the stream will get propagated automatically, and otherwise, the
+  for loop will exhauste the stream to completion, binding each element to the
+  pattern provided.
+
+  Some examples are:
+
+  ```rust
+  #[async]
+  fn accept_connections(listener: TcpListener) -> io::Result<()> {
+      #[async]
+      for connection in server.incoming() {
+          // `connection` here has type `TcpStream`
+      }
+      Ok(())
+  }
+  ```
+
+  Note that an `#[async]` for loop, like `await!`, can only be used in an async
+  function or an async block.
+
+### Nightly features
+
+Right now this crate requires two nightly features to be used, and practically
+requires three features to be used to its fullest extent. These three features
+are:
+
+* `#![feature(generators)]` - this is an experimental language feature that has
+  yet to be stabilized but is the foundation for the implementation of
+  async/await. The implemented [landed recently][genpr] and progress on
+  stabilization can be found on its [tracking issue][gentrack].
+
+* `#![feature(proc_macro)]` - this has also been dubbed "Macros 2.0" and is how
+  the `#[async]` attribute is defined in this crate and not the compiler itself.
+  We then also take advantage of other macros 2.0 features like importing macros
+  via `use` instead of `#[macro_use]`. Tracking issues for this feature include
+  [#38356] and [#35896].
+
+* `#![feature(conservative_impl_trait)]` - this feature is not actually required
+  to use the crate if you opt to always use trait objects via `#[async(boxed)]`,
+  but it's practically required to use the crate ergonomically. This feature is
+  used because each function returns `impl Future<...>` instead of a concrete
+  type of future. This feature is tracked at [#34511] and [#42183].
+
+[gentrack]: https://github.com/rust-lang/rust/issues/43122
+[#38356]: https://github.com/rust-lang/rust/issues/38356
+[#35896]: https://github.com/rust-lang/rust/issues/35896
+[#34511]: https://github.com/rust-lang/rust/issues/34511
+[#42183]: https://github.com/rust-lang/rust/issues/42183
+
+The intention with this crate is that the newest feature, `generators`, will
+be the last to stabilize. The other two, `proc_macro` and
+`conservative_impl_trait`, should hopefully stabilize ahead of generators!
+
 ## What's next?
 
-This crate is very much in flux at the moment due to everything being super
-unstable and nothing's even in the master branch of rust-lang/rust. I hope to
-get this more "stable" on nightly at least in terms of breaking less often as
-well as fixing bugs that arise.
+This crate is still quite new and generators have only *just* landed on the
+nightly channel for Rust. While no major change is planned to this crate at this
+time, we'll have to see how this all pans out! One of the major motivational
+factors for landing generators so soon in the language was to transitively
+empower this implementation of async/await, and your help is needed in assessing
+that!
 
-At the moment it's definitely not recommended to use this in production at all,
-if you'd like though please feel more than welcome to try it out! If you run
-into any questions or have any issues, you're more than welcome to [open an
+Notably, we're looking for feedback on async/await in this crate itself as well
+as generators as a language feature. We want to be sure that if we were to
+stabilize generators or procedural macros they're providing the optimal
+async/await experience!
+
+At the moment you're encouraged to take caution when using this in production.
+This crate itself has only been very lightly tested and the `generators`
+language feature has also only been lightly tested so far. Caution is advised
+along with a suggestion to keep your eyes peeled for bugs! If you run into any
+questions or have any issues, you're more than welcome to [open an
 issue][issue]!
 
 [issue]: https://github.com/alexcrichton/futures-await/issues/new
@@ -158,10 +342,9 @@ issue][issue]!
 ## Caveats
 
 As can be expected with many nightly features, there are a number of caveats to
-be aware of when working with this project. The main one is that this is early
-stages work. Nothing is upstream yet. Things will break! That being said bug
-reports are more than welcome, always good to know what needs to be rixed
-regardless!
+be aware of when working with this project. Despite this bug reports or
+experience reports are more than welcome, always good to know what needs to be
+fixed regardless!
 
 ### Borrowing
 
