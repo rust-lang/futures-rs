@@ -23,6 +23,8 @@ fn main() {
     // Bind the server's socket
     let addr = "127.0.0.1:12345".parse().unwrap();
     let tcp = TcpListener::bind(&addr, &handle).expect("failed to bind listener");
+    println!("listening for connections on {}",
+             tcp.local_addr().unwrap());
 
     let server = async_block! {
         #[async]
