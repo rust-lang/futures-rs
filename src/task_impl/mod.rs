@@ -1,7 +1,9 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-use {Poll, Future, Stream, Sink, StartSend};
+use {Async, Poll, Future, Stream, Sink, StartSend};
+use future::InfallibleFuture;
+use stream::InfallibleStream;
 
 mod atomic_task;
 pub use self::atomic_task::AtomicTask;
@@ -290,6 +292,20 @@ impl<F: Future> Spawn<F> {
     }
 }
 
+impl<F: InfallibleFuture> Spawn<F> {
+    /// Like `poll_future_notify`, but infallible.
+    pub fn poll_infallible_future_notify<T>(
+        &mut self,
+        notify: &T,
+        id: usize
+        ) -> Async<F::Item>
+        where T: Clone + Into<NotifyHandle>
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::new(&mk, id), |f| f.poll_infallible())
+    }
+}
+
 impl<S: Stream> Spawn<S> {
     /// Like `poll_future_notify`, except polls the underlying stream.
     pub fn poll_stream_notify<T>(&mut self,
@@ -300,6 +316,20 @@ impl<S: Stream> Spawn<S> {
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll())
+    }
+}
+
+impl<S: InfallibleStream> Spawn<S> {
+    /// Like `poll_future_notify`, except polls the underlying stream.
+    pub fn poll_infallible_stream_notify<T>(
+        &mut self,
+        notify: &T,
+        id: usize
+        ) -> Async<Option<S::Item>>
+        where T: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll_infallible())
     }
 }
 

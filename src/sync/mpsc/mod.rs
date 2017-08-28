@@ -78,10 +78,11 @@ use std::usize;
 
 use sync::mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
-use future::Executor;
+use future::{Executor, InfallibleFuture};
 use sink::SendAll;
 use resultstream::{self, Results};
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
+use stream::InfallibleStream;
 
 mod queue;
 
@@ -762,11 +763,8 @@ impl<T> Receiver<T> {
     }
 }
 
-impl<T> Stream for Receiver<T> {
-    type Item = T;
-    type Error = ();
-
-    fn poll(&mut self) -> Poll<Option<T>, ()> {
+impl<T> InfallibleStream for Receiver<T> {
+    fn poll_infallible(&mut self) -> Async<Option<T>> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -779,12 +777,12 @@ impl<T> Stream for Receiver<T> {
                         TryPark::Parked => {
                             // The task was parked, and the channel is still
                             // empty, return NotReady.
-                            return Ok(Async::NotReady);
+                            return Async::NotReady;
                         }
                         TryPark::Closed => {
                             // The channel is closed, there will be no further
                             // messages.
-                            return Ok(Async::Ready(None));
+                            return Async::Ready(None);
                         }
                         TryPark::NotEmpty => {
                             // A message has been sent while attempting to
@@ -804,8 +802,17 @@ impl<T> Stream for Receiver<T> {
             self.dec_num_messages();
 
             // Return the message
-            return Ok(Async::Ready(msg));
+            return Async::Ready(msg);
         }
+    }
+}
+
+impl<T> Stream for Receiver<T> {
+    type Item = T;
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Option<T>, ()> {
+        Ok(self.poll_infallible())
     }
 }
 
@@ -826,6 +833,12 @@ impl<T> UnboundedReceiver<T> {
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
         self.0.close();
+    }
+}
+
+impl<T> InfallibleStream for UnboundedReceiver<T> {
+    fn poll_infallible(&mut self) -> Async<Option<T>> {
+        self.0.poll_infallible()
     }
 }
 
@@ -939,15 +952,21 @@ impl<I, E> fmt::Debug for SpawnHandle<I, E> {
     }
 }
 
+impl<S: Stream> InfallibleFuture for Execute<S> {
+    fn poll_infallible(&mut self) -> Async<()> {
+       match self.inner.poll() {
+            Ok(Async::NotReady) => Async::NotReady,
+            _ => Async::Ready(())
+        } 
+    }
+}
+
 impl<S: Stream> Future for Execute<S> {
     type Item = ();
     type Error = ();
 
     fn poll(&mut self) -> Poll<(), ()> {
-        match self.inner.poll() {
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            _ => Ok(Async::Ready(()))
-        }
+        Ok(self.poll_infallible())
     }
 }
 

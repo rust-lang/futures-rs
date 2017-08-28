@@ -8,7 +8,7 @@ use std::fmt;
 use std::rc::{Rc, Weak};
 
 use {Future, Poll, Async};
-use future::{Executor, IntoFuture, Lazy, lazy};
+use future::{Executor, InfallibleFuture, IntoFuture, Lazy, lazy};
 use task::{self, Task};
 
 /// Creates a new futures-aware, one-shot channel.
@@ -301,27 +301,33 @@ impl<T: fmt::Debug, E: fmt::Debug> fmt::Debug for SpawnHandle<T, E> {
     }
 }
 
-impl<F: Future> Future for Execute<F> {
-    type Item = ();
-    type Error = ();
-
-    fn poll(&mut self) -> Poll<(), ()> {
+impl<F: Future> InfallibleFuture for Execute<F> {
+    fn poll_infallible(&mut self) -> Async<()> {
         // If we're canceled then we may want to bail out early.
         //
         // If the `forget` function was called, though, then we keep going.
         if self.tx.as_mut().unwrap().poll_cancel().unwrap().is_ready() {
             if !self.keep_running.get() {
-                return Ok(().into())
+                return ().into()
             }
         }
 
         let result = match self.future.poll() {
-            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::NotReady) => return Async::NotReady,
             Ok(Async::Ready(t)) => Ok(t),
             Err(e) => Err(e),
         };
         drop(self.tx.take().unwrap().send(result));
-        Ok(().into())
+        ().into()
+    }
+}
+
+impl<F: Future> Future for Execute<F> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<(), ()> {
+        Ok(self.poll_infallible())
     }
 }
 
