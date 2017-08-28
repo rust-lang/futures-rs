@@ -52,7 +52,7 @@ fn handle_client(socket: TcpStream) -> io::Result<u64> {
     for line in tokio_io::io::lines(input) {
         println!("got client line: {}", line);
         total += line.len() as u64;
-		writer = await!(tokio_io::io::write_all(writer, line))?.0;
+        writer = await!(tokio_io::io::write_all(writer, line))?.0;
     }
 
     Ok(total)
