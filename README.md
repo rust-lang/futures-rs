@@ -426,7 +426,7 @@ trait MyStuff {
 ```
 
 We'll gloss over the `self` details here for a bit, but in essence we've got a
-function in a trait tha twants to return a future. Unfortunately it's actually
+function in a trait that wants to return a future. Unfortunately it's actually
 quite difficult to use this! Right now there's a few of caveats:
 
 * Ideally you want to tag this `#[async]` but this doesn't work because a trait
