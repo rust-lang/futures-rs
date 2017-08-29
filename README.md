@@ -202,7 +202,7 @@ Otherwise there's a few primary "APIs" provided by this crate:
   of its synchronous version. For example the `?` operator works internally, you
   can use an early `return` statement, etc.
 
-  Under the hood an `#[async]` function is compiled t oa state machine which
+  Under the hood an `#[async]` function is compiled to a state machine which
   represents a future for this function, and the state machine's suspension
   points will be where the `await!` macro is located.
 
