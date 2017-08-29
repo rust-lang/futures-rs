@@ -381,7 +381,7 @@ fn foo(s: String) -> io::Result<()> {
 or somehow otherwise use an owned value instead of a borrowed reference.
 
 Note that arguments are not the only point of pain with borrowing. For example
-code like this will (or at least shouldn't) compile today:
+code like this will not (or at least shouldn't) compile today:
 
 ```rust
 for line in string.lines() {
