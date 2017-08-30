@@ -217,7 +217,7 @@ Otherwise there's a few primary "APIs" provided by this crate:
   let future = async_block! {
       #[async]
       for connection in server.incoming() {
-          spawn(hande_connection(connection));
+          spawn(handle_connection(connection));
       }
       Ok(())
   };
