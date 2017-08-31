@@ -3,7 +3,7 @@ extern crate futures;
 use std::sync::mpsc;
 use std::thread;
 
-use futures::{Future, Poll};
+use futures::prelude::*;
 use futures::future::{lazy, ok};
 use futures::sync::oneshot::*;
 

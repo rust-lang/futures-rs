@@ -2,10 +2,10 @@ extern crate futures;
 
 use std::thread;
 
-use futures::{Async, Poll};
+use futures::prelude::*;
 use futures::executor;
-use futures::stream::{self, Stream};
-use futures::future::{self, Future};
+use futures::stream;
+use futures::future;
 use futures::sync::BiLock;
 
 mod support;

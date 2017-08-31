@@ -1,6 +1,6 @@
 extern crate futures;
 
-use futures::{Future, StartSend, Sink, Stream, Poll};
+use futures::prelude::*;
 use futures::stream::iter_ok;
 
 struct Join<T, U>(T, U);

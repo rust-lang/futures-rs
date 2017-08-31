@@ -4,7 +4,7 @@ extern crate futures;
 
 mod support;
 
-use futures::{Future, Stream, Sink, Async};
+use futures::prelude::*;
 use futures::unsync::oneshot;
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::lazy;

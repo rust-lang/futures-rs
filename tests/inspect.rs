@@ -1,6 +1,7 @@
 extern crate futures;
 
-use futures::future::{ok, err, Future};
+use futures::prelude::*;
+use futures::future::{ok, err};
 
 #[test]
 fn smoke() {

@@ -1,7 +1,7 @@
 extern crate futures;
 
 use futures::stream;
-use futures::stream::Stream;
+use futures::prelude::*;
 
 #[test]
 fn panic_in_the_middle_of_the_stream() {

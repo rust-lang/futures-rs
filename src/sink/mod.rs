@@ -335,10 +335,10 @@ pub trait Sink {
     /// function
     ///
     /// ```
-    /// use futures::{Sink,Future,Stream};
+    /// use futures::prelude::*;
     /// use futures::stream;
     /// use futures::sync::mpsc;
-    /// 
+    ///
     /// let (tx, rx) = mpsc::channel::<i32>(5);
     ///
     /// let tx = tx.with_flat_map(|x| {

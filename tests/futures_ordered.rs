@@ -4,7 +4,7 @@ use std::any::Any;
 
 use futures::sync::oneshot;
 use futures::stream::futures_ordered;
-use futures::Future;
+use futures::prelude::*;
 
 mod support;
 

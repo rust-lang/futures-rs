@@ -2,7 +2,7 @@
 
 extern crate futures;
 
-use futures::{Future, Stream, Sink, Async, AsyncSink};
+use futures::prelude::*;
 use futures::future::{lazy, ok};
 use futures::stream::unfold;
 use futures::sync::mpsc;
