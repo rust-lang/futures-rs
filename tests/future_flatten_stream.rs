@@ -3,7 +3,7 @@ extern crate futures;
 
 use core::marker;
 
-use futures::{Stream, Future, Poll};
+use futures::prelude::*;
 use futures::future::{ok, err};
 use futures::stream;
 

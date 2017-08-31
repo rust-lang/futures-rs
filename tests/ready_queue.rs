@@ -2,7 +2,7 @@ extern crate futures;
 
 use std::panic::{self, AssertUnwindSafe};
 
-use futures::{Future, Stream, Poll};
+use futures::prelude::*;
 use futures::Async::*;
 use futures::future;
 use futures::stream::FuturesUnordered;

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::{Ordering, AtomicBool};
 
-use futures::{Poll, Async, Future, AsyncSink, StartSend};
+use futures::prelude::*;
 use futures::future::ok;
 use futures::stream;
 use futures::sync::{oneshot, mpsc};

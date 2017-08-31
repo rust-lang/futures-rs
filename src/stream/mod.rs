@@ -301,7 +301,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::Stream;
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -327,7 +327,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::Stream;
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -357,7 +357,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::Stream;
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -387,7 +387,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::Stream;
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -426,7 +426,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::Stream;
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -469,7 +469,7 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::*;
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -535,7 +535,7 @@ pub trait Stream {
     /// ```
     /// use std::thread;
     ///
-    /// use futures::{Stream, Future, Sink};
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (mut tx, rx) = mpsc::channel(1);
@@ -572,7 +572,7 @@ pub trait Stream {
     /// ```
     /// use std::thread;
     ///
-    /// use futures::{Future, Sink, Stream};
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (mut tx, rx) = mpsc::channel(1);
@@ -605,7 +605,7 @@ pub trait Stream {
     /// ```
     /// use std::thread;
     ///
-    /// use futures::{Future, Sink, Stream};
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (mut tx, rx) = mpsc::channel(1);
@@ -647,11 +647,12 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::stream::{self, Stream};
-    /// use futures::future::{ok, Future};
+    /// use futures::prelude::*;
+    /// use futures::stream;
+    /// use futures::future;
     ///
     /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
-    /// let sum = number_stream.fold(0, |acc, x| ok(acc + x));
+    /// let sum = number_stream.fold(0, |acc, x| future::ok(acc + x));
     /// assert_eq!(sum.wait(), Ok(15));
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
@@ -673,7 +674,7 @@ pub trait Stream {
     /// ```
     /// use std::thread;
     ///
-    /// use futures::{Future, Stream, Poll, Sink};
+    /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (tx1, rx1) = mpsc::channel::<i32>(1);
@@ -827,16 +828,17 @@ pub trait Stream {
     /// ownership of the original stream.
     ///
     /// ```
-    /// use futures::future::{ok, Future};
-    /// use futures::stream::{self, Stream};
+    /// use futures::prelude::*;
+    /// use futures::stream;
+    /// use futures::future;
     ///
-    /// let mut stream = stream::iter::<_, _, ()>((1..5).map(Ok));
+    /// let mut stream = stream::iter_ok::<_, ()>(1..5);
     ///
-    /// let sum = stream.by_ref().take(2).fold(0, |a, b| ok(a + b)).wait();
+    /// let sum = stream.by_ref().take(2).fold(0, |a, b| future::ok(a + b)).wait();
     /// assert_eq!(sum, Ok(3));
     ///
     /// // You can use the stream again
-    /// let sum = stream.take(2).fold(0, |a, b| ok(a + b)).wait();
+    /// let sum = stream.take(2).fold(0, |a, b| future::ok(a + b)).wait();
     /// assert_eq!(sum, Ok(7));
     /// ```
     fn by_ref(&mut self) -> &mut Self
@@ -866,11 +868,10 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```rust
+    /// use futures::prelude::*;
     /// use futures::stream;
-    /// use futures::stream::Stream;
     ///
-    /// let stream = stream::iter::<_, Option<i32>, bool>(vec![
-    ///     Some(10), None, Some(11)].into_iter().map(Ok));
+    /// let stream = stream::iter_ok::<_, bool>(vec![Some(10), None, Some(11)]);
     /// // panic on second element
     /// let stream_panicking = stream.map(|o| o.unwrap());
     /// let mut iter = stream_panicking.catch_unwind().wait();
@@ -960,8 +961,8 @@ pub trait Stream {
     /// first stream reaches the end, emits the elements from the second stream.
     ///
     /// ```rust
+    /// use futures::prelude::*;
     /// use futures::stream;
-    /// use futures::stream::Stream;
     ///
     /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
     /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);

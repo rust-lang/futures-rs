@@ -1,6 +1,6 @@
 extern crate futures;
 
-use futures::Future;
+use futures::prelude::*;
 use futures::future;
 use futures::unsync::oneshot::{channel, Canceled};
 

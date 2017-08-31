@@ -2,7 +2,7 @@ extern crate futures;
 
 use std::thread;
 
-use futures::{Sink, Stream, Future};
+use futures::prelude::*;
 use futures::sync::mpsc::*;
 
 #[test]

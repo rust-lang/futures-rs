@@ -2,7 +2,7 @@ extern crate futures;
 
 use std::sync::atomic::*;
 
-use futures::{Future, Stream, Sink};
+use futures::prelude::*;
 use futures::future::result;
 use futures::sync::mpsc;
 
