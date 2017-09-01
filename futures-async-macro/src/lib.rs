@@ -174,7 +174,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         //         Error = <#output as ::futures::__rt::MyTry>::MyError,
         //     >
         // }
-        quote! { impl ::futures::__rt::MyFuture<!> }
+        quote! { impl ::futures::__rt::MyFuture<!> + 'static }
     };
     let return_ty = respan(return_ty.into(), &output_span);
     let return_ty = replace_bang(return_ty, &output);

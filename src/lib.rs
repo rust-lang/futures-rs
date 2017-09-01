@@ -50,10 +50,10 @@ pub mod __rt {
     use futures::{Future, Async};
     use std::ops::GeneratorState;
 
-    pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> + 'static {}
+    pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> {}
 
     impl<F, T> MyFuture<T> for F
-        where F: Future<Item = T::Ok, Error = T::Err > + ?Sized + 'static,
+        where F: Future<Item = T::Ok, Error = T::Err > + ?Sized,
               T: IsResult
     {}
 
@@ -81,7 +81,7 @@ pub mod __rt {
     struct GenFuture<T>(T);
 
     pub fn gen<T>(gen: T) -> impl MyFuture<T::Return>
-        where T: Generator<Yield = ()> + 'static,
+        where T: Generator<Yield = ()>,
               T::Return: IsResult,
     {
         GenFuture(gen)
