@@ -161,8 +161,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let return_ty = if boxed {
         quote! {
             Box<::futures::Future<
-                Item = <#output as ::futures::__rt::IsResult>::Ok,
-                Error = <#output as ::futures::__rt::IsResult>::Err,
+                Item = <! as ::futures::__rt::IsResult>::Ok,
+                Error = <! as ::futures::__rt::IsResult>::Err,
             >>
         }
     } else {
@@ -174,18 +174,10 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         //         Error = <#output as ::futures::__rt::MyTry>::MyError,
         //     >
         // }
-        let prefix = quote! { impl ::futures::__rt::MyFuture< };
-        let prefix = respan(prefix.into(), &output_span);
-        let suffix = syn::tokens::Gt([syn::Span(output_span.1)]);
-
-        quote! { #prefix #output #suffix }
+        quote! { impl ::futures::__rt::MyFuture<!> }
     };
-
-    let maybe_boxed = if boxed {
-        quote! { Box::new }
-    } else {
-        quote! { }
-    };
+    let return_ty = respan(return_ty.into(), &output_span);
+    let return_ty = replace_bang(return_ty, &output);
 
     // Give the invocation of the `gen` function the same span as the output
     // as currently errors related to it being a result are targeted here. Not
@@ -193,7 +185,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let gen_function = quote! { ::futures::__rt::gen };
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = quote! {
-        #maybe_boxed ( #gen_function (move || {
+        #gen_function (move || {
             let __e: #output = {
                 #( let #patterns = #temp_bindings; )*
                 #block
@@ -206,7 +198,13 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                 return __e;
                 loop { yield }
             }
-        }))
+        })
+    };
+    let body_inner = if boxed {
+        let body = quote! { Box::new(#body_inner) };
+        respan(body.into(), &output_span)
+    } else {
+        body_inner.into()
     };
     let mut body = Tokens::new();
     body.append_delimited("{", (block.brace_token.0).0, |tokens| {
@@ -313,4 +311,17 @@ fn respan(input: proc_macro2::TokenStream,
         token.span = last_span;
     }
     new_tokens.into_iter().collect()
+}
+
+fn replace_bang(input: proc_macro2::TokenStream, tokens: &ToTokens)
+    -> proc_macro2::TokenStream
+{
+    let mut new_tokens = Tokens::new();
+    for token in input.into_iter() {
+        match token.kind {
+            proc_macro2::TokenNode::Op('!', _) => tokens.to_tokens(&mut new_tokens),
+            _ => token.to_tokens(&mut new_tokens),
+        }
+    }
+    new_tokens.into()
 }

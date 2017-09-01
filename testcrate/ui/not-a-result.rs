@@ -9,4 +9,9 @@ fn foo() -> u32 {
     3
 }
 
+#[async(boxed)]
+fn bar() -> u32 {
+    3
+}
+
 fn main() {}
