@@ -186,7 +186,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = quote! {
         #gen_function (move || {
-            let __e: #output = {
+            let __e/*: #output*/ = {
                 #( let #patterns = #temp_bindings; )*
                 #block
             };
