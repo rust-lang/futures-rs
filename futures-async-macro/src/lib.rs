@@ -13,12 +13,15 @@
 #![feature(proc_macro)]
 #![recursion_limit = "128"]
 
+extern crate proc_macro2;
 extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 extern crate syn;
 
+use proc_macro2::Span;
 use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
+use quote::{Tokens, ToTokens};
 use syn::*;
 use syn::fold::Folder;
 
@@ -52,17 +55,24 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         ItemKind::Fn(item) => item,
         _ => panic!("#[async] can only be applied to functions"),
     };
-    let FnDecl { inputs, output, variadic, generics, .. } = { *decl };
+    let FnDecl {
+        inputs,
+        output,
+        variadic,
+        generics,
+        fn_token,
+        ..
+    } = { *decl };
     let where_clause = &generics.where_clause;
     assert!(!variadic, "variadic functions cannot be async");
-    let output = match output {
-        FunctionRetTy::Ty(t, _) => t,
+    let (output, rarrow_token) = match output {
+        FunctionRetTy::Ty(t, rarrow_token) => (t, rarrow_token),
         FunctionRetTy::Default => {
-            TyTup {
+            (TyTup {
                 tys: Default::default(),
                 lone_comma: Default::default(),
                 paren_token: Default::default(),
-            }.into()
+            }.into(), Default::default())
         }
     };
 
@@ -146,10 +156,12 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
 
     // TODO: can we lift the restriction that `futures` must be at the root of
     //       the crate?
+
+    let output_span = first_last(&output);
     let return_ty = if boxed {
         quote! {
             Box<::futures::Future<
-                Item = <#output as ::futures::__rt::MyTry>::MyOk,
+                Item = <#output as ::futures::__rt::IsResult>::MyOk,
                 Error = <#output as ::futures::__rt::MyTry>::MyError,
             >>
         }
@@ -162,8 +174,11 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         //         Error = <#output as ::futures::__rt::MyTry>::MyError,
         //     >
         // }
+        let prefix = quote! { impl ::futures::__rt::MyFuture< };
+        let prefix = respan(prefix.into(), &output_span);
+        let suffix = syn::tokens::Gt([syn::Span(output_span.1)]);
 
-        quote! { impl ::futures::__rt::MyFuture<#output> }
+        quote! { #prefix #output #suffix }
     };
 
     let maybe_boxed = if boxed {
@@ -172,27 +187,39 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         quote! { }
     };
 
+    // Give the invocation of the `gen` function the same span as the output
+    // as currently errors related to it being a result are targeted here. Not
+    // sure if more errors will highlight this function call...
+    let gen_function = quote! { ::futures::__rt::gen };
+    let gen_function = respan(gen_function.into(), &output_span);
+    let body_inner = quote! {
+        #maybe_boxed ( #gen_function (move || {
+            let __e: #output = {
+                #( let #patterns = #temp_bindings; )*
+                #block
+            };
+
+            // Ensure that this closure is a generator, even if it doesn't
+            // have any `yield` statements.
+            #[allow(unreachable_code)]
+            {
+                return __e;
+                loop { yield }
+            }
+        }))
+    };
+    let mut body = Tokens::new();
+    body.append_delimited("{", (block.brace_token.0).0, |tokens| {
+        body_inner.to_tokens(tokens);
+    });
+
     let output = quote! {
         #(#attrs)*
         #vis #unsafety #abi #constness
-        fn #ident #generics(#(#inputs_no_patterns),*) -> #return_ty
+        #fn_token #ident #generics(#(#inputs_no_patterns),*)
+            #rarrow_token #return_ty
             #where_clause
-        {
-            #maybe_boxed (::futures::__rt::gen(move || {
-                let __e: #output = {
-                    #( let #patterns = #temp_bindings; )*
-                    #block
-                };
-
-                // Ensure that this closure is a generator, even if it doesn't
-                // have any `yield` statements.
-                #[allow(unreachable_code)]
-                {
-                    return __e;
-                    loop { yield }
-                }
-            }))
-        }
+        #body
     };
 
     // println!("{}", output);
@@ -265,4 +292,25 @@ impl Folder for ExpandAsyncFor {
     fn fold_item(&mut self, item: Item) -> Item {
         item
     }
+}
+
+fn first_last(tokens: &ToTokens) -> (Span, Span) {
+    let mut spans = Tokens::new();
+    tokens.to_tokens(&mut spans);
+    let good_tokens = proc_macro2::TokenStream::from(spans).into_iter().collect::<Vec<_>>();
+    let first_span = good_tokens.first().map(|t| t.span).unwrap_or(Default::default());
+    let last_span = good_tokens.last().map(|t| t.span).unwrap_or(first_span);
+    (first_span, last_span)
+}
+
+fn respan(input: proc_macro2::TokenStream,
+          &(first_span, last_span): &(Span, Span)) -> proc_macro2::TokenStream {
+    let mut new_tokens = input.into_iter().collect::<Vec<_>>();
+    if let Some(token) = new_tokens.first_mut() {
+        token.span = first_span;
+    }
+    for token in new_tokens.iter_mut().skip(1) {
+        token.span = last_span;
+    }
+    new_tokens.into_iter().collect()
 }

@@ -14,8 +14,8 @@
 
 #![feature(conservative_impl_trait)]
 #![feature(generator_trait)]
-#![feature(try_trait)]
 #![feature(use_extern_macros)]
+#![feature(on_unimplemented)]
 
 extern crate futures_async_macro; // the compiler lies that this has no effect
 extern crate futures_await_macro;
@@ -43,39 +43,36 @@ pub mod prelude {
 pub mod __rt {
     pub use std::boxed::Box;
     pub use std::option::Option::{Some, None};
-    pub use std::result::Result::{Ok, Err};
+    pub use std::result::Result::{Ok, Err, self};
     pub use std::ops::Generator;
 
     use futures::Poll;
     use futures::{Future, Async};
     use std::ops::GeneratorState;
-    use std::ops::Try;
 
-    /// Random hack for this causing problems in the compiler's typechecking
-    /// pass. Ideally this trait and impl would not be needed.
-    ///
-    /// ```ignore
-    /// -> impl Future<Item = <T as Try>::Ok,
-    ///                Error = <T as Try>::Error>
-    /// ```
-    pub trait MyFuture<T: Try>: Future<Item=T::Ok, Error=T::Error> + 'static {}
+    pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> + 'static {}
 
     impl<F, T> MyFuture<T> for F
-        where F: Future<Item = T::Ok, Error = T::Error> + ?Sized + 'static,
-              T: Try,
+        where F: Future<Item = T::Ok, Error = T::Err > + ?Sized + 'static,
+              T: IsResult
     {}
 
-    // Helper trait to use projections to get access to the `Try` trait's
-    // projections without using the `try_trait` feature in consumer crates,
-    // just our own crate.
-    pub trait MyTry {
-        type MyOk;
-        type MyError;
+    #[rustc_on_unimplemented = "async functions must return a `Result` or \
+                                a typedef of `Result`"]
+    pub trait IsResult {
+        type Ok;
+        type Err;
+
+        fn into_result(self) -> Result<Self::Ok, Self::Err>;
     }
-    impl<T: Try> MyTry for T {
-        type MyOk = T::Ok;
-        type MyError = T::Error;
+    impl<T, E> IsResult for Result<T, E> {
+        type Ok = T;
+        type Err = E;
+
+        fn into_result(self) -> Result<Self::Ok, Self::Err> { self }
     }
+
+    pub fn diverge<T>() -> T { loop {} }
 
     /// Small shim to translate from a generator to a future.
     ///
@@ -83,20 +80,19 @@ pub mod __rt {
     /// the futures protocol.
     struct GenFuture<T>(T);
 
-    pub fn gen<T>(t: T) -> impl Future<Item = <T::Return as Try>::Ok,
-                                       Error = <T::Return as Try>::Error>
-        where T: Generator<Yield = ()>,
-              T::Return: Try,
+    pub fn gen<T>(gen: T) -> impl MyFuture<T::Return>
+        where T: Generator<Yield = ()> + 'static,
+              T::Return: IsResult,
     {
-        GenFuture(t)
+        GenFuture(gen)
     }
 
     impl<T> Future for GenFuture<T>
         where T: Generator<Yield = ()>,
-              T::Return: Try,
+              T::Return: IsResult,
     {
-        type Item = <T::Return as Try>::Ok;
-        type Error = <T::Return as Try>::Error;
+        type Item = <T::Return as IsResult>::Ok;
+        type Error = <T::Return as IsResult>::Err;
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
             match self.0.resume() {
