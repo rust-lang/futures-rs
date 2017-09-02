@@ -18,12 +18,14 @@ extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 extern crate syn;
+extern crate synom;
 
-use proc_macro2::Span;
+use proc_macro2::{Span, Term};
 use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
 use quote::{Tokens, ToTokens};
 use syn::*;
 use syn::fold::Folder;
+use synom::cursor::SynomBuffer;
 
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
@@ -207,7 +209,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         #[allow(unreachable_code)]
         {
             return __e;
-            loop { yield }
+            loop { yield ::futures::Async::NotReady }
         }
     };
     let mut gen_body = Tokens::new();
@@ -219,6 +221,245 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     // as currently errors related to it being a result are targeted here. Not
     // sure if more errors will highlight this function call...
     let gen_function = quote! { ::futures::__rt::gen };
+    let gen_function = respan(gen_function.into(), &output_span);
+    let body_inner = quote! {
+        #gen_function (move || #gen_body)
+    };
+    let body_inner = if boxed {
+        let body = quote! { Box::new(#body_inner) };
+        respan(body.into(), &output_span)
+    } else {
+        body_inner.into()
+    };
+    let mut body = Tokens::new();
+    block.brace_token.surround(&mut body, |tokens| {
+        body_inner.to_tokens(tokens);
+    });
+
+    let output = quote! {
+        #(#attrs)*
+        #vis #unsafety #abi #constness
+        #fn_token #ident #generics(#(#inputs_no_patterns),*)
+            #rarrow_token #return_ty
+            #where_clause
+        #body
+    };
+
+    // println!("{}", output);
+    output.into()
+}
+
+#[proc_macro_attribute]
+pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async_stream] attribute, if any
+    let attribute: proc_macro2::TokenStream = attribute.into();
+    let attribute = quote! { #[async_stream #attribute ] };
+    let attribute = SynomBuffer::new(attribute.into());
+    let (_, attribute) = Attribute::parse_outer(attribute.begin())
+        .expect("failed to parse attribute arguments");
+    let attribute = attribute.meta_item()
+        .expect("failed to parse attribute arguments");
+
+    let mut boxed = false;
+    let mut item_ty = None;
+
+    match attribute {
+        MetaItem::Term(_) => (),
+        MetaItem::List(list) => {
+            for item in list.nested.items() {
+                if let NestedMetaItem::MetaItem(ref item) = *item {
+                    if let MetaItem::Term(ref term) = *item {
+                        if term == "boxed" {
+                            boxed = true;
+                        }
+                    }
+                    if let MetaItem::NameValue(ref item) = *item {
+                        if item.ident == "item" {
+                            let mut s = item.lit.to_string();
+                            assert_eq!(s.remove(0), '"');
+                            assert_eq!(s.pop(), Some('"'));
+                            let term = Term::intern(&s);
+                            let span = item.lit.span.clone();
+                            item_ty = Some(Path::from(Ident::new(term, span)));
+                        }
+                    }
+                }
+            }
+        }
+        MetaItem::NameValue(_) => {
+            panic!("#[async_stream] should not be invoked as name value attribute");
+        }
+    }
+
+    let boxed = boxed;
+    let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
+
+    // Parse our item, expecting a function. This function may be an actual
+    // top-level function or it could be a method (typically dictated by the
+    // arguments). We then extract everything we'd like to use.
+    let Item { attrs, node } = syn::parse(function)
+        .expect("failed to parse tokens as a function");
+    let ItemFn {
+        ident,
+        vis,
+        unsafety,
+        constness,
+        abi,
+        block,
+        decl,
+        ..
+    } = match node {
+        ItemKind::Fn(item) => item,
+        _ => panic!("#[async] can only be applied to functions"),
+    };
+    let FnDecl {
+        inputs,
+        output,
+        variadic,
+        generics,
+        fn_token,
+        ..
+    } = { *decl };
+    let where_clause = &generics.where_clause;
+    assert!(!variadic, "variadic functions cannot be async");
+    let (output, rarrow_token) = match output {
+        FunctionRetTy::Ty(t, rarrow_token) => (t, rarrow_token),
+        FunctionRetTy::Default => {
+            (TyTup {
+                tys: Default::default(),
+                lone_comma: Default::default(),
+                paren_token: Default::default(),
+            }.into(), Default::default())
+        }
+    };
+
+    // We've got to get a bit creative with our handling of arguments. For a
+    // number of reasons we translate this:
+    //
+    //      fn foo(ref a: u32) -> Result<u32, u32> {
+    //          // ...
+    //      }
+    //
+    // into roughly:
+    //
+    //      fn foo(__arg_0: u32) -> impl Future<...> {
+    //          gen(move || {
+    //              let ref a = __arg0;
+    //
+    //              // ...
+    //          })
+    //      }
+    //
+    // The intention here is to ensure that all local function variables get
+    // moved into the generator we're creating, and they're also all then bound
+    // appropriately according to their patterns and whatnot.
+    //
+    // We notably skip everything related to `self` which typically doesn't have
+    // many patterns with it and just gets captured naturally.
+    let mut inputs_no_patterns = Vec::new();
+    let mut patterns = Vec::new();
+    let mut temp_bindings = Vec::new();
+    for (i, input) in inputs.into_iter().enumerate() {
+        let input = input.into_item();
+
+        // `self: Box<Self>` will get captured naturally
+        let mut is_input_no_pattern = false;
+        if let FnArg::Captured(ref arg) = input {
+            if let Pat::Ident(PatIdent { ref ident, ..}) = arg.pat {
+                if ident == "self" {
+                    is_input_no_pattern = true;
+                }
+            }
+        }
+        if is_input_no_pattern {
+            inputs_no_patterns.push(input);
+            continue
+        }
+
+        match input {
+            FnArg::Captured(ArgCaptured {
+                pat: syn::Pat::Ident(syn::PatIdent {
+                    mode: BindingMode::ByValue(_),
+                    ..
+                }),
+                ..
+            }) => {
+                inputs_no_patterns.push(input);
+            }
+
+            // `ref a: B` (or some similar pattern)
+            FnArg::Captured(ArgCaptured { pat, ty, colon_token }) => {
+                patterns.push(pat);
+                let ident = Ident::from(format!("__arg_{}", i));
+                temp_bindings.push(ident.clone());
+                let pat = PatIdent {
+                    mode: BindingMode::ByValue(Mutability::Immutable),
+                    ident: ident,
+                    at_token: None,
+                    subpat: None,
+                };
+                inputs_no_patterns.push(ArgCaptured {
+                    pat: pat.into(),
+                    ty,
+                    colon_token,
+                }.into());
+            }
+
+            // Other `self`-related arguments get captured naturally
+            _ => {
+                inputs_no_patterns.push(input);
+            }
+        }
+    }
+
+    // This is the point where we handle
+    //
+    //      #[async]
+    //      for x in y {
+    //      }
+    //
+    // Basically just take all those expression and expand them.
+    let block = ExpandAsyncFor.fold_block(*block);
+
+    let output_span = first_last(&output);
+    let return_ty = if boxed {
+        unimplemented!()
+    } else {
+        quote! { impl ::futures::__rt::MyStream<!, !> + 'static }
+    };
+    let return_ty = respan(return_ty.into(), &output_span);
+    let return_ty = replace_bangs(return_ty, &[&item_ty, &output]);
+
+    let block_inner = quote! {
+        #( let #patterns = #temp_bindings; )*
+        #block
+    };
+    let mut result = Tokens::new();
+    block.brace_token.surround(&mut result, |tokens| {
+        block_inner.to_tokens(tokens);
+    });
+    syn::tokens::Semi([block.brace_token.0]).to_tokens(&mut result);
+
+    let gen_body_inner = quote! {
+        let __e: ::futures::__rt::Result<_,_> = #result
+
+        // Ensure that this closure is a generator, even if it doesn't
+        // have any `yield` statements.
+        #[allow(unreachable_code)]
+        {
+            return __e;
+            loop { yield ::futures::Async::NotReady }
+        }
+    };
+    let mut gen_body = Tokens::new();
+    block.brace_token.surround(&mut gen_body, |tokens| {
+        gen_body_inner.to_tokens(tokens);
+    });
+
+    // Give the invocation of the `gen_stream` function the same span as the
+    // output as currently errors related to it being a result are targeted
+    // here. Not sure if more errors will highlight this function call...
+    let gen_function = quote! { ::futures::__rt::gen_stream };
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = quote! {
         #gen_function (move || #gen_body)
@@ -268,7 +509,40 @@ pub fn async_block(input: TokenStream) -> TokenStream {
         syn::tokens::Move(span).to_tokens(tokens);
         syn::tokens::OrOr([span, span]).to_tokens(tokens);
         syn::tokens::Brace(span).surround(tokens, |tokens| {
-            (quote! { if false { yield } }).to_tokens(tokens);
+            (quote! {
+                if false { yield ::futures::Async::NotReady }
+            }).to_tokens(tokens);
+            expr.to_tokens(tokens);
+        });
+    });
+
+    tokens.into()
+}
+
+#[proc_macro]
+pub fn async_stream_block(input: TokenStream) -> TokenStream {
+    let input = TokenStream::from(TokenTree {
+        kind: TokenNode::Group(Delimiter::Brace, input),
+        span: Default::default(),
+    });
+    let expr = syn::parse(input)
+        .expect("failed to parse tokens as an expression");
+    let expr = ExpandAsyncFor.fold_expr(expr);
+
+    let mut tokens = quote! {
+        ::futures::__rt::gen_stream
+    };
+
+    // Use some manual token construction here instead of `quote!` to ensure
+    // that we get the `call_site` span instead of the default span.
+    let span = syn::Span(Span::call_site());
+    syn::tokens::Paren(span).surround(&mut tokens, |tokens| {
+        syn::tokens::Move(span).to_tokens(tokens);
+        syn::tokens::OrOr([span, span]).to_tokens(tokens);
+        syn::tokens::Brace(span).surround(tokens, |tokens| {
+            (quote! {
+                if false { yield ::futures::Async::NotReady }
+            }).to_tokens(tokens);
             expr.to_tokens(tokens);
         });
     });
@@ -311,7 +585,7 @@ impl Folder for ExpandAsyncFor {
                             }
                         }
                         futures_await::Async::NotReady => {
-                            yield;
+                            yield futures_await::Async::NotReady;
                             continue
                         }
                     }
@@ -357,6 +631,22 @@ fn replace_bang(input: proc_macro2::TokenStream, tokens: &ToTokens)
     for token in input.into_iter() {
         match token.kind {
             proc_macro2::TokenNode::Op('!', _) => tokens.to_tokens(&mut new_tokens),
+            _ => token.to_tokens(&mut new_tokens),
+        }
+    }
+    new_tokens.into()
+}
+
+fn replace_bangs(input: proc_macro2::TokenStream, replacements: &[&ToTokens])
+    -> proc_macro2::TokenStream
+{
+    let mut replacements = replacements.iter().cycle();
+    let mut new_tokens = Tokens::new();
+    for token in input.into_iter() {
+        match token.kind {
+            proc_macro2::TokenNode::Op('!', _) => {
+                replacements.next().unwrap().to_tokens(&mut new_tokens);
+            }
             _ => token.to_tokens(&mut new_tokens),
         }
     }

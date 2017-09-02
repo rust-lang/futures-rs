@@ -15,6 +15,7 @@
 #![feature(conservative_impl_trait)]
 #![feature(generator_trait)]
 #![feature(use_extern_macros)]
+#![feature(never_type)]
 #![feature(on_unimplemented)]
 
 extern crate futures_async_macro; // the compiler lies that this has no effect
@@ -26,8 +27,8 @@ pub use futures::*;
 pub mod prelude {
     pub use {Future, Stream, Sink, Poll, Async, AsyncSink, StartSend};
     pub use {IntoFuture};
-    pub use futures_async_macro::{async, async_block};
-    pub use futures_await_macro::await;
+    pub use futures_async_macro::{async, async_stream, async_block, async_stream_block};
+    pub use futures_await_macro::{await, stream_yield};
 }
 
 /// A hidden module that's the "runtime support" for the async/await syntax.
@@ -45,16 +46,24 @@ pub mod __rt {
     pub use std::option::Option::{Some, None};
     pub use std::result::Result::{Ok, Err, self};
     pub use std::ops::Generator;
+    pub use std::marker::PhantomData;
 
     use futures::Poll;
-    use futures::{Future, Async};
+    use futures::{Future, Async, Stream};
     use std::ops::GeneratorState;
 
     pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> {}
 
+    pub trait MyStream<T, U: IsResult<Ok=()>>: Stream<Item=T, Error=U::Err> {}
+
     impl<F, T> MyFuture<T> for F
         where F: Future<Item = T::Ok, Error = T::Err > + ?Sized,
               T: IsResult
+    {}
+
+    impl<F, T, U> MyStream<T, U> for F
+        where F: Stream<Item = T, Error = U::Err> + ?Sized,
+              U: IsResult<Ok=()>
     {}
 
     #[rustc_on_unimplemented = "async functions must return a `Result` or \
@@ -78,17 +87,24 @@ pub mod __rt {
     ///
     /// This is the translation layer from the generator/coroutine protocol to
     /// the futures protocol.
-    struct GenFuture<T>(T);
+    struct GenFuture<T, U>(T, PhantomData<U>);
 
     pub fn gen<T>(gen: T) -> impl MyFuture<T::Return>
-        where T: Generator<Yield = ()>,
+        where T: Generator<Yield = Async<!>>,
               T::Return: IsResult,
     {
-        GenFuture(gen)
+        GenFuture(gen, PhantomData::<()>)
     }
 
-    impl<T> Future for GenFuture<T>
-        where T: Generator<Yield = ()>,
+    pub fn gen_stream<T, G>(gen: G) -> impl MyStream<T, G::Return>
+        where G: Generator<Yield = Async<T>>,
+              G::Return: IsResult<Ok = ()>,
+    {
+        GenFuture(gen, PhantomData)
+    }
+
+    impl<T, U> Future for GenFuture<T, U>
+        where T: Generator<Yield = Async<!>>,
               T::Return: IsResult,
     {
         type Item = <T::Return as IsResult>::Ok;
@@ -96,8 +112,24 @@ pub mod __rt {
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
             match self.0.resume() {
-                GeneratorState::Yielded(()) => Ok(Async::NotReady),
+                GeneratorState::Yielded(Async::NotReady) => Ok(Async::NotReady),
                 GeneratorState::Complete(e) => e.into_result().map(Async::Ready),
+            }
+        }
+    }
+
+    impl<T, U> Stream for GenFuture<T, U>
+        where T: Generator<Yield = Async<U>>,
+              T::Return: IsResult<Ok = ()>,
+    {
+        type Item = U;
+        type Error = <T::Return as IsResult>::Err;
+
+        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+            match self.0.resume() {
+                GeneratorState::Yielded(Async::NotReady) => Ok(Async::NotReady),
+                GeneratorState::Yielded(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
+                GeneratorState::Complete(e) => e.into_result().map(|()| Async::Ready(None)),
             }
         }
     }
