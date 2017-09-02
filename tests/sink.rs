@@ -12,7 +12,7 @@ use futures::stream;
 use futures::sync::{oneshot, mpsc};
 use futures::task::{self, Task};
 use futures::executor::{self, Notify};
-use futures::sink::*;
+use futures::sink::SinkFromErr;
 
 mod support;
 use support::*;
