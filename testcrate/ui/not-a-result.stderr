@@ -14,7 +14,7 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   |             ^^^ async functions must return a `Result` or a typedef of `Result`
   |
   = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
-  = note: required because of the requirements on the impl of `futures::__rt::MyFuture<u32>` for `impl futures::__rt::MyFuture<<[generator@$DIR/not-a-result.rs:7:1: 1:5 _] as std::ops::Generator>::Return>`
+  = note: required because of the requirements on the impl of `futures::__rt::MyFuture<u32>` for `impl futures::__rt::MyFuture<<[generator@$DIR/not-a-result.rs:8:17: 1:5 _] as std::ops::Generator>::Return>`
   = note: the return type of a function must have a statically known size
 
 error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied

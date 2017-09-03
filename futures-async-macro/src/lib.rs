@@ -120,8 +120,18 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         }
 
         match input {
-            // `a: B`
-            FnArg::Captured(ArgCaptured { pat, ty, .. }) => {
+            FnArg::Captured(ArgCaptured {
+                pat: syn::Pat::Ident(syn::PatIdent {
+                    mode: BindingMode::ByValue(_),
+                    ..
+                }),
+                ..
+            }) => {
+                inputs_no_patterns.push(input);
+            }
+
+            // `ref a: B` (or some similar pattern)
+            FnArg::Captured(ArgCaptured { pat, ty, colon_token }) => {
                 patterns.push(pat);
                 let ident = Ident::from(format!("__arg_{}", i));
                 temp_bindings.push(ident.clone());
@@ -133,8 +143,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
                 };
                 inputs_no_patterns.push(ArgCaptured {
                     pat: pat.into(),
-                    ty: ty,
-                    colon_token: Default::default(),
+                    ty,
+                    colon_token,
                 }.into());
             }
 
@@ -179,26 +189,39 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let return_ty = respan(return_ty.into(), &output_span);
     let return_ty = replace_bang(return_ty, &output);
 
+    let block_inner = quote! {
+        #( let #patterns = #temp_bindings; )*
+        #block
+    };
+    let mut result = Tokens::new();
+    block.brace_token.surround(&mut result, |tokens| {
+        block_inner.to_tokens(tokens);
+    });
+    syn::tokens::Semi([block.brace_token.0]).to_tokens(&mut result);
+
+    let gen_body_inner = quote! {
+        let __e: Result<_, _> = #result
+
+        // Ensure that this closure is a generator, even if it doesn't
+        // have any `yield` statements.
+        #[allow(unreachable_code)]
+        {
+            return __e;
+            loop { yield }
+        }
+    };
+    let mut gen_body = Tokens::new();
+    block.brace_token.surround(&mut gen_body, |tokens| {
+        gen_body_inner.to_tokens(tokens);
+    });
+
     // Give the invocation of the `gen` function the same span as the output
     // as currently errors related to it being a result are targeted here. Not
     // sure if more errors will highlight this function call...
     let gen_function = quote! { ::futures::__rt::gen };
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = quote! {
-        #gen_function (move || {
-            let __e: Result<_, _> = {
-                #( let #patterns = #temp_bindings; )*
-                #block
-            };
-
-            // Ensure that this closure is a generator, even if it doesn't
-            // have any `yield` statements.
-            #[allow(unreachable_code)]
-            {
-                return __e;
-                loop { yield }
-            }
-        })
+        #gen_function (move || #gen_body)
     };
     let body_inner = if boxed {
         let body = quote! { Box::new(#body_inner) };
@@ -207,7 +230,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         body_inner.into()
     };
     let mut body = Tokens::new();
-    body.append_delimited("{", (block.brace_token.0).0, |tokens| {
+    block.brace_token.surround(&mut body, |tokens| {
         body_inner.to_tokens(tokens);
     });
 

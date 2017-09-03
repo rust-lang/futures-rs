@@ -1,0 +1,13 @@
+error[E0597]: `a` does not live long enough
+  --> $DIR/borrowed-argument.rs:14:17
+   |
+14 |     await!(bar(&a))?;
+   |                 ^ does not live long enough
+...
+17 | }
+   | - borrowed value only lives until here
+   |
+   = note: borrowed value must be valid for the static lifetime...
+
+error: aborting due to previous error
+
