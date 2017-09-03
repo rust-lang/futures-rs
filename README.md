@@ -503,6 +503,41 @@ fn foo<T: Foo>(t: Rc<T>) {
 
 But that's not exactly the most ergonomic!
 
+#### Associated types
+
+Another limitation when using futures with traits is with associated types.
+Say you've got a trait like:
+
+```rust
+trait Service {
+    type Request;
+    type Error;
+    type Future: Future<Item = Self::Response, Error = Self::Error>;
+    
+    fn call(&self) -> Self::Future;
+}
+```
+
+If you want to implement `call` with `async_block!`, or by returning a future
+from another function which was generated with `#[async]`, you'd probably want
+to use `impl Future`. Unfortunately, it's not current possible to express an
+associated constant like `Service::Future` with an `impl Trait`.
+
+For now the best solution is to use `Box<Future<...>>`:
+
+```rust
+impl Service for MyStruct {
+    type Request = ...;
+    type Error = ...;
+    type Future = Box<Future<Item = Self::Item, Error = Self::Error>>;
+    
+    fn call(&self) -> Self::Future {
+        // ...
+        Box::new(future)
+    }
+}
+```
+
 # License
 
 `futures-await` is primarily distributed under the terms of both the MIT
