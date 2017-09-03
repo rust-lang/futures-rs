@@ -30,7 +30,7 @@ pub enum Async<T> {
 }
 
 impl<T> Async<T> {
-    /// Change the success type of this `Async` value with the closure provided
+    /// Change the success value of this `Async` with the closure provided
     pub fn map<F, U>(self, f: F) -> Async<U>
         where F: FnOnce(T) -> U
     {
