@@ -423,7 +423,12 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
 
     let output_span = first_last(&output);
     let return_ty = if boxed {
-        unimplemented!()
+        quote! {
+            Box<::futures::Stream<
+                Item = !,
+                Error = <! as ::futures::__rt::IsResult>::Err,
+            >>
+        }
     } else {
         quote! { impl ::futures::__rt::MyStream<!, !> + 'static }
     };
