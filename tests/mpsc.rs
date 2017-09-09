@@ -37,11 +37,12 @@ fn send_recv_no_buffer() {
     // Run on a task context
     lazy(move || {
         assert!(tx.poll_complete().unwrap().is_ready());
+        assert!(tx.poll_ready().unwrap().is_ready());
 
         // Send first message
-
         let res = tx.start_send(1).unwrap();
         assert!(is_ready(&res));
+        assert!(tx.poll_ready().unwrap().is_not_ready());
 
         // Send second message
         let res = tx.start_send(2).unwrap();
@@ -49,12 +50,15 @@ fn send_recv_no_buffer() {
 
         // Take the value
         assert_eq!(rx.poll().unwrap(), Async::Ready(Some(1)));
+        assert!(tx.poll_ready().unwrap().is_ready());
 
         let res = tx.start_send(2).unwrap();
         assert!(is_ready(&res));
+        assert!(tx.poll_ready().unwrap().is_not_ready());
 
         // Take the value
         assert_eq!(rx.poll().unwrap(), Async::Ready(Some(2)));
+        assert!(tx.poll_ready().unwrap().is_ready());
 
         Ok::<(), ()>(())
     }).wait().unwrap();
@@ -106,13 +110,14 @@ fn send_recv_threads_no_capacity() {
 
 #[test]
 fn recv_close_gets_none() {
-    let (tx, mut rx) = mpsc::channel::<i32>(10);
+    let (mut tx, mut rx) = mpsc::channel::<i32>(10);
 
     // Run on a task context
     lazy(move || {
         rx.close();
 
         assert_eq!(rx.poll(), Ok(Async::Ready(None)));
+        assert!(tx.poll_ready().is_err());
 
         drop(tx);
 
