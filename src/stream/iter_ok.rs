@@ -13,7 +13,7 @@ pub struct IterOk<I, E> {
     _marker: marker::PhantomData<fn() -> E>,
 }
 
-/// Converts an `Iterator` over into a `Stream` which is always ready
+/// Converts an `Iterator` into a `Stream` which is always ready
 /// to yield the next value.
 ///
 /// Iterators in Rust don't express the ability to block, so this adapter
