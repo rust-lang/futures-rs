@@ -484,6 +484,24 @@ impl<T> Sender<T> {
             Async::Ready(())
         }
     }
+
+    /// Attempts to send a message on this `Sender<T>` without blocking.
+    ///
+    /// This function, unlike `start_send`, is safe to call whether or not it's
+    /// being called on a task or not. Note that this function, however, will
+    /// *not* attempt to block the current task if the message cannot be sent.
+    ///
+    /// It is not recommended to call this function from inside of a future,
+    /// only from an external thread where you've otherwise arranged to be
+    /// notified when the channel is no longer full.
+    pub fn try_send(&self, msg: T) -> Result<(), SendError<T>> {
+        match self.inc_num_messages(false) {
+            Some(_park_self) => {}
+            None => return Err(SendError(msg)),
+        };
+        self.queue_push_and_signal(Some(msg));
+        Ok(())
+    }
 }
 
 impl<T> Sink for Sender<T> {
