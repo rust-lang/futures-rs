@@ -1,5 +1,6 @@
 #![cfg(feature = "use_std")]
 
+#[macro_use]
 extern crate futures;
 
 use futures::prelude::*;
@@ -351,6 +352,66 @@ fn stress_close_receiver() {
     for _ in 0..10000 {
         stress_close_receiver_iter();
     }
+}
+
+/// Tests that after `poll_ready` indicates capacity a channel can always send without waiting.
+#[test]
+fn stress_poll_ready() {
+    // A task which checks channel capcity using poll_ready, and pushes items onto the channel when
+    // ready.
+    struct SenderTask {
+        sender: mpsc::Sender<u32>,
+        count: u32,
+    }
+    impl Future for SenderTask {
+        type Item = ();
+        type Error = ();
+        fn poll(&mut self) -> Poll<(), ()> {
+            // In a loop, check if the channel is ready. If so, push an item onto the channel
+            // (asserting that it doesn't attempt to block).
+            while self.count > 0 {
+                try_ready!(self.sender.poll_ready().map_err(|_| ()));
+                assert!(self.sender.start_send(self.count).unwrap().is_ready());
+                self.count -= 1;
+            }
+            Ok(Async::Ready(()))
+        }
+    }
+
+    const AMT: u32 = 1000;
+    const NTHREADS: u32 = 8;
+
+    /// Run a stress test using the specified channel capacity.
+    fn stress(capacity: usize) {
+        let (tx, rx) = mpsc::channel(capacity);
+        let mut threads = Vec::new();
+        for _ in 0..NTHREADS {
+            let sender = tx.clone();
+            threads.push(thread::spawn(move || {
+                SenderTask {
+                    sender: sender,
+                    count: AMT,
+                }.wait()
+            }));
+        }
+        drop(tx);
+
+        let mut rx = rx.wait();
+        for _ in 0..AMT * NTHREADS {
+            assert!(rx.next().is_some());
+        }
+
+        assert!(rx.next().is_none());
+
+        for thread in threads {
+            thread.join().unwrap().unwrap();
+        }
+    }
+
+    stress(0);
+    stress(1);
+    stress(8);
+    stress(16);
 }
 
 fn is_ready<T>(res: &AsyncSink<T>) -> bool {
