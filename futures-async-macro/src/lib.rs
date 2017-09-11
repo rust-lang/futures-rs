@@ -257,9 +257,20 @@ pub fn async_block(input: TokenStream) -> TokenStream {
         .expect("failed to parse tokens as an expression");
     let expr = ExpandAsyncFor.fold_expr(expr);
 
-    (quote! {
-        ::futures::__rt::gen(move || { #expr })
-    }).into()
+    let mut tokens = quote! {
+        ::futures::__rt::gen
+    };
+    let span = syn::Span(Span::call_site());
+    syn::tokens::Paren(span).surround(&mut tokens, |tokens| {
+        syn::tokens::Move(span).to_tokens(tokens);
+        syn::tokens::OrOr([span, span]).to_tokens(tokens);
+        syn::tokens::Brace(span).surround(tokens, |tokens| {
+            (quote! { if false { yield } }).to_tokens(tokens);
+            expr.to_tokens(tokens);
+        });
+    });
+
+    tokens.into()
 }
 
 struct ExpandAsyncFor;
