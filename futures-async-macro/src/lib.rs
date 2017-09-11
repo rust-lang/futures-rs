@@ -260,6 +260,9 @@ pub fn async_block(input: TokenStream) -> TokenStream {
     let mut tokens = quote! {
         ::futures::__rt::gen
     };
+
+    // Use some manual token construction here instead of `quote!` to ensure
+    // that we get the `call_site` span instead of the default span.
     let span = syn::Span(Span::call_site());
     syn::tokens::Paren(span).surround(&mut tokens, |tokens| {
         syn::tokens::Move(span).to_tokens(tokens);
