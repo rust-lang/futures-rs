@@ -96,7 +96,7 @@ pub struct Sender<T> {
     // Handle to the task that is blocked on this sender. This handle is sent
     // to the receiver half in order to be notified when the sender becomes
     // unblocked.
-    sender_task: SenderTask,
+    sender_task: Arc<Mutex<SenderTask>>,
 
     // True if the sender might be blocked. This is an optimization to avoid
     // having to lock the mutex most of the time.
@@ -136,6 +136,18 @@ pub struct UnboundedReceiver<T>(Receiver<T>);
 #[derive(Clone, PartialEq, Eq)]
 pub struct SendError<T>(T);
 
+/// Error type returned from `try_send`
+#[derive(Clone, PartialEq, Eq)]
+pub struct TrySendError<T> {
+    kind: TrySendErrorKind<T>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum TrySendErrorKind<T> {
+    Full(T),
+    Disconnected(T),
+}
+
 impl<T> fmt::Debug for SendError<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_tuple("SendError")
@@ -164,6 +176,65 @@ impl<T> SendError<T> {
     }
 }
 
+impl<T> fmt::Debug for TrySendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("TrySendError")
+            .field(&"...")
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for TrySendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_full() {
+            write!(fmt, "send failed because channel is full")
+        } else {
+            write!(fmt, "send failed because receiver is gone")
+        }
+    }
+}
+
+impl<T: Any> Error for TrySendError<T> {
+    fn description(&self) -> &str {
+        if self.is_full() {
+            "send failed because channel is full"
+        } else {
+            "send failed because receiver is gone"
+        }
+    }
+}
+
+impl<T> TrySendError<T> {
+    /// Returns true if this error is a result of the channel being full
+    pub fn is_full(&self) -> bool {
+        use self::TrySendErrorKind::*;
+
+        match self.kind {
+            Full(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns true if this error is a result of the receiver being dropped
+    pub fn is_disconnected(&self) -> bool {
+        use self::TrySendErrorKind::*;
+
+        match self.kind {
+            Disconnected(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        use self::TrySendErrorKind::*;
+
+        match self.kind {
+            Full(v) | Disconnected(v) => v,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Inner<T> {
     // Max buffer size of the channel. If `None` then the channel is unbounded.
@@ -177,7 +248,7 @@ struct Inner<T> {
     message_queue: Queue<Option<T>>,
 
     // Atomic, FIFO queue used to send parked task handles to the receiver.
-    parked_queue: Queue<SenderTask>,
+    parked_queue: Queue<Arc<Mutex<SenderTask>>>,
 
     // Number of senders in existence
     num_senders: AtomicUsize,
@@ -224,7 +295,28 @@ const MAX_CAPACITY: usize = !(OPEN_MASK);
 const MAX_BUFFER: usize = MAX_CAPACITY >> 1;
 
 // Sent to the consumer to wake up blocked producers
-type SenderTask = Arc<Mutex<Option<Task>>>;
+#[derive(Debug)]
+struct SenderTask {
+    task: Option<Task>,
+    is_parked: bool,
+}
+
+impl SenderTask {
+    fn new() -> Self {
+        SenderTask {
+            task: None,
+            is_parked: false,
+        }
+    }
+
+    fn notify(&mut self) {
+        self.is_parked = false;
+
+        if let Some(task) = self.task.take() {
+            task.notify();
+        }
+    }
+}
 
 /// Creates an in-memory channel implementation of the `Stream` trait with
 /// bounded capacity.
@@ -278,7 +370,7 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
 
     let tx = Sender {
         inner: inner.clone(),
-        sender_task: Arc::new(Mutex::new(None)),
+        sender_task: Arc::new(Mutex::new(SenderTask::new())),
         maybe_parked: false,
     };
 
@@ -296,10 +388,35 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
  */
 
 impl<T> Sender<T> {
+    /// Attempts to send a message on this `Sender<T>` without blocking.
+    ///
+    /// This function, unlike `start_send`, is safe to call whether it's being
+    /// called on a task or not. Note that this function, however, will *not*
+    /// attempt to block the current task if the message cannot be sent.
+    ///
+    /// It is not recommended to call this function from inside of a future,
+    /// only from an external thread where you've otherwise arranged to be
+    /// notified when the channel is no longer full.
+    pub fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
+        // If the sender is currently blocked, reject the message
+        if !self.poll_unparked(false).is_ready() {
+            return Err(TrySendError {
+                kind: TrySendErrorKind::Full(msg),
+            });
+        }
+
+        // The channel has capacity to accept the message, so send it
+        self.do_send(Some(msg), false)
+            .map_err(|SendError(v)| {
+                TrySendError {
+                    kind: TrySendErrorKind::Disconnected(v),
+                }
+            })
+    }
+
     // Do the send without failing
     // None means close
-    fn do_send(&mut self, msg: Option<T>) -> Result<(), SendError<T>> {
-
+    fn do_send(&mut self, msg: Option<T>, do_park: bool) -> Result<(), SendError<T>> {
         // First, increment the number of messages contained by the channel.
         // This operation will also atomically determine if the sender task
         // should be parked.
@@ -334,7 +451,7 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(msg.is_some());
+            self.park(do_park);
         }
 
         self.queue_push_and_signal(msg);
@@ -447,7 +564,11 @@ impl<T> Sender<T> {
             None
         };
 
-        *self.sender_task.lock().unwrap() = task;
+        {
+            let mut sender = self.sender_task.lock().unwrap();
+            sender.task = task;
+            sender.is_parked = true;
+        }
 
         // Send handle over queue
         let t = self.sender_task.clone();
@@ -475,17 +596,17 @@ impl<T> Sender<T> {
             return Err(SendError(()));
         }
 
-        Ok(self.poll_unparked())
+        Ok(self.poll_unparked(true))
     }
 
-    fn poll_unparked(&mut self) -> Async<()> {
+    fn poll_unparked(&mut self, do_park: bool) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
             // Get a lock on the task handle
             let mut task = self.sender_task.lock().unwrap();
 
-            if task.is_none() {
+            if !task.is_parked {
                 self.maybe_parked = false;
                 return Async::Ready(())
             }
@@ -496,7 +617,11 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            *task = Some(task::current());
+            task.task = if do_park {
+                Some(task::current())
+            } else {
+                None
+            };
 
             Async::NotReady
         } else {
@@ -512,12 +637,12 @@ impl<T> Sink for Sender<T> {
     fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
         // If the sender is currently blocked, reject the message before doing
         // any work.
-        if !self.poll_unparked().is_ready() {
+        if !self.poll_unparked(true).is_ready() {
             return Ok(AsyncSink::NotReady(msg));
         }
 
         // The channel has capacity to accept the message, so send it.
-        self.do_send(Some(msg))?;
+        self.do_send(Some(msg), true)?;
 
         Ok(AsyncSink::Ready)
     }
@@ -618,7 +743,7 @@ impl<T> Clone for Sender<T> {
             if actual == curr {
                 return Sender {
                     inner: self.inner.clone(),
-                    sender_task: Arc::new(Mutex::new(None)),
+                    sender_task: Arc::new(Mutex::new(SenderTask::new())),
                     maybe_parked: false,
                 };
             }
@@ -634,7 +759,7 @@ impl<T> Drop for Sender<T> {
         let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
-            let _ = self.do_send(None);
+            let _ = self.do_send(None, false);
         }
     }
 }
@@ -674,10 +799,7 @@ impl<T> Receiver<T> {
         loop {
             match unsafe { self.inner.parked_queue.pop() } {
                 PopResult::Data(task) => {
-                    let task = task.lock().unwrap().take();
-                    if let Some(task) = task {
-                        task.notify();
-                    }
+                    task.lock().unwrap().notify();
                 }
                 PopResult::Empty => break,
                 PopResult::Inconsistent => thread::yield_now(),
@@ -719,14 +841,7 @@ impl<T> Receiver<T> {
         loop {
             match unsafe { self.inner.parked_queue.pop() } {
                 PopResult::Data(task) => {
-                    // Do this step first so that the lock is dropped when
-                    // `unpark` is called
-                    let task = task.lock().unwrap().take();
-
-                    if let Some(task) = task {
-                        task.notify();
-                    }
-
+                    task.lock().unwrap().notify();
                     return;
                 }
                 PopResult::Empty => {
