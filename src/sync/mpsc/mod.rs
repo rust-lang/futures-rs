@@ -39,7 +39,7 @@
 // Since most of this work is lock-free, once the work starts, it is impossible
 // to safely revert.
 //
-// If the sender is unable to process a send operation, then the the curren
+// If the sender is unable to process a send operation, then the the current
 // task is parked and the handle is sent on the parked task queue.
 //
 // Note that the implementation guarantees that the channel capacity will never
@@ -457,6 +457,25 @@ impl<T> Sender<T> {
         // queue
         let state = decode_state(self.inner.state.load(SeqCst));
         self.maybe_parked = state.is_open;
+    }
+
+    /// Polls the channel to determine if there is guaranteed to be capacity to send at least one
+    /// item without waiting.
+    ///
+    /// Returns `Ok(Async::Ready(_))` if there is sufficient capacity, or returns
+    /// `Ok(Async::NotReady)` if the channel is not guaranteed to have capacity. Returns
+    /// `Err(SendError(_))` if the receiver has been dropped.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if called from outside the context of a task or future.
+    pub fn poll_ready(&mut self) -> Poll<(), SendError<()>> {
+        let state = decode_state(self.inner.state.load(SeqCst));
+        if !state.is_open {
+            return Err(SendError(()));
+        }
+
+        Ok(self.poll_unparked())
     }
 
     fn poll_unparked(&mut self) -> Async<()> {
