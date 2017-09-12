@@ -420,3 +420,72 @@ fn is_ready<T>(res: &AsyncSink<T>) -> bool {
         _ => false,
     }
 }
+
+#[test]
+fn try_send_1() {
+    const N: usize = 3000;
+    let (mut tx, rx) = mpsc::channel(0);
+
+    let t = thread::spawn(move || {
+        for i in 0..N {
+            loop {
+                if tx.try_send(i).is_ok() {
+                    break
+                }
+            }
+        }
+    });
+    for (i, j) in rx.wait().enumerate() {
+        assert_eq!(i, j.unwrap());
+    }
+    t.join().unwrap();
+}
+
+#[test]
+fn try_send_2() {
+    use std::thread;
+    use std::time::Duration;
+
+    let (mut tx, rx) = mpsc::channel(0);
+
+    tx.try_send("hello").unwrap();
+
+    let th = thread::spawn(|| {
+        lazy(|| {
+            assert!(tx.start_send("fail").unwrap().is_not_ready());
+            Ok::<_, ()>(())
+        }).wait().unwrap();
+
+        tx.send("goodbye").wait().unwrap();
+    });
+
+    // Little sleep to hopefully get the action on the thread to happen first
+    thread::sleep(Duration::from_millis(300));
+
+    let mut rx = rx.wait();
+
+    assert_eq!(rx.next(), Some(Ok("hello")));
+    assert_eq!(rx.next(), Some(Ok("goodbye")));
+    assert!(rx.next().is_none());
+
+    th.join().unwrap();
+}
+
+#[test]
+fn try_send_fail() {
+    let (mut tx, rx) = mpsc::channel(0);
+    let mut rx = rx.wait();
+
+    tx.try_send("hello").unwrap();
+
+    // This should fail
+    assert!(tx.try_send("fail").is_err());
+
+    assert_eq!(rx.next(), Some(Ok("hello")));
+
+    tx.try_send("goodbye").unwrap();
+    drop(tx);
+
+    assert_eq!(rx.next(), Some(Ok("goodbye")));
+    assert!(rx.next().is_none());
+}
