@@ -1,4 +1,4 @@
-// This should really be in the the stream module,
+// This should really be in the stream module,
 // but `pub(crate)` isn't available until Rust 1.18,
 // and pre-1.18 there isn't a really good way to have a sub-module
 // available to the crate, but not without it.
@@ -15,7 +15,7 @@ use stream::Stream;
 /// actual error type is parameterized, so it can match whatever error
 /// type is needed.
 ///
-/// This structure is produced by the `Sream::results` method.
+/// This structure is produced by the `Stream::results` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Results<S: Stream, E> {

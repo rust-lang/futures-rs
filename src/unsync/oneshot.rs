@@ -96,7 +96,7 @@ impl<T> Sender<T> {
     /// from `complete`.
     ///
     /// Like `Future::poll`, this function will panic if it's not called from
-    /// within the context of a task. In otherwords, this should only ever be
+    /// within the context of a task. In other words, this should only ever be
     /// called from inside another future.
     ///
     /// If `Ready` is returned then it means that the `Receiver` has disappeared

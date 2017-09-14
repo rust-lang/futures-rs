@@ -39,7 +39,7 @@
 // Since most of this work is lock-free, once the work starts, it is impossible
 // to safely revert.
 //
-// If the sender is unable to process a send operation, then the the current
+// If the sender is unable to process a send operation, then the current
 // task is parked and the handle is sent on the parked task queue.
 //
 // Note that the implementation guarantees that the channel capacity will never
@@ -544,7 +544,7 @@ impl<T> Sender<T> {
             }
 
             // Setting this flag enables the receiving end to detect that
-            // an unpark event happened in order to avoid unecessarily
+            // an unpark event happened in order to avoid unnecessarily
             // parking.
             recv_task.unparked = true;
             recv_task.task.take()
@@ -974,7 +974,7 @@ impl<T> Stream for UnboundedReceiver<T> {
 
 /// Handle returned from the `spawn` function.
 ///
-/// This handle is a stream that proxies a stream on a seperate `Executor`.
+/// This handle is a stream that proxies a stream on a separate `Executor`.
 /// Created through the `mpsc::spawn` function, this handle will produce
 /// the same values as the proxied stream, as they are produced in the executor,
 /// and uses a limited buffer to exert back-pressure on the remote stream.

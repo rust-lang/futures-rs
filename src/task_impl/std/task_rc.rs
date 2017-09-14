@@ -13,7 +13,7 @@ use task_impl;
 // The purpose of this is to conceptually be able to store data in a task,
 // allowing it to be accessed within multiple futures at once. For example if
 // you have some concurrent futures working, they may all want mutable access to
-// some data. We already know that when the futures are being poll'ed that we're
+// some data. We already know that when the futures are being poll'd that we're
 // entirely synchronized (aka `&mut Task`), so you shouldn't require an
 // `Arc<Mutex<T>>` to share as the synchronization isn't necessary!
 //

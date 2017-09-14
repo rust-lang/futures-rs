@@ -11,7 +11,7 @@ pub enum Either<A, B> {
 }
 
 impl<T, A, B> Either<(T, A), (T, B)> {
-    /// Splits out the homogenous type from an either of tuples.
+    /// Splits out the homogeneous type from an either of tuples.
     ///
     /// This method is typically useful when combined with the `Future::select2`
     /// combinator.

@@ -49,7 +49,7 @@ fn tls_slot() -> *const Cell<*mut u8> {
 pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     where F: FnOnce() -> R
 {
-    // Lazily initialze the get / set ptrs
+    // Lazily initialize the get / set ptrs
     //
     // Note that we won't actually use these functions ever, we'll instead be
     // testing the pointer's value elsewhere and calling our own functions.
@@ -499,7 +499,7 @@ impl Notify for ThreadUnpark {
 /// polling.
 ///
 /// Every `Task` handle comes with a set of unpark events which will fire when
-/// `unpark` is called. When fired, these events insert an identifer into a
+/// `unpark` is called. When fired, these events insert an identifier into a
 /// concurrent set, which the task can read from to determine what events
 /// occurred.
 ///
@@ -532,7 +532,7 @@ pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
 /// A set insertion to trigger upon `unpark`.
 ///
 /// Unpark events are used to communicate information about *why* an unpark
-/// occured, in particular populating sets with event identifiers so that the
+/// occurred, in particular populating sets with event identifiers so that the
 /// unparked task can avoid extraneous polling. See `with_unpark_event` for
 /// more.
 #[derive(Clone)]
@@ -591,7 +591,7 @@ pub trait EventSet: Send + Sync + 'static {
 // implementation detail in the standard library. We can work, though, by
 // casting it through and back an `Arc<T>`.
 //
-// This also means that you wn't actually fine `UnsafeNotify for Arc<T>`
+// This also means that you won't actually fine `UnsafeNotify for Arc<T>`
 // because it's the wrong level of indirection. These methods are sort of
 // receiving Arc<T>, but not an owned version. It's... complicated. We may be
 // one of the first users of unsafe trait objects!

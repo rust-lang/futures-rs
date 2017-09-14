@@ -187,7 +187,7 @@ pub trait Future {
     /// interest if it is not.
     ///
     /// This function will check the internal state of the future and assess
-    /// whether the value is ready to be produced. Implementors of this function
+    /// whether the value is ready to be produced. Implementers of this function
     /// should ensure that a call to this **never blocks** as event loops may
     /// not work properly otherwise.
     ///
@@ -243,7 +243,7 @@ pub trait Future {
     ///
     /// Note that if `NotReady` is returned it only means that *this* task will
     /// receive a notification. Historical calls to `poll` with different tasks
-    /// will not receive notifications. In other words, implementors of the
+    /// will not receive notifications. In other words, implementers of the
     /// `Future` trait need not store a queue of tasks to notify, but only the
     /// last task that called this method. Alternatively callers of this method
     /// can only rely on the most recent task which call `poll` being notified
@@ -784,7 +784,7 @@ pub trait Future {
     /// future is itself another future.
     ///
     /// This can be useful when combining futures together to flatten the
-    /// computation out the the final result. This method can only be called
+    /// computation out the final result. This method can only be called
     /// when the successful result of this future itself implements the
     /// `IntoFuture` trait and the error can be created from this future's error
     /// type.
@@ -1104,7 +1104,7 @@ pub trait Executor<F: Future<Item = (), Error = ()>> {
     ///
     /// # Errors
     ///
-    /// Implementors of this trait are allowed to reject accepting this future
+    /// Implementers of this trait are allowed to reject accepting this future
     /// as well. This can happen for various reason such as:
     ///
     /// * The executor is shut down
