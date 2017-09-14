@@ -176,7 +176,7 @@ impl Task {
     /// answer of "no" typically means that you need to call `task::current()`
     /// and store it somewhere.
     ///
-    /// As this is purely a peformance optimization a valid implementation for
+    /// As this is purely a performance optimization a valid implementation for
     /// this function is to always return `false`. A best effort is done to
     /// return `true` where possible, but false negatives may happen. Note that
     /// this function will not return a false positive, however.
@@ -591,7 +591,7 @@ unsafe impl Sync for NotifyHandle {}
 impl NotifyHandle {
     /// Constructs a new `NotifyHandle` directly.
     ///
-    /// Note that most code will not need to call this. Implementors of the
+    /// Note that most code will not need to call this. Implementers of the
     /// `UnsafeNotify` trait will typically provide a wrapper that calls this
     /// but you otherwise shouldn't call it directly.
     ///

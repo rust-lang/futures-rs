@@ -1,7 +1,7 @@
 //! Asynchronous sinks
 //!
 //! This module contains the `Sink` trait, along with a number of adapter types
-//! for it. An overview is available in the documentaiton for the trait itself.
+//! for it. An overview is available in the documentation for the trait itself.
 //!
 //! You can find more information/tutorials about streams [online at
 //! https://tokio.rs][online]
@@ -239,7 +239,7 @@ pub trait Sink {
     ///
     /// If the value returned is `NotReady` then the sink is not yet closed and
     /// work needs to be done to close it. The work has been scheduled and the
-    /// current task will recieve a notification when it's next ready to call
+    /// current task will receive a notification when it's next ready to call
     /// this method again.
     ///
     /// Finally, this function may also return an error.
@@ -443,7 +443,7 @@ pub trait Sink {
     ///
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
-    /// `stream` and send them to `self`, closing `self` when all items have ben
+    /// `stream` and send them to `self`, closing `self` when all items have been
     /// received.
     ///
     /// On completion, the pair `(sink, source)` is returned.

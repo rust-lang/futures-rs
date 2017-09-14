@@ -347,7 +347,7 @@ impl<T> SendError<T> {
 
 /// Handle returned from the `spawn` function.
 ///
-/// This handle is a stream that proxies a stream on a seperate `Executor`.
+/// This handle is a stream that proxies a stream on a separate `Executor`.
 /// Created through the `mpsc::spawn` function, this handle will produce
 /// the same values as the proxied stream, as they are produced in the executor,
 /// and uses a limited buffer to exert back-pressure on the remote stream.
@@ -358,7 +358,7 @@ pub struct SpawnHandle<Item, Error> {
     inner: Receiver<Result<Item, Error>>
 }
 
-/// Type of future which `Executor` instances must be able to execut for `spawn`.
+/// Type of future which `Executor` instances must be able to execute for `spawn`.
 pub struct Execute<S: Stream> {
     inner: SendAll<Sender<Result<S::Item, S::Error>>, Results<S, SendError<Result<S::Item, S::Error>>>>
 }
@@ -406,7 +406,7 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
 /// fast as `stream` can produce them, without any backpressure. Therefore, if
 /// `stream` is an infinite stream, it can use an unbounded amount of memory, and
 /// potentially hog CPU resources. In particular, if `stream` is infinite
-/// and doesn't ever yield (by returnin `Async::NotReady` from `poll`), it
+/// and doesn't ever yield (by returning `Async::NotReady` from `poll`), it
 /// will result in an infinite loop.
 ///
 /// # Panics

@@ -249,7 +249,7 @@ impl<F> fmt::Debug for Inner<F>
     }
 }
 
-/// A wrapped item of the original future that is clonable and implements Deref
+/// A wrapped item of the original future that is cloneable and implements Deref
 /// for ease of use.
 #[derive(Clone, Debug)]
 pub struct SharedItem<T> {
@@ -264,7 +264,7 @@ impl<T> ops::Deref for SharedItem<T> {
     }
 }
 
-/// A wrapped error of the original future that is clonable and implements Deref
+/// A wrapped error of the original future that is cloneable and implements Deref
 /// for ease of use.
 #[derive(Clone, Debug)]
 pub struct SharedError<E> {

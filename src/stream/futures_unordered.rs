@@ -415,9 +415,9 @@ impl<T> Drop for FuturesUnordered<T> {
         // Note that at this point we could still have a bunch of nodes in the
         // mpsc queue. None of those nodes, however, have futures associated
         // with them so they're safe to destroy on any thread. At this point
-        // the `FuturesUnordered` struct, the onwer of the one strong reference
+        // the `FuturesUnordered` struct, the owner of the one strong reference
         // to `Inner<T>` will drop the strong reference. At that point
-        // whichever thread releases the strong refcuont last (be it this
+        // whichever thread releases the strong refcount last (be it this
         // thread or some other thread as part of an `upgrade`) will clear out
         // the mpsc queue and free all remaining nodes.
         //
