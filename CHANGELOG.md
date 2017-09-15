@@ -1,3 +1,10 @@
+# 0.1.16 - 2017-09-15
+
+* A `prelude` module has been added to glob import from and pick up a whole
+  bunch of useful types
+* `sync::mpsc::Sender::poll_ready` has been added as an API
+* `sync::mpsc::Sender::try_send` has been added as an API
+
 # 0.1.15 - 2017-08-24
 
 * Improve performance of `BiLock` methods
