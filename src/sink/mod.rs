@@ -50,7 +50,7 @@ if_std! {
         }
     }
 
-    /// A type alias for `Box<Stream + Send>`
+    /// A type alias for `Box<Sink + Send>`
     pub type BoxSink<T, E> = ::std::boxed::Box<Sink<SinkItem = T, SinkError = E> +
                                                ::core::marker::Send>;
 
