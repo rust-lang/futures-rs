@@ -318,7 +318,7 @@ fn stress_drop_sender() {
 fn stress_close_receiver_iter() {
     let (tx, rx) = mpsc::unbounded();
     let (unwritten_tx, unwritten_rx) = std::sync::mpsc::channel();
-    thread::spawn(move || {
+    let th = thread::spawn(move || {
         for i in 1.. {
             if let Err(_) = tx.unbounded_send(i) {
                 unwritten_tx.send(i).expect("unwritten_tx");
@@ -341,6 +341,7 @@ fn stress_close_receiver_iter() {
             None => {
                 let unwritten = unwritten_rx.recv().expect("unwritten_rx");
                 assert_eq!(unwritten, i);
+                th.join().unwrap();
                 return;
             }
         }
