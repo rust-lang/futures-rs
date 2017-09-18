@@ -44,3 +44,12 @@ fn tx_dropped_rx_unparked() {
     }));
     assert_eq!(res.wait().unwrap_err(), Canceled);
 }
+
+
+#[test]
+fn is_canceled() {
+    let (tx, rx) = channel::<u32>();
+    assert!(!tx.is_canceled());
+    drop(rx);
+    assert!(tx.is_canceled());
+}

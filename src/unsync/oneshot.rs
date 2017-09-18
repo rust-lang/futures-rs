@@ -116,6 +116,23 @@ impl<T> Sender<T> {
             None => Ok(().into()),
         }
     }
+
+    /// Tests to see whether this `Sender`'s corresponding `Receiver`
+    /// has gone away.
+    ///
+    /// This function can be used to learn about when the `Receiver` (consumer)
+    /// half has gone away and nothing will be able to receive a message sent
+    /// from `send`.
+    ///
+    /// Note that this function is intended to *not* be used in the context of a
+    /// future. If you're implementing a future you probably want to call the
+    /// `poll_cancel` function which will block the current task if the
+    /// cancellation hasn't happened yet. This can be useful when working on a
+    /// non-futures related thread, though, which would otherwise panic if
+    /// `poll_cancel` were called.
+    pub fn is_canceled(&self) -> bool {
+        !self.inner.upgrade().is_some()
+    }
 }
 
 impl<T> Drop for Sender<T> {
