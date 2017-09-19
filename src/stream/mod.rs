@@ -361,7 +361,7 @@ pub trait Stream {
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let evens = rx.filter(|x| x % 0 == 2);
+    /// let evens = rx.filter(|x| x % 2 == 0);
     /// ```
     fn filter<F>(self, f: F) -> Filter<Self, F>
         where F: FnMut(&Self::Item) -> bool,
