@@ -1,7 +1,7 @@
 //! An unbounded channel that only stores last value sent
 
-use std::mem;
-use std::sync::{Arc, Weak, Mutex};
+use std::rc::{Rc, Weak};
+use std::cell::RefCell;
 
 use task::{self, Task};
 use {Sink, Stream, AsyncSink, Async, Poll, StartSend};
@@ -18,13 +18,13 @@ use {Sink, Stream, AsyncSink, Async, Poll, StartSend};
 /// other ones are discarded.
 #[derive(Debug)]
 pub struct Sender<T> {
-    inner: Weak<Mutex<Inner<T>>>,
+    inner: Weak<RefCell<Inner<T>>>,
 }
 
 /// The receiving end of a channel which preserves only the last value
 #[derive(Debug)]
 pub struct Receiver<T> {
-    inner: Arc<Mutex<Inner<T>>>,
+    inner: Rc<RefCell<Inner<T>>>,
 }
 
 /// Error type for sending, used when the receiving end of a channel is
@@ -38,14 +38,8 @@ struct Inner<T> {
     task: Option<Task>,
 }
 
-trait AssertKindsSender: Send + Sync + Clone {}
-impl AssertKindsSender for Sender<u32> {}
-
-trait AssertKindsReceiver: Send + Sync {}
-impl AssertKindsReceiver for Receiver<u32> {}
-
 impl<T> Sender<T> {
-    /// Sets the new new value of the stream and notifies the consumer if any
+    /// Sets the new new value of the stream and notifies the consumer if any.
     ///
     /// This function will store the `value` provided as the current value for
     /// htis channel, replacing any previous value that may have been there. If
@@ -65,11 +59,11 @@ impl<T> Sender<T> {
     /// necessary.
     pub fn swap(&self, value: T) -> Result<Option<T>, SendError<T>> {
         let result;
-        // Do this step first so that the lock is dropped when
+        // Do this step first so that the cell is dropped when
         // `unpark` is called
         let task = {
-            if let Some(ref lock) = self.inner.upgrade() {
-                let mut inner = lock.lock().unwrap();
+            if let Some(ref cell) = self.inner.upgrade() {
+                let mut inner = cell.borrow_mut();
                 result = inner.value.take();
                 inner.value = Some(value);
                 inner.task.take()
@@ -95,18 +89,11 @@ impl<T> Sink for Sender<T> {
         Ok(Async::Ready(()))
     }
     fn close(&mut self) -> Poll<(), Self::SinkError> {
-        // Do this step first so that the lock is dropped *and*
+        // Do this step first so that the cell is dropped *and*
         // weakref is dropped when `unpark` is called
-        let task = {
-            let weak = mem::replace(&mut self.inner, Weak::new());
-            if let Some(ref lock) = weak.upgrade() {
-                drop(weak);
-                let mut inner = lock.lock().unwrap();
-                inner.task.take()
-            } else {
-                None
-            }
-        };
+        let task = self.inner.upgrade()
+            .and_then(|inner| inner.borrow_mut().task.take());
+        self.inner = Weak::new();
         // notify on any drop of a sender, so eventually receiver wakes up
         // when there are no senders and closes the stream
         if let Some(task) = task {
@@ -127,9 +114,9 @@ impl<T> Stream for Receiver<T> {
     type Error = ();  // actually void
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         let result = {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.borrow_mut();
             if inner.value.is_none() {
-                if Arc::weak_count(&self.inner) == 0 {
+                if Rc::weak_count(&self.inner) == 0 {
                     // no senders, terminate the stream
                     return Ok(Async::Ready(None));
                 } else {
@@ -158,7 +145,7 @@ impl<T> Stream for Receiver<T> {
 /// use std::thread;
 /// use futures::prelude::*;
 /// use futures::stream::iter_ok;
-/// use futures::sync::slot;
+/// use futures::unsync::slot;
 ///
 /// let (tx, rx) = slot::channel::<i32>();
 ///
@@ -168,11 +155,11 @@ impl<T> Stream for Receiver<T> {
 /// assert_eq!(received, vec![3]);
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
-    let inner = Arc::new(Mutex::new(Inner {
+    let inner = Rc::new(RefCell::new(Inner {
         value: None,
         task: None,
     }));
-    return (Sender { inner: Arc::downgrade(&inner) },
+    return (Sender { inner: Rc::downgrade(&inner) },
             Receiver { inner: inner });
 }
 
