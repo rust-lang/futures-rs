@@ -48,7 +48,7 @@ impl<T> Sender<T> {
     /// Sets the new new value of the stream and notifies the consumer if any
     ///
     /// This function will store the `value` provided as the current value for
-    /// htis channel, replacing any previous value that may have been there. If
+    /// this channel, replacing any previous value that may have been there. If
     /// the receiver may still be able to receive this message, then `Ok` is
     /// returned with the previous value that was in this channel.
     ///
