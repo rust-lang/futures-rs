@@ -39,7 +39,24 @@ struct Inner<T> {
 }
 
 impl<T> Sender<T> {
-    /// Sets the new new value of the stream and notifies the consumer if any
+    /// Sets the new new value of the stream and notifies the consumer if any.
+    ///
+    /// This function will store the `value` provided as the current value for
+    /// htis channel, replacing any previous value that may have been there. If
+    /// the receiver may still be able to receive this message, then `Ok` is
+    /// returned with the previous value that was in this channel.
+    ///
+    /// If `Ok(Some)` is returned then this value overwrote a previous value,
+    /// and the value was never received by the receiver. If `Ok(None)` is
+    /// returned, then no previous value was found and the `value` is queued up
+    /// to be received by the receiver.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an `Err` if the receiver has gone away and
+    /// it's impossible to send this value to the receiver. The error returned
+    /// retains ownership of the `value` provided and can be extracted, if
+    /// necessary.
     pub fn swap(&self, value: T) -> Result<Option<T>, SendError<T>> {
         let result;
         // Do this step first so that the cell is dropped when
