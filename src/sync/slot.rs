@@ -1,5 +1,6 @@
 //! An unbounded channel that only stores last value sent
 
+use std::mem;
 use std::sync::{Arc, Weak, Mutex};
 
 use task::{self, Task};
@@ -17,7 +18,7 @@ use {Sink, Stream, AsyncSink, Async, Poll, StartSend};
 /// other ones are discarded.
 #[derive(Debug)]
 pub struct Sender<T> {
-    inner: Option<Weak<Mutex<Inner<T>>>>,
+    inner: Weak<Mutex<Inner<T>>>,
 }
 
 /// The receiving end of a channel which preserves only the last value
@@ -50,9 +51,7 @@ impl<T> Sender<T> {
         // Do this step first so that the lock is dropped when
         // `unpark` is called
         let task = {
-            let strong = self.inner.as_ref()
-                .expect("sending to a closed slot");
-            if let Some(ref lock) = strong.upgrade() {
+            if let Some(ref lock) = self.inner.upgrade() {
                 let mut inner = lock.lock().unwrap();
                 result = inner.value.take();
                 inner.value = Some(value);
@@ -82,14 +81,11 @@ impl<T> Sink for Sender<T> {
         // Do this step first so that the lock is dropped *and*
         // weakref is dropped when `unpark` is called
         let task = {
-            if let Some(weak) = self.inner.take() {
-                if let Some(ref lock) = weak.upgrade() {
-                    drop(weak);
-                    let mut inner = lock.lock().unwrap();
-                    inner.task.take()
-                } else {
-                    None
-                }
+            let weak = mem::replace(&mut self.inner, Weak::new());
+            if let Some(ref lock) = weak.upgrade() {
+                drop(weak);
+                let mut inner = lock.lock().unwrap();
+                inner.task.take()
             } else {
                 None
             }
@@ -159,7 +155,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
         value: None,
         task: None,
     }));
-    return (Sender { inner: Some(Arc::downgrade(&inner)) },
+    return (Sender { inner: Arc::downgrade(&inner) },
             Receiver { inner: inner });
 }
 
