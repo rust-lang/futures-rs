@@ -334,6 +334,21 @@ impl<S: Sink> Spawn<S> {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll_complete())
     }
+
+    /// Invokes the underlying `close` method with this task in place.
+    ///
+    /// If the underlying operation returns `NotReady` then the `notify` value
+    /// passed in will receive a notification when the operation is ready to be
+    /// attempted again.
+    pub fn close_notify<T>(&mut self,
+                           notify: &T,
+                           id: usize)
+                           -> Poll<(), S::SinkError>
+        where T: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::new(&mk, id), |s| s.close())
+    }
 }
 
 impl<T> Spawn<T> {
