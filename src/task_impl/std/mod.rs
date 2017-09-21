@@ -367,6 +367,21 @@ impl<S: Sink> Spawn<S> {
             notify.park();
         }
     }
+
+    /// Blocks the current thread until it's able to close this sink.
+    ///
+    /// This function will close the sink that this task wraps. If the sink
+    /// is not ready to be close yet, then the current thread will be blocked
+    /// until it's closed.
+    pub fn wait_close(&mut self) -> Result<(), S::SinkError> {
+        let notify = Arc::new(ThreadUnpark::new(thread::current()));
+        loop {
+            if self.close_notify(&notify, 0)?.is_ready() {
+                return Ok(())
+            }
+            notify.park();
+        }
+    }
 }
 
 /// A trait which represents a sink of notifications that a future is ready to
