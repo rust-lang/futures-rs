@@ -6,7 +6,7 @@ use stream::Stream;
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///
 /// This function is the dual for the `Stream::fold()` adapter: while
-/// `Stream:fold()` reduces a `Stream` to one single value, `unfold()` creates a
+/// `Stream::fold()` reduces a `Stream` to one single value, `unfold()` creates a
 /// `Stream` from a seed value.
 ///
 /// `unfold()` will call the provided closure with the provided seed, then wait
