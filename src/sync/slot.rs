@@ -145,6 +145,13 @@ impl<T> Stream for Receiver<T> {
     }
 }
 
+impl<T> SendError<T> {
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 /// Creates an in-memory Stream which only preserves last value
 ///
 /// This method is somewhat similar to `channel(1)` but instead of preserving

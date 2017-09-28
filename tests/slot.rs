@@ -31,6 +31,14 @@ fn send_recv() {
 }
 
 #[test]
+fn send_error() {
+    let (tx, rx) = slot::channel::<i32>();
+    drop(rx);
+
+    assert_eq!(tx.swap(1).unwrap_err().into_inner(), 1);
+}
+
+#[test]
 fn swap() {
     let (tx, rx) = slot::channel::<i32>();
     let mut rx = rx.wait();
