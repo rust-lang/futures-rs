@@ -38,7 +38,7 @@ struct Inner<T> {
     task: Option<Task>,
 }
 
-trait AssertKindsSender: Send + Sync + Clone {}
+trait AssertKindsSender: Send + Sync {}
 impl AssertKindsSender for Sender<u32> {}
 
 trait AssertKindsReceiver: Send + Sync {}
@@ -174,10 +174,4 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     }));
     return (Sender { inner: Arc::downgrade(&inner) },
             Receiver { inner: inner });
-}
-
-impl<T> Clone for Sender<T> {
-    fn clone(&self) -> Sender<T> {
-        Sender { inner: self.inner.clone() }
-    }
 }

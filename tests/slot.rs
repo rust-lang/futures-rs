@@ -10,6 +10,7 @@ use futures::sync::mpsc;
 
 use std::time::Duration;
 use std::thread;
+use std::sync::Arc;
 
 mod support;
 use support::*;
@@ -73,14 +74,15 @@ fn send_recv_no_buffer() {
 
 #[test]
 fn send_shared_recv() {
-    let (tx1, rx) = slot::channel::<i32>();
+    let (tx, rx) = slot::channel::<i32>();
+    let tx1 = Arc::new(tx);
     let tx2 = tx1.clone();
     let mut rx = rx.wait();
 
-    tx1.send(1).wait().unwrap();
+    tx1.swap(1).unwrap();
     assert_eq!(rx.next().unwrap(), Ok(1));
 
-    tx2.send(2).wait().unwrap();
+    tx2.swap(2).unwrap();
     assert_eq!(rx.next().unwrap(), Ok(2));
 }
 
@@ -155,13 +157,14 @@ fn stress_shared_bounded_hard() {
             panic!();
         }
     });
+    let tx = Arc::new(tx);
 
     for _ in 0..NTHREADS {
-        let mut tx = tx.clone();
+        let tx = tx.clone();
 
         thread::spawn(move|| {
             for _ in 0..AMT {
-                tx = tx.send(1).wait().unwrap();
+                tx.swap(1).unwrap();
             }
         });
     }
