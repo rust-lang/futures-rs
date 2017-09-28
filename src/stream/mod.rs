@@ -25,6 +25,8 @@ pub use self::iter::{iter, Iter};
 pub use self::Iter as IterStream;
 mod iter_ok;
 pub use self::iter_ok::{iter_ok, IterOk};
+mod iter_result;
+pub use self::iter_result::{iter_result, IterResult};
 
 mod repeat;
 pub use self::repeat::{repeat, Repeat};
