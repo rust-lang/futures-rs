@@ -7,6 +7,7 @@ use std::mem;
 use std::ptr;
 use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
 use super::core;
@@ -17,6 +18,9 @@ pub use self::unpark_mutex::UnparkMutex;
 
 mod data;
 pub use self::data::*;
+
+mod harness;
+pub use self::harness::{TestHarness, TimeoutError};
 
 mod task_rc;
 #[allow(deprecated)]
@@ -521,7 +525,19 @@ impl ThreadNotify {
         self.state.store(IDLE, Ordering::SeqCst);
     }
 
+    fn is_notified(&self) -> bool {
+        match self.state.load(Ordering::SeqCst) {
+            IDLE => false,
+            NOTIFY => true,
+            _ => unreachable!(),
+        }
+    }
+
     fn park(&self) {
+        self.park_timeout(None);
+    }
+
+    fn park_timeout(&self, dur: Option<Duration>) {
         // If currently notified, then we skip sleeping. This is checked outside
         // of the lock to avoid acquiring a mutex if not necessary.
         match self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
@@ -546,9 +562,26 @@ impl ThreadNotify {
             _ => unreachable!(),
         }
 
-        // Loop until we've been notified
+        // Track (until, remaining)
+        let mut time = dur.map(|dur| (Instant::now() + dur, dur));
+
         loop {
-            m = self.condvar.wait(m).unwrap();
+            m = match time {
+                Some((until, rem)) => {
+                    let (guard, _) = self.condvar.wait_timeout(m, rem).unwrap();
+                    let now = Instant::now();
+
+                    if now >= until {
+                        // Timed out... exit sleep state
+                        self.state.store(IDLE, Ordering::SeqCst);
+                        return;
+                    }
+
+                    time = Some((until, until - now));
+                    guard
+                }
+                None => self.condvar.wait(m).unwrap(),
+            };
 
             // Transition back to idle, loop otherwise
             if NOTIFY == self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {

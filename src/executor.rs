@@ -14,3 +14,5 @@ pub use task_impl::{Unpark, Executor, Run};
 pub use task_impl::{Spawn, spawn, Notify, with_notify};
 
 pub use task_impl::{UnsafeNotify, NotifyHandle};
+
+pub use task_impl::TestHarness;
