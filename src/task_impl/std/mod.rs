@@ -238,7 +238,7 @@ impl<F: Future> Spawn<F> {
     /// to complete. When a future cannot make progress it will use
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadNotify::new(thread::current()));
 
         loop {
             match self.poll_future_notify(&unpark, 0)? {
@@ -296,7 +296,7 @@ impl<S: Stream> Spawn<S> {
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
-        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        let unpark = Arc::new(ThreadNotify::new(thread::current()));
         loop {
             match self.poll_stream_notify(&unpark, 0) {
                 Ok(Async::NotReady) => unpark.park(),
@@ -340,7 +340,7 @@ impl<S: Sink> Spawn<S> {
     /// be blocked until it's able to send the value.
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
-        let notify = Arc::new(ThreadUnpark::new(thread::current()));
+        let notify = Arc::new(ThreadNotify::new(thread::current()));
         loop {
             value = match self.start_send_notify(value, &notify, 0)? {
                 AsyncSink::NotReady(v) => v,
@@ -359,7 +359,7 @@ impl<S: Sink> Spawn<S> {
     /// The thread will be blocked until `poll_complete` returns that it's
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
-        let notify = Arc::new(ThreadUnpark::new(thread::current()));
+        let notify = Arc::new(ThreadNotify::new(thread::current()));
         loop {
             if self.poll_flush_notify(&notify, 0)?.is_ready() {
                 return Ok(())
@@ -374,7 +374,7 @@ impl<S: Sink> Spawn<S> {
     /// is not ready to be close yet, then the current thread will be blocked
     /// until it's closed.
     pub fn wait_close(&mut self) -> Result<(), S::SinkError> {
-        let notify = Arc::new(ThreadUnpark::new(thread::current()));
+        let notify = Arc::new(ThreadNotify::new(thread::current()));
         loop {
             if self.close_notify(&notify, 0)?.is_ready() {
                 return Ok(())
@@ -474,16 +474,16 @@ impl Unpark for RunInner {
     }
 }
 
-// ===== ThreadUnpark =====
+// ===== ThreadNotify =====
 
-struct ThreadUnpark {
+struct ThreadNotify {
     thread: thread::Thread,
     ready: AtomicBool,
 }
 
-impl ThreadUnpark {
-    fn new(thread: thread::Thread) -> ThreadUnpark {
-        ThreadUnpark {
+impl ThreadNotify {
+    fn new(thread: thread::Thread) -> ThreadNotify {
+        ThreadNotify {
             thread: thread,
             ready: AtomicBool::new(false),
         }
@@ -496,7 +496,7 @@ impl ThreadUnpark {
     }
 }
 
-impl Notify for ThreadUnpark {
+impl Notify for ThreadNotify {
     fn notify(&self, _unpark_id: usize) {
         self.ready.store(true, Ordering::SeqCst);
         self.thread.unpark()
