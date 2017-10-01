@@ -5,9 +5,8 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::{Arc, Once, ONCE_INIT};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
 use super::core;
@@ -486,14 +485,20 @@ impl Unpark for RunInner {
 // ===== ThreadNotify =====
 
 struct ThreadNotify {
-    ready: AtomicBool,
-    thread: thread::Thread,
+    state: AtomicUsize,
+    mutex: Mutex<()>,
+    condvar: Condvar,
 }
+
+const IDLE: usize = 0;
+const NOTIFY: usize = 1;
+const SLEEP: usize = 2;
 
 thread_local! {
     static CURRENT_THREAD_NOTIFY: Arc<ThreadNotify> = Arc::new(ThreadNotify {
-        ready: AtomicBool::new(false),
-        thread: thread::current(),
+        state: AtomicUsize::new(IDLE),
+        mutex: Mutex::new(()),
+        condvar: Condvar::new(),
     });
 }
 
@@ -505,16 +510,63 @@ impl ThreadNotify {
     }
 
     fn park(&self) {
-        if !self.ready.swap(false, Ordering::SeqCst) {
-            thread::park();
+        // If currently notified, then we skip sleeping. This is checked outside
+        // of the lock to avoid acquiring a mutex if not necessary.
+        match self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
+            NOTIFY => return,
+            IDLE => {},
+            _ => unreachable!(),
+        }
+
+        // The state is currently idle, so obtain the lock and then try to
+        // transition to a sleeping state.
+        let mut m = self.mutex.lock().unwrap();
+
+        // Transition to sleeping
+        match self.state.compare_and_swap(IDLE, SLEEP, Ordering::SeqCst) {
+            NOTIFY => {
+                // Notified before we could sleep, consume the notification and
+                // exit
+                self.state.store(IDLE, Ordering::SeqCst);
+                return;
+            }
+            IDLE => {},
+            _ => unreachable!(),
+        }
+
+        // Loop until we've been notified
+        loop {
+            m = self.condvar.wait(m).unwrap();
+
+            // Transition back to idle, loop otherwise
+            if NOTIFY == self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
+                return;
+            }
         }
     }
 }
 
 impl Notify for ThreadNotify {
     fn notify(&self, _unpark_id: usize) {
-        self.ready.store(true, Ordering::SeqCst);
-        self.thread.unpark()
+        // First, try transitioning from IDLE -> NOTIFY, this does not require a
+        // lock.
+        match self.state.compare_and_swap(IDLE, NOTIFY, Ordering::SeqCst) {
+            IDLE | NOTIFY => return,
+            SLEEP => {}
+            _ => unreachable!(),
+        }
+
+        // The other half is sleeping, this requires a lock
+        let _m = self.mutex.lock().unwrap();
+
+        // Transition from SLEEP -> NOTIFY
+        match self.state.compare_and_swap(SLEEP, NOTIFY, Ordering::SeqCst) {
+            SLEEP => {}
+            _ => return,
+        }
+
+        // Wakeup the sleeper
+        self.condvar.notify_one();
     }
 }
 
