@@ -238,6 +238,7 @@ impl<F: Future> Spawn<F> {
     /// `thread::park` to block the current thread.
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
         ThreadNotify::with_current(|notify| {
+            notify.clear();
 
             loop {
                 match self.poll_future_notify(notify, 0)? {
@@ -297,6 +298,7 @@ impl<S: Stream> Spawn<S> {
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
         ThreadNotify::with_current(|notify| {
+            notify.clear();
 
             loop {
                 match self.poll_stream_notify(notify, 0) {
@@ -343,6 +345,7 @@ impl<S: Sink> Spawn<S> {
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
+            notify.clear();
 
             loop {
                 value = match self.start_send_notify(value, notify, 0)? {
@@ -364,6 +367,7 @@ impl<S: Sink> Spawn<S> {
     /// ready.
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
+            notify.clear();
 
             loop {
                 if self.poll_flush_notify(notify, 0)?.is_ready() {
@@ -381,6 +385,7 @@ impl<S: Sink> Spawn<S> {
     /// until it's closed.
     pub fn wait_close(&mut self) -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
+            notify.clear();
 
             loop {
                 if self.close_notify(notify, 0)?.is_ready() {
@@ -507,6 +512,13 @@ impl ThreadNotify {
         where F: FnOnce(&Arc<ThreadNotify>) -> R,
     {
         CURRENT_THREAD_NOTIFY.with(|notify| f(notify))
+    }
+
+    /// Clears any previously received notify, avoiding potential spurrious
+    /// notifications. This should only be called immediately before running the
+    /// task.
+    fn clear(&self) {
+        self.state.store(IDLE, Ordering::SeqCst);
     }
 
     fn park(&self) {
