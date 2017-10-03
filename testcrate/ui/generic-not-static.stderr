@@ -2,9 +2,10 @@ error[E0310]: the parameter type `T` may not live long enough
  --> $DIR/generic-not-static.rs:8:20
   |
 8 | fn foo<T>(t: T) -> Result<T, u32> {
-  |                    ^^^^^^^^^^^^^^
+  |        -           ^^^^^^^^^^^^^^
+  |        |
+  |        help: consider adding an explicit lifetime bound `T: 'static`...
   |
-  = help: consider adding an explicit lifetime bound `T: 'static`...
 note: ...so that the type `impl futures::__rt::MyFuture<<[generator@$DIR/generic-not-static.rs:8:35: 1:5 t:T (std::result::Result<T, u32>, ())] as std::ops::Generator>::Return>` will meet its required lifetime bounds
  --> $DIR/generic-not-static.rs:8:20
   |
@@ -15,9 +16,10 @@ error[E0310]: the parameter type `T` may not live long enough
  --> $DIR/generic-not-static.rs:8:20
   |
 8 | fn foo<T>(t: T) -> Result<T, u32> {
-  |                    ^^^^^^^^^^^^^^
+  |        -           ^^^^^^^^^^^^^^
+  |        |
+  |        help: consider adding an explicit lifetime bound `T: 'static`...
   |
-  = help: consider adding an explicit lifetime bound `T: 'static`...
 note: ...so that the type `impl futures::__rt::MyFuture<<[generator@$DIR/generic-not-static.rs:8:35: 1:5 t:T (std::result::Result<T, u32>, ())] as std::ops::Generator>::Return>` will meet its required lifetime bounds
  --> $DIR/generic-not-static.rs:8:20
   |
