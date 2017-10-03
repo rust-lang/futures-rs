@@ -84,15 +84,15 @@ struct Inner<T> {
 /// use futures::sync::oneshot;
 /// use futures::*;
 ///
-/// let (c, p) = oneshot::channel::<i32>();
+/// let (p, c) = oneshot::channel::<i32>();
 ///
 /// thread::spawn(|| {
-///     p.map(|i| {
+///     c.map(|i| {
 ///         println!("got: {}", i);
 ///     }).wait();
 /// });
 ///
-/// c.send(3).unwrap();
+/// p.send(3).unwrap();
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner::new());
