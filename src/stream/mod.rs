@@ -468,6 +468,9 @@ pub trait Stream {
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
     ///
+    /// To process the entire stream and return a single future representing
+    /// success or error, use `for_each` instead.
+    ///
     /// # Examples
     ///
     /// ```
@@ -747,6 +750,9 @@ pub trait Stream {
     /// errors are otherwise threaded through. Any error on the stream or in the
     /// closure will cause iteration to be halted immediately and the future
     /// will resolve to that error.
+    ///
+    /// To process each item in the stream and produce another stream instead
+    /// of a single future, use `and_then` instead.
     fn for_each<F, U>(self, f: F) -> ForEach<Self, F, U>
         where F: FnMut(Self::Item) -> U,
               U: IntoFuture<Item=(), Error = Self::Error>,
