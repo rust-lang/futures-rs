@@ -50,7 +50,7 @@ fn handle_client(socket: TcpStream) -> io::Result<()> {
     #[async]
     for line in tokio_io::io::lines(input) {
         println!("got client line: {}", line);
-        stream_yield!(line.len() as u64);
+        stream_yield!(Ok(line.len() as u64));
         writer = await!(tokio_io::io::write_all(writer, line))?.0;
     }
 
