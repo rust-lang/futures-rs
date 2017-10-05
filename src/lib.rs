@@ -100,7 +100,10 @@ pub mod __rt {
     struct GenFuture<T>(T);
 
     /// Small shim to translate from a generator to a stream.
-    struct GenStream<T>(T);
+    struct GenStream<T> {
+        gen: T,
+        done: bool,
+    }
 
     pub fn gen<T>(gen: T) -> impl MyFuture<T::Return>
         where T: Generator<Yield = Async<!>>,
@@ -118,7 +121,7 @@ pub mod __rt {
                   Err = <<T::Yield as IsAsync>::Item as IsResult>::Err
               >,
     {
-        GenStream(gen)
+        GenStream { gen, done: false }
     }
 
     impl<T> Future for GenFuture<T>
@@ -151,15 +154,18 @@ pub mod __rt {
         type Error = <<T::Yield as IsAsync>::Item as IsResult>::Err;
 
         fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-            match self.0.resume() {
+            if self.done { return Ok(Async::Ready(None)) }
+            match self.gen.resume() {
                 GeneratorState::Yielded(e) => match e.into_async() {
                     Async::NotReady
                         => Ok(Async::NotReady),
                     Async::Ready(e)
                         => e.into_result().map(|e| Async::Ready(Some(e))),
                 },
-                GeneratorState::Complete(e)
-                    => e.into_result().map(|()| Async::Ready(None)),
+                GeneratorState::Complete(e) => {
+                    self.done = true;
+                    e.into_result().map(|()| Async::Ready(None))
+                }
             }
         }
     }
