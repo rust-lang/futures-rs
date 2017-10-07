@@ -51,6 +51,19 @@ fn swap() {
 }
 
 #[test]
+fn is_canceled() {
+    let (tx, rx) = slot::channel::<i32>();
+    let mut rx = rx.wait();
+
+    assert_eq!(tx.swap(1), Ok(None));
+    assert_eq!(rx.next().unwrap(), Ok(1));
+    assert_eq!(tx.is_canceled(), false);
+    drop(rx);
+    assert_eq!(tx.is_canceled(), true);
+    assert_eq!(tx.swap(2).unwrap_err().into_inner(), 2);
+}
+
+#[test]
 fn poll_cancel() {
     let (mut tx, rx) = slot::channel::<i32>();
     let mut rx = rx.wait();
