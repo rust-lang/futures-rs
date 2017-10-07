@@ -86,6 +86,38 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
+#[async_stream(item = "u64")]
+fn _stream1() -> Result<(), i32> {
+    stream_yield!(Ok(0));
+    stream_yield!(Ok(1));
+    Ok(())
+}
+
+#[async_stream(item = "T")]
+fn _stream2<T: Clone + 'static>(t: T) -> Result<(), i32> {
+    stream_yield!(Ok(t.clone()));
+    stream_yield!(Ok(t.clone()));
+    Ok(())
+}
+
+#[async_stream(item = "i32")]
+fn _stream3() -> Result<(), i32> {
+    let mut cnt = 0;
+    #[async]
+    for x in futures::stream::iter_ok::<_, i32>(vec![1, 2, 3, 4]) {
+        cnt += x;
+        stream_yield!(Ok(x));
+    }
+    Err(cnt)
+}
+
+#[async_stream(boxed, item = "u64")]
+fn _stream4() -> Result<(), i32> {
+    stream_yield!(Ok(0));
+    stream_yield!(Ok(1));
+    Ok(())
+}
+
 // struct A(i32);
 //
 // impl A {
