@@ -51,6 +51,22 @@ fn swap() {
 }
 
 #[test]
+fn poll_cancel() {
+    let (mut tx, rx) = slot::channel::<i32>();
+    let mut rx = rx.wait();
+
+    lazy(move || {
+        assert_eq!(tx.swap(1), Ok(None));
+        assert_eq!(rx.next().unwrap(), Ok(1));
+        assert_eq!(tx.poll_cancel(), Ok(Async::NotReady));
+        drop(rx);
+        assert_eq!(tx.poll_cancel(), Ok(Async::Ready(())));
+        assert_eq!(tx.swap(2).unwrap_err().into_inner(), 2);
+        Ok::<(), ()>(())
+    }).wait().unwrap();
+}
+
+#[test]
 fn send_recv_no_buffer() {
     let (mut tx, mut rx) = slot::channel::<i32>();
 
