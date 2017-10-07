@@ -15,7 +15,6 @@
 #![feature(conservative_impl_trait)]
 #![feature(generator_trait)]
 #![feature(use_extern_macros)]
-#![feature(never_type)]
 #![feature(on_unimplemented)]
 
 extern crate futures_async_macro; // the compiler lies that this has no effect
@@ -105,8 +104,12 @@ pub mod __rt {
         done: bool,
     }
 
+    /// Uninhabited type to allow `await!` to work across both `async` and
+    /// `async_stream`.
+    pub enum Mu {}
+
     pub fn gen<T>(gen: T) -> impl MyFuture<T::Return>
-        where T: Generator<Yield = Async<!>>,
+        where T: Generator<Yield = Async<Mu>>,
               T::Return: IsResult,
     {
         GenFuture(gen)
@@ -125,7 +128,7 @@ pub mod __rt {
     }
 
     impl<T> Future for GenFuture<T>
-        where T: Generator<Yield = Async<!>>,
+        where T: Generator<Yield = Async<Mu>>,
               T::Return: IsResult,
     {
         type Item = <T::Return as IsResult>::Ok;
@@ -135,6 +138,8 @@ pub mod __rt {
             match self.0.resume() {
                 GeneratorState::Yielded(Async::NotReady)
                     => Ok(Async::NotReady),
+                GeneratorState::Yielded(Async::Ready(_))
+                    => unreachable!("Mu doesn't exist"),
                 GeneratorState::Complete(e)
                     => e.into_result().map(Async::Ready),
             }
