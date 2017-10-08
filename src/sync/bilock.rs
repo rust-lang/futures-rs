@@ -32,12 +32,13 @@ use task::{self, Task};
 #[derive(Debug)]
 pub struct BiLock<T> {
     inner: Arc<Inner<T>>,
-    state: usize
+    index: usize
 }
 
 #[derive(Debug)]
 struct Inner<T> {
     free_state: AtomicUsize,
+    used_states: [UnsafeCell<usize>; 2],
     tasks: [UnsafeCell<Option<Task>>; 2],
     value: Option<UnsafeCell<T>>,
 }
@@ -54,11 +55,12 @@ impl<T> BiLock<T> {
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
         let inner = Arc::new(Inner {
             free_state: AtomicUsize::new(2),
+            used_states: [UnsafeCell::new(0), UnsafeCell::new(1)],
             tasks: Default::default(),
             value: Some(UnsafeCell::new(t)),
         });
 
-        (BiLock { inner: inner.clone(), state: 0 }, BiLock { inner: inner, state: 1 })
+        (BiLock { inner: inner.clone(), index: 0 }, BiLock { inner: inner, index: 1 })
     }
 
     /// Attempt to acquire this lock, returning `NotReady` if it can't be
@@ -75,11 +77,7 @@ impl<T> BiLock<T> {
     /// This function will panic if called outside the context of a future's
     /// task, or if the lock is already held.
     pub fn poll_lock(&mut self) -> Async<BiLockGuard<T>> {
-        unsafe {
-            self.state = self.inner.poll_lock(self.state);
-        }
-
-        if self.state == 2 {
+        if unsafe { self.inner.poll_lock(self.index) } {
             Async::Ready(BiLockGuard { inner: self })
         } else {
             Async::NotReady
@@ -118,7 +116,7 @@ impl<T> BiLock<T> {
 
     fn unlock(&mut self) {
         unsafe {
-            self.state = self.inner.unlock(self.state);
+            self.inner.unlock(self.index);
         }
     }
 }
@@ -128,33 +126,35 @@ impl<T> Inner<T> {
         self.value.take().unwrap().into_inner()
     }
 
-    unsafe fn poll_lock(&self, mut caller_state: usize) -> usize {
-        assert!(caller_state != 2, "Lock already held");
+    unsafe fn poll_lock(&self, caller_index: usize) -> bool {
+        let caller_state = &mut *self.used_states.get_unchecked(caller_index).get();
+
+        assert!(*caller_state != 2, "Lock already held");
 
         // Fast path
-        caller_state = self.free_state.swap(caller_state, AcqRel);
+        *caller_state = self.free_state.swap(*caller_state, AcqRel);
 
-        if caller_state != 2 {
+        if *caller_state != 2 {
             // Save current task
-            *self.tasks.get_unchecked(caller_state).get() = Some(task::current());
-            caller_state = self.free_state.swap(caller_state, AcqRel)
+            *self.tasks.get_unchecked(*caller_state).get() = Some(task::current());
+            *caller_state = self.free_state.swap(*caller_state, AcqRel)
         }
 
-        caller_state
+        *caller_state == 2
     }
 
-    unsafe fn unlock(&self, mut caller_state: usize) -> usize {
-        assert!(caller_state == 2, "Lock not held");
+    unsafe fn unlock(&self, caller_index: usize) {
+        let caller_state = &mut *self.used_states.get_unchecked(caller_index).get();
+
+        assert!(*caller_state == 2, "Lock not held");
 
         // Swap our state with the free state
-        caller_state = self.free_state.swap(caller_state, AcqRel);
+        *caller_state = self.free_state.swap(*caller_state, AcqRel);
 
         // Wake up the other task
-        if let Some(task) = (*self.tasks.get_unchecked(caller_state).get()).take() {
+        if let Some(task) = (*self.tasks.get_unchecked(*caller_state).get()).take() {
             task.notify();
         }
-
-        caller_state
     }
 
     unsafe fn get_value(&self) -> &mut T {
