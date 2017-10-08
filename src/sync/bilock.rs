@@ -128,12 +128,20 @@ impl<T> Inner<T> {
         self.value.take().unwrap().into_inner()
     }
 
-    unsafe fn poll_lock(&self, caller_state: usize) -> usize {
+    unsafe fn poll_lock(&self, mut caller_state: usize) -> usize {
         assert!(caller_state != 2, "Lock already held");
 
-        // Save current task
-        *self.tasks[caller_state].get() = Some(task::current());
-        self.free_state.swap(caller_state, AcqRel)
+        // Fast path
+        *self.tasks[caller_state].get() = None;
+        caller_state = self.free_state.swap(caller_state, AcqRel);
+
+        if caller_state != 2 {
+            // Save current task
+            *self.tasks[caller_state].get() = Some(task::current());
+            caller_state = self.free_state.swap(caller_state, AcqRel)
+        }
+
+        caller_state
     }
 
     unsafe fn unlock(&self, mut caller_state: usize) -> usize {
