@@ -239,9 +239,8 @@ impl<T> Future for BiLockAcquire<T> {
             }
             Async::NotReady => return Ok(Async::NotReady),
         }
-        let bi_lock = self.inner.take().expect("cannot poll after Ready");
         Ok(Async::Ready(BiLockAcquired {
-            inner: Some(bi_lock)
+            inner: self.inner.take()
         }))
     }
 }
@@ -281,7 +280,7 @@ impl<T> DerefMut for BiLockAcquired<T> {
 
 impl<T> Drop for BiLockAcquired<T> {
     fn drop(&mut self) {
-        if let Some(mut bi_lock) = self.inner.take() {
+        if let Some(ref mut bi_lock) = self.inner {
             bi_lock.unlock();
         }
     }
