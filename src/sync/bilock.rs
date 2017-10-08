@@ -132,7 +132,6 @@ impl<T> Inner<T> {
         assert!(caller_state != 2, "Lock already held");
 
         // Fast path
-        *self.tasks[caller_state].get() = None;
         caller_state = self.free_state.swap(caller_state, AcqRel);
 
         if caller_state != 2 {
