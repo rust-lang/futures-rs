@@ -242,7 +242,7 @@ impl<T> Future for BiLockAcquire<T> {
         }
         let bi_lock = self.inner.take().expect("cannot poll after Ready");
         Ok(Async::Ready(BiLockAcquired {
-            inner: Some(bi_lock.inner.clone())
+            inner: Some(bi_lock)
         }))
     }
 }
@@ -255,16 +255,13 @@ impl<T> Future for BiLockAcquire<T> {
 /// `unlock` method.
 #[derive(Debug)]
 pub struct BiLockAcquired<T> {
-    inner: Option<Arc<Inner<T>>>,
+    inner: Option<BiLock<T>>,
 }
 
 impl<T> BiLockAcquired<T> {
     /// Recovers the original `BiLock<T>`, unlocking this lock.
     pub fn unlock(mut self) -> BiLock<T> {
-        let mut bi_lock = BiLock {
-            inner: self.inner.take().unwrap(),
-            state: 2
-        };
+        let mut bi_lock = self.inner.take().unwrap();
         bi_lock.unlock();
         bi_lock
     }
@@ -273,20 +270,20 @@ impl<T> BiLockAcquired<T> {
 impl<T> Deref for BiLockAcquired<T> {
     type Target = T;
     fn deref(&self) -> &T {
-        unsafe { self.inner.as_ref().unwrap().get_value() }
+        unsafe { self.inner.as_ref().unwrap().inner.get_value() }
     }
 }
 
 impl<T> DerefMut for BiLockAcquired<T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { self.inner.as_ref().unwrap().get_value() }
+        unsafe { self.inner.as_ref().unwrap().inner.get_value() }
     }
 }
 
 impl<T> Drop for BiLockAcquired<T> {
     fn drop(&mut self) {
-        if let Some(inner) = self.inner.take() {
-            unsafe { inner.unlock(2); }
+        if let Some(mut bi_lock) = self.inner.take() {
+            bi_lock.unlock();
         }
     }
 }
