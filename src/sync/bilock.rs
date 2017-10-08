@@ -54,7 +54,7 @@ impl<T> BiLock<T> {
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
         let inner = Arc::new(Inner {
             free_state: AtomicUsize::new(2),
-            tasks: [Default::default(), Default::default()],
+            tasks: Default::default(),
             value: Some(UnsafeCell::new(t)),
         });
 
@@ -136,7 +136,7 @@ impl<T> Inner<T> {
 
         if caller_state != 2 {
             // Save current task
-            *self.tasks[caller_state].get() = Some(task::current());
+            *self.tasks.get_unchecked(caller_state).get() = Some(task::current());
             caller_state = self.free_state.swap(caller_state, AcqRel)
         }
 
@@ -150,7 +150,7 @@ impl<T> Inner<T> {
         caller_state = self.free_state.swap(caller_state, AcqRel);
 
         // Wake up the other task
-        if let Some(task) = (*self.tasks[caller_state].get()).take() {
+        if let Some(task) = (*self.tasks.get_unchecked(caller_state).get()).take() {
             task.notify();
         }
 
