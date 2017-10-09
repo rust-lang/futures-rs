@@ -124,7 +124,7 @@ if_std! {
     #[doc(hidden)]
     #[deprecated(note = "removed without replacement, recommended to use a \
                          local extension trait or function if needed, more \
-                         details in #228")]
+                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
 
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
@@ -267,7 +267,7 @@ pub trait Stream {
     #[doc(hidden)]
     #[deprecated(note = "removed without replacement, recommended to use a \
                          local extension trait or function if needed, more \
-                         details in #228")]
+                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
     #[allow(deprecated)]
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
         where Self: Sized + Send + 'static,
