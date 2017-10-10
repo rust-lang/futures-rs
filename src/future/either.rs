@@ -21,6 +21,14 @@ impl<T, A, B> Either<(T, A), (T, B)> {
             Either::B((a, b)) => (a, Either::B(b)),
         }
     }
+
+    /// Splits out the homogenous type from an either of tuples.
+    ///
+    /// This method is typically useful when combined with the `Future::select2`
+    /// combinator.
+    pub fn split_left(self) -> (T, Either<A, B>) {
+        self.split()
+    }
 }
 
 impl<T, U, A> Either<(T, A), (U, A)> {
