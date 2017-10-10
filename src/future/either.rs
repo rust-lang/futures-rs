@@ -36,6 +36,15 @@ impl<T, U, A> Either<(T, A), (U, A)> {
     }
 }
 
+impl<T> Either<T, T> {
+    /// Collapses out the common type from an either.
+    pub fn collapse(self) -> T {
+        match self {
+            Either::A(t) | Either::B(t) => t,
+        }
+    }
+}
+
 impl<A, B> Future for Either<A, B>
     where A: Future,
           B: Future<Item = A::Item, Error = A::Error>
