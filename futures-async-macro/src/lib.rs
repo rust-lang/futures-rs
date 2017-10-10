@@ -200,7 +200,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     syn::tokens::Semi([block.brace_token.0]).to_tokens(&mut result);
 
     let gen_body_inner = quote! {
-        let __e: ::futures::__rt::Result<_,_> = #result
+        let __e: #output = #result
 
         // Ensure that this closure is a generator, even if it doesn't
         // have any `yield` statements.

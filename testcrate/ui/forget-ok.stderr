@@ -6,7 +6,7 @@ error[E0308]: mismatched types
 9 | | }
   | |_^ expected enum `std::result::Result`, found ()
   |
-  = note: expected type `std::result::Result<_, _>`
+  = note: expected type `std::result::Result<(), ()>`
              found type `()`
 
 error: aborting due to previous error
