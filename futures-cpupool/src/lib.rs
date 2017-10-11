@@ -110,6 +110,15 @@ impl fmt::Debug for CpuPool {
     }
 }
 
+impl fmt::Debug for Builder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Builder")
+            .field("pool_size", &self.pool_size)
+            .field("name_prefix", &self.name_prefix)
+            .finish()
+    }
+}
+
 /// The type of future returned from the `CpuPool::spawn` function, which
 /// proxies the futures running on the thread pool.
 ///
