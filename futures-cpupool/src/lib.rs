@@ -116,6 +116,7 @@ impl fmt::Debug for CpuPool {
 /// This future will resolve in the same way as the underlying future, and it
 /// will propagate panics.
 #[must_use]
+#[derive(Debug)]
 pub struct CpuFuture<T, E> {
     inner: Receiver<thread::Result<Result<T, E>>>,
     keep_running_flag: Arc<AtomicBool>,
