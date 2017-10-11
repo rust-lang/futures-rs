@@ -180,3 +180,17 @@ fn loop_in_loop() -> Result<bool, i32> {
     let sum = (1..5).map(|x| (1..5).map(|y| x * y).sum::<i32>()).sum::<i32>();
     Ok(cnt == sum)
 }
+
+#[async_stream(item = i32)]
+fn poll_stream_after_error_stream() -> Result<(), ()> {
+    stream_yield!(Ok(5));
+    Err(())
+}
+
+#[test]
+fn poll_stream_after_error() {
+    let mut s = poll_stream_after_error_stream();
+    assert_eq!(s.poll(), Ok(Async::Ready(Some(5))));
+    assert_eq!(s.poll(), Err(()));
+    assert_eq!(s.poll(), Ok(Async::Ready(None)));
+}
