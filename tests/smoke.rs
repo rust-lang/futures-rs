@@ -86,21 +86,21 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
-#[async_stream(item = "u64")]
+#[async_stream(item = u64)]
 fn _stream1() -> Result<(), i32> {
     stream_yield!(Ok(0));
     stream_yield!(Ok(1));
     Ok(())
 }
 
-#[async_stream(item = "T")]
+#[async_stream(item = T)]
 fn _stream2<T: Clone + 'static>(t: T) -> Result<(), i32> {
     stream_yield!(Ok(t.clone()));
     stream_yield!(Ok(t.clone()));
     Ok(())
 }
 
-#[async_stream(item = "i32")]
+#[async_stream(item = i32)]
 fn _stream3() -> Result<(), i32> {
     let mut cnt = 0;
     #[async]
@@ -111,10 +111,19 @@ fn _stream3() -> Result<(), i32> {
     Err(cnt)
 }
 
-#[async_stream(boxed, item = "u64")]
+#[async_stream(boxed, item = u64)]
 fn _stream4() -> Result<(), i32> {
     stream_yield!(Ok(0));
     stream_yield!(Ok(1));
+    Ok(())
+}
+
+mod foo { pub struct Foo(pub i32); }
+
+#[async_stream(boxed, item = foo::Foo)]
+pub fn _stream5() -> Result<(), i32> {
+    stream_yield!(Ok(foo::Foo(0)));
+    stream_yield!(Ok(foo::Foo(1)));
     Ok(())
 }
 

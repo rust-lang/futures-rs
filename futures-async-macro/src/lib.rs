@@ -18,14 +18,15 @@ extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 extern crate syn;
+#[macro_use]
 extern crate synom;
 
-use proc_macro2::{Span, Term};
+use proc_macro2::Span;
 use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
 use quote::{Tokens, ToTokens};
 use syn::*;
+use syn::delimited::Delimited;
 use syn::fold::Folder;
-use synom::cursor::SynomBuffer;
 
 fn async_inner<F>(
     boxed: bool,
@@ -263,42 +264,28 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStream {
     // Handle arguments to the #[async_stream] attribute, if any
-    let attribute: proc_macro2::TokenStream = attribute.into();
-    let attribute = quote! { #[async_stream #attribute ] };
-    let attribute = SynomBuffer::new(attribute.into());
-    let (_, attribute) = Attribute::parse_outer(attribute.begin())
-        .expect("failed to parse attribute arguments");
-    let attribute = attribute.meta_item()
+    let args = syn::parse::<AsyncStreamArgs>(attribute)
         .expect("failed to parse attribute arguments");
 
     let mut boxed = false;
     let mut item_ty = None;
 
-    match attribute {
-        MetaItem::Term(_) => (),
-        MetaItem::List(list) => {
-            for item in list.nested.items() {
-                if let NestedMetaItem::MetaItem(ref item) = *item {
-                    if let MetaItem::Term(ref term) = *item {
-                        if term == "boxed" {
-                            boxed = true;
-                        }
-                    }
-                    if let MetaItem::NameValue(ref item) = *item {
-                        if item.ident == "item" {
-                            let mut s = item.lit.to_string();
-                            assert_eq!(s.remove(0), '"');
-                            assert_eq!(s.pop(), Some('"'));
-                            let term = Term::intern(&s);
-                            let span = item.lit.span.clone();
-                            item_ty = Some(Path::from(Ident::new(term, span)));
-                        }
-                    }
+    for arg in args.0 {
+        match arg {
+            AsyncStreamArg(term, None) => {
+                if term == "boxed" {
+                    boxed = true;
+                } else {
+                    panic!("unexpected #[async_stream] argument '{}'", term);
                 }
             }
-        }
-        MetaItem::NameValue(_) => {
-            panic!("#[async_stream] should not be invoked as name value attribute");
+            AsyncStreamArg(term, Some(path)) => {
+                if term == "item" {
+                    item_ty = Some(path);
+                } else {
+                    panic!("unexpected #[async_stream] argument '{}'", quote!(#term = #path));
+                }
+            }
         }
     }
 
@@ -485,4 +472,27 @@ fn replace_bangs(input: proc_macro2::TokenStream, replacements: &[&ToTokens])
         }
     }
     new_tokens.into()
+}
+
+struct AsyncStreamArg(syn::Ident, Option<syn::Path>);
+
+impl synom::Synom for AsyncStreamArg {
+    named!(parse -> Self, do_parse!(
+        i: syn!(syn::Ident) >>
+        p: option!(do_parse!(
+            syn!(syn::tokens::Eq) >>
+            p: syn!(syn::Path) >>
+            (p))) >>
+        (AsyncStreamArg(i, p))));
+}
+
+struct AsyncStreamArgs(Vec<AsyncStreamArg>);
+
+named!(async_stream_arg -> AsyncStreamArg, syn!(AsyncStreamArg));
+
+impl synom::Synom for AsyncStreamArgs {
+    named!(parse -> Self, map!(
+        parens!(call!(Delimited::<_, syn::tokens::Comma>::parse_separated_nonempty_with, async_stream_arg)),
+        |d| AsyncStreamArgs(d.0.into_vec())
+    ));
 }
