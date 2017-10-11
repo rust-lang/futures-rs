@@ -242,17 +242,13 @@ impl<T: ?Sized> Spawn<T> {
     /// Get a mutable reference to the object the Spawn is wrapping.
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.obj
-    } 
-}
+    }
 
-impl<T> Spawn<T> {
     /// Consume the Spawn, returning its inner object
-    pub fn into_inner(self) -> T {
+    pub fn into_inner(self) -> T where T: Sized {
         self.obj
     }
-}
 
-impl<F: Future + ?Sized> Spawn<F> {
     /// Polls the internal future, scheduling notifications to be sent to the
     /// `notify` argument.
     ///
@@ -279,44 +275,43 @@ impl<F: Future + ?Sized> Spawn<F> {
     /// the `id` specified very carefully, explicitly calling functions like the
     /// `notify` argument's `clone_id` and `drop_id` functions. It should be
     /// safe to encode a pointer itself into the `id` specified, such as an
-    /// `Arc<T>` or a `Box<T>`. The `clone_id` and `drop_id` functions are then
+    /// `Arc<N>` or a `Box<N>`. The `clone_id` and `drop_id` functions are then
     /// intended to be sufficient for the memory management related to that
     /// pointer.
-    pub fn poll_future_notify<T>(&mut self,
-                                 notify: &T,
-                                 id: usize) -> Poll<F::Item, F::Error>
-        where T: Clone + Into<NotifyHandle>,
+    pub fn poll_future_notify<N>(&mut self,
+                                 notify: &N,
+                                 id: usize) -> Poll<T::Item, T::Error>
+        where N: Clone + Into<NotifyHandle>,
+              T: Future,
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |f| f.poll())
     }
-}
 
-impl<S: Stream + ?Sized> Spawn<S> {
     /// Like `poll_future_notify`, except polls the underlying stream.
-    pub fn poll_stream_notify<T>(&mut self,
-                                 notify: &T,
+    pub fn poll_stream_notify<N>(&mut self,
+                                 notify: &N,
                                  id: usize)
-                                 -> Poll<Option<S::Item>, S::Error>
-        where T: Clone + Into<NotifyHandle>,
+                                 -> Poll<Option<T::Item>, T::Error>
+        where N: Clone + Into<NotifyHandle>,
+              T: Stream,
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll())
     }
-}
 
-impl<S: Sink + ?Sized> Spawn<S> {
     /// Invokes the underlying `start_send` method with this task in place.
     ///
     /// If the underlying operation returns `NotReady` then the `notify` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn start_send_notify<T>(&mut self,
-                                value: S::SinkItem,
-                                notify: &T,
+    pub fn start_send_notify<N>(&mut self,
+                                value: T::SinkItem,
+                                notify: &N,
                                 id: usize)
-                               -> StartSend<S::SinkItem, S::SinkError>
-        where T: Clone + Into<NotifyHandle>,
+                               -> StartSend<T::SinkItem, T::SinkError>
+        where N: Clone + Into<NotifyHandle>,
+              T: Sink,
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |s| s.start_send(value))
@@ -327,11 +322,12 @@ impl<S: Sink + ?Sized> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `notify` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn poll_flush_notify<T>(&mut self,
-                                notify: &T,
+    pub fn poll_flush_notify<N>(&mut self,
+                                notify: &N,
                                 id: usize)
-                                -> Poll<(), S::SinkError>
-        where T: Clone + Into<NotifyHandle>,
+                                -> Poll<(), T::SinkError>
+        where N: Clone + Into<NotifyHandle>,
+              T: Sink,
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll_complete())
@@ -342,18 +338,17 @@ impl<S: Sink + ?Sized> Spawn<S> {
     /// If the underlying operation returns `NotReady` then the `notify` value
     /// passed in will receive a notification when the operation is ready to be
     /// attempted again.
-    pub fn close_notify<T>(&mut self,
-                           notify: &T,
+    pub fn close_notify<N>(&mut self,
+                           notify: &N,
                            id: usize)
-                           -> Poll<(), S::SinkError>
-        where T: Clone + Into<NotifyHandle>,
+                           -> Poll<(), T::SinkError>
+        where N: Clone + Into<NotifyHandle>,
+              T: Sink,
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), |s| s.close())
     }
-}
 
-impl<T: ?Sized> Spawn<T> {
     fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
