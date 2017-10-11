@@ -210,10 +210,10 @@ impl fmt::Debug for Task {
 /// can be blocked indefinitely until a notification arrives. This can be used
 /// with either futures or streams, with different methods being available on
 /// `Spawn` depending which is used.
-pub struct Spawn<T> {
+pub struct Spawn<T: ?Sized> {
     id: usize,
-    obj: T,
     data: LocalMap,
+    obj: T,
 }
 
 /// Spawns a new future, returning the fused future and task.
@@ -233,7 +233,7 @@ pub fn spawn<T>(obj: T) -> Spawn<T> {
     }
 }
 
-impl<T> Spawn<T> {
+impl<T: ?Sized> Spawn<T> {
     /// Get a shared reference to the object the Spawn is wrapping.
     pub fn get_ref(&self) -> &T {
         &self.obj
@@ -242,15 +242,17 @@ impl<T> Spawn<T> {
     /// Get a mutable reference to the object the Spawn is wrapping.
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.obj
-    }
+    } 
+}
 
+impl<T> Spawn<T> {
     /// Consume the Spawn, returning its inner object
     pub fn into_inner(self) -> T {
         self.obj
     }
 }
 
-impl<F: Future> Spawn<F> {
+impl<F: Future + ?Sized> Spawn<F> {
     /// Polls the internal future, scheduling notifications to be sent to the
     /// `notify` argument.
     ///
@@ -290,7 +292,7 @@ impl<F: Future> Spawn<F> {
     }
 }
 
-impl<S: Stream> Spawn<S> {
+impl<S: Stream + ?Sized> Spawn<S> {
     /// Like `poll_future_notify`, except polls the underlying stream.
     pub fn poll_stream_notify<T>(&mut self,
                                  notify: &T,
@@ -303,7 +305,7 @@ impl<S: Stream> Spawn<S> {
     }
 }
 
-impl<S: Sink> Spawn<S> {
+impl<S: Sink + ?Sized> Spawn<S> {
     /// Invokes the underlying `start_send` method with this task in place.
     ///
     /// If the underlying operation returns `NotReady` then the `notify` value
@@ -351,7 +353,7 @@ impl<S: Sink> Spawn<S> {
     }
 }
 
-impl<T> Spawn<T> {
+impl<T: ?Sized> Spawn<T> {
     fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
@@ -366,10 +368,10 @@ impl<T> Spawn<T> {
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for Spawn<T> {
+impl<T: fmt::Debug + ?Sized> fmt::Debug for Spawn<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Spawn")
-         .field("obj", &self.obj)
+         .field("obj", &&self.obj)
          .finish()
     }
 }
