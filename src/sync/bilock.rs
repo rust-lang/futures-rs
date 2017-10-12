@@ -6,7 +6,7 @@ use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::AcqRel;
+use std::sync::atomic::Ordering::{AcqRel, Relaxed};
 
 use {Async, Future, Poll};
 use task::{self, Task};
@@ -32,13 +32,12 @@ use task::{self, Task};
 #[derive(Debug)]
 pub struct BiLock<T> {
     inner: Arc<Inner<T>>,
-    index: usize
+    index: bool
 }
 
 #[derive(Debug)]
 struct Inner<T> {
-    free_state: AtomicUsize,
-    used_states: [UnsafeCell<usize>; 2],
+    state: AtomicUsize,
     tasks: [UnsafeCell<Option<Task>>; 2],
     value: Option<UnsafeCell<T>>,
 }
@@ -54,13 +53,12 @@ impl<T> BiLock<T> {
     /// tasks to be managed there.
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
         let inner = Arc::new(Inner {
-            free_state: AtomicUsize::new(2),
-            used_states: [UnsafeCell::new(0), UnsafeCell::new(1)],
+            state: AtomicUsize::new(3),
             tasks: Default::default(),
             value: Some(UnsafeCell::new(t)),
         });
 
-        (BiLock { inner: inner.clone(), index: 0 }, BiLock { inner: inner, index: 1 })
+        (BiLock { inner: inner.clone(), index: false }, BiLock { inner: inner, index: true })
     }
 
     /// Attempt to acquire this lock, returning `NotReady` if it can't be
@@ -126,34 +124,78 @@ impl<T> Inner<T> {
         self.value.take().unwrap().into_inner()
     }
 
-    unsafe fn poll_lock(&self, caller_index: usize) -> bool {
-        let caller_state = &mut *self.used_states.get_unchecked(caller_index).get();
+    unsafe fn poll_lock(&self, caller_index: bool) -> bool {
+        let mut state;
+        if caller_index {
+            // This needs precisely Acquire/Release semantics
+            state = self.state.fetch_add(3, AcqRel);
 
-        assert!(*caller_state != 2, "Lock already held");
+            // Slow path if lock failed
+            match state % 6 {
+                2 => {
+                    *self.tasks.get_unchecked(0).get() = Some(task::current());
+                    state = self.state.fetch_add(3, AcqRel);
+                },
+                5 => {
+                    *self.tasks.get_unchecked(1).get() = Some(task::current());
+                    state = self.state.fetch_add(3, AcqRel);
+                },
+                0 | 1 => panic!("Lock already held"),
+                _ => {}
+            }
 
-        // Fast path
-        *caller_state = self.free_state.swap(*caller_state, AcqRel);
+            // Make sure the state wraps around at a multiple of 6, and leave plenty of
+            // room at the end.
+            const UPPER_LIMIT: usize = !0usize - 64;
+            if state >= UPPER_LIMIT {
+                self.state.fetch_sub(UPPER_LIMIT, Relaxed);
+            }
+        } else {
+            // This needs precisely Acquire/Release semantics
+            state = self.state.fetch_xor(1, AcqRel);
 
-        if *caller_state != 2 {
-            // Save current task
-            *self.tasks.get_unchecked(*caller_state).get() = Some(task::current());
-            *caller_state = self.free_state.swap(*caller_state, AcqRel)
+            // Slow path if lock failed
+            match state % 6 {
+                0 => {
+                    *self.tasks.get_unchecked(1).get() = Some(task::current());
+                    state = self.state.fetch_xor(1, AcqRel);
+                },
+                1 => {
+                    *self.tasks.get_unchecked(0).get() = Some(task::current());
+                    state = self.state.fetch_xor(1, AcqRel);
+                },
+                2 | 5 => panic!("Lock already held"),
+                _ => {}
+            }
         }
 
-        *caller_state == 2
+        match state % 6 {
+            3 | 4 => true,
+            _ => false
+        }
     }
 
-    unsafe fn unlock(&self, caller_index: usize) {
-        let caller_state = &mut *self.used_states.get_unchecked(caller_index).get();
+    unsafe fn unlock(&self, caller_index: bool) {
+        if caller_index {
+            // This needs precisely Acquire/Release semantics
+            let state = self.state.fetch_add(3, AcqRel);
 
-        assert!(*caller_state == 2, "Lock not held");
+            // Wake up a waiting task if necessary
+            match state % 6 {
+                0 => (*self.tasks.get_unchecked(1).get()).take().map(|t| t.notify()),
+                1 => (*self.tasks.get_unchecked(0).get()).take().map(|t| t.notify()),
+                _ => panic!("Lock not held")
+            };
+        } else {
+            // This needs precisely Acquire/Release semantics
+            let state = self.state.fetch_xor(1, AcqRel);
 
-        // Swap our state with the free state
-        *caller_state = self.free_state.swap(*caller_state, AcqRel);
-
-        // Wake up the other task
-        if let Some(task) = (*self.tasks.get_unchecked(*caller_state).get()).take() {
-            task.notify();
+            // Wake up a waiting task if necessary
+            match state % 6 {
+                2 => (*self.tasks.get_unchecked(0).get()).take().map(|t| t.notify()),
+                5 => (*self.tasks.get_unchecked(1).get()).take().map(|t| t.notify()),
+                _ => panic!("Lock not held")
+            };
         }
     }
 
@@ -164,7 +206,7 @@ impl<T> Inner<T> {
 
 impl<T> Drop for Inner<T> {
     fn drop(&mut self) {
-        assert_eq!(*self.free_state.get_mut(), 2);
+        assert!((*self.state.get_mut() + 1) % 6 > 3);
     }
 }
 
