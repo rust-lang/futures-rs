@@ -61,7 +61,7 @@ pub struct BiLock<T> {
 /// 
 /// State encoding
 /// --------------
-/// The ownership of the tokens is encoded entirely withing the state field,
+/// The ownership of the tokens is encoded entirely within the state field,
 /// which allows it to be updated atomically.
 /// 
 /// The "LEFT" and "RIGHT" columns indicate which token is owned by each side
