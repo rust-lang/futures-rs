@@ -146,7 +146,7 @@ impl<T> Inner<T> {
 
             // Make sure the state wraps around at a multiple of 6, and leave plenty of
             // room at the end.
-            const UPPER_LIMIT: usize = !0usize - 64;
+            const UPPER_LIMIT: usize = !0usize - 63;
             if state >= UPPER_LIMIT {
                 self.state.fetch_sub(UPPER_LIMIT, Relaxed);
             }
