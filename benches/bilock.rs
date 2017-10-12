@@ -119,3 +119,40 @@ fn lock_unlock(b: &mut Bencher) {
         (x, y)
     })
 }
+
+#[bench]
+fn concurrent(b: &mut Bencher) {
+    use std::thread;
+
+    b.iter(|| {
+        let (mut x, mut y) = BiLock::new(false);
+        const ITERATION_COUNT: usize = 1000;
+
+        let a = thread::spawn(move || {
+            let mut count = 0;
+            while count < ITERATION_COUNT {
+                let mut guard = x.lock().wait().unwrap();
+                if *guard {
+                    *guard = false;
+                    count += 1;
+                }
+                x = guard.unlock();
+            }
+        });
+
+        let b = thread::spawn(move || {
+            let mut count = 0;
+            while count < ITERATION_COUNT {
+                let mut guard = y.lock().wait().unwrap();
+                if !*guard {
+                    *guard = true;
+                    count += 1;
+                }
+                y = guard.unlock();
+            }
+        });
+
+        a.join().unwrap();
+        b.join().unwrap();
+    })
+}
