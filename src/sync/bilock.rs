@@ -10,6 +10,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
 use {Async, Future, Poll};
+use future::InfallibleFuture;
 use task::{self, Task};
 
 /// A type of futures-powered synchronization primitive which is a mutex between
@@ -239,18 +240,24 @@ pub struct BiLockAcquire<T> {
     inner: Option<BiLock<T>>,
 }
 
+impl<T> InfallibleFuture for BiLockAcquire<T> {
+    fn poll_infallible(&mut self) -> Async<Self::Item> {
+        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock() {
+            Async::Ready(r) => {
+                mem::forget(r);
+            }
+            Async::NotReady => return Async::NotReady,
+        }
+        Async::Ready(BiLockAcquired { inner: self.inner.take() })
+    }
+}
+
 impl<T> Future for BiLockAcquire<T> {
     type Item = BiLockAcquired<T>;
     type Error = ();
 
     fn poll(&mut self) -> Poll<BiLockAcquired<T>, ()> {
-        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock() {
-            Async::Ready(r) => {
-                mem::forget(r);
-            }
-            Async::NotReady => return Ok(Async::NotReady),
-        }
-        Ok(Async::Ready(BiLockAcquired { inner: self.inner.take() }))
+        Ok(self.poll_infallible())
     }
 }
 

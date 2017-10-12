@@ -57,9 +57,13 @@ mod skip_while;
 mod take;
 mod take_while;
 mod then;
+mod then_infallible;
 mod unfold;
 mod zip;
 mod forward;
+mod infallible;
+#[cfg(feature = "use_std")]
+mod wait_infallible;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
 pub use self::concat::{Concat, Concat2};
@@ -87,9 +91,13 @@ pub use self::skip_while::SkipWhile;
 pub use self::take::Take;
 pub use self::take_while::TakeWhile;
 pub use self::then::Then;
+pub use self::then_infallible::ThenInfallible;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::forward::Forward;
+#[cfg(feature = "use_std")]
+pub use self::wait_infallible::WaitInfallible;
+pub use self::infallible::InfallibleStream;
 use sink::{Sink};
 
 if_std! {
@@ -241,6 +249,27 @@ pub trait Stream {
         where Self: Sized
     {
         wait::new(self)
+    }
+
+    /// Wait on a stream that can not fail.
+    ///
+    /// Works similar to `wait`, except that it yields the items directly rather
+    /// than a `Result`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::Stream;
+    /// use futures::stream::once;
+    ///
+    /// let s = once(Ok(42));
+    /// let a = s.wait_infallible().collect::<Vec<i32>>();
+    /// ```
+    #[cfg(feature = "use_std")]
+    fn wait_infallible(self) -> WaitInfallible<Self>
+        where Self: InfallibleStream + Sized
+    {
+        wait_infallible::new(self)
     }
 
     /// Convenience function for turning this stream into a trait object.
@@ -446,6 +475,16 @@ pub trait Stream {
               Self: Sized
     {
         then::new(self, f)
+    }
+
+    /// Chain on a computation for when a value is ready, passing the resulting
+    /// item to the provided closure `f`.
+    fn then_infallible<F, U>(self, f: F) -> ThenInfallible<Self, F, U>
+        where F: FnMut(Self::Item) -> U,
+              U: IntoFuture,
+              Self: InfallibleStream + Sized
+    {
+        then_infallible::new(self, f)
     }
 
     /// Chain on a computation for when a value is ready, passing the successful

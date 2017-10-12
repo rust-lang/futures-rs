@@ -55,8 +55,10 @@ mod or_else;
 mod select;
 mod select2;
 mod then;
+mod then_infallible;
 mod either;
 mod inspect;
+mod infallible;
 
 // impl details
 mod chain;
@@ -74,8 +76,10 @@ pub use self::or_else::OrElse;
 pub use self::select::{Select, SelectNext};
 pub use self::select2::Select2;
 pub use self::then::Then;
+pub use self::then_infallible::ThenInfallible;
 pub use self::either::Either;
 pub use self::inspect::Inspect;
+pub use self::infallible::InfallibleFuture;
 
 if_std! {
     mod catch_unwind;
@@ -299,6 +303,27 @@ pub trait Future {
         ::executor::spawn(self).wait_future()
     }
 
+    /// Wait on a future that can not fail.
+    ///
+    /// Works similar to `wait`, except that it returns the item directly rather
+    /// than a `Result`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::Future;
+    /// use futures::future::ok;
+    ///
+    /// let f = ok(42);
+    /// let a: i32 = f.wait_infallible();
+    /// ```
+    #[cfg(feature = "use_std")]
+    fn wait_infallible(self) -> Self::Item
+        where Self: InfallibleFuture + Sized
+    {
+        ::executor::spawn(self).wait_infallible_future()
+    }
+
     /// Convenience function for turning this future into a trait object which
     /// is also `Send`.
     ///
@@ -414,8 +439,6 @@ pub trait Future {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
     }
 
-
-
     /// Map this future's error to any error implementing `From` for
     /// this future's `Error`, returning a new future.
     ///
@@ -487,6 +510,16 @@ pub trait Future {
               Self: Sized,
     {
         assert_future::<B::Item, B::Error, _>(then::new(self, f))
+    }
+
+    /// Chain on a computation for when an infallible future finished, passing the item of
+    /// the future to the provided closure `f`.
+    fn then_infallible<F, B>(self, f: F) -> ThenInfallible<Self, B, F>
+        where F: FnOnce(Self::Item) -> B,
+              B: IntoFuture,
+              Self: InfallibleFuture + Sized,
+    {
+        assert_future::<B::Item, B::Error, _>(then_infallible::new(self, f))
     }
 
     /// Execute another future after this one has resolved successfully.

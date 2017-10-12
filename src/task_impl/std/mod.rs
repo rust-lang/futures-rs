@@ -10,6 +10,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
+use future::InfallibleFuture;
+use stream::InfallibleStream;
 use super::core;
 use super::{BorrowedTask, NotifyHandle, Spawn, spawn, Notify, UnsafeNotify};
 
@@ -284,6 +286,20 @@ impl<F: Future> Spawn<F> {
     }
 }
 
+impl<F: InfallibleFuture> Spawn<F> {
+    /// Like `wait_future`, but infallible.
+    pub fn wait_infallible_future(&mut self) -> F::Item {
+        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+
+        loop {
+            match self.poll_infallible_future_notify(&unpark, 0) {
+                Async::NotReady => unpark.park(),
+                Async::Ready(e) => return e,
+            }
+        }
+    }
+} 
+
 impl<S: Stream> Spawn<S> {
     /// Like `poll_future`, except polls the underlying stream.
     #[deprecated(note = "recommended to use `poll_stream_notify` instead")]
@@ -303,6 +319,20 @@ impl<S: Stream> Spawn<S> {
                 Ok(Async::Ready(Some(e))) => return Some(Ok(e)),
                 Ok(Async::Ready(None)) => return None,
                 Err(e) => return Some(Err(e)),
+            }
+        }
+    }
+}
+
+impl<S: InfallibleStream> Spawn<S> {
+    /// Like `wait_infallible_future`, except only waits for the next element to arrive on
+    /// the underlying stream.
+    pub fn wait_infallible_stream(&mut self) -> Option<S::Item> {
+        let unpark = Arc::new(ThreadUnpark::new(thread::current()));
+        loop {
+            match self.poll_infallible_stream_notify(&unpark, 0) {
+                Async::NotReady => unpark.park(),
+                Async::Ready(e) => return e,
             }
         }
     }
