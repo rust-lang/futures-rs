@@ -35,6 +35,7 @@
 //! ```
 
 #![deny(missing_docs)]
+#![deny(missing_debug_implementations)]
 
 extern crate futures;
 extern crate num_cpus;
@@ -110,12 +111,22 @@ impl fmt::Debug for CpuPool {
     }
 }
 
+impl fmt::Debug for Builder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Builder")
+            .field("pool_size", &self.pool_size)
+            .field("name_prefix", &self.name_prefix)
+            .finish()
+    }
+}
+
 /// The type of future returned from the `CpuPool::spawn` function, which
 /// proxies the futures running on the thread pool.
 ///
 /// This future will resolve in the same way as the underlying future, and it
 /// will propagate panics.
 #[must_use]
+#[derive(Debug)]
 pub struct CpuFuture<T, E> {
     inner: Receiver<thread::Result<Result<T, E>>>,
     keep_running_flag: Arc<AtomicBool>,
