@@ -359,3 +359,17 @@ fn option() {
     assert_eq!(Ok(Some(())), Some(ok::<(), ()>(())).wait());
     assert_eq!(Ok(None), <Option<FutureResult<(), ()>> as Future>::wait(None));
 }
+
+#[test]
+fn spawn_does_unsize() {
+    #[derive(Clone, Copy)]
+    struct EmptyNotify;
+    impl executor::Notify for EmptyNotify {
+        fn notify(&self, _: usize) { panic!("Cannot notify"); }
+    }
+    static EMPTY: &'static EmptyNotify = &EmptyNotify;
+
+    let spawn: executor::Spawn<FutureResult<(), ()>> = executor::spawn(future::ok(()));
+    let mut spawn_box: Box<executor::Spawn<Future<Item = (), Error = ()>>> = Box::new(spawn);
+    spawn_box.poll_future_notify(&EMPTY, 0).unwrap();
+}
