@@ -136,6 +136,18 @@ pub fn _stream6() -> Result<(), i32> {
     Ok(())
 }
 
+#[async_stream(item = ())]
+pub fn _stream7() -> Result<(), i32> {
+    stream_yield!(Ok(()));
+    Ok(())
+}
+
+#[async_stream(item = [u32; 4])]
+pub fn _stream8() -> Result<(), i32> {
+    stream_yield!(Ok([1, 2, 3, 4]));
+    Ok(())
+}
+
 // struct A(i32);
 //
 // impl A {

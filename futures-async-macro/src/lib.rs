@@ -279,11 +279,11 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
                     panic!("unexpected #[async_stream] argument '{}'", term);
                 }
             }
-            AsyncStreamArg(term, Some(path)) => {
+            AsyncStreamArg(term, Some(ty)) => {
                 if term == "item" {
-                    item_ty = Some(path);
+                    item_ty = Some(ty);
                 } else {
-                    panic!("unexpected #[async_stream] argument '{}'", quote!(#term = #path));
+                    panic!("unexpected #[async_stream] argument '{}'", quote!(#term = #ty));
                 }
             }
         }
@@ -474,14 +474,14 @@ fn replace_bangs(input: proc_macro2::TokenStream, replacements: &[&ToTokens])
     new_tokens.into()
 }
 
-struct AsyncStreamArg(syn::Ident, Option<syn::Path>);
+struct AsyncStreamArg(syn::Ident, Option<syn::Ty>);
 
 impl synom::Synom for AsyncStreamArg {
     named!(parse -> Self, do_parse!(
         i: syn!(syn::Ident) >>
         p: option!(do_parse!(
             syn!(syn::tokens::Eq) >>
-            p: syn!(syn::Path) >>
+            p: syn!(syn::Ty) >>
             (p))) >>
         (AsyncStreamArg(i, p))));
 }
