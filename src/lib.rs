@@ -49,6 +49,7 @@ pub mod __rt {
     use futures::Poll;
     use futures::{Future, Async, Stream};
     use std::ops::GeneratorState;
+    use std::marker::PhantomData;
 
     pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> {}
 
@@ -99,9 +100,10 @@ pub mod __rt {
     struct GenFuture<T>(T);
 
     /// Small shim to translate from a generator to a stream.
-    struct GenStream<T> {
+    struct GenStream<U, T> {
         gen: T,
         done: bool,
+        phantom: PhantomData<U>,
     }
 
     /// Uninhabited type to allow `await!` to work across both `async` and
@@ -117,14 +119,10 @@ pub mod __rt {
 
     pub fn gen_stream<T, U>(gen: T) -> impl MyStream<U, T::Return>
         where T: Generator,
-              T::Yield: IsAsync,
-              <T::Yield as IsAsync>::Item: IsResult<Ok = U>,
-              T::Return: IsResult<
-                  Ok = (),
-                  Err = <<T::Yield as IsAsync>::Item as IsResult>::Err
-              >,
+              T::Yield: IsAsync<Item = Result<U, <T::Return as IsResult>::Err>>,
+              T::Return: IsResult<Ok = ()>,
     {
-        GenStream { gen, done: false }
+        GenStream { gen, done: false, phantom: PhantomData }
     }
 
     impl<T> Future for GenFuture<T>
@@ -146,14 +144,10 @@ pub mod __rt {
         }
     }
 
-    impl<T> Stream for GenStream<T>
+    impl<U, T> Stream for GenStream<U, T>
         where T: Generator,
-              T::Yield: IsAsync,
-              <T::Yield as IsAsync>::Item: IsResult,
-              T::Return: IsResult<
-                  Ok = (),
-                  Err = <<T::Yield as IsAsync>::Item as IsResult>::Err
-              >,
+              T::Yield: IsAsync<Item = Result<U, <T::Return as IsResult>::Err>>,
+              T::Return: IsResult<Ok = ()>,
     {
         type Item = <<T::Yield as IsAsync>::Item as IsResult>::Ok;
         type Error = <<T::Yield as IsAsync>::Item as IsResult>::Err;
