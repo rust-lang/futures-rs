@@ -488,11 +488,9 @@ impl synom::Synom for AsyncStreamArg {
 
 struct AsyncStreamArgs(Vec<AsyncStreamArg>);
 
-named!(async_stream_arg -> AsyncStreamArg, syn!(AsyncStreamArg));
-
 impl synom::Synom for AsyncStreamArgs {
     named!(parse -> Self, map!(
-        parens!(call!(Delimited::<_, syn::tokens::Comma>::parse_separated_nonempty_with, async_stream_arg)),
-        |d| AsyncStreamArgs(d.0.into_vec())
+        option!(parens!(call!(Delimited::<AsyncStreamArg, syn::tokens::Comma>::parse_separated_nonempty))),
+        |p| AsyncStreamArgs(p.map(|d| d.0.into_vec()).unwrap_or_default())
     ));
 }
