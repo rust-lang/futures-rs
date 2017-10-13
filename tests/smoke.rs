@@ -121,9 +121,18 @@ fn _stream4() -> Result<(), i32> {
 mod foo { pub struct Foo(pub i32); }
 
 #[async_stream(boxed, item = foo::Foo)]
-pub fn _stream5() -> Result<(), i32> {
+pub fn stream5() -> Result<(), i32> {
     stream_yield!(Ok(foo::Foo(0)));
     stream_yield!(Ok(foo::Foo(1)));
+    Ok(())
+}
+
+#[async_stream(boxed, item = i32)]
+pub fn _stream6() -> Result<(), i32> {
+    #[async]
+    for foo::Foo(i) in stream5() {
+        stream_yield!(Ok(i * i));
+    }
     Ok(())
 }
 
