@@ -8,4 +8,8 @@ use futures::prelude::*;
 fn foo() -> Result<(), ()> {
 }
 
+#[async_stream(item = i32)]
+fn foos() -> Result<(), ()> {
+}
+
 fn main() {}

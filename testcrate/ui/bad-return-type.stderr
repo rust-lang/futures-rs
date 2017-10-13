@@ -10,5 +10,29 @@ error[E0308]: mismatched types
    = note: expected type `std::option::Option<i32>`
               found type `{integer}`
 
-error: aborting due to previous error
+error[E0308]: mismatched types
+  --> $DIR/bad-return-type.rs:17:36
+   |
+17 |    #[async_stream(item = Option<i32>)]
+   |   ____________________________________^
+   |  |____________________________________|
+   | ||
+18 | || fn foobars() -> Result<(), ()> {
+19 | ||     let val = Some(42);
+20 | ||     if val.is_none() {
+...  ||
+24 | ||     let val = val.unwrap();
+25 | ||     stream_yield!(Ok(val));
+   | ||    ^
+   | ||____|
+   | |_____expected enum `std::option::Option`, found integral variable
+   |       help: try using a variant of the expected type: `Err(e)`
+   |
+   = note: expected type `std::result::Result<std::option::Option<_>, _>`
+              found type `std::result::Result<{integer}, _>`
+   = help: here are some functions which might fulfill your needs:
+           - .unwrap_err()
+   = note: this error originates in a macro outside of the current crate
+
+error: aborting due to 2 previous errors
 

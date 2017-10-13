@@ -16,4 +16,12 @@ fn foo(a: String) -> Result<i32, u32> {
     Ok(1)
 }
 
+#[async_stream(item = i32)]
+fn foos(a: String) -> Result<(), u32> {
+    await!(bar(&a))?;
+    drop(a);
+    stream_yield!(Ok(5));
+    Ok(())
+}
+
 fn main() {}

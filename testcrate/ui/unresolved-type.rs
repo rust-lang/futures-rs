@@ -9,4 +9,9 @@ fn foo() -> Result<A, u32> {
     Err(3)
 }
 
+#[async_stream(item = A)]
+fn foos() -> Result<(), u32> {
+    Err(3)
+}
+
 fn main() {}
