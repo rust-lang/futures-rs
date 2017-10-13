@@ -138,8 +138,8 @@ pub mod __rt {
             match self.0.resume() {
                 GeneratorState::Yielded(Async::NotReady)
                     => Ok(Async::NotReady),
-                GeneratorState::Yielded(Async::Ready(_))
-                    => unreachable!("Mu doesn't exist"),
+                GeneratorState::Yielded(Async::Ready(mu))
+                    => match mu {},
                 GeneratorState::Complete(e)
                     => e.into_result().map(Async::Ready),
             }
