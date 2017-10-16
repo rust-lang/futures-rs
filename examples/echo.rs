@@ -29,11 +29,12 @@ fn main() {
     let server = async_block! {
         #[async]
         for (client, _) in tcp.incoming() {
-            handle.spawn(handle_client(client).for_each(|n| {
-                println!("wrote {} bytes", n);
+            handle.spawn(handle_client(client).then(|result| {
+                match result {
+                    Ok(n) => println!("wrote {} bytes", n),
+                    Err(e) => println!("IO error {:?}", e),
+                }
                 Ok(())
-            }).map_err(|e| {
-                println!("IO error {:?}", e);
             }));
         }
 
@@ -42,17 +43,19 @@ fn main() {
     core.run(server).unwrap();
 }
 
-#[async_stream(item = u64)]
-fn handle_client(socket: TcpStream) -> io::Result<()> {
+#[async]
+fn handle_client(socket: TcpStream) -> io::Result<u64> {
     let (reader, mut writer) = socket.split();
     let input = BufReader::new(reader);
+
+    let mut total = 0;
 
     #[async]
     for line in tokio_io::io::lines(input) {
         println!("got client line: {}", line);
-        stream_yield!(line.len() as u64);
+        total += line.len() as u64;
         writer = await!(tokio_io::io::write_all(writer, line))?.0;
     }
 
-    Ok(())
+    Ok(total)
 }
