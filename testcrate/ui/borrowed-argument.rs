@@ -20,7 +20,7 @@ fn foo(a: String) -> Result<i32, u32> {
 fn foos(a: String) -> Result<(), u32> {
     await!(bar(&a))?;
     drop(a);
-    stream_yield!(Ok(5));
+    stream_yield!(5);
     Ok(())
 }
 

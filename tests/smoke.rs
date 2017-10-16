@@ -88,15 +88,15 @@ fn _bar4() -> Result<i32, i32> {
 
 #[async_stream(item = u64)]
 fn _stream1() -> Result<(), i32> {
-    stream_yield!(Ok(0));
-    stream_yield!(Ok(1));
+    stream_yield!(0);
+    stream_yield!(1);
     Ok(())
 }
 
 #[async_stream(item = T)]
 fn _stream2<T: Clone + 'static>(t: T) -> Result<(), i32> {
-    stream_yield!(Ok(t.clone()));
-    stream_yield!(Ok(t.clone()));
+    stream_yield!(t.clone());
+    stream_yield!(t.clone());
     Ok(())
 }
 
@@ -106,15 +106,15 @@ fn _stream3() -> Result<(), i32> {
     #[async]
     for x in futures::stream::iter_ok::<_, i32>(vec![1, 2, 3, 4]) {
         cnt += x;
-        stream_yield!(Ok(x));
+        stream_yield!(x);
     }
     Err(cnt)
 }
 
 #[async_stream(boxed, item = u64)]
 fn _stream4() -> Result<(), i32> {
-    stream_yield!(Ok(0));
-    stream_yield!(Ok(1));
+    stream_yield!(0);
+    stream_yield!(1);
     Ok(())
 }
 
@@ -122,8 +122,8 @@ mod foo { pub struct Foo(pub i32); }
 
 #[async_stream(boxed, item = foo::Foo)]
 pub fn stream5() -> Result<(), i32> {
-    stream_yield!(Ok(foo::Foo(0)));
-    stream_yield!(Ok(foo::Foo(1)));
+    stream_yield!(foo::Foo(0));
+    stream_yield!(foo::Foo(1));
     Ok(())
 }
 
@@ -131,20 +131,20 @@ pub fn stream5() -> Result<(), i32> {
 pub fn _stream6() -> Result<(), i32> {
     #[async]
     for foo::Foo(i) in stream5() {
-        stream_yield!(Ok(i * i));
+        stream_yield!(i * i);
     }
     Ok(())
 }
 
 #[async_stream(item = ())]
 pub fn _stream7() -> Result<(), i32> {
-    stream_yield!(Ok(()));
+    stream_yield!(());
     Ok(())
 }
 
 #[async_stream(item = [u32; 4])]
 pub fn _stream8() -> Result<(), i32> {
-    stream_yield!(Ok([1, 2, 3, 4]));
+    stream_yield!([1, 2, 3, 4]);
     Ok(())
 }
 
@@ -204,7 +204,7 @@ fn loop_in_loop() -> Result<bool, i32> {
 
 #[async_stream(item = i32)]
 fn poll_stream_after_error_stream() -> Result<(), ()> {
-    stream_yield!(Ok(5));
+    stream_yield!(5);
     Err(())
 }
 

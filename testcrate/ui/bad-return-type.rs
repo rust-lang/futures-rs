@@ -18,11 +18,11 @@ fn foobar() -> Result<Option<i32>, ()> {
 fn foobars() -> Result<(), ()> {
     let val = Some(42);
     if val.is_none() {
-        stream_yield!(Ok(None));
+        stream_yield!(None);
         return Ok(())
     }
     let val = val.unwrap();
-    stream_yield!(Ok(val));
+    stream_yield!(val);
     Ok(())
 }
 

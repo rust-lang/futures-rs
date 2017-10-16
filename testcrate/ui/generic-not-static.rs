@@ -11,7 +11,7 @@ fn foo<T>(t: T) -> Result<T, u32> {
 
 #[async_stream(item = T)]
 fn foos<T>(t: T) -> Result<(), u32> {
-    stream_yield!(Ok(t));
+    stream_yield!(t);
     Ok(())
 }
 

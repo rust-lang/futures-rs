@@ -80,17 +80,6 @@ pub mod __rt {
         fn into_result(self) -> Result<Self::Ok, Self::Err> { self }
     }
 
-    pub trait IsAsync {
-        type Item;
-
-        fn into_async(self) -> Async<Self::Item>;
-    }
-    impl<T> IsAsync for Async<T> {
-        type Item = T;
-
-        fn into_async(self) -> Async<Self::Item> { self }
-    }
-
     pub fn diverge<T>() -> T { loop {} }
 
     /// Small shim to translate from a generator to a future.
@@ -118,8 +107,7 @@ pub mod __rt {
     }
 
     pub fn gen_stream<T, U>(gen: T) -> impl MyStream<U, T::Return>
-        where T: Generator,
-              T::Yield: IsAsync<Item = Result<U, <T::Return as IsResult>::Err>>,
+        where T: Generator<Yield = Async<U>>,
               T::Return: IsResult<Ok = ()>,
     {
         GenStream { gen, done: false, phantom: PhantomData }
@@ -145,22 +133,21 @@ pub mod __rt {
     }
 
     impl<U, T> Stream for GenStream<U, T>
-        where T: Generator,
-              T::Yield: IsAsync<Item = Result<U, <T::Return as IsResult>::Err>>,
+        where T: Generator<Yield = Async<U>>,
               T::Return: IsResult<Ok = ()>,
     {
-        type Item = <<T::Yield as IsAsync>::Item as IsResult>::Ok;
-        type Error = <<T::Yield as IsAsync>::Item as IsResult>::Err;
+        type Item = U;
+        type Error = <T::Return as IsResult>::Err;
 
         fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
             if self.done { return Ok(Async::Ready(None)) }
             match self.gen.resume() {
-                GeneratorState::Yielded(e) => match e.into_async() {
-                    Async::NotReady
-                        => Ok(Async::NotReady),
-                    Async::Ready(e)
-                        => e.into_result().map(|e| Async::Ready(Some(e))),
-                },
+                GeneratorState::Yielded(Async::Ready(e)) => {
+                    Ok(Async::Ready(Some(e)))
+                }
+                GeneratorState::Yielded(Async::NotReady) => {
+                    Ok(Async::NotReady)
+                }
                 GeneratorState::Complete(e) => {
                     self.done = true;
                     e.into_result().map(|()| Async::Ready(None))

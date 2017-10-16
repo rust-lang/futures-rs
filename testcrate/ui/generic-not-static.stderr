@@ -34,7 +34,7 @@ error[E0310]: the parameter type `T` may not live long enough
    |         |
    |         help: consider adding an explicit lifetime bound `T: 'static`...
    |
-note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (std::result::Result<T, u32>, fn(std::result::Result<T, u32>) -> futures::Async<std::result::Result<T, u32>> {futures::Async<std::result::Result<T, u32>>::Ready}, futures::Async<std::result::Result<T, u32>>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
+note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (T, fn(T) -> futures::Async<T> {futures::Async<T>::Ready}, futures::Async<T>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
   --> $DIR/generic-not-static.rs:13:21
    |
 13 | fn foos<T>(t: T) -> Result<(), u32> {
@@ -48,7 +48,7 @@ error[E0310]: the parameter type `T` may not live long enough
    |         |
    |         help: consider adding an explicit lifetime bound `T: 'static`...
    |
-note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (std::result::Result<T, u32>, fn(std::result::Result<T, u32>) -> futures::Async<std::result::Result<T, u32>> {futures::Async<std::result::Result<T, u32>>::Ready}, futures::Async<std::result::Result<T, u32>>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
+note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (T, fn(T) -> futures::Async<T> {futures::Async<T>::Ready}, futures::Async<T>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
   --> $DIR/generic-not-static.rs:13:21
    |
 13 | fn foos<T>(t: T) -> Result<(), u32> {
@@ -62,7 +62,7 @@ error[E0310]: the parameter type `T` may not live long enough
    |         |
    |         help: consider adding an explicit lifetime bound `T: 'static`...
    |
-note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (std::result::Result<T, u32>, fn(std::result::Result<T, u32>) -> futures::Async<std::result::Result<T, u32>> {futures::Async<std::result::Result<T, u32>>::Ready}, futures::Async<std::result::Result<T, u32>>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
+note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (T, fn(T) -> futures::Async<T> {futures::Async<T>::Ready}, futures::Async<T>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
   --> $DIR/generic-not-static.rs:13:21
    |
 13 | fn foos<T>(t: T) -> Result<(), u32> {
@@ -76,7 +76,7 @@ error[E0310]: the parameter type `T` may not live long enough
    |         |
    |         help: consider adding an explicit lifetime bound `T: 'static`...
    |
-note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (std::result::Result<T, u32>, fn(std::result::Result<T, u32>) -> futures::Async<std::result::Result<T, u32>> {futures::Async<std::result::Result<T, u32>>::Ready}, futures::Async<std::result::Result<T, u32>>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
+note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (T, fn(T) -> futures::Async<T> {futures::Async<T>::Ready}, futures::Async<T>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
   --> $DIR/generic-not-static.rs:13:21
    |
 13 | fn foos<T>(t: T) -> Result<(), u32> {
@@ -90,7 +90,7 @@ error[E0310]: the parameter type `T` may not live long enough
    |         |
    |         help: consider adding an explicit lifetime bound `T: 'static`...
    |
-note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (std::result::Result<T, u32>, fn(std::result::Result<T, u32>) -> futures::Async<std::result::Result<T, u32>> {futures::Async<std::result::Result<T, u32>>::Ready}, futures::Async<std::result::Result<T, u32>>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
+note: ...so that the type `impl futures::__rt::MyStream<T, <[generator@$DIR/generic-not-static.rs:13:37: 1:5 t:T (T, fn(T) -> futures::Async<T> {futures::Async<T>::Ready}, futures::Async<T>, (), std::result::Result<(), u32>)] as std::ops::Generator>::Return>` will meet its required lifetime bounds
   --> $DIR/generic-not-static.rs:13:21
    |
 13 | fn foos<T>(t: T) -> Result<(), u32> {

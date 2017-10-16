@@ -91,7 +91,7 @@ fn fetch(client: hyper::Client, url: &'static str) -> io::Result<String> {
 fn fetch_all(client: hyper::Client, urls: Vec<&'static str>) -> io::Result<()> {
     for url in urls {
         let s = await!(fetch(client, url))?;
-        stream_yield!(Ok(s));
+        stream_yield!(s);
     }
     Ok(())
 }
