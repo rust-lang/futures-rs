@@ -274,6 +274,9 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
         match arg {
             AsyncStreamArg(term, None) => {
                 if term == "boxed" {
+                    if boxed {
+                        panic!("duplicate 'boxed' argument to #[async_stream]");
+                    }
                     boxed = true;
                 } else {
                     panic!("unexpected #[async_stream] argument '{}'", term);
@@ -281,6 +284,9 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
             }
             AsyncStreamArg(term, Some(ty)) => {
                 if term == "item" {
+                    if item_ty.is_some() {
+                        panic!("duplicate 'item' argument to #[async_stream]");
+                    }
                     item_ty = Some(ty);
                 } else {
                     panic!("unexpected #[async_stream] argument '{}'", quote!(#term = #ty));
