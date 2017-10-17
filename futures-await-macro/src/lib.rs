@@ -27,6 +27,9 @@ macro_rules! await {
     })
 }
 
+// TODO: This macro needs to use an extra temporary variable because of
+// rust-lang/rust#44197, once that's fixed this should just use $e directly
+// inside the yield expression
 #[macro_export]
 macro_rules! stream_yield {
     ($e:expr) => ({
