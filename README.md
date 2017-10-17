@@ -64,8 +64,7 @@ fn foo() -> io::Result<i32> {
 }
 ```
 
-And finally you can also have "async `for` loops" which operate over the
-[`Stream`] trait:
+You can also have "async `for` loops" which operate over the [`Stream`] trait:
 
 ```rust
 #[async]
@@ -77,6 +76,32 @@ for message in stream {
 An async `for` loop will propagate errors out of the function so `message` has
 the `Item` type of the `stream` passed in. Note that async `for` loops can only
 be used inside of an `#[async]` function.
+
+And finally, you can create a `Stream` instead of a `Future` via
+`#[async_stream(item = _)]`:
+
+```rust
+#[async]
+fn fetch(client: hyper::Client, url: &'static str) -> io::Result<String> {
+    // ...
+}
+
+/// Fetch all provided urls one at a time
+#[async_stream(item = String)]
+fn fetch_all(client: hyper::Client, urls: Vec<&'static str>) -> io::Result<()> {
+    for url in urls {
+        let s = await!(fetch(client, url))?;
+        stream_yield!(s);
+    }
+    Ok(())
+}
+```
+
+`#[async_stream]` must have an item type specified via `item = some::Path` and
+the values output from the stream must be wrapped into a `Result` and yielded
+via the `stream_yield!` macro.  This macro also supports the same features as
+`#[async]`, an additional `boxed` argument to return a `Box<Stream>`, async
+`for` loops, etc.
 
 [`Future`]: https://docs.rs/futures/0.1.13/futures/future/trait.Future.html
 [`Stream`]: https://docs.rs/futures/0.1.13/futures/stream/trait.Stream.html

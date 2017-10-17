@@ -86,6 +86,68 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
+#[async_stream(item = u64)]
+fn _stream1() -> Result<(), i32> {
+    stream_yield!(0);
+    stream_yield!(1);
+    Ok(())
+}
+
+#[async_stream(item = T)]
+fn _stream2<T: Clone + 'static>(t: T) -> Result<(), i32> {
+    stream_yield!(t.clone());
+    stream_yield!(t.clone());
+    Ok(())
+}
+
+#[async_stream(item = i32)]
+fn _stream3() -> Result<(), i32> {
+    let mut cnt = 0;
+    #[async]
+    for x in futures::stream::iter_ok::<_, i32>(vec![1, 2, 3, 4]) {
+        cnt += x;
+        stream_yield!(x);
+    }
+    Err(cnt)
+}
+
+#[async_stream(boxed, item = u64)]
+fn _stream4() -> Result<(), i32> {
+    stream_yield!(0);
+    stream_yield!(1);
+    Ok(())
+}
+
+mod foo { pub struct Foo(pub i32); }
+
+#[async_stream(boxed, item = foo::Foo)]
+pub fn stream5() -> Result<(), i32> {
+    stream_yield!(foo::Foo(0));
+    stream_yield!(foo::Foo(1));
+    Ok(())
+}
+
+#[async_stream(boxed, item = i32)]
+pub fn _stream6() -> Result<(), i32> {
+    #[async]
+    for foo::Foo(i) in stream5() {
+        stream_yield!(i * i);
+    }
+    Ok(())
+}
+
+#[async_stream(item = ())]
+pub fn _stream7() -> Result<(), i32> {
+    stream_yield!(());
+    Ok(())
+}
+
+#[async_stream(item = [u32; 4])]
+pub fn _stream8() -> Result<(), i32> {
+    stream_yield!([1, 2, 3, 4]);
+    Ok(())
+}
+
 // struct A(i32);
 //
 // impl A {
@@ -138,4 +200,18 @@ fn loop_in_loop() -> Result<bool, i32> {
 
     let sum = (1..5).map(|x| (1..5).map(|y| x * y).sum::<i32>()).sum::<i32>();
     Ok(cnt == sum)
+}
+
+#[async_stream(item = i32)]
+fn poll_stream_after_error_stream() -> Result<(), ()> {
+    stream_yield!(5);
+    Err(())
+}
+
+#[test]
+fn poll_stream_after_error() {
+    let mut s = poll_stream_after_error_stream();
+    assert_eq!(s.poll(), Ok(Async::Ready(Some(5))));
+    assert_eq!(s.poll(), Err(()));
+    assert_eq!(s.poll(), Ok(Async::Ready(None)));
 }

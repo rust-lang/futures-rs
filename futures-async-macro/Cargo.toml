@@ -14,3 +14,7 @@ proc-macro2 = { version = "0.1", features = ["unstable"] }
 git = 'https://github.com/dtolnay/syn'
 features = ["full", "fold", "parsing", "printing"]
 default-features = false
+
+[dependencies.synom]
+git = 'https://github.com/dtolnay/syn'
+default-features = false

@@ -22,7 +22,18 @@ macro_rules! await {
                     break ::futures::__rt::Err(e)
                 }
             }
-            yield
+            yield ::futures::Async::NotReady
         }
+    })
+}
+
+// TODO: This macro needs to use an extra temporary variable because of
+// rust-lang/rust#44197, once that's fixed this should just use $e directly
+// inside the yield expression
+#[macro_export]
+macro_rules! stream_yield {
+    ($e:expr) => ({
+        let e = $e;
+        yield ::futures::Async::Ready(e)
     })
 }

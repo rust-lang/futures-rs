@@ -14,4 +14,16 @@ fn foobar() -> Result<Option<i32>, ()> {
     Ok(val)
 }
 
+#[async_stream(item = Option<i32>)]
+fn foobars() -> Result<(), ()> {
+    let val = Some(42);
+    if val.is_none() {
+        stream_yield!(None);
+        return Ok(())
+    }
+    let val = val.unwrap();
+    stream_yield!(val);
+    Ok(())
+}
+
 fn main() {}
