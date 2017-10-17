@@ -285,10 +285,9 @@ Otherwise there's a few primary "APIs" provided by this crate:
   }
   ```
 
-* `#[async]` for loops - and finally, the last feature provided by this crate is
-  the ability to iterate asynchronously over a `Stream`. You can do this by
-  attaching the `#[async]` attribute to a `for` loop where the object being
-  iterated over implements the `Stream` trait.
+* `#[async]` for loops - the ability to iterate asynchronously over a `Stream`.
+  You can do this by attaching the `#[async]` attribute to a `for` loop where
+  the object being iterated over implements the `Stream` trait.
 
   Errors from the stream will get propagated automatically, and otherwise, the
   for loop will exhauste the stream to completion, binding each element to the
@@ -309,6 +308,30 @@ Otherwise there's a few primary "APIs" provided by this crate:
 
   Note that an `#[async]` for loop, like `await!`, can only be used in an async
   function or an async block.
+
+* `#[async_stream(item = ...)]` - defines a function which is an implementation
+  of `Stream` rather than `Future`. This function uses the `stream_yield!` macro
+  to yield items, and otherwise works with the `await!` macro and `#[async]` for
+  loops.
+
+  The declared function must return a `Result<(), E>` where `E` becomes the
+  error of the `Stream` returned. The stream is terminated by returning `Ok(())`
+  from the function or returning an error. Operations like `?` work inside the
+  function for propagating errors as well.
+
+  An example is:
+
+  ```rust
+  #[async_stream(item = u32)]
+  fn accept_connections(listener: TcpListener) -> io::Result<()> {
+      #[async]
+      for object in fetch_all_objects() {
+          let description = await!(fetch_object_description(object));
+          stream_yield!(description);
+      }
+      Ok(())
+  }
+  ```
 
 ### Nightly features
 
@@ -538,7 +561,7 @@ trait Service {
     type Request;
     type Error;
     type Future: Future<Item = Self::Response, Error = Self::Error>;
-    
+
     fn call(&self) -> Self::Future;
 }
 ```
@@ -555,7 +578,7 @@ impl Service for MyStruct {
     type Request = ...;
     type Error = ...;
     type Future = Box<Future<Item = Self::Item, Error = Self::Error>>;
-    
+
     fn call(&self) -> Self::Future {
         // ...
         Box::new(future)
