@@ -1,4 +1,4 @@
-#![deprecated(note = "implemention moved to `iter_ok` and `iter_result`")]
+#![deprecated(note = "implementation moved to `iter_ok` and `iter_result`")]
 #![allow(deprecated)]
 
 use Poll;

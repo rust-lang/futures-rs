@@ -588,7 +588,7 @@ impl fmt::Debug for UnparkEvent {
 /// A concurrent set which allows for the insertion of `usize` values.
 ///
 /// `EventSet`s are used to communicate precise information about the event(s)
-/// that trigged a task notification. See `task::with_unpark_event` for details.
+/// that triggered a task notification. See `task::with_unpark_event` for details.
 pub trait EventSet: Send + Sync + 'static {
     /// Insert the given ID into the set
     fn insert(&self, id: usize);

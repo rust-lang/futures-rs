@@ -35,7 +35,7 @@ pub struct Sender<T> {
 #[derive(Debug)]
 struct Inner<T> {
     /// Indicates whether this oneshot is complete yet. This is filled in both
-    /// by `Sender::drop` and by `Receiver::drop`, and both sides iterperet it
+    /// by `Sender::drop` and by `Receiver::drop`, and both sides interpret it
     /// appropriately.
     ///
     /// For `Receiver`, if this is `true`, then it's guaranteed that `data` is

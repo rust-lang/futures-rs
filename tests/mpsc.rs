@@ -358,7 +358,7 @@ fn stress_close_receiver() {
 /// Tests that after `poll_ready` indicates capacity a channel can always send without waiting.
 #[test]
 fn stress_poll_ready() {
-    // A task which checks channel capcity using poll_ready, and pushes items onto the channel when
+    // A task which checks channel capacity using poll_ready, and pushes items onto the channel when
     // ready.
     struct SenderTask {
         sender: mpsc::Sender<u32>,
