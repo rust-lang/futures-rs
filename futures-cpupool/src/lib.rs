@@ -204,7 +204,7 @@ impl CpuPool {
     {
         let (tx, rx) = channel();
         let keep_running_flag = Arc::new(AtomicBool::new(false));
-        // AssertUnwindSafe is used here becuase `Send + 'static` is basically
+        // AssertUnwindSafe is used here because `Send + 'static` is basically
         // an alias for an implementation of the `UnwindSafe` trait but we can't
         // express that in the standard library right now.
         let sender = MySender {

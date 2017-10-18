@@ -28,7 +28,7 @@ use task_impl::{self, AtomicTask};
 /// Calling `poll` in this state will result in `Ok(Async::Ready(None))` to be
 /// returned. Futures are submitted to the set using `push`; however, the
 /// future will **not** be polled at this point. `FuturesUnordered` will only
-/// poll managged futures when `FuturesUnordered::poll` is called. As such, it
+/// poll managed futures when `FuturesUnordered::poll` is called. As such, it
 /// is important to call `poll` after pushing new futures.
 ///
 /// If `FuturesUnordered::poll` returns `Ok(Async::Ready(None))` this means that
@@ -90,7 +90,7 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
 // `FuturesUnordered`. When a notification is received, the node is scheduled
 // for polling by being inserted into the concurrent linked list.
 //
-// Each node uses an `AtomicUisze` to track it's state. The node state is the
+// Each node uses an `AtomicUsize` to track it's state. The node state is the
 // reference count (the number of outstanding handles to the node) as well as a
 // flag tracking if the node is currently inserted in the atomic queue. When the
 // future is notified, it will only insert itself into the linked list if it

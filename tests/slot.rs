@@ -171,7 +171,7 @@ fn stress_shared_bounded_hard() {
     t.join().ok().unwrap();
 }
 
-/// Stress test that receiver properly receivesl last message
+/// Stress test that receiver properly receives last message
 /// after sender dropped.
 #[test]
 fn stress_drop_sender() {

@@ -45,7 +45,7 @@ This is a relatively large release of the `futures` crate, although much of it
 is from reworking internals rather than new APIs. The banner feature of this
 release is that the `futures::{task, executor}` modules are now available in
 `no_std` contexts! A large refactoring of the task system was performed in
-PR #436 to accomodate custom memory allocation schemes and otherwise remove
+PR #436 to accommodate custom memory allocation schemes and otherwise remove
 all dependencies on `std` for the task module. More details about this change
 can be found on the PR itself.
 

@@ -95,7 +95,7 @@ impl Core {
     /// "Turns" this event loop one tick.
     ///
     /// This'll block the current thread until something happens, and once an
-    /// event happens this will acto on that event.
+    /// event happens this will act on that event.
     ///
     /// # Return value
     ///
