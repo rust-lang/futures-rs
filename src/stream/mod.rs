@@ -103,7 +103,7 @@ if_std! {
     mod wait;
     mod channel;
     mod split;
-    mod futures_unordered;
+    pub mod futures_unordered;
     mod futures_ordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
@@ -112,7 +112,7 @@ if_std! {
     pub use self::collect::Collect;
     pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink};
-    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    pub use self::futures_unordered::FuturesUnordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
     #[doc(hidden)]
@@ -1101,4 +1101,28 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         (**self).poll()
     }
+}
+
+/// Converts a list of futures into a `Stream` of results from the futures.
+///
+/// This function will take an list of futures (e.g. a vector, an iterator,
+/// etc), and return a stream. The stream will yield items as they become
+/// available on the futures internally, in the order that they become
+/// available. This function is similar to `buffer_unordered` in that it may
+/// return items in a different order than in the list specified.
+///
+/// Note that the returned set can also be used to dynamically push more
+/// futures into the set as they become available.
+#[cfg(feature = "use_std")]
+pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
+    where I: IntoIterator,
+        I::Item: IntoFuture
+{
+    let mut set = FuturesUnordered::new();
+
+    for future in futures {
+        set.push(future.into_future());
+    }
+
+    return set
 }

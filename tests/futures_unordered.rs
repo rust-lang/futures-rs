@@ -83,3 +83,45 @@ fn finished_future_ok() {
     assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
     assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
 }
+
+#[test]
+fn iter_mut_cancel() {
+    let (a_tx, a_rx) = oneshot::channel::<u32>();
+    let (b_tx, b_rx) = oneshot::channel::<u32>();
+    let (c_tx, c_rx) = oneshot::channel::<u32>();
+
+    let mut stream = futures_unordered(vec![a_rx, b_rx, c_rx]);
+
+    for rx in stream.iter_mut() {
+        rx.close();
+    }
+
+    assert!(a_tx.is_canceled());
+    assert!(b_tx.is_canceled());
+    assert!(c_tx.is_canceled());
+
+    let mut spawn = futures::executor::spawn(stream);
+    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
+    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
+    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
+    assert_eq!(None, spawn.wait_stream());
+}
+
+#[test]
+fn iter_mut_len() {
+    let mut stream = futures_unordered(vec![
+        futures::future::empty::<(),()>(),
+        futures::future::empty::<(),()>(),
+        futures::future::empty::<(),()>()
+    ]);
+
+    let mut iter_mut = stream.iter_mut();
+    assert_eq!(iter_mut.len(), 3);
+    assert!(iter_mut.next().is_some());
+    assert_eq!(iter_mut.len(), 2);
+    assert!(iter_mut.next().is_some());
+    assert_eq!(iter_mut.len(), 1);
+    assert!(iter_mut.next().is_some());
+    assert_eq!(iter_mut.len(), 0);
+    assert!(iter_mut.next().is_none());
+}
