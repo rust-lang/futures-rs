@@ -97,3 +97,25 @@ fn is_canceled() {
     drop(rx);
     assert!(tx.is_canceled());
 }
+
+#[test]
+fn cancel_sends() {
+    let (tx, rx) = mpsc::channel::<Sender<_>>();
+    let t = thread::spawn(move || {
+        for otx in rx {
+            let _ = otx.send(42);
+        }
+    });
+
+    for _ in 0..20000 {
+        let (otx, mut orx) = channel::<u32>();
+        tx.send(otx).unwrap();
+
+        orx.close();
+        // Not necessary to wrap in a task because the implementation of oneshot
+        // never calls `task::current()` if the channel has been closed already.
+        orx.poll();
+    }
+
+    t.join().unwrap();
+}
