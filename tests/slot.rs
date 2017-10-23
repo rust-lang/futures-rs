@@ -10,6 +10,7 @@ use futures::sync::mpsc;
 
 use std::time::Duration;
 use std::thread;
+use std::sync::Arc;
 
 mod support;
 use support::*;
@@ -30,6 +31,14 @@ fn send_recv() {
 }
 
 #[test]
+fn send_error() {
+    let (tx, rx) = slot::channel::<i32>();
+    drop(rx);
+
+    assert_eq!(tx.swap(1).unwrap_err().into_inner(), 1);
+}
+
+#[test]
 fn swap() {
     let (tx, rx) = slot::channel::<i32>();
     let mut rx = rx.wait();
@@ -39,6 +48,35 @@ fn swap() {
     assert_eq!(rx.next().unwrap(), Ok(2));
     assert_eq!(tx.swap(3), Ok(None));
     assert_eq!(rx.next().unwrap(), Ok(3));
+}
+
+#[test]
+fn is_canceled() {
+    let (tx, rx) = slot::channel::<i32>();
+    let mut rx = rx.wait();
+
+    assert_eq!(tx.swap(1), Ok(None));
+    assert_eq!(rx.next().unwrap(), Ok(1));
+    assert_eq!(tx.is_canceled(), false);
+    drop(rx);
+    assert_eq!(tx.is_canceled(), true);
+    assert_eq!(tx.swap(2).unwrap_err().into_inner(), 2);
+}
+
+#[test]
+fn poll_cancel() {
+    let (mut tx, rx) = slot::channel::<i32>();
+    let mut rx = rx.wait();
+
+    lazy(move || {
+        assert_eq!(tx.swap(1), Ok(None));
+        assert_eq!(rx.next().unwrap(), Ok(1));
+        assert_eq!(tx.poll_cancel(), Ok(Async::NotReady));
+        drop(rx);
+        assert_eq!(tx.poll_cancel(), Ok(Async::Ready(())));
+        assert_eq!(tx.swap(2).unwrap_err().into_inner(), 2);
+        Ok::<(), ()>(())
+    }).wait().unwrap();
 }
 
 #[test]
@@ -73,14 +111,15 @@ fn send_recv_no_buffer() {
 
 #[test]
 fn send_shared_recv() {
-    let (tx1, rx) = slot::channel::<i32>();
+    let (tx, rx) = slot::channel::<i32>();
+    let tx1 = Arc::new(tx);
     let tx2 = tx1.clone();
     let mut rx = rx.wait();
 
-    tx1.send(1).wait().unwrap();
+    tx1.swap(1).unwrap();
     assert_eq!(rx.next().unwrap(), Ok(1));
 
-    tx2.send(2).wait().unwrap();
+    tx2.swap(2).unwrap();
     assert_eq!(rx.next().unwrap(), Ok(2));
 }
 
@@ -155,13 +194,14 @@ fn stress_shared_bounded_hard() {
             panic!();
         }
     });
+    let tx = Arc::new(tx);
 
     for _ in 0..NTHREADS {
-        let mut tx = tx.clone();
+        let tx = tx.clone();
 
         thread::spawn(move|| {
             for _ in 0..AMT {
-                tx = tx.send(1).wait().unwrap();
+                tx.swap(1).unwrap();
             }
         });
     }

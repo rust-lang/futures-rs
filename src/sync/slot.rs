@@ -35,10 +35,11 @@ pub struct SendError<T>(T);
 #[derive(Debug)]
 struct Inner<T> {
     value: Option<T>,
-    task: Option<Task>,
+    read_task: Option<Task>,
+    cancel_task: Option<Task>,
 }
 
-trait AssertKindsSender: Send + Sync + Clone {}
+trait AssertKindsSender: Send + Sync {}
 impl AssertKindsSender for Sender<u32> {}
 
 trait AssertKindsReceiver: Send + Sync {}
@@ -72,7 +73,7 @@ impl<T> Sender<T> {
                 let mut inner = lock.lock().unwrap();
                 result = inner.value.take();
                 inner.value = Some(value);
-                inner.task.take()
+                inner.read_task.take()
             } else {
                 return Err(SendError(value));
             }
@@ -81,6 +82,56 @@ impl<T> Sender<T> {
             task.notify();
         }
         return Ok(result);
+    }
+    /// Polls this `Sender` half to detect whether the `Receiver` this has
+    /// paired with has gone away.
+    ///
+    /// This function can be used to learn about when the `Receiver` (consumer)
+    /// half has gone away and nothing will be able to receive a message sent
+    /// from `send` (or `swap`).
+    ///
+    /// If `Ready` is returned then it means that the `Receiver` has disappeared
+    /// and the result this `Sender` would otherwise produce should no longer
+    /// be produced.
+    ///
+    /// If `NotReady` is returned then the `Receiver` is still alive and may be
+    /// able to receive a message if sent. The current task, however, is
+    /// scheduled to receive a notification if the corresponding `Receiver` goes
+    /// away.
+    ///
+    /// # Panics
+    ///
+    /// Like `Future::poll`, this function will panic if it's not called from
+    /// within the context of a task. In other words, this should only ever be
+    /// called from inside another future.
+    ///
+    /// If you're calling this function from a context that does not have a
+    /// task, then you can use the `is_canceled` API instead.
+    pub fn poll_cancel(&mut self) -> Poll<(), ()> {
+        if let Some(ref lock) = self.inner.upgrade() {
+            let mut inner = lock.lock().unwrap();
+            inner.cancel_task = Some(task::current());
+            Ok(Async::NotReady)
+        } else {
+            Ok(Async::Ready(()))
+        }
+    }
+
+    /// Tests to see whether this `Sender`'s corresponding `Receiver`
+    /// has gone away.
+    ///
+    /// This function can be used to learn about when the `Receiver` (consumer)
+    /// half has gone away and nothing will be able to receive a message sent
+    /// from `send`.
+    ///
+    /// Note that this function is intended to *not* be used in the context of a
+    /// future. If you're implementing a future you probably want to call the
+    /// `poll_cancel` function which will block the current task if the
+    /// cancellation hasn't happened yet. This can be useful when working on a
+    /// non-futures related thread, though, which would otherwise panic if
+    /// `poll_cancel` were called.
+    pub fn is_canceled(&self) -> bool {
+        self.inner.upgrade().is_none()
     }
 }
 
@@ -102,7 +153,7 @@ impl<T> Sink for Sender<T> {
             if let Some(ref lock) = weak.upgrade() {
                 drop(weak);
                 let mut inner = lock.lock().unwrap();
-                inner.task.take()
+                inner.read_task.take()
             } else {
                 None
             }
@@ -133,7 +184,7 @@ impl<T> Stream for Receiver<T> {
                     // no senders, terminate the stream
                     return Ok(Async::Ready(None));
                 } else {
-                    inner.task = Some(task::current());
+                    inner.read_task = Some(task::current());
                 }
             }
             inner.value.take()
@@ -142,6 +193,13 @@ impl<T> Stream for Receiver<T> {
             Some(value) => Ok(Async::Ready(Some(value))),
             None => Ok(Async::NotReady),
         }
+    }
+}
+
+impl<T> SendError<T> {
+    /// Returns the message that was attempted to be sent but failed.
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }
 
@@ -170,14 +228,9 @@ impl<T> Stream for Receiver<T> {
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Mutex::new(Inner {
         value: None,
-        task: None,
+        read_task: None,
+        cancel_task: None,
     }));
     return (Sender { inner: Arc::downgrade(&inner) },
             Receiver { inner: inner });
-}
-
-impl<T> Clone for Sender<T> {
-    fn clone(&self) -> Sender<T> {
-        Sender { inner: self.inner.clone() }
-    }
 }
