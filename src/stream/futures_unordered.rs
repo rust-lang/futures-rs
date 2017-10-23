@@ -1,5 +1,6 @@
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
@@ -424,6 +425,18 @@ impl<T> Drop for FuturesUnordered<T> {
         // While that freeing operation isn't guaranteed to happen here, it's
         // guaranteed to happen "promptly" as no more "blocking work" will
         // happen while there's a strong refcount held.
+    }
+}
+
+impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
+    fn from_iter<T>(iter: T) -> Self 
+        where T: IntoIterator<Item = F>
+    {
+        let mut new = FuturesUnordered::new();
+        for future in iter.into_iter() {
+            new.push(future);
+        }
+        new
     }
 }
 

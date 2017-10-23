@@ -1,6 +1,7 @@
 use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 use std::collections::BinaryHeap;
 use std::fmt::{self, Debug};
+use std::iter::FromIterator;
 
 use {Async, Future, IntoFuture, Poll, Stream};
 use stream::FuturesUnordered;
@@ -196,5 +197,17 @@ impl<T: Debug> Debug for FuturesOrdered<T>
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "FuturesOrdered {{ ... }}")
+    }
+}
+
+impl<F: Future> FromIterator<F> for FuturesOrdered<F> {
+    fn from_iter<T>(iter: T) -> Self 
+        where T: IntoIterator<Item = F>
+    {
+        let mut new = FuturesOrdered::new();
+        for future in iter.into_iter() {
+            new.push(future);
+        }
+        new
     }
 }
