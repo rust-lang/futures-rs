@@ -12,7 +12,6 @@
 
 pub mod oneshot;
 pub mod mpsc;
-pub mod slot;
 mod bilock;
 
 pub use self::bilock::{BiLock, BiLockGuard, BiLockAcquire, BiLockAcquired};
