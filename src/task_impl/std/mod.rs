@@ -490,14 +490,35 @@ impl ThreadNotify {
     }
 
     fn park(&self) {
-        if !self.ready.swap(false, Ordering::SeqCst) {
-            thread::park();
+        // If `ready` is true, that means we need to immediately re-poll, so we
+        // short-circuit instead of parking.
+        if self.ready.swap(false, Ordering::SeqCst) {
+            return;
         }
+
+        // Block until the next `notify`. Note that if a call to `notify` races
+        // in between our check above and this `park`, that's ok, because
+        // `thread::park` sets an internal flag of its own similar to our
+        // `ready`.
+        thread::park();
+
+        // Now we've awoken from `park`. If it happened the usual way, by
+        // another thread calling `notify` while we slept, then the `ready` flag
+        // has been set back to true. Since the wait loop is going to `poll`
+        // again as soon as we return, and there's no need to `poll` twice, we
+        // clear it.
+        self.ready.store(false, Ordering::SeqCst);
     }
 }
 
 impl Notify for ThreadNotify {
     fn notify(&self, _unpark_id: usize) {
+        // The target thread might already be in the middle of `poll` when
+        // `notify` is called. In that case it might've just missed the
+        // readiness of some part of its future, and it needs to immediately
+        // call `poll` all over again as soon as the current `poll` is done.
+        // Setting the `ready` flag makes this happen by skipping the next
+        // `park`.
         self.ready.store(true, Ordering::SeqCst);
         self.thread.unpark()
     }
