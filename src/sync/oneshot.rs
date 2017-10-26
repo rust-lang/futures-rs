@@ -203,10 +203,14 @@ impl<T> Inner<T> {
     unsafe fn recv(&self) -> Poll<T, Canceled> {
         // Fast path
         let mut prev_state = self.state.load(Acquire);
-        if get_bit(prev_state, SENT_BIT) | get_bit(prev_state, ORPHAN_BIT) == 1 {
+        if get_bit(prev_state, CLOSED_BIT) == 1 {
+            if get_bit(prev_state, ORPHAN_BIT) == 1 {
+                (*self.value.get()).take().ok_or(Canceled).map(Async::Ready)
+            } else {
+                Err(Canceled)
+            }
+        } else if get_bit(prev_state, SENT_BIT) == 1 {
             (*self.value.get()).take().ok_or(Canceled).map(Async::Ready)
-        } else if get_bit(prev_state, CLOSED_BIT) == 1 {
-            Err(Canceled)
         } else {
             // Save task handle
             store_task(&self.rx_tasks[get_bit(prev_state, RX_BIT)]);
