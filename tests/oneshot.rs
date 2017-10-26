@@ -117,5 +117,6 @@ fn cancel_sends() {
         orx.poll();
     }
 
+    drop(tx);
     t.join().unwrap();
 }
