@@ -38,9 +38,38 @@ struct Inner<T> {
     // Four task handles are needed (two for each side)
     tx_tasks: [UnsafeCell<Option<Task>>; 2],
     rx_tasks: [UnsafeCell<Option<Task>>; 2],
-    // The sender has access to this initially, and the receiver can
-    // access it if it reads a "special" state value.
-    value: UnsafeCell<Option<T>>
+    // Access to the value field is allowed according to this table:
+    // +----------+------------+--------+----------+------------+
+    // | SENT_BIT | CLOSED_BIT |  SENDER | RECEIVER | STATE NAME |
+    // +----------+------------+---------+----------+------------+
+    // |     0    |      0     |   Yes   |    No    |    Open    |
+    // |     0    |      1     |   Yes   |    No    |   Closed   |
+    // |     1    |      0     |   No    |    Yes   |    Sent    |
+    // |     1    |      1     | Closed? |   Sent?  |  Complete  |
+    // +----------+------------+---------+----------+------------+
+    // This is the state diagram:
+    //
+    // (Open) -> Sent -> Complete
+    //     \             ^
+    //      `-> Closed -'
+    //
+    // Three operations are relevant:
+    // - `send()` [Sender]
+    //   Can occur whilst in the "Open" or "Closed" states, so sender has access to
+    //   value before state transition. After state transition, value is only
+    //   accessed if the previous state was "Closed".
+    //
+    // - `close()` [Receiver]
+    //   Transitions to either "Closed" or "Complete" states.
+    //   If previous state was "Sent", sets the "ORPHAN_BIT", indicating a value
+    //   has been orphaned in the data structure.
+    //
+    // - `recv()` [Receiver]
+    //   Only accesses the value if it observes the "Sent" state, or if the "ORPHAN_BIT"
+    //   is set. Since only the receiver can transition away from the "Sent" state, this
+    //   cannot race with other operations. If the "ORPHAN_BIT" is set, the sender has
+    //   already gone away.
+    value: UnsafeCell<Option<T>>,
 }
 
 unsafe impl<T: Send> Send for Inner<T> {}
@@ -84,8 +113,6 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     (sender, receiver)
 }
 
-const CLOSED_STATE: usize = !0usize;
-
 unsafe fn notify_task(loc: &UnsafeCell<Option<Task>>) {
     if let Some(task) = (*loc.get()).take() {
         task.notify();
@@ -102,6 +129,9 @@ fn get_bit(state: usize, bit: usize) -> usize {
 
 const RX_BIT: usize = 0;
 const TX_BIT: usize = 1;
+const SENT_BIT: usize = 2;
+const CLOSED_BIT: usize = 3;
+const ORPHAN_BIT: usize = 4;
 
 impl<T> Inner<T> {
     fn new() -> Inner<T> {
@@ -115,8 +145,8 @@ impl<T> Inner<T> {
 
     unsafe fn send(&self, t: T) -> Result<(), T> {
         *self.value.get() = Some(t);
-        let prev_state = self.state.swap(CLOSED_STATE, AcqRel);
-        if prev_state == CLOSED_STATE {
+        let prev_state = self.state.fetch_or(1 << SENT_BIT, AcqRel);
+        if get_bit(prev_state, CLOSED_BIT) == 1 {
             // Receiver has already closed the channel
             Err((*self.value.get()).take().unwrap())
         } else {
@@ -129,7 +159,7 @@ impl<T> Inner<T> {
     unsafe fn poll_cancel(&self) -> Poll<(), ()> {
         // Fast path
         let mut prev_state = self.state.load(Acquire);
-        if prev_state == CLOSED_STATE {
+        if get_bit(prev_state, CLOSED_BIT) == 1 {
             Ok(Async::Ready(()))
         } else {
             // Save task handle
@@ -137,8 +167,7 @@ impl<T> Inner<T> {
 
             // Check again
             prev_state = self.state.fetch_xor(1 << TX_BIT, AcqRel);
-            if prev_state == CLOSED_STATE {
-                self.state.store(CLOSED_STATE, Relaxed);
+            if get_bit(prev_state, CLOSED_BIT) == 1 {
                 Ok(Async::Ready(()))
             } else {
                 Ok(Async::NotReady)
@@ -147,38 +176,44 @@ impl<T> Inner<T> {
     }
 
     fn is_canceled(&self) -> bool {
-        self.state.load(Acquire) == CLOSED_STATE
+        get_bit(self.state.load(Acquire), CLOSED_BIT) == 1
     }
 
     unsafe fn close_tx(&self) {
-        let prev_state = self.state.swap(CLOSED_STATE, AcqRel);
-        if prev_state != CLOSED_STATE {
+        let prev_state = self.state.fetch_or(1 << SENT_BIT, AcqRel);
+        if get_bit(prev_state, SENT_BIT) | get_bit(prev_state, CLOSED_BIT) == 0 {
             // Wake up receiver
             notify_task(&self.rx_tasks[get_bit(prev_state, RX_BIT)^1]);
         }
     }
 
     unsafe fn close_rx(&self) {
-        let prev_state = self.state.swap(CLOSED_STATE, AcqRel);
-        if prev_state != CLOSED_STATE {
-            // Wake up sender
-            notify_task(&self.tx_tasks[get_bit(prev_state, TX_BIT)^1]);
+        let prev_state = self.state.fetch_or(1 << CLOSED_BIT, AcqRel);
+        if get_bit(prev_state, CLOSED_BIT) == 0 {
+            if get_bit(prev_state, SENT_BIT) == 1 {
+                // Mark the data structure as containing an orphaned value
+                self.state.fetch_or(1 << ORPHAN_BIT, Relaxed);
+            } else {
+                // Wake up sender
+                notify_task(&self.tx_tasks[get_bit(prev_state, TX_BIT)^1]);
+            }
         }
     }
 
     unsafe fn recv(&self) -> Poll<T, Canceled> {
         // Fast path
         let mut prev_state = self.state.load(Acquire);
-        if prev_state == CLOSED_STATE {
+        if get_bit(prev_state, SENT_BIT) | get_bit(prev_state, ORPHAN_BIT) == 1 {
             (*self.value.get()).take().ok_or(Canceled).map(Async::Ready)
+        } else if get_bit(prev_state, CLOSED_BIT) == 1 {
+            Err(Canceled)
         } else {
             // Save task handle
             store_task(&self.rx_tasks[get_bit(prev_state, RX_BIT)]);
 
             // Check again
             prev_state = self.state.fetch_xor(1 << RX_BIT, AcqRel);
-            if prev_state == CLOSED_STATE {
-                self.state.store(CLOSED_STATE, Relaxed);
+            if get_bit(prev_state, SENT_BIT) == 1 {
                 (*self.value.get()).take().ok_or(Canceled).map(Async::Ready)
             } else {
                 Ok(Async::NotReady)
