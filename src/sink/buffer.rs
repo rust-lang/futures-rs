@@ -75,8 +75,12 @@ impl<S: Sink> Sink for Buffer<S> {
     type SinkError = S::SinkError;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        if self.cap == 0 {
+            return self.sink.start_send(item);
+        }
+
         self.try_empty_buffer()?;
-        if self.buf.len() > self.cap {
+        if self.buf.len() == self.cap {
             return Ok(AsyncSink::NotReady(item));
         }
         self.buf.push_back(item);
@@ -84,12 +88,20 @@ impl<S: Sink> Sink for Buffer<S> {
     }
 
     fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        if self.cap == 0 {
+            return self.sink.poll_complete();
+        }
+
         try_ready!(self.try_empty_buffer());
         debug_assert!(self.buf.is_empty());
         self.sink.poll_complete()
     }
 
     fn close(&mut self) -> Poll<(), Self::SinkError> {
+        if self.cap == 0 {
+            return self.sink.close();
+        }
+
         if self.buf.len() > 0 {
             try_ready!(self.try_empty_buffer());
         }

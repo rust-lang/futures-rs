@@ -49,6 +49,20 @@ fn works_2() {
 }
 
 #[test]
+fn from_iterator() {
+    use futures::future::ok;
+    use futures::stream::FuturesOrdered;
+
+    let stream = vec![
+        ok::<u32, ()>(1),
+        ok::<u32, ()>(2),
+        ok::<u32, ()>(3)
+    ].into_iter().collect::<FuturesOrdered<_>>();
+    assert_eq!(stream.len(), 3);
+    assert_eq!(stream.collect().wait(), Ok(vec![1,2,3]));
+}
+
+#[test]
 fn queue_never_unblocked() {
     let (_a_tx, a_rx) = oneshot::channel::<Box<Any+Send>>();
     let (b_tx, b_rx) = oneshot::channel::<Box<Any+Send>>();

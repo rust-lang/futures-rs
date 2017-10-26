@@ -25,6 +25,8 @@ pub use self::iter::{iter, Iter};
 pub use self::Iter as IterStream;
 mod iter_ok;
 pub use self::iter_ok::{iter_ok, IterOk};
+mod iter_result;
+pub use self::iter_result::{iter_result, IterResult};
 
 mod repeat;
 pub use self::repeat::{repeat, Repeat};
@@ -122,7 +124,7 @@ if_std! {
     #[doc(hidden)]
     #[deprecated(note = "removed without replacement, recommended to use a \
                          local extension trait or function if needed, more \
-                         details in #228")]
+                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
 
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
@@ -265,7 +267,7 @@ pub trait Stream {
     #[doc(hidden)]
     #[deprecated(note = "removed without replacement, recommended to use a \
                          local extension trait or function if needed, more \
-                         details in #228")]
+                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
     #[allow(deprecated)]
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
         where Self: Sized + Send + 'static,
@@ -465,6 +467,9 @@ pub trait Stream {
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
+    ///
+    /// To process the entire stream and return a single future representing
+    /// success or error, use `for_each` instead.
     ///
     /// # Examples
     ///
@@ -745,6 +750,9 @@ pub trait Stream {
     /// errors are otherwise threaded through. Any error on the stream or in the
     /// closure will cause iteration to be halted immediately and the future
     /// will resolve to that error.
+    ///
+    /// To process each item in the stream and produce another stream instead
+    /// of a single future, use `and_then` instead.
     fn for_each<F, U>(self, f: F) -> ForEach<Self, F, U>
         where F: FnMut(Self::Item) -> U,
               U: IntoFuture<Item=(), Error = Self::Error>,

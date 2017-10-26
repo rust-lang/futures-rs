@@ -232,7 +232,7 @@ impl<T> ManualFlush<T> {
 
 #[test]
 // test that the `with` sink doesn't require the underlying sink to flush,
-// but doesn't claim to be flushed until the underlyig sink is
+// but doesn't claim to be flushed until the underlying sink is
 fn with_flush_propagate() {
     let mut sink = ManualFlush::new().with(|x| -> Result<Option<i32>, ()> { Ok(x) });
     assert_eq!(sink.start_send(Some(0)).unwrap(), AsyncSink::Ready);

@@ -35,7 +35,7 @@ pub struct Sender<T> {
 #[derive(Debug)]
 struct Inner<T> {
     /// Indicates whether this oneshot is complete yet. This is filled in both
-    /// by `Sender::drop` and by `Receiver::drop`, and both sides iterperet it
+    /// by `Sender::drop` and by `Receiver::drop`, and both sides interpret it
     /// appropriately.
     ///
     /// For `Receiver`, if this is `true`, then it's guaranteed that `data` is
@@ -84,15 +84,15 @@ struct Inner<T> {
 /// use futures::sync::oneshot;
 /// use futures::*;
 ///
-/// let (c, p) = oneshot::channel::<i32>();
+/// let (p, c) = oneshot::channel::<i32>();
 ///
 /// thread::spawn(|| {
-///     p.map(|i| {
+///     c.map(|i| {
 ///         println!("got: {}", i);
 ///     }).wait();
 /// });
 ///
-/// c.send(3).unwrap();
+/// p.send(3).unwrap();
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner::new());
