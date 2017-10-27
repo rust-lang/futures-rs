@@ -381,7 +381,7 @@ struct ExpandAsyncFor;
 
 impl Folder for ExpandAsyncFor {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
-        let expr = fold::noop_fold_expr(self, expr);
+        let expr = fold::fold_expr(self, expr);
         if expr.attrs.len() != 1 {
             return expr
         }
