@@ -529,7 +529,7 @@ trait MyStuff {
 }
 ```
 
-but this needs three pieces to be implemented:
+but this needs two pieces to be implemented:
 
 * The compiler must accept trait functions returning `impl Trait`
 * The compiler needs support for `self: Rc<Self>`, basically object-safe custom
