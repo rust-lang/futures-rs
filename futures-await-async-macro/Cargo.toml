@@ -1,7 +1,13 @@
 [package]
-name = "futures-async-macro"
+name = "futures-await-async-macro"
 version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/alexcrichton/futures-await"
+description = """
+Definition of the `#[async]` macro for the `futures-await` crate as well as a
+few other assorted macros.
+"""
 
 [lib]
 proc-macro = true

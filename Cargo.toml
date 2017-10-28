@@ -7,8 +7,8 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 members = ["testcrate"]
 
 [dependencies]
-futures-async-macro = { path = "futures-async-macro" }
-futures-await-macro = { path = "futures-await-macro" }
+futures-await-async-macro = { path = "futures-await-async-macro" }
+futures-await-await-macro = { path = "futures-await-await-macro" }
 futures = "0.1"
 
 [dev-dependencies]

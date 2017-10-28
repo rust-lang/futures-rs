@@ -17,17 +17,16 @@
 #![feature(use_extern_macros)]
 #![feature(on_unimplemented)]
 
-extern crate futures_async_macro; // the compiler lies that this has no effect
-extern crate futures_await_macro;
+extern crate futures_await_async_macro as async_macro;
+extern crate futures_await_await_macro as await_macro;
 extern crate futures;
 
 pub use futures::*;
 
 pub mod prelude {
-    pub use {Future, Stream, Sink, Poll, Async, AsyncSink, StartSend};
-    pub use {IntoFuture};
-    pub use futures_async_macro::{async, async_stream, async_block, async_stream_block};
-    pub use futures_await_macro::{await, stream_yield};
+    pub use futures::prelude::*;
+    pub use async_macro::{async, async_stream, async_block, async_stream_block};
+    pub use await_macro::{await, stream_yield};
 }
 
 /// A hidden module that's the "runtime support" for the async/await syntax.
