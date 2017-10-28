@@ -19,8 +19,8 @@ intends to be used with the `futures` crate on crates.io as well.
 members = ["testcrate"]
 
 [dependencies]
-futures-await-async-macro = { path = "futures-await-async-macro" }
-futures-await-await-macro = { path = "futures-await-await-macro" }
+futures-await-async-macro = { path = "futures-await-async-macro", version = "0.1" }
+futures-await-await-macro = { path = "futures-await-await-macro", version = "0.1" }
 futures = "0.1"
 
 [dev-dependencies]
