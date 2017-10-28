@@ -129,7 +129,7 @@ Next you'll add this to your `Cargo.toml`
 
 ```toml
 [dependencies]
-futures-await = { git = 'https://github.com/alexcrichton/futures-await' }
+futures-await = "0.1"
 ```
 
 and then...
