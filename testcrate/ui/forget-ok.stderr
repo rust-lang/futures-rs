@@ -9,16 +9,5 @@ error[E0308]: mismatched types
   = note: expected type `std::result::Result<(), ()>`
              found type `()`
 
-error[E0308]: mismatched types
-  --> $DIR/forget-ok.rs:12:29
-   |
-12 |   fn foos() -> Result<(), ()> {
-   |  _____________________________^
-13 | | }
-   | |_^ expected enum `std::result::Result`, found ()
-   |
-   = note: expected type `std::result::Result<(), ()>`
-              found type `()`
-
-error: aborting due to 2 previous errors
+error: aborting due to previous error
 

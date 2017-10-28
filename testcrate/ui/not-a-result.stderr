@@ -27,34 +27,5 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
    = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
    = note: required by `futures::__rt::gen`
 
-error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
-  --> $DIR/not-a-result.rs:18:14
-   |
-18 | fn foos() -> u32 {
-   |              ^^^ async functions must return a `Result` or a typedef of `Result`
-   |
-   = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
-   = note: required by `futures::__rt::gen_stream`
-
-error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
-  --> $DIR/not-a-result.rs:23:18
-   |
-23 |   fn bars() -> u32 {
-   |  __________________^
-24 | |     3
-25 | | }
-   | |_^ async functions must return a `Result` or a typedef of `Result`
-   |
-   = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
-
-error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
-  --> $DIR/not-a-result.rs:23:14
-   |
-23 | fn bars() -> u32 {
-   |              ^^^ async functions must return a `Result` or a typedef of `Result`
-   |
-   = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
-   = note: required by `futures::__rt::gen_stream`
-
-error: aborting due to 6 previous errors
+error: aborting due to 3 previous errors
 
