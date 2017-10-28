@@ -16,10 +16,10 @@
 extern crate proc_macro2;
 extern crate proc_macro;
 #[macro_use]
-extern crate quote;
-extern crate syn;
+extern crate futures_await_quote as quote;
+extern crate futures_await_syn as syn;
 #[macro_use]
-extern crate synom;
+extern crate futures_await_synom as synom;
 
 use proc_macro2::Span;
 use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};

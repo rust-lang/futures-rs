@@ -7,14 +7,14 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 proc-macro = true
 
 [dependencies]
-quote = { git = 'https://github.com/dtolnay/quote' }
+futures-await-quote = "0.4"
 proc-macro2 = { version = "0.1", features = ["unstable"] }
 
-[dependencies.syn]
-git = 'https://github.com/dtolnay/syn'
+[dependencies.futures-await-syn]
+version = "0.12"
 features = ["full", "fold", "parsing", "printing"]
 default-features = false
 
-[dependencies.synom]
-git = 'https://github.com/dtolnay/syn'
+[dependencies.futures-await-synom]
+version = "0.12"
 default-features = false
