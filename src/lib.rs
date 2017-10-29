@@ -199,6 +199,7 @@ pub use future::{
 
 #[cfg(feature = "use_std")]
 mod lock;
+#[cfg(feature = "use_atomic")]
 mod task_impl;
 
 mod resultstream;
