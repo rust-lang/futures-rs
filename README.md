@@ -589,7 +589,7 @@ impl Service for MyStruct {
 
 # License
 
-Serde is licensed under either of
+This project is licensed under either of
 
  * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
    http://www.apache.org/licenses/LICENSE-2.0)
