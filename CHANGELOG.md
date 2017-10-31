@@ -1,3 +1,12 @@
+# 0.1.17 - 2017-10-31
+
+* Add a `close` method on `sink::Wait`
+* Undeprecate `stream::iter` as `stream::iter_result`
+* Improve performance of wait-related methods
+* Tweak buffered sinks with a 0 capacity to forward directly to the underlying
+  sink.
+* Add `FromIterator` implementation for `FuturesOrdered` and `FuturesUnordered`.
+
 # 0.1.16 - 2017-09-15
 
 * A `prelude` module has been added to glob import from and pick up a whole
