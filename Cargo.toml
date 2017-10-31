@@ -22,9 +22,9 @@ appveyor = { repository = "alexcrichton/futures-rs" }
 
 [features]
 use_std = []
-use_atomic = []
+nightly = []
 with-deprecated = []
-default = ["use_std", "use_atomic", "with-deprecated"]
+default = ["use_std", "with-deprecated"]
 
 [workspace]
 members = ["futures-cpupool"]
