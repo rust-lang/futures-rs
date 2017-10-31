@@ -79,14 +79,15 @@ mod std_support {
         fn drop(&mut self) {
             ENTERED.with(|c| {
                 assert!(c.get());
+                if self.permanent {
+                    return
+                }
 
                 let mut on_exit = self.on_exit.borrow_mut();
                 for callback in on_exit.drain(..) {
                     callback.call();
                 }
-                if !self.permanent {
-                    c.set(false);
-                }
+                c.set(false);
             });
         }
     }
