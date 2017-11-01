@@ -26,4 +26,12 @@ fn foobars() -> Result<(), ()> {
     Ok(())
 }
 
+#[async]
+fn tuple() -> Result<(i32, i32), ()> {
+    if false {
+        return Ok(3);
+    }
+    Ok((1, 2))
+}
+
 fn main() {}

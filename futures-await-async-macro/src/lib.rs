@@ -196,7 +196,7 @@ fn async_inner<F>(
     let output_span = first_last(&output);
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = quote! {
-        #gen_function (move || #gen_body)
+        #gen_function (move || -> #output #gen_body)
     };
     let body_inner = if boxed {
         let body = quote! { Box::new(#body_inner) };
