@@ -32,5 +32,14 @@ error[E0308]: mismatched types
               found type `{integer}`
    = note: this error originates in a macro outside of the current crate
 
-error: aborting due to 2 previous errors
+error[E0308]: mismatched types
+  --> $DIR/bad-return-type.rs:32:19
+   |
+32 |         return Ok(3);
+   |                   ^ expected tuple, found integral variable
+   |
+   = note: expected type `(i32, i32)`
+              found type `{integer}`
+
+error: aborting due to 3 previous errors
 
