@@ -1,3 +1,5 @@
+//! An unbounded set of futures.
+
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
@@ -9,7 +11,7 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use {task, Stream, Future, Poll, Async, IntoFuture};
+use {task, Stream, Future, Poll, Async};
 use executor::{Notify, UnsafeNotify, NotifyHandle};
 use task_impl::{self, AtomicTask};
 
@@ -50,29 +52,6 @@ pub struct FuturesUnordered<F> {
 
 unsafe impl<T: Send> Send for FuturesUnordered<T> {}
 unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
-
-/// Converts a list of futures into a `Stream` of results from the futures.
-///
-/// This function will take an list of futures (e.g. a vector, an iterator,
-/// etc), and return a stream. The stream will yield items as they become
-/// available on the futures internally, in the order that they become
-/// available. This function is similar to `buffer_unordered` in that it may
-/// return items in a different order than in the list specified.
-///
-/// Note that the returned set can also be used to dynamically push more
-/// futures into the set as they become available.
-pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
-    where I: IntoIterator,
-          I::Item: IntoFuture
-{
-    let mut set = FuturesUnordered::new();
-
-    for future in futures {
-        set.push(future.into_future());
-    }
-
-    return set
-}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
@@ -205,6 +184,15 @@ impl<T> FuturesUnordered<T> {
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.inner.enqueue(ptr);
+    }
+
+    /// Returns an iterator that allows modifying each future in the set.
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        IterMut {
+            node: self.head_all,
+            len: self.len,
+            _marker: PhantomData
+        }
     }
 
     fn release_node(&mut self, node: Arc<Node<T>>) {
@@ -439,6 +427,37 @@ impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
         new
     }
 }
+
+#[derive(Debug)]
+/// Mutable iterator over all futures in the unordered set.
+pub struct IterMut<'a, F: 'a> {
+    node: *const Node<F>,
+    len: usize,
+    _marker: PhantomData<&'a mut FuturesUnordered<F>>
+}
+
+impl<'a, F> Iterator for IterMut<'a, F> {
+    type Item = &'a mut F;
+
+    fn next(&mut self) -> Option<&'a mut F> {
+        if self.node.is_null() {
+            return None;
+        }
+        unsafe {
+            let future = (*(*self.node).future.get()).as_mut().unwrap();
+            let next = *(*self.node).next_all.get();
+            self.node = next;
+            self.len -= 1;
+            return Some(future);
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+
+impl<'a, F> ExactSizeIterator for IterMut<'a, F> {}
 
 impl<T> Inner<T> {
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
