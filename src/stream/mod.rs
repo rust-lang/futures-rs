@@ -60,6 +60,8 @@ mod then;
 mod unfold;
 mod zip;
 mod forward;
+mod scanner;
+mod buffer;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
 pub use self::concat::{Concat, Concat2};
@@ -90,6 +92,8 @@ pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::forward::Forward;
+pub use self::scanner::Scanner;
+pub use self::buffer::Buffer;
 use sink::{Sink};
 
 if_std! {
@@ -667,6 +671,82 @@ pub trait Stream {
               Self: Sized
     {
         fold::new(self, f, init)
+    }
+
+    /// Observe each item in a stream.
+    ///
+    /// This combinator acts like the standard `Iterator`. Each successive
+    /// result will be passed to it. But it maintains state. This allows 
+    /// for debugging, and remote transformations to be conducted on each
+    /// item in a stream.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::prelude::*;
+    /// use futures::stream;
+    /// use futures::future;
+    ///
+    /// let lambda = | scanner: &mut &mut usize, value: usize | {
+    ///     **scanner += value;
+    ///     future::ok(value)  
+    /// };
+    /// let mut state = 0;
+    /// let sum = {
+    ///     stream::iter::<_,_,()>((1..7usize).map(Ok))
+    ///       .scanner(&mut state, lambda)
+    ///       .fold(0,|acc,x| future::ok(acc+x))
+    ///       .wait()
+    /// };
+    /// assert_eq!(sum, Ok(21));
+    /// assert_eq!(state, 21);
+    /// ```
+    fn scanner<F, T, Fut>(self, init: T, f: F) -> Scanner<Self, T, F, Fut>
+        where F: FnMut(&mut T, Self::Item) -> Fut,
+              Fut: IntoFuture<Error=Self::Error>,
+              Self: Sized
+    {
+        scanner::new(self, init, f)
+    }
+
+    /// Buffer much like Scanner observes all items in the stream but
+    /// it may selectively allow some to pass while other it may not.
+    ///
+    /// This allows building up several items at once to either combine to a
+    /// larger whole, or do batching to side affects within `Buffer`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::prelude::*;
+    /// use futures::stream;
+    /// use futures::future;
+    ///
+    /// let lambda = | scanner: &mut &mut usize, value: usize | {
+    ///     if value == 2 {
+    ///       **scanner += value;
+    ///       None
+    ///     } else {
+    ///       Some(future::ok(value))
+    ///     }
+    /// };
+    /// let data: Vec<usize> = vec![2,5,2,5,2];
+    /// let mut state = 0;
+    /// let sum = {
+    ///     stream::iter::<_,_,()>(data.into_iter().map(Ok))
+    ///       .buffer(&mut state, lambda)
+    ///       .fold(0,|acc,x| future::ok(acc+x))
+    ///       .wait()
+    /// };
+    /// assert_eq!(sum, Ok(10));
+    /// assert_eq!(state, 6);
+    /// ```
+    fn buffer<F, T, Fut>(self, init: T, f: F) -> Buffer<Self, T, F, Fut> 
+        where F: FnMut(&mut T, Self::Item) -> Option<Fut>,
+              Fut: IntoFuture<Error=Self::Error>,
+              Self: Sized
+    {
+        buffer::new(self, init, f)
     }
 
     /// Flattens a stream of streams into just one continuous stream.
