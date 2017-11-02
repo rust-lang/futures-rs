@@ -1,7 +1,7 @@
 use {Future, Poll, IntoFuture, Async};
 use stream::Stream;
 
-use std::mem;
+use core::mem;
 
 /// A stateful stream used to observe each item as it passes
 ///
