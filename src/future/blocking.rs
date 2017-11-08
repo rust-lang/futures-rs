@@ -5,7 +5,7 @@ use task_impl::ThreadNotify;
 
 /// Provides thread-blocking operations on a future.
 ///
-/// See [`blocking`] documentation for more details.
+/// See [`blocking`](fn.blocking.html) documentation for more details.
 #[derive(Debug)]
 pub struct Blocking<T> {
     inner: executor::Spawn<T>,
@@ -24,7 +24,7 @@ pub struct Blocking<T> {
 /// block the task executor's progress.
 pub fn blocking<T: Future>(future: T) -> Blocking<T> {
     let inner = executor::spawn(future);
-    Blocking { inner }
+    Blocking { inner: inner }
 }
 
 impl<T: Future> Blocking<T> {
