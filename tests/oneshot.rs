@@ -4,7 +4,7 @@ use std::sync::mpsc;
 use std::thread;
 
 use futures::prelude::*;
-use futures::future::{lazy, ok};
+use futures::future::{blocking, lazy, ok};
 use futures::sync::oneshot::*;
 
 mod support;
@@ -85,7 +85,7 @@ fn close_wakes() {
         rx.close();
         rx2.recv().unwrap();
     });
-    WaitForCancel { tx: tx }.wait().unwrap();
+    blocking(WaitForCancel { tx: tx }).wait().unwrap();
     tx2.send(()).unwrap();
     t.join().unwrap();
 }

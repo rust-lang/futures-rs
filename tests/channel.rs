@@ -3,7 +3,7 @@ extern crate futures;
 use std::sync::atomic::*;
 
 use futures::prelude::*;
-use futures::future::result;
+use futures::future::{blocking, result};
 use futures::sync::mpsc;
 
 mod support;
@@ -45,7 +45,7 @@ fn drop_sender() {
 #[test]
 fn drop_rx() {
     let (tx, rx) = mpsc::channel::<u32>(1);
-    let tx = tx.send(1).wait().ok().unwrap();
+    let tx = blocking(tx.send(1)).wait().ok().unwrap();
     drop(rx);
     assert!(tx.send(1).wait().is_err());
 }

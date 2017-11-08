@@ -78,11 +78,13 @@ pub use self::either::Either;
 pub use self::inspect::Inspect;
 
 if_std! {
+    mod blocking;
     mod catch_unwind;
     mod join_all;
     mod select_all;
     mod select_ok;
     mod shared;
+    pub use self::blocking::{blocking, Blocking};
     pub use self::catch_unwind::CatchUnwind;
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
@@ -271,28 +273,10 @@ pub trait Future {
     /// error.
     fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 
-    /// Block the current thread until this future is resolved.
-    ///
-    /// This method will consume ownership of this future, driving it to
-    /// completion via `poll` and blocking the current thread while it's waiting
-    /// for the value to become available. Once the future is resolved the
-    /// result of this future is returned.
-    ///
-    /// > **Note:** This method is not appropriate to call on event loops or
-    /// >           similar I/O situations because it will prevent the event
-    /// >           loop from making progress (this blocks the thread). This
-    /// >           method should only be called when it's guaranteed that the
-    /// >           blocking work associated with this future will be completed
-    /// >           by another thread.
-    ///
-    /// This method is only available when the `use_std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// This function does not attempt to catch panics. If the `poll` function
-    /// of this future panics, panics will be propagated to the caller.
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `future::blocking` instead")]
     fn wait(self) -> result::Result<Self::Item, Self::Error>
         where Self: Sized
     {

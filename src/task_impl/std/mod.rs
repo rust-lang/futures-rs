@@ -230,12 +230,10 @@ impl<F: Future> Spawn<F> {
         self.enter(BorrowedUnpark::Old(&unpark), |f| f.poll())
     }
 
-    /// Waits for the internal future to complete, blocking this thread's
-    /// execution until it does.
-    ///
-    /// This function will call `poll_future` in a loop, waiting for the future
-    /// to complete. When a future cannot make progress it will use
-    /// `thread::park` to block the current thread.
+    #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `future::blocking` instead")]
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
         ThreadNotify::with_current(|notify| {
 
@@ -484,7 +482,7 @@ impl Unpark for RunInner {
 
 // ===== ThreadNotify =====
 
-struct ThreadNotify {
+pub struct ThreadNotify {
     state: AtomicUsize,
     mutex: Mutex<()>,
     condvar: Condvar,
@@ -503,13 +501,13 @@ thread_local! {
 }
 
 impl ThreadNotify {
-    fn with_current<F, R>(f: F) -> R
+    pub fn with_current<F, R>(f: F) -> R
         where F: FnOnce(&Arc<ThreadNotify>) -> R,
     {
         CURRENT_THREAD_NOTIFY.with(|notify| f(notify))
     }
 
-    fn park(&self) {
+    pub fn park(&self) {
         // If currently notified, then we skip sleeping. This is checked outside
         // of the lock to avoid acquiring a mutex if not necessary.
         match self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
