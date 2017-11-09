@@ -5,7 +5,7 @@ extern crate futures;
 
 use futures::prelude::*;
 use futures::future::{blocking, lazy, ok};
-use futures::stream::unfold;
+use futures::stream::{self, unfold};
 use futures::sync::mpsc;
 
 use std::time::Duration;
@@ -24,7 +24,7 @@ impl AssertSend for mpsc::Receiver<i32> {}
 #[test]
 fn send_recv() {
     let (tx, rx) = mpsc::channel::<i32>(16);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     blocking(tx.send(1)).wait().unwrap();
 
@@ -69,7 +69,7 @@ fn send_recv_no_buffer() {
 fn send_shared_recv() {
     let (tx1, rx) = mpsc::channel::<i32>(16);
     let tx2 = tx1.clone();
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     blocking(tx1.send(1)).wait().unwrap();
     assert_eq!(rx.next().unwrap(), Ok(1));
@@ -81,7 +81,7 @@ fn send_shared_recv() {
 #[test]
 fn send_recv_threads() {
     let (tx, rx) = mpsc::channel::<i32>(16);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     thread::spawn(move|| {
         blocking(tx.send(1)).wait().unwrap();
@@ -93,7 +93,7 @@ fn send_recv_threads() {
 #[test]
 fn send_recv_threads_no_capacity() {
     let (mut tx, rx) = mpsc::channel::<i32>(0);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     let t = thread::spawn(move|| {
         tx = blocking(tx.send(1)).wait().unwrap();
@@ -154,7 +154,7 @@ fn stress_shared_unbounded() {
     const AMT: u32 = 10000;
     const NTHREADS: u32 = 8;
     let (tx, rx) = mpsc::unbounded::<i32>();
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     let t = thread::spawn(move|| {
         for _ in 0..AMT * NTHREADS {
@@ -186,7 +186,7 @@ fn stress_shared_bounded_hard() {
     const AMT: u32 = 10000;
     const NTHREADS: u32 = 8;
     let (tx, rx) = mpsc::channel::<i32>(0);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     let t = thread::spawn(move|| {
         for _ in 0..AMT * NTHREADS {
@@ -308,7 +308,7 @@ fn stress_drop_sender() {
     }
 
     for _ in 0..10000 {
-        assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
+        assert_eq!(stream::blocking(list()).collect::<Result<Vec<_>, _>>(),
         Ok(vec![1, 2, 3]));
     }
 }
@@ -327,7 +327,7 @@ fn stress_close_receiver_iter() {
         }
     });
 
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     // Read one message to make sure thread effectively started
     assert_eq!(Some(Ok(1)), rx.next());
@@ -397,7 +397,7 @@ fn stress_poll_ready() {
         }
         drop(tx);
 
-        let mut rx = rx.wait();
+        let mut rx = stream::blocking(rx);
         for _ in 0..AMT * NTHREADS {
             assert!(rx.next().is_some());
         }
@@ -436,7 +436,7 @@ fn try_send_1() {
             }
         }
     });
-    for (i, j) in rx.wait().enumerate() {
+    for (i, j) in stream::blocking(rx).enumerate() {
         assert_eq!(i, j.unwrap());
     }
     t.join().unwrap();
@@ -463,7 +463,7 @@ fn try_send_2() {
     // Little sleep to hopefully get the action on the thread to happen first
     thread::sleep(Duration::from_millis(300));
 
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     assert_eq!(rx.next(), Some(Ok("hello")));
     assert_eq!(rx.next(), Some(Ok("goodbye")));
@@ -475,7 +475,7 @@ fn try_send_2() {
 #[test]
 fn try_send_fail() {
     let (mut tx, rx) = mpsc::channel(0);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     tx.try_send("hello").unwrap();
 

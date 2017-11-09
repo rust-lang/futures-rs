@@ -8,14 +8,14 @@ use futures::prelude::*;
 use futures::unsync::oneshot;
 use futures::unsync::mpsc::{self, SendError};
 use futures::future::{blocking, lazy};
-use futures::stream::{iter_ok, unfold};
+use futures::stream::{self, iter_ok, unfold};
 
 use support::local_executor::Core;
 
 #[test]
 fn mpsc_send_recv() {
     let (tx, rx) = mpsc::channel::<i32>(1);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
     blocking(tx.send(42)).wait().unwrap();
 

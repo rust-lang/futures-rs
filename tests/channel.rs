@@ -4,6 +4,7 @@ use std::sync::atomic::*;
 
 use futures::prelude::*;
 use futures::future::{blocking, result};
+use futures::stream;
 use futures::sync::mpsc;
 
 mod support;
@@ -18,7 +19,7 @@ fn sequence() {
 
     let amt = 20;
     send(amt, tx).forget();
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
     for i in (1..amt + 1).rev() {
         assert_eq!(rx.next(), Some(Ok(i)));
     }

@@ -4,7 +4,7 @@ extern crate futures;
 use futures::prelude::*;
 use futures::executor;
 use futures::future::{blocking, err, ok};
-use futures::stream::{empty, iter_ok, poll_fn, Peekable};
+use futures::stream::{self, empty, iter_ok, poll_fn, Peekable};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
 
@@ -136,9 +136,8 @@ fn skip() {
 
 #[test]
 fn skip_passes_errors_through() {
-    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Ok(5)])
-        .skip(1)
-        .wait();
+    let mut s = stream::blocking(iter(vec![Err(1), Err(2), Ok(3), Ok(4), Ok(5)])
+        .skip(1));
     assert_eq!(s.next(), Some(Err(1)));
     assert_eq!(s.next(), Some(Err(2)));
     assert_eq!(s.next(), Some(Ok(4)));
@@ -164,15 +163,14 @@ fn take_while() {
 
 #[test]
 fn take_passes_errors_through() {
-    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)])
-        .take(1)
-        .wait();
+    let mut s = stream::blocking(iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)])
+        .take(1));
     assert_eq!(s.next(), Some(Err(1)));
     assert_eq!(s.next(), Some(Err(2)));
     assert_eq!(s.next(), Some(Ok(3)));
     assert_eq!(s.next(), None);
 
-    let mut s = iter(vec![Ok(1), Err(2)]).take(1).wait();
+    let mut s = stream::blocking(iter(vec![Ok(1), Err(2)]).take(1));
     assert_eq!(s.next(), Some(Ok(1)));
     assert_eq!(s.next(), None);
 }
@@ -184,7 +182,7 @@ fn peekable() {
 
 #[test]
 fn fuse() {
-    let mut stream = list().fuse().wait();
+    let mut stream = stream::blocking(list().fuse());
     assert_eq!(stream.next(), Some(Ok(1)));
     assert_eq!(stream.next(), Some(Ok(2)));
     assert_eq!(stream.next(), Some(Ok(3)));
@@ -208,7 +206,7 @@ fn buffered() {
     c.send(3).unwrap();
     sassert_empty(&mut rx);
     a.send(5).unwrap();
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
@@ -226,7 +224,7 @@ fn buffered() {
     c.send(3).unwrap();
     sassert_empty(&mut rx);
     a.send(5).unwrap();
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
@@ -244,7 +242,7 @@ fn unordered() {
 
     let mut rx = rx.buffer_unordered(2);
     sassert_empty(&mut rx);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
     c.send(3).unwrap();
     assert_eq!(rx.next(), Some(Ok(3)));
     a.send(5).unwrap();
@@ -265,7 +263,7 @@ fn unordered() {
     c.send(3).unwrap();
     sassert_empty(&mut rx);
     a.send(5).unwrap();
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
@@ -312,7 +310,7 @@ fn peek() {
 
 #[test]
 fn wait() {
-    assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
+    assert_eq!(stream::blocking(list()).collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
 }
 
@@ -396,5 +394,5 @@ fn stream_poll_fn() {
         Ok(Async::Ready(Some(counter)))
     });
 
-    assert_eq!(read_stream.wait().count(), 5);
+    assert_eq!(stream::blocking(read_stream).count(), 5);
 }

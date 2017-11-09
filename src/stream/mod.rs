@@ -95,6 +95,7 @@ use sink::{Sink};
 if_std! {
     use std;
 
+    mod blocking;
     mod buffered;
     mod buffer_unordered;
     mod catch_unwind;
@@ -105,6 +106,7 @@ if_std! {
     mod split;
     pub mod futures_unordered;
     mod futures_ordered;
+    pub use self::blocking::{blocking, Blocking};
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
@@ -214,29 +216,10 @@ pub trait Stream {
     //       item? basically just says "please make more progress internally"
     //       seems crucial for buffering to actually make any sense.
 
-    /// Creates an iterator which blocks the current thread until each item of
-    /// this stream is resolved.
-    ///
-    /// This method will consume ownership of this stream, returning an
-    /// implementation of a standard iterator. This iterator will *block the
-    /// current thread* on each call to `next` if the item in the stream isn't
-    /// ready yet.
-    ///
-    /// > **Note:** This method is not appropriate to call on event loops or
-    /// >           similar I/O situations because it will prevent the event
-    /// >           loop from making progress (this blocks the thread). This
-    /// >           method should only be called when it's guaranteed that the
-    /// >           blocking work associated with this stream will be completed
-    /// >           by another thread.
-    ///
-    /// This method is only available when the `use_std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// The returned iterator does not attempt to catch panics. If the `poll`
-    /// function panics, panics will be propagated to the caller of `next`.
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `stream::blocking` instead")]
     fn wait(self) -> Wait<Self>
         where Self: Sized
     {

@@ -5,6 +5,7 @@ use std::thread;
 
 use futures::future::blocking;
 use futures::prelude::*;
+use futures::stream;
 use futures::sync::oneshot;
 use futures::sync::mpsc;
 
@@ -32,7 +33,7 @@ fn works() {
 
     let (tx4, rx4) = std_mpsc::channel();
     let t2 = thread::spawn(move || {
-        for item in rx.map_err(|_| panic!()).buffer_unordered(N).wait() {
+        for item in stream::blocking(rx.map_err(|_| panic!()).buffer_unordered(N)) {
             tx4.send(item.unwrap()).unwrap();
         }
     });

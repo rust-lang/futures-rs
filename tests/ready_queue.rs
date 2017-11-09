@@ -5,7 +5,7 @@ use std::panic::{self, AssertUnwindSafe};
 use futures::prelude::*;
 use futures::Async::*;
 use futures::future::{self, blocking};
-use futures::stream::FuturesUnordered;
+use futures::stream::{self, FuturesUnordered};
 use futures::sync::oneshot;
 
 trait AssertSendSync: Send + Sync {}
@@ -126,7 +126,7 @@ fn stress() {
 
             barrier.wait();
 
-            let mut sync = queue.wait();
+            let mut sync = stream::blocking(queue);
 
             let mut rx: Vec<_> = (&mut sync)
                 .take(n)

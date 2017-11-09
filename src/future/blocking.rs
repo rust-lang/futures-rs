@@ -86,7 +86,7 @@ impl<T> Blocking<T> {
         self.inner.get_mut()
     }
 
-    /// Consume the `Blocking`, returning its inner inner future.
+    /// Consume the `Blocking`, returning its inner future.
     pub fn into_inner(self) -> T {
         self.inner.into_inner()
     }
