@@ -3,7 +3,7 @@ use stream::Stream;
 use executor;
 use task_impl::ThreadNotify;
 
-/// Provides thread-blocking operations on a stream.
+/// Provides thread-blocking stream iteration.
 ///
 /// See [`blocking`](fn.blocking.html) documentation for more details.
 #[derive(Debug)]
@@ -23,9 +23,6 @@ pub struct Blocking<T> {
 pub fn blocking<T: Stream>(stream: T) -> Blocking<T> {
     let inner = executor::spawn(stream);
     Blocking { inner: inner }
-}
-
-impl<T: Stream> Blocking<T> {
 }
 
 impl<T> Blocking<T> {
