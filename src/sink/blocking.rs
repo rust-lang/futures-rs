@@ -26,6 +26,13 @@ pub struct Blocking<T: Sink> {
 /// the current thread on drop**. Droping `Blocking` will ensure that the inner
 /// sink is fully flushed before completing the drop. This could block the
 /// current thread.
+///
+/// Any errors that happen in the process of flushing when `Blocking` is dropped
+/// will be ignored. Code that wishes to handle such errors must manually call
+/// flush before the value is dropped. This behavior is similar to [`BufWriter`]
+/// in std.
+///
+/// [`BufWriter`]: https://doc.rust-lang.org/std/io/struct.BufWriter.html
 pub fn blocking<T: Sink>(sink: T) -> Blocking<T> {
     let inner = executor::spawn(sink);
     Blocking { inner: Some(inner) }
