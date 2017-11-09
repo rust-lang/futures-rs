@@ -291,8 +291,9 @@ impl<S: Stream> Spawn<S> {
         self.enter(BorrowedUnpark::Old(&unpark), |s| s.poll())
     }
 
-    /// Like `wait_future`, except only waits for the next element to arrive on
-    /// the underlying stream.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `stream::blocking` instead")]
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
         ThreadNotify::with_current(|notify| {
 
@@ -333,11 +334,9 @@ impl<S: Sink> Spawn<S> {
         self.enter(BorrowedUnpark::Old(unpark), |s| s.poll_complete())
     }
 
-    /// Blocks the current thread until it's able to send `value` on this sink.
-    ///
-    /// This function will send the `value` on the sink that this task wraps. If
-    /// the sink is not ready to send the value yet then the current thread will
-    /// be blocked until it's able to send the value.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `sink::blocking` instead")]
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
@@ -352,14 +351,9 @@ impl<S: Sink> Spawn<S> {
         })
     }
 
-    /// Blocks the current thread until it's able to flush this sink.
-    ///
-    /// This function will call the underlying sink's `poll_complete` method
-    /// until it returns that it's ready, proxying out errors upwards to the
-    /// caller if one occurs.
-    ///
-    /// The thread will be blocked until `poll_complete` returns that it's
-    /// ready.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `sink::blocking` instead")]
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
 
@@ -372,11 +366,9 @@ impl<S: Sink> Spawn<S> {
         })
     }
 
-    /// Blocks the current thread until it's able to close this sink.
-    ///
-    /// This function will close the sink that this task wraps. If the sink
-    /// is not ready to be close yet, then the current thread will be blocked
-    /// until it's closed.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `future::blocking` instead")]
     pub fn wait_close(&mut self) -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
 

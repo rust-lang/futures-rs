@@ -4,7 +4,7 @@ use std::any::Any;
 
 use futures::future::blocking;
 use futures::sync::oneshot;
-use futures::stream::futures_unordered;
+use futures::stream::{self, futures_unordered};
 use futures::prelude::*;
 
 mod support;
@@ -17,15 +17,15 @@ fn works_1() {
 
     let stream = futures_unordered(vec![a_rx, b_rx, c_rx]);
 
-    let mut spawn = futures::executor::spawn(stream);
+    let mut stream = stream::blocking(stream);
     b_tx.send(99).unwrap();
-    assert_eq!(Some(Ok(99)), spawn.wait_stream());
+    assert_eq!(Some(Ok(99)), stream.next());
 
     a_tx.send(33).unwrap();
     c_tx.send(33).unwrap();
-    assert_eq!(Some(Ok(33)), spawn.wait_stream());
-    assert_eq!(Some(Ok(33)), spawn.wait_stream());
-    assert_eq!(None, spawn.wait_stream());
+    assert_eq!(Some(Ok(33)), stream.next());
+    assert_eq!(Some(Ok(33)), stream.next());
+    assert_eq!(None, stream.next());
 }
 
 #[test]
@@ -101,11 +101,11 @@ fn iter_mut_cancel() {
     assert!(b_tx.is_canceled());
     assert!(c_tx.is_canceled());
 
-    let mut spawn = futures::executor::spawn(stream);
-    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
-    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
-    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
-    assert_eq!(None, spawn.wait_stream());
+    let mut stream = stream::blocking(stream);
+    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), stream.next());
+    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), stream.next());
+    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), stream.next());
+    assert_eq!(None, stream.next());
 }
 
 #[test]

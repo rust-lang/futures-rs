@@ -29,6 +29,9 @@ if_std! {
 
     pub use self::blocking::{blocking, Blocking};
     pub use self::buffer::Buffer;
+
+    #[doc(hidden)]
+    #[allow(deprecated)]
     pub use self::wait::Wait;
 
     // TODO: consider expanding this via e.g. FromIterator

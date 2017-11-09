@@ -2,7 +2,6 @@
 extern crate futures;
 
 use futures::prelude::*;
-use futures::executor;
 use futures::future::{blocking, err, ok};
 use futures::stream::{self, empty, iter_ok, poll_fn, Peekable};
 use futures::sync::oneshot;
@@ -319,10 +318,10 @@ fn chunks() {
     assert_done(|| list().chunks(3).collect(), Ok(vec![vec![1, 2, 3]]));
     assert_done(|| list().chunks(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
     assert_done(|| list().chunks(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
-    let mut list = executor::spawn(err_list().chunks(3));
-    let i = list.wait_stream().unwrap().unwrap();
+    let mut list = stream::blocking(err_list().chunks(3));
+    let i = list.next().unwrap().unwrap();
     assert_eq!(i, vec![1, 2]);
-    let i = list.wait_stream().unwrap().unwrap_err();
+    let i = list.next().unwrap().unwrap_err();
     assert_eq!(i, 3);
 }
 
