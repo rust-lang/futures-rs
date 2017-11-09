@@ -3,7 +3,7 @@ extern crate futures;
 
 use futures::prelude::*;
 use futures::executor;
-use futures::future::{err, ok};
+use futures::future::{blocking, err, ok};
 use futures::stream::{empty, iter_ok, poll_fn, Peekable};
 use futures::sync::oneshot;
 use futures::sync::mpsc;
@@ -305,9 +305,9 @@ fn peek() {
         }
     }
 
-    Peek {
+    blocking(Peek {
         inner: list().peekable(),
-    }.wait().unwrap()
+    }).wait().unwrap()
 }
 
 #[test]
@@ -352,10 +352,10 @@ fn select() {
 #[test]
 fn forward() {
     let v = Vec::new();
-    let v = iter_ok::<_, ()>(vec![0, 1]).forward(v).wait().unwrap().1;
+    let v = blocking(iter_ok::<_, ()>(vec![0, 1]).forward(v)).wait().unwrap().1;
     assert_eq!(v, vec![0, 1]);
 
-    let v = iter_ok::<_, ()>(vec![2, 3]).forward(v).wait().unwrap().1;
+    let v = blocking(iter_ok::<_, ()>(vec![2, 3]).forward(v)).wait().unwrap().1;
     assert_eq!(v, vec![0, 1, 2, 3]);
 
     assert_done(move || iter_ok(vec![4, 5]).forward(v).map(|(_, s)| s),

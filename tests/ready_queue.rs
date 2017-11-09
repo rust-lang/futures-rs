@@ -4,7 +4,7 @@ use std::panic::{self, AssertUnwindSafe};
 
 use futures::prelude::*;
 use futures::Async::*;
-use futures::future;
+use futures::future::{self, blocking};
 use futures::stream::FuturesUnordered;
 use futures::sync::oneshot;
 
@@ -13,7 +13,7 @@ impl AssertSendSync for FuturesUnordered<()> {}
 
 #[test]
 fn basic_usage() {
-    future::lazy(move || {
+    blocking(future::lazy(move || {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
@@ -38,12 +38,12 @@ fn basic_usage() {
         assert_eq!(Ready(None), queue.poll().unwrap());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
 fn resolving_errors() {
-    future::lazy(move || {
+    blocking(future::lazy(move || {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
@@ -68,12 +68,12 @@ fn resolving_errors() {
         assert_eq!(Ready(None), queue.poll().unwrap());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
 fn dropping_ready_queue() {
-    future::lazy(move || {
+    blocking(future::lazy(move || {
         let mut queue = FuturesUnordered::new();
         let (mut tx1, rx1) = oneshot::channel::<()>();
         let (mut tx2, rx2) = oneshot::channel::<()>();
@@ -94,7 +94,7 @@ fn dropping_ready_queue() {
         assert!(tx3.poll_cancel().unwrap().is_ready());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn stress() {
 
 #[test]
 fn panicking_future_dropped() {
-    future::lazy(move || {
+    blocking(future::lazy(move || {
         let mut queue = FuturesUnordered::new();
         queue.push(future::poll_fn(|| -> Poll<i32, i32> {
             panic!()
@@ -160,5 +160,5 @@ fn panicking_future_dropped() {
         assert_eq!(Ready(None), queue.poll().unwrap());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
