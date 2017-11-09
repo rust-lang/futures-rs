@@ -7,6 +7,7 @@ use task_impl::ThreadNotify;
 ///
 /// See [`blocking`](fn.blocking.html) documentation for more details.
 #[derive(Debug)]
+#[must_use = "iterators do nothing unless advanced"]
 pub struct Blocking<T> {
     inner: executor::Spawn<T>,
 }
