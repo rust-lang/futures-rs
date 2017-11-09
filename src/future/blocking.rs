@@ -1,6 +1,6 @@
 use Async;
 use future::Future;
-use executor;
+use executor::{self, NotifyHandle};
 use task_impl::ThreadNotify;
 
 /// Provides thread-blocking operations on a future.
@@ -34,14 +34,12 @@ impl<T: Future> Blocking<T> {
     /// the inner future is not in a ready state.
     ///
     /// This function will return immediately if the inner future is not ready.
-    pub fn poll(&mut self) -> Option<Result<T::Item, T::Error>> {
-        ThreadNotify::with_current(|notify| {
-            match self.inner.poll_future_notify(notify, 0) {
-                Ok(Async::NotReady) => None,
-                Ok(Async::Ready(v)) => Some(Ok(v)),
-                Err(e) => Some(Err(e)),
-            }
-        })
+    pub fn try_take(&mut self) -> Option<Result<T::Item, T::Error>> {
+        match self.inner.poll_future_notify(&NotifyHandle::noop(), 0) {
+            Ok(Async::NotReady) => None,
+            Ok(Async::Ready(v)) => Some(Ok(v)),
+            Err(e) => Some(Err(e)),
+        }
     }
 
     /// Block the current thread until this future is resolved.
