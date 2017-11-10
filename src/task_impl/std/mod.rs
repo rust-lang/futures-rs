@@ -560,6 +560,12 @@ impl Notify for ThreadNotify {
     }
 }
 
+impl fmt::Debug for ThreadNotify {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ThreadNotify").finish()
+    }
+}
+
 // ===== UnparkEvent =====
 
 /// For the duration of the given callback, add an "unpark event" to be

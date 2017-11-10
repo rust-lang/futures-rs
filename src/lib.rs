@@ -202,6 +202,8 @@ mod lock;
 mod task_impl;
 
 mod resultstream;
+#[cfg(feature = "use_std")]
+mod scheduler;
 
 pub mod task;
 pub mod executor;
