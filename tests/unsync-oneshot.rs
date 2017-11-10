@@ -1,20 +1,20 @@
 extern crate futures;
 
 use futures::prelude::*;
-use futures::future;
+use futures::future::{self, blocking};
 use futures::unsync::oneshot::{channel, Canceled};
 
 #[test]
 fn smoke() {
     let (tx, rx) = channel();
     tx.send(33).unwrap();
-    assert_eq!(rx.wait().unwrap(), 33);
+    assert_eq!(blocking(rx).wait().unwrap(), 33);
 }
 
 #[test]
 fn canceled() {
     let (_, rx) = channel::<()>();
-    assert_eq!(rx.wait().unwrap_err(), Canceled);
+    assert_eq!(blocking(rx).wait().unwrap_err(), Canceled);
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn tx_complete_rx_unparked() {
         tx.send(55).unwrap();
         Ok(11)
     }));
-    assert_eq!(res.wait().unwrap(), (55, 11));
+    assert_eq!(blocking(res).wait().unwrap(), (55, 11));
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn tx_dropped_rx_unparked() {
         let _tx = tx;
         Ok(11)
     }));
-    assert_eq!(res.wait().unwrap_err(), Canceled);
+    assert_eq!(blocking(res).wait().unwrap_err(), Canceled);
 }
 
 

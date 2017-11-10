@@ -23,10 +23,15 @@ mod send_all;
 mod map_err;
 
 if_std! {
+    mod blocking;
     mod buffer;
     mod wait;
 
+    pub use self::blocking::{blocking, Blocking};
     pub use self::buffer::Buffer;
+
+    #[doc(hidden)]
+    #[allow(deprecated)]
     pub use self::wait::Wait;
 
     // TODO: consider expanding this via e.g. FromIterator
@@ -284,13 +289,10 @@ pub trait Sink {
     #[cfg(not(feature = "with-deprecated"))]
     fn close(&mut self) -> Poll<(), Self::SinkError>;
 
-    /// Creates a new object which will produce a synchronous sink.
-    ///
-    /// The sink returned does **not** implement the `Sink` trait, and instead
-    /// only has two methods: `send` and `flush`. These two methods correspond
-    /// to `start_send` and `poll_complete` above except are executed in a
-    /// blocking fashion.
     #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `sink::blocking` instead")]
     fn wait(self) -> Wait<Self>
         where Self: Sized
     {

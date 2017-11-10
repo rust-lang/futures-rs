@@ -615,6 +615,19 @@ impl NotifyHandle {
         NotifyHandle { inner: inner }
     }
 
+    /// Return a no-op notify handle
+    pub fn noop() -> NotifyHandle {
+        struct Noop;
+
+        impl Notify for Noop {
+            fn notify(&self, _id: usize) {}
+        }
+
+        const NOOP: &'static Noop = &Noop;
+
+        NotifyHandle::from(NOOP)
+    }
+
     /// Invokes the underlying instance of `Notify` with the provided `id`.
     pub fn notify(&self, id: usize) {
         unsafe { (*self.inner).notify(id) }

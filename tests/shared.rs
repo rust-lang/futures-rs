@@ -8,7 +8,7 @@ use std::thread;
 
 use futures::sync::oneshot;
 use futures::prelude::*;
-use futures::future;
+use futures::future::{self, blocking};
 
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     let (tx, rx) = oneshot::channel::<u32>();
@@ -16,11 +16,11 @@ fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     let threads = (0..threads_number).map(|_| {
         let cloned_future = f.clone();
         thread::spawn(move || {
-            assert_eq!(*cloned_future.wait().unwrap(), 6);
+            assert_eq!(*blocking(cloned_future).wait().unwrap(), 6);
         })
     }).collect::<Vec<_>>();
     tx.send(6).unwrap();
-    assert_eq!(*f.wait().unwrap(), 6);
+    assert_eq!(*blocking(f).wait().unwrap(), 6);
     for f in threads {
         f.join().unwrap();
     }
@@ -51,20 +51,20 @@ fn drop_on_one_task_ok() {
 
     let t1 = thread::spawn(|| {
         let f = f1.map_err(|_| ()).map(|x| *x).select(rx2.map_err(|_| ()));
-        drop(f.wait());
+        drop(blocking(f).wait());
     });
 
     let (tx3, rx3) = oneshot::channel::<u32>();
 
     let t2 = thread::spawn(|| {
-        let _ = f2.map(|x| tx3.send(*x).unwrap()).map_err(|_| ()).wait();
+        let _ = blocking(f2.map(|x| tx3.send(*x).unwrap()).map_err(|_| ())).wait();
     });
 
     tx2.send(11).unwrap(); // cancel `f1`
     t1.join().unwrap();
 
     tx.send(42).unwrap(); // Should cause `f2` and then `rx3` to get resolved.
-    let result = rx3.wait().unwrap();
+    let result = blocking(rx3).wait().unwrap();
     assert_eq!(result, 42);
     t2.join().unwrap();
 }
@@ -79,7 +79,7 @@ fn drop_in_poll() {
     }).shared();
     let future2 = Box::new(future.clone()) as Box<Future<Item=_, Error=_>>;
     *slot.borrow_mut() = Some(future2);
-    assert_eq!(*future.wait().unwrap(), 1);
+    assert_eq!(*blocking(future).wait().unwrap(), 1);
 }
 
 #[test]

@@ -1,5 +1,6 @@
 extern crate futures;
 
+use futures::future::blocking;
 use futures::prelude::*;
 use futures::stream::iter_ok;
 
@@ -41,7 +42,7 @@ fn test_split() {
         let (sink, stream) = j.split();
         let j = sink.reunite(stream).expect("test_split: reunite error");
         let (sink, stream) = j.split();
-        sink.send_all(stream).wait().unwrap();
+        blocking(sink.send_all(stream)).wait().unwrap();
     }
     assert_eq!(dest, vec![10, 20, 30]);
 }

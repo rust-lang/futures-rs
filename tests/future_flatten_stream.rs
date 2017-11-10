@@ -14,7 +14,7 @@ fn successful_future() {
 
     let stream = future_of_a_stream.flatten_stream();
 
-    let mut iter = stream.wait();
+    let mut iter = stream::blocking(stream);
     assert_eq!(Ok(17), iter.next().unwrap());
     assert_eq!(Ok(19), iter.next().unwrap());
     assert_eq!(None, iter.next());
@@ -37,7 +37,7 @@ impl<T, E> Stream for PanickingStream<T, E> {
 fn failed_future() {
     let future_of_a_stream = err::<PanickingStream<bool, u32>, _>(10);
     let stream = future_of_a_stream.flatten_stream();
-    let mut iter = stream.wait();
+    let mut iter = stream::blocking(stream);
     assert_eq!(Err(10), iter.next().unwrap());
     assert_eq!(None, iter.next());
 }

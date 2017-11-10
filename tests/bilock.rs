@@ -5,7 +5,7 @@ use std::thread;
 use futures::prelude::*;
 use futures::executor;
 use futures::stream;
-use futures::future;
+use futures::future::{self, blocking};
 use futures::sync::BiLock;
 
 mod support;
@@ -66,8 +66,8 @@ fn concurrent() {
         })
     });
 
-    let t1 = thread::spawn(move || a.wait());
-    let b = b.wait().expect("b error");
+    let t1 = thread::spawn(move || blocking(a).wait());
+    let b = blocking(b).wait().expect("b error");
     let a = t1.join().unwrap().expect("a error");
 
     match a.poll_lock() {
