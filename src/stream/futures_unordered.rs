@@ -4,7 +4,7 @@ use std::iter::FromIterator;
 
 use {task, Stream, Future, Poll, Async};
 use scheduler::{self, Scheduler};
-use task_impl::AtomicTask;
+use task_impl::{self, AtomicTask};
 
 /// An unbounded set of futures.
 ///
@@ -96,8 +96,8 @@ impl<T> Stream for FuturesUnordered<T>
         // Ensure `parent` is correctly set.
         self.inner.get_wakeup().register();
 
-        let res = self.inner.tick(|_, f| {
-            match f.poll() {
+        let res = self.inner.tick(|_, f, notify| {
+            match task_impl::with_notify(notify, 0, || f.poll()) {
                 Ok(Async::Ready(v)) => Async::Ready(Ok(v)),
                 Ok(Async::NotReady) => Async::NotReady,
                 Err(e) => Async::Ready(Err(e)),

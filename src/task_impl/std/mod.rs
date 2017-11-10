@@ -474,6 +474,7 @@ impl Unpark for RunInner {
 
 // ===== ThreadNotify =====
 
+#[derive(Debug)]
 pub struct ThreadNotify {
     state: AtomicUsize,
     mutex: Mutex<()>,

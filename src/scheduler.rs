@@ -1,5 +1,9 @@
 //! An unbounded set of futures.
 
+use Async;
+use executor::{self, UnsafeNotify, NotifyHandle};
+use task_impl::{AtomicTask, ThreadNotify};
+
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::marker::PhantomData;
@@ -10,10 +14,6 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use Async;
-use executor::{UnsafeNotify, NotifyHandle};
-use task_impl::{self, Notify, AtomicTask};
-
 /// A generic task-aware scheduler.
 ///
 /// This is used both by `FuturesUnordered` and the current-thread executor.
@@ -22,6 +22,8 @@ pub struct Scheduler<T, W> {
     len: usize,
     head_all: *const Node<T, W>,
 }
+
+pub struct Notify<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
 
 /// Wakeup a sleeper
 ///
@@ -185,7 +187,7 @@ impl<T, W: Wakeup> Scheduler<T, W> {
     /// This function should be called whenever the caller is notified via a
     /// wakeup.
     pub fn tick<F, R>(&mut self, mut f: F) -> Tick<R>
-    where F: FnMut(&mut Self, &mut T) -> Async<R>
+    where F: FnMut(&mut Self, &mut T, &Notify<T, W>) -> Async<R>
     {
         loop {
             let node = match unsafe { self.inner.dequeue() } {
@@ -267,10 +269,8 @@ impl<T, W: Wakeup> Scheduler<T, W> {
                 // deallocating the node if need be.
                 let res = {
                     let queue = &mut *bomb.queue;
-                    let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                    task_impl::with_notify(&notify, 0, || {
-                        f(queue, &mut item)
-                    })
+                    let notify = Notify(bomb.node.as_ref().unwrap());
+                    f(queue, &mut item, &notify)
                 };
 
                 let ret = match res {
@@ -520,17 +520,27 @@ impl Wakeup for AtomicTask {
     }
 }
 
-#[allow(missing_debug_implementations)]
-struct NodeToHandle<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
-
-impl<'a, T, W> Clone for NodeToHandle<'a, T, W> {
-    fn clone(&self) -> Self {
-        NodeToHandle(self.0)
+impl Wakeup for Arc<ThreadNotify> {
+    fn wakeup(&self) {
+        use executor::Notify;
+        self.notify(0);
     }
 }
 
-impl<'a, T, W: Wakeup> From<NodeToHandle<'a, T, W>> for NotifyHandle {
-    fn from(handle: NodeToHandle<'a, T, W>) -> NotifyHandle {
+impl<'a, T, W> Clone for Notify<'a, T, W> {
+    fn clone(&self) -> Self {
+        Notify(self.0)
+    }
+}
+
+impl<'a, T: fmt::Debug, W: fmt::Debug> fmt::Debug for Notify<'a, T, W> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Notiy").finish()
+    }
+}
+
+impl<'a, T, W: Wakeup> From<Notify<'a, T, W>> for NotifyHandle {
+    fn from(handle: Notify<'a, T, W>) -> NotifyHandle {
         unsafe {
             let ptr = handle.0.clone();
             let ptr = mem::transmute::<Arc<Node<T, W>>, *mut ArcNode<T, W>>(ptr);
@@ -548,7 +558,7 @@ struct ArcNode<T, W>(PhantomData<(T, W)>);
 unsafe impl<T, W: Wakeup> Send for ArcNode<T, W> {}
 unsafe impl<T, W: Wakeup> Sync for ArcNode<T, W> {}
 
-impl<T, W: Wakeup> Notify for ArcNode<T, W> {
+impl<T, W: Wakeup> executor::Notify for ArcNode<T, W> {
     fn notify(&self, _id: usize) {
         unsafe {
             let me: *const ArcNode<T, W> = self;
@@ -564,7 +574,7 @@ unsafe impl<T, W: Wakeup> UnsafeNotify for ArcNode<T, W> {
         let me: *const ArcNode<T, W> = self;
         let me: *const *const ArcNode<T, W> = &me;
         let me = &*(me as *const Arc<Node<T, W>>);
-        NodeToHandle(me).into()
+        Notify(me).into()
     }
 
     unsafe fn drop_raw(&self) {
