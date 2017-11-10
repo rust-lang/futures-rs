@@ -202,6 +202,7 @@ mod lock;
 mod task_impl;
 
 mod resultstream;
+mod scheduler;
 
 pub mod task;
 pub mod executor;
