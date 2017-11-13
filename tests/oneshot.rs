@@ -114,9 +114,8 @@ fn cancel_sends() {
         orx.close();
         // Not necessary to wrap in a task because the implementation of oneshot
         // never calls `task::current()` if the channel has been closed already.
-        let _ = orx.poll();
+        orx.poll();
     }
 
-    drop(tx);
     t.join().unwrap();
 }
