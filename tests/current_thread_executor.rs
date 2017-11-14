@@ -8,10 +8,6 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 #[test]
-fn smoke() {
-}
-
-#[test]
 fn spawning_from_init_future() {
     let cnt = Rc::new(Cell::new(0));
 
@@ -77,4 +73,23 @@ fn spawning_future_from_initial_future() {
 #[should_panic]
 fn spawning_out_of_executor_context() {
     CurrentThread::spawn(lazy(|| Ok(())));
+}
+
+#[test]
+fn spawn_many() {
+    const ITER: usize = 200;
+
+    let cnt = Rc::new(Cell::new(0));
+
+    CurrentThread::block_with_init(|| {
+        for _ in 0..ITER {
+            let cnt = cnt.clone();
+            CurrentThread::spawn(lazy(move || {
+                cnt.set(1 + cnt.get());
+                Ok::<(), ()>(())
+            }));
+        }
+    });
+
+    assert_eq!(cnt.get(), ITER);
 }
