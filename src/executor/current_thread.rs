@@ -33,9 +33,6 @@ pub struct DaemonExecutor {
 // NB: this is not `Send`
 #[derive(Debug)]
 struct TaskRunner {
-    /// Number of non-daemon tasks being executed by this `TaskRunner`.
-    non_daemons: usize,
-
     /// Executes futures.
     scheduler: Scheduler,
 }
@@ -45,6 +42,9 @@ struct CurrentRunner {
     /// When set to true, the executor should return immediately, even if there
     /// still are non-daemon tasks to run.
     cancel: Cell<bool>,
+
+    /// Number of non-daemon tasks currently being executed by the runner.
+    non_daemons: Cell<usize>,
 
     /// Raw pointer to the current scheduler.
     ///
@@ -69,6 +69,7 @@ struct Task(Spawn<Box<Future<Item = (), Error = ()>>>);
 /// Current thread's task runner. This is set in `TaskRunner::with`
 thread_local!(static CURRENT: CurrentRunner = CurrentRunner {
     cancel: Cell::new(false),
+    non_daemons: Cell::new(0),
     scheduler: Cell::new(ptr::null_mut()),
 });
 
@@ -190,6 +191,11 @@ where F: Future<Item = (), Error = ()> + 'static,
                 inner: Task::new(future),
             };
 
+            if !daemon {
+                let non_daemons = current.non_daemons.get();
+                current.non_daemons.set(non_daemons + 1);
+            }
+
             unsafe {
                 (*current.scheduler.get()).push(spawned);
             }
@@ -203,7 +209,6 @@ impl TaskRunner {
     /// Return a new `TaskRunner`
     fn new(thread_notify: Arc<ThreadNotify>) -> TaskRunner {
         TaskRunner {
-            non_daemons: 0,
             scheduler: scheduler::Scheduler::new(thread_notify),
         }
     }
@@ -244,7 +249,7 @@ impl TaskRunner {
         let mut result = None;
         let mut future = Some(executor::spawn(future));
 
-        while future.is_some() || self.non_daemons > 0 {
+        while future.is_some() || current.non_daemons.get() > 0 {
             if current.cancel.get() {
                 // TODO: This probably can be improved
                 current.cancel.set(false);
@@ -276,7 +281,7 @@ impl TaskRunner {
 
             self.poll_all(current);
 
-            if future.is_some() || self.non_daemons > 0 {
+            if future.is_some() || current.non_daemons.get() > 0 {
                 thread_notify.park();
             }
         }
@@ -291,15 +296,22 @@ impl TaskRunner {
             let res = self.scheduler.tick(|scheduler, spawned, notify| {
                 current.set_scheduler(scheduler, || {
                     match spawned.inner.0.poll_future_notify(notify, 0) {
-                        Ok(Async::Ready(_)) => Async::Ready(()),
+                        Ok(Async::Ready(_)) | Err(_) => {
+                            Async::Ready(spawned.daemon)
+                        }
                         Ok(Async::NotReady) => Async::NotReady,
-                        Err(_) => Async::Ready(()),
                     }
                 })
             });
 
             match res {
-                Tick::Data(_) => {},
+                Tick::Data(is_daemon) => {
+                    if !is_daemon {
+                        let non_daemons = current.non_daemons.get();
+                        debug_assert!(non_daemons > 0);
+                        current.non_daemons.set(non_daemons - 1);
+                    }
+                },
                 Tick::Empty => {
                     return;
                 }
