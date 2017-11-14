@@ -253,8 +253,13 @@ impl TaskRunner {
                 self.scheduler = scheduler::Scheduler::new(thread_notify.clone());
             }
 
-            let res = future.as_mut()
-                .map(|f| f.poll_future_notify(thread_notify, 0));
+            // Set the scheduler to the TLS before polling the future. This
+            // enables the future to potentially spawn more tasks onto the
+            // current thread executor.
+            let res = current.set_scheduler(&mut self.scheduler, || {
+                future.as_mut()
+                    .map(|f| f.poll_future_notify(thread_notify, 0))
+            });
 
             match res {
                 Some(Ok(Async::Ready(e))) => {
