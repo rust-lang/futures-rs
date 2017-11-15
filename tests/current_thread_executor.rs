@@ -51,25 +51,6 @@ fn block_waits_for_non_daemon() {
 }
 
 #[test]
-fn spawning_future_from_initial_future() {
-    let cnt = Rc::new(Cell::new(0));
-
-    {
-        let cnt = cnt.clone();
-
-        CurrentThread::block_on_all(lazy(move || {
-            CurrentThread::spawn(lazy(move || {
-                cnt.set(1 + cnt.get());
-                Ok(())
-            }));
-            Ok::<_, ()>(())
-        })).unwrap();
-    }
-
-    assert_eq!(1, cnt.get());
-}
-
-#[test]
 #[should_panic]
 fn spawning_out_of_executor_context() {
     CurrentThread::spawn(lazy(|| Ok(())));

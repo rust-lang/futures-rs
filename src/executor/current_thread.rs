@@ -6,9 +6,9 @@
 //! concepts, like spawning tasks. See [here].
 //!
 //! Before being able to spawn futures onto [`CurrentThread`], an executor
-//! context must be setup. This is done by calling either [`block_with_init`] or
-//! [`block_on_all`]. From within that context, [`CurrentThread::spawn`] may be
-//! called with the future to run in the background.
+//! context must be setup. This is done by calling either [`block_with_init`].
+//! From within that context, [`CurrentThread::spawn`] may be called with the
+//! future to run in the background.
 //!
 //! ```
 //! # use futures::executor::current_thread::*;
@@ -17,25 +17,22 @@
 //! // Calling spawn here results in a panic
 //! // CurrentThread::spawn(my_future);
 //!
-//! CurrentThread::block_on_all(lazy(|| {
+//! CurrentThread::block_with_init(|| {
 //!     // The execution context is setup, futures may be spawned.
 //!     CurrentThread::spawn(lazy(|| {
 //!         println!("called from the current thread executor");
 //!         Ok(())
 //!     }));
-//!
-//!     Ok::<_, ()>(())
-//! }));
+//! });
 //! ```
 //!
 //! # Execution model
 //!
-//! When a [`CurrentThread`] execution context is setup with one of the
-//! `block_*` functions, the current thread will block and all the tasks managed
-//! by the executor are driven to completion. Whenever a task receives a
-//! notification, it is pushed to the end of a scheduled list. The
-//! [`CurrentThread`] executor will drain this list, advancing the state of each
-//! future.
+//! When a [`CurrentThread`] execution context is setup with `block_with_init`,
+//! the current thread will block and all the tasks managed by the executor are
+//! driven to completion. Whenever a task receives a notification, it is pushed
+//! to the end of a scheduled list. The [`CurrentThread`] executor will drain
+//! this list, advancing the state of each future.
 //!
 //! All futures managed by [`CurrentThread`] will remain on the current thread,
 //! as such, [`CurrentThread`] is able to safely spawn futures that are `!Send`.
@@ -61,7 +58,6 @@
 //! [here]: https://tokio.rs/docs/going-deeper-futures/tasks/
 //! [`CurrentThread`]: struct.CurrentThread.html
 //! [`block_with_init`]: struct.CurrentThread.html#method.block_with_init
-//! [`block_on_all`]: struct.CurrentThread.html#method.block_on_all
 //! [`CurrentThread::spawn`]: struct.CurrentThread.html#method.spawn
 //! [`CurrentThread::spawn_daemon`]: struct.CurrentThread.html#method.spawn_daemon
 
@@ -82,7 +78,7 @@ use std::sync::Arc;
 ///
 /// All tasks spawned using this executor will be executed on the current thread
 /// as non-daemon tasks. As such, [`CurrentThread`] will wait for these tasks to
-/// complete before returning from the various `block_*` functions.
+/// complete before returning from `block_with_init`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -95,7 +91,7 @@ pub struct CurrentThread {
 ///
 /// All tasks spawned using this executor will be executed on the current thread
 /// as daemon tasks. As such, [`CurrentThread`] will **not** wait for these tasks to
-/// complete before returning from the various `block_*` functions.
+/// complete before returning from `block_with_init`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -157,7 +153,8 @@ impl CurrentThread {
     /// on the same thread that spawn was called on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
-    /// to the executor, that it is done from the context of a `block_*` call.
+    /// to the executor, that it is done from the context of a `block_with_init`
+    /// call.
     ///
     /// For more details, see the [module level](index.html) documentation.
     pub fn current() -> CurrentThread {
@@ -172,26 +169,14 @@ impl CurrentThread {
     /// executed on the same thread that spawn was called on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
-    /// to the executor, that it is done from the context of a `block_*` call.
+    /// to the executor, that it is done from the context of a `block_with_init`
+    /// call.
     ///
     /// For more details, see the [module level](index.html) documentation.
     pub fn daemon_executor(&self) -> DaemonExecutor {
         DaemonExecutor {
             _p: ::std::marker::PhantomData,
         }
-    }
-
-    /// Execute the given future *synchronously* on the current thread, blocking
-    /// until it (and all spawned tasks) completes and returning its result.
-    ///
-    /// In more detail, this function blocks until:
-    ///
-    /// - the given future completes, *and*
-    /// - all spawned tasks complete, or `cancel_all_spawned` is invoked
-    ///
-    /// Note that there is no `'static` or `Send` requirement on the future.
-    pub fn block_on_all<F: Future>(future: F) -> Result<F::Item, F::Error> {
-        TaskRunner::enter(|| future)
     }
 
     /// Execute the given closure, then block until all spawned tasks complete.
@@ -207,35 +192,33 @@ impl CurrentThread {
     }
 
     /// Spawns a task, i.e. one that must be explicitly either
-    /// blocked on or killed off before `block_*` will return.
+    /// blocked on or killed off before `block_with_init` will return.
     ///
     /// # Panics
     ///
-    /// This function can only be invoked within a future given to a `block_*`
-    /// invocation; any other use will result in a panic.
+    /// This function can only be invoked within a future given to a
+    /// `block_with_init` invocation; any other use will result in a panic.
     pub fn spawn<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
         spawn(future, false).unwrap_or_else(|_| {
             panic!("cannot call `spawn` unless your thread is already \
-                    in the context of a call to `block_on_all` or \
-                    `block_with_init`")
+                    in the context of a call to `block_with_init`")
         })
     }
 
-    /// Spawns a daemon, which does *not* block the pending `block_on_all` call.
+    /// Spawns a daemon, which does *not* block the pending `block_with_init` call.
     ///
     /// # Panics
     ///
-    /// This function can only be invoked within a future given to a `block_*`
-    /// invocation; any other use will result in a panic.
+    /// This function can only be invoked within a future given to a
+    /// `block_with_init` invocation; any other use will result in a panic.
     pub fn spawn_daemon<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
         spawn(future, true).unwrap_or_else(|_| {
-            panic!("cannot call `spawn_daemon` unless your thread is already \
-                    in the context of a call to `block_on_all` or \
-                    `block_with_init`")
+            panic!("cannot call `spawn` unless your thread is already \
+                    in the context of a call to `block_with_init`")
         })
     }
 
@@ -243,14 +226,13 @@ impl CurrentThread {
     ///
     /// # Panics
     ///
-    /// This function can only be invoked within a future given to a `block_*`
-    /// invocation; any other use will result in a panic.
+    /// This function can only be invoked within a future given to a
+    /// `block_with_init` invocation; any other use will result in a panic.
     pub fn cancel_all_spawned() {
         CurrentRunner::with(|runner| runner.cancel_all_spawned())
             .unwrap_or_else(|()| {
-                panic!("cannot call `cancel_all_spawned` unless your thread is \
-                        already in the context of a call to `block_on_all` or \
-                        `block_with_init`")
+                panic!("cannot call `spawn` unless your thread is already \
+                        in the context of a call to `block_with_init`")
             })
     }
 }
