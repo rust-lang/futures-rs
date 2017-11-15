@@ -474,7 +474,6 @@ impl Unpark for RunInner {
 
 // ===== ThreadNotify =====
 
-#[derive(Debug)]
 pub struct ThreadNotify {
     state: AtomicUsize,
     mutex: Mutex<()>,
@@ -558,6 +557,12 @@ impl Notify for ThreadNotify {
 
         // Wakeup the sleeper
         self.condvar.notify_one();
+    }
+}
+
+impl fmt::Debug for ThreadNotify {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ThreadNotify").finish()
     }
 }
 
