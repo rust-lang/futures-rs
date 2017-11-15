@@ -1,4 +1,69 @@
 //! Execute tasks on the current thread
+//!
+//! [`CurrentThread`] provides an executor that keeps spawned futures keeps
+//! spawned futures on the same thread that they are spawned on. This allows it
+//! to execute futures that are `!Send`. For more details on general executor
+//! concepts, like spawning tasks. See [here].
+//!
+//! Before being able to spawn futures onto [`CurrentThread`], an executor
+//! context must be setup. This is done by calling either [`block_with_init`] or
+//! [`block_on_all`]. From within that context, [`CurrentThread::spawn`] may be
+//! called with the future to run in the background.
+//!
+//! ```
+//! # use futures::executor::current_thread::*;
+//! use futures::future::lazy;
+//!
+//! // Calling spawn here results in a panic
+//! // CurrentThread::spawn(my_future);
+//!
+//! CurrentThread::block_on_all(lazy(|| {
+//!     // The execution context is setup, futures may be spawned.
+//!     CurrentThread::spawn(lazy(|| {
+//!         println!("called from the current thread executor");
+//!         Ok(())
+//!     }));
+//!
+//!     Ok::<_, ()>(())
+//! }));
+//! ```
+//!
+//! # Execution model
+//!
+//! When a [`CurrentThread`] execution context is setup with one of the
+//! `block_*` functions, the current thread will block and all the tasks managed
+//! by the executor are driven to completion. Whenever a task receives a
+//! notification, it is pushed to the end of a scheduled list. The
+//! [`CurrentThread`] executor will drain this list, advancing the state of each
+//! future.
+//!
+//! All futures managed by [`CurrentThread`] will remain on the current thread,
+//! as such, [`CurrentThread`] is able to safely spawn futures that are `!Send`.
+//!
+//! Once a task is complete, it is dropped. Once all [non daemon](#daemon-tasks) tasks are
+//! completed, [`CurrentThread`] unblocks.
+//!
+//! [`CurrentThread`] makes a best effort to fairly schedule tasks that it
+//! manages.
+//!
+//! # Daemon tasks
+//!
+//! A daemon task is a task that does not require to be complete in order for
+//! [`CurrentThread`] to complete running. These are useful for background
+//! "maintenance" tasks that are not critical to the completion of the primary
+//! computation.
+//!
+//! When [`CurrentThread`] completes running and unblocks, any daemon tasks that
+//! have not yet completed are immediately dropped.
+//!
+//! A daemon task can be spawned with [`CurrentThread::spawn_daemon`].
+//!
+//! [here]: https://tokio.rs/docs/going-deeper-futures/tasks/
+//! [`CurrentThread`]: struct.CurrentThread.html
+//! [`block_with_init`]: struct.CurrentThread.html#method.block_with_init
+//! [`block_on_all`]: struct.CurrentThread.html#method.block_on_all
+//! [`CurrentThread::spawn`]: struct.CurrentThread.html#method.spawn
+//! [`CurrentThread::spawn_daemon`]: struct.CurrentThread.html#method.spawn_daemon
 
 use Async;
 use executor::{self, Spawn};
@@ -14,6 +79,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 /// Executes tasks on the current thread.
+///
+/// All tasks spawned using this executor will be executed on the current thread
+/// as non-daemon tasks. As such, [`CurrentThread`] will wait for these tasks to
+/// complete before returning from the various `block_*` functions.
+///
+/// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
 pub struct CurrentThread {
     // Prevent the handle from moving across threads.
@@ -21,6 +92,12 @@ pub struct CurrentThread {
 }
 
 /// Executes dameonized tasks on the current thread.
+///
+/// All tasks spawned using this executor will be executed on the current thread
+/// as daemon tasks. As such, [`CurrentThread`] will **not** wait for these tasks to
+/// complete before returning from the various `block_*` functions.
+///
+/// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
 pub struct DaemonExecutor {
     // Prevent the handle from moving across threads.
@@ -74,14 +151,30 @@ thread_local!(static CURRENT: CurrentRunner = CurrentRunner {
 });
 
 impl CurrentThread {
-    /// Returns a handle to the current `CurrentThread` executor.
+    /// Returns an executor that executes tasks on the current thread.
+    ///
+    /// This executor can be moved across threads. Spawned tasks will be executed
+    /// on the same thread that spawn was called on.
+    ///
+    /// The user of `CurrentThread` must ensure that when a future is submitted
+    /// to the executor, that it is done from the context of a `block_*` call.
+    ///
+    /// For more details, see the [module level](index.html) documentation.
     pub fn current() -> CurrentThread {
         CurrentThread {
             _p: ::std::marker::PhantomData,
         }
     }
 
-    /// Returns a new handle that spawns daemonized tasks on the current thread.
+    /// Returns an executor that spawns daemon tasks on the current thread.
+    ///
+    /// This executor can be moved across threads. Spawned tasks will be
+    /// executed on the same thread that spawn was called on.
+    ///
+    /// The user of `CurrentThread` must ensure that when a future is submitted
+    /// to the executor, that it is done from the context of a `block_*` call.
+    ///
+    /// For more details, see the [module level](index.html) documentation.
     pub fn daemon_executor(&self) -> DaemonExecutor {
         DaemonExecutor {
             _p: ::std::marker::PhantomData,
