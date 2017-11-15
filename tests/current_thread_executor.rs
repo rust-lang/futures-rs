@@ -11,7 +11,7 @@ use std::rc::Rc;
 fn spawning_from_init_future() {
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::block_with_init(|| {
+    CurrentThread::block_with_init(|_| {
         let cnt = cnt.clone();
 
         CurrentThread::spawn(lazy(move || {
@@ -31,7 +31,7 @@ fn block_waits_for_non_daemon() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::block_with_init(|| {
+    CurrentThread::block_with_init(|_| {
         let cnt = cnt.clone();
 
         let (tx, rx) = oneshot::channel();
@@ -62,7 +62,7 @@ fn spawn_many() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::block_with_init(|| {
+    CurrentThread::block_with_init(|_| {
         for _ in 0..ITER {
             let cnt = cnt.clone();
             CurrentThread::spawn(lazy(move || {

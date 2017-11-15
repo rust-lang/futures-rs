@@ -17,7 +17,7 @@
 //! // Calling spawn here results in a panic
 //! // CurrentThread::spawn(my_future);
 //!
-//! CurrentThread::block_with_init(|| {
+//! CurrentThread::block_with_init(|_| {
 //!     // The execution context is setup, futures may be spawned.
 //!     CurrentThread::spawn(lazy(|| {
 //!         println!("called from the current thread executor");
@@ -63,7 +63,7 @@
 
 use Async;
 use executor::{self, Spawn};
-use future::{self, Future, Executor, ExecuteError, ExecuteErrorKind};
+use future::{Future, Executor, ExecuteError, ExecuteErrorKind};
 use scheduler;
 use task_impl::ThreadNotify;
 
@@ -100,10 +100,18 @@ pub struct DaemonExecutor {
     _p: ::std::marker::PhantomData<Rc<()>>,
 }
 
-// An object for cooperatively executing multiple tasks on a single thread.
-// Useful for working with non-`Send` futures.
-//
-// NB: this is not `Send`
+/// Provides execution context
+///
+/// This currently does not do anything, but allows future improvements to be
+/// made in a backwards compatible way.
+#[derive(Debug)]
+pub struct Context<'a> {
+    _p: ::std::marker::PhantomData<&'a ()>,
+}
+
+/// Implements the "blocking" logic for the current thread executor. A
+/// `TaskRunner` will be created during `block_with_init` and will sit on the
+/// stack until execution is complete.
 #[derive(Debug)]
 struct TaskRunner {
     /// Executes futures.
@@ -184,11 +192,10 @@ impl CurrentThread {
     /// In more detail, this function will block until:
     /// - All spawned tasks are complete, or
     /// - `cancel_all_spawned` is invoked.
-    pub fn block_with_init<F>(f: F) where F: FnOnce() {
-        drop(TaskRunner::enter(|| {
-            f();
-            future::ok::<(), ()>(())
-        }))
+    pub fn block_with_init<F, R>(f: F) -> R
+    where F: FnOnce(&mut Context) -> R
+    {
+        TaskRunner::enter(f)
     }
 
     /// Spawns a task, i.e. one that must be explicitly either
@@ -254,6 +261,13 @@ where F: Future<Item = (), Error = ()> + 'static
     }
 }
 
+/// Spawns a future onto the current `CurrentThread` executor. This is done by
+/// checking the thread-local variable tracking the current executor.
+///
+/// If this function is not called in context of an executor, i.e. outside of
+/// `block_with_init`, then `Err` is returned.
+///
+/// This function does not panic.
 fn spawn<F>(future: F, daemon: bool) -> Result<(), ExecuteError<F>>
 where F: Future<Item = (), Error = ()> + 'static,
 {
@@ -289,9 +303,8 @@ impl TaskRunner {
     }
 
     /// Enter a new `TaskRunner` context
-    fn enter<F, A>(f: F) -> Result<A::Item, A::Error>
-        where F: FnOnce() -> A,
-              A: Future,
+    fn enter<F, R>(f: F) -> R
+    where F: FnOnce(&mut Context) -> R,
     {
         // Create a new task runner that will be used for the duration of `f`.
         ThreadNotify::with_current(|thread_notify| {
@@ -307,24 +320,21 @@ impl TaskRunner {
                 // returning a future to execute.
                 //
                 // This could possibly spawn other tasks.
-                let future = current.set_scheduler(&mut runner.scheduler, f);
+                let ret = current.set_scheduler(&mut runner.scheduler, || {
+                    let mut ctx = Context { _p: ::std::marker::PhantomData };
+                    f(&mut ctx)
+                });
 
                 // Execute the runner
-                runner.finish(thread_notify, current, future)
+                runner.run(thread_notify, current);
+
+                ret
             })
         })
     }
 
-    fn finish<F: Future>(&mut self,
-                         thread_notify: &Arc<ThreadNotify>,
-                         current: &CurrentRunner,
-                         future: F)
-        -> Result<F::Item, F::Error>
-    {
-        let mut result = None;
-        let mut future = Some(executor::spawn(future));
-
-        while future.is_some() || current.non_daemons.get() > 0 {
+    fn run(&mut self, thread_notify: &Arc<ThreadNotify>, current: &CurrentRunner) {
+        loop {
             if current.cancel.get() {
                 // TODO: This probably can be improved
                 current.cancel.set(false);
@@ -333,35 +343,14 @@ impl TaskRunner {
                 self.scheduler = scheduler::Scheduler::new(thread_notify.clone());
             }
 
-            // Set the scheduler to the TLS before polling the future. This
-            // enables the future to potentially spawn more tasks onto the
-            // current thread executor.
-            let res = current.set_scheduler(&mut self.scheduler, || {
-                future.as_mut()
-                    .map(|f| f.poll_future_notify(thread_notify, 0))
-            });
-
-            match res {
-                Some(Ok(Async::Ready(e))) => {
-                    result = Some(Ok(e));
-                    future = None;
-                }
-                Some(Err(e)) => {
-                    result = Some(Err(e));
-                    future = None;
-                }
-                Some(Ok(Async::NotReady)) |
-                None => {}
-            }
-
             self.poll_all(current);
 
-            if future.is_some() || current.non_daemons.get() > 0 {
-                thread_notify.park();
+            if current.non_daemons.get() == 0 {
+                break;
             }
-        }
 
-        result.unwrap()
+            thread_notify.park();
+        }
     }
 
     fn poll_all(&mut self, current: &CurrentRunner) {
