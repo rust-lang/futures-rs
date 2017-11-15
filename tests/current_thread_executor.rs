@@ -14,7 +14,7 @@ fn spawning_from_init_future() {
     CurrentThread::block_with_init(|_| {
         let cnt = cnt.clone();
 
-        CurrentThread::spawn(lazy(move || {
+        CurrentThread::execute(lazy(move || {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
@@ -41,7 +41,7 @@ fn block_waits_for_non_daemon() {
             tx.send(()).unwrap();
         });
 
-        CurrentThread::spawn(rx.then(move |_| {
+        CurrentThread::execute(rx.then(move |_| {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
@@ -53,7 +53,7 @@ fn block_waits_for_non_daemon() {
 #[test]
 #[should_panic]
 fn spawning_out_of_executor_context() {
-    CurrentThread::spawn(lazy(|| Ok(())));
+    CurrentThread::execute(lazy(|| Ok(())));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn spawn_many() {
     CurrentThread::block_with_init(|_| {
         for _ in 0..ITER {
             let cnt = cnt.clone();
-            CurrentThread::spawn(lazy(move || {
+            CurrentThread::execute(lazy(move || {
                 cnt.set(1 + cnt.get());
                 Ok::<(), ()>(())
             }));
@@ -73,4 +73,14 @@ fn spawn_many() {
     });
 
     assert_eq!(cnt.get(), ITER);
+}
+
+#[test]
+#[ignore]
+fn outstanding_daemon_tasks_are_dropped_on_return() {
+}
+
+#[test]
+#[ignore]
+fn tasks_are_scheduled_fairly() {
 }

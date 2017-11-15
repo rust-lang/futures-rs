@@ -1,25 +1,25 @@
 //! Execute tasks on the current thread
 //!
-//! [`CurrentThread`] provides an executor that keeps spawned futures keeps
-//! spawned futures on the same thread that they are spawned on. This allows it
-//! to execute futures that are `!Send`. For more details on general executor
-//! concepts, like spawning tasks. See [here].
+//! [`CurrentThread`] provides an executor that keeps futures on the same thread
+//! that they are submitted on. This allows it to execute futures that are
+//! `!Send`. For more details on general executor concepts, like executing
+//! futures, see [here].
 //!
-//! Before being able to spawn futures onto [`CurrentThread`], an executor
+//! Before being able to execute futures onto [`CurrentThread`], an executor
 //! context must be setup. This is done by calling either [`block_with_init`].
-//! From within that context, [`CurrentThread::spawn`] may be called with the
+//! From within that context, [`CurrentThread::execute`] may be called with the
 //! future to run in the background.
 //!
 //! ```
 //! # use futures::executor::current_thread::*;
 //! use futures::future::lazy;
 //!
-//! // Calling spawn here results in a panic
-//! // CurrentThread::spawn(my_future);
+//! // Calling execute here results in a panic
+//! // CurrentThread::execute(my_future);
 //!
 //! CurrentThread::block_with_init(|_| {
-//!     // The execution context is setup, futures may be spawned.
-//!     CurrentThread::spawn(lazy(|| {
+//!     // The execution context is setup, futures may be executed.
+//!     CurrentThread::execute(lazy(|| {
 //!         println!("called from the current thread executor");
 //!         Ok(())
 //!     }));
@@ -29,37 +29,37 @@
 //! # Execution model
 //!
 //! When a [`CurrentThread`] execution context is setup with `block_with_init`,
-//! the current thread will block and all the tasks managed by the executor are
-//! driven to completion. Whenever a task receives a notification, it is pushed
-//! to the end of a scheduled list. The [`CurrentThread`] executor will drain
-//! this list, advancing the state of each future.
+//! the current thread will block and all the futures managed by the executor
+//! are driven to completion. Whenever a future receives a notification, it is
+//! pushed to the end of a scheduled list. The [`CurrentThread`] executor will
+//! drain this list, advancing the state of each future.
 //!
 //! All futures managed by [`CurrentThread`] will remain on the current thread,
-//! as such, [`CurrentThread`] is able to safely spawn futures that are `!Send`.
+//! as such, [`CurrentThread`] is able to safely execute futures that are `!Send`.
 //!
-//! Once a task is complete, it is dropped. Once all [non daemon](#daemon-tasks) tasks are
-//! completed, [`CurrentThread`] unblocks.
+//! Once a future is complete, it is dropped. Once all [non
+//! daemon](#daemon-futures) futures are completed, [`CurrentThread`] unblocks.
 //!
-//! [`CurrentThread`] makes a best effort to fairly schedule tasks that it
+//! [`CurrentThread`] makes a best effort to fairly schedule futures that it
 //! manages.
 //!
-//! # Daemon tasks
+//! # Daemon Futures
 //!
-//! A daemon task is a task that does not require to be complete in order for
-//! [`CurrentThread`] to complete running. These are useful for background
+//! A daemon future is a future that does not require to be complete in order
+//! for [`CurrentThread`] to complete running. These are useful for background
 //! "maintenance" tasks that are not critical to the completion of the primary
 //! computation.
 //!
-//! When [`CurrentThread`] completes running and unblocks, any daemon tasks that
-//! have not yet completed are immediately dropped.
+//! When [`CurrentThread`] completes running and unblocks, any daemon futures
+//! that have not yet completed are immediately dropped.
 //!
-//! A daemon task can be spawned with [`CurrentThread::spawn_daemon`].
+//! A daemon future can be executed with [`CurrentThread::execute_daemon`].
 //!
 //! [here]: https://tokio.rs/docs/going-deeper-futures/tasks/
 //! [`CurrentThread`]: struct.CurrentThread.html
 //! [`block_with_init`]: struct.CurrentThread.html#method.block_with_init
-//! [`CurrentThread::spawn`]: struct.CurrentThread.html#method.spawn
-//! [`CurrentThread::spawn_daemon`]: struct.CurrentThread.html#method.spawn_daemon
+//! [`CurrentThread::execute`]: struct.CurrentThread.html#method.execute
+//! [`CurrentThread::execute_daemon`]: struct.CurrentThread.html#method.execute_daemon
 
 use Async;
 use executor::{self, Spawn};
@@ -74,11 +74,11 @@ use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-/// Executes tasks on the current thread.
+/// Executes futures on the current thread.
 ///
-/// All tasks spawned using this executor will be executed on the current thread
-/// as non-daemon tasks. As such, [`CurrentThread`] will wait for these tasks to
-/// complete before returning from `block_with_init`.
+/// All futures executed using this executor will be executed on the current
+/// thread as non-daemon futures. As such, [`CurrentThread`] will wait for these
+/// futures to complete before returning from `block_with_init`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -87,11 +87,11 @@ pub struct CurrentThread {
     _p: ::std::marker::PhantomData<Rc<()>>,
 }
 
-/// Executes dameonized tasks on the current thread.
+/// Executes daemon futures on the current thread.
 ///
-/// All tasks spawned using this executor will be executed on the current thread
-/// as daemon tasks. As such, [`CurrentThread`] will **not** wait for these tasks to
-/// complete before returning from `block_with_init`.
+/// All futures executed using this executor will be executed on the current
+/// thread as daemon futures. As such, [`CurrentThread`] will **not** wait for
+/// these futures to complete before returning from `block_with_init`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -121,10 +121,10 @@ struct TaskRunner {
 #[derive(Debug)]
 struct CurrentRunner {
     /// When set to true, the executor should return immediately, even if there
-    /// still are non-daemon tasks to run.
+    /// still are non-daemon futures to run.
     cancel: Cell<bool>,
 
-    /// Number of non-daemon tasks currently being executed by the runner.
+    /// Number of non-daemon futures currently being executed by the runner.
     non_daemons: Cell<usize>,
 
     /// Raw pointer to the current scheduler.
@@ -137,7 +137,7 @@ type Scheduler = scheduler::Scheduler<SpawnedFuture, Arc<ThreadNotify>>;
 
 #[derive(Debug)]
 struct SpawnedFuture {
-    /// True if the spawned future should not prevent the executor from
+    /// True if the executed future should not prevent the executor from
     /// terminating.
     daemon: bool,
 
@@ -155,10 +155,11 @@ thread_local!(static CURRENT: CurrentRunner = CurrentRunner {
 });
 
 impl CurrentThread {
-    /// Returns an executor that executes tasks on the current thread.
+    /// Returns an executor that executes futures on the current thread.
     ///
-    /// This executor can be moved across threads. Spawned tasks will be executed
-    /// on the same thread that spawn was called on.
+    /// This executor can be moved across threads. Futures submitted for
+    /// execution will be executed on the same thread that they were submitted
+    /// on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
     /// to the executor, that it is done from the context of a `block_with_init`
@@ -171,10 +172,11 @@ impl CurrentThread {
         }
     }
 
-    /// Returns an executor that spawns daemon tasks on the current thread.
+    /// Returns an executor that executes daemon futures on the current thread.
     ///
-    /// This executor can be moved across threads. Spawned tasks will be
-    /// executed on the same thread that spawn was called on.
+    /// This executor can be moved across threads. Futures submitted for
+    /// execution will be executed on the same thread that they were submitted
+    /// on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
     /// to the executor, that it is done from the context of a `block_with_init`
@@ -187,58 +189,67 @@ impl CurrentThread {
         }
     }
 
-    /// Execute the given closure, then block until all spawned tasks complete.
+    /// Calls the given closure, then block until all futures submitted for
+    /// execution complete.
     ///
     /// In more detail, this function will block until:
-    /// - All spawned tasks are complete, or
-    /// - `cancel_all_spawned` is invoked.
+    /// - All executing futures are complete, or
+    /// - `cancel_all_executing` is invoked.
     pub fn block_with_init<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R
     {
         TaskRunner::enter(f)
     }
 
-    /// Spawns a task, i.e. one that must be explicitly either
-    /// blocked on or killed off before `block_with_init` will return.
+    /// Executes a future on the current thread.
+    ///
+    /// The provided future must complete or be canceled before
+    /// `block_with_init` will return.
     ///
     /// # Panics
     ///
-    /// This function can only be invoked within a future given to a
-    /// `block_with_init` invocation; any other use will result in a panic.
-    pub fn spawn<F>(future: F)
+    /// This function can only be invoked from the context of a
+    /// `block_with_init` call; any other use will result in a panic.
+    pub fn execute<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
-        spawn(future, false).unwrap_or_else(|_| {
-            panic!("cannot call `spawn` unless your thread is already \
+        execute(future, false).unwrap_or_else(|_| {
+            panic!("cannot call `execute` unless the thread is already \
                     in the context of a call to `block_with_init`")
         })
     }
 
-    /// Spawns a daemon, which does *not* block the pending `block_with_init` call.
+    /// Executes a daemon future on the current thread.
+    ///
+    /// Completion of the provided future is not required for the pending
+    /// `block_with_init` call to complete. If `block_with_init` returns before
+    /// `future` completes, it will be dropped.
     ///
     /// # Panics
     ///
-    /// This function can only be invoked within a future given to a
-    /// `block_with_init` invocation; any other use will result in a panic.
-    pub fn spawn_daemon<F>(future: F)
+    /// This function can only be invoked from the context of a
+    /// `block_with_init` call; any other use will result in a panic.
+    pub fn execute_daemon<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
-        spawn(future, true).unwrap_or_else(|_| {
-            panic!("cannot call `spawn` unless your thread is already \
+        execute(future, true).unwrap_or_else(|_| {
+            panic!("cannot call `execute` unless the thread is already \
                     in the context of a call to `block_with_init`")
         })
     }
 
-    /// Cancels *all* spawned tasks and daemons.
+    /// Cancels *all* executing futures.
+    ///
+    /// This cancels both daemon and non-daemon futures.
     ///
     /// # Panics
     ///
-    /// This function can only be invoked within a future given to a
-    /// `block_with_init` invocation; any other use will result in a panic.
-    pub fn cancel_all_spawned() {
-        CurrentRunner::with(|runner| runner.cancel_all_spawned())
+    /// This function can only be invoked from the context of a
+    /// `block_with_init` call; any other use will result in a panic.
+    pub fn cancel_all_executing() {
+        CurrentRunner::with(|runner| runner.cancel_all_executing())
             .unwrap_or_else(|()| {
-                panic!("cannot call `spawn` unless your thread is already \
+                panic!("cannot call `cancel_all_executing` unless the thread is already \
                         in the context of a call to `block_with_init`")
             })
     }
@@ -248,7 +259,7 @@ impl<F> Executor<F> for CurrentThread
 where F: Future<Item = (), Error = ()> + 'static
 {
     fn execute(&self, future: F) -> Result<(), ExecuteError<F>> {
-        spawn(future, false)
+        execute(future, false)
     }
 }
 
@@ -257,18 +268,18 @@ impl<F> Executor<F> for DaemonExecutor
 where F: Future<Item = (), Error = ()> + 'static
 {
     fn execute(&self, future: F) -> Result<(), ExecuteError<F>> {
-        spawn(future, true)
+        execute(future, true)
     }
 }
 
-/// Spawns a future onto the current `CurrentThread` executor. This is done by
+/// Submits a future to the current `CurrentThread` executor. This is done by
 /// checking the thread-local variable tracking the current executor.
 ///
 /// If this function is not called in context of an executor, i.e. outside of
 /// `block_with_init`, then `Err` is returned.
 ///
 /// This function does not panic.
-fn spawn<F>(future: F, daemon: bool) -> Result<(), ExecuteError<F>>
+fn execute<F>(future: F, daemon: bool) -> Result<(), ExecuteError<F>>
 where F: Future<Item = (), Error = ()> + 'static,
 {
     CURRENT.with(|current| {
@@ -312,13 +323,13 @@ impl TaskRunner {
     /// futures unblock the thread, signalling that there is more work to do.
     ///
     /// Before any future is polled, the scheduler must be set to a thread-local
-    /// variable so that `spawn` is able to spawn new tasks into the current
+    /// variable so that `execute` is able to submit new futures to the current
     /// executor. Because `Scheduler::push` requires `&mut self`, this
     /// introduces a mutability hazard. This hazard is minimized with some
     /// indirection. See `set_scheduler` for more details.
     ///
     /// Once all context is setup, the init closure is invoked. This is the
-    /// "boostrapping" process that spawns the initial futures into the
+    /// "boostrapping" process that executes the initial futures into the
     /// scheduler. After this, the function loops and advances the scheduler
     /// state until all non daemon futures complete. When no scheduled futures
     /// are ready to be advanced, the thread is blocked using
@@ -340,7 +351,7 @@ impl TaskRunner {
                 // Set the scheduler to the TLS and perform setup work,
                 // returning a future to execute.
                 //
-                // This could possibly spawn other tasks.
+                // This could possibly suubmit other futures for execution.
                 let ret = current.set_scheduler(&mut runner.scheduler, || {
                     let mut ctx = Context { _p: ::std::marker::PhantomData };
                     f(&mut ctx)
@@ -350,8 +361,8 @@ impl TaskRunner {
                 //
                 // This function will not return until either
                 //
-                // a) All non daemon tasks have completed execution
-                // b) `cancel_all_spawned` is called, forcing the executor to
+                // a) All non daemon futures have completed execution
+                // b) `cancel_all_executing` is called, forcing the executor to
                 // return.
                 runner.run(thread_notify, current);
 
@@ -380,7 +391,7 @@ impl TaskRunner {
             // scheduler that have received a readiness notification.
             self.poll_all(current);
 
-            // If all non-daemon tasks have completed, exit the run loop.
+            // If all non-daemon futures have completed, exit the run loop.
             if current.non_daemons.get() == 0 {
                 break;
             }
@@ -403,7 +414,7 @@ impl TaskRunner {
                 // This lets us push new futures into the scheduler. It also
                 // lets us pass the scheduler mutable reference into
                 // `set_scheduler`, which sets the thread-local variable that
-                // `CurrentThread::spawn` uses for spawning new tasks into the
+                // `CurrentThread::execute` uses for submitting new futures to the
                 // "current" executor.
                 //
                 // See `set_scheduler` documentation for more details on how we
@@ -454,7 +465,7 @@ impl CurrentRunner {
     /// Set the provided scheduler to the TLS slot for the duration of the
     /// closure.
     ///
-    /// `CurrentThread::spawn` will access the CURRENT thread-local variable in
+    /// `CurrentThread::execute` will access the CURRENT thread-local variable in
     /// order to push a future into the scheduler. This requires a `&mut`
     /// reference, introducing mutability hazards.
     ///
@@ -493,7 +504,7 @@ impl CurrentRunner {
         f()
     }
 
-    fn cancel_all_spawned(&self) {
+    fn cancel_all_executing(&self) {
         self.cancel.set(true);
     }
 }
