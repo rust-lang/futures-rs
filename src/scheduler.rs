@@ -92,12 +92,22 @@ struct Node<T, W> {
     queued: AtomicBool,
 }
 
+/// Returned by the `Scheduler::tick` function, allowing the caller to decide
+/// what action to take next.
 pub enum Tick<T> {
     Data(T),
     Empty,
     Inconsistent,
 }
 
+/// Returned by `Inner::dequeue`, representing either a dequeue success (with
+/// the dequeued node), an empty list, or an inconsistent state.
+///
+/// The inconsistent state is described in more detail at [1024cores], but
+/// roughly indicates that a node will be ready to dequeue sometime shortly in
+/// the future and the caller should try again soon.
+///
+/// [1024cores]: http://www.1024cores.net/home/lock-free-algorithms/queues/intrusive-mpsc-node-based-queue
 enum Dequeue<T, W> {
     Data(*const Node<T, W>),
     Empty,

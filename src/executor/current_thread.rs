@@ -303,17 +303,38 @@ impl TaskRunner {
     }
 
     /// Enter a new `TaskRunner` context
+    ///
+    /// This function handles advancing the scheduler state and blocking while
+    /// listening for notified futures.
+    ///
+    /// First, a new task runner is created backed by the current `ThreadNotify`
+    /// handle. Passing `ThreadNotify` into the scheduler is how scheduled
+    /// futures unblock the thread, signalling that there is more work to do.
+    ///
+    /// Before any future is polled, the scheduler must be set to a thread-local
+    /// variable so that `spawn` is able to spawn new tasks into the current
+    /// executor. Because `Scheduler::push` requires `&mut self`, this
+    /// introduces a mutability hazard. This hazard is minimized with some
+    /// indirection. See `set_scheduler` for more details.
+    ///
+    /// Once all context is setup, the init closure is invoked. This is the
+    /// "boostrapping" process that spawns the initial futures into the
+    /// scheduler. After this, the function loops and advances the scheduler
+    /// state until all non daemon futures complete. When no scheduled futures
+    /// are ready to be advanced, the thread is blocked using
+    /// `ThreadNotify::park`.
     fn enter<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R,
     {
         // Create a new task runner that will be used for the duration of `f`.
         ThreadNotify::with_current(|thread_notify| {
-            // The runner has to be created outside of the MY_TASK_RUNNER.with
-            // block.
             let mut runner = TaskRunner::new(thread_notify.clone());
 
             CURRENT.with(|current| {
                 // Make sure that another task runner is not set.
+                //
+                // This should not be ever possible due to how `set_scheduler`
+                // is setup, but better safe than sorry!
                 assert!(current.scheduler.get().is_null());
 
                 // Set the scheduler to the TLS and perform setup work,
@@ -325,7 +346,13 @@ impl TaskRunner {
                     f(&mut ctx)
                 });
 
-                // Execute the runner
+                // Execute the runner.
+                //
+                // This function will not return until either
+                //
+                // a) All non daemon tasks have completed execution
+                // b) `cancel_all_spawned` is called, forcing the executor to
+                // return.
                 runner.run(thread_notify, current);
 
                 ret
@@ -335,20 +362,31 @@ impl TaskRunner {
 
     fn run(&mut self, thread_notify: &Arc<ThreadNotify>, current: &CurrentRunner) {
         loop {
+            // Check if cancel was called
             if current.cancel.get() {
                 // TODO: This probably can be improved
                 current.cancel.set(false);
 
+                // This is an extra sanity check to ensure that a pointer didn't
+                // "leak" out of `set_scheduler`. `run` is *not* called from
+                // within the context of `set_scheduler`, so the TLS should not
+                // have a value.
                 debug_assert!(current.scheduler.get().is_null());
+
                 self.scheduler = scheduler::Scheduler::new(thread_notify.clone());
             }
 
+            // Poll all scheduled futures. These are futures managed by the
+            // scheduler that have received a readiness notification.
             self.poll_all(current);
 
+            // If all non-daemon tasks have completed, exit the run loop.
             if current.non_daemons.get() == 0 {
                 break;
             }
 
+            // Block the current thread until a future managed by the scheduler
+            // receives a readiness notification.
             thread_notify.park();
         }
     }
@@ -358,6 +396,18 @@ impl TaskRunner {
 
         loop {
             let res = self.scheduler.tick(|scheduler, spawned, notify| {
+                // `scheduler` is a `&mut Scheduler` reference returned back
+                // from the scheduler to us, but only within the context of this
+                // closure.
+                //
+                // This lets us push new futures into the scheduler. It also
+                // lets us pass the scheduler mutable reference into
+                // `set_scheduler`, which sets the thread-local variable that
+                // `CurrentThread::spawn` uses for spawning new tasks into the
+                // "current" executor.
+                //
+                // See `set_scheduler` documentation for more details on how we
+                // guard against mutable pointer aliasing.
                 current.set_scheduler(scheduler, || {
                     match spawned.inner.0.poll_future_notify(notify, 0) {
                         Ok(Async::Ready(_)) | Err(_) => {
@@ -402,7 +452,27 @@ impl CurrentRunner {
     }
 
     /// Set the provided scheduler to the TLS slot for the duration of the
-    /// closure
+    /// closure.
+    ///
+    /// `CurrentThread::spawn` will access the CURRENT thread-local variable in
+    /// order to push a future into the scheduler. This requires a `&mut`
+    /// reference, introducing mutability hazards.
+    ///
+    /// Rust requires that `&mut` references are not aliases, i.e. there are
+    /// never two "live" mutable references to the same piece of data. In order
+    /// to store a `&mut` reference in a thread-local variable, we must ensure
+    /// that one can not access the scheduler anywhere else.
+    ///
+    /// To do this, we only allow access to the thread local variable from
+    /// within the closure passed to `set_scheduler`. This function also takes a
+    /// &mut reference to the scheduler, which is essentially holding a "lock"
+    /// on that reference, preventing any other location in the code from
+    /// also getting that &mut reference.
+    ///
+    /// When `set_scheduler` returns, the thread-local variable containing the
+    /// mut reference is set to null. This is done even if the closure panics.
+    ///
+    /// This reduces the odds of introducing pointer aliasing.
     fn set_scheduler<F, R>(&self, scheduler: &mut Scheduler, f: F) -> R
     where F: FnOnce() -> R
     {
