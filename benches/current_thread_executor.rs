@@ -65,6 +65,28 @@ fn execute_yield_many(b: &mut Bencher) {
 }
 
 #[bench]
-#[ignore]
 fn execute_daisy(b: &mut Bencher) {
+    const DEPTH: usize = 1000;
+
+    let cnt = Rc::new(Cell::new(0));
+
+    fn daisy(rem: usize, cnt: Rc<Cell<usize>>) {
+        if rem > 0 {
+            CurrentThread::execute(lazy(move || {
+                cnt.set(1 + cnt.get());
+                daisy(rem - 1, cnt);
+                Ok(())
+            }));
+        }
+    }
+
+    b.iter(move || {
+        cnt.set(0);
+
+        CurrentThread::block_with_init(|_| {
+            daisy(DEPTH, cnt.clone());
+        });
+
+        assert_eq!(cnt.get(), DEPTH);
+    });
 }
