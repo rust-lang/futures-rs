@@ -13,16 +13,16 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 #[bench]
-fn spawn_oneshot(b: &mut Bencher) {
+fn execute_oneshot(b: &mut Bencher) {
     const ITER: usize = 1000;
 
     b.iter(move || {
         let cnt = Rc::new(Cell::new(0));
 
-        CurrentThread::block_with_init(|| {
+        CurrentThread::block_with_init(|_| {
             for _ in 0..ITER {
                 let cnt = cnt.clone();
-                CurrentThread::spawn(lazy(move || {
+                CurrentThread::execute(lazy(move || {
                     cnt.set(1 + cnt.get());
                     Ok::<(), ()>(())
                 }));
@@ -34,19 +34,19 @@ fn spawn_oneshot(b: &mut Bencher) {
 }
 
 #[bench]
-fn spawn_yield_many(b: &mut Bencher) {
+fn execute_yield_many(b: &mut Bencher) {
     const YIELDS: usize = 500;
     const TASKS: usize = 20;
 
     b.iter(move || {
         let cnt = Rc::new(Cell::new(0));
 
-        CurrentThread::block_with_init(|| {
+        CurrentThread::block_with_init(|_| {
             for _ in 0..TASKS {
                 let cnt = cnt.clone();
                 let mut rem = YIELDS;
 
-                CurrentThread::spawn(poll_fn(move || {
+                CurrentThread::execute(poll_fn(move || {
                     cnt.set(1 + cnt.get());
                     rem -= 1;
 
@@ -66,5 +66,5 @@ fn spawn_yield_many(b: &mut Bencher) {
 
 #[bench]
 #[ignore]
-fn spawn_daisy(b: &mut Bencher) {
+fn execute_daisy(b: &mut Bencher) {
 }
