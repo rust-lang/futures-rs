@@ -372,40 +372,10 @@ impl TaskRunner {
     }
 
     fn run(&mut self, thread_notify: &Arc<ThreadNotify>, current: &CurrentRunner) {
-        loop {
-            // Check if cancel was called
-            if current.cancel.get() {
-                // TODO: This probably can be improved
-                current.cancel.set(false);
-
-                // This is an extra sanity check to ensure that a pointer didn't
-                // "leak" out of `set_scheduler`. `run` is *not* called from
-                // within the context of `set_scheduler`, so the TLS should not
-                // have a value.
-                debug_assert!(current.scheduler.get().is_null());
-
-                self.scheduler = scheduler::Scheduler::new(thread_notify.clone());
-            }
-
-            // Poll all scheduled futures. These are futures managed by the
-            // scheduler that have received a readiness notification.
-            self.poll_all(current);
-
-            // If all non-daemon futures have completed, exit the run loop.
-            if current.non_daemons.get() == 0 {
-                break;
-            }
-
-            // Block the current thread until a future managed by the scheduler
-            // receives a readiness notification.
-            thread_notify.park();
-        }
-    }
-
-    fn poll_all(&mut self, current: &CurrentRunner) {
         use scheduler::Tick;
 
-        loop {
+        while current.is_running() {
+            // Try to advance the scheduler state
             let res = self.scheduler.tick(|scheduler, spawned, notify| {
                 // `scheduler` is a `&mut Scheduler` reference returned back
                 // from the scheduler to us, but only within the context of this
@@ -429,7 +399,10 @@ impl TaskRunner {
                 })
             });
 
+            // Process the result of ticking the scheduler
             match res {
+                // A future completed. `is_daemon` is true when the future was
+                // submitted as a daemon future.
                 Tick::Data(is_daemon) => {
                     if !is_daemon {
                         let non_daemons = current.non_daemons.get();
@@ -438,7 +411,17 @@ impl TaskRunner {
                     }
                 },
                 Tick::Empty => {
-                    return;
+                    // The scheduler did not have any work to process.
+                    //
+                    // At this point, the scheduler is currently running given
+                    // that the `while` condition was true and no user code has
+                    // been executed.
+
+                    debug_assert!(current.is_running());
+
+                    // Block the current thread until a future managed by the scheduler
+                    // receives a readiness notification.
+                    thread_notify.park();
                 }
                 Tick::Inconsistent => {
                     // Yield the thread and loop
@@ -502,6 +485,10 @@ impl CurrentRunner {
         self.scheduler.set(scheduler as *mut Scheduler);
 
         f()
+    }
+
+    fn is_running(&self) -> bool {
+        self.non_daemons.get() > 0 && !self.cancel.get()
     }
 
     fn cancel_all_executing(&self) {
