@@ -53,6 +53,10 @@ impl<T: Sink> Blocking<T> {
     /// along the sink, and if `Err(e)` is returned then an error occurred
     /// which prevented the value from being sent.
     pub fn send(&mut self, mut value: T::SinkItem) -> Result<(), T::SinkError> {
+        let _enter = executor::enter()
+            .expect("cannot call `sink::Blocking::send` from within \
+                     another executor.");
+
         ThreadNotify::with_current(|notify| {
             loop {
                 let inner = self.inner.as_mut().unwrap();
@@ -76,6 +80,10 @@ impl<T: Sink> Blocking<T> {
     /// `NotReady` the current thread will be blocked until it's otherwise
     /// ready to proceed.
     pub fn flush(&mut self) -> Result<(), T::SinkError> {
+        let _enter = executor::enter()
+            .expect("cannot call `sink::Blocking::flush` from within \
+                     another executor.");
+
         ThreadNotify::with_current(|notify| {
             loop {
                 let inner = self.inner.as_mut().unwrap();
@@ -106,6 +114,14 @@ impl<T: Sink> Blocking<T> {
 
 impl<T: Sink> Drop for Blocking<T> {
     fn drop(&mut self) {
+        let _enter = match executor::enter() {
+            Some(enter) => enter,
+            // Cannot block from the context of an executor. This is considered
+            // an "error" and will just not flush. If this panicked, it would
+            // potentially end up in a double panic situation.
+            None => return,
+        };
+
         ThreadNotify::with_current(|notify| {
             if let Some(ref mut inner) = self.inner {
                 loop {
