@@ -97,6 +97,7 @@ if_std! {
 
     mod buffered;
     mod buffer_unordered;
+    mod any;
     mod catch_unwind;
     mod chunks;
     mod collect;
@@ -107,6 +108,7 @@ if_std! {
     mod futures_ordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
+    pub use self::any::Any;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
@@ -759,6 +761,31 @@ pub trait Stream {
               Self: Sized
     {
         for_each::new(self, f)
+    }
+
+    /// Runs this stream to completion, executing the provided closure for each
+    /// element on the stream.
+    ///
+    /// The closure provided will be called for each item this stream resolves
+    /// to successfully, producing a future.
+    /// 
+    /// The returned value is a `Future` where the `Item` type is `()` and
+    /// errors are otherwise threaded through. Any error on the stream will 
+    /// cause iteration to be halted immediately and the future will resolve to
+    /// that error.
+    ///
+    /// the main difference between `any` and `for_each` is that `any` will not
+    /// be "blocked" or "exited" by the results of the generated futures.
+    /// 
+    /// This method is only available when the `use_std` feature of this
+    /// library is activated, and it is activated by default.
+    #[cfg(feature = "use_std")]
+    fn any<F, U>(self, f: F) -> Any<Self, F, U>
+        where F: FnMut(Self::Item) -> U,
+              U: IntoFuture,
+              Self: Sized
+    {
+        any::new(self, f)
     }
 
     /// Map this stream's error to any error implementing `From` for
