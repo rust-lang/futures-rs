@@ -319,7 +319,7 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
 pub fn async_block(input: TokenStream) -> TokenStream {
     let input = TokenStream::from(TokenTree {
         kind: TokenNode::Group(Delimiter::Brace, input),
-        span: Default::default(),
+        span: proc_macro::Span::def_site(),
     });
     let expr = syn::parse(input)
         .expect("failed to parse tokens as an expression");
@@ -350,7 +350,7 @@ pub fn async_block(input: TokenStream) -> TokenStream {
 pub fn async_stream_block(input: TokenStream) -> TokenStream {
     let input = TokenStream::from(TokenTree {
         kind: TokenNode::Group(Delimiter::Brace, input),
-        span: Default::default(),
+        span: proc_macro::Span::def_site(),
     });
     let expr = syn::parse(input)
         .expect("failed to parse tokens as an expression");
