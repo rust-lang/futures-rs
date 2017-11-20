@@ -47,6 +47,10 @@ impl<T: Stream> Iterator for Blocking<T> {
     type Item = Result<T::Item, T::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let _enter = executor::enter()
+            .expect("cannot call `stream::Blocking::next` from within \
+                     another executor.");
+
         ThreadNotify::with_current(|notify| {
             loop {
                 match self.inner.poll_stream_notify(notify, 0) {

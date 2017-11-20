@@ -62,9 +62,15 @@ impl<T: Future> Blocking<T> {
     ///
     /// # Panics
     ///
+    /// This method panics if called from within an executor.
+    ///
     /// This method does not attempt to catch panics. If the `poll` function of
     /// the inner future panics, the panic will be propagated to the caller.
     pub fn wait(&mut self) -> Result<T::Item, T::Error> {
+        let _enter = executor::enter()
+            .expect("cannot call `future::Blocking::wait` from within \
+                     another executor.");
+
         ThreadNotify::with_current(|notify| {
             loop {
                 match self.inner.poll_future_notify(notify, 0)? {

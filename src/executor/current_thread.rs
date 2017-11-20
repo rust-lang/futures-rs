@@ -106,6 +106,7 @@ pub struct DaemonExecutor {
 /// made in a backwards compatible way.
 #[derive(Debug)]
 pub struct Context<'a> {
+    enter: executor::Enter,
     _p: ::std::marker::PhantomData<&'a ()>,
 }
 
@@ -272,6 +273,13 @@ where F: Future<Item = (), Error = ()> + 'static
     }
 }
 
+impl<'a> Context<'a> {
+    /// Returns a reference to the executor `Enter` handle.
+    pub fn enter(&self) -> &executor::Enter {
+        &self.enter
+    }
+}
+
 /// Submits a future to the current `CurrentThread` executor. This is done by
 /// checking the thread-local variable tracking the current executor.
 ///
@@ -348,12 +356,21 @@ impl TaskRunner {
                 // is setup, but better safe than sorry!
                 assert!(current.scheduler.get().is_null());
 
+                let enter = executor::enter()
+                    .expect("cannot execute `CurrentThread` executor from within \
+                             another executor");
+
+                // Enter an execution scope
+                let mut ctx = Context {
+                    enter: enter,
+                    _p: ::std::marker::PhantomData,
+                };
+
                 // Set the scheduler to the TLS and perform setup work,
                 // returning a future to execute.
                 //
                 // This could possibly suubmit other futures for execution.
                 let ret = current.set_scheduler(&mut runner.scheduler, || {
-                    let mut ctx = Context { _p: ::std::marker::PhantomData };
                     f(&mut ctx)
                 });
 
@@ -365,6 +382,10 @@ impl TaskRunner {
                 // b) `cancel_all_executing` is called, forcing the executor to
                 // return.
                 runner.run(thread_notify, current);
+
+                // Not technically required, but this makes the fact that `ctx`
+                // needs to live until this point explicit.
+                drop(ctx);
 
                 ret
             })

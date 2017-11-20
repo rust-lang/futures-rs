@@ -1,7 +1,7 @@
 extern crate futures;
 
 use futures::{task, Future, Poll, Async};
-use futures::future::lazy;
+use futures::future::{blocking, empty, lazy};
 use futures::executor::CurrentThread;
 
 use std::cell::{Cell, RefCell};
@@ -99,7 +99,6 @@ fn outstanding_daemon_tasks_are_dropped_on_return() {
 }
 
 #[test]
-#[ignore]
 fn outstanding_tasks_are_dropped_on_cancel() {
     let mut rc = Rc::new(());
 
@@ -110,6 +109,46 @@ fn outstanding_tasks_are_dropped_on_cancel() {
 
     // Ensure the daemon is dropped
     assert!(Rc::get_mut(&mut rc).is_some());
+}
+
+#[test]
+#[should_panic]
+fn nesting_block_with_init() {
+    CurrentThread::block_with_init(|_| {
+        CurrentThread::block_with_init(|_| {
+        });
+    });
+}
+
+#[test]
+#[should_panic]
+fn block_with_init_in_future() {
+    CurrentThread::block_with_init(|_| {
+        CurrentThread::execute(lazy(|| {
+            CurrentThread::block_with_init(|_| {
+            });
+            Ok::<(), ()>(())
+        }));
+    });
+}
+
+#[test]
+#[should_panic]
+fn blocking_within_init() {
+    CurrentThread::block_with_init(|_| {
+        let _ = blocking(empty::<(), ()>()).wait();
+    });
+}
+
+#[test]
+#[should_panic]
+fn blocking_in_future() {
+    CurrentThread::block_with_init(|_| {
+        CurrentThread::execute(lazy(|| {
+            let _ = blocking(empty::<(), ()>()).wait();
+            Ok::<(), ()>(())
+        }));
+    });
 }
 
 #[test]
