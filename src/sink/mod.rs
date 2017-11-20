@@ -21,6 +21,7 @@ mod from_err;
 mod send;
 mod send_all;
 mod map_err;
+mod fanout;
 
 if_std! {
     mod buffer;
@@ -80,6 +81,7 @@ pub use self::send::Send;
 pub use self::send_all::SendAll;
 pub use self::map_err::SinkMapErr;
 pub use self::from_err::SinkFromErr;
+pub use self::fanout::Fanout;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -405,6 +407,18 @@ pub trait Sink {
         where Self: Sized
     {
         buffer::new(self, amt)
+    }
+
+    /// Fanout items to multiple sinks.
+    ///
+    /// This adapter clones each incoming item and forwards it to both this as well as
+    /// the other sink at the same time.
+    fn fanout<S>(self, other: S) -> Fanout<Self, S>
+        where Self: Sized,
+              Self::SinkItem: Clone,
+              S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
+    {
+        fanout::new(self, other)
     }
 
     /// A future that completes when the sink has finished processing all

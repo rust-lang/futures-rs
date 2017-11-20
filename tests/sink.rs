@@ -353,6 +353,56 @@ fn buffer() {
 }
 
 #[test]
+fn fanout_smoke() {
+    let sink1 = Vec::new();
+    let sink2 = Vec::new();
+    let sink = sink1.fanout(sink2);
+    let stream = futures::stream::iter_ok(vec![1,2,3]);
+    let (sink, _) = sink.send_all(stream).wait().unwrap();
+    let (sink1, sink2) = sink.into_inner();
+    assert_eq!(sink1, vec![1,2,3]);
+    assert_eq!(sink2, vec![1,2,3]);
+}
+
+#[test]
+fn fanout_backpressure() {
+    let (left_send, left_recv) = mpsc::channel(0);
+    let (right_send, right_recv) = mpsc::channel(0);
+    let sink = left_send.fanout(right_send);
+
+    let sink = StartSendFut::new(sink, 0).wait().unwrap();
+    let sink = StartSendFut::new(sink, 1).wait().unwrap();
+ 
+    let flag = Flag::new();
+    let mut task = executor::spawn(sink.send(2));
+    assert!(!flag.get());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    let (item, left_recv) = left_recv.into_future().wait().unwrap();
+    assert_eq!(item, Some(0));
+    assert!(flag.get());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    let (item, right_recv) = right_recv.into_future().wait().unwrap();
+    assert_eq!(item, Some(0));
+    assert!(flag.get());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    let (item, left_recv) = left_recv.into_future().wait().unwrap();
+    assert_eq!(item, Some(1));
+    assert!(flag.get());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    let (item, right_recv) = right_recv.into_future().wait().unwrap();
+    assert_eq!(item, Some(1));
+    assert!(flag.get());
+    match task.poll_future_notify(&flag, 0).unwrap() {
+        Async::Ready(_) => {
+        },
+        _ => panic!()
+    };
+    // make sure receivers live until end of test to prevent send errors
+    drop(left_recv);
+    drop(right_recv);
+}
+
+#[test]
 fn map_err() {
     {
         let (tx, _rx) = mpsc::channel(1);
