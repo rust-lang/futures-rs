@@ -364,9 +364,11 @@ impl Builder {
     }
 
     /// Execute function `f` right after each thread is started but before
-    /// running any jobs on it
+    /// running any jobs on it.
     ///
-    /// This is initially intended for bookkeeping and monitoring uses
+    /// This is initially intended for bookkeeping and monitoring uses.
+    /// The `f` will be deconstructed after the `builder` is deconstructed
+    /// and all threads in the pool has executed it.
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
         where F: Fn() + Send + Sync + 'static
     {
@@ -374,9 +376,11 @@ impl Builder {
         self
     }
 
-    /// Execute function `f` before each worker thread stops
+    /// Execute function `f` before each worker thread stops.
     ///
-    /// This is initially intended for bookkeeping and monitoring uses
+    /// This is initially intended for bookkeeping and monitoring uses.
+    /// The `f` will be deconstructed after the `builder` is deconstructed
+    /// and all threads in the pool has executed it.
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
         where F: Fn() + Send + Sync + 'static
     {
@@ -423,7 +427,7 @@ mod tests {
     #[test]
     fn test_drop_after_start() {
         let (tx, rx) = mpsc::sync_channel(2);
-        let cpu_pool = Builder::new()
+        let _cpu_pool = Builder::new()
             .pool_size(2)
             .after_start(move || tx.send(1).unwrap()).create();
 
