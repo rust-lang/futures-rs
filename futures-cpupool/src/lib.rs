@@ -80,6 +80,7 @@ pub struct CpuPool {
 /// of CPUs on the host. But you can change it until you call `create()`.
 pub struct Builder {
     pool_size: usize,
+    stack_size: usize,
     name_prefix: Option<String>,
     after_start: Option<Arc<Fn() + Send + Sync>>,
     before_stop: Option<Arc<Fn() + Send + Sync>>,
@@ -340,6 +341,7 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             pool_size: num_cpus::get(),
+            stack_size: 0,
             name_prefix: None,
             after_start: None,
             before_stop: None,
@@ -351,6 +353,12 @@ impl Builder {
     /// The size of a thread pool is the number of worker threads spawned
     pub fn pool_size(&mut self, size: usize) -> &mut Self {
         self.pool_size = size;
+        self
+    }
+
+    /// Set stack size of threads in the pool.
+    pub fn stack_size(&mut self, stack_size: usize) -> &mut Self {
+        self.stack_size = stack_size;
         self
     }
 
@@ -412,6 +420,9 @@ impl Builder {
             let mut thread_builder = thread::Builder::new();
             if let Some(ref name_prefix) = self.name_prefix {
                 thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
+            }
+            if self.stack_size > 0 {
+                thread_builder = thread_builder.stack_size(self.stack_size);
             }
             thread_builder.spawn(move || inner.work(after_start, before_stop)).unwrap();
         }
