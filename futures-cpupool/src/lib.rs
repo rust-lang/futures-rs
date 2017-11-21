@@ -99,8 +99,6 @@ struct Inner {
     rx: Mutex<mpsc::Receiver<Message>>,
     cnt: AtomicUsize,
     size: usize,
-    after_start: Option<Arc<Fn() + Send + Sync>>,
-    before_stop: Option<Arc<Fn() + Send + Sync>>,
 }
 
 impl fmt::Debug for CpuPool {
@@ -250,8 +248,8 @@ impl Inner {
         self.tx.lock().unwrap().send(msg).unwrap();
     }
 
-    fn work(&self) {
-        self.after_start.as_ref().map(|fun| fun());
+    fn work(&self, after_start: Option<Arc<Fn() + Send + Sync>>, before_stop: Option<Arc<Fn() + Send + Sync>>) {
+        after_start.map(|fun| fun());
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
             match msg {
@@ -259,7 +257,7 @@ impl Inner {
                 Message::Close => break,
             }
         }
-        self.before_stop.as_ref().map(|fun| fun());
+        before_stop.map(|fun| fun());
     }
 }
 
@@ -399,21 +397,39 @@ impl Builder {
                 rx: Mutex::new(rx),
                 cnt: AtomicUsize::new(1),
                 size: self.pool_size,
-                after_start: self.after_start.clone(),
-                before_stop: self.before_stop.clone(),
             }),
         };
         assert!(self.pool_size > 0);
 
         for counter in 0..self.pool_size {
             let inner = pool.inner.clone();
+            let after_start = self.after_start.clone();
+            let before_stop = self.before_stop.clone();
             let mut thread_builder = thread::Builder::new();
             if let Some(ref name_prefix) = self.name_prefix {
                 thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
             }
-            thread_builder.spawn(move || inner.work()).unwrap();
+            thread_builder.spawn(move || inner.work(after_start, before_stop)).unwrap();
         }
-
         return pool
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn test_drop_after_start() {
+        let (tx, rx) = mpsc::sync_channel(2);
+        let cpu_pool = Builder::new()
+            .pool_size(2)
+            .after_start(move || tx.send(1).unwrap()).create();
+
+        // After Builder is deconstructed, the tx should be droped
+        // so that we can use rx as an iterator.
+        let count = rx.into_iter().count();
+        assert_eq!(count, 2);
     }
 }
