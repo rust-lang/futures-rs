@@ -301,7 +301,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        match self.inner.poll().expect("shouldn't be canceled") {
+        match self.inner.poll().expect("cannot poll CpuFuture twice") {
             Async::Ready(Ok(Ok(e))) => Ok(e.into()),
             Async::Ready(Ok(Err(e))) => Err(e),
             Async::Ready(Err(e)) => panic::resume_unwind(e),
