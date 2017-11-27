@@ -62,7 +62,9 @@ mod zip;
 mod forward;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
-pub use self::concat::{Concat, Concat2};
+#[allow(deprecated)]
+pub use self::concat::Concat;
+pub use self::concat::Concat2;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -630,6 +632,7 @@ pub trait Stream {
     /// It's important to note that this function will panic if the stream
     /// is empty, which is the reason for its deprecation.
     #[deprecated(since="0.1.14", note="please use `Stream::concat2` instead")]
+    #[allow(deprecated)]
     fn concat(self) -> Concat<Self>
         where Self: Sized,
               Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator,
