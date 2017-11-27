@@ -64,9 +64,9 @@ impl<I> fmt::Debug for JoinAll<I>
 /// });
 ///
 /// let f = join_all(vec![
-///     ok::<u32, u32>(1).boxed(),
-///     err::<u32, u32>(2).boxed(),
-///     ok::<u32, u32>(3).boxed(),
+///     Box::new(ok::<u32, u32>(1)),
+///     Box::new(err::<u32, u32>(2)),
+///     Box::new(ok::<u32, u32>(3)),
 /// ]);
 /// let f = f.then(|x| {
 ///     assert_eq!(x, Err(2));

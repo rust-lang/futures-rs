@@ -659,7 +659,7 @@ pub trait Stream {
     /// use futures::stream;
     /// use futures::future;
     ///
-    /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
+    /// let number_stream = stream::iter_ok::<_, ()>(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ok(acc + x));
     /// assert_eq!(sum.wait(), Ok(15));
     /// ```
@@ -975,8 +975,8 @@ pub trait Stream {
     /// use futures::prelude::*;
     /// use futures::stream;
     ///
-    /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
-    /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);
+    /// let stream1 = stream::iter_result(vec![Ok(10), Err(false)]);
+    /// let stream2 = stream::iter_result(vec![Err(true), Ok(20)]);
     /// let mut chain = stream1.chain(stream2).wait();
     ///
     /// assert_eq!(Some(Ok(10)), chain.next());

@@ -333,7 +333,7 @@ pub trait Sink {
     ///
     /// # Examples
     /// ---
-    /// Using this function with an iterator through use of the `stream::iter()`
+    /// Using this function with an iterator through use of the `stream::iter_ok()`
     /// function
     ///
     /// ```
@@ -344,7 +344,7 @@ pub trait Sink {
     /// let (tx, rx) = mpsc::channel::<i32>(5);
     ///
     /// let tx = tx.with_flat_map(|x| {
-    ///     stream::iter(vec![42; x].into_iter().map(|y|Ok(y)))
+    ///     stream::iter_ok(vec![42; x].into_iter().map(|y| y))
     /// });
     /// tx.send(5).wait().unwrap();
     /// assert_eq!(rx.collect().wait(), Ok(vec![42, 42, 42, 42, 42]))
