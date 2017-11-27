@@ -438,7 +438,6 @@ struct RunInner {
 impl Run {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
-    #[allow(deprecated)]
     pub fn run(self) {
         let Run { mut spawn, inner } = self;
 
@@ -448,8 +447,7 @@ impl Run {
             inner.mutex.start_poll();
 
             loop {
-                let unpark: Arc<Unpark> = inner.clone();
-                match spawn.poll_future(unpark) {
+                match spawn.poll_future_notify(&inner, 0) {
                     Ok(Async::NotReady) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),
@@ -472,9 +470,8 @@ impl fmt::Debug for Run {
     }
 }
 
-#[allow(deprecated)]
-impl Unpark for RunInner {
-    fn unpark(&self) {
+impl Notify for RunInner {
+    fn notify(&self, _id: usize) {
         match self.mutex.notify() {
             Ok(run) => self.exec.execute(run),
             Err(()) => {}
