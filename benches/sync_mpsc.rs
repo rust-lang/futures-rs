@@ -45,7 +45,7 @@ fn unbounded_1_tx(b: &mut Bencher) {
             // Poll, not ready, park
             assert_eq!(Ok(Async::NotReady), rx.poll_stream_notify(&notify_noop(), 1));
 
-            UnboundedSender::send(&tx, i).unwrap();
+            UnboundedSender::unbounded_send(&tx, i).unwrap();
 
             // Now poll ready
             assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_stream_notify(&notify_noop(), 1));
@@ -68,7 +68,7 @@ fn unbounded_100_tx(b: &mut Bencher) {
             for i in 0..tx.len() {
                 assert_eq!(Ok(Async::NotReady), rx.poll_stream_notify(&notify_noop(), 1));
 
-                UnboundedSender::send(&tx[i], i).unwrap();
+                UnboundedSender::unbounded_send(&tx[i], i).unwrap();
 
                 assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_stream_notify(&notify_noop(), 1));
             }
@@ -82,7 +82,7 @@ fn unbounded_uncontended(b: &mut Bencher) {
         let (tx, mut rx) = unbounded();
 
         for i in 0..1000 {
-            UnboundedSender::send(&tx, i).expect("send");
+            UnboundedSender::unbounded_send(&tx, i).expect("send");
             // No need to create a task, because poll is not going to park.
             assert_eq!(Ok(Async::Ready(Some(i))), rx.poll());
         }
