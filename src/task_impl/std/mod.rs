@@ -656,6 +656,7 @@ impl fmt::Debug for UnparkEvent {
 ///
 /// `EventSet`s are used to communicate precise information about the event(s)
 /// that triggered a task notification. See `task::with_unpark_event` for details.
+#[deprecated(since="0.1.18", note = "recommended to use `FuturesUnordered` instead")]
 pub trait EventSet: Send + Sync + 'static {
     /// Insert the given ID into the set
     fn insert(&self, id: usize);
