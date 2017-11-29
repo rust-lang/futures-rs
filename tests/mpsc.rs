@@ -7,8 +7,8 @@ use futures::prelude::*;
 use futures::future::{lazy, ok};
 use futures::stream::unfold;
 use futures::sync::mpsc;
+use futures::sync::oneshot;
 
-use std::time::Duration;
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -92,18 +92,20 @@ fn send_recv_threads() {
 
 #[test]
 fn send_recv_threads_no_capacity() {
-    let (mut tx, rx) = mpsc::channel::<i32>(0);
+    let (tx, rx) = mpsc::channel::<i32>(0);
     let mut rx = rx.wait();
 
+    let (readytx, readyrx) = mpsc::channel::<()>(2);
+    let mut readyrx = readyrx.wait();
     let t = thread::spawn(move|| {
-        tx = tx.send(1).wait().unwrap();
-        tx = tx.send(2).wait().unwrap();
+        let readytx = readytx.sink_map_err(|_| panic!());
+        let (a, b) = tx.send(1).join(readytx.send(())).wait().unwrap();
+        a.send(2).join(b.send(())).wait().unwrap();
     });
 
-    thread::sleep(Duration::from_millis(100));
+    drop(readyrx.next().unwrap());
     assert_eq!(rx.next().unwrap(), Ok(1));
-
-    thread::sleep(Duration::from_millis(100));
+    drop(readyrx.next().unwrap());
     assert_eq!(rx.next().unwrap(), Ok(2));
 
     t.join().unwrap();
@@ -444,12 +446,11 @@ fn try_send_1() {
 
 #[test]
 fn try_send_2() {
-    use std::thread;
-    use std::time::Duration;
-
     let (mut tx, rx) = mpsc::channel(0);
 
     tx.try_send("hello").unwrap();
+
+    let (readytx, readyrx) = oneshot::channel::<()>();
 
     let th = thread::spawn(|| {
         lazy(|| {
@@ -457,14 +458,13 @@ fn try_send_2() {
             Ok::<_, ()>(())
         }).wait().unwrap();
 
+        drop(readytx);
         tx.send("goodbye").wait().unwrap();
     });
 
-    // Little sleep to hopefully get the action on the thread to happen first
-    thread::sleep(Duration::from_millis(300));
-
     let mut rx = rx.wait();
 
+    drop(readyrx.wait());
     assert_eq!(rx.next(), Some(Ok("hello")));
     assert_eq!(rx.next(), Some(Ok("goodbye")));
     assert!(rx.next().is_none());
