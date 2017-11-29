@@ -13,8 +13,8 @@
 //! use futures::Future;
 //! use futures_cpupool::CpuPool;
 //!
-//! # fn long_running_future(a: u32) -> futures::future::BoxFuture<u32, ()> {
-//! #     futures::future::result(Ok(a)).boxed()
+//! # fn long_running_future(a: u32) -> Box<futures::future::Future<Item = u32, Error = ()> + Send> {
+//! #     Box::new(futures::future::result(Ok(a)))
 //! # }
 //! # fn main() {
 //!
