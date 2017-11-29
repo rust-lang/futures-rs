@@ -7,6 +7,7 @@ use std::mem;
 use std::ptr;
 use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
 use super::core;
@@ -500,6 +501,10 @@ impl ThreadNotify {
     }
 
     pub fn park(&self) {
+        self.park_timeout(None);
+    }
+
+    pub fn park_timeout(&self, dur: Option<Duration>) {
         // If currently notified, then we skip sleeping. This is checked outside
         // of the lock to avoid acquiring a mutex if not necessary.
         match self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
@@ -524,9 +529,26 @@ impl ThreadNotify {
             _ => unreachable!(),
         }
 
-        // Loop until we've been notified
+        // Track (until, remaining)
+        let mut time = dur.map(|dur| (Instant::now() + dur, dur));
+
         loop {
-            m = self.condvar.wait(m).unwrap();
+            m = match time {
+                Some((until, rem)) => {
+                    let (guard, _) = self.condvar.wait_timeout(m, rem).unwrap();
+                    let now = Instant::now();
+
+                    if now >= until {
+                        // Timed out... exit sleep state
+                        self.state.store(IDLE, Ordering::SeqCst);
+                        return;
+                    }
+
+                    time = Some((until, until - now));
+                    guard
+                }
+                None => self.condvar.wait(m).unwrap(),
+            };
 
             // Transition back to idle, loop otherwise
             if NOTIFY == self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
@@ -534,10 +556,8 @@ impl ThreadNotify {
             }
         }
     }
-}
 
-impl Notify for ThreadNotify {
-    fn notify(&self, _unpark_id: usize) {
+    fn unpark(&self) {
         // First, try transitioning from IDLE -> NOTIFY, this does not require a
         // lock.
         match self.state.compare_and_swap(IDLE, NOTIFY, Ordering::SeqCst) {
@@ -557,6 +577,34 @@ impl Notify for ThreadNotify {
 
         // Wakeup the sleeper
         self.condvar.notify_one();
+    }
+}
+
+impl Notify for ThreadNotify {
+    fn notify(&self, _unpark_id: usize) {
+        self.unpark();
+    }
+}
+
+impl ::executor::Sleep for Arc<ThreadNotify> {
+    type Wakeup = Self;
+
+    fn wakeup(&self) -> Self::Wakeup {
+        self.clone()
+    }
+
+    fn sleep(&mut self) {
+        self.park();
+    }
+
+    fn sleep_timeout(&mut self, duration: Duration) {
+        self.park_timeout(Some(duration));
+    }
+}
+
+impl ::executor::Wakeup for Arc<ThreadNotify> {
+    fn wakeup(&self) {
+        self.unpark();
     }
 }
 
