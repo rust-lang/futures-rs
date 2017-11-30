@@ -19,8 +19,7 @@ use std::usize;
 /// This is used both by `FuturesUnordered` and the current-thread executor.
 pub struct Scheduler<T, W> {
     inner: Arc<Inner<T, W>>,
-    len: usize,
-    head_all: *const Node<T, W>,
+    nodes: List<T, W>,
 }
 
 pub struct Notify<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
@@ -31,6 +30,13 @@ pub struct Notify<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
 pub trait Wakeup: Send + Sync {
     /// Wakeup a sleeper
     fn wakeup(&self);
+}
+
+// A linked-list of nodes
+struct List<T, W> {
+    len: usize,
+    head: *const Node<T, W>,
+    tail: *const Node<T, W>,
 }
 
 unsafe impl<T: Send, W: Wakeup> Send for Scheduler<T, W> {}
@@ -85,11 +91,11 @@ struct Node<T, W> {
     // Next pointer in readiness queue
     next_readiness: AtomicPtr<Node<T, W>>,
 
-    // Queue that we'll be enqueued to when notified
-    queue: Weak<Inner<T, W>>,
-
     // Whether or not this node is currently in the mpsc queue.
     queued: AtomicBool,
+
+    // Queue that we'll be enqueued to when notified
+    queue: Weak<Inner<T, W>>,
 }
 
 /// Returned by the `Scheduler::tick` function, allowing the caller to decide
@@ -139,9 +145,8 @@ where W: Wakeup,
         });
 
         Scheduler {
-            len: 0,
-            head_all: ptr::null_mut(),
             inner: inner,
+            nodes: List::new(),
         }
     }
 }
@@ -156,12 +161,12 @@ impl<T, W: Wakeup> Scheduler<T, W> {
     ///
     /// This represents the total number of in-flight items.
     pub fn len(&self) -> usize {
-        self.len
+        self.nodes.len
     }
 
     /// Returns `true` if the set contains no items
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.nodes.len == 0
     }
 
     /// Push a item into the set.
@@ -257,7 +262,7 @@ impl<T, W: Wakeup> Scheduler<T, W> {
                 impl<'a, T, W> Drop for Bomb<'a, T, W> {
                     fn drop(&mut self) {
                         if let Some(node) = self.node.take() {
-                            self.queue.release_node(node);
+                            release_node(node);
                         }
                     }
                 }
@@ -300,78 +305,48 @@ impl<T, W: Wakeup> Scheduler<T, W> {
 
     /// Returns an iterator that allows modifying each item in the set.
     pub fn iter_mut(&mut self) -> IterMut<T, W> {
-        IterMut {
-            node: self.head_all,
-            len: self.len,
-            _marker: PhantomData
-        }
+        self.nodes.iter_mut()
     }
 }
 
 impl<T, W> Scheduler<T, W> {
-    fn release_node(&mut self, node: Arc<Node<T, W>>) {
-        // The item is done, try to reset the queued flag. This will prevent
-        // `notify` from doing any work in the item
-        let prev = node.queued.swap(true, SeqCst);
-
-        // Drop the item, even if it hasn't finished yet. This is safe
-        // because we're dropping the item on the thread that owns
-        // `Scheduler`, which correctly tracks T's lifetimes and such.
-        unsafe {
-            drop((*node.item.get()).take());
-        }
-
-        // If the queued flag was previously set then it means that this node
-        // is still in our internal mpsc queue. We then transfer ownership
-        // of our reference count to the mpsc queue, and it'll come along and
-        // free it later, noticing that the item is `None`.
-        //
-        // If, however, the queued flag was *not* set then we're safe to
-        // release our reference count on the internal node. The queued flag
-        // was set above so all item `enqueue` operations will not actually
-        // enqueue the node, so our node will never see the mpsc queue again.
-        // The node itself will be deallocated once all reference counts have
-        // been dropped by the various owning tasks elsewhere.
-        if prev {
-            mem::forget(node);
-        }
-    }
-
     /// Insert a new node into the internal linked list.
     fn link(&mut self, node: Arc<Node<T, W>>) -> *const Node<T, W> {
-        let ptr = arc2ptr(node);
-        unsafe {
-            *(*ptr).next_all.get() = self.head_all;
-            if !self.head_all.is_null() {
-                *(*self.head_all).prev_all.get() = ptr;
-            }
-        }
-
-        self.head_all = ptr;
-        self.len += 1;
-        return ptr
+        self.nodes.push_back(node)
     }
 
     /// Remove the node from the linked list tracking all nodes currently
     /// managed by `Scheduler`.
     unsafe fn unlink(&mut self, node: *const Node<T, W>) -> Arc<Node<T, W>> {
-        let node = ptr2arc(node);
-        let next = *node.next_all.get();
-        let prev = *node.prev_all.get();
-        *node.next_all.get() = ptr::null_mut();
-        *node.prev_all.get() = ptr::null_mut();
+        self.nodes.remove(node)
+    }
+}
 
-        if !next.is_null() {
-            *(*next).prev_all.get() = prev;
-        }
+fn release_node<T, W>(node: Arc<Node<T, W>>) {
+    // The item is done, try to reset the queued flag. This will prevent
+    // `notify` from doing any work in the item
+    let prev = node.queued.swap(true, SeqCst);
 
-        if !prev.is_null() {
-            *(*prev).next_all.get() = next;
-        } else {
-            self.head_all = next;
-        }
-        self.len -= 1;
-        return node
+    // Drop the item, even if it hasn't finished yet. This is safe
+    // because we're dropping the item on the thread that owns
+    // `Scheduler`, which correctly tracks T's lifetimes and such.
+    unsafe {
+        drop((*node.item.get()).take());
+    }
+
+    // If the queued flag was previously set then it means that this node
+    // is still in our internal mpsc queue. We then transfer ownership
+    // of our reference count to the mpsc queue, and it'll come along and
+    // free it later, noticing that the item is `None`.
+    //
+    // If, however, the queued flag was *not* set then we're safe to
+    // release our reference count on the internal node. The queued flag
+    // was set above so all item `enqueue` operations will not actually
+    // enqueue the node, so our node will never see the mpsc queue again.
+    // The node itself will be deallocated once all reference counts have
+    // been dropped by the various owning tasks elsewhere.
+    if prev {
+        mem::forget(node);
     }
 }
 
@@ -388,12 +363,8 @@ impl<T, W> Drop for Scheduler<T, W> {
         // flying around which contain `Node<T>` references inside them. We'll
         // let those naturally get deallocated when the `Task` itself goes out
         // of scope or gets notified.
-        unsafe {
-            while !self.head_all.is_null() {
-                let head = self.head_all;
-                let node = self.unlink(head);
-                self.release_node(node);
-            }
+        while let Some(node) = self.nodes.pop_front() {
+            release_node(node);
         }
 
         // Note that at this point we could still have a bunch of nodes in the
@@ -520,6 +491,100 @@ impl<T, W> Drop for Inner<T, W> {
                     Dequeue::Data(ptr) => drop(ptr2arc(ptr)),
                 }
             }
+        }
+    }
+}
+
+impl<T, W> List<T, W> {
+    fn new() -> Self {
+        List {
+            len: 0,
+            head: ptr::null_mut(),
+            tail: ptr::null_mut(),
+        }
+    }
+
+    /// Prepends an element to the back of the list
+    fn push_back(&mut self, node: Arc<Node<T, W>>) -> *const Node<T, W> {
+        let ptr = arc2ptr(node);
+
+        unsafe {
+            // Point to the current last node in the list
+            *(*ptr).prev_all.get() = self.tail;
+            *(*ptr).next_all.get() = ptr::null_mut();
+
+            if !self.tail.is_null() {
+                *(*self.tail).next_all.get() = ptr;
+                self.tail = ptr;
+            } else {
+                // This is the first node
+                self.tail = ptr;
+                self.head = ptr;
+            }
+        }
+
+        self.len += 1;
+
+        return ptr
+    }
+
+    /// Pop an element from the front of the list
+    fn pop_front(&mut self) -> Option<Arc<Node<T, W>>> {
+        if self.head.is_null() {
+            // The list is empty
+            return None;
+        }
+
+        self.len -= 1;
+
+        unsafe {
+            // Convert the ptr to Arc<_>
+            let node = ptr2arc(self.head);
+
+            // Update the head pointer
+            self.head = *node.next_all.get();
+
+            // If the pointer is null, then the list is empty
+            if self.head.is_null() {
+                self.tail = ptr::null_mut();
+            } else {
+                *(*self.head).prev_all.get() = ptr::null_mut();
+            }
+
+            Some(node)
+        }
+    }
+
+    /// Remove a specific node
+    unsafe fn remove(&mut self, node: *const Node<T, W>) -> Arc<Node<T, W>> {
+        let node = ptr2arc(node);
+        let next = *node.next_all.get();
+        let prev = *node.prev_all.get();
+        *node.next_all.get() = ptr::null_mut();
+        *node.prev_all.get() = ptr::null_mut();
+
+        if !next.is_null() {
+            *(*next).prev_all.get() = prev;
+        } else {
+            self.tail = prev;
+        }
+
+        if !prev.is_null() {
+            *(*prev).next_all.get() = next;
+        } else {
+            self.head = next;
+        }
+
+        self.len -= 1;
+
+        return node
+    }
+
+    fn iter_mut(&mut self) -> IterMut<T, W> {
+        IterMut {
+            node: self.head,
+            len: self.len,
+            _marker: PhantomData
         }
     }
 }
