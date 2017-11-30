@@ -218,27 +218,17 @@ impl<T, W: Wakeup> Scheduler<T, W> {
             debug_assert!(node != self.inner.stub());
 
             unsafe {
-                let mut item = match (*(*node).item.get()).take() {
-                    Some(item) => item,
-
-                    // If the item has already gone away then we're just
-                    // cleaning out this node. See the comment in
-                    // `release_node` for more information, but we're basically
-                    // just taking ownership of our reference count here.
-                    None => {
-                        let node = ptr2arc(node);
-                        assert!((*node.next_all.get()).is_null());
-                        assert!((*node.prev_all.get()).is_null());
-                        continue
-                    }
+                if (*(*node).item.get()).is_none() {
+                    // The node has already been released. However, while it was
+                    // being released, another thread notified it, which
+                    // resulted in it getting pushed into the mpsc channel.
+                    //
+                    // In this case, we just dec the ref count.
+                    let node = ptr2arc(node);
+                    assert!((*node.next_all.get()).is_null());
+                    assert!((*node.prev_all.get()).is_null());
+                    continue
                 };
-
-                // Unset queued flag... this must be done before
-                // polling. This ensures that the item gets
-                // rescheduled if it is notified **during** a call
-                // to `poll`.
-                let prev = (*node).queued.swap(false, SeqCst);
-                assert!(prev);
 
                 // We're going to need to be very careful if the `poll`
                 // function below panics. We need to (a) not leak memory and
@@ -248,17 +238,16 @@ impl<T, W: Wakeup> Scheduler<T, W> {
                 // * This "bomb" here will call `release_node` if dropped
                 //   abnormally. That way we'll be sure the memory management
                 //   of the `node` is managed correctly.
-                // * The item was extracted above (taken ownership). That way
-                //   if it panics we're guaranteed that the item is
-                //   dropped on this thread and doesn't accidentally get
-                //   dropped on a different thread (bad).
+                //
                 // * We unlink the node from our internal queue to preemptively
-                //   assume it'll panic, in which case we'll want to discard it
-                //   regardless.
+                //   assume is is complete (will return Ready or panic), in
+                //   which case we'll want to discard it regardless.
+                //
                 struct Bomb<'a, T: 'a, W: 'a> {
                     queue: &'a mut Scheduler<T, W>,
                     node: Option<Arc<Node<T, W>>>,
                 }
+
                 impl<'a, T, W> Drop for Bomb<'a, T, W> {
                     fn drop(&mut self) {
                         if let Some(node) = self.node.take() {
@@ -266,36 +255,58 @@ impl<T, W: Wakeup> Scheduler<T, W> {
                         }
                     }
                 }
+
                 let mut bomb = Bomb {
                     node: Some(self.unlink(node)),
                     queue: self,
                 };
 
-                // Poll the underlying item with the appropriate `notify`
-                // implementation. This is where a large bit of the unsafety
-                // starts to stem from internally. The `notify` instance itself
-                // is basically just our `Arc<Node<T>>` and tracks the mpsc
-                // queue of ready items.
-                //
-                // Critically though `Node<T>` won't actually access `T`, the
-                // item, while it's floating around inside of `Task`
-                // instances. These structs will basically just use `T` to size
-                // the internal allocation, appropriately accessing fields and
-                // deallocating the node if need be.
+                // Now that the bomb holds the node, create a new scope. This
+                // scope ensures that the borrow will go out of scope before we
+                // mutate the node pointer in `bomb` again
                 let res = {
+                    let node = bomb.node.as_ref().unwrap();
+
+                    // Get a reference to the inner future. We already ensured
+                    // that the item `is_some`.
+                    let item = (*node.item.get()).as_mut().unwrap();
+
+                    // Unset queued flag... this must be done before
+                    // polling. This ensures that the item gets
+                    // rescheduled if it is notified **during** a call
+                    // to `poll`.
+                    let prev = (*node).queued.swap(false, SeqCst);
+                    assert!(prev);
+
+                    // Poll the underlying item with the appropriate `notify`
+                    // implementation. This is where a large bit of the unsafety
+                    // starts to stem from internally. The `notify` instance itself
+                    // is basically just our `Arc<Node<T>>` and tracks the mpsc
+                    // queue of ready items.
+                    //
+                    // Critically though `Node<T>` won't actually access `T`, the
+                    // item, while it's floating around inside of `Task`
+                    // instances. These structs will basically just use `T` to size
+                    // the internal allocation, appropriately accessing fields and
+                    // deallocating the node if need be.
                     let queue = &mut *bomb.queue;
                     let notify = Notify(bomb.node.as_ref().unwrap());
-                    f(queue, &mut item, &notify)
+                    f(queue, item, &notify)
                 };
 
                 let ret = match res {
                     Async::NotReady => {
+                        // The future is not done, push it back into the "all
+                        // node" list.
                         let node = bomb.node.take().unwrap();
-                        *node.item.get() = Some(item);
                         bomb.queue.link(node);
                         continue;
                     }
-                    Async::Ready(v) => Tick::Data(v),
+                    Async::Ready(v) => {
+                        // `bomb` will take care of unlinking and releasing the
+                        // node.
+                        Tick::Data(v)
+                    }
                 };
 
                 return ret
