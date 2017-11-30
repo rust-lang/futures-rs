@@ -1,10 +1,12 @@
 use {Future, Poll, Async};
 use future::Either;
 
-/// Future for the `merge` combinator, waiting for one of two differently-typed
+/// Future for the `select2` combinator, waiting for one of two differently-typed
 /// futures to complete.
 ///
-/// This is created by the `Future::merge` method.
+/// This is created by the [`Future::select2`] method.
+///
+/// [`Future::select2`]: trait.Future.html#method.select2
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct Select2<A, B> {
