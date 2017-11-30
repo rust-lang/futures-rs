@@ -272,6 +272,33 @@ fn unordered() {
 }
 
 #[test]
+fn any() {
+    let (tx, rx) = mpsc::unbounded();
+    let (a, b) = oneshot::channel::<u32>();
+    let (c, d) = oneshot::channel::<u32>();
+
+    let f1 = ok::<(), ()>(a.send(1).unwrap());
+    let f2 = ok(c.send(2).unwrap());
+    
+    tx.unbounded_send(f1).unwrap();
+    tx.unbounded_send(f2).unwrap();
+
+    let mut f = executor::spawn(rx.any(|f| f ));
+    assert!(f.poll_future_notify(&notify_noop(), 0).unwrap().is_not_ready());
+    assert_eq!(b.wait(), Ok(1));
+    assert_eq!(d.wait(), Ok(2));
+
+    let (tx, rx) = mpsc::unbounded();
+    let (a, b) = oneshot::channel::<u32>();
+    tx.unbounded_send(b).unwrap();
+    drop(tx);
+    let mut f = executor::spawn(rx.any(|f| f ));
+    assert!(f.poll_future_notify(&notify_noop(), 0).unwrap().is_not_ready());
+    a.send(1).unwrap();
+    assert!(f.poll_future_notify(&notify_noop(), 0).unwrap().is_ready());
+}
+
+#[test]
 fn zip() {
     assert_done(|| list().zip(list()).collect(),
                 Ok(vec![(1, 1), (2, 2), (3, 3)]));
