@@ -11,7 +11,7 @@ use std::mem;
 use std::ptr;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::usize;
 
 /// A generic task-aware scheduler.
@@ -95,7 +95,7 @@ struct Node<T, W> {
     queued: AtomicBool,
 
     // Queue that we'll be enqueued to when notified
-    queue: Weak<Inner<T, W>>,
+    queue: Option<Arc<Inner<T, W>>>,
 }
 
 /// Returned by the `Scheduler::tick` function, allowing the caller to decide
@@ -134,7 +134,7 @@ where W: Wakeup,
             prev_all: UnsafeCell::new(ptr::null()),
             next_readiness: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
-            queue: Weak::new(),
+            queue: None,
         });
         let stub_ptr = &*stub as *const Node<T, W>;
         let inner = Arc::new(Inner {
@@ -182,7 +182,7 @@ impl<T, W: Wakeup> Scheduler<T, W> {
             prev_all: UnsafeCell::new(ptr::null_mut()),
             next_readiness: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
-            queue: Arc::downgrade(&self.inner),
+            queue: Some(self.inner.clone()),
         });
 
         // Right now our node has a strong reference count of 1. We transfer
@@ -676,8 +676,8 @@ unsafe fn hide_lt<T, W: Wakeup>(p: *mut ArcNode<T, W>) -> *mut UnsafeNotify {
 
 impl<T, W: Wakeup> Node<T, W> {
     fn notify(me: &Arc<Node<T, W>>) {
-        let inner = match me.queue.upgrade() {
-            Some(inner) => inner,
+        let inner = match me.queue {
+            Some(ref inner) => &**inner,
             None => return,
         };
 
