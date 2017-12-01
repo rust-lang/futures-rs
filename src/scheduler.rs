@@ -1,8 +1,7 @@
 //! An unbounded set of futures.
 
 use Async;
-use executor::{self, UnsafeNotify, NotifyHandle};
-use task_impl::{AtomicTask, ThreadNotify};
+use executor::{self, UnsafeNotify, NotifyHandle, Wakeup};
 
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
@@ -51,14 +50,6 @@ pub struct Push<T> {
 }
 
 pub struct Notify<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
-
-/// Wakeup a sleeper
-///
-/// This notifies a sleeper that the the `Scheduler` is ready to do more work.
-pub trait Wakeup: Send + Sync {
-    /// Wakeup a sleeper
-    fn wakeup(&self);
-}
 
 // A linked-list of nodes
 struct List<T, W> {
@@ -681,19 +672,6 @@ impl<T, W> List<T, W> {
             len: self.len,
             _marker: PhantomData
         }
-    }
-}
-
-impl Wakeup for AtomicTask {
-    fn wakeup(&self) {
-        self.notify();
-    }
-}
-
-impl Wakeup for Arc<ThreadNotify> {
-    fn wakeup(&self) {
-        use executor::Notify;
-        self.notify(0);
     }
 }
 
