@@ -13,6 +13,7 @@ pub mod current_thread;
 #[cfg(feature = "use_std")]
 mod enter;
 
+#[cfg(feature = "use_std")]
 mod sleep;
 
 #[allow(deprecated)]
@@ -29,4 +30,5 @@ pub use self::current_thread::CurrentThread;
 #[cfg(feature = "use_std")]
 pub use self::enter::{enter, Enter};
 
+#[cfg(feature = "use_std")]
 pub use self::sleep::{Sleep, Wakeup};

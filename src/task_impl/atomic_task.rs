@@ -175,6 +175,7 @@ impl AtomicTask {
     }
 }
 
+#[cfg(feature = "use_std")]
 impl ::executor::Wakeup for AtomicTask {
     fn wakeup(&self) {
         self.notify();
