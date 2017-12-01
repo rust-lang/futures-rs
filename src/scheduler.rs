@@ -22,6 +22,34 @@ pub struct Scheduler<T, W> {
     nodes: List<T, W>,
 }
 
+/// Push new futures to be scheduled.
+///
+/// This is used as a staging area for futures when either `&mut` access to
+/// `Scheduler` is not available due to borrow checker constraints *or* wanting
+/// to store push futures into a `Scheduler` via a thread-local.
+///
+/// The reason a `Scheduler` cannot be used directly from a thread local is due
+/// to the `W` generic. In order to set a scheduler to a thread local, the `W`
+/// generic must be set at compile time. This prevents letting the user run a
+/// scheduler with a custom wake up generic (for example, a Tokio reactor).
+///
+/// `Push` sets the node's `W` generic to `Void`, a type that cannot be
+/// instantiated. Then, when the node is added to a scheduler, it is transmuted
+/// to the correct `W` type.
+///
+/// This is safe for the following reasons
+///
+/// 1) The only usage of `W` in `Node` is `Option<Arc<Inner<_, W>>>`. When used
+///    from `Push`, this will always be `None`. Also, the `queue` field on node
+///    will be the same size no matter what the `W` generic actually is as it is
+///    an Arc (pointer under the hood).
+///
+/// 2) Once a node goes from `Push` to `Scheduler`, it will stay in `Scheduler`
+///    and at that point the `queue` field will be set.
+pub struct Push<T> {
+    nodes: List<T, Void>,
+}
+
 pub struct Notify<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
 
 /// Wakeup a sleeper
@@ -195,6 +223,28 @@ impl<T, W: Wakeup> Scheduler<T, W> {
         // items are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.inner.enqueue(ptr);
+    }
+
+    /// Push all items from a `Push` into the scheduler
+    pub fn push_all(&mut self, push: &mut Push<T>) {
+        // Drain the push queue and schedule the futures
+        while let Some(node) = push.nodes.pop_front() {
+            let mut node: Arc<Node<T, W>> = unsafe {
+                // The wakeup cell must be None
+                assert!(node.queue.is_none());
+
+                // Transmute from `Void` -> `W`. See the `Push` struct level
+                // comments for why this is safe.
+                mem::transmute(node)
+            };
+
+            Arc::get_mut(&mut node)
+                .unwrap()
+                .queue = Some(self.inner.clone());
+
+            let ptr = self.link(node);
+            self.inner.enqueue(ptr);
+        }
     }
 
     /// Advance the scheduler state.
@@ -390,6 +440,40 @@ impl<T, W> Drop for Scheduler<T, W> {
         // While that freeing operation isn't guaranteed to happen here, it's
         // guaranteed to happen "promptly" as no more "blocking work" will
         // happen while there's a strong refcount held.
+    }
+}
+
+impl<T> Push<T> {
+    pub fn new() -> Self {
+        Push {
+            nodes: List::new(),
+        }
+    }
+
+    /// Push a node to the scheduler.
+    pub fn push(&mut self, item: T) {
+        let node = Arc::new(Node {
+            item: UnsafeCell::new(Some(item)),
+            next_all: UnsafeCell::new(ptr::null_mut()),
+            prev_all: UnsafeCell::new(ptr::null_mut()),
+            next_readiness: AtomicPtr::new(ptr::null_mut()),
+            queued: AtomicBool::new(true),
+            queue: None,
+        });
+
+        self.nodes.push_back(node);
+    }
+
+    pub fn clear(&mut self) {
+        while let Some(node) = self.nodes.pop_front() {
+            release_node(node);
+        }
+    }
+}
+
+impl<T> Drop for Push<T> {
+    fn drop(&mut self) {
+        self.clear();
     }
 }
 
@@ -636,6 +720,8 @@ impl<'a, T, W: Wakeup> From<Notify<'a, T, W>> for NotifyHandle {
 }
 
 struct ArcNode<T, W>(PhantomData<(T, W)>);
+
+enum Void {}
 
 // We should never touch `T` on any thread other than the one owning
 // `Scheduler`, so this should be a safe operation.

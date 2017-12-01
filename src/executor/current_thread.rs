@@ -69,8 +69,8 @@ use task_impl::ThreadNotify;
 
 use std::prelude::v1::*;
 
-use std::{fmt, ptr, thread};
-use std::cell::Cell;
+use std::{fmt, thread};
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -119,8 +119,9 @@ struct TaskRunner {
     scheduler: Scheduler,
 }
 
-#[derive(Debug)]
 struct CurrentRunner {
+    entered: Cell<bool>,
+
     /// When set to true, the executor should return immediately, even if there
     /// still are non-daemon futures to run.
     cancel: Cell<bool>,
@@ -128,13 +129,14 @@ struct CurrentRunner {
     /// Number of non-daemon futures currently being executed by the runner.
     non_daemons: Cell<usize>,
 
-    /// Raw pointer to the current scheduler.
+    /// Raw pointer to the current scheduler pusher.
     ///
     /// The raw pointer is required in order to store it in a thread-local slot.
-    scheduler: Cell<*mut Scheduler>,
+    push: RefCell<Push>,
 }
 
 type Scheduler = scheduler::Scheduler<SpawnedFuture, Arc<ThreadNotify>>;
+type Push = scheduler::Push<SpawnedFuture>;
 
 #[derive(Debug)]
 struct SpawnedFuture {
@@ -150,9 +152,10 @@ struct Task(Spawn<Box<Future<Item = (), Error = ()>>>);
 
 /// Current thread's task runner. This is set in `TaskRunner::with`
 thread_local!(static CURRENT: CurrentRunner = CurrentRunner {
+    entered: Cell::new(false),
     cancel: Cell::new(false),
     non_daemons: Cell::new(0),
-    scheduler: Cell::new(ptr::null_mut()),
+    push: RefCell::new(Push::new()),
 });
 
 impl CurrentThread {
@@ -291,7 +294,7 @@ fn execute<F>(future: F, daemon: bool) -> Result<(), ExecuteError<F>>
 where F: Future<Item = (), Error = ()> + 'static,
 {
     CURRENT.with(|current| {
-        if current.scheduler.get().is_null() {
+        if !current.entered.get() {
             Err(ExecuteError::new(ExecuteErrorKind::Shutdown, future))
         } else {
             let spawned = SpawnedFuture {
@@ -304,9 +307,7 @@ where F: Future<Item = (), Error = ()> + 'static,
                 current.non_daemons.set(non_daemons + 1);
             }
 
-            unsafe {
-                (*current.scheduler.get()).push(spawned);
-            }
+            current.push.borrow_mut().push(spawned);
 
             Ok(())
         }
@@ -350,12 +351,6 @@ impl TaskRunner {
             let mut runner = TaskRunner::new(thread_notify.clone());
 
             CURRENT.with(|current| {
-                // Make sure that another task runner is not set.
-                //
-                // This should not be ever possible due to how `set_scheduler`
-                // is setup, but better safe than sorry!
-                assert!(current.scheduler.get().is_null());
-
                 let enter = executor::enter()
                     .expect("cannot execute `CurrentThread` executor from within \
                              another executor");
@@ -370,8 +365,15 @@ impl TaskRunner {
                 // returning a future to execute.
                 //
                 // This could possibly suubmit other futures for execution.
-                let ret = current.set_scheduler(&mut runner.scheduler, || {
-                    f(&mut ctx)
+                let ret = current.enter(|| {
+                    let ret = f(&mut ctx);
+
+                    println!("~~~ DONE ENTER ~~~");
+
+                    // Transfer all pushed futures to the scheduler
+                    current.push_all(&mut runner.scheduler);
+
+                    ret
                 });
 
                 // Execute the runner.
@@ -410,13 +412,17 @@ impl TaskRunner {
                 //
                 // See `set_scheduler` documentation for more details on how we
                 // guard against mutable pointer aliasing.
-                current.set_scheduler(scheduler, || {
-                    match spawned.inner.0.poll_future_notify(notify, 0) {
+                current.enter(|| {
+                    let ret = match spawned.inner.0.poll_future_notify(notify, 0) {
                         Ok(Async::Ready(_)) | Err(_) => {
                             Async::Ready(spawned.daemon)
                         }
                         Ok(Async::NotReady) => Async::NotReady,
-                    }
+                    };
+
+                    current.push_all(scheduler);
+
+                    ret
                 })
             });
 
@@ -458,37 +464,17 @@ impl CurrentRunner {
     where F: FnOnce(&Self) -> R,
     {
         CURRENT.with(|current| {
-            if current.scheduler.get().is_null() {
-                Err(())
-            } else {
+            if current.entered.get() {
                 Ok(f(current))
+            } else {
+                Err(())
             }
         })
     }
 
-    /// Set the provided scheduler to the TLS slot for the duration of the
-    /// closure.
-    ///
-    /// `CurrentThread::execute` will access the CURRENT thread-local variable in
-    /// order to push a future into the scheduler. This requires a `&mut`
-    /// reference, introducing mutability hazards.
-    ///
-    /// Rust requires that `&mut` references are not aliases, i.e. there are
-    /// never two "live" mutable references to the same piece of data. In order
-    /// to store a `&mut` reference in a thread-local variable, we must ensure
-    /// that one can not access the scheduler anywhere else.
-    ///
-    /// To do this, we only allow access to the thread local variable from
-    /// within the closure passed to `set_scheduler`. This function also takes a
-    /// &mut reference to the scheduler, which is essentially holding a "lock"
-    /// on that reference, preventing any other location in the code from
-    /// also getting that &mut reference.
-    ///
-    /// When `set_scheduler` returns, the thread-local variable containing the
-    /// mut reference is set to null. This is done even if the closure panics.
-    ///
-    /// This reduces the odds of introducing pointer aliasing.
-    fn set_scheduler<F, R>(&self, scheduler: &mut Scheduler, f: F) -> R
+    /// Ensures that, after this function returns, any futures that were
+    /// pushed but not yet transfered to the scheduler are dropped.
+    fn enter<F, R>(&self, f: F) -> R
     where F: FnOnce() -> R
     {
         // Ensure that the runner is removed from the thread-local context
@@ -497,18 +483,24 @@ impl CurrentRunner {
 
         impl<'a> Drop for Reset<'a> {
             fn drop(&mut self) {
-                self.0.scheduler.set(ptr::null_mut());
+                self.0.entered.set(false);
+                self.0.push.borrow_mut().clear();
             }
         }
 
-        let _reset = Reset(self);
+        self.entered.set(true);
 
-        self.scheduler.set(scheduler as *mut Scheduler);
+        let _reset = Reset(self);
 
         f()
     }
 
+    fn push_all(&self, dst: &mut Scheduler) {
+        dst.push_all(&mut *self.push.borrow_mut());
+    }
+
     fn is_running(&self) -> bool {
+        println!("is_running={:?}; cancel={:?}", self.non_daemons.get(), self.cancel.get());
         self.non_daemons.get() > 0 && !self.cancel.get()
     }
 
