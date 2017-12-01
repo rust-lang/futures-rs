@@ -6,9 +6,9 @@
 //! futures, see [here].
 //!
 //! Before being able to execute futures onto [`CurrentThread`], an executor
-//! context must be setup. This is done by calling either [`block_with_init`].
-//! From within that context, [`CurrentThread::execute`] may be called with the
-//! future to run in the background.
+//! context must be setup. This is done by calling [`run`].  From within that
+//! context, [`CurrentThread::execute`] may be called with the future to run in
+//! the background.
 //!
 //! ```
 //! # use futures::executor::current_thread::*;
@@ -17,7 +17,7 @@
 //! // Calling execute here results in a panic
 //! // CurrentThread::execute(my_future);
 //!
-//! CurrentThread::block_with_init(|_| {
+//! CurrentThread::run(|_| {
 //!     // The execution context is setup, futures may be executed.
 //!     CurrentThread::execute(lazy(|| {
 //!         println!("called from the current thread executor");
@@ -28,7 +28,7 @@
 //!
 //! # Execution model
 //!
-//! When a [`CurrentThread`] execution context is setup with `block_with_init`,
+//! When a [`CurrentThread`] execution context is setup with `run`,
 //! the current thread will block and all the futures managed by the executor
 //! are driven to completion. Whenever a future receives a notification, it is
 //! pushed to the end of a scheduled list. The [`CurrentThread`] executor will
@@ -57,7 +57,7 @@
 //!
 //! [here]: https://tokio.rs/docs/going-deeper-futures/tasks/
 //! [`CurrentThread`]: struct.CurrentThread.html
-//! [`block_with_init`]: struct.CurrentThread.html#method.block_with_init
+//! [`run`]: struct.CurrentThread.html#method.run
 //! [`CurrentThread::execute`]: struct.CurrentThread.html#method.execute
 //! [`CurrentThread::execute_daemon`]: struct.CurrentThread.html#method.execute_daemon
 
@@ -77,7 +77,7 @@ use std::rc::Rc;
 ///
 /// All futures executed using this executor will be executed on the current
 /// thread as non-daemon futures. As such, [`CurrentThread`] will wait for these
-/// futures to complete before returning from `block_with_init`.
+/// futures to complete before returning from `run`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -90,7 +90,7 @@ pub struct CurrentThread {
 ///
 /// All futures executed using this executor will be executed on the current
 /// thread as daemon futures. As such, [`CurrentThread`] will **not** wait for
-/// these futures to complete before returning from `block_with_init`.
+/// these futures to complete before returning from `run`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -110,8 +110,8 @@ pub struct Context<'a> {
 }
 
 /// Implements the "blocking" logic for the current thread executor. A
-/// `TaskRunner` will be created during `block_with_init` and will sit on the
-/// stack until execution is complete.
+/// `TaskRunner` will be created during `run` and will sit on the stack until
+/// execution is complete.
 #[derive(Debug)]
 struct TaskRunner<T> {
     /// Executes futures.
@@ -165,8 +165,7 @@ impl CurrentThread {
     /// on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
-    /// to the executor, that it is done from the context of a `block_with_init`
-    /// call.
+    /// to the executor, that it is done from the context of a `run` call.
     ///
     /// For more details, see the [module level](index.html) documentation.
     pub fn current() -> CurrentThread {
@@ -182,8 +181,7 @@ impl CurrentThread {
     /// on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
-    /// to the executor, that it is done from the context of a `block_with_init`
-    /// call.
+    /// to the executor, that it is done from the context of a `run` call.
     ///
     /// For more details, see the [module level](index.html) documentation.
     pub fn daemon_executor(&self) -> DaemonExecutor {
@@ -198,7 +196,7 @@ impl CurrentThread {
     /// In more detail, this function will block until:
     /// - All executing futures are complete, or
     /// - `cancel_all_executing` is invoked.
-    pub fn block_with_init<F, R>(f: F) -> R
+    pub fn run<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R
     {
         ThreadNotify::with_current(|mut thread_notify| {
@@ -208,9 +206,9 @@ impl CurrentThread {
 
     /// Calls the given closure with a custom sleep strategy.
     ///
-    /// This function is the same as `block_with_init` except that it allows
-    /// customizing the sleep strategy.
-    pub fn block_with_sleep<S, F, R>(sleep: &mut S, f: F) -> R
+    /// This function is the same as `run` except that it allows customizing the
+    /// sleep strategy.
+    pub fn run_with_sleep<S, F, R>(sleep: &mut S, f: F) -> R
     where F: FnOnce(&mut Context) -> R,
           S: Sleep,
     {
@@ -220,37 +218,37 @@ impl CurrentThread {
     /// Executes a future on the current thread.
     ///
     /// The provided future must complete or be canceled before
-    /// `block_with_init` will return.
+    /// `run` will return.
     ///
     /// # Panics
     ///
     /// This function can only be invoked from the context of a
-    /// `block_with_init` call; any other use will result in a panic.
+    /// `run` call; any other use will result in a panic.
     pub fn execute<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
         execute(future, false).unwrap_or_else(|_| {
             panic!("cannot call `execute` unless the thread is already \
-                    in the context of a call to `block_with_init`")
+                    in the context of a call to `run`")
         })
     }
 
     /// Executes a daemon future on the current thread.
     ///
     /// Completion of the provided future is not required for the pending
-    /// `block_with_init` call to complete. If `block_with_init` returns before
-    /// `future` completes, it will be dropped.
+    /// `run` call to complete. If `run` returns before `future` completes, it
+    /// will be dropped.
     ///
     /// # Panics
     ///
     /// This function can only be invoked from the context of a
-    /// `block_with_init` call; any other use will result in a panic.
+    /// `run` call; any other use will result in a panic.
     pub fn execute_daemon<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
         execute(future, true).unwrap_or_else(|_| {
             panic!("cannot call `execute` unless the thread is already \
-                    in the context of a call to `block_with_init`")
+                    in the context of a call to `run`")
         })
     }
 
@@ -261,12 +259,12 @@ impl CurrentThread {
     /// # Panics
     ///
     /// This function can only be invoked from the context of a
-    /// `block_with_init` call; any other use will result in a panic.
+    /// `run` call; any other use will result in a panic.
     pub fn cancel_all_executing() {
         CurrentRunner::with(|runner| runner.cancel_all_executing())
             .unwrap_or_else(|()| {
                 panic!("cannot call `cancel_all_executing` unless the thread is already \
-                        in the context of a call to `block_with_init`")
+                        in the context of a call to `run`")
             })
     }
 }
@@ -299,7 +297,7 @@ impl<'a> Context<'a> {
 /// checking the thread-local variable tracking the current executor.
 ///
 /// If this function is not called in context of an executor, i.e. outside of
-/// `block_with_init`, then `Err` is returned.
+/// `run`, then `Err` is returned.
 ///
 /// This function does not panic.
 fn execute<F>(future: F, daemon: bool) -> Result<(), ExecuteError<F>>
