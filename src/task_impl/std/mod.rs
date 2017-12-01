@@ -586,11 +586,11 @@ impl Notify for ThreadNotify {
     }
 }
 
-impl ::executor::Sleep for Arc<ThreadNotify> {
-    type Wakeup = Self;
+impl<'a> ::executor::Sleep for &'a Arc<ThreadNotify> {
+    type Wakeup = Arc<ThreadNotify>;
 
     fn wakeup(&self) -> Self::Wakeup {
-        self.clone()
+        (*self).clone()
     }
 
     fn sleep(&mut self) {

@@ -62,7 +62,7 @@
 //! [`CurrentThread::execute_daemon`]: struct.CurrentThread.html#method.execute_daemon
 
 use Async;
-use executor::{self, Spawn};
+use executor::{self, Spawn, Sleep, Wakeup};
 use future::{Future, Executor, ExecuteError, ExecuteErrorKind};
 use scheduler;
 use task_impl::ThreadNotify;
@@ -72,7 +72,6 @@ use std::prelude::v1::*;
 use std::{fmt, thread};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::sync::Arc;
 
 /// Executes futures on the current thread.
 ///
@@ -114,9 +113,9 @@ pub struct Context<'a> {
 /// `TaskRunner` will be created during `block_with_init` and will sit on the
 /// stack until execution is complete.
 #[derive(Debug)]
-struct TaskRunner {
+struct TaskRunner<T> {
     /// Executes futures.
-    scheduler: Scheduler,
+    scheduler: Scheduler<T>,
 }
 
 struct CurrentRunner {
@@ -135,7 +134,7 @@ struct CurrentRunner {
     push: RefCell<Push>,
 }
 
-type Scheduler = scheduler::Scheduler<SpawnedFuture, Arc<ThreadNotify>>;
+type Scheduler<T> = scheduler::Scheduler<SpawnedFuture, T>;
 type Push = scheduler::Push<SpawnedFuture>;
 
 #[derive(Debug)]
@@ -202,7 +201,20 @@ impl CurrentThread {
     pub fn block_with_init<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R
     {
-        TaskRunner::enter(f)
+        ThreadNotify::with_current(|mut thread_notify| {
+            TaskRunner::enter(&mut thread_notify, f)
+        })
+    }
+
+    /// Calls the given closure with a custom sleep strategy.
+    ///
+    /// This function is the same as `block_with_init` except that it allows
+    /// customizing the sleep strategy.
+    pub fn block_with_sleep<S, F, R>(sleep: &mut S, f: F) -> R
+    where F: FnOnce(&mut Context) -> R,
+          S: Sleep,
+    {
+        TaskRunner::enter(sleep, f)
     }
 
     /// Executes a future on the current thread.
@@ -314,11 +326,15 @@ where F: Future<Item = (), Error = ()> + 'static,
     })
 }
 
-impl TaskRunner {
+impl<T> TaskRunner<T>
+where T: Wakeup,
+{
     /// Return a new `TaskRunner`
-    fn new(thread_notify: Arc<ThreadNotify>) -> TaskRunner {
+    fn new(wakeup: T) -> TaskRunner<T> {
+        let scheduler = scheduler::Scheduler::new(wakeup);
+
         TaskRunner {
-            scheduler: scheduler::Scheduler::new(thread_notify),
+            scheduler: scheduler,
         }
     }
 
@@ -343,58 +359,58 @@ impl TaskRunner {
     /// state until all non daemon futures complete. When no scheduled futures
     /// are ready to be advanced, the thread is blocked using
     /// `ThreadNotify::park`.
-    fn enter<F, R>(f: F) -> R
+    fn enter<S, F, R>(sleep: &mut S, f: F) -> R
     where F: FnOnce(&mut Context) -> R,
+          S: Sleep<Wakeup = T>,
     {
-        // Create a new task runner that will be used for the duration of `f`.
-        ThreadNotify::with_current(|thread_notify| {
-            let mut runner = TaskRunner::new(thread_notify.clone());
+        let mut runner = TaskRunner::new(sleep.wakeup());
 
-            CURRENT.with(|current| {
-                let enter = executor::enter()
-                    .expect("cannot execute `CurrentThread` executor from within \
-                             another executor");
+        CURRENT.with(|current| {
+            let enter = executor::enter()
+                .expect("cannot execute `CurrentThread` executor from within \
+                         another executor");
 
-                // Enter an execution scope
-                let mut ctx = Context {
-                    enter: enter,
-                    _p: ::std::marker::PhantomData,
-                };
+            // Enter an execution scope
+            let mut ctx = Context {
+                enter: enter,
+                _p: ::std::marker::PhantomData,
+            };
 
-                // Set the scheduler to the TLS and perform setup work,
-                // returning a future to execute.
-                //
-                // This could possibly suubmit other futures for execution.
-                let ret = current.enter(|| {
-                    let ret = f(&mut ctx);
+            // Set the scheduler to the TLS and perform setup work,
+            // returning a future to execute.
+            //
+            // This could possibly suubmit other futures for execution.
+            let ret = current.enter(|| {
+                let ret = f(&mut ctx);
 
-                    println!("~~~ DONE ENTER ~~~");
+                println!("~~~ DONE ENTER ~~~");
 
-                    // Transfer all pushed futures to the scheduler
-                    current.push_all(&mut runner.scheduler);
-
-                    ret
-                });
-
-                // Execute the runner.
-                //
-                // This function will not return until either
-                //
-                // a) All non daemon futures have completed execution
-                // b) `cancel_all_executing` is called, forcing the executor to
-                // return.
-                runner.run(thread_notify, current);
-
-                // Not technically required, but this makes the fact that `ctx`
-                // needs to live until this point explicit.
-                drop(ctx);
+                // Transfer all pushed futures to the scheduler
+                current.push_all(&mut runner.scheduler);
 
                 ret
-            })
+            });
+
+            // Execute the runner.
+            //
+            // This function will not return until either
+            //
+            // a) All non daemon futures have completed execution
+            // b) `cancel_all_executing` is called, forcing the executor to
+            // return.
+            runner.run(sleep, current);
+
+            // Not technically required, but this makes the fact that `ctx`
+            // needs to live until this point explicit.
+            drop(ctx);
+
+            ret
         })
     }
 
-    fn run(&mut self, thread_notify: &Arc<ThreadNotify>, current: &CurrentRunner) {
+    fn run<S>(&mut self, sleep: &mut S, current: &CurrentRunner)
+    where S: Sleep<Wakeup = T>,
+    {
         use scheduler::Tick;
 
         while current.is_running() {
@@ -448,7 +464,7 @@ impl TaskRunner {
 
                     // Block the current thread until a future managed by the scheduler
                     // receives a readiness notification.
-                    thread_notify.park();
+                    sleep.sleep();
                 }
                 Tick::Inconsistent => {
                     // Yield the thread and loop
@@ -495,7 +511,7 @@ impl CurrentRunner {
         f()
     }
 
-    fn push_all(&self, dst: &mut Scheduler) {
+    fn push_all<T: Wakeup>(&self, dst: &mut Scheduler<T>) {
         dst.push_all(&mut *self.push.borrow_mut());
     }
 
