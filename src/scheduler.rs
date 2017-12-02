@@ -10,7 +10,7 @@ use std::mem;
 use std::ptr;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::usize;
 
 /// A generic task-aware scheduler.
@@ -21,32 +21,10 @@ pub struct Scheduler<T, W> {
     nodes: List<T, W>,
 }
 
-/// Push new futures to be scheduled.
-///
-/// This is used as a staging area for futures when either `&mut` access to
-/// `Scheduler` is not available due to borrow checker constraints *or* wanting
-/// to store push futures into a `Scheduler` via a thread-local.
-///
-/// The reason a `Scheduler` cannot be used directly from a thread local is due
-/// to the `W` generic. In order to set a scheduler to a thread local, the `W`
-/// generic must be set at compile time. This prevents letting the user run a
-/// scheduler with a custom wake up generic (for example, a Tokio reactor).
-///
-/// `Push` sets the node's `W` generic to `Void`, a type that cannot be
-/// instantiated. Then, when the node is added to a scheduler, it is transmuted
-/// to the correct `W` type.
-///
-/// This is safe for the following reasons
-///
-/// 1) The only usage of `W` in `Node` is `Option<Arc<Inner<_, W>>>`. When used
-///    from `Push`, this will always be `None`. Also, the `queue` field on node
-///    will be the same size no matter what the `W` generic actually is as it is
-///    an Arc (pointer under the hood).
-///
-/// 2) Once a node goes from `Push` to `Scheduler`, it will stay in `Scheduler`
-///    and at that point the `queue` field will be set.
-pub struct Push<T> {
-    nodes: List<T, Void>,
+/// Schedule new futures
+pub trait Schedule<T> {
+    /// Schedule a new future.
+    fn schedule(&mut self, item: T);
 }
 
 pub struct Notify<'a, T: 'a, W: 'a>(&'a Arc<Node<T, W>>);
@@ -114,7 +92,7 @@ struct Node<T, W> {
     queued: AtomicBool,
 
     // Queue that we'll be enqueued to when notified
-    queue: Option<Arc<Inner<T, W>>>,
+    queue: Weak<Inner<T, W>>,
 }
 
 /// Returned by the `Scheduler::tick` function, allowing the caller to decide
@@ -153,7 +131,7 @@ where W: Wakeup,
             prev_all: UnsafeCell::new(ptr::null()),
             next_readiness: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
-            queue: None,
+            queue: Weak::new(),
         });
         let stub_ptr = &*stub as *const Node<T, W>;
         let inner = Arc::new(Inner {
@@ -186,56 +164,6 @@ impl<T, W: Wakeup> Scheduler<T, W> {
     /// Returns `true` if the set contains no items
     pub fn is_empty(&self) -> bool {
         self.nodes.len == 0
-    }
-
-    /// Push a item into the set.
-    ///
-    /// This function submits the given item to the set for managing. This
-    /// function will not call `poll` on the submitted item. The caller must
-    /// ensure that `Scheduler::poll` is called in order to receive task
-    /// notifications.
-    pub fn push(&mut self, item: T) {
-        let node = Arc::new(Node {
-            item: UnsafeCell::new(Some(item)),
-            next_all: UnsafeCell::new(ptr::null_mut()),
-            prev_all: UnsafeCell::new(ptr::null_mut()),
-            next_readiness: AtomicPtr::new(ptr::null_mut()),
-            queued: AtomicBool::new(true),
-            queue: Some(self.inner.clone()),
-        });
-
-        // Right now our node has a strong reference count of 1. We transfer
-        // ownership of this reference count to our internal linked list
-        // and we'll reclaim ownership through the `unlink` function below.
-        let ptr = self.link(node);
-
-        // We'll need to get the item "into the system" to start tracking it,
-        // e.g. getting its unpark notifications going to us tracking which
-        // items are ready. To do that we unconditionally enqueue it for
-        // polling here.
-        self.inner.enqueue(ptr);
-    }
-
-    /// Push all items from a `Push` into the scheduler
-    pub fn push_all(&mut self, push: &mut Push<T>) {
-        // Drain the push queue and schedule the futures
-        while let Some(node) = push.nodes.pop_front() {
-            let mut node: Arc<Node<T, W>> = unsafe {
-                // The wakeup cell must be None
-                assert!(node.queue.is_none());
-
-                // Transmute from `Void` -> `W`. See the `Push` struct level
-                // comments for why this is safe.
-                mem::transmute(node)
-            };
-
-            Arc::get_mut(&mut node)
-                .unwrap()
-                .queue = Some(self.inner.clone());
-
-            let ptr = self.link(node);
-            self.inner.enqueue(ptr);
-        }
     }
 
     /// Advance the scheduler state.
@@ -298,7 +226,7 @@ impl<T, W: Wakeup> Scheduler<T, W> {
                 }
 
                 let mut bomb = Bomb {
-                    node: Some(self.unlink(node)),
+                    node: Some(self.nodes.remove(node)),
                     queue: self,
                 };
 
@@ -340,7 +268,7 @@ impl<T, W: Wakeup> Scheduler<T, W> {
                         // The future is not done, push it back into the "all
                         // node" list.
                         let node = bomb.node.take().unwrap();
-                        bomb.queue.link(node);
+                        bomb.queue.nodes.push_back(node);
                         continue;
                     }
                     Async::Ready(v) => {
@@ -361,16 +289,27 @@ impl<T, W: Wakeup> Scheduler<T, W> {
     }
 }
 
-impl<T, W> Scheduler<T, W> {
-    /// Insert a new node into the internal linked list.
-    fn link(&mut self, node: Arc<Node<T, W>>) -> *const Node<T, W> {
-        self.nodes.push_back(node)
-    }
+impl<T, W: Wakeup> Schedule<T> for Scheduler<T, W> {
+    fn schedule(&mut self, item: T) {
+        let node = Arc::new(Node {
+            item: UnsafeCell::new(Some(item)),
+            next_all: UnsafeCell::new(ptr::null_mut()),
+            prev_all: UnsafeCell::new(ptr::null_mut()),
+            next_readiness: AtomicPtr::new(ptr::null_mut()),
+            queued: AtomicBool::new(true),
+            queue: Arc::downgrade(&self.inner),
+        });
 
-    /// Remove the node from the linked list tracking all nodes currently
-    /// managed by `Scheduler`.
-    unsafe fn unlink(&mut self, node: *const Node<T, W>) -> Arc<Node<T, W>> {
-        self.nodes.remove(node)
+        // Right now our node has a strong reference count of 1. We transfer
+        // ownership of this reference count to our internal linked list
+        // and we'll reclaim ownership through the `unlink` function below.
+        let ptr = self.nodes.push_back(node);
+
+        // We'll need to get the item "into the system" to start tracking it,
+        // e.g. getting its unpark notifications going to us tracking which
+        // items are ready. To do that we unconditionally enqueue it for
+        // polling here.
+        self.inner.enqueue(ptr);
     }
 }
 
@@ -431,40 +370,6 @@ impl<T, W> Drop for Scheduler<T, W> {
         // While that freeing operation isn't guaranteed to happen here, it's
         // guaranteed to happen "promptly" as no more "blocking work" will
         // happen while there's a strong refcount held.
-    }
-}
-
-impl<T> Push<T> {
-    pub fn new() -> Self {
-        Push {
-            nodes: List::new(),
-        }
-    }
-
-    /// Push a node to the scheduler.
-    pub fn push(&mut self, item: T) {
-        let node = Arc::new(Node {
-            item: UnsafeCell::new(Some(item)),
-            next_all: UnsafeCell::new(ptr::null_mut()),
-            prev_all: UnsafeCell::new(ptr::null_mut()),
-            next_readiness: AtomicPtr::new(ptr::null_mut()),
-            queued: AtomicBool::new(true),
-            queue: None,
-        });
-
-        self.nodes.push_back(node);
-    }
-
-    pub fn clear(&mut self) {
-        while let Some(node) = self.nodes.pop_front() {
-            release_node(node);
-        }
-    }
-}
-
-impl<T> Drop for Push<T> {
-    fn drop(&mut self) {
-        self.clear();
     }
 }
 
@@ -699,8 +604,6 @@ impl<'a, T, W: Wakeup> From<Notify<'a, T, W>> for NotifyHandle {
 
 struct ArcNode<T, W>(PhantomData<(T, W)>);
 
-enum Void {}
-
 // We should never touch `T` on any thread other than the one owning
 // `Scheduler`, so this should be a safe operation.
 //
@@ -740,8 +643,8 @@ unsafe fn hide_lt<T, W: Wakeup>(p: *mut ArcNode<T, W>) -> *mut UnsafeNotify {
 
 impl<T, W: Wakeup> Node<T, W> {
     fn notify(me: &Arc<Node<T, W>>) {
-        let inner = match me.queue {
-            Some(ref inner) => &**inner,
+        let inner = match me.queue.upgrade() {
+            Some(inner) => inner,
             None => return,
         };
 

@@ -3,7 +3,7 @@
 use std::iter::FromIterator;
 
 use {task, Stream, Future, Poll, Async};
-use scheduler::{self, Scheduler};
+use scheduler::{self, Scheduler, Schedule};
 use task_impl::{self, AtomicTask};
 
 /// An unbounded set of futures.
@@ -73,7 +73,7 @@ impl<T> FuturesUnordered<T> {
     /// ensure that `FuturesUnordered::poll` is called in order to receive task
     /// notifications.
     pub fn push(&mut self, future: T) {
-        self.inner.push(future)
+        self.inner.schedule(future)
     }
 
     /// Returns an iterator that allows modifying each future in the set.

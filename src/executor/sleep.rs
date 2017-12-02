@@ -16,7 +16,7 @@ pub trait Sleep {
 }
 
 /// Wake up a sleeping thread.
-pub trait Wakeup: Send + Sync {
+pub trait Wakeup: Send + Sync + 'static {
     /// Wake up the sleeping thread.
     fn wakeup(&self);
 }
