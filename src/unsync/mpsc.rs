@@ -16,6 +16,7 @@ use task::{self, Task};
 use future::Executor;
 use sink::SendAll;
 use resultstream::{self, Results};
+use unsync::oneshot;
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 /// Creates a bounded in-memory channel with buffered storage.
@@ -355,12 +356,14 @@ impl<T> SendError<T> {
 /// If this handle is dropped, then the stream will no longer be polled and is
 /// scheduled to be dropped.
 pub struct SpawnHandle<Item, Error> {
-    inner: Receiver<Result<Item, Error>>
+    inner: Receiver<Result<Item, Error>>,
+    _cancel_tx: oneshot::Sender<()>,
 }
 
 /// Type of future which `Executor` instances must be able to execute for `spawn`.
 pub struct Execute<S: Stream> {
-    inner: SendAll<Sender<Result<S::Item, S::Error>>, Results<S, SendError<Result<S::Item, S::Error>>>>
+    inner: SendAll<Sender<Result<S::Item, S::Error>>, Results<S, SendError<Result<S::Item, S::Error>>>>,
+    cancel_rx: oneshot::Receiver<()>,
 }
 
 /// Spawns a `stream` onto the instance of `Executor` provided, `executor`,
@@ -384,12 +387,15 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
     where S: Stream,
           E: Executor<Execute<S>>
 {
+    let (cancel_tx, cancel_rx) = oneshot::channel();
     let (tx, rx) = channel(buffer);
     executor.execute(Execute {
-        inner: tx.send_all(resultstream::new(stream))
+        inner: tx.send_all(resultstream::new(stream)),
+        cancel_rx: cancel_rx,
     }).expect("failed to spawn stream");
     SpawnHandle {
-        inner: rx
+        inner: rx,
+        _cancel_tx: cancel_tx,
     }
 }
 
@@ -417,12 +423,15 @@ pub fn spawn_unbounded<S,E>(stream: S, executor: &E) -> SpawnHandle<S::Item, S::
     where S: Stream,
           E: Executor<Execute<S>>
 {
+    let (cancel_tx, cancel_rx) = oneshot::channel();
     let (tx, rx) = channel_(None);
     executor.execute(Execute {
-        inner: tx.send_all(resultstream::new(stream))
+        inner: tx.send_all(resultstream::new(stream)),
+        cancel_rx: cancel_rx,
     }).expect("failed to spawn stream");
     SpawnHandle {
-        inner: rx
+        inner: rx,
+        _cancel_tx: cancel_tx,
     }
 }
 
@@ -453,6 +462,10 @@ impl<S: Stream> Future for Execute<S> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<(), ()> {
+        match self.cancel_rx.poll() {
+            Ok(Async::NotReady) => (),
+            _ => return Ok(Async::Ready(())),
+        }
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
             _ => Ok(Async::Ready(()))
