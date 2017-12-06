@@ -11,7 +11,7 @@ use std::rc::Rc;
 fn spawning_from_init_future() {
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         let cnt = cnt.clone();
 
         CurrentThread::execute(lazy(move || {
@@ -31,7 +31,7 @@ fn block_waits_for_non_daemon() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         let cnt = cnt.clone();
 
         let (tx, rx) = oneshot::channel();
@@ -62,7 +62,7 @@ fn spawn_many() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         for _ in 0..ITER {
             let cnt = cnt.clone();
             CurrentThread::execute(lazy(move || {
@@ -90,7 +90,7 @@ impl Future for Never {
 fn outstanding_daemon_tasks_are_dropped_on_return() {
     let mut rc = Rc::new(());
 
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         CurrentThread::execute_daemon(Never(rc.clone()));
     });
 
@@ -102,7 +102,7 @@ fn outstanding_daemon_tasks_are_dropped_on_return() {
 fn outstanding_tasks_are_dropped_on_cancel() {
     let mut rc = Rc::new(());
 
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         CurrentThread::execute(Never(rc.clone()));
         CurrentThread::cancel_all_executing();
     });
@@ -113,19 +113,19 @@ fn outstanding_tasks_are_dropped_on_cancel() {
 
 #[test]
 #[should_panic]
-fn nesting_block_with_init() {
-    CurrentThread::block_with_init(|_| {
-        CurrentThread::block_with_init(|_| {
+fn nesting_run() {
+    CurrentThread::run(|_| {
+        CurrentThread::run(|_| {
         });
     });
 }
 
 #[test]
 #[should_panic]
-fn block_with_init_in_future() {
-    CurrentThread::block_with_init(|_| {
+fn run_in_future() {
+    CurrentThread::run(|_| {
         CurrentThread::execute(lazy(|| {
-            CurrentThread::block_with_init(|_| {
+            CurrentThread::run(|_| {
             });
             Ok::<(), ()>(())
         }));
@@ -135,7 +135,7 @@ fn block_with_init_in_future() {
 #[test]
 #[should_panic]
 fn blocking_within_init() {
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         let _ = blocking(empty::<(), ()>()).wait();
     });
 }
@@ -143,7 +143,7 @@ fn blocking_within_init() {
 #[test]
 #[should_panic]
 fn blocking_in_future() {
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         CurrentThread::execute(lazy(|| {
             let _ = blocking(empty::<(), ()>()).wait();
             Ok::<(), ()>(())
@@ -184,7 +184,7 @@ fn tasks_are_scheduled_fairly() {
         }
     }
 
-    CurrentThread::block_with_init(|_| {
+    CurrentThread::run(|_| {
         CurrentThread::execute(Spin {
             state: state.clone(),
             idx: 0,

@@ -6,9 +6,9 @@
 //! futures, see [here].
 //!
 //! Before being able to execute futures onto [`CurrentThread`], an executor
-//! context must be setup. This is done by calling either [`block_with_init`].
-//! From within that context, [`CurrentThread::execute`] may be called with the
-//! future to run in the background.
+//! context must be setup. This is done by calling [`run`].  From within that
+//! context, [`CurrentThread::execute`] may be called with the future to run in
+//! the background.
 //!
 //! ```
 //! # use futures::executor::current_thread::*;
@@ -17,7 +17,7 @@
 //! // Calling execute here results in a panic
 //! // CurrentThread::execute(my_future);
 //!
-//! CurrentThread::block_with_init(|_| {
+//! CurrentThread::run(|_| {
 //!     // The execution context is setup, futures may be executed.
 //!     CurrentThread::execute(lazy(|| {
 //!         println!("called from the current thread executor");
@@ -28,7 +28,7 @@
 //!
 //! # Execution model
 //!
-//! When a [`CurrentThread`] execution context is setup with `block_with_init`,
+//! When a [`CurrentThread`] execution context is setup with `run`,
 //! the current thread will block and all the futures managed by the executor
 //! are driven to completion. Whenever a future receives a notification, it is
 //! pushed to the end of a scheduled list. The [`CurrentThread`] executor will
@@ -57,28 +57,27 @@
 //!
 //! [here]: https://tokio.rs/docs/going-deeper-futures/tasks/
 //! [`CurrentThread`]: struct.CurrentThread.html
-//! [`block_with_init`]: struct.CurrentThread.html#method.block_with_init
+//! [`run`]: struct.CurrentThread.html#method.run
 //! [`CurrentThread::execute`]: struct.CurrentThread.html#method.execute
 //! [`CurrentThread::execute_daemon`]: struct.CurrentThread.html#method.execute_daemon
 
 use Async;
-use executor::{self, Spawn};
+use executor::{self, Spawn, Sleep, Wakeup};
 use future::{Future, Executor, ExecuteError, ExecuteErrorKind};
 use scheduler;
 use task_impl::ThreadNotify;
 
 use std::prelude::v1::*;
 
-use std::{fmt, ptr, thread};
+use std::{fmt, thread};
 use std::cell::Cell;
 use std::rc::Rc;
-use std::sync::Arc;
 
 /// Executes futures on the current thread.
 ///
 /// All futures executed using this executor will be executed on the current
 /// thread as non-daemon futures. As such, [`CurrentThread`] will wait for these
-/// futures to complete before returning from `block_with_init`.
+/// futures to complete before returning from `run`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -91,7 +90,7 @@ pub struct CurrentThread {
 ///
 /// All futures executed using this executor will be executed on the current
 /// thread as daemon futures. As such, [`CurrentThread`] will **not** wait for
-/// these futures to complete before returning from `block_with_init`.
+/// these futures to complete before returning from `run`.
 ///
 /// For more details, see the [module level](index.html) documentation.
 #[derive(Debug, Clone)]
@@ -111,15 +110,14 @@ pub struct Context<'a> {
 }
 
 /// Implements the "blocking" logic for the current thread executor. A
-/// `TaskRunner` will be created during `block_with_init` and will sit on the
-/// stack until execution is complete.
+/// `TaskRunner` will be created during `run` and will sit on the stack until
+/// execution is complete.
 #[derive(Debug)]
-struct TaskRunner {
+struct TaskRunner<T> {
     /// Executes futures.
-    scheduler: Scheduler,
+    scheduler: Scheduler<T>,
 }
 
-#[derive(Debug)]
 struct CurrentRunner {
     /// When set to true, the executor should return immediately, even if there
     /// still are non-daemon futures to run.
@@ -128,13 +126,14 @@ struct CurrentRunner {
     /// Number of non-daemon futures currently being executed by the runner.
     non_daemons: Cell<usize>,
 
-    /// Raw pointer to the current scheduler.
+    /// Raw pointer to the current scheduler pusher.
     ///
     /// The raw pointer is required in order to store it in a thread-local slot.
-    scheduler: Cell<*mut Scheduler>,
+    schedule: Cell<Option<*mut Schedule>>,
 }
 
-type Scheduler = scheduler::Scheduler<SpawnedFuture, Arc<ThreadNotify>>;
+type Scheduler<T> = scheduler::Scheduler<SpawnedFuture, T>;
+type Schedule = scheduler::Schedule<SpawnedFuture>;
 
 #[derive(Debug)]
 struct SpawnedFuture {
@@ -152,7 +151,7 @@ struct Task(Spawn<Box<Future<Item = (), Error = ()>>>);
 thread_local!(static CURRENT: CurrentRunner = CurrentRunner {
     cancel: Cell::new(false),
     non_daemons: Cell::new(0),
-    scheduler: Cell::new(ptr::null_mut()),
+    schedule: Cell::new(None),
 });
 
 impl CurrentThread {
@@ -163,8 +162,7 @@ impl CurrentThread {
     /// on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
-    /// to the executor, that it is done from the context of a `block_with_init`
-    /// call.
+    /// to the executor, that it is done from the context of a `run` call.
     ///
     /// For more details, see the [module level](index.html) documentation.
     pub fn current() -> CurrentThread {
@@ -180,8 +178,7 @@ impl CurrentThread {
     /// on.
     ///
     /// The user of `CurrentThread` must ensure that when a future is submitted
-    /// to the executor, that it is done from the context of a `block_with_init`
-    /// call.
+    /// to the executor, that it is done from the context of a `run` call.
     ///
     /// For more details, see the [module level](index.html) documentation.
     pub fn daemon_executor(&self) -> DaemonExecutor {
@@ -196,46 +193,59 @@ impl CurrentThread {
     /// In more detail, this function will block until:
     /// - All executing futures are complete, or
     /// - `cancel_all_executing` is invoked.
-    pub fn block_with_init<F, R>(f: F) -> R
+    pub fn run<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R
     {
-        TaskRunner::enter(f)
+        ThreadNotify::with_current(|mut thread_notify| {
+            TaskRunner::enter(&mut thread_notify, f)
+        })
+    }
+
+    /// Calls the given closure with a custom sleep strategy.
+    ///
+    /// This function is the same as `run` except that it allows customizing the
+    /// sleep strategy.
+    pub fn run_with_sleep<S, F, R>(sleep: &mut S, f: F) -> R
+    where F: FnOnce(&mut Context) -> R,
+          S: Sleep,
+    {
+        TaskRunner::enter(sleep, f)
     }
 
     /// Executes a future on the current thread.
     ///
     /// The provided future must complete or be canceled before
-    /// `block_with_init` will return.
+    /// `run` will return.
     ///
     /// # Panics
     ///
     /// This function can only be invoked from the context of a
-    /// `block_with_init` call; any other use will result in a panic.
+    /// `run` call; any other use will result in a panic.
     pub fn execute<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
         execute(future, false).unwrap_or_else(|_| {
             panic!("cannot call `execute` unless the thread is already \
-                    in the context of a call to `block_with_init`")
+                    in the context of a call to `run`")
         })
     }
 
     /// Executes a daemon future on the current thread.
     ///
     /// Completion of the provided future is not required for the pending
-    /// `block_with_init` call to complete. If `block_with_init` returns before
-    /// `future` completes, it will be dropped.
+    /// `run` call to complete. If `run` returns before `future` completes, it
+    /// will be dropped.
     ///
     /// # Panics
     ///
     /// This function can only be invoked from the context of a
-    /// `block_with_init` call; any other use will result in a panic.
+    /// `run` call; any other use will result in a panic.
     pub fn execute_daemon<F>(future: F)
     where F: Future<Item = (), Error = ()> + 'static
     {
         execute(future, true).unwrap_or_else(|_| {
             panic!("cannot call `execute` unless the thread is already \
-                    in the context of a call to `block_with_init`")
+                    in the context of a call to `run`")
         })
     }
 
@@ -246,12 +256,12 @@ impl CurrentThread {
     /// # Panics
     ///
     /// This function can only be invoked from the context of a
-    /// `block_with_init` call; any other use will result in a panic.
+    /// `run` call; any other use will result in a panic.
     pub fn cancel_all_executing() {
         CurrentRunner::with(|runner| runner.cancel_all_executing())
             .unwrap_or_else(|()| {
                 panic!("cannot call `cancel_all_executing` unless the thread is already \
-                        in the context of a call to `block_with_init`")
+                        in the context of a call to `run`")
             })
     }
 }
@@ -284,40 +294,45 @@ impl<'a> Context<'a> {
 /// checking the thread-local variable tracking the current executor.
 ///
 /// If this function is not called in context of an executor, i.e. outside of
-/// `block_with_init`, then `Err` is returned.
+/// `run`, then `Err` is returned.
 ///
 /// This function does not panic.
 fn execute<F>(future: F, daemon: bool) -> Result<(), ExecuteError<F>>
 where F: Future<Item = (), Error = ()> + 'static,
 {
     CURRENT.with(|current| {
-        if current.scheduler.get().is_null() {
-            Err(ExecuteError::new(ExecuteErrorKind::Shutdown, future))
-        } else {
-            let spawned = SpawnedFuture {
-                daemon: daemon,
-                inner: Task::new(future),
-            };
+        match current.schedule.get() {
+            Some(schedule) => {
+                let spawned = SpawnedFuture {
+                    daemon: daemon,
+                    inner: Task::new(future),
+                };
 
-            if !daemon {
-                let non_daemons = current.non_daemons.get();
-                current.non_daemons.set(non_daemons + 1);
+                if !daemon {
+                    let non_daemons = current.non_daemons.get();
+                    current.non_daemons.set(non_daemons + 1);
+                }
+
+                unsafe { (*schedule).schedule(spawned); }
+
+                Ok(())
             }
-
-            unsafe {
-                (*current.scheduler.get()).push(spawned);
+            None => {
+                Err(ExecuteError::new(ExecuteErrorKind::Shutdown, future))
             }
-
-            Ok(())
         }
     })
 }
 
-impl TaskRunner {
+impl<T> TaskRunner<T>
+where T: Wakeup,
+{
     /// Return a new `TaskRunner`
-    fn new(thread_notify: Arc<ThreadNotify>) -> TaskRunner {
+    fn new(wakeup: T) -> TaskRunner<T> {
+        let scheduler = scheduler::Scheduler::new(wakeup);
+
         TaskRunner {
-            scheduler: scheduler::Scheduler::new(thread_notify),
+            scheduler: scheduler,
         }
     }
 
@@ -332,9 +347,9 @@ impl TaskRunner {
     ///
     /// Before any future is polled, the scheduler must be set to a thread-local
     /// variable so that `execute` is able to submit new futures to the current
-    /// executor. Because `Scheduler::push` requires `&mut self`, this
+    /// executor. Because `Scheduler::schedule` requires `&mut self`, this
     /// introduces a mutability hazard. This hazard is minimized with some
-    /// indirection. See `set_scheduler` for more details.
+    /// indirection. See `set_schedule` for more details.
     ///
     /// Once all context is setup, the init closure is invoked. This is the
     /// "boostrapping" process that executes the initial futures into the
@@ -342,57 +357,57 @@ impl TaskRunner {
     /// state until all non daemon futures complete. When no scheduled futures
     /// are ready to be advanced, the thread is blocked using
     /// `ThreadNotify::park`.
-    fn enter<F, R>(f: F) -> R
+    fn enter<S, F, R>(sleep: &mut S, f: F) -> R
     where F: FnOnce(&mut Context) -> R,
+          S: Sleep<Wakeup = T>,
     {
-        // Create a new task runner that will be used for the duration of `f`.
-        ThreadNotify::with_current(|thread_notify| {
-            let mut runner = TaskRunner::new(thread_notify.clone());
+        let mut runner = TaskRunner::new(sleep.wakeup());
 
-            CURRENT.with(|current| {
-                // Make sure that another task runner is not set.
-                //
-                // This should not be ever possible due to how `set_scheduler`
-                // is setup, but better safe than sorry!
-                assert!(current.scheduler.get().is_null());
+        CURRENT.with(|current| {
+            // Make sure that another task runner is not set.
+            //
+            // This should not be ever possible due to how `set_schedule`
+            // is setup, but better safe than sorry!
+            assert!(current.schedule.get().is_none());
 
-                let enter = executor::enter()
-                    .expect("cannot execute `CurrentThread` executor from within \
-                             another executor");
+            let enter = executor::enter()
+                .expect("cannot execute `CurrentThread` executor from within \
+                         another executor");
 
-                // Enter an execution scope
-                let mut ctx = Context {
-                    enter: enter,
-                    _p: ::std::marker::PhantomData,
-                };
+            // Enter an execution scope
+            let mut ctx = Context {
+                enter: enter,
+                _p: ::std::marker::PhantomData,
+            };
 
-                // Set the scheduler to the TLS and perform setup work,
-                // returning a future to execute.
-                //
-                // This could possibly suubmit other futures for execution.
-                let ret = current.set_scheduler(&mut runner.scheduler, || {
-                    f(&mut ctx)
-                });
+            // Set the scheduler to the TLS and perform setup work,
+            // returning a future to execute.
+            //
+            // This could possibly suubmit other futures for execution.
+            let ret = current.set_schedule(&mut runner.scheduler as &mut Schedule, || {
+                f(&mut ctx)
+            });
 
-                // Execute the runner.
-                //
-                // This function will not return until either
-                //
-                // a) All non daemon futures have completed execution
-                // b) `cancel_all_executing` is called, forcing the executor to
-                // return.
-                runner.run(thread_notify, current);
+            // Execute the runner.
+            //
+            // This function will not return until either
+            //
+            // a) All non daemon futures have completed execution
+            // b) `cancel_all_executing` is called, forcing the executor to
+            // return.
+            runner.run(sleep, current);
 
-                // Not technically required, but this makes the fact that `ctx`
-                // needs to live until this point explicit.
-                drop(ctx);
+            // Not technically required, but this makes the fact that `ctx`
+            // needs to live until this point explicit.
+            drop(ctx);
 
-                ret
-            })
+            ret
         })
     }
 
-    fn run(&mut self, thread_notify: &Arc<ThreadNotify>, current: &CurrentRunner) {
+    fn run<S>(&mut self, sleep: &mut S, current: &CurrentRunner)
+    where S: Sleep<Wakeup = T>,
+    {
         use scheduler::Tick;
 
         while current.is_running() {
@@ -404,13 +419,13 @@ impl TaskRunner {
                 //
                 // This lets us push new futures into the scheduler. It also
                 // lets us pass the scheduler mutable reference into
-                // `set_scheduler`, which sets the thread-local variable that
+                // `set_schedule`, which sets the thread-local variable that
                 // `CurrentThread::execute` uses for submitting new futures to the
                 // "current" executor.
                 //
-                // See `set_scheduler` documentation for more details on how we
+                // See `set_schedule` documentation for more details on how we
                 // guard against mutable pointer aliasing.
-                current.set_scheduler(scheduler, || {
+                current.set_schedule(scheduler as &mut Schedule, || {
                     match spawned.inner.0.poll_future_notify(notify, 0) {
                         Ok(Async::Ready(_)) | Err(_) => {
                             Async::Ready(spawned.daemon)
@@ -442,7 +457,7 @@ impl TaskRunner {
 
                     // Block the current thread until a future managed by the scheduler
                     // receives a readiness notification.
-                    thread_notify.park();
+                    sleep.sleep();
                 }
                 Tick::Inconsistent => {
                     // Yield the thread and loop
@@ -458,15 +473,15 @@ impl CurrentRunner {
     where F: FnOnce(&Self) -> R,
     {
         CURRENT.with(|current| {
-            if current.scheduler.get().is_null() {
-                Err(())
-            } else {
+            if current.schedule.get().is_some() {
                 Ok(f(current))
+            } else {
+                Err(())
             }
         })
     }
 
-    /// Set the provided scheduler to the TLS slot for the duration of the
+    /// Set the provided schedule handle to the TLS slot for the duration of the
     /// closure.
     ///
     /// `CurrentThread::execute` will access the CURRENT thread-local variable in
@@ -479,16 +494,16 @@ impl CurrentRunner {
     /// that one can not access the scheduler anywhere else.
     ///
     /// To do this, we only allow access to the thread local variable from
-    /// within the closure passed to `set_scheduler`. This function also takes a
+    /// within the closure passed to `set_schedule`. This function also takes a
     /// &mut reference to the scheduler, which is essentially holding a "lock"
     /// on that reference, preventing any other location in the code from
     /// also getting that &mut reference.
     ///
-    /// When `set_scheduler` returns, the thread-local variable containing the
+    /// When `set_schedule` returns, the thread-local variable containing the
     /// mut reference is set to null. This is done even if the closure panics.
     ///
     /// This reduces the odds of introducing pointer aliasing.
-    fn set_scheduler<F, R>(&self, scheduler: &mut Scheduler, f: F) -> R
+    fn set_schedule<F, R>(&self, schedule: &mut Schedule, f: F) -> R
     where F: FnOnce() -> R
     {
         // Ensure that the runner is removed from the thread-local context
@@ -497,13 +512,13 @@ impl CurrentRunner {
 
         impl<'a> Drop for Reset<'a> {
             fn drop(&mut self) {
-                self.0.scheduler.set(ptr::null_mut());
+                self.0.schedule.set(None);
             }
         }
 
         let _reset = Reset(self);
 
-        self.scheduler.set(scheduler as *mut Scheduler);
+        self.schedule.set(Some(schedule as *mut Schedule));
 
         f()
     }

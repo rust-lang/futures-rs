@@ -19,7 +19,7 @@ fn execute_oneshot(b: &mut Bencher) {
     b.iter(move || {
         let cnt = Rc::new(Cell::new(0));
 
-        CurrentThread::block_with_init(|_| {
+        CurrentThread::run(|_| {
             for _ in 0..ITER {
                 let cnt = cnt.clone();
                 CurrentThread::execute(lazy(move || {
@@ -41,7 +41,7 @@ fn execute_yield_many(b: &mut Bencher) {
     b.iter(move || {
         let cnt = Rc::new(Cell::new(0));
 
-        CurrentThread::block_with_init(|_| {
+        CurrentThread::run(|_| {
             for _ in 0..TASKS {
                 let cnt = cnt.clone();
                 let mut rem = YIELDS;
@@ -83,7 +83,7 @@ fn execute_daisy(b: &mut Bencher) {
     b.iter(move || {
         cnt.set(0);
 
-        CurrentThread::block_with_init(|_| {
+        CurrentThread::run(|_| {
             daisy(DEPTH, cnt.clone());
         });
 

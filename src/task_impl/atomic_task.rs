@@ -175,6 +175,13 @@ impl AtomicTask {
     }
 }
 
+#[cfg(feature = "use_std")]
+impl ::executor::Wakeup for AtomicTask {
+    fn wakeup(&self) {
+        self.notify();
+    }
+}
+
 impl fmt::Debug for AtomicTask {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "AtomicTask")
