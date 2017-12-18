@@ -2,7 +2,7 @@ error[E0597]: `a` does not live long enough
   --> $DIR/borrowed-argument.rs:14:17
    |
 14 |     await!(bar(&a))?;
-   |                 ^ does not live long enough
+   |                 ^ borrowed value does not live long enough
 ...
 17 | }
    | - borrowed value only lives until here
@@ -13,7 +13,7 @@ error[E0597]: `a` does not live long enough
   --> $DIR/borrowed-argument.rs:21:17
    |
 21 |     await!(bar(&a))?;
-   |                 ^ does not live long enough
+   |                 ^ borrowed value does not live long enough
 ...
 25 | }
    | - borrowed value only lives until here
