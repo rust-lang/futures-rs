@@ -32,7 +32,11 @@ impl<S: Sink> Send<S> {
         self.sink.as_mut().take().expect("Attempted to poll Send after completion")
     }
 
-    fn take_sink(&mut self) -> S {
+    /// Consumes this combinator, returning the underlying sink.
+    ///
+    /// Note that this will discard the item being sent if this Future has not completed, so care
+    /// should be taken to avoid losing resources when this is called.
+    fn into_inner(&mut self) -> S {
         self.sink.take().expect("Attempted to poll Send after completion")
     }
 }
@@ -54,6 +58,6 @@ impl<S: Sink> Future for Send<S> {
         try_ready!(self.sink_mut().poll_complete());
 
         // now everything's emptied, so return the sink for further use
-        Ok(Async::Ready(self.take_sink()))
+        Ok(Async::Ready(self.into_inner()))
     }
 }

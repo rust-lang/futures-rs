@@ -16,6 +16,21 @@ impl<S> SplitStream<S> {
     pub fn reunite(self, other: SplitSink<S>) -> Result<S, ReuniteError<S>> {
         other.reunite(self)
     }
+
+    /// Get a shared reference to the inner locked stream.
+    pub fn get_ref(&self) -> &BiLock<S> {
+        &self.0
+    }
+
+    /// Get a mutable reference to the inner locked stream.
+    pub fn get_mut(&mut self) -> &mut BiLock<S> {
+        &mut self.0
+    }
+
+    /// Consumes this combinator, returning the underlying Locked stream
+    pub fn into_inner(self) -> BiLock<S> {
+        self.0
+    }
 }
 
 impl<S: Stream> Stream for SplitStream<S> {
@@ -42,6 +57,21 @@ impl<S> SplitSink<S> {
         self.0.reunite(other.0).map_err(|err| {
             ReuniteError(SplitSink(err.0), SplitStream(err.1))
         })
+    }
+
+    /// Get a shared reference to the inner locked stream.
+    pub fn get_ref(&self) -> &BiLock<S> {
+        &self.0
+    }
+
+    /// Get a mutable reference to the inner locked stream.
+    pub fn get_mut(&mut self) -> &mut BiLock<S> {
+        &mut self.0
+    }
+
+    /// Consumes this combinator, returning the underlying locked stream
+    pub fn into_inner(self) -> BiLock<S> {
+        self.0
     }
 }
 
