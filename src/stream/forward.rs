@@ -31,25 +31,25 @@ impl<T, U> Forward<T, U>
           T::Error: From<U::SinkError>,
 {
     /// Get a shared reference to the inner sink.
-    /// If this combintator has already been polled to completetion, None will be returned.
+    /// If this combinator has already been polled to completion, None will be returned.
     pub fn sink_ref(&self) -> Option<&U> {
         self.sink.as_ref()
     }
 
     /// Get a mutable reference to the inner sink.
-    /// If this combintator has already been polled to completetion, None will be returned.
+    /// If this combinator has already been polled to completion, None will be returned.
     pub fn sink_mut(&mut self) -> Option<&mut U> {
         self.sink.as_mut()
     }
 
     /// Get a shared reference to the inner stream.
-    /// If this combintator has already been polled to completetion, None will be returned.
+    /// If this combinator has already been polled to completion, None will be returned.
     pub fn stream_ref(&self) -> Option<&T> {
         self.stream.as_ref().map(|x| x.get_ref())
     }
 
     /// Get a mutable reference to the inner stream.
-    /// If this combintator has already been polled to completetion, None will be returned.
+    /// If this combinator has already been polled to completion, None will be returned.
     pub fn stream_mut(&mut self) -> Option<&mut T> {
         self.stream.as_mut().map(|x| x.get_mut())
     }
