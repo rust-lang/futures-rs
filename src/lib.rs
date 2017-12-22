@@ -40,9 +40,7 @@ pub mod prelude {
 /// your code to be stable.
 #[doc(hidden)]
 pub mod __rt {
-    pub use std::boxed::Box;
-    pub use std::option::Option::{Some, None};
-    pub use std::result::Result::{Ok, Err, self};
+    pub extern crate std;
     pub use std::ops::Generator;
 
     use futures::Poll;

@@ -14,12 +14,12 @@ macro_rules! await {
         let mut future = $e;
         loop {
             match ::futures::Future::poll(&mut future) {
-                ::futures::__rt::Ok(::futures::Async::Ready(e)) => {
-                    break ::futures::__rt::Ok(e)
+                ::futures::__rt::std::result::Result::Ok(::futures::Async::Ready(e)) => {
+                    break ::futures::__rt::std::result::Result::Ok(e)
                 }
-                ::futures::__rt::Ok(::futures::Async::NotReady) => {}
-                ::futures::__rt::Err(e) => {
-                    break ::futures::__rt::Err(e)
+                ::futures::__rt::std::result::Result::Ok(::futures::Async::NotReady) => {}
+                ::futures::__rt::std::result::Result::Err(e) => {
+                    break ::futures::__rt::std::result::Result::Err(e)
                 }
             }
             yield ::futures::Async::NotReady
