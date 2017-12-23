@@ -199,7 +199,7 @@ fn async_inner<F>(
         #gen_function (move || -> #output #gen_body)
     };
     let body_inner = if boxed {
-        let body = quote! { Box::new(#body_inner) };
+        let body = quote! { ::futures::__rt::std::boxed::Box::new(#body_inner) };
         respan(body.into(), &output_span)
     } else {
         body_inner.into()
@@ -240,7 +240,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote! {
-                Box<::futures::Future<
+                ::futures::__rt::std::boxed::Box<::futures::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
@@ -302,7 +302,7 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote! {
-                Box<::futures::Stream<
+                ::futures::__rt::std::boxed::Box<::futures::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
@@ -407,8 +407,8 @@ impl Folder for ExpandAsyncFor {
                     match r {
                         futures_await::Async::Ready(e) => {
                             match e {
-                                futures_await::__rt::Some(e) => e,
-                                futures_await::__rt::None => break,
+                                futures_await::__rt::std::option::Option::Some(e) => e,
+                                futures_await::__rt::std::option::Option::None => break,
                             }
                         }
                         futures_await::Async::NotReady => {
