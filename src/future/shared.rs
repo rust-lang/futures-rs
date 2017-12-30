@@ -17,7 +17,7 @@ use {Future, Poll, Async};
 use task::{self, Task};
 use executor::{self, Notify, Spawn};
 
-use std::{fmt, mem, ops};
+use std::{error, fmt, mem, ops};
 use std::cell::UnsafeCell;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
@@ -276,5 +276,25 @@ impl<E> ops::Deref for SharedError<E> {
 
     fn deref(&self) -> &E {
         &self.error.as_ref()
+    }
+}
+
+impl<E> fmt::Display for SharedError<E>
+    where E: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.error.fmt(f)
+    }
+}
+
+impl<E> error::Error for SharedError<E>
+    where E: error::Error,
+{
+    fn description(&self) -> &str {
+        self.error.description()
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        self.error.cause()
     }
 }
