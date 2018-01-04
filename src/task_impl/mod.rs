@@ -54,6 +54,31 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 /// the future as notifications arrive, until the future terminates.
 ///
 /// This is obtained by the `task::current` function.
+///
+/// # FAQ
+///
+/// ### Why does `Task` not implement `Eq` and `Hash`?
+///
+/// A valid use case for `Task` to implement these two traits has not been
+/// encountered.
+///
+/// Usually, this question is asked by someone who wants to store a `Task`
+/// instance in a `HashSet`. This seems like an obvious way to implement a
+/// future aware, multi-handle structure; e.g. a multi-producer channel.
+///
+/// In this case, the idea is that whenever a `start_send` is called on one of
+/// the channel's send handles, if the channel is at capacity, the current task
+/// is stored in a `TaskSet`. Then, when capacity is available, a task is
+/// removed from the task set and notified.
+///
+/// The problem with this strategy is that multiple `Sender` handles can be used
+/// on the same task. In this case, when the second handle is used and the task
+/// is stored in `TaskSet`, there already is an entry. Then, when the first
+/// handle is dropped, this entry is cleared, resulting in a dead lock.
+///
+/// See [here](https://github.com/alexcrichton/futures-rs/issues/670) for more
+/// discussion.
+///
 #[derive(Clone)]
 pub struct Task {
     id: usize,
