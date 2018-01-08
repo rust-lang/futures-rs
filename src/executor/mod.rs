@@ -11,6 +11,9 @@
 pub mod current_thread;
 
 #[cfg(feature = "use_std")]
+mod task_runner;
+
+#[cfg(feature = "use_std")]
 mod enter;
 
 #[cfg(feature = "use_std")]
@@ -26,6 +29,9 @@ pub use task_impl::{UnsafeNotify, NotifyHandle};
 
 #[cfg(feature = "use_std")]
 pub use self::current_thread::CurrentThread;
+
+#[cfg(feature = "use_std")]
+pub use self::task_runner::{TaskRunner, TaskExecutor};
 
 #[cfg(feature = "use_std")]
 pub use self::enter::{enter, Enter};

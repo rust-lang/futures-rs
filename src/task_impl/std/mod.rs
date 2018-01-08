@@ -497,7 +497,7 @@ impl ThreadNotify {
     pub fn with_current<F, R>(f: F) -> R
         where F: FnOnce(&Arc<ThreadNotify>) -> R,
     {
-        CURRENT_THREAD_NOTIFY.with(|notify| f(notify))
+        CURRENT_THREAD_NOTIFY.with(f)
     }
 
     pub fn park(&self) {
