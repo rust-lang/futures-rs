@@ -11,19 +11,25 @@
 //! the background.
 //!
 //! ```
-//! # use futures::executor::current_thread::*;
-//! use futures::future::lazy;
+//! use futures::executor::CurrentThread;
+//! use futures::future::{self, lazy};
 //!
 //! // Calling execute here results in a panic
 //! // CurrentThread::execute(my_future);
 //!
-//! CurrentThread::run(|_| {
+//! let ret = CurrentThread::run(|_| {
 //!     // The execution context is setup, futures may be executed.
 //!     CurrentThread::execute(lazy(|| {
 //!         println!("called from the current thread executor");
 //!         Ok(())
 //!     }));
-//! });
+//!
+//!     // this initialization closure also returns a future to be run to
+//!     // completion
+//!     future::ok::<_, ()>(3)
+//! }).unwrap();
+//!
+//! assert_eq!(ret, 3);
 //! ```
 //!
 //! # Execution model
@@ -61,14 +67,16 @@
 //! [`CurrentThread::execute`]: struct.CurrentThread.html#method.execute
 //! [`CurrentThread::execute_daemon`]: struct.CurrentThread.html#method.execute_daemon
 
-use executor::{self, Sleep, TaskRunner};
 use executor::task_runner::{set_current, with_current};
-use future::{Future, Executor, ExecuteError, ExecuteErrorKind};
+use executor::{self, Sleep, TaskRunner, Wakeup, Notify};
+use future::{Executor, ExecuteError, ExecuteErrorKind};
+use prelude::*;
 use task_impl::ThreadNotify;
 
 use std::prelude::v1::*;
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// Executes futures on the current thread.
 ///
@@ -159,12 +167,17 @@ impl CurrentThread {
     /// will immediately panic:
     ///
     /// ```no_run
+    /// use futures::future;
     /// use futures::executor::CurrentThread;
     ///
     /// CurrentThread::run(|_| {
     ///     CurrentThread::run(|_| {
     ///         // never executed
-    ///     })
+    ///         future::ok::<(), ()>(())
+    ///     });
+    ///
+    ///     // also never executed
+    ///     future::ok::<(), ()>(())
     /// });
     /// ```
     ///
@@ -180,8 +193,9 @@ impl CurrentThread {
     /// and instead it's recommended to only have one per thread. For example a
     /// thread might *once* call `CurrentThread::run` (but never recursively)
     /// while other threads could use other executors if necessary.
-    pub fn run<F, R>(f: F) -> R
-    where F: FnOnce(&mut Context) -> R
+    pub fn run<F, R>(f: F) -> Result<R::Item, R::Error>
+    where F: FnOnce(&mut Context) -> R,
+          R: IntoFuture,
     {
         ThreadNotify::with_current(|mut thread_notify| {
             CurrentThread::run_with_sleep(&mut thread_notify, f)
@@ -198,31 +212,48 @@ impl CurrentThread {
     /// This function will panic if used recursively with any other
     /// executor-like interface. For more detail on the sources of panics
     /// see the `CurrentThread::run` documentation.
-    pub fn run_with_sleep<S, F, R>(sleep: &mut S, f: F) -> R
+    pub fn run_with_sleep<S, F, R>(sleep: &mut S, f: F) -> Result<R::Item, R::Error>
     where F: FnOnce(&mut Context) -> R,
+          R: IntoFuture,
           S: Sleep,
     {
         let mut runner = TaskRunner::new(sleep.wakeup());
+        let notify = Arc::new(Wakeup2Notify(sleep.wakeup()));
 
         // Kick off any initial work through the callback provided
-        let ret = set_current(&runner.executor(), |enter| {
+        let future = set_current(&runner.executor(), |enter| {
             f(&mut Context {
                 enter: &enter,
-            })
+            }).into_future()
         });
 
         // So long as there's pending work we keep polling and sleeping.
-        if !runner.is_done() {
-            loop {
-                runner.poll();
-                if runner.is_done() {
-                    break
+        let mut ret = None;
+        let mut future = executor::spawn(future);
+        loop {
+            runner.poll();
+            if ret.is_none() {
+                match future.poll_future_notify(&notify, 0) {
+                    Ok(Async::NotReady) => {}
+                    Ok(Async::Ready(e)) => ret = Some(Ok(e)),
+                    Err(e) => ret = Some(Err(e)),
                 }
-                sleep.sleep();
             }
+            if runner.is_done() {
+                if let Some(ret) = ret {
+                    return ret
+                }
+            }
+            sleep.sleep();
         }
 
-        return ret
+        struct Wakeup2Notify<T>(T);
+
+        impl<T: Wakeup> Notify for Wakeup2Notify<T> {
+            fn notify(&self, _id: usize) {
+                self.0.wakeup()
+            }
+        }
     }
 
     /// Executes a future on the current thread.

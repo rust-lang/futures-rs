@@ -1,11 +1,15 @@
 extern crate futures;
 
 use futures::{task, Future, Poll, Async};
-use futures::future::{blocking, empty, lazy};
+use futures::future::{self, blocking, empty, lazy};
 use futures::executor::CurrentThread;
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+
+fn inert() -> future::FutureResult<(), ()> {
+    future::ok(())
+}
 
 #[test]
 fn spawning_from_init_future() {
@@ -18,7 +22,8 @@ fn spawning_from_init_future() {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
-    });
+        inert()
+    }).unwrap();
 
     assert_eq!(1, cnt.get());
 }
@@ -45,11 +50,12 @@ fn block_waits_for_non_daemon() {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
-    });
+        inert()
+    }).unwrap();
 
     assert_eq!(1, cnt.get());
 }
-
+//
 #[test]
 #[should_panic]
 fn spawning_out_of_executor_context() {
@@ -70,7 +76,8 @@ fn spawn_many() {
                 Ok::<(), ()>(())
             }));
         }
-    });
+        inert()
+    }).unwrap();
 
     assert_eq!(cnt.get(), ITER);
 }
@@ -92,7 +99,8 @@ fn outstanding_daemon_tasks_are_dropped_on_return() {
 
     CurrentThread::run(|_| {
         CurrentThread::execute_daemon(Never(rc.clone()));
-    });
+        inert()
+    }).unwrap();
 
     // Ensure the daemon is dropped
     assert!(Rc::get_mut(&mut rc).is_some());
@@ -105,7 +113,8 @@ fn outstanding_tasks_are_dropped_on_cancel() {
     CurrentThread::run(|_| {
         CurrentThread::execute(Never(rc.clone()));
         CurrentThread::cancel_all_executing();
-    });
+        inert()
+    }).unwrap();
 
     // Ensure the daemon is dropped
     assert!(Rc::get_mut(&mut rc).is_some());
@@ -116,8 +125,10 @@ fn outstanding_tasks_are_dropped_on_cancel() {
 fn nesting_run() {
     CurrentThread::run(|_| {
         CurrentThread::run(|_| {
-        });
-    });
+            inert()
+        }).unwrap();
+        inert()
+    }).unwrap();
 }
 
 #[test]
@@ -126,10 +137,12 @@ fn run_in_future() {
     CurrentThread::run(|_| {
         CurrentThread::execute(lazy(|| {
             CurrentThread::run(|_| {
-            });
+                inert()
+            }).unwrap();
             Ok::<(), ()>(())
         }));
-    });
+        inert()
+    }).unwrap();
 }
 
 #[test]
@@ -137,7 +150,8 @@ fn run_in_future() {
 fn blocking_within_init() {
     CurrentThread::run(|_| {
         let _ = blocking(empty::<(), ()>()).wait();
-    });
+        inert()
+    }).unwrap();
 }
 
 #[test]
@@ -148,7 +162,8 @@ fn blocking_in_future() {
             let _ = blocking(empty::<(), ()>()).wait();
             Ok::<(), ()>(())
         }));
-    });
+        inert()
+    }).unwrap();
 }
 
 #[test]
@@ -194,5 +209,6 @@ fn tasks_are_scheduled_fairly() {
             state: state,
             idx: 1,
         });
-    });
+        inert()
+    }).unwrap();
 }
