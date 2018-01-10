@@ -14,5 +14,5 @@ error[E0412]: cannot find type `A` in this scope
    |
    = help: there is an enum variant `futures::future::Either::A`, try using `futures::future::Either`?
 
-error: aborting due to 4 previous errors
+error: aborting due to 2 previous errors
 

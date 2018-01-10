@@ -16,30 +16,32 @@
 extern crate proc_macro2;
 extern crate proc_macro;
 #[macro_use]
-extern crate futures_await_quote as quote;
-extern crate futures_await_syn as syn;
+extern crate quote;
 #[macro_use]
-extern crate futures_await_synom as synom;
+extern crate syn;
 
 use proc_macro2::Span;
 use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
 use quote::{Tokens, ToTokens};
 use syn::*;
-use syn::delimited::Delimited;
-use syn::fold::Folder;
+use syn::punctuated::Punctuated;
+use syn::fold::Fold;
+
+macro_rules! quote_cs {
+    ($($t:tt)*) => (quote_spanned!(Span::call_site() => $($t)*))
+}
 
 fn async_inner<F>(
     boxed: bool,
     function: TokenStream,
     gen_function: Tokens,
-    return_ty: F)
-    -> TokenStream
-    where F: FnOnce(&Ty) -> proc_macro2::TokenStream {
+    return_ty: F,
+) -> TokenStream
+where F: FnOnce(&Type) -> proc_macro2::TokenStream
+{
     // Parse our item, expecting a function. This function may be an actual
     // top-level function or it could be a method (typically dictated by the
     // arguments). We then extract everything we'd like to use.
-    let Item { attrs, node } = syn::parse(function)
-        .expect("failed to parse tokens as a function");
     let ItemFn {
         ident,
         vis,
@@ -48,9 +50,10 @@ fn async_inner<F>(
         abi,
         block,
         decl,
+        attrs,
         ..
-    } = match node {
-        ItemKind::Fn(item) => item,
+    } = match syn::parse(function).expect("failed to parse tokens as a function") {
+        Item::Fn(item) => item,
         _ => panic!("#[async] can only be applied to functions"),
     };
     let FnDecl {
@@ -62,13 +65,12 @@ fn async_inner<F>(
         ..
     } = { *decl };
     let where_clause = &generics.where_clause;
-    assert!(!variadic, "variadic functions cannot be async");
+    assert!(variadic.is_none(), "variadic functions cannot be async");
     let (output, rarrow_token) = match output {
-        FunctionRetTy::Ty(t, rarrow_token) => (t, rarrow_token),
-        FunctionRetTy::Default => {
-            (TyTup {
-                tys: Default::default(),
-                lone_comma: Default::default(),
+        ReturnType::Type(rarrow_token, t) => (*t, rarrow_token),
+        ReturnType::Default => {
+            (TypeTuple {
+                elems: Default::default(),
                 paren_token: Default::default(),
             }.into(), Default::default())
         }
@@ -101,8 +103,6 @@ fn async_inner<F>(
     let mut patterns = Vec::new();
     let mut temp_bindings = Vec::new();
     for (i, input) in inputs.into_iter().enumerate() {
-        let input = input.into_item();
-
         // `self: Box<Self>` will get captured naturally
         let mut is_input_no_pattern = false;
         if let FnArg::Captured(ref arg) = input {
@@ -120,7 +120,7 @@ fn async_inner<F>(
         match input {
             FnArg::Captured(ArgCaptured {
                 pat: syn::Pat::Ident(syn::PatIdent {
-                    mode: BindingMode::ByValue(_),
+                    by_ref: None,
                     ..
                 }),
                 ..
@@ -134,9 +134,9 @@ fn async_inner<F>(
                 let ident = Ident::from(format!("__arg_{}", i));
                 temp_bindings.push(ident.clone());
                 let pat = PatIdent {
-                    mode: BindingMode::ByValue(Mutability::Immutable),
+                    by_ref: None,
+                    mutability: None,
                     ident: ident,
-                    at_token: None,
                     subpat: None,
                 };
                 inputs_no_patterns.push(ArgCaptured {
@@ -164,7 +164,7 @@ fn async_inner<F>(
 
     let return_ty = return_ty(&output);
 
-    let block_inner = quote! {
+    let block_inner = quote_cs! {
         #( let #patterns = #temp_bindings; )*
         #block
     };
@@ -172,9 +172,9 @@ fn async_inner<F>(
     block.brace_token.surround(&mut result, |tokens| {
         block_inner.to_tokens(tokens);
     });
-    syn::tokens::Semi([block.brace_token.0]).to_tokens(&mut result);
+    syn::token::Semi([block.brace_token.0]).to_tokens(&mut result);
 
-    let gen_body_inner = quote! {
+    let gen_body_inner = quote_cs! {
         let __e: #output = #result
 
         // Ensure that this closure is a generator, even if it doesn't
@@ -195,11 +195,11 @@ fn async_inner<F>(
     // sure if more errors will highlight this function call...
     let output_span = first_last(&output);
     let gen_function = respan(gen_function.into(), &output_span);
-    let body_inner = quote! {
+    let body_inner = quote_cs! {
         #gen_function (move || -> #output #gen_body)
     };
     let body_inner = if boxed {
-        let body = quote! { ::futures::__rt::std::boxed::Box::new(#body_inner) };
+        let body = quote_cs! { ::futures::__rt::std::boxed::Box::new(#body_inner) };
         respan(body.into(), &output_span)
     } else {
         body_inner.into()
@@ -209,7 +209,7 @@ fn async_inner<F>(
         body_inner.to_tokens(tokens);
     });
 
-    let output = quote! {
+    let output = quote_cs! {
         #(#attrs)*
         #vis #unsafety #abi #constness
         #fn_token #ident #generics(#(#inputs_no_patterns),*)
@@ -234,12 +234,12 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         panic!("the #[async] attribute currently only takes `boxed` as an arg");
     };
 
-    async_inner(boxed, function, quote! { ::futures::__rt::gen }, |output| {
+    async_inner(boxed, function, quote_cs! { ::futures::__rt::gen }, |output| {
         // TODO: can we lift the restriction that `futures` must be at the root of
         //       the crate?
         let output_span = first_last(&output);
         let return_ty = if boxed {
-            quote! {
+            quote_cs! {
                 ::futures::__rt::std::boxed::Box<::futures::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
@@ -248,13 +248,13 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         } else {
             // Dunno why this is buggy, hits weird typecheck errors in tests
             //
-            // quote! {
+            // quote_cs! {
             //     impl ::futures::Future<
             //         Item = <#output as ::futures::__rt::MyTry>::MyOk,
             //         Error = <#output as ::futures::__rt::MyTry>::MyError,
             //     >
             // }
-            quote! { impl ::futures::__rt::MyFuture<!> + 'static }
+            quote_cs! { impl ::futures::__rt::MyFuture<!> + 'static }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bang(return_ty, &output)
@@ -289,7 +289,7 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
                     }
                     item_ty = Some(ty);
                 } else {
-                    panic!("unexpected #[async_stream] argument '{}'", quote!(#term = #ty));
+                    panic!("unexpected #[async_stream] argument '{}'", quote_cs!(#term = #ty));
                 }
             }
         }
@@ -298,17 +298,17 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
     let boxed = boxed;
     let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
 
-    async_inner(boxed, function, quote! { ::futures::__rt::gen_stream }, |output| {
+    async_inner(boxed, function, quote_cs! { ::futures::__rt::gen_stream }, |output| {
         let output_span = first_last(&output);
         let return_ty = if boxed {
-            quote! {
+            quote_cs! {
                 ::futures::__rt::std::boxed::Box<::futures::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
             }
         } else {
-            quote! { impl ::futures::__rt::MyStream<!, !> + 'static }
+            quote_cs! { impl ::futures::__rt::MyStream<!, !> + 'static }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bangs(return_ty, &[&item_ty, &output])
@@ -325,18 +325,18 @@ pub fn async_block(input: TokenStream) -> TokenStream {
         .expect("failed to parse tokens as an expression");
     let expr = ExpandAsyncFor.fold_expr(expr);
 
-    let mut tokens = quote! {
+    let mut tokens = quote_cs! {
         ::futures::__rt::gen
     };
 
-    // Use some manual token construction here instead of `quote!` to ensure
+    // Use some manual token construction here instead of `quote_cs!` to ensure
     // that we get the `call_site` span instead of the default span.
-    let span = syn::Span(Span::call_site());
-    syn::tokens::Paren(span).surround(&mut tokens, |tokens| {
-        syn::tokens::Move(span).to_tokens(tokens);
-        syn::tokens::OrOr([span, span]).to_tokens(tokens);
-        syn::tokens::Brace(span).surround(tokens, |tokens| {
-            (quote! {
+    let span = Span::call_site();
+    syn::token::Paren(span).surround(&mut tokens, |tokens| {
+        syn::token::Move(span).to_tokens(tokens);
+        syn::token::OrOr([span, span]).to_tokens(tokens);
+        syn::token::Brace(span).surround(tokens, |tokens| {
+            (quote_cs! {
                 if false { yield ::futures::Async::NotReady }
             }).to_tokens(tokens);
             expr.to_tokens(tokens);
@@ -356,18 +356,18 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
         .expect("failed to parse tokens as an expression");
     let expr = ExpandAsyncFor.fold_expr(expr);
 
-    let mut tokens = quote! {
+    let mut tokens = quote_cs! {
         ::futures::__rt::gen_stream
     };
 
-    // Use some manual token construction here instead of `quote!` to ensure
+    // Use some manual token construction here instead of `quote_cs!` to ensure
     // that we get the `call_site` span instead of the default span.
-    let span = syn::Span(Span::call_site());
-    syn::tokens::Paren(span).surround(&mut tokens, |tokens| {
-        syn::tokens::Move(span).to_tokens(tokens);
-        syn::tokens::OrOr([span, span]).to_tokens(tokens);
-        syn::tokens::Brace(span).surround(tokens, |tokens| {
-            (quote! {
+    let span = Span::call_site();
+    syn::token::Paren(span).surround(&mut tokens, |tokens| {
+        syn::token::Move(span).to_tokens(tokens);
+        syn::token::OrOr([span, span]).to_tokens(tokens);
+        syn::token::Brace(span).surround(tokens, |tokens| {
+            (quote_cs! {
                 if false { yield ::futures::Async::NotReady }
             }).to_tokens(tokens);
             expr.to_tokens(tokens);
@@ -379,27 +379,35 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
 
 struct ExpandAsyncFor;
 
-impl Folder for ExpandAsyncFor {
+impl Fold for ExpandAsyncFor {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         let expr = fold::fold_expr(self, expr);
-        if expr.attrs.len() != 1 {
+        let mut async = false;
+        {
+            let attrs = match expr {
+                Expr::ForLoop(syn::ExprForLoop { ref attrs, .. }) => attrs,
+                _ => return expr,
+            };
+            if attrs.len() == 1 {
+                // TODO: more validation here
+                if attrs[0].path.segments.first().unwrap().value().ident == "async" {
+                    async = true;
+                }
+            }
+        }
+        if !async {
             return expr
         }
-        // TODO: more validation here
-        if expr.attrs[0].path.segments.get(0).item().ident != "async" {
-            return expr
-        }
-        let all = match expr.node {
-            ExprKind::ForLoop(item) => item,
+        let all = match expr {
+            Expr::ForLoop(item) => item,
             _ => panic!("only for expressions can have #[async]"),
         };
-        let ExprForLoop { pat, expr, body, label, colon_token, .. } = all;
+        let ExprForLoop { pat, expr, body, label, .. } = all;
 
         // Basically just expand to a `poll` loop
-        let tokens = quote! {{
+        let tokens = quote_cs! {{
             let mut __stream = #expr;
             #label
-            #colon_token
             loop {
                 let #pat = {
                     extern crate futures_await;
@@ -434,7 +442,7 @@ fn first_last(tokens: &ToTokens) -> (Span, Span) {
     let mut spans = Tokens::new();
     tokens.to_tokens(&mut spans);
     let good_tokens = proc_macro2::TokenStream::from(spans).into_iter().collect::<Vec<_>>();
-    let first_span = good_tokens.first().map(|t| t.span).unwrap_or(Default::default());
+    let first_span = good_tokens.first().map(|t| t.span).unwrap_or(Span::def_site());
     let last_span = good_tokens.last().map(|t| t.span).unwrap_or(first_span);
     (first_span, last_span)
 }
@@ -480,14 +488,14 @@ fn replace_bangs(input: proc_macro2::TokenStream, replacements: &[&ToTokens])
     new_tokens.into()
 }
 
-struct AsyncStreamArg(syn::Ident, Option<syn::Ty>);
+struct AsyncStreamArg(syn::Ident, Option<syn::Type>);
 
 impl synom::Synom for AsyncStreamArg {
     named!(parse -> Self, do_parse!(
         i: syn!(syn::Ident) >>
         p: option!(do_parse!(
-            syn!(syn::tokens::Eq) >>
-            p: syn!(syn::Ty) >>
+            syn!(syn::token::Eq) >>
+            p: syn!(syn::Type) >>
             (p))) >>
         (AsyncStreamArg(i, p))));
 }
@@ -496,7 +504,7 @@ struct AsyncStreamArgs(Vec<AsyncStreamArg>);
 
 impl synom::Synom for AsyncStreamArgs {
     named!(parse -> Self, map!(
-        option!(parens!(call!(Delimited::<AsyncStreamArg, syn::tokens::Comma>::parse_separated_nonempty))),
-        |p| AsyncStreamArgs(p.map(|d| d.0.into_vec()).unwrap_or_default())
+        option!(parens!(call!(Punctuated::<AsyncStreamArg, syn::token::Comma>::parse_separated_nonempty))),
+        |p| AsyncStreamArgs(p.map(|d| d.1.into_iter().collect()).unwrap_or_default())
     ));
 }

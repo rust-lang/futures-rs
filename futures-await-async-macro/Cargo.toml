@@ -13,14 +13,10 @@ few other assorted macros.
 proc-macro = true
 
 [dependencies]
-futures-await-quote = "0.4"
-proc-macro2 = { version = "0.1", features = ["unstable"] }
+quote = "0.4"
+proc-macro2 = { version = "0.2", features = ["nightly"] }
 
-[dependencies.futures-await-syn]
+[dependencies.syn]
 version = "0.12"
 features = ["full", "fold", "parsing", "printing"]
-default-features = false
-
-[dependencies.futures-await-synom]
-version = "0.12"
 default-features = false
