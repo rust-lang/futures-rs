@@ -2,7 +2,7 @@ extern crate futures;
 
 use futures::{task, Future, Poll, Async};
 use futures::future::{blocking, empty, lazy};
-use futures::executor::CurrentThread;
+use futures::current_thread::*;
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -11,10 +11,10 @@ use std::rc::Rc;
 fn spawning_from_init_future() {
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::run(|_| {
+    run(|_| {
         let cnt = cnt.clone();
 
-        CurrentThread::execute(lazy(move || {
+        spawn(lazy(move || {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
@@ -31,7 +31,7 @@ fn block_waits_for_non_daemon() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::run(|_| {
+    run(|_| {
         let cnt = cnt.clone();
 
         let (tx, rx) = oneshot::channel();
@@ -41,7 +41,7 @@ fn block_waits_for_non_daemon() {
             tx.send(()).unwrap();
         });
 
-        CurrentThread::execute(rx.then(move |_| {
+        spawn(rx.then(move |_| {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
@@ -53,7 +53,7 @@ fn block_waits_for_non_daemon() {
 #[test]
 #[should_panic]
 fn spawning_out_of_executor_context() {
-    CurrentThread::execute(lazy(|| Ok(())));
+    spawn(lazy(|| Ok(())));
 }
 
 #[test]
@@ -62,10 +62,10 @@ fn spawn_many() {
 
     let cnt = Rc::new(Cell::new(0));
 
-    CurrentThread::run(|_| {
+    run(|_| {
         for _ in 0..ITER {
             let cnt = cnt.clone();
-            CurrentThread::execute(lazy(move || {
+            spawn(lazy(move || {
                 cnt.set(1 + cnt.get());
                 Ok::<(), ()>(())
             }));
@@ -90,8 +90,8 @@ impl Future for Never {
 fn outstanding_daemon_tasks_are_dropped_on_return() {
     let mut rc = Rc::new(());
 
-    CurrentThread::run(|_| {
-        CurrentThread::execute_daemon(Never(rc.clone()));
+    run(|_| {
+        spawn_daemon(Never(rc.clone()));
     });
 
     // Ensure the daemon is dropped
@@ -102,9 +102,9 @@ fn outstanding_daemon_tasks_are_dropped_on_return() {
 fn outstanding_tasks_are_dropped_on_cancel() {
     let mut rc = Rc::new(());
 
-    CurrentThread::run(|_| {
-        CurrentThread::execute(Never(rc.clone()));
-        CurrentThread::cancel_all_executing();
+    run(|_| {
+        spawn(Never(rc.clone()));
+        cancel_all_spawned();
     });
 
     // Ensure the daemon is dropped
@@ -114,8 +114,8 @@ fn outstanding_tasks_are_dropped_on_cancel() {
 #[test]
 #[should_panic]
 fn nesting_run() {
-    CurrentThread::run(|_| {
-        CurrentThread::run(|_| {
+    run(|_| {
+        run(|_| {
         });
     });
 }
@@ -123,9 +123,9 @@ fn nesting_run() {
 #[test]
 #[should_panic]
 fn run_in_future() {
-    CurrentThread::run(|_| {
-        CurrentThread::execute(lazy(|| {
-            CurrentThread::run(|_| {
+    run(|_| {
+        spawn(lazy(|| {
+            run(|_| {
             });
             Ok::<(), ()>(())
         }));
@@ -135,7 +135,7 @@ fn run_in_future() {
 #[test]
 #[should_panic]
 fn blocking_within_init() {
-    CurrentThread::run(|_| {
+    run(|_| {
         let _ = blocking(empty::<(), ()>()).wait();
     });
 }
@@ -143,8 +143,8 @@ fn blocking_within_init() {
 #[test]
 #[should_panic]
 fn blocking_in_future() {
-    CurrentThread::run(|_| {
-        CurrentThread::execute(lazy(|| {
+    run(|_| {
+        spawn(lazy(|| {
             let _ = blocking(empty::<(), ()>()).wait();
             Ok::<(), ()>(())
         }));
@@ -184,13 +184,13 @@ fn tasks_are_scheduled_fairly() {
         }
     }
 
-    CurrentThread::run(|_| {
-        CurrentThread::execute(Spin {
+    run(|_| {
+        spawn(Spin {
             state: state.clone(),
             idx: 0,
         });
 
-        CurrentThread::execute_daemon(Spin {
+        spawn_daemon(Spin {
             state: state,
             idx: 1,
         });
