@@ -44,6 +44,7 @@ mod from_err;
 mod fuse;
 mod future;
 mod inspect;
+mod inspect_err;
 mod map;
 mod map_err;
 mod merge;
@@ -75,6 +76,7 @@ pub use self::from_err::FromErr;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::inspect::Inspect;
+pub use self::inspect_err::InspectErr;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
 #[allow(deprecated)]
@@ -1088,12 +1090,24 @@ pub trait Stream {
     ///
     /// This is similar to the `Iterator::inspect` method in the standard
     /// library where it allows easily inspecting each value as it passes
-    /// through the stream, for example to debug what's going.
+    /// through the stream, for example to debug what's going on.
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
         where F: FnMut(&Self::Item),
               Self: Sized,
     {
         inspect::new(self, f)
+    }
+
+    /// Do something with the error of this stream, afterwards passing it on.
+    ///
+    /// This is similar to the `Stream::inspect` method where it allows
+    /// easily inspecting the error as it passes through the stream, for
+    /// example to debug what's going on.
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+        where F: FnMut(&Self::Error),
+              Self: Sized,
+    {
+        inspect_err::new(self, f)
     }
 }
 
