@@ -23,6 +23,11 @@ impl<S: Sink> Flush<S> {
     pub fn get_mut(&mut self) -> &mut S {
         self.sink.as_mut().expect("Attempted `Flush::get_mut` after the flush completed")
     }
+
+    /// Consume the `Flush` and return the inner sink.
+    pub fn into_inner(self) -> S {
+        self.sink.expect("Attempted `Flush::into_inner` after the flush completed")
+    }
 }
 
 impl<S: Sink> Future for Flush<S> {
