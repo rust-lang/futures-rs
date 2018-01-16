@@ -23,6 +23,7 @@ pub struct JoinAll<I>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
+    poll_idx: usize,
     elems: Vec<ElemState<<I::Item as IntoFuture>::Future>>,
 }
 
@@ -34,6 +35,7 @@ impl<I> fmt::Debug for JoinAll<I>
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("JoinAll")
+            .field("poll_idx", &self.poll_idx)
             .field("elems", &self.elems)
             .finish()
     }
@@ -80,7 +82,7 @@ pub fn join_all<I>(i: I) -> JoinAll<I>
     let elems = i.into_iter().map(|f| {
         ElemState::Pending(f.into_future())
     }).collect();
-    JoinAll { elems: elems }
+    JoinAll { poll_idx: 0, elems: elems }
 }
 
 impl<I> Future for JoinAll<I>
@@ -94,7 +96,7 @@ impl<I> Future for JoinAll<I>
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut all_done = true;
 
-        for idx in 0 .. self.elems.len() {
+        for idx in (self.poll_idx..self.elems.len()).chain(0..self.poll_idx) {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
                     match t.poll() {
@@ -119,6 +121,12 @@ impl<I> Future for JoinAll<I>
                 }
             }
         }
+
+        self.poll_idx = if self.elems.is_empty() { 
+            0 
+        } else {
+            (self.poll_idx + 1) % self.elems.len()
+        };
 
         if all_done {
             let elems = mem::replace(&mut self.elems, Vec::new());
