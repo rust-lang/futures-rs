@@ -8,7 +8,7 @@ use {Future, Poll, IntoFuture, Async};
 macro_rules! generate {
     ($(
         $(#[$doc:meta])*
-        ($Join:ident, $new:ident, <A, $($B:ident),*>),
+        ($Join:ident, $count: expr, $new:ident, <A, $($B:ident),*>),
     )*) => ($(
         $(#[$doc])*
         #[must_use = "futures do nothing unless polled"]
@@ -16,6 +16,7 @@ macro_rules! generate {
             where A: Future,
                   $($B: Future<Error=A::Error>),*
         {
+            poll_idx: usize,
             a: MaybeDone<A>,
             $($B: MaybeDone<$B>,)*
         }
@@ -41,6 +42,7 @@ macro_rules! generate {
                   $($B: Future<Error=A::Error>),*
         {
             $Join {
+                poll_idx: 0,
                 a: MaybeDone::NotYet(a),
                 $($B: MaybeDone::NotYet($B)),*
             }
@@ -64,22 +66,36 @@ macro_rules! generate {
             type Error = A::Error;
 
             fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-                let mut all_done = match self.a.poll() {
-                    Ok(done) => done,
-                    Err(e) => {
-                        self.erase();
-                        return Err(e)
+                let count = $count;
+
+                let mut all_done = true;
+                for i in (self.poll_idx..count).chain(0..self.poll_idx) {
+                    let mut tracked = 0;
+                    if i == 0 {
+                        all_done = match self.a.poll() {
+                            Ok(done) => all_done && done,
+                            Err(e) => {
+                                self.erase();
+                                return Err(e)
+                            }
+                        };
                     }
-                };
-                $(
-                    all_done = match self.$B.poll() {
-                        Ok(done) => all_done && done,
-                        Err(e) => {
-                            self.erase();
-                            return Err(e)
+
+                    $(
+                        tracked += 1;
+                        if i == tracked {
+                            all_done = match self.$B.poll() {
+                                Ok(done) => all_done && done,
+                                Err(e) => {
+                                    self.erase();
+                                    return Err(e)
+                                }
+                            }
                         }
-                    };
-                )*
+                    )*
+                }
+
+                self.poll_idx = (self.poll_idx + 1) % count;
 
                 if all_done {
                     Ok(Async::Ready((self.a.take(), $(self.$B.take()),*)))
@@ -119,25 +135,25 @@ generate! {
     /// complete.
     ///
     /// This is created by the `Future::join` method.
-    (Join, new, <A, B>),
+    (Join, 2, new, <A, B>),
 
     /// Future for the `join3` combinator, waiting for three futures to
     /// complete.
     ///
     /// This is created by the `Future::join3` method.
-    (Join3, new3, <A, B, C>),
+    (Join3, 3, new3, <A, B, C>),
 
     /// Future for the `join4` combinator, waiting for four futures to
     /// complete.
     ///
     /// This is created by the `Future::join4` method.
-    (Join4, new4, <A, B, C, D>),
+    (Join4, 4, new4, <A, B, C, D>),
 
     /// Future for the `join5` combinator, waiting for five futures to
     /// complete.
     ///
     /// This is created by the `Future::join5` method.
-    (Join5, new5, <A, B, C, D, E>),
+    (Join5, 5, new5, <A, B, C, D, E>),
 }
 
 #[derive(Debug)]
