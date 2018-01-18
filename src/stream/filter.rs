@@ -1,4 +1,4 @@
-use {Async, Poll};
+use {Async, Future, IntoFuture, Poll, Sink};
 use stream::Stream;
 
 /// A stream combinator used to filter the results of a stream and only yield
@@ -7,22 +7,33 @@ use stream::Stream;
 /// This structure is produced by the `Stream::filter` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Filter<S, F> {
+pub struct Filter<S, P, R>
+    where S: Stream,
+          P: FnMut(&S::Item) -> R,
+          R: IntoFuture<Item=bool, Error=S::Error>,
+{
     stream: S,
-    f: F,
+    pred: P,
+    pending: Option<(R::Future, S::Item)>,
 }
 
-pub fn new<S, F>(s: S, f: F) -> Filter<S, F>
+pub fn new<S, P, R>(s: S, pred: P) -> Filter<S, P, R>
     where S: Stream,
-          F: FnMut(&S::Item) -> bool,
+          P: FnMut(&S::Item) -> R,
+          R: IntoFuture<Item=bool, Error=S::Error>,
 {
     Filter {
         stream: s,
-        f: f,
+        pred: pred,
+        pending: None,
     }
 }
 
-impl<S, F> Filter<S, F> {
+impl<S, P, R> Filter<S, P, R>
+    where S: Stream,
+          P: FnMut(&S::Item) -> R,
+          R: IntoFuture<Item=bool, Error=S::Error>,
+{
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -48,8 +59,11 @@ impl<S, F> Filter<S, F> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> ::sink::Sink for Filter<S, F>
-    where S: ::sink::Sink
+impl<S, P, R> ::sink::Sink for Filter<S, P, R>
+    where S: Stream,
+          P: FnMut(&S::Item) -> R,
+          R: IntoFuture<Item=bool, Error=S::Error>,
+          S: Sink,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
@@ -67,22 +81,36 @@ impl<S, F> ::sink::Sink for Filter<S, F>
     }
 }
 
-impl<S, F> Stream for Filter<S, F>
+impl<S, P, R> Stream for Filter<S, P, R>
     where S: Stream,
-          F: FnMut(&S::Item) -> bool,
+          P: FnMut(&S::Item) -> R,
+          R: IntoFuture<Item=bool, Error=S::Error>,
 {
     type Item = S::Item;
     type Error = S::Error;
 
     fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
         loop {
-            match try_ready!(self.stream.poll()) {
-                Some(e) => {
-                    if (self.f)(&e) {
-                        return Ok(Async::Ready(Some(e)))
-                    }
+            if self.pending.is_none() {
+                let item = match try_ready!(self.stream.poll()) {
+                    Some(e) => e,
+                    None => return Ok(Async::Ready(None)),
+                };
+                let fut = ((self.pred)(&item)).into_future();
+                self.pending = Some((fut, item));
+            }
+
+            match self.pending.as_mut().unwrap().0.poll() {
+                Ok(Async::Ready(true)) => {
+                    let (_, item) = self.pending.take().unwrap();
+                    return Ok(Async::Ready(Some(item)));
                 }
-                None => return Ok(Async::Ready(None)),
+                Ok(Async::Ready(false)) => self.pending = None,
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Err(e) => {
+                    self.pending = None;
+                    return Err(e)
+                }
             }
         }
     }

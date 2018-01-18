@@ -350,9 +350,10 @@ pub trait Stream {
     /// predicate.
     ///
     /// As values of this stream are made available, the provided predicate will
-    /// be run against them. If the predicate returns `true` then the stream
-    /// will yield the value, but if the predicate returns `false` then the
-    /// value will be discarded and the next value will be produced.
+    /// be run against them. If the predicate returns a `Future` which resolves
+    /// to `true`, then the stream will yield the value, but if the predicate
+    /// returns a `Future` which resolves to `false`, then the  value will be
+    /// discarded and the next value will be produced.
     ///
     /// All errors are passed through without filtering in this combinator.
     ///
@@ -363,17 +364,19 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
+    /// use futures::future;
     /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let evens = rx.filter(|x| x % 2 == 0);
+    /// let evens = rx.filter(|x| future::ok(x % 2 == 0));
     /// ```
-    fn filter<F>(self, f: F) -> Filter<Self, F>
-        where F: FnMut(&Self::Item) -> bool,
-              Self: Sized
+    fn filter<P, R>(self, pred: P) -> Filter<Self, P, R>
+        where P: FnMut(&Self::Item) -> R,
+              R: IntoFuture<Item=bool, Error=Self::Error>,
+              Self: Sized,
     {
-        filter::new(self, f)
+        filter::new(self, pred)
     }
 
     /// Filters the values produced by this stream while simultaneously mapping

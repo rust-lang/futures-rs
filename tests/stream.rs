@@ -88,7 +88,7 @@ fn fold() {
 
 #[test]
 fn filter() {
-    assert_done(|| list().filter(|a| *a % 2 == 0).collect(), Ok(vec![2]));
+    assert_done(|| list().filter(|a| ok(*a % 2 == 0)).collect(), Ok(vec![2]));
 }
 
 #[test]
