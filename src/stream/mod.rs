@@ -393,21 +393,25 @@ pub trait Stream {
     /// # Examples
     ///
     /// ```
+    /// use futures::future;
     /// use futures::prelude::*;
     /// use futures::sync::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens_plus_one = rx.filter_map(|x| {
-    ///     if x % 0 == 2 {
-    ///         Some(x + 1)
-    ///     } else {
-    ///         None
-    ///     }
+    ///     future::ok(
+    ///         if x % 0 == 2 {
+    ///             Some(x + 1)
+    ///         } else {
+    ///             None
+    ///         }
+    ///     )
     /// });
     /// ```
-    fn filter_map<F, B>(self, f: F) -> FilterMap<Self, F>
-        where F: FnMut(Self::Item) -> Option<B>,
-              Self: Sized
+    fn filter_map<F, R, B>(self, f: F) -> FilterMap<Self, F, R>
+        where F: FnMut(Self::Item) -> R,
+              R: IntoFuture<Item=Option<B>, Error=Self::Error>,
+              Self: Sized,
     {
         filter_map::new(self, f)
     }

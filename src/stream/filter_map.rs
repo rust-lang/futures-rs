@@ -1,4 +1,4 @@
-use {Async, Poll};
+use {Async, Future, IntoFuture, Poll};
 use stream::Stream;
 
 /// A combinator used to filter the results of a stream and simultaneously map
@@ -7,22 +7,33 @@ use stream::Stream;
 /// This structure is returned by the `Stream::filter_map` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct FilterMap<S, F> {
+pub struct FilterMap<S, F, R>
+    where S: Stream,
+          F: FnMut(S::Item) -> R,
+          R: IntoFuture<Error=S::Error>,
+{
     stream: S,
     f: F,
+    pending: Option<R::Future>,
 }
 
-pub fn new<S, F, B>(s: S, f: F) -> FilterMap<S, F>
+pub fn new<S, F, R>(s: S, f: F) -> FilterMap<S, F, R>
     where S: Stream,
-          F: FnMut(S::Item) -> Option<B>,
+          F: FnMut(S::Item) -> R,
+          R: IntoFuture<Error=S::Error>,
 {
     FilterMap {
         stream: s,
         f: f,
+        pending: None,
     }
 }
 
-impl<S, F> FilterMap<S, F> {
+impl<S, F, R> FilterMap<S, F, R>
+    where S: Stream,
+          F: FnMut(S::Item) -> R,
+          R: IntoFuture<Error=S::Error>,
+{
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -48,8 +59,10 @@ impl<S, F> FilterMap<S, F> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> ::sink::Sink for FilterMap<S, F>
-    where S: ::sink::Sink
+impl<S, F, R> ::sink::Sink for FilterMap<S, F, R>
+    where S: Stream + ::sink::Sink,
+          F: FnMut(S::Item) -> R,
+          R: IntoFuture<Error=S::Error>,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
@@ -67,22 +80,36 @@ impl<S, F> ::sink::Sink for FilterMap<S, F>
     }
 }
 
-impl<S, F, B> Stream for FilterMap<S, F>
+impl<S, F, R, B> Stream for FilterMap<S, F, R>
     where S: Stream,
-          F: FnMut(S::Item) -> Option<B>,
+          F: FnMut(S::Item) -> R,
+          R: IntoFuture<Item=Option<B>, Error=S::Error>,
 {
     type Item = B;
     type Error = S::Error;
 
     fn poll(&mut self) -> Poll<Option<B>, S::Error> {
         loop {
-            match try_ready!(self.stream.poll()) {
-                Some(e) => {
-                    if let Some(e) = (self.f)(e) {
-                        return Ok(Async::Ready(Some(e)))
-                    }
+            if self.pending.is_none() {
+                let item = match try_ready!(self.stream.poll()) {
+                    Some(e) => e,
+                    None => return Ok(Async::Ready(None)),
+                };
+                let fut = ((self.f)(item)).into_future();
+                self.pending = Some(fut);
+            }
+
+            match self.pending.as_mut().unwrap().poll() {
+                x @ Ok(Async::Ready(Some(_))) => {
+                    self.pending = None;
+                    return x
                 }
-                None => return Ok(Async::Ready(None)),
+                Ok(Async::Ready(None)) => self.pending = None,
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Err(e) => {
+                    self.pending = None;
+                    return Err(e)
+                }
             }
         }
     }
