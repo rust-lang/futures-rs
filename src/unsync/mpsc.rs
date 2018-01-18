@@ -35,7 +35,6 @@ fn channel_<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
         capacity: buffer,
         blocked_senders: VecDeque::new(),
         blocked_recv: None,
-        sender_count: 1,
     }));
     let sender = Sender { shared: Rc::downgrade(&shared) };
     let receiver = Receiver { state: State::Open(shared) };
@@ -48,8 +47,6 @@ struct Shared<T> {
     capacity: Option<usize>,
     blocked_senders: VecDeque<Task>,
     blocked_recv: Option<Task>,
-    // TODO: Redundant to Rc::weak_count; use that if/when stabilized
-    sender_count: usize,
 }
 
 /// The transmission end of a channel.
@@ -64,7 +61,7 @@ impl<T> Sender<T> {
     fn do_send(&self, msg: T) -> StartSend<T, SendError<T>> {
         let shared = match self.shared.upgrade() {
             Some(shared) => shared,
-            None => return Err(SendError(msg)),
+            None => return Err(SendError(msg)), // receiver was dropped
         };
         let mut shared = shared.borrow_mut();
 
@@ -76,7 +73,6 @@ impl<T> Sender<T> {
             _ => {
                 shared.buffer.push_back(msg);
                 if let Some(task) = shared.blocked_recv.take() {
-                    drop(shared);
                     task.notify();
                 }
                 Ok(AsyncSink::Ready)
@@ -87,11 +83,7 @@ impl<T> Sender<T> {
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Self {
-        let result = Sender { shared: self.shared.clone() };
-        if let Some(shared) = self.shared.upgrade() {
-            shared.borrow_mut().sender_count += 1;
-        }
-        result
+        Sender { shared: self.shared.clone() }
     }
 }
 
@@ -118,12 +110,9 @@ impl<T> Drop for Sender<T> {
             Some(shared) => shared,
             None => return,
         };
-        let mut shared = shared.borrow_mut();
-        shared.sender_count -= 1;
-        if shared.sender_count == 0 {
-            if let Some(task) = shared.blocked_recv.take() {
+        if Rc::weak_count(&shared) == 0 {
+            if let Some(task) = shared.borrow_mut().blocked_recv.take() {
                 // Wake up receiver as its stream has ended
-                drop(shared);
                 task.notify();
             }
         }
