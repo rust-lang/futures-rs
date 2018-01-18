@@ -242,7 +242,7 @@ fn with_flush_propagate() {
     let mut task = executor::spawn(sink.flush());
     assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
     assert!(!flag.get());
-    assert_eq!(task.get_mut().get_mut().get_mut().force_flush(), vec![0, 1]);
+    assert_eq!(task.get_mut().get_mut().unwrap().get_mut().force_flush(), vec![0, 1]);
     assert!(flag.get());
     assert!(task.poll_future_notify(&flag, 0).unwrap().is_ready());
 }

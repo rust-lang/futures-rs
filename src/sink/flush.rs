@@ -15,18 +15,21 @@ pub fn new<S: Sink>(sink: S) -> Flush<S> {
 
 impl<S: Sink> Flush<S> {
     /// Get a shared reference to the inner sink.
-    pub fn get_ref(&self) -> &S {
-        self.sink.as_ref().expect("Attempted `Flush::get_ref` after the flush completed")
+    /// Returns `None` if the sink has already been flushed.
+    pub fn get_ref(&self) -> Option<&S> {
+        self.sink.as_ref()
     }
 
     /// Get a mutable reference to the inner sink.
-    pub fn get_mut(&mut self) -> &mut S {
-        self.sink.as_mut().expect("Attempted `Flush::get_mut` after the flush completed")
+    /// Returns `None` if the sink has already been flushed.
+    pub fn get_mut(&mut self) -> Option<&mut S> {
+        self.sink.as_mut()
     }
 
     /// Consume the `Flush` and return the inner sink.
-    pub fn into_inner(self) -> S {
-        self.sink.expect("Attempted `Flush::into_inner` after the flush completed")
+    /// Returns `None` if the sink has already been flushed.
+    pub fn into_inner(self) -> Option<S> {
+        self.sink
     }
 }
 
