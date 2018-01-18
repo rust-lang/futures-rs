@@ -44,6 +44,29 @@ fn mpsc_rx_end() {
 }
 
 #[test]
+fn mpsc_tx_clone_weak_rc() {
+    let (tx, mut rx) = mpsc::channel::<i32>(1); // rc = 1
+
+    let tx_clone = tx.clone(); // rc = 2
+    lazy(|| {
+        assert_eq!(rx.poll().unwrap(), Async::NotReady);
+        Ok(()) as Result<(), ()>
+    }).wait().unwrap();
+
+    drop(tx); // rc = 1
+    lazy(|| {
+        assert_eq!(rx.poll().unwrap(), Async::NotReady);
+        Ok(()) as Result<(), ()>
+    }).wait().unwrap();
+
+    drop(tx_clone); // rc = 0
+    lazy(|| {
+        assert_eq!(rx.poll().unwrap(), Async::Ready(None));
+        Ok(()) as Result<(), ()>
+    }).wait().unwrap();
+}
+
+#[test]
 fn mpsc_tx_notready() {
     let (tx, _rx) = mpsc::channel::<i32>(1);
     let tx = tx.send(1).wait().unwrap();
