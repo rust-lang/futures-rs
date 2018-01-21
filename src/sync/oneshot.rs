@@ -477,7 +477,7 @@ pub fn spawn<F, E>(future: F, executor: &E) -> SpawnHandle<F::Item, F::Error>
 {
     let data = Arc::new(ExecuteInner {
         inner: Inner::new(),
-        keep_running: AtomicBool::new(true),
+        keep_running: AtomicBool::new(false),
     });
     executor.execute(Execute {
         future: future,
@@ -506,7 +506,7 @@ impl<T, E> SpawnHandle<T, E> {
     /// well if the future hasn't already resolved. This function can be used
     /// when to drop this future but keep executing the underlying future.
     pub fn forget(self) {
-        self.rx.keep_running.store(false, SeqCst);
+        self.rx.keep_running.store(true, SeqCst);
     }
 }
 
