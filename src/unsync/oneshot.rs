@@ -260,7 +260,7 @@ pub fn spawn<F, E>(future: F, executor: &E) -> SpawnHandle<F::Item, F::Error>
     where F: Future,
           E: Executor<Execute<F>>,
 {
-    let flag = Rc::new(Cell::new(true));
+    let flag = Rc::new(Cell::new(false));
     let (tx, rx) = channel();
     executor.execute(Execute {
         future: future,
@@ -293,7 +293,7 @@ impl<T, E> SpawnHandle<T, E> {
     /// well if the future hasn't already resolved. This function can be used
     /// when to drop this future but keep executing the underlying future.
     pub fn forget(self) {
-        self.keep_running.set(false);
+        self.keep_running.set(true);
     }
 }
 
