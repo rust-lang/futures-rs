@@ -4,7 +4,7 @@ extern crate test;
 extern crate futures;
 
 use futures::{task, Async};
-use futures::executor::CurrentThread;
+use futures::current_thread;
 use futures::future::{lazy, poll_fn};
 
 use test::Bencher;
@@ -19,10 +19,10 @@ fn execute_oneshot(b: &mut Bencher) {
     b.iter(move || {
         let cnt = Rc::new(Cell::new(0));
 
-        CurrentThread::run(|_| {
+        current_thread::run(|_| {
             for _ in 0..ITER {
                 let cnt = cnt.clone();
-                CurrentThread::execute(lazy(move || {
+                current_thread::spawn(lazy(move || {
                     cnt.set(1 + cnt.get());
                     Ok::<(), ()>(())
                 }));
@@ -41,12 +41,12 @@ fn execute_yield_many(b: &mut Bencher) {
     b.iter(move || {
         let cnt = Rc::new(Cell::new(0));
 
-        CurrentThread::run(|_| {
+        current_thread::run(|_| {
             for _ in 0..TASKS {
                 let cnt = cnt.clone();
                 let mut rem = YIELDS;
 
-                CurrentThread::execute(poll_fn(move || {
+                current_thread::spawn(poll_fn(move || {
                     cnt.set(1 + cnt.get());
                     rem -= 1;
 
@@ -72,7 +72,7 @@ fn execute_daisy(b: &mut Bencher) {
 
     fn daisy(rem: usize, cnt: Rc<Cell<usize>>) {
         if rem > 0 {
-            CurrentThread::execute(lazy(move || {
+            current_thread::spawn(lazy(move || {
                 cnt.set(1 + cnt.get());
                 daisy(rem - 1, cnt);
                 Ok(())
@@ -83,7 +83,7 @@ fn execute_daisy(b: &mut Bencher) {
     b.iter(move || {
         cnt.set(0);
 
-        CurrentThread::run(|_| {
+        current_thread::run(|_| {
             daisy(DEPTH, cnt.clone());
         });
 
