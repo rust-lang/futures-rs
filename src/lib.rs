@@ -26,7 +26,7 @@ pub use futures::*;
 pub mod prelude {
     pub use futures::prelude::*;
     pub use async_macro::{async, async_stream, async_block, async_stream_block};
-    pub use await_macro::{await, stream_yield};
+    pub use await_macro::{await, stream_yield, await_item};
 }
 
 /// A hidden module that's the "runtime support" for the async/await syntax.
