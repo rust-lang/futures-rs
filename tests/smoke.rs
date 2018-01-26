@@ -174,6 +174,24 @@ pub fn _stream8() -> Result<(), i32> {
 //     }
 // }
 
+#[async_stream(item = u64)]
+fn await_item_stream() -> Result<(), i32> {
+    stream_yield!(0);
+    stream_yield!(1);
+    Ok(())
+}
+
+#[async]
+fn test_await_item() -> Result<(), ()> {
+    let mut stream = await_item_stream();
+
+    assert_eq!(await_item!(stream), Ok(Some(0)));
+    assert_eq!(await_item!(stream), Ok(Some(1)));
+    assert_eq!(await_item!(stream), Ok(None));
+
+    Ok(())
+}
+
 #[test]
 fn main() {
     assert_eq!(foo().wait(), Ok(1));
@@ -184,6 +202,7 @@ fn main() {
     assert_eq!(_foo6(8).wait(), Err(8));
     // assert_eq!(A(11).a_foo().wait(), Ok(11));
     assert_eq!(loop_in_loop().wait(), Ok(true));
+    assert_eq!(test_await_item().wait(), Ok(()));
 }
 
 #[async]

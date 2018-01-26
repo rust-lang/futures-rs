@@ -27,6 +27,30 @@ macro_rules! await {
     })
 }
 
+///
+/// Await an item from the stream
+/// Basically it does same as `await` macro, but for streams
+///
+
+#[macro_export]
+macro_rules! await_item {
+    ($e:expr) => ({
+        loop {
+            match ::futures::Stream::poll(&mut $e) {
+                ::futures::__rt::std::result::Result::Ok(::futures::Async::Ready(e)) => {
+                    break ::futures::__rt::std::result::Result::Ok(e)
+                }
+                ::futures::__rt::std::result::Result::Ok(::futures::Async::NotReady) => {}
+                ::futures::__rt::std::result::Result::Err(e) => {
+                    break ::futures::__rt::std::result::Result::Err(e)
+                }
+            }
+
+            yield ::futures::Async::NotReady
+        }
+    })
+}
+
 // TODO: This macro needs to use an extra temporary variable because of
 // rust-lang/rust#44197, once that's fixed this should just use $e directly
 // inside the yield expression
