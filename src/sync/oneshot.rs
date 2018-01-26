@@ -120,14 +120,32 @@ impl<T> Inner<T> {
             return Err(t)
         }
 
-        // Note that this lock acquisition should always succeed as it can only
-        // interfere with `poll` in `Receiver` which is only called when the
-        // `complete` flag is true, which we're setting here.
-        let mut slot = self.data.try_lock().unwrap();
-        assert!(slot.is_none());
-        *slot = Some(t);
-        drop(slot);
-        Ok(())
+        // Note that this lock acquisition may fail if the receiver
+        // is closed and sets the `complete` flag to true, whereupon
+        // the receiver may call `poll()`.
+        if let Some(mut slot) = self.data.try_lock() {
+            assert!(slot.is_none());
+            *slot = Some(t);
+            drop(slot);
+
+            // If the receiver called `close()` between the check at the
+            // start of the function, and the lock being released, then
+            // the receiver may not be around to receive it, so try to
+            // pull it back out.
+            if self.complete.load(SeqCst) {
+                // If lock acquisition fails, then receiver is actually
+                // receiving it, so we're good.
+                if let Some(mut slot) = self.data.try_lock() {
+                    if let Some(t) = slot.take() {
+                        return Err(t);
+                    }
+                }
+            }
+            Ok(())
+        } else {
+            // Must have been closed
+            Err(t)
+        }
     }
 
     fn poll_cancel(&self) -> Poll<(), ()> {
@@ -239,10 +257,15 @@ impl<T> Inner<T> {
         // If we're not done, and we're not complete, though, then we've
         // successfully blocked our task and we return `NotReady`.
         if done || self.complete.load(SeqCst) {
-            match self.data.try_lock().unwrap().take() {
-                Some(data) => Ok(data.into()),
-                None => Err(Canceled),
+            // If taking the lock fails, the sender will realise that the we're
+            // `done` when it checks the `complete` flag on the way out, and will
+            // treat the send as a failure.
+            if let Some(mut slot) = self.data.try_lock() {
+                if let Some(data) = slot.take() {
+                    return Ok(data.into());
+                }
             }
+            Err(Canceled)
         } else {
             Ok(Async::NotReady)
         }
@@ -454,7 +477,7 @@ pub fn spawn<F, E>(future: F, executor: &E) -> SpawnHandle<F::Item, F::Error>
 {
     let data = Arc::new(ExecuteInner {
         inner: Inner::new(),
-        keep_running: AtomicBool::new(true),
+        keep_running: AtomicBool::new(false),
     });
     executor.execute(Execute {
         future: future,
@@ -483,7 +506,7 @@ impl<T, E> SpawnHandle<T, E> {
     /// well if the future hasn't already resolved. This function can be used
     /// when to drop this future but keep executing the underlying future.
     pub fn forget(self) {
-        self.rx.keep_running.store(false, SeqCst);
+        self.rx.keep_running.store(true, SeqCst);
     }
 }
 

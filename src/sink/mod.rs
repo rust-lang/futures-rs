@@ -21,6 +21,7 @@ mod from_err;
 mod send;
 mod send_all;
 mod map_err;
+mod fanout;
 
 if_std! {
     mod blocking;
@@ -85,6 +86,7 @@ pub use self::send::Send;
 pub use self::send_all::SendAll;
 pub use self::map_err::SinkMapErr;
 pub use self::from_err::SinkFromErr;
+pub use self::fanout::Fanout;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -333,7 +335,7 @@ pub trait Sink {
     ///
     /// # Examples
     /// ---
-    /// Using this function with an iterator through use of the `stream::iter()`
+    /// Using this function with an iterator through use of the `stream::iter_ok()`
     /// function
     ///
     /// ```
@@ -344,7 +346,7 @@ pub trait Sink {
     /// let (tx, rx) = mpsc::channel::<i32>(5);
     ///
     /// let tx = tx.with_flat_map(|x| {
-    ///     stream::iter(vec![42; x].into_iter().map(|y|Ok(y)))
+    ///     stream::iter_ok(vec![42; x].into_iter().map(|y| y))
     /// });
     /// tx.send(5).wait().unwrap();
     /// assert_eq!(rx.collect().wait(), Ok(vec![42, 42, 42, 42, 42]))
@@ -407,6 +409,18 @@ pub trait Sink {
         where Self: Sized
     {
         buffer::new(self, amt)
+    }
+
+    /// Fanout items to multiple sinks.
+    ///
+    /// This adapter clones each incoming item and forwards it to both this as well as
+    /// the other sink at the same time.
+    fn fanout<S>(self, other: S) -> Fanout<Self, S>
+        where Self: Sized,
+              Self::SinkItem: Clone,
+              S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
+    {
+        fanout::new(self, other)
     }
 
     /// A future that completes when the sink has finished processing all

@@ -13,8 +13,8 @@
 //! use futures::Future;
 //! use futures_cpupool::CpuPool;
 //!
-//! # fn long_running_future(a: u32) -> futures::future::BoxFuture<u32, ()> {
-//! #     futures::future::result(Ok(a)).boxed()
+//! # fn long_running_future(a: u32) -> Box<futures::future::Future<Item = u32, Error = ()> + Send> {
+//! #     Box::new(futures::future::result(Ok(a)))
 //! # }
 //! # fn main() {
 //!
@@ -80,6 +80,7 @@ pub struct CpuPool {
 /// of CPUs on the host. But you can change it until you call `create()`.
 pub struct Builder {
     pool_size: usize,
+    stack_size: usize,
     name_prefix: Option<String>,
     after_start: Option<Arc<Fn() + Send + Sync>>,
     before_stop: Option<Arc<Fn() + Send + Sync>>,
@@ -99,8 +100,6 @@ struct Inner {
     rx: Mutex<mpsc::Receiver<Message>>,
     cnt: AtomicUsize,
     size: usize,
-    after_start: Option<Arc<Fn() + Send + Sync>>,
-    before_stop: Option<Arc<Fn() + Send + Sync>>,
 }
 
 impl fmt::Debug for CpuPool {
@@ -250,8 +249,8 @@ impl Inner {
         self.tx.lock().unwrap().send(msg).unwrap();
     }
 
-    fn work(&self) {
-        self.after_start.as_ref().map(|fun| fun());
+    fn work(&self, after_start: Option<Arc<Fn() + Send + Sync>>, before_stop: Option<Arc<Fn() + Send + Sync>>) {
+        after_start.map(|fun| fun());
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
             match msg {
@@ -259,7 +258,7 @@ impl Inner {
                 Message::Close => break,
             }
         }
-        self.before_stop.as_ref().map(|fun| fun());
+        before_stop.map(|fun| fun());
     }
 }
 
@@ -302,7 +301,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
     type Error = E;
 
     fn poll(&mut self) -> Poll<T, E> {
-        match self.inner.poll().expect("shouldn't be canceled") {
+        match self.inner.poll().expect("cannot poll CpuFuture twice") {
             Async::Ready(Ok(Ok(e))) => Ok(e.into()),
             Async::Ready(Ok(Err(e))) => Err(e),
             Async::Ready(Err(e)) => panic::resume_unwind(e),
@@ -342,6 +341,7 @@ impl Builder {
     pub fn new() -> Builder {
         Builder {
             pool_size: num_cpus::get(),
+            stack_size: 0,
             name_prefix: None,
             after_start: None,
             before_stop: None,
@@ -356,6 +356,12 @@ impl Builder {
         self
     }
 
+    /// Set stack size of threads in the pool.
+    pub fn stack_size(&mut self, stack_size: usize) -> &mut Self {
+        self.stack_size = stack_size;
+        self
+    }
+
     /// Set thread name prefix of a future CpuPool
     ///
     /// Thread name prefix is used for generating thread names. For example, if prefix is
@@ -366,9 +372,11 @@ impl Builder {
     }
 
     /// Execute function `f` right after each thread is started but before
-    /// running any jobs on it
+    /// running any jobs on it.
     ///
-    /// This is initially intended for bookkeeping and monitoring uses
+    /// This is initially intended for bookkeeping and monitoring uses.
+    /// The `f` will be deconstructed after the `builder` is deconstructed
+    /// and all threads in the pool has executed it.
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
         where F: Fn() + Send + Sync + 'static
     {
@@ -376,9 +384,11 @@ impl Builder {
         self
     }
 
-    /// Execute function `f` before each worker thread stops
+    /// Execute function `f` before each worker thread stops.
     ///
-    /// This is initially intended for bookkeeping and monitoring uses
+    /// This is initially intended for bookkeeping and monitoring uses.
+    /// The `f` will be deconstructed after the `builder` is deconstructed
+    /// and all threads in the pool has executed it.
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
         where F: Fn() + Send + Sync + 'static
     {
@@ -399,21 +409,42 @@ impl Builder {
                 rx: Mutex::new(rx),
                 cnt: AtomicUsize::new(1),
                 size: self.pool_size,
-                after_start: self.after_start.clone(),
-                before_stop: self.before_stop.clone(),
             }),
         };
         assert!(self.pool_size > 0);
 
         for counter in 0..self.pool_size {
             let inner = pool.inner.clone();
+            let after_start = self.after_start.clone();
+            let before_stop = self.before_stop.clone();
             let mut thread_builder = thread::Builder::new();
             if let Some(ref name_prefix) = self.name_prefix {
                 thread_builder = thread_builder.name(format!("{}{}", name_prefix, counter));
             }
-            thread_builder.spawn(move || inner.work()).unwrap();
+            if self.stack_size > 0 {
+                thread_builder = thread_builder.stack_size(self.stack_size);
+            }
+            thread_builder.spawn(move || inner.work(after_start, before_stop)).unwrap();
         }
-
         return pool
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::mpsc;
+
+    #[test]
+    fn test_drop_after_start() {
+        let (tx, rx) = mpsc::sync_channel(2);
+        let _cpu_pool = Builder::new()
+            .pool_size(2)
+            .after_start(move || tx.send(1).unwrap()).create();
+
+        // After Builder is deconstructed, the tx should be droped
+        // so that we can use rx as an iterator.
+        let count = rx.into_iter().count();
+        assert_eq!(count, 2);
     }
 }

@@ -44,6 +44,7 @@ mod from_err;
 mod fuse;
 mod future;
 mod inspect;
+mod inspect_err;
 mod map;
 mod map_err;
 mod merge;
@@ -62,7 +63,9 @@ mod zip;
 mod forward;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
-pub use self::concat::{Concat, Concat2};
+#[allow(deprecated)]
+pub use self::concat::Concat;
+pub use self::concat::Concat2;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -73,6 +76,7 @@ pub use self::from_err::FromErr;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::inspect::Inspect;
+pub use self::inspect_err::InspectErr;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
 #[allow(deprecated)]
@@ -616,6 +620,7 @@ pub trait Stream {
     /// It's important to note that this function will panic if the stream
     /// is empty, which is the reason for its deprecation.
     #[deprecated(since="0.1.14", note="please use `Stream::concat2` instead")]
+    #[allow(deprecated)]
     fn concat(self) -> Concat<Self>
         where Self: Sized,
               Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator,
@@ -642,7 +647,7 @@ pub trait Stream {
     /// use futures::stream;
     /// use futures::future;
     ///
-    /// let number_stream = stream::iter::<_, _, ()>((0..6).map(Ok));
+    /// let number_stream = stream::iter_ok::<_, ()>(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ok(acc + x));
     /// assert_eq!(sum.wait(), Ok(15));
     /// ```
@@ -958,8 +963,8 @@ pub trait Stream {
     /// use futures::prelude::*;
     /// use futures::stream;
     ///
-    /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
-    /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);
+    /// let stream1 = stream::iter_result(vec![Ok(10), Err(false)]);
+    /// let stream2 = stream::iter_result(vec![Err(true), Ok(20)]);
     /// let mut chain = stream1.chain(stream2).wait();
     ///
     /// assert_eq!(Some(Ok(10)), chain.next());
@@ -1071,12 +1076,24 @@ pub trait Stream {
     ///
     /// This is similar to the `Iterator::inspect` method in the standard
     /// library where it allows easily inspecting each value as it passes
-    /// through the stream, for example to debug what's going.
+    /// through the stream, for example to debug what's going on.
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
         where F: FnMut(&Self::Item),
               Self: Sized,
     {
         inspect::new(self, f)
+    }
+
+    /// Do something with the error of this stream, afterwards passing it on.
+    ///
+    /// This is similar to the `Stream::inspect` method where it allows
+    /// easily inspecting the error as it passes through the stream, for
+    /// example to debug what's going on.
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+        where F: FnMut(&Self::Error),
+              Self: Sized,
+    {
+        inspect_err::new(self, f)
     }
 }
 

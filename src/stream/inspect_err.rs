@@ -1,26 +1,26 @@
-use {Stream, Poll, Async};
+use {Stream, Poll};
 
-/// Do something with the items of a stream, passing it on.
+/// Do something with the error of a stream, passing it on.
 ///
-/// This is created by the `Stream::inspect` method.
+/// This is created by the `Stream::inspect_err` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Inspect<S, F> where S: Stream {
+pub struct InspectErr<S, F> where S: Stream {
     stream: S,
     inspect: F,
 }
 
-pub fn new<S, F>(stream: S, f: F) -> Inspect<S, F>
+pub fn new<S, F>(stream: S, f: F) -> InspectErr<S, F>
     where S: Stream,
-          F: FnMut(&S::Item) -> (),
+          F: FnMut(&S::Error) -> (),
 {
-    Inspect {
+    InspectErr {
         stream: stream,
         inspect: f,
     }
 }
 
-impl<S: Stream, F> Inspect<S, F> {
+impl<S: Stream, F> InspectErr<S, F> {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -46,7 +46,7 @@ impl<S: Stream, F> Inspect<S, F> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> ::sink::Sink for Inspect<S, F>
+impl<S, F> ::sink::Sink for InspectErr<S, F>
     where S: ::sink::Sink + Stream
 {
     type SinkItem = S::SinkItem;
@@ -65,20 +65,17 @@ impl<S, F> ::sink::Sink for Inspect<S, F>
     }
 }
 
-impl<S, F> Stream for Inspect<S, F>
+impl<S, F> Stream for InspectErr<S, F>
     where S: Stream,
-          F: FnMut(&S::Item),
+          F: FnMut(&S::Error),
 {
     type Item = S::Item;
     type Error = S::Error;
 
     fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        match try_ready!(self.stream.poll()) {
-            Some(e) => {
-                (self.inspect)(&e);
-                Ok(Async::Ready(Some(e)))
-            }
-            None => Ok(Async::Ready(None)),
-        }
+        self.stream.poll().map_err(|e| {
+            (self.inspect)(&e);
+            e
+        })
     }
 }

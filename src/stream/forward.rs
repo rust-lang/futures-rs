@@ -30,14 +30,28 @@ impl<T, U> Forward<T, U>
           T: Stream,
           T::Error: From<U::SinkError>,
 {
-    fn sink_mut(&mut self) -> &mut U {
-        self.sink.as_mut().take()
-            .expect("Attempted to poll Forward after completion")
+    /// Get a shared reference to the inner sink.
+    /// If this combinator has already been polled to completion, None will be returned.
+    pub fn sink_ref(&self) -> Option<&U> {
+        self.sink.as_ref()
     }
 
-    fn stream_mut(&mut self) -> &mut Fuse<T> {
-        self.stream.as_mut().take()
-            .expect("Attempted to poll Forward after completion")
+    /// Get a mutable reference to the inner sink.
+    /// If this combinator has already been polled to completion, None will be returned.
+    pub fn sink_mut(&mut self) -> Option<&mut U> {
+        self.sink.as_mut()
+    }
+
+    /// Get a shared reference to the inner stream.
+    /// If this combinator has already been polled to completion, None will be returned.
+    pub fn stream_ref(&self) -> Option<&T> {
+        self.stream.as_ref().map(|x| x.get_ref())
+    }
+
+    /// Get a mutable reference to the inner stream.
+    /// If this combinator has already been polled to completion, None will be returned.
+    pub fn stream_mut(&mut self) -> Option<&mut T> {
+        self.stream.as_mut().map(|x| x.get_mut())
     }
 
     fn take_result(&mut self) -> (T, U) {
@@ -50,7 +64,10 @@ impl<T, U> Forward<T, U>
 
     fn try_start_send(&mut self, item: T::Item) -> Poll<(), U::SinkError> {
         debug_assert!(self.buffered.is_none());
-        if let AsyncSink::NotReady(item) = self.sink_mut().start_send(item)? {
+        if let AsyncSink::NotReady(item) = self.sink_mut()
+            .take().expect("Attempted to poll Forward after completion")
+            .start_send(item)?
+        {
             self.buffered = Some(item);
             return Ok(Async::NotReady)
         }
@@ -74,14 +91,17 @@ impl<T, U> Future for Forward<T, U>
         }
 
         loop {
-            match self.stream_mut().poll()? {
+            match self.stream_mut()
+                .take().expect("Attempted to poll Forward after completion")
+                .poll()?
+            {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().close());
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").close());
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::NotReady => {
-                    try_ready!(self.sink_mut().poll_complete());
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").poll_complete());
                     return Ok(Async::NotReady)
                 }
             }

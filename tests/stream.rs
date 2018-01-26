@@ -395,3 +395,17 @@ fn stream_poll_fn() {
 
     assert_eq!(stream::blocking(read_stream).count(), 5);
 }
+
+#[test]
+fn inspect() {
+    let mut seen = vec![];
+    assert_done(|| list().inspect(|&a| seen.push(a)).collect(), Ok(vec![1, 2, 3]));
+    assert_eq!(seen, [1, 2, 3]);
+}
+
+#[test]
+fn inspect_err() {
+    let mut seen = vec![];
+    assert_done(|| err_list().inspect_err(|&a| seen.push(a)).collect(), Err(3));
+    assert_eq!(seen, [3]);
+}

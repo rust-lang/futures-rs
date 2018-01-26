@@ -58,6 +58,7 @@ impl<S> Future for Concat2<S>
 /// yielded item.
 ///
 /// This structure is produced by the `Stream::concat` method.
+#[deprecated(since="0.1.18", note="please use `Stream::Concat2` instead")]
 #[must_use = "streams do nothing unless polled"]
 pub struct Concat<S>
     where S: Stream,
@@ -65,6 +66,7 @@ pub struct Concat<S>
     inner: ConcatSafe<S>
 }
 
+#[allow(deprecated)]
 impl<S: Debug> Debug for Concat<S> where S: Stream, S::Item: Debug {
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
         fmt.debug_struct("Concat")
@@ -73,6 +75,7 @@ impl<S: Debug> Debug for Concat<S> where S: Stream, S::Item: Debug {
     }
 }
 
+#[allow(deprecated)]
 pub fn new<S>(s: S) -> Concat<S>
     where S: Stream,
           S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator,
@@ -82,6 +85,7 @@ pub fn new<S>(s: S) -> Concat<S>
     }
 }
 
+#[allow(deprecated)]
 impl<S> Future for Concat<S>
     where S: Stream,
           S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator,

@@ -182,6 +182,12 @@ impl ::executor::Wakeup for AtomicTask {
     }
 }
 
+impl Default for AtomicTask {
+    fn default() -> Self {
+        AtomicTask::new()
+    }
+}
+
 impl fmt::Debug for AtomicTask {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "AtomicTask")

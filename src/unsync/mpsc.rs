@@ -16,6 +16,7 @@ use task::{self, Task};
 use future::Executor;
 use sink::SendAll;
 use resultstream::{self, Results};
+use unsync::oneshot;
 use {Async, AsyncSink, Future, Poll, StartSend, Sink, Stream};
 
 /// Creates a bounded in-memory channel with buffered storage.
@@ -34,7 +35,6 @@ fn channel_<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
         capacity: buffer,
         blocked_senders: VecDeque::new(),
         blocked_recv: None,
-        sender_count: 1,
     }));
     let sender = Sender { shared: Rc::downgrade(&shared) };
     let receiver = Receiver { state: State::Open(shared) };
@@ -47,8 +47,6 @@ struct Shared<T> {
     capacity: Option<usize>,
     blocked_senders: VecDeque<Task>,
     blocked_recv: Option<Task>,
-    // TODO: Redundant to Rc::weak_count; use that if/when stabilized
-    sender_count: usize,
 }
 
 /// The transmission end of a channel.
@@ -63,7 +61,7 @@ impl<T> Sender<T> {
     fn do_send(&self, msg: T) -> StartSend<T, SendError<T>> {
         let shared = match self.shared.upgrade() {
             Some(shared) => shared,
-            None => return Err(SendError(msg)),
+            None => return Err(SendError(msg)), // receiver was dropped
         };
         let mut shared = shared.borrow_mut();
 
@@ -75,7 +73,6 @@ impl<T> Sender<T> {
             _ => {
                 shared.buffer.push_back(msg);
                 if let Some(task) = shared.blocked_recv.take() {
-                    drop(shared);
                     task.notify();
                 }
                 Ok(AsyncSink::Ready)
@@ -86,11 +83,7 @@ impl<T> Sender<T> {
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Self {
-        let result = Sender { shared: self.shared.clone() };
-        if let Some(shared) = self.shared.upgrade() {
-            shared.borrow_mut().sender_count += 1;
-        }
-        result
+        Sender { shared: self.shared.clone() }
     }
 }
 
@@ -117,12 +110,9 @@ impl<T> Drop for Sender<T> {
             Some(shared) => shared,
             None => return,
         };
-        let mut shared = shared.borrow_mut();
-        shared.sender_count -= 1;
-        if shared.sender_count == 0 {
-            if let Some(task) = shared.blocked_recv.take() {
+        if Rc::weak_count(&shared) == 0 {
+            if let Some(task) = shared.borrow_mut().blocked_recv.take() {
                 // Wake up receiver as its stream has ended
-                drop(shared);
                 task.notify();
             }
         }
@@ -355,12 +345,14 @@ impl<T> SendError<T> {
 /// If this handle is dropped, then the stream will no longer be polled and is
 /// scheduled to be dropped.
 pub struct SpawnHandle<Item, Error> {
-    inner: Receiver<Result<Item, Error>>
+    inner: Receiver<Result<Item, Error>>,
+    _cancel_tx: oneshot::Sender<()>,
 }
 
 /// Type of future which `Executor` instances must be able to execute for `spawn`.
 pub struct Execute<S: Stream> {
-    inner: SendAll<Sender<Result<S::Item, S::Error>>, Results<S, SendError<Result<S::Item, S::Error>>>>
+    inner: SendAll<Sender<Result<S::Item, S::Error>>, Results<S, SendError<Result<S::Item, S::Error>>>>,
+    cancel_rx: oneshot::Receiver<()>,
 }
 
 /// Spawns a `stream` onto the instance of `Executor` provided, `executor`,
@@ -384,12 +376,15 @@ pub fn spawn<S, E>(stream: S, executor: &E, buffer: usize) -> SpawnHandle<S::Ite
     where S: Stream,
           E: Executor<Execute<S>>
 {
+    let (cancel_tx, cancel_rx) = oneshot::channel();
     let (tx, rx) = channel(buffer);
     executor.execute(Execute {
-        inner: tx.send_all(resultstream::new(stream))
+        inner: tx.send_all(resultstream::new(stream)),
+        cancel_rx: cancel_rx,
     }).expect("failed to spawn stream");
     SpawnHandle {
-        inner: rx
+        inner: rx,
+        _cancel_tx: cancel_tx,
     }
 }
 
@@ -417,12 +412,15 @@ pub fn spawn_unbounded<S,E>(stream: S, executor: &E) -> SpawnHandle<S::Item, S::
     where S: Stream,
           E: Executor<Execute<S>>
 {
+    let (cancel_tx, cancel_rx) = oneshot::channel();
     let (tx, rx) = channel_(None);
     executor.execute(Execute {
-        inner: tx.send_all(resultstream::new(stream))
+        inner: tx.send_all(resultstream::new(stream)),
+        cancel_rx: cancel_rx,
     }).expect("failed to spawn stream");
     SpawnHandle {
-        inner: rx
+        inner: rx,
+        _cancel_tx: cancel_tx,
     }
 }
 
@@ -453,6 +451,10 @@ impl<S: Stream> Future for Execute<S> {
     type Error = ();
 
     fn poll(&mut self) -> Poll<(), ()> {
+        match self.cancel_rx.poll() {
+            Ok(Async::NotReady) => (),
+            _ => return Ok(Async::Ready(())),
+        }
         match self.inner.poll() {
             Ok(Async::NotReady) => Ok(Async::NotReady),
             _ => Ok(Async::Ready(()))

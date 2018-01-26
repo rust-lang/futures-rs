@@ -429,7 +429,6 @@ struct RunInner {
 impl Run {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
-    #[allow(deprecated)]
     pub fn run(self) {
         let Run { mut spawn, inner } = self;
 
@@ -439,8 +438,7 @@ impl Run {
             inner.mutex.start_poll();
 
             loop {
-                let unpark: Arc<Unpark> = inner.clone();
-                match spawn.poll_future(unpark) {
+                match spawn.poll_future_notify(&inner, 0) {
                     Ok(Async::NotReady) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),
@@ -463,9 +461,8 @@ impl fmt::Debug for Run {
     }
 }
 
-#[allow(deprecated)]
-impl Unpark for RunInner {
-    fn unpark(&self) {
+impl Notify for RunInner {
+    fn notify(&self, _id: usize) {
         match self.mutex.notify() {
             Ok(run) => self.exec.execute(run),
             Err(()) => {}
@@ -700,6 +697,7 @@ impl fmt::Debug for UnparkEvent {
 ///
 /// `EventSet`s are used to communicate precise information about the event(s)
 /// that triggered a task notification. See `task::with_unpark_event` for details.
+#[deprecated(since="0.1.18", note = "recommended to use `FuturesUnordered` instead")]
 pub trait EventSet: Send + Sync + 'static {
     /// Insert the given ID into the set
     fn insert(&self, id: usize);

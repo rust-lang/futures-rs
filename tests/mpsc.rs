@@ -7,8 +7,8 @@ use futures::prelude::*;
 use futures::future::{blocking, lazy, ok};
 use futures::stream::{self, unfold};
 use futures::sync::mpsc;
+use futures::sync::oneshot;
 
-use std::time::Duration;
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -92,18 +92,21 @@ fn send_recv_threads() {
 
 #[test]
 fn send_recv_threads_no_capacity() {
-    let (mut tx, rx) = mpsc::channel::<i32>(0);
+    let (tx, rx) = mpsc::channel::<i32>(0);
     let mut rx = stream::blocking(rx);
 
+    let (readytx, readyrx) = mpsc::channel::<()>(2);
+    let mut readyrx = stream::blocking(readyrx);
+
     let t = thread::spawn(move|| {
-        tx = blocking(tx.send(1)).wait().unwrap();
-        tx = blocking(tx.send(2)).wait().unwrap();
+        let readytx = readytx.sink_map_err(|_| panic!());
+        let (a, b) = blocking(tx.send(1).join(readytx.send(()))).wait().unwrap();
+        blocking(a.send(2).join(b.send(()))).wait().unwrap();
     });
 
-    thread::sleep(Duration::from_millis(100));
+    drop(readyrx.next().unwrap());
     assert_eq!(rx.next().unwrap(), Ok(1));
-
-    thread::sleep(Duration::from_millis(100));
+    drop(readyrx.next().unwrap());
     assert_eq!(rx.next().unwrap(), Ok(2));
 
     t.join().unwrap();
@@ -147,6 +150,64 @@ fn spawn_sends_items() {
     let rx = mpsc::spawn(stream, &core, 1);
     assert_eq!(core.run(rx.take(4).collect()).unwrap(),
                [0, 1, 2, 3]);
+}
+
+#[test]
+fn spawn_kill_dead_stream() {
+    use std::thread;
+    use std::time::Duration;
+    use futures::future::Either;
+    use futures::sync::oneshot;
+
+    // a stream which never returns anything (maybe a remote end isn't
+    // responding), but dropping it leads to observable side effects
+    // (like closing connections, releasing limited resources, ...)
+    #[derive(Debug)]
+    struct Dead {
+        // when dropped you should get Err(oneshot::Canceled) on the
+        // receiving end
+        done: oneshot::Sender<()>,
+    }
+    impl Stream for Dead {
+        type Item = ();
+        type Error = ();
+
+        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+            Ok(Async::NotReady)
+        }
+    }
+
+    // need to implement a timeout for the test, as it would hang
+    // forever right now
+    let (timeout_tx, timeout_rx) = oneshot::channel();
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(1000));
+        let _ = timeout_tx.send(());
+    });
+
+    let core = local_executor::Core::new();
+    let (done_tx, done_rx) = oneshot::channel();
+    let stream = Dead{done: done_tx};
+    let rx = mpsc::spawn(stream, &core, 1);
+    let res = core.run(
+        Ok::<_, ()>(())
+        .into_future()
+        .then(move |_| {
+            // now drop the spawned stream: maybe some timeout exceeded,
+            // or some connection on this end was closed by the remote
+            // end.
+            drop(rx);
+            // and wait for the spawned stream to release its resources
+            done_rx
+        })
+        .select2(timeout_rx)
+    );
+    match res {
+        Err(Either::A((oneshot::Canceled, _))) => (),
+        _ => {
+            panic!("dead stream wasn't canceled");
+        },
+    }
 }
 
 #[test]
@@ -444,12 +505,11 @@ fn try_send_1() {
 
 #[test]
 fn try_send_2() {
-    use std::thread;
-    use std::time::Duration;
-
     let (mut tx, rx) = mpsc::channel(0);
 
     tx.try_send("hello").unwrap();
+
+    let (readytx, readyrx) = oneshot::channel::<()>();
 
     let th = thread::spawn(|| {
         blocking(lazy(|| {
@@ -457,14 +517,13 @@ fn try_send_2() {
             Ok::<_, ()>(())
         })).wait().unwrap();
 
+        drop(readytx);
         blocking(tx.send("goodbye")).wait().unwrap();
     });
 
-    // Little sleep to hopefully get the action on the thread to happen first
-    thread::sleep(Duration::from_millis(300));
-
     let mut rx = stream::blocking(rx);
 
+    drop(blocking(readyrx).wait());
     assert_eq!(rx.next(), Some(Ok("hello")));
     assert_eq!(rx.next(), Some(Ok("goodbye")));
     assert!(rx.next().is_none());

@@ -951,7 +951,7 @@ pub trait Future {
     /// Create a cloneable handle to this future where all handles will resolve
     /// to the same result.
     ///
-    /// The shared() method provides a mean to convert any future into a
+    /// The shared() method provides a method to convert any future into a
     /// cloneable future. It enables a future to be polled by multiple threads.
     ///
     /// The returned `Shared` future resolves successfully with

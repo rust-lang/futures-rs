@@ -216,7 +216,8 @@ pub struct Spawn<T: ?Sized> {
     obj: T,
 }
 
-/// Spawns a new future, returning the fused future and task.
+/// Spawns a future or stream, returning it and the new task responsible for
+/// running it to completion.
 ///
 /// This function is the termination endpoint for running futures. This method
 /// will conceptually allocate a new task to run the given object, which is
