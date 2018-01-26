@@ -7,6 +7,7 @@ use std::mem;
 use std::ptr;
 use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
 use super::core;
@@ -230,12 +231,10 @@ impl<F: Future> Spawn<F> {
         self.enter(BorrowedUnpark::Old(&unpark), |f| f.poll())
     }
 
-    /// Waits for the internal future to complete, blocking this thread's
-    /// execution until it does.
-    ///
-    /// This function will call `poll_future` in a loop, waiting for the future
-    /// to complete. When a future cannot make progress it will use
-    /// `thread::park` to block the current thread.
+    #[cfg(feature = "use_std")]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `future::blocking` instead")]
     pub fn wait_future(&mut self) -> Result<F::Item, F::Error> {
         ThreadNotify::with_current(|notify| {
 
@@ -293,8 +292,9 @@ impl<S: Stream> Spawn<S> {
         self.enter(BorrowedUnpark::Old(&unpark), |s| s.poll())
     }
 
-    /// Like `wait_future`, except only waits for the next element to arrive on
-    /// the underlying stream.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `stream::blocking` instead")]
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
         ThreadNotify::with_current(|notify| {
 
@@ -335,11 +335,9 @@ impl<S: Sink> Spawn<S> {
         self.enter(BorrowedUnpark::Old(unpark), |s| s.poll_complete())
     }
 
-    /// Blocks the current thread until it's able to send `value` on this sink.
-    ///
-    /// This function will send the `value` on the sink that this task wraps. If
-    /// the sink is not ready to send the value yet then the current thread will
-    /// be blocked until it's able to send the value.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `sink::blocking` instead")]
     pub fn wait_send(&mut self, mut value: S::SinkItem)
                      -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
@@ -354,14 +352,9 @@ impl<S: Sink> Spawn<S> {
         })
     }
 
-    /// Blocks the current thread until it's able to flush this sink.
-    ///
-    /// This function will call the underlying sink's `poll_complete` method
-    /// until it returns that it's ready, proxying out errors upwards to the
-    /// caller if one occurs.
-    ///
-    /// The thread will be blocked until `poll_complete` returns that it's
-    /// ready.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `sink::blocking` instead")]
     pub fn wait_flush(&mut self) -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
 
@@ -374,11 +367,9 @@ impl<S: Sink> Spawn<S> {
         })
     }
 
-    /// Blocks the current thread until it's able to close this sink.
-    ///
-    /// This function will close the sink that this task wraps. If the sink
-    /// is not ready to be close yet, then the current thread will be blocked
-    /// until it's closed.
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    #[deprecated(note = "use `future::blocking` instead")]
     pub fn wait_close(&mut self) -> Result<(), S::SinkError> {
         ThreadNotify::with_current(|notify| {
 
@@ -481,7 +472,7 @@ impl Notify for RunInner {
 
 // ===== ThreadNotify =====
 
-struct ThreadNotify {
+pub struct ThreadNotify {
     state: AtomicUsize,
     mutex: Mutex<()>,
     condvar: Condvar,
@@ -500,13 +491,17 @@ thread_local! {
 }
 
 impl ThreadNotify {
-    fn with_current<F, R>(f: F) -> R
+    pub fn with_current<F, R>(f: F) -> R
         where F: FnOnce(&Arc<ThreadNotify>) -> R,
     {
         CURRENT_THREAD_NOTIFY.with(|notify| f(notify))
     }
 
-    fn park(&self) {
+    pub fn park(&self) {
+        self.park_timeout(None);
+    }
+
+    pub fn park_timeout(&self, dur: Option<Duration>) {
         // If currently notified, then we skip sleeping. This is checked outside
         // of the lock to avoid acquiring a mutex if not necessary.
         match self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
@@ -531,9 +526,26 @@ impl ThreadNotify {
             _ => unreachable!(),
         }
 
-        // Loop until we've been notified
+        // Track (until, remaining)
+        let mut time = dur.map(|dur| (Instant::now() + dur, dur));
+
         loop {
-            m = self.condvar.wait(m).unwrap();
+            m = match time {
+                Some((until, rem)) => {
+                    let (guard, _) = self.condvar.wait_timeout(m, rem).unwrap();
+                    let now = Instant::now();
+
+                    if now >= until {
+                        // Timed out... exit sleep state
+                        self.state.store(IDLE, Ordering::SeqCst);
+                        return;
+                    }
+
+                    time = Some((until, until - now));
+                    guard
+                }
+                None => self.condvar.wait(m).unwrap(),
+            };
 
             // Transition back to idle, loop otherwise
             if NOTIFY == self.state.compare_and_swap(NOTIFY, IDLE, Ordering::SeqCst) {
@@ -541,10 +553,8 @@ impl ThreadNotify {
             }
         }
     }
-}
 
-impl Notify for ThreadNotify {
-    fn notify(&self, _unpark_id: usize) {
+    fn unpark(&self) {
         // First, try transitioning from IDLE -> NOTIFY, this does not require a
         // lock.
         match self.state.compare_and_swap(IDLE, NOTIFY, Ordering::SeqCst) {
@@ -564,6 +574,40 @@ impl Notify for ThreadNotify {
 
         // Wakeup the sleeper
         self.condvar.notify_one();
+    }
+}
+
+impl Notify for ThreadNotify {
+    fn notify(&self, _unpark_id: usize) {
+        self.unpark();
+    }
+}
+
+impl<'a> ::executor::Sleep for &'a Arc<ThreadNotify> {
+    type Wakeup = Arc<ThreadNotify>;
+
+    fn wakeup(&self) -> Self::Wakeup {
+        (*self).clone()
+    }
+
+    fn sleep(&mut self) {
+        self.park();
+    }
+
+    fn sleep_timeout(&mut self, duration: Duration) {
+        self.park_timeout(Some(duration));
+    }
+}
+
+impl ::executor::Wakeup for Arc<ThreadNotify> {
+    fn wakeup(&self) {
+        self.unpark();
+    }
+}
+
+impl fmt::Debug for ThreadNotify {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("ThreadNotify").finish()
     }
 }
 

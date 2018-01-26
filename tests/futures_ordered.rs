@@ -2,6 +2,7 @@ extern crate futures;
 
 use std::any::Any;
 
+use futures::future::blocking;
 use futures::sync::oneshot;
 use futures::stream::futures_ordered;
 use futures::prelude::*;
@@ -59,7 +60,7 @@ fn from_iterator() {
         ok::<u32, ()>(3)
     ].into_iter().collect::<FuturesOrdered<_>>();
     assert_eq!(stream.len(), 3);
-    assert_eq!(stream.collect().wait(), Ok(vec![1,2,3]));
+    assert_eq!(blocking(stream.collect()).wait(), Ok(vec![1,2,3]));
 }
 
 #[test]

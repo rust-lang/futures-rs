@@ -7,7 +7,7 @@ use std::cell::{Cell, RefCell};
 use std::sync::atomic::{Ordering, AtomicBool};
 
 use futures::prelude::*;
-use futures::future::ok;
+use futures::future::{blocking, ok};
 use futures::stream;
 use futures::sync::{oneshot, mpsc};
 use futures::task::{self, Task};
@@ -30,10 +30,10 @@ fn vec_sink() {
 fn send() {
     let v = Vec::new();
 
-    let v = v.send(0).wait().unwrap();
+    let v = blocking(v.send(0)).wait().unwrap();
     assert_eq!(v, vec![0]);
 
-    let v = v.send(1).wait().unwrap();
+    let v = blocking(v.send(1)).wait().unwrap();
     assert_eq!(v, vec![0, 1]);
 
     assert_done(move || v.send(2),
@@ -44,10 +44,10 @@ fn send() {
 fn send_all() {
     let v = Vec::new();
 
-    let (v, _) = v.send_all(stream::iter_ok(vec![0, 1])).wait().unwrap();
+    let (v, _) = blocking(v.send_all(stream::iter_ok(vec![0, 1]))).wait().unwrap();
     assert_eq!(v, vec![0, 1]);
 
-    let (v, _) = v.send_all(stream::iter_ok(vec![2, 3])).wait().unwrap();
+    let (v, _) = blocking(v.send_all(stream::iter_ok(vec![2, 3]))).wait().unwrap();
     assert_eq!(v, vec![0, 1, 2, 3]);
 
     assert_done(
@@ -109,7 +109,7 @@ impl<S: Sink> Future for StartSendFut<S> {
 fn mpsc_blocking_start_send() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
 
-    futures::future::lazy(|| {
+    blocking(futures::future::lazy(|| {
         assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
 
         let flag = Flag::new();
@@ -125,7 +125,7 @@ fn mpsc_blocking_start_send() {
         sassert_next(&mut rx, 1);
 
         Ok::<(), ()>(())
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn with_flush() {
         _ => panic!()
     };
 
-    assert_eq!(sink.send(1).wait().unwrap().get_ref(), &[1, 2]);
+    assert_eq!(blocking(sink.send(1)).wait().unwrap().get_ref(), &[1, 2]);
 }
 
 #[test]
@@ -161,9 +161,9 @@ fn with_as_map() {
     let sink = Vec::new().with(|item| -> Result<i32, ()> {
         Ok(item * 2)
     });
-    let sink = sink.send(0).wait().unwrap();
-    let sink = sink.send(1).wait().unwrap();
-    let sink = sink.send(2).wait().unwrap();
+    let sink = blocking(sink.send(0)).wait().unwrap();
+    let sink = blocking(sink.send(1)).wait().unwrap();
+    let sink = blocking(sink.send(2)).wait().unwrap();
     assert_eq!(sink.get_ref(), &[0, 2, 4]);
 }
 
@@ -173,10 +173,10 @@ fn with_flat_map() {
     let sink = Vec::new().with_flat_map(|item| {
         stream::iter_ok(vec![item; item])
     });
-    let sink = sink.send(0).wait().unwrap();
-    let sink = sink.send(1).wait().unwrap();
-    let sink = sink.send(2).wait().unwrap();
-    let sink = sink.send(3).wait().unwrap();
+    let sink = blocking(sink.send(0)).wait().unwrap();
+    let sink = blocking(sink.send(1)).wait().unwrap();
+    let sink = blocking(sink.send(2)).wait().unwrap();
+    let sink = blocking(sink.send(3)).wait().unwrap();
     assert_eq!(sink.get_ref(), &[1,2,2,3,3,3]);
 }
 
@@ -251,13 +251,13 @@ fn with_flush_propagate() {
 // test that a buffer is a no-nop around a sink that always accepts sends
 fn buffer_noop() {
     let sink = Vec::new().buffer(0);
-    let sink = sink.send(0).wait().unwrap();
-    let sink = sink.send(1).wait().unwrap();
+    let sink = blocking(sink.send(0)).wait().unwrap();
+    let sink = blocking(sink.send(1)).wait().unwrap();
     assert_eq!(sink.get_ref(), &[0, 1]);
 
     let sink = Vec::new().buffer(1);
-    let sink = sink.send(0).wait().unwrap();
-    let sink = sink.send(1).wait().unwrap();
+    let sink = blocking(sink.send(0)).wait().unwrap();
+    let sink = blocking(sink.send(1)).wait().unwrap();
     assert_eq!(sink.get_ref(), &[0, 1]);
 }
 
@@ -335,8 +335,8 @@ fn buffer() {
     let (sink, allow) = manual_allow::<i32>();
     let sink = sink.buffer(2);
 
-    let sink = StartSendFut::new(sink, 0).wait().unwrap();
-    let sink = StartSendFut::new(sink, 1).wait().unwrap();
+    let sink = blocking(StartSendFut::new(sink, 0)).wait().unwrap();
+    let sink = blocking(StartSendFut::new(sink, 1)).wait().unwrap();
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.send(2));

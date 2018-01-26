@@ -2,7 +2,7 @@ extern crate futures;
 
 use std::sync::mpsc::channel;
 
-use futures::future::ok;
+use futures::future::{blocking, ok};
 use futures::prelude::*;
 
 #[test]
@@ -17,7 +17,7 @@ fn lots() {
 
     let (tx, rx) = channel();
     ::std::thread::spawn(|| {
-        doit(1_000).map(move |_| tx.send(()).unwrap()).wait()
+        blocking(doit(1_000).map(move |_| tx.send(()).unwrap())).wait()
     });
     rx.recv().unwrap();
 }

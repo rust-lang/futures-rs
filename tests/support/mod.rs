@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::thread;
 
 use futures::{Future, IntoFuture, Async, Poll};
-use futures::future::FutureResult;
+use futures::future::{blocking, FutureResult};
 use futures::stream::Stream;
 use futures::executor::{self, NotifyHandle, Notify};
 use futures::task;
@@ -23,7 +23,7 @@ pub fn assert_done<T, F>(f: F, result: Result<T::Item, T::Error>)
           T::Error: Eq + fmt::Debug,
           F: FnOnce() -> T,
 {
-    assert_eq!(f().wait(), result);
+    assert_eq!(blocking(f()).wait(), result);
 }
 
 pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
@@ -104,7 +104,7 @@ impl<F> ForgetExt for F
           F::Error: Send
 {
     fn forget(self) {
-        thread::spawn(|| self.wait());
+        thread::spawn(|| blocking(self).wait());
     }
 }
 

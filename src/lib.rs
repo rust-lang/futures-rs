@@ -202,6 +202,8 @@ mod lock;
 mod task_impl;
 
 mod resultstream;
+#[cfg(feature = "use_std")]
+mod scheduler;
 
 pub mod task;
 pub mod executor;
@@ -209,6 +211,8 @@ pub mod executor;
 pub mod sync;
 #[cfg(feature = "use_std")]
 pub mod unsync;
+#[cfg(feature = "use_std")]
+pub mod current_thread;
 
 
 if_std! {

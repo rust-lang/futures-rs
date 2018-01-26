@@ -7,17 +7,17 @@ mod support;
 use futures::prelude::*;
 use futures::unsync::oneshot;
 use futures::unsync::mpsc::{self, SendError};
-use futures::future::lazy;
-use futures::stream::{iter_ok, unfold};
+use futures::future::{blocking, lazy};
+use futures::stream::{self, iter_ok, unfold};
 
 use support::local_executor::Core;
 
 #[test]
 fn mpsc_send_recv() {
     let (tx, rx) = mpsc::channel::<i32>(1);
-    let mut rx = rx.wait();
+    let mut rx = stream::blocking(rx);
 
-    tx.send(42).wait().unwrap();
+    blocking(tx.send(42)).wait().unwrap();
 
     assert_eq!(rx.next(), Some(Ok(42)));
     assert_eq!(rx.next(), None);
@@ -27,20 +27,20 @@ fn mpsc_send_recv() {
 fn mpsc_rx_notready() {
     let (_tx, mut rx) = mpsc::channel::<i32>(1);
 
-    lazy(|| {
+    blocking(lazy(|| {
         assert_eq!(rx.poll().unwrap(), Async::NotReady);
         Ok(()) as Result<(), ()>
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
 fn mpsc_rx_end() {
     let (_, mut rx) = mpsc::channel::<i32>(1);
 
-    lazy(|| {
+    blocking(lazy(|| {
         assert_eq!(rx.poll().unwrap(), Async::Ready(None));
         Ok(()) as Result<(), ()>
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
@@ -54,10 +54,10 @@ fn mpsc_tx_clone_weak_rc() {
     }).wait().unwrap();
 
     drop(tx); // rc = 1
-    lazy(|| {
+    blocking(lazy(|| {
         assert_eq!(rx.poll().unwrap(), Async::NotReady);
         Ok(()) as Result<(), ()>
-    }).wait().unwrap();
+    })).wait().unwrap();
 
     drop(tx_clone); // rc = 0
     lazy(|| {
@@ -69,46 +69,46 @@ fn mpsc_tx_clone_weak_rc() {
 #[test]
 fn mpsc_tx_notready() {
     let (tx, _rx) = mpsc::channel::<i32>(1);
-    let tx = tx.send(1).wait().unwrap();
-    lazy(move || {
+    let tx = blocking(tx.send(1)).wait().unwrap();
+    blocking(lazy(move || {
         assert!(tx.send(2).poll().unwrap().is_not_ready());
         Ok(()) as Result<(), ()>
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
 fn mpsc_tx_err() {
     let (tx, _) = mpsc::channel::<i32>(1);
-    lazy(move || {
+    blocking(lazy(move || {
         assert!(tx.send(2).poll().is_err());
         Ok(()) as Result<(), ()>
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
 fn mpsc_backpressure() {
     let (tx, rx) = mpsc::channel::<i32>(1);
-    lazy(move || {
+    blocking(lazy(move || {
         iter_ok(vec![1, 2, 3])
             .forward(tx)
             .map_err(|e: SendError<i32>| panic!("{}", e))
             .join(rx.take(3).collect().map(|xs| {
                 assert_eq!(xs, [1, 2, 3]);
             }))
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
 fn mpsc_unbounded() {
     let (tx, rx) = mpsc::unbounded::<i32>();
-    lazy(move || {
+    blocking(lazy(move || {
         iter_ok(vec![1, 2, 3])
             .forward(tx)
             .map_err(|e: SendError<i32>| panic!("{}", e))
             .join(rx.take(3).collect().map(|xs| {
                 assert_eq!(xs, [1, 2, 3]);
             }))
-    }).wait().unwrap();
+    })).wait().unwrap();
 }
 
 #[test]
