@@ -115,7 +115,7 @@ if_std! {
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     pub use self::wait::Wait;
-    pub use self::split::{SplitStream, SplitSink};
+    pub use self::split::{SplitStream, SplitSink, ReuniteError};
     pub use self::futures_unordered::FuturesUnordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
