@@ -87,24 +87,12 @@ impl Future for Never {
 }
 
 #[test]
-fn outstanding_daemon_tasks_are_dropped_on_return() {
-    let mut rc = Rc::new(());
-
-    run(|_| {
-        spawn_daemon(Never(rc.clone()));
-    });
-
-    // Ensure the daemon is dropped
-    assert!(Rc::get_mut(&mut rc).is_some());
-}
-
-#[test]
 fn outstanding_tasks_are_dropped_on_cancel() {
     let mut rc = Rc::new(());
 
-    run(|_| {
+    run(|ctx| {
         spawn(Never(rc.clone()));
-        cancel_all_spawned();
+        ctx.cancel_all_spawned();
     });
 
     // Ensure the daemon is dropped
@@ -179,6 +167,10 @@ fn tasks_are_scheduled_fairly() {
 
             state[self.idx] += 1;
 
+            if state[self.idx] >= 100 {
+                return Ok(().into());
+            }
+
             task::current().notify();
             Ok(Async::NotReady)
         }
@@ -190,7 +182,7 @@ fn tasks_are_scheduled_fairly() {
             idx: 0,
         });
 
-        spawn_daemon(Spin {
+        spawn(Spin {
             state: state,
             idx: 1,
         });
