@@ -303,13 +303,6 @@ impl<T> Inner<T> {
 }
 
 impl<T> Sender<T> {
-    #[deprecated(note = "renamed to `send`", since = "0.1.11")]
-    #[doc(hidden)]
-    #[cfg(feature = "with-deprecated")]
-    pub fn complete(self, t: T) {
-        drop(self.send(t));
-    }
-
     /// Completes this oneshot with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the

@@ -11,30 +11,30 @@ use stream::Stream;
 ///
 /// This structure is produced by the `Stream::concat` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Concat2<S>
+pub struct Concat<S>
     where S: Stream,
 {
     inner: ConcatSafe<S>
 }
 
-impl<S: Debug> Debug for Concat2<S> where S: Stream, S::Item: Debug {
+impl<S: Debug> Debug for Concat<S> where S: Stream, S::Item: Debug {
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
-        fmt.debug_struct("Concat2")
+        fmt.debug_struct("Concat")
             .field("inner", &self.inner)
             .finish()
     }
 }
 
-pub fn new2<S>(s: S) -> Concat2<S>
+pub fn new<S>(s: S) -> Concat<S>
     where S: Stream,
           S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
 {
-    Concat2 {
+    Concat {
         inner: new_safe(s)
     }
 }
 
-impl<S> Future for Concat2<S>
+impl<S> Future for Concat<S>
     where S: Stream,
           S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
 
@@ -47,58 +47,6 @@ impl<S> Future for Concat2<S>
             match a {
                 Async::NotReady => Async::NotReady,
                 Async::Ready(None) => Async::Ready(Default::default()),
-                Async::Ready(Some(e)) => Async::Ready(e)
-            }
-        })
-    }
-}
-
-
-/// A stream combinator to concatenate the results of a stream into the first
-/// yielded item.
-///
-/// This structure is produced by the `Stream::concat` method.
-#[deprecated(since="0.1.18", note="please use `Stream::Concat2` instead")]
-#[must_use = "streams do nothing unless polled"]
-pub struct Concat<S>
-    where S: Stream,
-{
-    inner: ConcatSafe<S>
-}
-
-#[allow(deprecated)]
-impl<S: Debug> Debug for Concat<S> where S: Stream, S::Item: Debug {
-    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
-        fmt.debug_struct("Concat")
-            .field("inner", &self.inner)
-            .finish()
-    }
-}
-
-#[allow(deprecated)]
-pub fn new<S>(s: S) -> Concat<S>
-    where S: Stream,
-          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator,
-{
-    Concat {
-        inner: new_safe(s)
-    }
-}
-
-#[allow(deprecated)]
-impl<S> Future for Concat<S>
-    where S: Stream,
-          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator,
-
-{
-    type Item = S::Item;
-    type Error = S::Error;
-
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll().map(|a| {
-            match a {
-                Async::NotReady => Async::NotReady,
-                Async::Ready(None) => panic!("attempted concatenation of empty stream"),
                 Async::Ready(Some(e)) => Async::Ready(e)
             }
         })

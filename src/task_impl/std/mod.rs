@@ -8,20 +8,16 @@ use std::ptr;
 use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use {Future, Stream, Sink, Poll, Async, StartSend, AsyncSink};
+use {Future, Stream, Sink, Async, AsyncSink};
 use super::core;
 use super::{BorrowedTask, NotifyHandle, Spawn, spawn, Notify, UnsafeNotify};
+pub use super::core::{BorrowedUnpark, TaskUnpark};
 
 mod unpark_mutex;
 pub use self::unpark_mutex::UnparkMutex;
 
 mod data;
 pub use self::data::*;
-
-mod task_rc;
-#[allow(deprecated)]
-#[cfg(feature = "with-deprecated")]
-pub use self::task_rc::TaskRc;
 
 pub use task_impl::core::init;
 
@@ -82,154 +78,7 @@ pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     }
 }
 
-#[derive(Copy, Clone)]
-#[allow(deprecated)]
-pub enum BorrowedUnpark<'a> {
-    Old(&'a Arc<Unpark>),
-    New(core::BorrowedUnpark<'a>),
-}
-
-#[derive(Copy, Clone)]
-#[allow(deprecated)]
-pub enum BorrowedEvents<'a> {
-    None,
-    One(&'a UnparkEvent, &'a BorrowedEvents<'a>),
-}
-
-#[derive(Clone)]
-pub enum TaskUnpark {
-    #[allow(deprecated)]
-    Old(Arc<Unpark>),
-    New(core::TaskUnpark),
-}
-
-#[derive(Clone)]
-#[allow(deprecated)]
-pub enum UnparkEvents {
-    None,
-    One(UnparkEvent),
-    Many(Box<[UnparkEvent]>),
-}
-
-impl<'a> BorrowedUnpark<'a> {
-    #[inline]
-    pub fn new(f: &'a Fn() -> NotifyHandle, id: usize) -> BorrowedUnpark<'a> {
-        BorrowedUnpark::New(core::BorrowedUnpark::new(f, id))
-    }
-
-    #[inline]
-    pub fn to_owned(&self) -> TaskUnpark {
-        match *self {
-            BorrowedUnpark::Old(old) => TaskUnpark::Old(old.clone()),
-            BorrowedUnpark::New(new) => TaskUnpark::New(new.to_owned()),
-        }
-    }
-}
-
-impl<'a> BorrowedEvents<'a> {
-    #[inline]
-    pub fn new() -> BorrowedEvents<'a> {
-        BorrowedEvents::None
-    }
-
-    #[inline]
-    pub fn to_owned(&self) -> UnparkEvents {
-        let mut one_event = None;
-        let mut list = Vec::new();
-        let mut cur = self;
-        while let BorrowedEvents::One(event, next) = *cur {
-            let event = event.clone();
-            match one_event.take() {
-                None if list.len() == 0 => one_event = Some(event),
-                None => list.push(event),
-                Some(event2) =>  {
-                    list.push(event2);
-                    list.push(event);
-                }
-            }
-            cur = next;
-        }
-
-        match one_event {
-            None if list.len() == 0 => UnparkEvents::None,
-            None => UnparkEvents::Many(list.into_boxed_slice()),
-            Some(e) => UnparkEvents::One(e),
-        }
-    }
-}
-
-impl UnparkEvents {
-    pub fn notify(&self) {
-        match *self {
-            UnparkEvents::None => {}
-            UnparkEvents::One(ref e) => e.unpark(),
-            UnparkEvents::Many(ref list) => {
-                for event in list.iter() {
-                    event.unpark();
-                }
-            }
-        }
-    }
-
-    pub fn will_notify(&self, events: &BorrowedEvents) -> bool {
-        // Pessimistically assume that any unpark events mean that we're not
-        // equivalent to the current task.
-        match *self {
-            UnparkEvents::None => {}
-            _ => return false,
-        }
-
-        match *events {
-            BorrowedEvents::None => return true,
-            _ => {},
-        }
-
-        return false
-    }
-}
-
-#[allow(deprecated)]
-impl TaskUnpark {
-    pub fn notify(&self) {
-        match *self {
-            TaskUnpark::Old(ref old) => old.unpark(),
-            TaskUnpark::New(ref new) => new.notify(),
-        }
-    }
-
-    pub fn will_notify(&self, unpark: &BorrowedUnpark) -> bool {
-        match (unpark, self) {
-            (&BorrowedUnpark::Old(old1), &TaskUnpark::Old(ref old2)) => {
-                &**old1 as *const Unpark == &**old2 as *const Unpark
-            }
-            (&BorrowedUnpark::New(ref new1), &TaskUnpark::New(ref new2)) => {
-                new2.will_notify(new1)
-            }
-            _ => false,
-        }
-    }
-}
-
 impl<F: Future> Spawn<F> {
-    /// Polls the internal future, scheduling notifications to be sent to the
-    /// `unpark` argument.
-    ///
-    /// This method will poll the internal future, testing if it's completed
-    /// yet. The `unpark` argument is used as a sink for notifications sent to
-    /// this future. That is, while the future is being polled, any call to
-    /// `task::park()` will return a handle that contains the `unpark`
-    /// specified.
-    ///
-    /// If this function returns `NotReady`, then the `unpark` should have been
-    /// scheduled to receive a notification when poll can be called again.
-    /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
-    /// safely destroyed.
-    #[deprecated(note = "recommended to use `poll_future_notify` instead")]
-    #[allow(deprecated)]
-    pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
-        self.enter(BorrowedUnpark::Old(&unpark), |f| f.poll())
-    }
-
     /// Waits for the internal future to complete, blocking this thread's
     /// execution until it does.
     ///
@@ -285,14 +134,6 @@ impl<F: Future> Spawn<F> {
 }
 
 impl<S: Stream> Spawn<S> {
-    /// Like `poll_future`, except polls the underlying stream.
-    #[deprecated(note = "recommended to use `poll_stream_notify` instead")]
-    #[allow(deprecated)]
-    pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
-                       -> Poll<Option<S::Item>, S::Error> {
-        self.enter(BorrowedUnpark::Old(&unpark), |s| s.poll())
-    }
-
     /// Like `wait_future`, except only waits for the next element to arrive on
     /// the underlying stream.
     pub fn wait_stream(&mut self) -> Option<Result<S::Item, S::Error>> {
@@ -311,30 +152,6 @@ impl<S: Stream> Spawn<S> {
 }
 
 impl<S: Sink> Spawn<S> {
-    /// Invokes the underlying `start_send` method with this task in place.
-    ///
-    /// If the underlying operation returns `NotReady` then the `unpark` value
-    /// passed in will receive a notification when the operation is ready to be
-    /// attempted again.
-    #[deprecated(note = "recommended to use `start_send_notify` instead")]
-    #[allow(deprecated)]
-    pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
-                       -> StartSend<S::SinkItem, S::SinkError> {
-        self.enter(BorrowedUnpark::Old(unpark), |s| s.start_send(value))
-    }
-
-    /// Invokes the underlying `poll_complete` method with this task in place.
-    ///
-    /// If the underlying operation returns `NotReady` then the `unpark` value
-    /// passed in will receive a notification when the operation is ready to be
-    /// attempted again.
-    #[deprecated(note = "recommended to use `poll_flush_notify` instead")]
-    #[allow(deprecated)]
-    pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
-                       -> Poll<(), S::SinkError> {
-        self.enter(BorrowedUnpark::Old(unpark), |s| s.poll_complete())
-    }
-
     /// Blocks the current thread until it's able to send `value` on this sink.
     ///
     /// This function will send the `value` on the sink that this task wraps. If
@@ -390,23 +207,6 @@ impl<S: Sink> Spawn<S> {
             }
         })
     }
-}
-
-/// A trait which represents a sink of notifications that a future is ready to
-/// make progress.
-///
-/// This trait is provided as an argument to the `Spawn::poll_future` and
-/// `Spawn::poll_stream` functions. It's transitively used as part of the
-/// `Task::unpark` method to internally deliver notifications of readiness of a
-/// future to move forward.
-#[deprecated(note = "recommended to use `Notify` instead")]
-pub trait Unpark: Send + Sync {
-    /// Indicates that an associated future and/or task are ready to make
-    /// progress.
-    ///
-    /// Typically this means that the receiver of the notification should
-    /// arrange for the future to get poll'd in a prompt fashion.
-    fn unpark(&self);
 }
 
 /// A trait representing requests to poll futures.
@@ -564,88 +364,6 @@ impl Notify for ThreadNotify {
 
         // Wakeup the sleeper
         self.condvar.notify_one();
-    }
-}
-
-// ===== UnparkEvent =====
-
-/// For the duration of the given callback, add an "unpark event" to be
-/// triggered when the task handle is used to unpark the task.
-///
-/// Unpark events are used to pass information about what event caused a task to
-/// be unparked. In some cases, tasks are waiting on a large number of possible
-/// events, and need precise information about the wakeup to avoid extraneous
-/// polling.
-///
-/// Every `Task` handle comes with a set of unpark events which will fire when
-/// `unpark` is called. When fired, these events insert an identifier into a
-/// concurrent set, which the task can read from to determine what events
-/// occurred.
-///
-/// This function immediately invokes the closure, `f`, but arranges things so
-/// that `task::park` will produce a `Task` handle that includes the given
-/// unpark event.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-#[deprecated(note = "recommended to use `FuturesUnordered` instead")]
-#[allow(deprecated)]
-pub fn with_unpark_event<F, R>(event: UnparkEvent, f: F) -> R
-    where F: FnOnce() -> R
-{
-    super::with(|task| {
-        let new_task = BorrowedTask {
-            id: task.id,
-            unpark: task.unpark,
-            events: BorrowedEvents::One(&event, &task.events),
-            map: task.map,
-        };
-
-        super::set(&new_task, f)
-    })
-}
-
-/// A set insertion to trigger upon `unpark`.
-///
-/// Unpark events are used to communicate information about *why* an unpark
-/// occurred, in particular populating sets with event identifiers so that the
-/// unparked task can avoid extraneous polling. See `with_unpark_event` for
-/// more.
-#[derive(Clone)]
-#[deprecated(note = "recommended to use `FuturesUnordered` instead")]
-#[allow(deprecated)]
-pub struct UnparkEvent {
-    set: Arc<EventSet>,
-    item: usize,
-}
-
-#[allow(deprecated)]
-impl UnparkEvent {
-    /// Construct an unpark event that will insert `id` into `set` when
-    /// triggered.
-    #[deprecated(note = "recommended to use `FuturesUnordered` instead")]
-    pub fn new(set: Arc<EventSet>, id: usize) -> UnparkEvent {
-        UnparkEvent {
-            set: set,
-            item: id,
-        }
-    }
-
-    fn unpark(&self) {
-        self.set.insert(self.item);
-    }
-}
-
-#[allow(deprecated)]
-impl fmt::Debug for UnparkEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("UnparkEvent")
-         .field("set", &"...")
-         .field("item", &self.item)
-         .finish()
     }
 }
 

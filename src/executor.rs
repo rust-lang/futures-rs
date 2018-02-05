@@ -8,8 +8,8 @@
 //! [online]: https://tokio.rs/docs/going-deeper-futures/tasks/
 
 #[allow(deprecated)]
-#[cfg(feature = "use_std")]
-pub use task_impl::{Unpark, Executor, Run};
+#[cfg(feature = "std")]
+pub use task_impl::{Executor, Run};
 
 pub use task_impl::{Spawn, spawn, Notify, with_notify};
 

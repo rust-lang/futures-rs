@@ -17,12 +17,6 @@
 
 use {IntoFuture, Poll};
 
-mod iter;
-#[allow(deprecated)]
-pub use self::iter::{iter, Iter};
-#[cfg(feature = "with-deprecated")]
-#[allow(deprecated)]
-pub use self::Iter as IterStream;
 mod iter_ok;
 pub use self::iter_ok::{iter_ok, IterOk};
 mod iter_result;
@@ -47,7 +41,6 @@ mod inspect;
 mod inspect_err;
 mod map;
 mod map_err;
-mod merge;
 mod once;
 mod or_else;
 mod peek;
@@ -63,9 +56,7 @@ mod zip;
 mod forward;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
-#[allow(deprecated)]
 pub use self::concat::Concat;
-pub use self::concat::Concat2;
 pub use self::empty::{Empty, empty};
 pub use self::filter::Filter;
 pub use self::filter_map::FilterMap;
@@ -79,8 +70,6 @@ pub use self::inspect::Inspect;
 pub use self::inspect_err::InspectErr;
 pub use self::map::Map;
 pub use self::map_err::MapErr;
-#[allow(deprecated)]
-pub use self::merge::{Merge, MergedItem};
 pub use self::once::{Once, once};
 pub use self::or_else::OrElse;
 pub use self::peek::Peekable;
@@ -105,7 +94,6 @@ if_std! {
     mod chunks;
     mod collect;
     mod wait;
-    mod channel;
     mod split;
     pub mod futures_unordered;
     mod futures_ordered;
@@ -118,18 +106,6 @@ if_std! {
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
     pub use self::futures_unordered::FuturesUnordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
-
-    #[doc(hidden)]
-    #[cfg(feature = "with-deprecated")]
-    #[allow(deprecated)]
-    pub use self::channel::{channel, Sender, Receiver, FutureSender, SendError};
-
-    /// A type alias for `Box<Stream + Send>`
-    #[doc(hidden)]
-    #[deprecated(note = "removed without replacement, recommended to use a \
-                         local extension trait or function if needed, more \
-                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
-    pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
 
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
         type Item = S::Item;
@@ -233,50 +209,18 @@ pub trait Stream {
     /// >           blocking work associated with this stream will be completed
     /// >           by another thread.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Panics
     ///
     /// The returned iterator does not attempt to catch panics. If the `poll`
     /// function panics, panics will be propagated to the caller of `next`.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn wait(self) -> Wait<Self>
         where Self: Sized
     {
         wait::new(self)
-    }
-
-    /// Convenience function for turning this stream into a trait object.
-    ///
-    /// This simply avoids the need to write `Box::new` and can often help with
-    /// type inference as well by always returning a trait object. Note that
-    /// this method requires the `Send` bound and returns a `BoxStream`, which
-    /// also encodes this. If you'd like to create a `Box<Stream>` without the
-    /// `Send` bound, then the `Box::new` function can be used instead.
-    ///
-    /// This method is only available when the `use_std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::stream::*;
-    /// use futures::sync::mpsc;
-    ///
-    /// let (_tx, rx) = mpsc::channel(1);
-    /// let a: BoxStream<i32, ()> = rx.boxed();
-    /// ```
-    #[cfg(feature = "use_std")]
-    #[doc(hidden)]
-    #[deprecated(note = "removed without replacement, recommended to use a \
-                         local extension trait or function if needed, more \
-                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
-    #[allow(deprecated)]
-    fn boxed(self) -> BoxStream<Self::Item, Self::Error>
-        where Self: Sized + Send + 'static,
-    {
-        ::std::boxed::Box::new(self)
     }
 
     /// Converts this stream into a `Future`.
@@ -543,7 +487,7 @@ pub trait Stream {
     /// The returned future will be resolved whenever an error happens or when
     /// the stream returns `Ok(None)`.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -565,7 +509,7 @@ pub trait Stream {
     /// let mut result = rx.collect();
     /// assert_eq!(result.wait(), Ok(vec![5, 4, 3, 2, 1]));
     /// ```
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn collect(self) -> Collect<Self>
         where Self: Sized
     {
@@ -578,42 +522,6 @@ pub trait Stream {
     /// This combinator will extend the first item with the contents
     /// of all the successful results of the stream. If the stream is
     /// empty, the default value will be returned. If an error occurs,
-    /// all the results will be dropped and the error will be returned.
-    ///
-    /// The name `concat2` is an intermediate measure until the release of
-    /// futures 0.2, at which point it will be renamed back to `concat`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::thread;
-    ///
-    /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
-    ///
-    /// let (mut tx, rx) = mpsc::channel(1);
-    ///
-    /// thread::spawn(move || {
-    ///     for i in (0..3).rev() {
-    ///         let n = i * 3;
-    ///         tx = tx.send(vec![n + 1, n + 2, n + 3]).wait().unwrap();
-    ///     }
-    /// });
-    /// let result = rx.concat2();
-    /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
-    /// ```
-    fn concat2(self) -> Concat2<Self>
-        where Self: Sized,
-              Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
-    {
-        concat::new2(self)
-    }
-
-    /// Concatenate all results of a stream into a single extendable
-    /// destination, returning a future representing the end result.
-    ///
-    /// This combinator will extend the first item with the contents
-    /// of all the successful results of the stream. If an error occurs,
     /// all the results will be dropped and the error will be returned.
     ///
     /// # Examples
@@ -635,16 +543,9 @@ pub trait Stream {
     /// let result = rx.concat();
     /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// It's important to note that this function will panic if the stream
-    /// is empty, which is the reason for its deprecation.
-    #[deprecated(since="0.1.14", note="please use `Stream::concat2` instead")]
-    #[allow(deprecated)]
     fn concat(self) -> Concat<Self>
         where Self: Sized,
-              Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator,
+              Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
     {
         concat::new(self)
     }
@@ -882,7 +783,7 @@ pub trait Stream {
     /// after-the fact. To assist using this method, the `Stream` trait is also
     /// implemented for `AssertUnwindSafe<S>` where `S` implements `Stream`.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -900,7 +801,7 @@ pub trait Stream {
     /// assert!(iter.next().unwrap().is_err());
     /// assert!(iter.next().is_none());
     /// ```
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + std::panic::UnwindSafe
     {
@@ -918,9 +819,9 @@ pub trait Stream {
     /// The returned stream will be a stream of each future's result, with
     /// errors passed through whenever they occur.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn buffered(self, amt: usize) -> Buffered<Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
@@ -939,28 +840,14 @@ pub trait Stream {
     /// The returned stream will be a stream of each future's result, with
     /// errors passed through whenever they occur.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
               Self: Sized
     {
         buffer_unordered::new(self, amt)
-    }
-
-    /// An adapter for merging the output of two streams.
-    ///
-    /// The merged stream produces items from one or both of the underlying
-    /// streams as they become available. Errors, however, are not merged: you
-    /// get at most one error at a time.
-    #[deprecated(note = "functionality provided by `select` now")]
-    #[allow(deprecated)]
-    fn merge<S>(self, other: S) -> Merge<Self, S>
-        where S: Stream<Error = Self::Error>,
-              Self: Sized,
-    {
-        merge::new(self, other)
     }
 
     /// An adapter for zipping two streams together.
@@ -1024,13 +911,13 @@ pub trait Stream {
     ///
     /// Errors are passed through the stream unbuffered.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Panics
     ///
     /// This method will panic of `capacity` is zero.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn chunks(self, capacity: usize) -> Chunks<Self>
         where Self: Sized
     {
@@ -1084,9 +971,9 @@ pub trait Stream {
     /// allow direct interaction between the two objects (e.g. via
     /// `Sink::send_all`).
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
         where Self: super::sink::Sink + Sized
     {
@@ -1137,7 +1024,7 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
 ///
 /// Note that the returned set can also be used to dynamically push more
 /// futures into the set as they become available.
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
     where I: IntoIterator,
         I::Item: IntoFuture

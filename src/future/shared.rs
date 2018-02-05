@@ -79,14 +79,6 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
 }
 
 impl<F> Shared<F> where F: Future {
-    // TODO: make this private
-    #[deprecated(since = "0.1.12", note = "use `Future::shared` instead")]
-    #[cfg(feature = "with-deprecated")]
-    #[doc(hidden)]
-    pub fn new(future: F) -> Self {
-        new(future)
-    }
-
     /// If any clone of this `Shared` has completed execution, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.

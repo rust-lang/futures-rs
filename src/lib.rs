@@ -160,12 +160,12 @@
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[macro_use]
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 extern crate std;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
-        #[cfg(feature = "use_std")]
+        #[cfg(feature = "std")]
         $i
     )*)
 }
@@ -183,21 +183,7 @@ pub use stream::Stream;
 pub mod sink;
 pub use sink::Sink;
 
-#[deprecated(since = "0.1.4", note = "import through the future module instead")]
-#[cfg(feature = "with-deprecated")]
-#[doc(hidden)]
-pub use future::{done, empty, failed, finished, lazy};
-
-#[doc(hidden)]
-#[cfg(feature = "with-deprecated")]
-#[deprecated(since = "0.1.4", note = "import through the future module instead")]
-pub use future::{
-    Done, Empty, Failed, Finished, Lazy, AndThen, Flatten, FlattenStream, Fuse, IntoStream,
-    Join, Join3, Join4, Join5, Map, MapErr, OrElse, Select,
-    SelectNext, Then
-};
-
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 mod lock;
 mod task_impl;
 
@@ -205,44 +191,8 @@ mod resultstream;
 
 pub mod task;
 pub mod executor;
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 pub mod sync;
-#[cfg(feature = "use_std")]
-pub mod unsync;
-
-
-if_std! {
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::oneshot::channel instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::oneshot::channel as oneshot;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::oneshot::Receiver instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::oneshot::Receiver as Oneshot;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::oneshot::Sender instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::oneshot::Sender as Complete;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use sync::oneshot::Canceled instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use sync::oneshot::Canceled;
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "import through the future module instead")]
-    #[cfg(feature = "with-deprecated")]
-    #[allow(deprecated)]
-    pub use future::{BoxFuture, collect, select_all, select_ok};
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "import through the future module instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use future::{SelectAll, SelectAllNext, Collect, SelectOk};
-}
 
 /// A "prelude" for crates using the `futures` crate.
 ///

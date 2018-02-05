@@ -20,27 +20,6 @@ pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::result_::{result, ok, err, FutureResult};
 pub use self::loop_fn::{loop_fn, Loop, LoopFn};
 
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "use `ok` instead")]
-#[cfg(feature = "with-deprecated")]
-pub use self::{ok as finished, Ok as Finished};
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "use `err` instead")]
-#[cfg(feature = "with-deprecated")]
-pub use self::{err as failed, Err as Failed};
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "use `result` instead")]
-#[cfg(feature = "with-deprecated")]
-pub use self::{result as done, FutureResult as Done};
-#[doc(hidden)]
-#[deprecated(since = "0.1.7", note = "use `FutureResult` instead")]
-#[cfg(feature = "with-deprecated")]
-pub use self::{FutureResult as Ok};
-#[doc(hidden)]
-#[deprecated(since = "0.1.7", note = "use `FutureResult` instead")]
-#[cfg(feature = "with-deprecated")]
-pub use self::{FutureResult as Err};
-
 // combinators
 mod and_then;
 mod flatten;
@@ -88,22 +67,6 @@ if_std! {
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
     pub use self::shared::{Shared, SharedItem, SharedError};
-
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use join_all instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use self::join_all::join_all as collect;
-    #[doc(hidden)]
-    #[deprecated(since = "0.1.4", note = "use JoinAll instead")]
-    #[cfg(feature = "with-deprecated")]
-    pub use self::join_all::JoinAll as Collect;
-
-    /// A type alias for `Box<Future + Send>`
-    #[doc(hidden)]
-    #[deprecated(note = "removed without replacement, recommended to use a \
-                         local extension trait or function if needed, more \
-                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
-    pub type BoxFuture<T, E> = ::std::boxed::Box<Future<Item = T, Error = E> + Send>;
 
     impl<F: ?Sized + Future> Future for ::std::boxed::Box<F> {
         type Item = F::Item;
@@ -285,50 +248,18 @@ pub trait Future {
     /// >           blocking work associated with this future will be completed
     /// >           by another thread.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Panics
     ///
     /// This function does not attempt to catch panics. If the `poll` function
     /// of this future panics, panics will be propagated to the caller.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn wait(self) -> result::Result<Self::Item, Self::Error>
         where Self: Sized
     {
         ::executor::spawn(self).wait_future()
-    }
-
-    /// Convenience function for turning this future into a trait object which
-    /// is also `Send`.
-    ///
-    /// This simply avoids the need to write `Box::new` and can often help with
-    /// type inference as well by always returning a trait object. Note that
-    /// this method requires the `Send` bound and returns a `BoxFuture`, which
-    /// also encodes this. If you'd like to create a `Box<Future>` without the
-    /// `Send` bound, then the `Box::new` function can be used instead.
-    ///
-    /// This method is only available when the `use_std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::prelude::*;
-    /// use futures::future::{BoxFuture, result};
-    ///
-    /// let a: BoxFuture<i32, i32> = result(Ok(1)).boxed();
-    /// ```
-    #[cfg(feature = "use_std")]
-    #[doc(hidden)]
-    #[deprecated(note = "removed without replacement, recommended to use a \
-                         local extension trait or function if needed, more \
-                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
-    #[allow(deprecated)]
-    fn boxed(self) -> BoxFuture<Self::Item, Self::Error>
-        where Self: Sized + Send + 'static
-    {
-        ::std::boxed::Box::new(self)
     }
 
     /// Map this future's result to a different type, returning a new future of
@@ -939,7 +870,7 @@ pub trait Future {
     /// after-the fact. To assist using this method, the `Future` trait is also
     /// implemented for `AssertUnwindSafe<F>` where `F` implements `Future`.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -957,7 +888,7 @@ pub trait Future {
     /// });
     /// assert!(future.catch_unwind().wait().is_err());
     /// ```
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + ::std::panic::UnwindSafe
     {
@@ -976,7 +907,7 @@ pub trait Future {
     /// access to the underlying result. Ownership of `Self::Item` and
     /// `Self::Error` cannot currently be reclaimed.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -1006,7 +937,7 @@ pub trait Future {
     /// assert_eq!(6, *shared1.wait().unwrap());
     /// join_handle.join().unwrap();
     /// ```
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn shared(self) -> Shared<Self>
         where Self: Sized
     {
