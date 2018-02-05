@@ -26,10 +26,9 @@ pub struct JoinAll<Item>
 }
 
 impl<I> fmt::Debug for JoinAll<I>
-    where I: IntoIterator,
-          I::Item: IntoFuture,
-          <<I as IntoIterator>::Item as IntoFuture>::Future: fmt::Debug,
-          <<I as IntoIterator>::Item as IntoFuture>::Item: fmt::Debug,
+    where I: IntoFuture,
+          <I as IntoFuture>::Future: fmt::Debug,
+          <I as IntoFuture>::Item: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("JoinAll")
