@@ -748,9 +748,7 @@ pub trait Future {
     /// assert_eq!(future.wait(), Err(1));
     /// ```
     fn flatten(self) -> Flatten<Self>
-        where Self::Item: IntoFuture,
-        <<Self as Future>::Item as IntoFuture>::Error:
-            From<<Self as Future>::Error>,
+        where Self::Item: IntoFuture<Error = <Self as Future>::Error>,
         Self: Sized
     {
         let f = flatten::new(self);

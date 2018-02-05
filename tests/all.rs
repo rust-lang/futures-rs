@@ -100,8 +100,7 @@ fn flatten() {
     assert_done(|| ok(ok(1)).flatten(), r_ok(1));
     assert_done(|| ok(err(1)).flatten(), r_err(1));
     assert_done(|| err(1u32).map(ok).flatten(), r_err(1));
-    assert_done(|| future::ok::<_, u8>(future::ok::<_, u32>(1))
-                           .flatten(), r_ok(1));
+    assert_done(|| future::ok(future::ok(1)).flatten(), r_ok(1));
     assert_empty(|| ok(empty::<i32, u32>()).flatten());
     assert_empty(|| empty::<i32, u32>().map(ok).flatten());
 }

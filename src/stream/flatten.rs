@@ -16,8 +16,7 @@ pub struct Flatten<S>
 
 pub fn new<S>(s: S) -> Flatten<S>
     where S: Stream,
-          S::Item: Stream,
-          <S::Item as Stream>::Error: From<S::Error>,
+          S::Item: Stream<Error = S::Error>,
 {
     Flatten {
         stream: s,

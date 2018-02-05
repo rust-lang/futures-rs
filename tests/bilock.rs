@@ -59,7 +59,7 @@ fn concurrent() {
         a: Some(a),
         remaining: N,
     };
-    let b = stream::iter_ok::<_, ()>((0..N)).fold(b, |b, _n| {
+    let b = stream::iter_ok(0..N).fold(b, |b, _n| {
         b.lock().map(|mut b| {
             *b += 1;
             b.unlock()
