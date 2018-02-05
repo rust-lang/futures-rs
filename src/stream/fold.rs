@@ -29,8 +29,7 @@ enum State<T, F> where F: Future {
 pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
-          Fut: IntoFuture<Item = T>,
-          S::Error: From<Fut::Error>,
+          Fut: IntoFuture<Item = T, Error = S::Error>,
 {
     Fold {
         stream: s,
@@ -42,8 +41,7 @@ pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
 impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
-          Fut: IntoFuture<Item = T>,
-          S::Error: From<Fut::Error>,
+          Fut: IntoFuture<Item = T, Error = S::Error>,
 {
     type Item = T;
     type Error = S::Error;
