@@ -663,17 +663,6 @@ impl<T> UnboundedSender<T> {
     /// This is an unbounded sender, so this function differs from `Sink::send`
     /// by ensuring the return type reflects that the channel is always ready to
     /// receive messages.
-    #[deprecated(note = "renamed to `unbounded_send`")]
-    #[doc(hidden)]
-    pub fn send(&self, msg: T) -> Result<(), SendError<T>> {
-        self.unbounded_send(msg)
-    }
-
-    /// Sends the provided message along this channel.
-    ///
-    /// This is an unbounded sender, so this function differs from `Sink::send`
-    /// by ensuring the return type reflects that the channel is always ready to
-    /// receive messages.
     pub fn unbounded_send(&self, msg: T) -> Result<(), SendError<T>> {
         self.0.do_send_nb(msg)
     }

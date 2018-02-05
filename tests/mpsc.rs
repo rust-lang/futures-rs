@@ -1,4 +1,4 @@
-#![cfg(feature = "use_std")]
+#![cfg(feature = "std")]
 
 #[macro_use]
 extern crate futures;

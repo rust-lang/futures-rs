@@ -8,34 +8,17 @@ pub use self::atomic_task::AtomicTask;
 
 mod core;
 
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 mod std;
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 pub use self::std::*;
-#[cfg(not(feature = "use_std"))]
+#[cfg(not(feature = "std"))]
 pub use self::core::*;
 
 pub struct BorrowedTask<'a> {
-    id: usize,
     unpark: BorrowedUnpark<'a>,
-    events: BorrowedEvents<'a>,
     // Task-local storage
     map: &'a LocalMap,
-}
-
-fn fresh_task_id() -> usize {
-    use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-
-    // TODO: this assert is a real bummer, need to figure out how to reuse
-    //       old IDs that are no longer in use.
-    //
-    // Note, though, that it is intended that these ids go away entirely
-    // eventually, see the comment on `is_current` below.
-    static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    assert!(id < usize::max_value() / 2,
-            "too many previous tasks have been allocated");
-    id
 }
 
 fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
@@ -56,9 +39,7 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 /// This is obtained by the `task::current` function.
 #[derive(Clone)]
 pub struct Task {
-    id: usize,
     unpark: TaskUnpark,
-    events: UnparkEvents,
 }
 
 trait AssertSend: Send {}
@@ -89,20 +70,11 @@ impl AssertSend for Task {}
 pub fn current() -> Task {
     with(|borrowed| {
         let unpark = borrowed.unpark.to_owned();
-        let events = borrowed.events.to_owned();
 
         Task {
-            id: borrowed.id,
             unpark: unpark,
-            events: events,
         }
     })
-}
-
-#[doc(hidden)]
-#[deprecated(note = "renamed to `current`")]
-pub fn park() -> Task {
-    current()
 }
 
 impl Task {
@@ -115,55 +87,7 @@ impl Task {
     /// must poll the future *again* afterwards, ensuring that all relevant
     /// events are eventually observed by the future.
     pub fn notify(&self) {
-        self.events.notify();
         self.unpark.notify();
-    }
-
-    #[doc(hidden)]
-    #[deprecated(note = "renamed to `notify`")]
-    pub fn unpark(&self) {
-        self.notify()
-    }
-
-    /// Returns `true` when called from within the context of the task.
-    ///
-    /// In other words, the task is currently running on the thread calling the
-    /// function. Note that this is currently, and has historically, been
-    /// implemented by tracking an `id` on every instance of `Spawn` created.
-    /// When a `Spawn` is being polled it stores in thread-local-storage the id
-    /// of the instance, and then `task::current` will return a `Task` that also
-    /// stores this id.
-    ///
-    /// The intention of this function was to answer questions like "if I
-    /// `notify` this task, is it equivalent to `task::current().notify()`?"
-    /// The answer "yes" may be able to avoid some extra work to block the
-    /// current task, such as sending a task along a channel or updating a
-    /// stored `Task` somewhere. An answer of "no" typically results in doing
-    /// the work anyway.
-    ///
-    /// Unfortunately this function has been somewhat buggy in the past and is
-    /// not intended to be supported in the future. By simply matching `id` the
-    /// intended question above isn't accurately taking into account, for
-    /// example, unpark events (now deprecated, but still a feature). Thus many
-    /// old users of this API weren't fully accounting for the question it was
-    /// intended they were asking.
-    ///
-    /// This API continues to be implemented but will in the future, e.g. in the
-    /// 0.1.x series of this crate, eventually return `false` unconditionally.
-    /// It is intended that this function will be removed in the next breaking
-    /// change of this crate. If you'd like to continue to be able to answer the
-    /// example question above, it's recommended you use the
-    /// `will_notify_current` method.
-    ///
-    /// If you've got questions about this though please let us know! We'd like
-    /// to learn about other use cases here that we did not consider.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if no current future is being polled.
-    #[deprecated(note = "intended to be removed, see docs for details")]
-    pub fn is_current(&self) -> bool {
-        with(|current| current.id == self.id)
     }
 
     /// This function is intended as a performance optimization for structures
@@ -187,8 +111,7 @@ impl Task {
     #[allow(deprecated)]
     pub fn will_notify_current(&self) -> bool {
         with(|current| {
-            self.unpark.will_notify(&current.unpark) &&
-                self.events.will_notify(&current.events)
+            self.unpark.will_notify(&current.unpark)
         })
     }
 }
@@ -211,7 +134,6 @@ impl fmt::Debug for Task {
 /// with either futures or streams, with different methods being available on
 /// `Spawn` depending which is used.
 pub struct Spawn<T: ?Sized> {
-    id: usize,
     data: LocalMap,
     obj: T,
 }
@@ -228,7 +150,6 @@ pub struct Spawn<T: ?Sized> {
 /// until the methods on `Spawn` are called in turn.
 pub fn spawn<T>(obj: T) -> Spawn<T> {
     Spawn {
-        id: fresh_task_id(),
         obj: obj,
         data: local_map(),
     }
@@ -354,9 +275,7 @@ impl<T: ?Sized> Spawn<T> {
         where F: FnOnce(&mut T) -> R
     {
         let borrowed = BorrowedTask {
-            id: self.id,
             unpark: unpark,
-            events: BorrowedEvents::new(),
             map: &self.data,
         };
         let obj = &mut self.obj;
@@ -471,9 +390,7 @@ pub fn with_notify<F, T, R>(notify: &T, id: usize, f: F) -> R
     with(|task| {
         let mk = || notify.clone().into();
         let new_task = BorrowedTask {
-            id: task.id,
             unpark: BorrowedUnpark::new(&mk, id),
-            events: task.events,
             map: task.map,
         };
 
@@ -508,7 +425,7 @@ pub fn with_notify<F, T, R>(notify: &T, id: usize, f: F) -> R
 /// of memory management, allowing external implementations.
 ///
 /// A default implementation of the `UnsafeNotify` trait is provided for the
-/// `Arc` type in the standard library. If the `use_std` feature of this crate
+/// `Arc` type in the standard library. If the `std` feature of this crate
 /// is not available however, you'll be required to implement your own
 /// instance of this trait to pass it into `NotifyHandle::new`.
 ///

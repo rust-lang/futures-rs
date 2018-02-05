@@ -31,7 +31,7 @@ For more information about how you can use futures with async I/O you can take a
 look at [https://tokio.rs](https://tokio.rs) which is an introduction to both
 the Tokio stack and also futures.
 
-### Feature `use_std`
+### Feature `std`
 
 `futures-rs` works without the standard library, such as in bare metal environments.
 However, it has a significantly reduced API surface. To use `futures-rs` in

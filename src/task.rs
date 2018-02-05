@@ -26,21 +26,7 @@
 //! `current` function returns a handle to the currently running task, panicking
 //! if one isn't present. This handle is then used to later notify the task that
 //! it's ready to make progress through the `Task::notify` method.
-
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "import through the executor module instead")]
-#[cfg(all(feature = "with-deprecated", feature = "use_std"))]
-#[allow(deprecated)]
-pub use task_impl::{Spawn, spawn, Unpark, Executor, Run, park};
-
 pub use task_impl::{Task, AtomicTask, current, init};
 
-#[allow(deprecated)]
-#[cfg(feature = "use_std")]
-pub use task_impl::{LocalKey, with_unpark_event, UnparkEvent, EventSet};
-
-#[doc(hidden)]
-#[deprecated(since = "0.1.4", note = "import through the executor module instead")]
-#[cfg(all(feature = "with-deprecated", feature = "use_std"))]
-#[allow(deprecated)]
-pub use task_impl::TaskRc;
+#[cfg(feature = "std")]
+pub use task_impl::LocalKey;

@@ -277,13 +277,6 @@ pub trait Sink {
     /// It is highly recommended to consider this method a required method and
     /// to implement it whenever you implement `Sink` locally. It is especially
     /// crucial to be sure to close inner sinks, if applicable.
-    #[cfg(feature = "with-deprecated")]
-    fn close(&mut self) -> Poll<(), Self::SinkError> {
-        self.poll_complete()
-    }
-
-    /// dox (you should see the above, not this)
-    #[cfg(not(feature = "with-deprecated"))]
     fn close(&mut self) -> Poll<(), Self::SinkError>;
 
     /// Creates a new object which will produce a synchronous sink.
@@ -292,7 +285,7 @@ pub trait Sink {
     /// only has two methods: `send` and `flush`. These two methods correspond
     /// to `start_send` and `poll_complete` above except are executed in a
     /// blocking fashion.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn wait(self) -> Wait<Self>
         where Self: Sized
     {
@@ -400,9 +393,9 @@ pub trait Sink {
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
     ///
-    /// This method is only available when the `use_std` feature of this
+    /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg(feature = "use_std")]
+    #[cfg(feature = "std")]
     fn buffer(self, amt: usize) -> Buffer<Self>
         where Self: Sized
     {

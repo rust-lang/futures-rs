@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "use_std", allow(dead_code))]
+#![cfg_attr(feature = "std", allow(dead_code))]
 
 use core::marker;
 use core::mem;
@@ -144,7 +144,7 @@ pub fn get_ptr() -> Option<*mut u8> {
     }
 }
 
-#[cfg(feature = "use_std")]
+#[cfg(feature = "std")]
 #[inline]
 pub fn is_get_ptr(f: usize) -> bool {
     GET.load(Relaxed) == f
