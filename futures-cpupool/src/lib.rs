@@ -305,7 +305,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
             Async::Ready(Ok(Ok(e))) => Ok(e.into()),
             Async::Ready(Ok(Err(e))) => Err(e),
             Async::Ready(Err(e)) => panic::resume_unwind(e),
-            Async::NotReady => Ok(Async::NotReady),
+            Async::Pending => Ok(Async::Pending),
         }
     }
 }
@@ -324,7 +324,7 @@ impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
 
         let res = match self.fut.poll() {
             Ok(Async::Ready(e)) => Ok(e),
-            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Pending) => return Ok(Async::Pending),
             Err(e) => Err(e),
         };
 

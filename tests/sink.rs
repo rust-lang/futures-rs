@@ -94,9 +94,9 @@ impl<S: Sink> Future for StartSendFut<S> {
     fn poll(&mut self) -> Poll<S, S::SinkError> {
         match self.0.as_mut().unwrap().start_send(self.1.take().unwrap())? {
             AsyncSink::Ready => Ok(Async::Ready(self.0.take().unwrap())),
-            AsyncSink::NotReady(item) => {
+            AsyncSink::Pending(item) => {
                 self.1 = Some(item);
-                Ok(Async::NotReady)
+                Ok(Async::Pending)
             }
         }
 
@@ -205,7 +205,7 @@ impl<T> Sink for ManualFlush<T> {
             Ok(Async::Ready(()))
         } else {
             self.waiting_tasks.push(task::current());
-            Ok(Async::NotReady)
+            Ok(Async::Pending)
         }
     }
 
@@ -306,7 +306,7 @@ impl<T> Sink for ManualAllow<T> {
             self.data.push(item);
             Ok(AsyncSink::Ready)
         } else {
-            Ok(AsyncSink::NotReady(item))
+            Ok(AsyncSink::Pending(item))
         }
     }
 

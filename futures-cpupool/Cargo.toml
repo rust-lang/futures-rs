@@ -15,7 +15,7 @@ computation on the threads themselves.
 num_cpus = "1.0"
 
 [dependencies.futures]
-path = ".."
-version = "0.1"
+path = "../futures"
+version = "0.2"
 default-features = false
 features = ["std"]

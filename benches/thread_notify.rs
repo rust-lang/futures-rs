@@ -26,7 +26,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
             } else {
                 self.rem -= 1;
                 task::current().notify();
-                Ok(Async::NotReady)
+                Ok(Async::Pending)
             }
         }
     }
@@ -55,7 +55,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
             } else {
                 self.rem -= 1;
                 task::current().notify();
-                Ok(Async::NotReady)
+                Ok(Async::Pending)
             }
         }
     }
@@ -92,7 +92,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
             } else {
                 self.rem -= 1;
                 self.tx.send(task::current()).unwrap();
-                Ok(Async::NotReady)
+                Ok(Async::Pending)
             }
         }
     }

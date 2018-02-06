@@ -151,7 +151,7 @@ fn spawn_kill_dead_stream() {
         type Error = ();
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            Ok(Async::NotReady)
+            Ok(Async::Pending)
         }
     }
 
@@ -213,7 +213,7 @@ fn spawn_dont_kill_forgot_dead_stream() {
         type Error = ();
 
         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            Ok(Async::NotReady)
+            Ok(Async::Pending)
         }
     }
 

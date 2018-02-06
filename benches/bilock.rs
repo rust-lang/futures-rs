@@ -54,7 +54,7 @@ impl Stream for LockStream {
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         self.lock.poll().map(|a| match a {
             Async::Ready(a) => Async::Ready(Some(a)),
-            Async::NotReady => Async::NotReady,
+            Async::Pending => Async::Pending,
         })
     }
 }
@@ -76,7 +76,7 @@ fn contended(b: &mut Bencher) {
 
             // Try poll second lock while first lock still holds the lock
             match y.poll_stream_notify(&notify_noop(), 11) {
-                Ok(Async::NotReady) => (),
+                Ok(Async::Pending) => (),
                 _ => panic!(),
             };
 

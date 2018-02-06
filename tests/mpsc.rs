@@ -172,7 +172,7 @@ fn spawn_kill_dead_stream() {
         type Error = ();
 
         fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-            Ok(Async::NotReady)
+            Ok(Async::Pending)
         }
     }
 
@@ -319,7 +319,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                                     Async::Ready(None) => {
                                         true
                                     }
-                                    Async::NotReady => {
+                                    Async::Pending => {
                                         *lock = Some(rx);
                                         false
                                     }

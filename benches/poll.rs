@@ -43,7 +43,7 @@ fn task_init(b: &mut Bencher) {
                 if let Some(ref t) = self.task {
                     if t.will_notify_current() {
                         t.notify();
-                        return Ok(Async::NotReady);
+                        return Ok(Async::Pending);
                     }
                 }
 
@@ -51,7 +51,7 @@ fn task_init(b: &mut Bencher) {
                 t.notify();
                 self.task = Some(t);
 
-                Ok(Async::NotReady)
+                Ok(Async::Pending)
             }
         }
     }
@@ -66,7 +66,7 @@ fn task_init(b: &mut Bencher) {
     b.iter(|| {
         fut.get_mut().num = 0;
 
-        while let Ok(Async::NotReady) = fut.poll_future_notify(&notify, 0) {
+        while let Ok(Async::Pending) = fut.poll_future_notify(&notify, 0) {
         }
     });
 }
