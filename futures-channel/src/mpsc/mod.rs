@@ -78,7 +78,7 @@ use std::usize;
 
 use mpsc::queue::{Queue, PopResult};
 use task::{self, Task};
-use {Async, Poll, Stream};
+use {Async, AsyncSink, StartSend, Poll, Stream};
 
 mod queue;
 
@@ -411,6 +411,24 @@ impl<T> Sender<T> {
             })
     }
 
+    /// Attempt to start sending a message on the channel.
+    ///
+    /// If there is not room on the channel, this function will return
+    /// `Ok(AsyncSink::Pending(msg))`, and the current `Task` will be
+    /// awoken when the channel is ready to receive more messages.
+    pub fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+        // If the sender is currently blocked, reject the message before doing
+        // any work.
+        if !self.poll_unparked(true).is_ready() {
+            return Ok(AsyncSink::Pending(msg));
+        }
+
+        // The channel has capacity to accept the message, so send it.
+        self.do_send(Some(msg), true)?;
+
+        Ok(AsyncSink::Ready)
+    }
+
     // Do the send without failing
     // None means close
     fn do_send(&mut self, msg: Option<T>, do_park: bool) -> Result<(), SendError<T>> {
@@ -628,6 +646,15 @@ impl<T> Sender<T> {
 }
 
 impl<T> UnboundedSender<T> {
+    /// Attempt to start sending a message on the channel.
+    ///
+    /// If there is not room on the channel, this function will return
+    /// `Ok(AsyncSink::Pending(msg))`, and the current `Task` will be
+    /// awoken when the channel is ready to receive more messages.
+    pub fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+        self.0.start_send(msg)
+    }
+
     /// Sends the provided message along this channel.
     ///
     /// This is an unbounded sender, so this function differs from `Sink::send`
