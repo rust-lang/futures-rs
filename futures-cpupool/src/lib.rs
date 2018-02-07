@@ -438,7 +438,7 @@ impl Builder {
 
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
-pub struct Run {
+struct Run {
     spawn: Spawn<Box<Future<Item = (), Error = ()> + Send>>,
     inner: Arc<RunInner>,
 }
