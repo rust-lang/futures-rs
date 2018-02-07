@@ -58,12 +58,12 @@ if_std! {
     mod join_all;
     mod select_all;
     mod select_ok;
-    // TODO mod shared;
+    mod shared;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
-    // TODO pub use self::shared::{Shared, SharedItem, SharedError};
+    pub use self::shared::{Shared, SharedItem, SharedError};
 }
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -71,6 +71,34 @@ impl<T: ?Sized> FutureExt for T where T: Future {}
 /// An extension trait for `Future`s that provides a variety of convenient
 /// combinator functions.
 pub trait FutureExt: Future {
+    /// Block the current thread until this future is resolved.
+    ///
+    /// This method will consume ownership of this future, driving it to
+    /// completion via `poll` and blocking the current thread while it's waiting
+    /// for the value to become available. Once the future is resolved the
+    /// result of this future is returned.
+    ///
+    /// > **Note:** This method is not appropriate to call on event loops or
+    /// >           similar I/O situations because it will prevent the event
+    /// >           loop from making progress (this blocks the thread). This
+    /// >           method should only be called when it's guaranteed that the
+    /// >           blocking work associated with this future will be completed
+    /// >           by another thread.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// This function does not attempt to catch panics. If the `poll` function
+    /// of this future panics, panics will be propagated to the caller.
+    #[cfg(feature = "std")]
+    fn wait(self) -> result::Result<Self::Item, Self::Error>
+        where Self: Sized
+    {
+        ::task::spawn(self).wait_future()
+    }
+
     /// Map this future's result to a different type, returning a new future of
     /// the resulting type.
     ///
@@ -702,7 +730,6 @@ pub trait FutureExt: Future {
         catch_unwind::new(self)
     }
 
-    /* TODO
     /// Create a cloneable handle to this future where all handles will resolve
     /// to the same result.
     ///
@@ -751,7 +778,6 @@ pub trait FutureExt: Future {
     {
         shared::new(self)
     }
-    */
 }
 
 // Just a helper function to ensure the futures we're returning all have the

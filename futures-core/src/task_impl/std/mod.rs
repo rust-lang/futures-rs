@@ -1,7 +1,6 @@
 use std::prelude::v1::*;
 
 use std::cell::Cell;
-use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
@@ -10,11 +9,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {Future, Stream, Async};
 use super::core;
-use super::{BorrowedTask, NotifyHandle, Spawn, spawn, Notify, UnsafeNotify};
+use super::{BorrowedTask, NotifyHandle, Spawn, Notify, UnsafeNotify};
 pub use super::core::{BorrowedUnpark, TaskUnpark};
-
-mod unpark_mutex;
-pub use self::unpark_mutex::UnparkMutex;
 
 mod data;
 pub use self::data::*;
@@ -96,41 +92,6 @@ impl<F: Future> Spawn<F> {
             }
         })
     }
-
-    /// A specialized function to request running a future to completion on the
-    /// specified executor.
-    ///
-    /// This function only works for futures whose item and error types are `()`
-    /// and also implement the `Send` and `'static` bounds. This will submit
-    /// units of work (instances of `Run`) to the `exec` argument provided
-    /// necessary to drive the future to completion.
-    ///
-    /// When the future would block, it's arranged that when the future is again
-    /// ready it will submit another unit of work to the `exec` provided. This
-    /// will happen in a loop until the future has completed.
-    ///
-    /// This method is not appropriate for all futures, and other kinds of
-    /// executors typically provide a similar function with perhaps relaxed
-    /// bounds as well.
-    ///
-    /// Note that this method is likely to be deprecated in favor of the
-    /// `futures::Executor` trait and `execute` method, but if this'd cause
-    /// difficulty for you please let us know!
-    pub fn execute(self, exec: Arc<Executor>)
-        where F: Future<Item=(), Error=()> + Send + 'static,
-    {
-        exec.clone().execute(Run {
-            // Ideally this method would be defined directly on
-            // `Spawn<BoxFuture<(), ()>>` so we wouldn't have to box here and
-            // it'd be more explicit, but unfortunately that currently has a
-            // link error on nightly: rust-lang/rust#36155
-            spawn: spawn(Box::new(self.into_inner())),
-            inner: Arc::new(RunInner {
-                exec: exec,
-                mutex: UnparkMutex::new()
-            }),
-        })
-    }
 }
 
 impl<S: Stream> Spawn<S> {
@@ -148,76 +109,6 @@ impl<S: Stream> Spawn<S> {
                 }
             }
         })
-    }
-}
-
-/// A trait representing requests to poll futures.
-///
-/// This trait is an argument to the `Spawn::execute` which is used to run a
-/// future to completion. An executor will receive requests to run a future and
-/// an executor is responsible for ensuring that happens in a timely fashion.
-///
-/// Note that this trait is likely to be deprecated and/or renamed to avoid
-/// clashing with the `future::Executor` trait. If you've got a use case for
-/// this or would like to comment on the name please let us know!
-pub trait Executor: Send + Sync + 'static {
-    /// Requests that `Run` is executed soon on the given executor.
-    fn execute(&self, r: Run);
-}
-
-/// Units of work submitted to an `Executor`, currently only created
-/// internally.
-pub struct Run {
-    spawn: Spawn<Box<Future<Item = (), Error = ()> + Send>>,
-    inner: Arc<RunInner>,
-}
-
-struct RunInner {
-    mutex: UnparkMutex<Run>,
-    exec: Arc<Executor>,
-}
-
-impl Run {
-    /// Actually run the task (invoking `poll` on its future) on the current
-    /// thread.
-    pub fn run(self) {
-        let Run { mut spawn, inner } = self;
-
-        // SAFETY: the ownership of this `Run` object is evidence that
-        // we are in the `POLLING`/`REPOLL` state for the mutex.
-        unsafe {
-            inner.mutex.start_poll();
-
-            loop {
-                match spawn.poll_future_notify(&inner, 0) {
-                    Ok(Async::Pending) => {}
-                    Ok(Async::Ready(())) |
-                    Err(()) => return inner.mutex.complete(),
-                }
-                let run = Run { spawn: spawn, inner: inner.clone() };
-                match inner.mutex.wait(run) {
-                    Ok(()) => return,            // we've waited
-                    Err(r) => spawn = r.spawn,   // someone's notified us
-                }
-            }
-        }
-    }
-}
-
-impl fmt::Debug for Run {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Run")
-         .field("contents", &"...")
-         .finish()
-    }
-}
-
-impl Notify for RunInner {
-    fn notify(&self, _id: usize) {
-        match self.mutex.notify() {
-            Ok(run) => self.exec.execute(run),
-            Err(()) => {}
-        }
     }
 }
 
@@ -307,16 +198,6 @@ impl Notify for ThreadNotify {
         // Wakeup the sleeper
         self.condvar.notify_one();
     }
-}
-
-/// A concurrent set which allows for the insertion of `usize` values.
-///
-/// `EventSet`s are used to communicate precise information about the event(s)
-/// that triggered a task notification. See `task::with_unpark_event` for details.
-#[deprecated(since="0.1.18", note = "recommended to use `FuturesUnordered` instead")]
-pub trait EventSet: Send + Sync + 'static {
-    /// Insert the given ID into the set
-    fn insert(&self, id: usize);
 }
 
 // Safe implementation of `UnsafeNotify` for `Arc` in the standard library.

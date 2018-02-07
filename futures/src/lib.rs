@@ -156,6 +156,7 @@
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
 extern crate futures_core;
+extern crate futures_channel;
 extern crate futures_executor;
 extern crate futures_sink;
 extern crate futures_util;
@@ -190,6 +191,7 @@ pub mod channel {
     //!
     //! This module contains channels for asynchronous
     //! communication.
+    pub use futures_channel::*;
 }
 
 pub mod executor {
@@ -281,4 +283,9 @@ pub mod stream {
     
     pub use futures_core::stream::*;
     pub use futures_util::stream::*;
+}
+
+pub mod task {
+    //! Task executon
+    pub use futures_core::task::*;
 }

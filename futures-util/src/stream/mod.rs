@@ -87,30 +87,24 @@ pub use self::forward::Forward;
 if_std! {
     use std;
 
-    /* TODO
     mod buffered;
     mod buffer_unordered;
-    */
     mod catch_unwind;
     mod chunks;
     mod collect;
-    // TODO mod wait;
+    mod wait;
     mod split;
-    /* TODO
     pub mod futures_unordered;
     mod futures_ordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
-    */
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
-    // TODO pub use self::wait::Wait;
+    pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
-    /* TODO
     pub use self::futures_unordered::FuturesUnordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
-    */
 }
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
@@ -118,6 +112,35 @@ impl<T: ?Sized> StreamExt for T where T: Stream {}
 /// An extension trait for `Stream`s that provides a variety of convenient
 /// combinator functions.
 pub trait StreamExt: Stream {
+    /// Creates an iterator which blocks the current thread until each item of
+    /// this stream is resolved.
+    ///
+    /// This method will consume ownership of this stream, returning an
+    /// implementation of a standard iterator. This iterator will *block the
+    /// current thread* on each call to `next` if the item in the stream isn't
+    /// ready yet.
+    ///
+    /// > **Note:** This method is not appropriate to call on event loops or
+    /// >           similar I/O situations because it will prevent the event
+    /// >           loop from making progress (this blocks the thread). This
+    /// >           method should only be called when it's guaranteed that the
+    /// >           blocking work associated with this stream will be completed
+    /// >           by another thread.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Panics
+    ///
+    /// The returned iterator does not attempt to catch panics. If the `poll`
+    /// function panics, panics will be propagated to the caller of `next`.
+    #[cfg(feature = "std")]
+    fn wait(self) -> Wait<Self>
+        where Self: Sized
+    {
+        wait::new(self)
+    }
+
     /// Converts this stream into a `Future`.
     ///
     /// A stream can be viewed as a future which will resolve to a pair containing
@@ -701,7 +724,6 @@ pub trait StreamExt: Stream {
         catch_unwind::new(self)
     }
 
-    /* TODO
     /// An adaptor for creating a buffered list of pending futures.
     ///
     /// If this stream's item can be converted into a future, then this adaptor
@@ -722,7 +744,6 @@ pub trait StreamExt: Stream {
     {
         buffered::new(self, amt)
     }
-    */
 
     /// An adaptor for creating a buffered list of pending futures (unordered).
     ///
@@ -737,7 +758,6 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    /* TODO
     #[cfg(feature = "std")]
     fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
         where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
@@ -745,7 +765,6 @@ pub trait StreamExt: Stream {
     {
         buffer_unordered::new(self, amt)
     }
-    */
 
     /// An adapter for zipping two streams together.
     ///
@@ -902,7 +921,6 @@ pub trait StreamExt: Stream {
     }
 }
 
-/* TODO
 /// Converts a list of futures into a `Stream` of results from the futures.
 ///
 /// This function will take an list of futures (e.g. a vector, an iterator,
@@ -926,4 +944,3 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
 
     return set
 }
-*/

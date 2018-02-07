@@ -26,7 +26,25 @@
 //! `current` function returns a handle to the currently running task, panicking
 //! if one isn't present. This handle is then used to later notify the task that
 //! it's ready to make progress through the `Task::notify` method.
-pub use task_impl::{Task, AtomicTask, current, init};
+pub use task_impl::{
+    // Types
+    NotifyHandle,
+    Spawn,
+    Task,
+
+    // Traits
+    Notify,
+    UnsafeNotify,
+
+    // Functions
+    current,
+    init,
+    spawn,
+    with_notify,
+};
 
 #[cfg(feature = "std")]
-pub use task_impl::LocalKey;
+pub use task_impl::{
+    AtomicTask,
+    LocalKey,
+};

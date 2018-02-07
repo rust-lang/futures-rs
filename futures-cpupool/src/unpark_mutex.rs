@@ -108,7 +108,7 @@ impl<D> UnparkMutex<D> {
         self.status.store(POLLING, SeqCst);
     }
 
-    /// Alert the mutex that polling completed with Pending.
+    /// Alert the mutex that polling completed with NotReady.
     ///
     /// # Safety
     ///

@@ -35,3 +35,8 @@ pub use stream::StreamExt;
 
 pub mod sink;
 pub use sink::SinkExt;
+
+pub mod prelude {
+    //! Prelude with common traits from the `futures-util` crate.
+    pub use {FutureExt, StreamExt, SinkExt};
+}

@@ -12,8 +12,7 @@ use std::sync::{Arc, Weak};
 use std::usize;
 
 use {task, Stream, Future, Poll, Async};
-use executor::{Notify, UnsafeNotify, NotifyHandle};
-use task_impl::{self, AtomicTask};
+use task::{AtomicTask, Notify, UnsafeNotify, NotifyHandle};
 
 /// An unbounded set of futures.
 ///
@@ -359,7 +358,7 @@ impl<T> Stream for FuturesUnordered<T>
                 // deallocating the node if need be.
                 let res = {
                     let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                    task_impl::with_notify(&notify, 0, || {
+                    task::with_notify(&notify, 0, || {
                         future.poll()
                     })
                 };

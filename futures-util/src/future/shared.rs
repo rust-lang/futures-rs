@@ -14,8 +14,7 @@
 //! ```
 
 use {Future, Poll, Async};
-use task::{self, Task};
-use executor::{self, Notify, Spawn};
+use task::{self, Notify, Spawn, Task};
 
 use std::{error, fmt, mem, ops};
 use std::cell::UnsafeCell;
@@ -71,7 +70,7 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
                 state: AtomicUsize::new(IDLE),
                 waiters: Mutex::new(HashMap::new()),
             }),
-            future: UnsafeCell::new(Some(executor::spawn(future))),
+            future: UnsafeCell::new(Some(task::spawn(future))),
             result: UnsafeCell::new(None),
         }),
         waiter: 0,
