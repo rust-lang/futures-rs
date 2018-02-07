@@ -6,7 +6,6 @@
 
 #[macro_use]
 extern crate futures_core;
-extern crate futures_executor;
 extern crate futures_sink;
 
 macro_rules! if_std {
