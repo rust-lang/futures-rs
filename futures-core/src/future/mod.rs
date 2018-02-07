@@ -213,6 +213,13 @@ pub trait IntoFuture {
     fn into_future(self) -> Self::Future;
 }
 
+impl<F> IntoFuture for F where F: Future {
+    type Future = Self;
+    type Item = <Self as Future>::Item;
+    type Error = <Self as Future>::Error;
+    fn into_future(self) -> Self { self }
+}
+
 /// Asynchronous conversion from a type `T`.
 ///
 /// This trait is analogous to `std::convert::From`, adapted to asynchronous

@@ -10,9 +10,8 @@ description = """
 Channels for asynchronous communication using futures-rs.
 """
 
-[features]
-std = ["futures-core/std"]
-default = ["std"]
-
-[dependencies]
-futures-core = { path = "../futures-core", version = "0.1.0" }
+[dependencies.futures-core]
+version = "0.1.0"
+path = "../futures-core"
+default-features = false
+features = ["std"]

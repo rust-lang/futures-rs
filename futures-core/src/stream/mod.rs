@@ -17,26 +17,6 @@
 
 use Poll;
 
-if_std! {
-    impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
-        type Item = S::Item;
-        type Error = S::Error;
-
-        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-            (**self).poll()
-        }
-    }
-
-    impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
-        type Item = S::Item;
-        type Error = S::Error;
-
-        fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-            self.0.poll()
-        }
-    }
-}
-
 /// A stream of values, not all of which may have been produced yet.
 ///
 /// `Stream` is a trait to represent any source of sequential events or items
@@ -116,5 +96,25 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         (**self).poll()
+    }
+}
+
+if_std! {
+    impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
+        type Item = S::Item;
+        type Error = S::Error;
+
+        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+            (**self).poll()
+        }
+    }
+
+    impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
+        type Item = S::Item;
+        type Error = S::Error;
+
+        fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+            self.0.poll()
+        }
     }
 }

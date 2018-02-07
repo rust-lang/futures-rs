@@ -10,13 +10,61 @@
 #[cfg(feature = "std")]
 extern crate std;
 
-#[macro_use]
 extern crate futures_core;
+#[cfg(feature = "std")]
 extern crate futures_channel;
 
-pub use futures_channel::{AsyncSink, StartSend};
+macro_rules! if_std {
+    ($($i:item)*) => ($(
+        #[cfg(feature = "std")]
+        $i
+    )*)
+}
 
 use futures_core::Poll;
+
+/// The result of an asynchronous attempt to send a value to a sink.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum AsyncSink<T> {
+    /// The `start_send` attempt succeeded, so the sending process has
+    /// *started*; you must use `Sink::poll_complete` to drive the send
+    /// to completion.
+    Ready,
+
+    /// The `start_send` attempt failed due to the sink being full. The value
+    /// being sent is returned, and the current `Task` will be automatically
+    /// notified again once the sink has room.
+    Pending(T),
+}
+
+impl<T> AsyncSink<T> {
+    /// Change the Pending value of this `AsyncSink` with the closure provided
+    pub fn map<F, U>(self, f: F) -> AsyncSink<U>
+        where F: FnOnce(T) -> U,
+    {
+        match self {
+            AsyncSink::Ready => AsyncSink::Ready,
+            AsyncSink::Pending(t) => AsyncSink::Pending(f(t)),
+        }
+    }
+
+    /// Returns whether this is `AsyncSink::Ready`
+    pub fn is_ready(&self) -> bool {
+        match *self {
+            AsyncSink::Ready => true,
+            AsyncSink::Pending(_) => false,
+        }
+    }
+
+    /// Returns whether this is `AsyncSink::Pending`
+    pub fn is_not_ready(&self) -> bool {
+        !self.is_ready()
+    }
+}
+
+/// Return type of the `Sink::start_send` method, indicating the outcome of a
+/// send attempt. See `AsyncSink` for more details.
+pub type StartSend<T, E> = Result<AsyncSink<T>, E>;
 
 if_std! {
     mod channel_impls;

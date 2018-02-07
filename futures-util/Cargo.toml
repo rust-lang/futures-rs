@@ -11,7 +11,7 @@ Common utilities and extension traits for the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std", "futures-channel/std", "futures-executor/std", "futures-sink/std"]
+std = ["futures-core/std", "futures-executor/std", "futures-sink/std"]
 default = ["std"]
 
 [dependencies]

@@ -9,6 +9,13 @@ extern crate futures_core;
 extern crate futures_executor;
 extern crate futures_sink;
 
+macro_rules! if_std {
+    ($($i:item)*) => ($(
+        #[cfg(feature = "std")]
+        $i
+    )*)
+}
+
 use futures_core::{Async, Future, IntoFuture, Poll, Stream};
 use futures_core::task;
 use futures_sink::{AsyncSink, Sink, StartSend};

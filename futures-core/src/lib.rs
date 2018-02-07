@@ -8,8 +8,6 @@
 #[cfg(feature = "std")]
 extern crate std;
 
-#[doc(hidden)]
-#[macro_export]
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]

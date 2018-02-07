@@ -184,6 +184,7 @@ macro_rules! try_ready {
 
 // TODO: task_local macro
 
+#[cfg(feature = "std")]
 pub mod channel {
     //! Channels
     //!
