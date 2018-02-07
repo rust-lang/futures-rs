@@ -34,7 +34,7 @@ pub fn sassert_done<S: Stream>(s: &mut S) {
     match executor::spawn(s).poll_stream_notify(&notify_panic(), 0) {
         Ok(Async::Ready(None)) => {}
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
-        Ok(Async::NotReady) => panic!("stream wasn't ready"),
+        Ok(Async::Pending) => panic!("stream wasn't ready"),
         Err(_) => panic!("stream had an error"),
     }
 }
@@ -43,7 +43,7 @@ pub fn sassert_empty<S: Stream>(s: &mut S) {
     match executor::spawn(s).poll_stream_notify(&notify_noop(), 0) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
-        Ok(Async::NotReady) => {}
+        Ok(Async::Pending) => {}
         Err(_) => panic!("stream had an error"),
     }
 }
@@ -54,7 +54,7 @@ pub fn sassert_next<S: Stream>(s: &mut S, item: S::Item)
     match executor::spawn(s).poll_stream_notify(&notify_panic(), 0) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(e))) => assert_eq!(e, item),
-        Ok(Async::NotReady) => panic!("stream wasn't ready"),
+        Ok(Async::Pending) => panic!("stream wasn't ready"),
         Err(_) => panic!("stream had an error"),
     }
 }
@@ -65,7 +65,7 @@ pub fn sassert_err<S: Stream>(s: &mut S, err: S::Error)
     match executor::spawn(s).poll_stream_notify(&notify_panic(), 0) {
         Ok(Async::Ready(None)) => panic!("stream is at its end"),
         Ok(Async::Ready(Some(_))) => panic!("stream had more elements"),
-        Ok(Async::NotReady) => panic!("stream wasn't ready"),
+        Ok(Async::Pending) => panic!("stream wasn't ready"),
         Err(e) => assert_eq!(e, err),
     }
 }
@@ -120,12 +120,12 @@ impl<F: Future> Future for DelayFuture<F> {
         } else {
             self.1 = true;
             task::current().notify();
-            Ok(Async::NotReady)
+            Ok(Async::Pending)
         }
     }
 }
 
-/// Introduces one `Ok(Async::NotReady)` before polling the given future
+/// Introduces one `Ok(Async::Pending)` before polling the given future
 pub fn delay_future<F>(f: F) -> DelayFuture<F::Future>
     where F: IntoFuture,
 {

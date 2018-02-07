@@ -40,6 +40,9 @@
 extern crate futures;
 extern crate num_cpus;
 
+mod unpark_mutex;
+use unpark_mutex::UnparkMutex;
+
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -47,10 +50,10 @@ use std::sync::mpsc;
 use std::thread;
 use std::fmt;
 
-use futures::{IntoFuture, Future, Poll, Async};
-use futures::future::{lazy, Executor, ExecuteError};
-use futures::sync::oneshot::{channel, Sender, Receiver};
-use futures::executor::{self, Run, Executor as OldExecutor};
+use futures::prelude::*;
+use futures::future::lazy;
+use futures::channel::oneshot::{channel, Sender, Receiver};
+use futures::task::{self, Notify, Spawn};
 
 /// A thread pool intended to run CPU intensive work.
 ///
@@ -176,6 +179,24 @@ impl CpuPool {
         Builder::new().create()
     }
 
+    fn execute_run(&self, run: Run) {
+        self.inner.send(Message::Run(run));
+    }
+
+    /// TODO
+    pub fn execute<F>(&self, future: F)
+        where F: Future<Item = (), Error = ()> + Send + 'static
+    {
+        let run = Run {
+            spawn: task::spawn(Box::new(future)),
+            inner: Arc::new(RunInner {
+                exec: self.clone(),
+                mutex: UnparkMutex::new(),
+            }),
+        };
+        self.execute_run(run);
+    }
+
     /// Spawns a future to run on this thread pool, returning a future
     /// representing the produced value.
     ///
@@ -211,7 +232,7 @@ impl CpuPool {
             tx: Some(tx),
             keep_running_flag: keep_running_flag.clone(),
         };
-        executor::spawn(sender).execute(self.inner.clone());
+        self.execute(sender);
         CpuFuture { inner: rx , keep_running_flag: keep_running_flag.clone() }
     }
 
@@ -232,15 +253,6 @@ impl CpuPool {
               R::Error: Send + 'static,
     {
         self.spawn(lazy(f))
-    }
-}
-
-impl<F> Executor<F> for CpuPool
-    where F: Future<Item = (), Error = ()> + Send + 'static,
-{
-    fn execute(&self, future: F) -> Result<(), ExecuteError<F>> {
-        executor::spawn(future).execute(self.inner.clone());
-        Ok(())
     }
 }
 
@@ -279,12 +291,6 @@ impl Drop for CpuPool {
     }
 }
 
-impl OldExecutor for Inner {
-    fn execute(&self, run: Run) {
-        self.send(Message::Run(run))
-    }
-}
-
 impl<T, E> CpuFuture<T, E> {
     /// Drop this future without canceling the underlying future.
     ///
@@ -305,7 +311,7 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
             Async::Ready(Ok(Ok(e))) => Ok(e.into()),
             Async::Ready(Ok(Err(e))) => Err(e),
             Async::Ready(Err(e)) => panic::resume_unwind(e),
-            Async::NotReady => Ok(Async::NotReady),
+            Async::Pending => Ok(Async::Pending),
         }
     }
 }
@@ -324,7 +330,7 @@ impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
 
         let res = match self.fut.poll() {
             Ok(Async::Ready(e)) => Ok(e),
-            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Ok(Async::Pending) => return Ok(Async::Pending),
             Err(e) => Err(e),
         };
 
@@ -427,6 +433,62 @@ impl Builder {
             thread_builder.spawn(move || inner.work(after_start, before_stop)).unwrap();
         }
         return pool
+    }
+}
+
+/// Units of work submitted to an `Executor`, currently only created
+/// internally.
+struct Run {
+    spawn: Spawn<Box<Future<Item = (), Error = ()> + Send>>,
+    inner: Arc<RunInner>,
+}
+
+struct RunInner {
+    mutex: UnparkMutex<Run>,
+    exec: CpuPool,
+}
+
+impl Run {
+    /// Actually run the task (invoking `poll` on its future) on the current
+    /// thread.
+    pub fn run(self) {
+        let Run { mut spawn, inner } = self;
+
+        // SAFETY: the ownership of this `Run` object is evidence that
+        // we are in the `POLLING`/`REPOLL` state for the mutex.
+        unsafe {
+            inner.mutex.start_poll();
+
+            loop {
+                match spawn.poll_future_notify(&inner, 0) {
+                    Ok(Async::Pending) => {}
+                    Ok(Async::Ready(())) |
+                    Err(()) => return inner.mutex.complete(),
+                }
+                let run = Run { spawn: spawn, inner: inner.clone() };
+                match inner.mutex.wait(run) {
+                    Ok(()) => return,            // we've waited
+                    Err(r) => spawn = r.spawn,   // someone's notified us
+                }
+            }
+        }
+    }
+}
+
+impl fmt::Debug for Run {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Run")
+         .field("contents", &"...")
+         .finish()
+    }
+}
+
+impl Notify for RunInner {
+    fn notify(&self, _id: usize) {
+        match self.mutex.notify() {
+            Ok(run) => self.exec.execute_run(run),
+            Err(()) => {}
+        }
     }
 }
 

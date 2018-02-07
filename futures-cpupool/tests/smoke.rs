@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::thread;
 use std::time::Duration;
 
-use futures::future::Future;
+use futures::future::{Future, FutureExt};
 use futures_cpupool::{CpuPool, Builder};
 
 fn done<T: Send + 'static>(t: T) -> Box<Future<Item = T, Error = ()> + Send> {

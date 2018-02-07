@@ -43,7 +43,7 @@ fn unbounded_1_tx(b: &mut Bencher) {
         for i in 0..1000 {
 
             // Poll, not ready, park
-            assert_eq!(Ok(Async::NotReady), rx.poll_stream_notify(&notify_noop(), 1));
+            assert_eq!(Ok(Async::Pending), rx.poll_stream_notify(&notify_noop(), 1));
 
             UnboundedSender::unbounded_send(&tx, i).unwrap();
 
@@ -66,7 +66,7 @@ fn unbounded_100_tx(b: &mut Bencher) {
         // 1000 send/recv operations total, result should be divided by 1000
         for _ in 0..10 {
             for i in 0..tx.len() {
-                assert_eq!(Ok(Async::NotReady), rx.poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Pending), rx.poll_stream_notify(&notify_noop(), 1));
 
                 UnboundedSender::unbounded_send(&tx[i], i).unwrap();
 
@@ -109,8 +109,8 @@ impl Stream for TestSender {
                 assert_eq!(Ok(Async::Ready(())), self.tx.poll_complete());
                 Ok(Async::Ready(Some(self.last)))
             }
-            Ok(AsyncSink::NotReady(_)) => {
-                Ok(Async::NotReady)
+            Ok(AsyncSink::Pending(_)) => {
+                Ok(Async::Pending)
             }
         }
     }
@@ -132,7 +132,7 @@ fn bounded_1_tx(b: &mut Bencher) {
 
         for i in 0..1000 {
             assert_eq!(Ok(Async::Ready(Some(i + 1))), tx.poll_stream_notify(&notify_noop(), 1));
-            assert_eq!(Ok(Async::NotReady), tx.poll_stream_notify(&notify_noop(), 1));
+            assert_eq!(Ok(Async::Pending), tx.poll_stream_notify(&notify_noop(), 1));
             assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll_stream_notify(&notify_noop(), 1));
         }
     })
@@ -159,7 +159,7 @@ fn bounded_100_tx(b: &mut Bencher) {
                 // Send an item
                 assert_eq!(Ok(Async::Ready(Some(i + 1))), tx[j].poll_stream_notify(&notify_noop(), 1));
                 // Then block
-                assert_eq!(Ok(Async::NotReady), tx[j].poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Pending), tx[j].poll_stream_notify(&notify_noop(), 1));
                 // Recv the item
                 assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll_stream_notify(&notify_noop(), 1));
             }

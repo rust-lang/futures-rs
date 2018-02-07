@@ -86,7 +86,7 @@ impl Core {
             if self.turn() {
                 match f.poll_future_notify(&self.notify, id)? {
                     Async::Ready(e) => return Ok(e),
-                    Async::NotReady => {}
+                    Async::Pending => {}
                 }
             }
         }
@@ -124,7 +124,7 @@ impl Core {
         // done then we put it back in the tasks array.
         let done = match future.poll_future_notify(&self.notify, task_id) {
             Ok(Async::Ready(())) | Err(()) => true,
-            Ok(Async::NotReady) => false,
+            Ok(Async::Pending) => false,
         };
         let mut tasks = self.tasks.borrow_mut();
         if done {

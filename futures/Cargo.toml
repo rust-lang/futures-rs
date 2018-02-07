@@ -1,0 +1,30 @@
+[package]
+name = "futures"
+version = "0.2.0"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+keywords = ["futures", "async", "future"]
+repository = "https://github.com/alexcrichton/futures-rs"
+homepage = "https://github.com/alexcrichton/futures-rs"
+documentation = "https://docs.rs/futures"
+description = """
+An implementation of futures and streams featuring zero allocations,
+composability, and iterator-like interfaces.
+"""
+categories = ["asynchronous"]
+
+[badges]
+travis-ci = { repository = "alexcrichton/futures-rs" }
+appveyor = { repository = "alexcrichton/futures-rs" }
+
+[dependencies]
+futures-core = { path = "../futures-core", version = "0.1.0", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.1.0", default-features = false }
+futures-executor = { path = "../futures-executor", version = "0.1.0", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.1.0", default-features = false }
+futures-util = { path = "../futures-util", version = "0.1.0", default-features = false }
+
+[features]
+std = ["futures-core/std", "futures-executor/std", "futures-sink/std", "futures-util/std"]
+default = ["std"]
