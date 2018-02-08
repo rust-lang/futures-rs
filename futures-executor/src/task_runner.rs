@@ -10,6 +10,8 @@ use futures_core::task::{self, Spawn, NotifyHandle};
 use futures_util::FutureExt;
 use futures_util::stream::FuturesUnordered;
 
+use {enter, Enter};
+
 /// An object for cooperatively scheduling multiple futures on one thread.
 ///
 /// A `TaskRunner` provides two implementors of the `Executor` trait, allowing
@@ -111,7 +113,7 @@ impl TaskRunner {
     /// This method also does not attempt to catch panics of the underlying
     /// futures.  Instead it will propagate panics if any polled future panics.
     pub fn poll(&mut self, f: &Fn() -> NotifyHandle) {
-        set_current(&self.executor(), || self._poll(f))
+        set_current(&self.executor(), |_e| self._poll(f))
     }
 
     fn _poll(&mut self, f: &Fn() -> NotifyHandle) {
@@ -257,11 +259,11 @@ fn _spawn(inner: &Inner, future: Box<Future<Item = bool, Error = bool>>) {
 thread_local!(static CURRENT: Cell<*const TaskExecutor> = Cell::new(0 as *const _));
 
 pub fn set_current<F, R>(current: &TaskExecutor, f: F) -> R
-    where F: FnOnce() -> R
+    where F: FnOnce(Enter) -> R
 {
-    // let enter = executor::enter()
-    //     .expect("cannot execute `CurrentThread` executor from within \
-    //              another executor");
+    let enter = enter()
+        .expect("cannot execute `CurrentThread` executor from within \
+                 another executor");
 
     CURRENT.with(|c| {
         struct Reset<'a, T: 'a>(&'a Cell<*const T>);
@@ -277,7 +279,7 @@ pub fn set_current<F, R>(current: &TaskExecutor, f: F) -> R
             _reset = Reset(c);
             c.set(current);
         }
-        f()
+        f(enter)
     })
 }
 

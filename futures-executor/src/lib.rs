@@ -16,3 +16,6 @@ mod thread;
 mod task_runner;
 
 pub mod current_thread;
+
+mod enter;
+pub use enter::{enter, Enter, EnterError};

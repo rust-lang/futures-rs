@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
 
-use futures::future::{empty, lazy};
+use futures::future::lazy;
 use futures::prelude::*;
 use futures::task;
 use futures_executor::current_thread::*;
@@ -101,45 +101,26 @@ fn outstanding_tasks_are_dropped_on_cancel() {
     assert!(Rc::get_mut(&mut rc).is_some());
 }
 
-// #[test]
-// #[should_panic]
-// fn nesting_run() {
-//     run(|_| {
-//         run(|_| {
-//         });
-//     });
-// }
-//
-// #[test]
-// #[should_panic]
-// fn run_in_future() {
-//     run(|_| {
-//         spawn(lazy(|| {
-//             run(|_| {
-//             });
-//             Ok::<(), ()>(())
-//         }));
-//     });
-// }
+#[test]
+#[should_panic]
+fn nesting_run() {
+    run(|_| {
+        run(|_| {
+        });
+    });
+}
 
-// #[test]
-// #[should_panic]
-// fn blocking_within_init() {
-//     run(|_| {
-//         let _ = blocking(empty::<(), ()>()).wait();
-//     });
-// }
-//
-// #[test]
-// #[should_panic]
-// fn blocking_in_future() {
-//     run(|_| {
-//         spawn(lazy(|| {
-//             let _ = blocking(empty::<(), ()>()).wait();
-//             Ok::<(), ()>(())
-//         }));
-//     });
-// }
+#[test]
+#[should_panic]
+fn run_in_future() {
+    run(|_| {
+        spawn(lazy(|| {
+            run(|_| {
+            });
+            Ok::<(), ()>(())
+        }));
+    });
+}
 
 #[test]
 fn tasks_are_scheduled_fairly() {

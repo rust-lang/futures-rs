@@ -1,6 +1,7 @@
 use futures_core::task::{self, NotifyHandle};
 use futures_core::{Future, Async};
 
+use Enter;
 use thread::ThreadNotify;
 use task_runner::{set_current, with_current, TaskRunner};
 
@@ -9,7 +10,7 @@ use task_runner::{set_current, with_current, TaskRunner};
 /// This currently does not do anything, but allows future improvements to be
 /// made in a backwards compatible way.
 pub struct Context<'a> {
-    // enter: &'a executor::Enter,
+    enter: Enter,
     runner: &'a mut TaskRunner,
     handle: &'a (Fn() -> NotifyHandle + 'a),
     thread: &'a ThreadNotify,
@@ -23,9 +24,9 @@ pub fn run<F, R>(f: F) -> R
         let handle = &|| thread.clone().into();
 
         // Kick off any initial work through the callback provided
-        let ret = set_current(&runner.executor(), || {
+        let ret = set_current(&runner.executor(), |enter| {
             f(&mut Context {
-                // enter: &,
+                enter,
                 runner: &mut runner,
                 handle,
                 thread,
@@ -101,10 +102,10 @@ pub fn cancel_all_spawned() {
 }
 
 impl<'a> Context<'a> {
-    // /// Returns a reference to the executor `Enter` handle.
-    // pub fn enter(&self) -> &executor::Enter {
-    //     &self.enter
-    // }
+    /// Returns a reference to the executor `Enter` handle.
+    pub fn enter(&self) -> &Enter {
+        &self.enter
+    }
 
     /// Synchronously waits for the provided `future` to complete.
     ///
