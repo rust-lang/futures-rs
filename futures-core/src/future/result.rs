@@ -29,7 +29,7 @@ impl<T, E> IntoFuture for result::Result<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::future::*;
+/// use futures_core::future::*;
 ///
 /// let future_of_1 = result::<u32, u32>(Ok(1));
 /// let future_of_err_2 = result::<u32, u32>(Err(2));
@@ -47,7 +47,7 @@ pub fn result<T, E>(r: result::Result<T, E>) -> Result<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::future::*;
+/// use futures_core::future::*;
 ///
 /// let future_of_1 = ok::<u32, u32>(1);
 /// ```
@@ -63,7 +63,7 @@ pub fn ok<T, E>(t: T) -> Result<T, E> {
 /// # Examples
 ///
 /// ```
-/// use futures::future::*;
+/// use futures_core::future::*;
 ///
 /// let future_of_err_1 = err::<u32, u32>(1);
 /// ```
