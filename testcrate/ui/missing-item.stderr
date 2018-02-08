@@ -1,3 +1,5 @@
+thread 'rustc' panicked at '#[async_stream] requires item type to be specified', libcore/option.rs:917:5
+note: Run with `RUST_BACKTRACE=1` for a backtrace.
 error: custom attribute panicked
  --> $DIR/missing-item.rs:8:1
   |
