@@ -92,7 +92,7 @@ pub fn spawn_daemon<F>(future: F)
 ///
 /// This function can only be invoked from the context of a
 /// `run` call; any other use will result in a panic.
-pub fn cancel_all_executing() {
+pub fn cancel_all_spawned() {
     with_current(|current| {
         current.expect("cannot call `cancel_all_executing` unless the \
                         thread is already in the context of a call to `run`")

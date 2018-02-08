@@ -17,3 +17,7 @@ default = ["std"]
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.1.0", default-features = false}
 futures-util = { path = "../futures-util", version = "0.1.0", default-features = false}
+
+[dev-dependencies]
+futures = { path = "../futures", version = "0.2" }
+futures-channel = { path = "../futures-channel", version = "0.1" }
