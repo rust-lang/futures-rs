@@ -6,10 +6,12 @@
 #![feature(proc_macro, conservative_impl_trait, generators)]
 
 extern crate futures_await as futures;
+extern crate futures_cpupool;
 
 use std::io;
 
 use futures::prelude::*;
+use futures_cpupool::CpuPool;
 
 #[async]
 fn foo() -> Result<i32, i32> {
@@ -56,6 +58,11 @@ fn _foo7<T>(t: T) -> Result<T, i32>
 #[async(boxed)]
 fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
     return Ok(a + b)
+}
+
+#[async(boxed_send)]
+fn _foo9() -> Result<(), ()> {
+    Ok(())
 }
 
 #[async]
@@ -233,4 +240,10 @@ fn poll_stream_after_error() {
     assert_eq!(s.poll(), Ok(Async::Ready(Some(5))));
     assert_eq!(s.poll(), Err(()));
     assert_eq!(s.poll(), Ok(Async::Ready(None)));
+}
+
+#[test]
+fn run_boxed_future_in_cpu_pool() {
+    let pool = CpuPool::new_num_cpus();
+    pool.spawn(_foo9()).wait().unwrap();
 }
