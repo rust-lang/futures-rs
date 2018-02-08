@@ -79,19 +79,26 @@ struct Inner<T> {
 /// # Examples
 ///
 /// ```
+/// extern crate futures;
+/// extern crate futures_channel;
+///
 /// use std::thread;
-/// use futures::sync::oneshot;
+///
+/// use futures_channel::oneshot;
 /// use futures::*;
 ///
-/// let (p, c) = oneshot::channel::<i32>();
+/// fn main() {
+///     let (p, c) = oneshot::channel::<i32>();
 ///
-/// thread::spawn(|| {
-///     c.map(|i| {
-///         println!("got: {}", i);
-///     }).wait();
-/// });
+///     thread::spawn(|| {
+///         let future = c.map(|i| {
+///             println!("got: {}", i);
+///         });
+///         // ...
+///     });
 ///
-/// p.send(3).unwrap();
+///     p.send(3).unwrap();
+/// }
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner::new());

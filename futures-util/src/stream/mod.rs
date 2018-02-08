@@ -92,7 +92,6 @@ if_std! {
     mod catch_unwind;
     mod chunks;
     mod collect;
-    mod wait;
     mod split;
     pub mod futures_unordered;
     mod futures_ordered;
@@ -101,7 +100,6 @@ if_std! {
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
-    pub use self::wait::Wait;
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
     pub use self::futures_unordered::FuturesUnordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
@@ -112,35 +110,6 @@ impl<T: ?Sized> StreamExt for T where T: Stream {}
 /// An extension trait for `Stream`s that provides a variety of convenient
 /// combinator functions.
 pub trait StreamExt: Stream {
-    /// Creates an iterator which blocks the current thread until each item of
-    /// this stream is resolved.
-    ///
-    /// This method will consume ownership of this stream, returning an
-    /// implementation of a standard iterator. This iterator will *block the
-    /// current thread* on each call to `next` if the item in the stream isn't
-    /// ready yet.
-    ///
-    /// > **Note:** This method is not appropriate to call on event loops or
-    /// >           similar I/O situations because it will prevent the event
-    /// >           loop from making progress (this blocks the thread). This
-    /// >           method should only be called when it's guaranteed that the
-    /// >           blocking work associated with this stream will be completed
-    /// >           by another thread.
-    ///
-    /// This method is only available when the `std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
-    /// # Panics
-    ///
-    /// The returned iterator does not attempt to catch panics. If the `poll`
-    /// function panics, panics will be propagated to the caller of `next`.
-    #[cfg(feature = "std")]
-    fn wait(self) -> Wait<Self>
-        where Self: Sized
-    {
-        wait::new(self)
-    }
-
     /// Converts this stream into a `Future`.
     ///
     /// A stream can be viewed as a future which will resolve to a pair containing
