@@ -225,25 +225,30 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     // Handle arguments to the #[async] attribute, if any
-    let attribute = attribute.to_string();
-    let boxed = if attribute == "( boxed )" {
-        true
-    } else if attribute == "" {
-        false
-    } else {
-        panic!("the #[async] attribute currently only takes `boxed` as an arg");
+    let (boxed, send) = match &attribute.to_string() as &str {
+        "( boxed )" => (true, false),
+        "( boxed_send )" => (true, true),
+        "" => (false, false),
+        _ => panic!("the #[async] attribute currently only takes `boxed` as an arg"),
     };
 
     async_inner(boxed, function, quote_cs! { ::futures::__rt::gen }, |output| {
         // TODO: can we lift the restriction that `futures` must be at the root of
         //       the crate?
         let output_span = first_last(&output);
-        let return_ty = if boxed {
+        let return_ty = if boxed && !send {
             quote_cs! {
                 ::futures::__rt::std::boxed::Box<::futures::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
+            }
+        } else if boxed && send {
+            quote_cs! {
+                ::futures::__rt::std::boxed::Box<::futures::Future<
+                    Item = <! as ::futures::__rt::IsResult>::Ok,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                > + Send>
             }
         } else {
             // Dunno why this is buggy, hits weird typecheck errors in tests

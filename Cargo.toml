@@ -24,5 +24,6 @@ futures-await-await-macro = { path = "futures-await-await-macro", version = "0.1
 futures = "0.1"
 
 [dev-dependencies]
+futures-cpupool = "0.1"
 tokio-core = "0.1"
 tokio-io = "0.1"
