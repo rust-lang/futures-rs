@@ -11,11 +11,10 @@ Common utilities and extension traits for the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std", "futures-executor/std", "futures-sink/std"]
+std = ["futures-core/std", "futures-sink/std"]
 default = ["std"]
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.1.0" }
 futures-channel = { path = "../futures-channel", version = "0.1.0" }
-futures-executor = { path = "../futures-executor", version = "0.1.0" }
 futures-sink = { path = "../futures-sink", version = "0.1.0" }

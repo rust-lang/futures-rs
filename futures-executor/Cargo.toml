@@ -16,3 +16,4 @@ default = ["std"]
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.1.0" }
+futures-util = { path = "../futures-util", version = "0.1.0" }

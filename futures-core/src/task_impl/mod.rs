@@ -229,6 +229,21 @@ impl<T: ?Sized> Spawn<T> {
         self.enter(BorrowedUnpark::new(&mk, id), f)
     }
 
+    /// TODO: dox
+    pub fn with_task_data<F, R>(&mut self, f: F) -> R
+        where F: FnOnce(&mut T) -> R,
+    {
+        let Spawn { ref data, ref mut obj, .. } = *self;
+        with(|task| {
+            let new_task = BorrowedTask {
+                unpark: task.unpark,
+                map: data,
+            };
+
+            set(&new_task, || f(obj))
+        })
+    }
+
     fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
         where F: FnOnce(&mut T) -> R
     {
