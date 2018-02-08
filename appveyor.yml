@@ -32,8 +32,4 @@ install:
 build: false
 
 test_script:
-  - cargo build
-  - cargo build --no-default-features
-  - cargo test
-  - cargo test --no-default-features --features std
-  - cargo test --manifest-path futures-cpupool/Cargo.toml
+  - cargo test --all

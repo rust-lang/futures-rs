@@ -272,9 +272,11 @@ pub fn set_current<F, R>(current: &TaskExecutor, f: F) -> R
             }
         }
 
-        assert!(c.get().is_null());
-        let _reset = Reset(c);
-        c.set(current);
+        let _reset;
+        if c.get() != current {
+            _reset = Reset(c);
+            c.set(current);
+        }
         f()
     })
 }

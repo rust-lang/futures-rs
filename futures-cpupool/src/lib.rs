@@ -9,9 +9,11 @@
 //! ```rust
 //! extern crate futures;
 //! extern crate futures_cpupool;
+//! extern crate futures_executor;
 //!
-//! use futures::Future;
+//! use futures::prelude::*;
 //! use futures_cpupool::CpuPool;
+//! use futures_executor::current_thread::run;
 //!
 //! # fn long_running_future(a: u32) -> Box<futures::future::Future<Item = u32, Error = ()> + Send> {
 //! #     Box::new(futures::future::result(Ok(a)))
@@ -27,7 +29,7 @@
 //!
 //! // Express some further computation once the work is completed on the thread
 //! // pool.
-//! let c = a.join(b).map(|(a, b)| a + b).wait().unwrap();
+//! let c = run(|cx| cx.block_on(a.join(b).map(|(a, b)| a + b))).unwrap();
 //!
 //! // Print out the result
 //! println!("{:?}", c);
@@ -179,10 +181,6 @@ impl CpuPool {
         Builder::new().create()
     }
 
-    fn execute_run(&self, run: Run) {
-        self.inner.send(Message::Run(run));
-    }
-
     /// TODO
     pub fn execute<F>(&self, future: F)
         where F: Future<Item = (), Error = ()> + Send + 'static
@@ -190,11 +188,11 @@ impl CpuPool {
         let run = Run {
             spawn: task::spawn(Box::new(future)),
             inner: Arc::new(RunInner {
-                exec: self.clone(),
+                exec: self.inner.clone(),
                 mutex: UnparkMutex::new(),
             }),
         };
-        self.execute_run(run);
+        self.inner.send(Message::Run(run));
     }
 
     /// Spawns a future to run on this thread pool, returning a future
@@ -445,7 +443,7 @@ struct Run {
 
 struct RunInner {
     mutex: UnparkMutex<Run>,
-    exec: CpuPool,
+    exec: Arc<Inner>,
 }
 
 impl Run {
@@ -486,7 +484,7 @@ impl fmt::Debug for Run {
 impl Notify for RunInner {
     fn notify(&self, _id: usize) {
         match self.mutex.notify() {
-            Ok(run) => self.exec.execute_run(run),
+            Ok(run) => self.exec.send(Message::Run(run)),
             Err(()) => {}
         }
     }

@@ -1,5 +1,6 @@
 extern crate futures;
 extern crate futures_cpupool;
+extern crate futures_executor;
 
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::thread;
@@ -7,6 +8,7 @@ use std::time::Duration;
 
 use futures::future::{Future, FutureExt};
 use futures_cpupool::{CpuPool, Builder};
+use futures_executor::current_thread::run;
 
 fn done<T: Send + 'static>(t: T) -> Box<Future<Item = T, Error = ()> + Send> {
     Box::new(futures::future::ok(t))
@@ -17,7 +19,7 @@ fn join() {
     let pool = CpuPool::new(2);
     let a = pool.spawn(done(1));
     let b = pool.spawn(done(2));
-    let res = a.join(b).map(|(a, b)| a + b).wait();
+    let res = run(|c| c.block_on(a.join(b).map(|(a, b)| a + b)));
 
     assert_eq!(res.unwrap(), 3);
 }
@@ -27,8 +29,8 @@ fn select() {
     let pool = CpuPool::new(2);
     let a = pool.spawn(done(1));
     let b = pool.spawn(done(2));
-    let (item1, next) = a.select(b).wait().ok().unwrap();
-    let item2 = next.wait().unwrap();
+    let (item1, next) = run(|c| c.block_on(a.select(b))).ok().unwrap();
+    let item2 = run(|c| c.block_on(next)).unwrap();
 
     assert!(item1 != item2);
     assert!((item1 == 1 && item2 == 2) || (item1 == 2 && item2 == 1));
@@ -94,7 +96,6 @@ fn lifecycle_test() {
         }
         thread::sleep(Duration::from_millis(10));
     }
-    panic!("thread didn't exit");
 }
 
 #[test]
@@ -106,5 +107,5 @@ fn thread_name() {
         assert!(thread::current().name().unwrap().starts_with("my-pool-"));
         Ok::<(), ()>(())
     });
-    let _ = future.wait();
+    let _ = run(|c| c.block_on(future));
 }
