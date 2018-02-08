@@ -11,9 +11,9 @@ Executors for asynchronous tasks based on the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std"]
+std = ["futures-core/std", "futures-util/std"]
 default = ["std"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.1.0" }
-futures-util = { path = "../futures-util", version = "0.1.0" }
+futures-core = { path = "../futures-core", version = "0.1.0", default-features = false}
+futures-util = { path = "../futures-util", version = "0.1.0", default-features = false}
