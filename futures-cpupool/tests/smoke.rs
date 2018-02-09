@@ -2,6 +2,7 @@ extern crate futures;
 extern crate futures_cpupool;
 extern crate futures_executor;
 
+use std::panic::{self, AssertUnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::thread;
 use std::time::Duration;
@@ -108,4 +109,16 @@ fn thread_name() {
         Ok::<(), ()>(())
     });
     let _ = run(|c| c.block_on(future));
+}
+
+#[test]
+fn run_panics() {
+    let pool = CpuPool::new(1);
+    let future = pool.spawn_fn(|| {
+        run(|_| ());
+        Ok::<(), ()>(())
+    });
+    assert!(panic::catch_unwind(AssertUnwindSafe(move || {
+        drop(run(|c| c.block_on(future)));
+    })).is_err());
 }
