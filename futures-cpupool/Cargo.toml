@@ -1,6 +1,6 @@
 [package]
 name = "futures-cpupool"
-version = "0.1.8"
+version = "0.2.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/alexcrichton/futures-rs"
@@ -16,7 +16,7 @@ num_cpus = "1.0"
 futures = { path = "../futures", version = "0.2", default-features = false }
 
 [dev-dependencies]
-futures-executor = { path = "../futures-executor", version = "0.1", default-features = false }
+futures-executor = { path = "../futures-executor", version = "0.2", default-features = false }
 
 [features]
 std = ["futures/std"]
