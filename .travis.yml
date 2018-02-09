@@ -24,8 +24,8 @@ matrix:
         - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
-    - rust: 1.15.0
-      script: cargo test
+    - rust: 1.20.0
+      script: cargo test --all
 
 script:
   - cargo test --all
