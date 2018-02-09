@@ -1,4 +1,5 @@
 use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 /// A combinator used to filter the results of a stream and simultaneously map
@@ -67,16 +68,16 @@ impl<S, F, R> Sink for FilterMap<S, F, R>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -88,10 +89,10 @@ impl<S, F, R, B> Stream for FilterMap<S, F, R>
     type Item = B;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<B>, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<B>, S::Error> {
         loop {
             if self.pending.is_none() {
-                let item = match try_ready!(self.stream.poll()) {
+                let item = match try_ready!(self.stream.poll(ctx)) {
                     Some(e) => e,
                     None => return Ok(Async::Ready(None)),
                 };
@@ -99,7 +100,7 @@ impl<S, F, R, B> Stream for FilterMap<S, F, R>
                 self.pending = Some(fut);
             }
 
-            match self.pending.as_mut().unwrap().poll() {
+            match self.pending.as_mut().unwrap().poll(ctx) {
                 x @ Ok(Async::Ready(Some(_))) => {
                     self.pending = None;
                     return x

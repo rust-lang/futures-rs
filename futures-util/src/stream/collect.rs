@@ -3,6 +3,7 @@ use std::prelude::v1::*;
 use std::mem;
 
 use futures_core::{Future, Poll, Async, Stream};
+use futures_core::task;
 
 /// A future which collects all of the values of a stream into a vector.
 ///
@@ -35,9 +36,9 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Vec<S::Item>, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Vec<S::Item>, S::Error> {
         loop {
-            match self.stream.poll() {
+            match self.stream.poll(ctx) {
                 Ok(Async::Ready(Some(e))) => self.items.push(e),
                 Ok(Async::Ready(None)) => return Ok(Async::Ready(self.finish())),
                 Ok(Async::Pending) => return Ok(Async::Pending),

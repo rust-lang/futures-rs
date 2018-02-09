@@ -1,6 +1,7 @@
 use core::fmt;
 
 use futures_core::{Future, IntoFuture, Poll};
+use futures_core::task;
 
 use super::chain::Chain;
 
@@ -42,8 +43,8 @@ impl<A> Future for Flatten<A>
     type Item = <<A as Future>::Item as IntoFuture>::Item;
     type Error = <<A as Future>::Item as IntoFuture>::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.state.poll(|a, ()| {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        self.state.poll(ctx, |a, ()| {
             let future = a?.into_future();
             Ok(Err(future))
         })

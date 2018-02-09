@@ -1,4 +1,5 @@
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 /// A stream combinator which will change the type of a stream from one
@@ -54,16 +55,16 @@ impl<S, F> Sink for Map<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -74,8 +75,8 @@ impl<S, F, U> Stream for Map<S, F>
     type Item = U;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<U>, S::Error> {
-        let option = try_ready!(self.stream.poll());
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<U>, S::Error> {
+        let option = try_ready!(self.stream.poll(ctx));
         Ok(Async::Ready(option.map(&mut self.f)))
     }
 }

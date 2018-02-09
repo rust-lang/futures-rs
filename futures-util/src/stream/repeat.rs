@@ -1,6 +1,7 @@
 use core::marker;
 
 use futures_core::{Stream, Async, Poll};
+use futures_core::task;
 
 /// Stream that produces the same element repeatedly.
 ///
@@ -49,7 +50,7 @@ impl<T, E> Stream for Repeat<T, E>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(Async::Ready(Some(self.item.clone())))
     }
 }

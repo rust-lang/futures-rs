@@ -419,7 +419,7 @@ impl<T> Sender<T> {
     /// awoken when the channel is ready to receive more messages.
     ///
     /// On successful completion, this function will return `Ok(Ok(()))`.
-    pub fn start_send(&mut self, msg: T) -> Result<Result<(), T>, SendError<T>> {
+    pub fn start_send(&mut self, _ctx: &mut task::Context, msg: T) -> Result<Result<(), T>, SendError<T>> {
         // If the sender is currently blocked, reject the message before doing
         // any work.
         if !self.poll_unparked(true).is_ready() {
@@ -608,7 +608,7 @@ impl<T> Sender<T> {
     /// # Panics
     ///
     /// This method will panic if called from outside the context of a task or future.
-    pub fn poll_ready(&mut self) -> Poll<(), SendError<()>> {
+    pub fn poll_ready(&mut self, _ctx: &mut task::Context) -> Poll<(), SendError<()>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
             return Err(SendError(()));
@@ -657,8 +657,8 @@ impl<T> UnboundedSender<T> {
     ///
     /// On a successful `start_send`, this function will return
     /// `Ok(Ok(())`.
-    pub fn start_send(&mut self, msg: T) -> Result<Result<(), T>, SendError<T>> {
-        self.0.start_send(msg)
+    pub fn start_send(&mut self, ctx: &mut task::Context, msg: T) -> Result<Result<(), T>, SendError<T>> {
+        self.0.start_send(ctx, msg)
     }
 
     /// Sends the provided message along this channel.
@@ -815,7 +815,7 @@ impl<T> Receiver<T> {
     }
 
     // Try to park the receiver task
-    fn try_park(&self) -> TryPark {
+    fn try_park(&self, _ctx: &mut task::Context) -> TryPark {
         let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
@@ -858,7 +858,7 @@ impl<T> Stream for Receiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<T>, ()> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<T>, ()> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -867,7 +867,7 @@ impl<T> Stream for Receiver<T> {
                     // There are no messages to read, in this case, attempt to
                     // park. The act of parking will verify that the channel is
                     // still empty after the park operation has completed.
-                    match self.try_park() {
+                    match self.try_park(ctx) {
                         TryPark::Parked => {
                             // The task was parked, and the channel is still
                             // empty, return Pending.
@@ -925,8 +925,8 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<T>, ()> {
-        self.0.poll()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<T>, ()> {
+        self.0.poll(ctx)
     }
 }
 

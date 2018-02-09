@@ -34,29 +34,29 @@ fn send_recv_no_buffer() {
 
     // Run on a task context
     let f = lazy(move || {
-        assert!(tx.flush().unwrap().is_ready());
-        assert!(tx.poll_ready().unwrap().is_ready());
+        assert!(tx.flush(&mut TaskContext).unwrap().is_ready());
+        assert!(tx.poll_ready(&mut TaskContext).unwrap().is_ready());
 
         // Send first message
-        let res = tx.start_send(1).unwrap();
+        let res = tx.start_send(&mut TaskContext, 1).unwrap();
         assert!(res.is_ok());
-        assert!(tx.poll_ready().unwrap().is_not_ready());
+        assert!(tx.poll_ready(&mut TaskContext).unwrap().is_not_ready());
 
         // Send second message
-        let res = tx.start_send(2).unwrap();
+        let res = tx.start_send(&mut TaskContext, 2).unwrap();
         assert!(res.is_err());
 
         // Take the value
-        assert_eq!(rx.poll().unwrap(), Async::Ready(Some(1)));
-        assert!(tx.poll_ready().unwrap().is_ready());
+        assert_eq!(rx.poll(&mut TaskContext).unwrap(), Async::Ready(Some(1)));
+        assert!(tx.poll_ready(&mut TaskContext).unwrap().is_ready());
 
-        let res = tx.start_send(2).unwrap();
+        let res = tx.start_send(&mut TaskContext, 2).unwrap();
         assert!(res.is_ok());
-        assert!(tx.poll_ready().unwrap().is_not_ready());
+        assert!(tx.poll_ready(&mut TaskContext).unwrap().is_not_ready());
 
         // Take the value
-        assert_eq!(rx.poll().unwrap(), Async::Ready(Some(2)));
-        assert!(tx.poll_ready().unwrap().is_ready());
+        assert_eq!(rx.poll(&mut TaskContext).unwrap(), Async::Ready(Some(2)));
+        assert!(tx.poll_ready(&mut TaskContext).unwrap().is_ready());
 
         Ok::<(), ()>(())
     });
@@ -125,8 +125,8 @@ fn recv_close_gets_none() {
     let f = lazy(move || {
         rx.close();
 
-        assert_eq!(rx.poll(), Ok(Async::Ready(None)));
-        assert!(tx.poll_ready().is_err());
+        assert_eq!(rx.poll(&mut TaskContext), Ok(Async::Ready(None)));
+        assert!(tx.poll_ready(&mut TaskContext).is_err());
 
         drop(tx);
 
@@ -142,8 +142,8 @@ fn tx_close_gets_none() {
 
     // Run on a task context
     let f = lazy(move || {
-        assert_eq!(rx.poll(), Ok(Async::Ready(None)));
-        assert_eq!(rx.poll(), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll(&mut TaskContext), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll(&mut TaskContext), Ok(Async::Ready(None)));
 
         Ok::<(), ()>(())
     });
@@ -322,7 +322,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                         // Just poll
                         let n = n.clone();
                         let f = lazy(move || {
-                            let r = match rx.poll().unwrap() {
+                            let r = match rx.poll(&mut TaskContext).unwrap() {
                                 Async::Ready(Some(_)) => {
                                     n.fetch_add(1, Ordering::Relaxed);
                                     *lock = Some(rx);
@@ -443,12 +443,12 @@ fn stress_poll_ready() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self, ctx: &mut TaskContext) -> Poll<(), ()> {
             // In a loop, check if the channel is ready. If so, push an item onto the channel
             // (asserting that it doesn't attempt to block).
             while self.count > 0 {
-                try_ready!(self.sender.poll_ready().map_err(|_| ()));
-                assert!(self.sender.start_send(self.count).unwrap().is_ok());
+                try_ready!(self.sender.poll_ready(ctx).map_err(|_| ()));
+                assert!(self.sender.start_send(ctx, self.count).unwrap().is_ok());
                 self.count -= 1;
             }
             Ok(Async::Ready(()))
@@ -523,7 +523,7 @@ fn try_send_2() {
     let th = thread::spawn(|| {
         run(|c| {
             c.block_on(lazy(|| {
-                assert!(tx.start_send("fail").unwrap().is_err());
+                assert!(tx.start_send(&mut TaskContext, "fail").unwrap().is_err());
                 Ok::<_, ()>(())
             })).unwrap();
 

@@ -1,4 +1,5 @@
 use futures_core::{Poll, Async, Future};
+use futures_core::task;
 use futures_sink::Sink;
 
 /// Future for the `close` combinator, which polls the sink until all data has
@@ -40,9 +41,9 @@ impl<S: Sink> Future for Close<S> {
     type Item = S;
     type Error = S::SinkError;
 
-    fn poll(&mut self) -> Poll<S, S::SinkError> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<S, S::SinkError> {
         let mut sink = self.sink.take().expect("Attempted to poll Close after it completed");
-        if sink.close()?.is_ready() {
+        if sink.close(ctx)?.is_ready() {
             Ok(Async::Ready(sink))
         } else {
             self.sink = Some(sink);

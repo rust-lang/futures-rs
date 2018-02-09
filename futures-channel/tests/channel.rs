@@ -41,7 +41,7 @@ fn sequence() {
 fn drop_sender() {
     let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
-    match rx.poll() {
+    match rx.poll(&mut TaskContext) {
         Ok(Async::Ready(None)) => {}
         _ => panic!("channel should be done"),
     }

@@ -1,6 +1,7 @@
 use core::mem;
 
 use futures_core::{Future, Poll, IntoFuture, Async, Stream};
+use futures_core::task;
 
 /// A future used to collect all the results of a stream into one generic type.
 ///
@@ -45,12 +46,12 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<T, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<T, S::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll()? {
+                    match self.stream.poll(ctx)? {
                         Async::Ready(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();
@@ -64,7 +65,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll()? {
+                    match fut.poll(ctx)? {
                         Async::Ready(state) => self.state = State::Ready(state),
                         Async::Pending => {
                             self.state = State::Processing(fut);

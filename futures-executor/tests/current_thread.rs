@@ -83,7 +83,7 @@ impl Future for Never {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self) -> Poll<(), ()> {
+    fn poll(&mut self, _: &mut TaskContext) -> Poll<(), ()> {
         Ok(Async::Pending)
     }
 }
@@ -135,7 +135,7 @@ fn tasks_are_scheduled_fairly() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self, _ctx: &mut TaskContext) -> Poll<(), ()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {

@@ -99,7 +99,7 @@ impl<F> Shared<F> where F: Future {
         }
     }
 
-    fn set_waiter(&mut self) {
+    fn set_waiter(&mut self, _ctx: &mut task::Context) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
         waiters.insert(self.waiter, task::current());
     }
@@ -125,8 +125,8 @@ impl<F> Future for Shared<F>
     type Item = SharedItem<F::Item>;
     type Error = SharedError<F::Error>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.set_waiter();
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        self.set_waiter(ctx);
 
         match self.inner.notifier.state.compare_and_swap(IDLE, POLLING, SeqCst) {
             IDLE => {

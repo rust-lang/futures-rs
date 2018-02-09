@@ -297,7 +297,7 @@ impl Future for SpawnedFuture {
     type Item = bool;
     type Error = bool;
 
-    fn poll(&mut self) -> Poll<bool, bool> {
-        self.inner.with_task_data(|f| f.poll())
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<bool, bool> {
+        self.inner.with_task_data(|f| f.poll(ctx))
     }
 }

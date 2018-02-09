@@ -1,6 +1,7 @@
 //! Definition and trait implementations for the `Never` type.
 
 use {Future, Stream, Poll};
+use task;
 
 /// A type that can never exist.
 /// This is used to indicate values which can never be created, such as the
@@ -21,7 +22,7 @@ impl Future for Never {
     type Item = Never;
     type Error = Never;
 
-    fn poll(&mut self) -> Poll<Never, Never> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<Never, Never> {
         match *self {}
     }
 }
@@ -30,7 +31,7 @@ impl Stream for Never {
     type Item = Never;
     type Error = Never;
 
-    fn poll(&mut self) -> Poll<Option<Never>, Never> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<Never>, Never> {
         match *self {}
     }
 }
