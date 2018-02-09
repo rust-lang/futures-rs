@@ -54,6 +54,7 @@ macro_rules! if_std {
 
 if_std! {
     extern crate futures;
+    extern crate futures_executor;
     extern crate num_cpus;
 
     mod unpark_mutex;

@@ -14,8 +14,6 @@ computation on the threads themselves.
 [dependencies]
 num_cpus = "1.0"
 futures = { path = "../futures", version = "0.2", default-features = false }
-
-[dev-dependencies]
 futures-executor = { path = "../futures-executor", version = "0.2", default-features = false }
 
 [features]

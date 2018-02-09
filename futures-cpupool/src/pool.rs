@@ -11,6 +11,7 @@ use futures::channel::oneshot::{channel, Sender, Receiver};
 use futures::future::lazy;
 use futures::prelude::*;
 use futures::task::{self, Notify, Spawn};
+use futures_executor::enter;
 use num_cpus;
 
 use unpark_mutex::UnparkMutex;
@@ -218,6 +219,7 @@ impl Inner {
     }
 
     fn work(&self, after_start: Option<Arc<Fn() + Send + Sync>>, before_stop: Option<Arc<Fn() + Send + Sync>>) {
+        let _scope = enter().unwrap();
         after_start.map(|fun| fun());
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
