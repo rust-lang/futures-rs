@@ -20,7 +20,7 @@ fn smoke() {
         });
     });
 
-    run(|c| c.block_on(receiver.take(3).for_each(|_| Ok(())))).unwrap();
+    let _s = run(|c| c.block_on(receiver.take(3).for_each(|_| Ok(())))).unwrap();
 
     t.join().unwrap()
 }
