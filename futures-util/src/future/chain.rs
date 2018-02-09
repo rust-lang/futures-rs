@@ -1,6 +1,6 @@
 use core::mem;
 
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 #[derive(Debug)]
 pub enum Chain<A, B, C> where A: Future {

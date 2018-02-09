@@ -3,13 +3,23 @@
 //! This crate provides channels which can be used to communicate between futures.
 
 #![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://docs.rs/futures/0.2")]
+#![doc(html_root_url = "https://docs.rs/futures-channel/0.2")]
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
 
 extern crate futures_core;
 
-use futures_core::{Future, Stream, Poll, Async};
-use futures_core::task::{self, Task};
+macro_rules! if_std {
+    ($($i:item)*) => ($(
+        #[cfg(feature = "std")]
+        $i
+    )*)
+}
 
-mod lock;
-pub mod mpsc;
-pub mod oneshot;
+if_std! {
+    mod lock;
+    pub mod mpsc;
+    pub mod oneshot;
+}

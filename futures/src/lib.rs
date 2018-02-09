@@ -155,6 +155,9 @@
 //!
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
+#![no_std]
+#![doc(html_root_url = "https://docs.rs/futures/0.2")]
+
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;

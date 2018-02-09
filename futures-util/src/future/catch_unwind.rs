@@ -2,7 +2,7 @@ use std::prelude::v1::*;
 use std::any::Any;
 use std::panic::{catch_unwind, UnwindSafe};
 
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 /// Future for the `catch_unwind` combinator.
 ///

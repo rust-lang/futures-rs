@@ -4,7 +4,7 @@
 use std::mem;
 use std::prelude::v1::*;
 
-use {Future, IntoFuture, Poll, Async};
+use futures_core::{Future, IntoFuture, Poll, Async};
 
 /// Future for the `select_all` combinator, waiting for one of any of a list of
 /// futures to complete.

@@ -1,4 +1,5 @@
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
+
 use future::Either;
 
 /// Future for the `select2` combinator, waiting for one of two differently-typed

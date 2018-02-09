@@ -1,8 +1,7 @@
 use core::marker::PhantomData;
 
-use {Poll, Async, StartSend, AsyncSink};
-use Sink;
-use Stream;
+use futures_core::{Poll, Async, Stream};
+use futures_sink::{Sink, StartSend, AsyncSink};
 
 /// Sink for the `Sink::with_flat_map` combinator, chaining a computation that returns an iterator
 /// to run prior to pushing a value into the underlying sink

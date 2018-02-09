@@ -1,5 +1,5 @@
-use {Poll, Async};
-use Stream;
+use futures_core::{Poll, Async, Stream};
+use futures_sink::{Sink, StartSend};
 
 /// A stream which "fuse"s a stream once it's terminated.
 ///
@@ -14,13 +14,13 @@ pub struct Fuse<S> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S> ::Sink for Fuse<S>
-    where S: ::Sink
+impl<S> Sink for Fuse<S>
+    where S: Sink
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

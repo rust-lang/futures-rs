@@ -1,4 +1,4 @@
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.

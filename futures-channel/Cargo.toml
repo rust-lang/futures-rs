@@ -11,15 +11,12 @@ Channels for asynchronous communication using futures-rs.
 """
 
 [features]
-std = []
+std = ["futures-core/std"]
 default = ["std"]
 
-[dependencies.futures-core]
-version = "0.1.0"
-path = "../futures-core"
-default-features = false
-features = ["std"]
+[dependencies]
+futures-core = { path = "../futures-core", version = "0.1", default-features = false }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.2" }
-futures-executor = { path = "../futures-executor", version = "0.1" }
+futures = { path = "../futures", version = "0.2", default-features = false }
+futures-executor = { path = "../futures-executor", version = "0.1", default-features = false }

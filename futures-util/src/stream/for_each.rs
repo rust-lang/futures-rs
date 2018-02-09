@@ -1,5 +1,4 @@
-use {Async, Future, IntoFuture, Poll};
-use Stream;
+use futures_core::{Async, Future, IntoFuture, Poll, Stream};
 
 /// A stream combinator which executes a unit closure over each item on a
 /// stream.

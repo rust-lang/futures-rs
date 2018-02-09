@@ -1,6 +1,6 @@
 //! Definition of the `PollFn` adapter combinator
 
-use {Future, Poll};
+use futures_core::{Future, Poll};
 
 /// A future which adapts a function returning `Poll`.
 ///
@@ -28,7 +28,7 @@ pub struct PollFn<F> {
 /// let read_future = poll_fn(read_line);
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
-    where F: FnMut() -> ::Poll<T, E>
+    where F: FnMut() -> Poll<T, E>
 {
     PollFn { inner: f }
 }

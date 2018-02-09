@@ -11,8 +11,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use {Async, Future, Poll};
-use task::{self, Task};
+use futures_core::{Async, Future, Poll};
+use futures_core::task::{self, Task};
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.

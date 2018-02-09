@@ -11,8 +11,8 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use {task, Stream, Future, Poll, Async};
-use task::{AtomicTask, Notify, UnsafeNotify, NotifyHandle};
+use futures_core::{Stream, Future, Poll, Async};
+use futures_core::task::{self, AtomicTask, Notify, UnsafeNotify, NotifyHandle};
 
 /// An unbounded set of futures.
 ///
@@ -416,7 +416,7 @@ impl<T> Drop for FuturesUnordered<T> {
 }
 
 impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
-    fn from_iter<T>(iter: T) -> Self 
+    fn from_iter<T>(iter: T) -> Self
         where T: IntoIterator<Item = F>
     {
         let mut new = FuturesUnordered::new();

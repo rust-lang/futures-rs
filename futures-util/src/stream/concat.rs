@@ -2,7 +2,7 @@ use core::mem;
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::default::Default;
 
-use {Async, Future, Poll, Stream};
+use futures_core::{Async, Future, Poll, Stream};
 
 /// A stream combinator to concatenate the results of a stream into the first
 /// yielded item.

@@ -1,3 +1,5 @@
+//! TODO: dox
+
 use futures_core::task::{self, NotifyHandle};
 use futures_core::{Future, Async};
 
@@ -16,6 +18,7 @@ pub struct Context<'a> {
     thread: &'a ThreadNotify,
 }
 
+/// TODO: dox
 pub fn run<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R
 {

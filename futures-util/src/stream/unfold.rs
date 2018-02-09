@@ -1,7 +1,6 @@
 use core::mem;
 
-use {Future, IntoFuture, Async, Poll};
-use Stream;
+use futures_core::{Future, IntoFuture, Async, Poll, Stream};
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///

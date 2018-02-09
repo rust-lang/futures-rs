@@ -6,7 +6,7 @@ use std::prelude::v1::*;
 use std::fmt;
 use std::mem;
 
-use {Future, IntoFuture, Poll, Async};
+use futures_core::{Future, IntoFuture, Poll, Async};
 
 #[derive(Debug)]
 enum ElemState<T> where T: Future {

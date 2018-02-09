@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
-use {Sink, Stream, Poll, StartSend};
+use futures_core::{Stream, Poll};
+use futures_sink::{Sink, StartSend};
 
 /// A sink combinator to change the error type of a sink.
 ///

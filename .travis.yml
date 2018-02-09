@@ -17,13 +17,13 @@ matrix:
         - travis-cargo doc-upload
     - rust: stable
       script:
-        - cargo build -p futures-core --no-default-features
-        - cargo build -p futures --no-default-features
-        - cargo build -p futures-channel --no-default-features
-        - cargo build -p futures-cpupool --no-default-features
-        - cargo build -p futures-executor --no-default-features
-        - cargo build -p futures-sink --no-default-features
-        - cargo build -p futures-util --no-default-features
+        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-cpupool/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
     - rust: 1.15.0
       script: cargo test
 

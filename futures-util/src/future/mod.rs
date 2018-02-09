@@ -5,7 +5,7 @@
 
 use core::result;
 
-use {Future, IntoFuture, Stream};
+use futures_core::{Future, IntoFuture, Stream};
 
 // Primitive futures
 mod empty;

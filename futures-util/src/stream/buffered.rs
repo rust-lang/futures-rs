@@ -1,7 +1,9 @@
 use std::fmt;
 
-use {Async, IntoFuture, Poll};
-use stream::{Stream, Fuse, FuturesOrdered};
+use futures_core::{Async, IntoFuture, Poll, Stream};
+use futures_sink::{Sink, StartSend};
+
+use stream::{Fuse, FuturesOrdered};
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible.
@@ -75,14 +77,14 @@ impl<S> Buffered<S>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S> ::Sink for Buffered<S>
-    where S: ::Sink + Stream,
+impl<S> Sink for Buffered<S>
+    where S: Sink + Stream,
           S::Item: IntoFuture,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

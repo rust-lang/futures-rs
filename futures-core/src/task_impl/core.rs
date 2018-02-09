@@ -7,7 +7,6 @@ use core::sync::atomic::Ordering::{SeqCst, Relaxed};
 
 use super::{BorrowedTask, NotifyHandle};
 
-pub struct LocalKey;
 pub struct LocalMap;
 pub fn local_map() -> LocalMap { LocalMap }
 
@@ -25,19 +24,6 @@ pub struct TaskUnpark {
     id: usize,
 }
 
-#[derive(Clone)]
-pub struct UnparkEvents;
-
-impl<'a> BorrowedEvents<'a> {
-    pub fn new() -> BorrowedEvents<'a> {
-        BorrowedEvents(marker::PhantomData)
-    }
-
-    pub fn to_owned(&self) -> UnparkEvents {
-        UnparkEvents
-    }
-}
-
 impl<'a> BorrowedUnpark<'a> {
     #[inline]
     pub fn new(f: &'a Fn() -> NotifyHandle, id: usize) -> BorrowedUnpark<'a> {
@@ -49,14 +35,6 @@ impl<'a> BorrowedUnpark<'a> {
         let handle = (self.f)();
         let id = handle.clone_id(self.id);
         TaskUnpark { handle: handle, id: id }
-    }
-}
-
-impl UnparkEvents {
-    pub fn notify(&self) {}
-
-    pub fn will_notify(&self, _other: &BorrowedEvents) -> bool {
-        true
     }
 }
 

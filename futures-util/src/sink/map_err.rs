@@ -1,6 +1,5 @@
-use Sink;
-
-use {Poll, StartSend, Stream};
+use futures_core::{Poll, Stream};
+use futures_sink::{Sink, StartSend};
 
 /// Sink for the `Sink::sink_map_err` combinator.
 #[derive(Debug)]

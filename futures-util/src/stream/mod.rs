@@ -15,7 +15,8 @@
 //!
 //! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
-use {IntoFuture, Stream, Sink};
+use futures_core::{IntoFuture, Stream};
+use futures_sink::Sink;
 
 mod iter_ok;
 pub use self::iter_ok::{iter_ok, IterOk};
@@ -860,7 +861,7 @@ pub trait StreamExt: Stream {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
     fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
-        where Self: super::Sink + Sized
+        where Self: Sink + Sized
     {
         split::split(self)
     }

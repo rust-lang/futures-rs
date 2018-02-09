@@ -6,8 +6,9 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::error::Error;
 use std::fmt;
 
-use {Future, Poll, Async, Task};
-use task;
+use futures_core::{Future, Poll, Async};
+use futures_core::task::{self, Task};
+
 use lock::Lock;
 
 /// A future representing the completion of a computation happening elsewhere in
