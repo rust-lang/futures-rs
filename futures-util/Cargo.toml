@@ -1,6 +1,6 @@
 [package]
 name = "futures-util"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/alexcrichton/futures-rs"
@@ -15,6 +15,6 @@ std = ["futures-core/std", "futures-sink/std"]
 default = ["std"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.1.0", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.1.0", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.1.0", default-features = false}
+futures-core = { path = "../futures-core", version = "0.2.0", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.2.0", default-features = false }
+futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false}
