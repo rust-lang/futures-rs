@@ -69,15 +69,16 @@ fn threads_go_away() {
 
 #[test]
 fn lifecycle_test() {
-    static NUM_STARTS: AtomicUsize = ATOMIC_USIZE_INIT;
-    static NUM_STOPS: AtomicUsize = ATOMIC_USIZE_INIT;
+    static SUM_STARTS: AtomicUsize = ATOMIC_USIZE_INIT;
+    static SUM_STOPS: AtomicUsize = ATOMIC_USIZE_INIT;
+    const EXPECTED_SUM: usize = 3+2+1+0; // 4 threads indexed 3,2,1,0.
 
-    fn after_start() {
-        NUM_STARTS.fetch_add(1, Ordering::SeqCst);
+    fn after_start(number: usize) {
+        SUM_STARTS.fetch_add(number, Ordering::SeqCst);
     }
 
-    fn before_stop() {
-        NUM_STOPS.fetch_add(1, Ordering::SeqCst);
+    fn before_stop(number: usize) {
+        SUM_STOPS.fetch_add(number, Ordering::SeqCst);
     }
 
     let pool = Builder::new()
@@ -91,8 +92,8 @@ fn lifecycle_test() {
     drop(pool);
 
     for _ in 0..100 {
-        if NUM_STOPS.load(Ordering::SeqCst) == 4 {
-            assert_eq!(NUM_STARTS.load(Ordering::SeqCst), 4);
+        if SUM_STOPS.load(Ordering::SeqCst) == EXPECTED_SUM {
+            assert_eq!(SUM_STARTS.load(Ordering::SeqCst), EXPECTED_SUM);
             return;
         }
         thread::sleep(Duration::from_millis(10));

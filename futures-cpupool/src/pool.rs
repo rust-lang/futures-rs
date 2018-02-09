@@ -46,8 +46,8 @@ pub struct Builder {
     pool_size: usize,
     stack_size: usize,
     name_prefix: Option<String>,
-    after_start: Option<Arc<Fn() + Send + Sync>>,
-    before_stop: Option<Arc<Fn() + Send + Sync>>,
+    after_start: Option<Arc<Fn(usize) + Send + Sync>>,
+    before_stop: Option<Arc<Fn(usize) + Send + Sync>>,
 }
 
 struct MySender<F, T> {
@@ -218,9 +218,12 @@ impl Inner {
         self.tx.lock().unwrap().send(msg).unwrap();
     }
 
-    fn work(&self, after_start: Option<Arc<Fn() + Send + Sync>>, before_stop: Option<Arc<Fn() + Send + Sync>>) {
+    fn work(&self,
+            idx: usize,
+            after_start: Option<Arc<Fn(usize) + Send + Sync>>,
+            before_stop: Option<Arc<Fn(usize) + Send + Sync>>) {
         let _scope = enter().unwrap();
-        after_start.map(|fun| fun());
+        after_start.map(|fun| fun(idx));
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
             match msg {
@@ -228,7 +231,7 @@ impl Inner {
                 Message::Close => break,
             }
         }
-        before_stop.map(|fun| fun());
+        before_stop.map(|fun| fun(idx));
     }
 }
 
@@ -341,8 +344,11 @@ impl Builder {
     /// This is initially intended for bookkeeping and monitoring uses.
     /// The `f` will be deconstructed after the `builder` is deconstructed
     /// and all threads in the pool has executed it.
+    ///
+    /// The closure provided will receive an index corresponding to which worker
+    /// thread it's running on.
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
-        where F: Fn() + Send + Sync + 'static
+        where F: Fn(usize) + Send + Sync + 'static
     {
         self.after_start = Some(Arc::new(f));
         self
@@ -353,8 +359,11 @@ impl Builder {
     /// This is initially intended for bookkeeping and monitoring uses.
     /// The `f` will be deconstructed after the `builder` is deconstructed
     /// and all threads in the pool has executed it.
+    ///
+    /// The closure provided will receive an index corresponding to which worker
+    /// thread it's running on.
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
-        where F: Fn() + Send + Sync + 'static
+        where F: Fn(usize) + Send + Sync + 'static
     {
         self.before_stop = Some(Arc::new(f));
         self
@@ -388,7 +397,7 @@ impl Builder {
             if self.stack_size > 0 {
                 thread_builder = thread_builder.stack_size(self.stack_size);
             }
-            thread_builder.spawn(move || inner.work(after_start, before_stop)).unwrap();
+            thread_builder.spawn(move || inner.work(counter, after_start, before_stop)).unwrap();
         }
         return pool
     }
@@ -460,7 +469,7 @@ mod tests {
         let (tx, rx) = mpsc::sync_channel(2);
         let _cpu_pool = Builder::new()
             .pool_size(2)
-            .after_start(move || tx.send(1).unwrap()).create();
+            .after_start(move |_| tx.send(1).unwrap()).create();
 
         // After Builder is deconstructed, the tx should be droped
         // so that we can use rx as an iterator.
