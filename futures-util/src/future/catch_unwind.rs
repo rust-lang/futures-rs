@@ -30,7 +30,6 @@ impl<F> Future for CatchUnwind<F>
 
     fn poll(&mut self, _ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let mut future = self.future.take().expect("cannot poll twice");
-        // FIXME: fix passing the actual context here.
         let (res, future) = catch_unwind(|| (future.poll(&mut task::Context::panicking()), future))?;
         match res {
             Ok(Async::Pending) => {

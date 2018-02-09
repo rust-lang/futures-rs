@@ -45,7 +45,6 @@ impl<S> Stream for CatchUnwind<S>
             }
             CatchUnwindState::Stream(stream) => stream,
         };
-        // FIXME: fix passing the actual context here.
         let res = catch_unwind(|| (stream.poll(&mut task::Context::panicking()), stream));
         match res {
             Err(e) => Err(e), // and state is already Eof

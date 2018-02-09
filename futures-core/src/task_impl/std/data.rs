@@ -5,8 +5,6 @@ use std::cell::RefCell;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::collections::HashMap;
 
-use task_impl::with;
-
 /// A macro to create a `static` of type `LocalKey`
 ///
 /// This macro is intentionally similar to the `thread_local!`, and creates a
@@ -90,7 +88,7 @@ impl Hasher for IdHasher {
     }
 }
 
-impl<T: Send + 'static> LocalKey<T> {
+impl<'a> ::task::Context<'a> {
     /// Access this task-local key, running the provided closure with a
     /// reference to the value.
     ///
@@ -111,21 +109,19 @@ impl<T: Send + 'static> LocalKey<T> {
     /// * If there is not a current task.
     /// * If the initialization expression is run and it panics
     /// * If the closure provided panics
-    pub fn with<F, R>(&'static self, f: F) -> R
-        where F: FnOnce(&T) -> R
+    pub fn with_local<T: Send + 'static, F, R>(&mut self, key: LocalKey<T>, f: F) -> R
+        where F: FnOnce(&mut T) -> R
     {
-        let key = (self.__key)();
-        with(|task| {
-            let raw_pointer = {
-                let mut data = task.map.borrow_mut();
-                let entry = data.entry(key).or_insert_with(|| {
-                    Box::new((self.__init)())
-                });
-                &**entry as *const Opaque as *const T
-            };
-            unsafe {
-                f(&*raw_pointer)
-            }
-        })
+        let k = (key.__key)();
+        let raw_pointer = {
+            let mut data = self.get_mut().map.borrow_mut();
+            let entry = data.entry(k).or_insert_with(|| {
+                Box::new((key.__init)())
+            });
+            &mut **entry as *mut Opaque as *mut T
+        };
+        unsafe {
+            f(&mut *raw_pointer)
+        }
     }
 }

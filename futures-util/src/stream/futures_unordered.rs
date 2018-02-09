@@ -12,7 +12,7 @@ use std::sync::{Arc, Weak};
 use std::usize;
 
 use futures_core::{Stream, Future, Poll, Async};
-use futures_core::task::{self, AtomicTask, Notify, UnsafeNotify, NotifyHandle};
+use futures_core::task::{self, AtomicWaker, Notify, UnsafeNotify, NotifyHandle};
 
 /// An unbounded set of futures.
 ///
@@ -78,7 +78,7 @@ unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
 #[allow(missing_debug_implementations)]
 struct Inner<T> {
     // The task using `FuturesUnordered`.
-    parent: AtomicTask,
+    parent: AtomicWaker,
 
     // Head/tail of the readiness queue
     head_readiness: AtomicPtr<Node<T>>,
@@ -130,7 +130,7 @@ impl<T> FuturesUnordered<T>
         });
         let stub_ptr = &*stub as *const Node<T>;
         let inner = Arc::new(Inner {
-            parent: AtomicTask::new(),
+            parent: AtomicWaker::new(),
             head_readiness: AtomicPtr::new(stub_ptr as *mut _),
             tail_readiness: UnsafeCell::new(stub_ptr),
             stub: stub,
@@ -268,7 +268,7 @@ impl<T> Stream for FuturesUnordered<T>
 
     fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
         // Ensure `parent` is correctly set.
-        self.inner.parent.register();
+        self.inner.parent.register(ctx);
 
         loop {
             let node = match unsafe { self.inner.dequeue() } {
@@ -283,7 +283,7 @@ impl<T> Stream for FuturesUnordered<T>
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    task::current().notify();
+                    ctx.waker().wake();
                     return Ok(Async::Pending);
                 }
                 Dequeue::Data(node) => node,
@@ -352,14 +352,14 @@ impl<T> Stream for FuturesUnordered<T>
                 // queue of ready futures.
                 //
                 // Critically though `Node<T>` won't actually access `T`, the
-                // future, while it's floating around inside of `Task`
+                // future, while it's floating around inside of `Waker`
                 // instances. These structs will basically just use `T` to size
                 // the internal allocation, appropriately accessing fields and
                 // deallocating the node if need be.
                 let res = {
                     let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                    task::with_notify(&notify, 0, || {
-                        future.poll(ctx)
+                    task::with_notify(ctx, &notify, 0, |c| {
+                        future.poll(c)
                     })
                 };
 
@@ -388,9 +388,9 @@ impl<T: Debug> Debug for FuturesUnordered<T> {
 impl<T> Drop for FuturesUnordered<T> {
     fn drop(&mut self) {
         // When a `FuturesUnordered` is dropped we want to drop all futures associated
-        // with it. At the same time though there may be tons of `Task` handles
+        // with it. At the same time though there may be tons of `Waker` handles
         // flying around which contain `Node<T>` references inside them. We'll
-        // let those naturally get deallocated when the `Task` itself goes out
+        // let those naturally get deallocated when the `Waker` itself goes out
         // of scope or gets notified.
         unsafe {
             while !self.head_all.is_null() {
@@ -620,7 +620,7 @@ impl<T> Node<T> {
         let prev = me.queued.swap(true, SeqCst);
         if !prev {
             inner.enqueue(&**me);
-            inner.parent.notify();
+            inner.parent.wake();
         }
     }
 }

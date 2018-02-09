@@ -1,78 +1,17 @@
 use std::prelude::v1::*;
 
-use std::cell::Cell;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
-use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
+use std::sync::{Arc, Mutex, Condvar};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use {Future, Stream, Async};
-use super::core;
-use super::{BorrowedTask, NotifyHandle, Spawn, Notify, UnsafeNotify};
+use super::{NotifyHandle, Spawn, Notify, UnsafeNotify};
 pub use super::core::{BorrowedUnpark, TaskUnpark};
 
 mod data;
 pub use self::data::*;
-
-pub use task_impl::core::init;
-
-thread_local!(static CURRENT_TASK: Cell<*mut u8> = Cell::new(ptr::null_mut()));
-
-static INIT: Once = ONCE_INIT;
-
-pub fn get_ptr() -> Option<*mut u8> {
-    // Since this condition will always return true when TLS task storage is
-    // used (the default), the branch predictor will be able to optimize the
-    // branching and a dynamic dispatch will be avoided, which makes the
-    // compiler happier.
-    if core::is_get_ptr(0x1) {
-        Some(CURRENT_TASK.with(|c| c.get()))
-    } else {
-        core::get_ptr()
-    }
-}
-
-fn tls_slot() -> *const Cell<*mut u8> {
-    CURRENT_TASK.with(|c| c as *const _)
-}
-
-pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
-    where F: FnOnce() -> R
-{
-    // Lazily initialize the get / set ptrs
-    //
-    // Note that we won't actually use these functions ever, we'll instead be
-    // testing the pointer's value elsewhere and calling our own functions.
-    INIT.call_once(|| unsafe {
-        let get = mem::transmute::<usize, _>(0x1);
-        let set = mem::transmute::<usize, _>(0x2);
-        init(get, set);
-    });
-
-    // Same as above.
-    if core::is_get_ptr(0x1) {
-        struct Reset(*const Cell<*mut u8>, *mut u8);
-
-        impl Drop for Reset {
-            #[inline]
-            fn drop(&mut self) {
-                unsafe {
-                    (*self.0).set(self.1);
-                }
-            }
-        }
-
-        unsafe {
-            let slot = tls_slot();
-            let _reset = Reset(slot, (*slot).get());
-            (*slot).set(task as *const _ as *mut u8);
-            f()
-        }
-    } else {
-        core::set(task, f)
-    }
-}
 
 impl<F: Future> Spawn<F> {
     /// Waits for the internal future to complete, blocking this thread's

@@ -29,7 +29,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
 
 use futures_core::{Future, Poll, Async};
-use futures_core::task::{self, Notify, Spawn, Task};
+use futures_core::task::{self, Notify, Spawn};
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.
@@ -61,7 +61,7 @@ struct Inner<F: Future> {
 
 struct Notifier {
     state: AtomicUsize,
-    waiters: Mutex<HashMap<usize, Task>>,
+    waiters: Mutex<HashMap<usize, task::Waker>>,
 }
 
 const IDLE: usize = 0;
@@ -99,9 +99,9 @@ impl<F> Shared<F> where F: Future {
         }
     }
 
-    fn set_waiter(&mut self, _ctx: &mut task::Context) {
+    fn set_waiter(&mut self, ctx: &mut task::Context) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.insert(self.waiter, task::current());
+        waiters.insert(self.waiter, ctx.waker());
     }
 
     unsafe fn clone_result(&self) -> Result<SharedItem<F::Item>, SharedError<F::Error>> {
@@ -229,7 +229,7 @@ impl Notify for Notifier {
         let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), HashMap::new());
 
         for (_, waiter) in waiters {
-            waiter.notify();
+            waiter.wake();
         }
     }
 }

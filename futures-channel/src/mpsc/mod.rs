@@ -76,7 +76,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
 
-use futures_core::task::{self, Task};
+use futures_core::task;
 use futures_core::{Async, Poll, Stream};
 
 use mpsc::queue::{Queue, PopResult};
@@ -268,7 +268,7 @@ struct State {
 #[derive(Debug)]
 struct ReceiverTask {
     unparked: bool,
-    task: Option<Task>,
+    task: Option<task::Waker>,
 }
 
 // Returned from Receiver::try_park()
@@ -295,7 +295,7 @@ const MAX_BUFFER: usize = MAX_CAPACITY >> 1;
 // Sent to the consumer to wake up blocked producers
 #[derive(Debug)]
 struct SenderTask {
-    task: Option<Task>,
+    task: Option<task::Waker>,
     is_parked: bool,
 }
 
@@ -311,7 +311,7 @@ impl SenderTask {
         self.is_parked = false;
 
         if let Some(task) = self.task.take() {
-            task.notify();
+            task.wake();
         }
     }
 }
@@ -397,7 +397,7 @@ impl<T> Sender<T> {
     /// notified when the channel is no longer full.
     pub fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
         // If the sender is currently blocked, reject the message
-        if !self.poll_unparked(false).is_ready() {
+        if !self.poll_unparked(None).is_ready() {
             return Err(TrySendError {
                 kind: TrySendErrorKind::Full(msg),
             });
@@ -419,10 +419,10 @@ impl<T> Sender<T> {
     /// awoken when the channel is ready to receive more messages.
     ///
     /// On successful completion, this function will return `Ok(Ok(()))`.
-    pub fn start_send(&mut self, _ctx: &mut task::Context, msg: T) -> Result<Result<(), T>, SendError<T>> {
+    pub fn start_send(&mut self, ctx: &mut task::Context, msg: T) -> Result<Result<(), T>, SendError<T>> {
         // If the sender is currently blocked, reject the message before doing
         // any work.
-        if !self.poll_unparked(true).is_ready() {
+        if !self.poll_unparked(Some(ctx)).is_ready() {
             return Ok(Err(msg));
         }
 
@@ -569,7 +569,7 @@ impl<T> Sender<T> {
         };
 
         if let Some(task) = task {
-            task.notify();
+            task.wake();
         }
     }
 
@@ -577,7 +577,7 @@ impl<T> Sender<T> {
         // TODO: clean up internal state if the task::current will fail
 
         let task = if can_park {
-            Some(task::current())
+            None// TODO Some(task::current())
         } else {
             None
         };
@@ -604,20 +604,16 @@ impl<T> Sender<T> {
     /// Returns `Ok(Async::Ready(_))` if there is sufficient capacity, or returns
     /// `Ok(Async::Pending)` if the channel is not guaranteed to have capacity. Returns
     /// `Err(SendError(_))` if the receiver has been dropped.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if called from outside the context of a task or future.
-    pub fn poll_ready(&mut self, _ctx: &mut task::Context) -> Poll<(), SendError<()>> {
+    pub fn poll_ready(&mut self, ctx: &mut task::Context) -> Poll<(), SendError<()>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
             return Err(SendError(()));
         }
 
-        Ok(self.poll_unparked(true))
+        Ok(self.poll_unparked(Some(ctx)))
     }
 
-    fn poll_unparked(&mut self, do_park: bool) -> Async<()> {
+    fn poll_unparked(&mut self, ctx: Option<&mut task::Context>) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -635,11 +631,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = if do_park {
-                Some(task::current())
-            } else {
-                None
-            };
+            task.task = ctx.map(|c| c.waker());
 
             Async::Pending
         } else {
@@ -815,7 +807,7 @@ impl<T> Receiver<T> {
     }
 
     // Try to park the receiver task
-    fn try_park(&self, _ctx: &mut task::Context) -> TryPark {
+    fn try_park(&self, ctx: &mut task::Context) -> TryPark {
         let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
@@ -833,7 +825,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(task::current());
+        recv_task.task = Some(ctx.waker());
         TryPark::Parked
     }
 

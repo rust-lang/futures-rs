@@ -9,7 +9,6 @@ use std::time::Duration;
 
 use futures::future::lazy;
 use futures::prelude::*;
-use futures::task;
 use futures_executor::current_thread::*;
 use futures_channel::oneshot;
 
@@ -135,7 +134,7 @@ fn tasks_are_scheduled_fairly() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _ctx: &mut TaskContext) -> Poll<(), ()> {
+        fn poll(&mut self, ctx: &mut TaskContext) -> Poll<(), ()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {
@@ -154,7 +153,7 @@ fn tasks_are_scheduled_fairly() {
                 return Ok(().into());
             }
 
-            task::current().notify();
+            ctx.waker().wake();
             Ok(Async::Pending)
         }
     }

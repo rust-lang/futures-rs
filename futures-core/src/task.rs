@@ -31,21 +31,19 @@ pub use task_impl::{
     Context,
     NotifyHandle,
     Spawn,
-    Task,
+    Waker,
 
     // Traits
     Notify,
     UnsafeNotify,
 
     // Functions
-    current,
-    init,
     spawn,
     with_notify,
 };
 
 #[cfg(feature = "std")]
 pub use task_impl::{
-    AtomicTask,
+    AtomicWaker,
     LocalKey,
 };
