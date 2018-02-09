@@ -1,4 +1,5 @@
-use {Async, Poll, Stream};
+use futures_core::{Async, Poll, Stream};
+
 use stream::{StreamExt, Fuse};
 
 /// An adapter for merging the output of two streams.

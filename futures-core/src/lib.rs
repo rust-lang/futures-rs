@@ -1,8 +1,8 @@
 //! Core traits and types for asynchronous operations in Rust.
 
 #![no_std]
-#![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://docs.rs/futures/0.2")]
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![doc(html_root_url = "https://docs.rs/futures-core/0.2")]
 
 #[macro_use]
 #[cfg(feature = "std")]

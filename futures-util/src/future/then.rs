@@ -1,4 +1,4 @@
-use {Future, IntoFuture, Poll};
+use futures_core::{Future, IntoFuture, Poll};
 use super::chain::Chain;
 
 /// Future for the `then` combinator, chaining computations on the end of

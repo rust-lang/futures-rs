@@ -1,6 +1,6 @@
 //! Definition of the `PollFn` combinator
 
-use {Stream, Poll};
+use futures_core::{Stream, Poll};
 
 /// A stream which adapts a function returning `Poll`.
 ///

@@ -1,9 +1,8 @@
 use core::mem;
 use core::marker::PhantomData;
 
-use {IntoFuture, Future, Poll, Async, StartSend, AsyncSink};
-use Sink;
-use Stream;
+use futures_core::{IntoFuture, Future, Poll, Async, Stream};
+use futures_sink::{Sink, AsyncSink, StartSend};
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
 /// to pushing a value into the underlying sink.

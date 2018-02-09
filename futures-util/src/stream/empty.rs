@@ -1,7 +1,6 @@
 use core::marker;
 
-use Stream;
-use {Poll, Async};
+use futures_core::{Stream, Poll, Async};
 
 /// A stream which contains no elements.
 ///

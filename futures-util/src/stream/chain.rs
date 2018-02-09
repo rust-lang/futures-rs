@@ -1,8 +1,6 @@
 use core::mem;
 
-use Stream;
-use {Async, Poll};
-
+use futures_core::{Stream, Async, Poll};
 
 /// State of chain stream.
 #[derive(Debug)]

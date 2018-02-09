@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 /// Future for the `from_err` combinator, changing the error type of a future.
 ///

@@ -3,7 +3,7 @@
 use core::fmt;
 use core::mem;
 
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 macro_rules! generate {
     ($(

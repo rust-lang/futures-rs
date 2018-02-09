@@ -1,5 +1,7 @@
-use {Future, IntoFuture, Poll};
 use core::fmt;
+
+use futures_core::{Future, IntoFuture, Poll};
+
 use super::chain::Chain;
 
 /// Future for the `flatten` combinator, flattening a future-of-a-future to get just

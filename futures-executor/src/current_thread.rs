@@ -1,6 +1,9 @@
+//! TODO: dox
+
 use futures_core::task::{self, NotifyHandle};
 use futures_core::{Future, Async};
 
+use Enter;
 use thread::ThreadNotify;
 use task_runner::{set_current, with_current, TaskRunner};
 
@@ -9,12 +12,13 @@ use task_runner::{set_current, with_current, TaskRunner};
 /// This currently does not do anything, but allows future improvements to be
 /// made in a backwards compatible way.
 pub struct Context<'a> {
-    // enter: &'a executor::Enter,
+    enter: Enter,
     runner: &'a mut TaskRunner,
     handle: &'a (Fn() -> NotifyHandle + 'a),
     thread: &'a ThreadNotify,
 }
 
+/// TODO: dox
 pub fn run<F, R>(f: F) -> R
     where F: FnOnce(&mut Context) -> R
 {
@@ -23,9 +27,9 @@ pub fn run<F, R>(f: F) -> R
         let handle = &|| thread.clone().into();
 
         // Kick off any initial work through the callback provided
-        let ret = set_current(&runner.executor(), || {
+        let ret = set_current(&runner.executor(), |enter| {
             f(&mut Context {
-                // enter: &,
+                enter,
                 runner: &mut runner,
                 handle,
                 thread,
@@ -92,7 +96,7 @@ pub fn spawn_daemon<F>(future: F)
 ///
 /// This function can only be invoked from the context of a
 /// `run` call; any other use will result in a panic.
-pub fn cancel_all_executing() {
+pub fn cancel_all_spawned() {
     with_current(|current| {
         current.expect("cannot call `cancel_all_executing` unless the \
                         thread is already in the context of a call to `run`")
@@ -101,10 +105,10 @@ pub fn cancel_all_executing() {
 }
 
 impl<'a> Context<'a> {
-    // /// Returns a reference to the executor `Enter` handle.
-    // pub fn enter(&self) -> &executor::Enter {
-    //     &self.enter
-    // }
+    /// Returns a reference to the executor `Enter` handle.
+    pub fn enter(&self) -> &Enter {
+        &self.enter
+    }
 
     /// Synchronously waits for the provided `future` to complete.
     ///

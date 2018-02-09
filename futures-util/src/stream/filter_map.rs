@@ -1,5 +1,5 @@
-use {Async, Future, IntoFuture, Poll};
-use Stream;
+use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_sink::{Sink, StartSend};
 
 /// A combinator used to filter the results of a stream and simultaneously map
 /// them to a different type.
@@ -59,15 +59,15 @@ impl<S, F, R> FilterMap<S, F, R>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, R> ::Sink for FilterMap<S, F, R>
-    where S: Stream + ::Sink,
+impl<S, F, R> Sink for FilterMap<S, F, R>
+    where S: Stream + Sink,
           F: FnMut(S::Item) -> R,
           R: IntoFuture<Error=S::Error>,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

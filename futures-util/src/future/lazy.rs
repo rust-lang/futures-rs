@@ -3,7 +3,7 @@
 
 use core::mem;
 
-use {Future, IntoFuture, Poll};
+use futures_core::{Future, IntoFuture, Poll};
 
 /// A future which defers creation of the actual future until a callback is
 /// scheduled.

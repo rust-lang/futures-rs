@@ -13,9 +13,11 @@ computation on the threads themselves.
 
 [dependencies]
 num_cpus = "1.0"
+futures = { path = "../futures", version = "0.2", default-features = false }
 
-[dependencies.futures]
-path = "../futures"
-version = "0.2"
-default-features = false
-features = ["std"]
+[dev-dependencies]
+futures-executor = { path = "../futures-executor", version = "0.1", default-features = false }
+
+[features]
+std = ["futures/std"]
+default = ["std"]

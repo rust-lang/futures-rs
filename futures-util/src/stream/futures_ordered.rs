@@ -3,7 +3,8 @@ use std::collections::BinaryHeap;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 
-use {Async, Future, IntoFuture, Poll, Stream};
+use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+
 use stream::FuturesUnordered;
 
 #[derive(Debug)]
@@ -201,7 +202,7 @@ impl<T: Debug> Debug for FuturesOrdered<T>
 }
 
 impl<F: Future> FromIterator<F> for FuturesOrdered<F> {
-    fn from_iter<T>(iter: T) -> Self 
+    fn from_iter<T>(iter: T) -> Self
         where T: IntoIterator<Item = F>
     {
         let mut new = FuturesOrdered::new();

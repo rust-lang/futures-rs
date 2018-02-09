@@ -3,8 +3,7 @@ use std::any::Any;
 use std::panic::{catch_unwind, UnwindSafe};
 use std::mem;
 
-use super::super::{Poll, Async};
-use super::Stream;
+use futures_core::{Poll, Async, Stream};
 
 /// Stream for the `catch_unwind` combinator.
 ///

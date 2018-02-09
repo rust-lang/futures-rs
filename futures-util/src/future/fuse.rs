@@ -1,4 +1,4 @@
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 /// A future which "fuses" a future once it's been resolved.
 ///

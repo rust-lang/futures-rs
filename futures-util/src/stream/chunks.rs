@@ -1,8 +1,10 @@
 use std::mem;
 use std::prelude::v1::*;
 
-use {Async, Poll};
-use stream::{Stream, Fuse};
+use futures_core::{Async, Poll, Stream};
+use futures_sink::{Sink, StartSend};
+
+use stream::Fuse;
 
 /// An adaptor that chunks up elements in a vector.
 ///
@@ -32,13 +34,13 @@ pub fn new<S>(s: S, capacity: usize) -> Chunks<S>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S> ::Sink for Chunks<S>
-    where S: ::Sink + Stream
+impl<S> Sink for Chunks<S>
+    where S: Sink + Stream
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

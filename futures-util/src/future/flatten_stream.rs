@@ -1,6 +1,6 @@
-use {Async, Future, Poll};
 use core::fmt;
-use Stream;
+
+use futures_core::{Async, Future, Poll, Stream};
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.

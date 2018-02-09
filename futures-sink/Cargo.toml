@@ -11,9 +11,9 @@ The asynchronous `Sink` trait for the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std"]
+std = ["futures-core/std", "futures-channel/std"]
 default = ["std"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.1.0" }
-futures-channel = { path = "../futures-channel", version = "0.1.0" }
+futures-core = { path = "../futures-core", version = "0.1.0", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.1.0", default-features = false }

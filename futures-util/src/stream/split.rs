@@ -2,7 +2,9 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt;
 
-use {StartSend, Sink, Stream, Poll, Async, AsyncSink};
+use futures_core::{Stream, Poll, Async};
+use futures_sink::{StartSend, Sink, AsyncSink};
+
 use lock::BiLock;
 
 /// A `Stream` part of the split pair

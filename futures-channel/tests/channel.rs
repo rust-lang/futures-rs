@@ -1,28 +1,30 @@
 extern crate futures;
+extern crate futures_channel;
+extern crate futures_executor;
 
 use std::sync::atomic::*;
+use std::thread;
 
 use futures::prelude::*;
 use futures::future::result;
-use futures::sync::mpsc;
-
-mod support;
-use support::*;
+use futures_executor::current_thread::run;
+use futures_channel::mpsc;
 
 #[test]
 fn sequence() {
-    let (tx, mut rx) = mpsc::channel(1);
-
-    sassert_empty(&mut rx);
-    sassert_empty(&mut rx);
+    let (tx, rx) = mpsc::channel(1);
 
     let amt = 20;
-    send(amt, tx).forget();
-    let mut rx = rx.wait();
+    let t = thread::spawn(move || {
+        run(|c| c.block_on(send(amt, tx)))
+    });
+    let mut list = run(|c| c.block_on(rx.collect())).unwrap().into_iter();
     for i in (1..amt + 1).rev() {
-        assert_eq!(rx.next(), Some(Ok(i)));
+        assert_eq!(list.next(), Some(i));
     }
-    assert_eq!(rx.next(), None);
+    assert_eq!(list.next(), None);
+
+    t.join().unwrap().unwrap();
 
     fn send(n: u32, sender: mpsc::Sender<u32>)
             -> Box<Future<Item=(), Error=()> + Send> {
@@ -39,15 +41,18 @@ fn sequence() {
 fn drop_sender() {
     let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
-    sassert_done(&mut rx);
+    match rx.poll() {
+        Ok(Async::Ready(None)) => {}
+        _ => panic!("channel should be done"),
+    }
 }
 
 #[test]
 fn drop_rx() {
     let (tx, rx) = mpsc::channel::<u32>(1);
-    let tx = tx.send(1).wait().ok().unwrap();
+    let tx = run(|c| c.block_on(tx.send(1))).unwrap();
     drop(rx);
-    assert!(tx.send(1).wait().is_err());
+    assert!(run(|c| c.block_on(tx.send(1))).is_err());
 }
 
 #[test]
@@ -63,10 +68,10 @@ fn drop_order() {
         }
     }
 
-    let tx = tx.send(A).wait().unwrap();
+    let tx = run(|c| c.block_on(tx.send(A))).unwrap();
     assert_eq!(DROPS.load(Ordering::SeqCst), 0);
     drop(rx);
     assert_eq!(DROPS.load(Ordering::SeqCst), 1);
-    assert!(tx.send(A).wait().is_err());
+    assert!(run(|c| c.block_on(tx.send(A))).is_err());
     assert_eq!(DROPS.load(Ordering::SeqCst), 2);
 }

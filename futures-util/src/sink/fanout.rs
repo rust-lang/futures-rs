@@ -1,7 +1,8 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::mem::replace;
 
-use {Async, AsyncSink, Poll, Sink, StartSend};
+use futures_core::{Async, Poll};
+use futures_sink::{AsyncSink, Sink, StartSend};
 
 /// Sink that clones incoming items and forwards them to two sinks at the same time.
 ///
@@ -50,7 +51,7 @@ impl<A, B> Sink for Fanout<A, B>
     type SinkError = A::SinkError;
 
     fn start_send(
-        &mut self, 
+        &mut self,
         item: Self::SinkItem
     ) -> StartSend<Self::SinkItem, Self::SinkError> {
         // Attempt to complete processing any outstanding requests.
@@ -85,7 +86,7 @@ impl<A, B> Sink for Fanout<A, B>
             Ok(Async::Ready(()))
         } else {
             Ok(Async::Pending)
-        } 
+        }
     }
 }
 

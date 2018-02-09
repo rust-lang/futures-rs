@@ -1,9 +1,7 @@
 use std::collections::VecDeque;
 
-use {Poll, Async};
-use {StartSend, AsyncSink};
-use Sink;
-use Stream;
+use futures_core::{Poll, Async, Stream};
+use futures_sink::{StartSend, AsyncSink, Sink};
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.

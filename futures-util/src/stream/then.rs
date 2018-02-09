@@ -1,5 +1,5 @@
-use {Async, IntoFuture, Future, Poll};
-use Stream;
+use futures_core::{Async, IntoFuture, Future, Poll, Stream};
+use futures_sink::{StartSend, Sink};
 
 /// A stream combinator which chains a computation onto each item produced by a
 /// stream.
@@ -28,13 +28,13 @@ pub fn new<S, F, U>(s: S, f: F) -> Then<S, F, U>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, U> ::Sink for Then<S, F, U>
-    where S: ::Sink, U: IntoFuture,
+impl<S, F, U> Sink for Then<S, F, U>
+    where S: Sink, U: IntoFuture,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

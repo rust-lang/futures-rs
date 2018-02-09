@@ -2,8 +2,7 @@ use std::prelude::v1::*;
 
 use std::mem;
 
-use {Future, Poll, Async};
-use Stream;
+use futures_core::{Future, Poll, Async, Stream};
 
 /// A future which collects all of the values of a stream into a vector.
 ///

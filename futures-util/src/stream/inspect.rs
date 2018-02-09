@@ -1,4 +1,5 @@
-use {Stream, Poll, Async};
+use futures_core::{Stream, Poll, Async};
+use futures_sink::{Sink, StartSend};
 
 /// Do something with the items of a stream, passing it on.
 ///
@@ -46,13 +47,13 @@ impl<S: Stream, F> Inspect<S, F> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> ::Sink for Inspect<S, F>
-    where S: ::Sink + Stream
+impl<S, F> Sink for Inspect<S, F>
+    where S: Sink + Stream
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

@@ -1,5 +1,5 @@
-use {Poll, Async};
-use Stream;
+use futures_core::{Poll, Async, Stream};
+use futures_sink::{StartSend, Sink};
 
 /// A stream combinator which skips a number of elements before continuing.
 ///
@@ -46,13 +46,13 @@ impl<S> Skip<S> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S> ::Sink for Skip<S>
-    where S: ::Sink
+impl<S> Sink for Skip<S>
+    where S: Sink
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

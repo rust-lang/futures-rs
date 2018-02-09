@@ -1,5 +1,4 @@
-use {Async, Poll};
-use Stream;
+use futures_core::{Async, Poll, Stream};
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
 ///

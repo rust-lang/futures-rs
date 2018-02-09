@@ -155,6 +155,9 @@
 //!
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
+#![no_std]
+#![doc(html_root_url = "https://docs.rs/futures/0.2")]
+
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;
@@ -177,8 +180,8 @@ pub use futures_util::sink::SinkExt;
 #[macro_export]
 macro_rules! try_ready {
     ($e:expr) => (match $e {
-        Ok($crate::Async::Ready(t)) => t,
-        Ok($crate::Async::Pending) => return Ok($crate::Async::Pending),
+        Ok($crate::prelude::Async::Ready(t)) => t,
+        Ok($crate::prelude::Async::Pending) => return Ok($crate::prelude::Async::Pending),
         Err(e) => return Err(From::from(e)),
     })
 }
@@ -280,7 +283,7 @@ pub mod stream {
 	//! https://tokio.rs][online]
 	//!
 	//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
-    
+
     pub use futures_core::stream::*;
     pub use futures_util::stream::*;
 }

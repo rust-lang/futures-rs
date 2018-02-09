@@ -1,4 +1,4 @@
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 /// Future for the `map` combinator, changing the type of a future.
 ///

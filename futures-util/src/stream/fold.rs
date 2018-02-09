@@ -1,7 +1,6 @@
 use core::mem;
 
-use {Future, Poll, IntoFuture, Async};
-use Stream;
+use futures_core::{Future, Poll, IntoFuture, Async, Stream};
 
 /// A future used to collect all the results of a stream into one generic type.
 ///

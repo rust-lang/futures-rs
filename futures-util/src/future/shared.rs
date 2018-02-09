@@ -13,15 +13,15 @@
 //! assert_eq!(6, *shared2.wait().unwrap());
 //! ```
 
-use {Future, Poll, Async};
-use task::{self, Notify, Spawn, Task};
-
 use std::{error, fmt, mem, ops};
 use std::cell::UnsafeCell;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
+
+use futures_core::{Future, Poll, Async};
+use futures_core::task::{self, Notify, Spawn, Task};
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.

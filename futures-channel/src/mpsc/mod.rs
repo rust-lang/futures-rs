@@ -76,9 +76,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
 
+use futures_core::task::{self, Task};
+use futures_core::{Async, Poll, Stream};
+
 use mpsc::queue::{Queue, PopResult};
-use task::{self, Task};
-use {Async, Poll, Stream};
 
 mod queue;
 

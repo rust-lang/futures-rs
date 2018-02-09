@@ -1,6 +1,6 @@
 //! Definition of the `LoopFn` combinator, implementing `Future` loops.
 
-use {Async, Future, IntoFuture, Poll};
+use futures_core::{Async, Future, IntoFuture, Poll};
 
 /// The status of a `loop_fn` loop.
 #[derive(Debug)]

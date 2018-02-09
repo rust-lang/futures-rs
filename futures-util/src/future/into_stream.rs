@@ -1,6 +1,4 @@
-use {Async, Poll};
-use Future;
-use Stream;
+use futures_core::{Async, Poll, Future, Stream};
 
 /// Future that forwards one element from the underlying future
 /// (whether it is success of error) and emits EOF after that.

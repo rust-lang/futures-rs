@@ -1,4 +1,4 @@
-use {Future, Poll, Async};
+use futures_core::{Future, Poll, Async};
 
 /// Do something with the item of a future, passing it on.
 ///

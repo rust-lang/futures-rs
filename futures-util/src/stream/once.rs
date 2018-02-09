@@ -1,5 +1,4 @@
-use {Poll, Async};
-use Stream;
+use futures_core::{Poll, Async, Stream};
 
 /// A stream which emits single element and then EOF.
 ///

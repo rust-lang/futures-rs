@@ -1,10 +1,6 @@
 use core::marker;
 
-
-use Stream;
-
-use {Async, Poll};
-
+use futures_core::{Stream, Async, Poll};
 
 /// Stream that produces the same element repeatedly.
 ///

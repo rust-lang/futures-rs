@@ -8,8 +8,8 @@
 //!
 //! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
-use {IntoFuture, Sink};
-use Stream;
+use futures_core::{Stream, IntoFuture};
+use futures_sink::Sink;
 
 mod with;
 mod with_flat_map;

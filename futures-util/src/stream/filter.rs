@@ -1,5 +1,5 @@
-use {Async, Future, IntoFuture, Poll, Sink};
-use Stream;
+use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_sink::{Sink, StartSend};
 
 /// A stream combinator used to filter the results of a stream and only yield
 /// some values.
@@ -59,7 +59,7 @@ impl<S, P, R> Filter<S, P, R>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, P, R> ::Sink for Filter<S, P, R>
+impl<S, P, R> Sink for Filter<S, P, R>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,
@@ -68,7 +68,7 @@ impl<S, P, R> ::Sink for Filter<S, P, R>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

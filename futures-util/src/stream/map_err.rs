@@ -1,5 +1,5 @@
-use Poll;
-use Stream;
+use futures_core::{Poll, Stream};
+use futures_sink::{Sink, StartSend};
 
 /// A stream combinator which will change the error type of a stream from one
 /// type to another.
@@ -48,13 +48,13 @@ impl<S, F> MapErr<S, F> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> ::Sink for MapErr<S, F>
-    where S: ::Sink
+impl<S, F> Sink for MapErr<S, F>
+    where S: Sink
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> ::StartSend<S::SinkItem, S::SinkError> {
+    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
         self.stream.start_send(item)
     }
 

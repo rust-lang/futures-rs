@@ -1,6 +1,7 @@
-use {Poll, Async, Future, AsyncSink, Stream};
+use futures_core::{Poll, Async, Future, Stream};
+use futures_sink::{Sink, AsyncSink};
+
 use stream::{StreamExt, Fuse};
-use Sink;
 
 /// Future for the `Sink::send_all` combinator, which sends a stream of values
 /// to a sink and then waits until the sink has fully flushed those values.
