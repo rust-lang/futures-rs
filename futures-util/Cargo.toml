@@ -18,3 +18,8 @@ default = ["std"]
 futures-core = { path = "../futures-core", version = "0.2.0", default-features = false }
 futures-channel = { path = "../futures-channel", version = "0.2.0", default-features = false }
 futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false}
+
+[dev-dependencies]
+futures = { path = "../futures", version = "0.2" }
+futures-executor = { path = "../futures-executor", version = "0.2" }
+futures-channel = { path = "../futures-channel", version = "0.2" }

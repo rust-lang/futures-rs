@@ -18,14 +18,17 @@ pub struct PollFn<F> {
 /// # Examples
 ///
 /// ```
+/// # extern crate futures;
+/// use futures::prelude::*;
 /// use futures::future::poll_fn;
-/// use futures::{Async, Poll};
 ///
+/// # fn main() {
 /// fn read_line() -> Poll<String, std::io::Error> {
 ///     Ok(Async::Ready("Hello, World!".into()))
 /// }
 ///
 /// let read_future = poll_fn(read_line);
+/// # }
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
     where F: FnMut() -> Poll<T, E>

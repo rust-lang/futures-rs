@@ -21,12 +21,16 @@ pub struct Repeat<T, E>
 /// available memory as it tries to just fill up all RAM.
 ///
 /// ```rust
-/// use futures::*;
+/// # extern crate futures;
+/// use futures::prelude::*;
+/// use futures::stream;
 ///
+/// # fn main() {
 /// let mut stream = stream::repeat::<_, bool>(10);
 /// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
 /// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
 /// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
+/// # }
 /// ```
 pub fn repeat<T, E>(item: T) -> Repeat<T, E>
     where T: Clone

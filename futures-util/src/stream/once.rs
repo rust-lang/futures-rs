@@ -10,11 +10,15 @@ pub struct Once<T, E>(Option<Result<T, E>>);
 /// Creates a stream of single element
 ///
 /// ```rust
-/// use futures::*;
+/// # extern crate futures;
+/// use futures::prelude::*;
+/// use futures::stream;
 ///
+/// # fn main() {
 /// let mut stream = stream::once::<(), _>(Err(17));
 /// assert_eq!(Err(17), stream.poll());
 /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// # }
 /// ```
 pub fn once<T, E>(item: Result<T, E>) -> Once<T, E> {
     Once(Some(item))

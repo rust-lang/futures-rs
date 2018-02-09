@@ -18,9 +18,11 @@ pub struct PollFn<F> {
 /// # Examples
 ///
 /// ```
+/// # extern crate futures;
+/// use futures::prelude::*;
 /// use futures::stream::poll_fn;
-/// use futures::{Async, Poll};
 ///
+/// # fn main() {
 /// let mut counter = 1usize;
 ///
 /// let read_stream = poll_fn(move || -> Poll<Option<String>, std::io::Error> {
@@ -28,6 +30,7 @@ pub struct PollFn<F> {
 ///     counter -= 1;
 ///     Ok(Async::Ready(Some("Hello, World!".to_owned())))
 /// });
+/// # }
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
 where

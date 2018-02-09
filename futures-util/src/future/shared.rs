@@ -4,13 +4,21 @@
 //! # Examples
 //!
 //! ```
-//! use futures::future::*;
+//! # extern crate futures;
+//! # extern crate futures_executor;
+//! use futures::prelude::*;
+//! use futures::future;
+//! use futures_executor::current_thread::run;
 //!
-//! let future = ok::<_, bool>(6);
+//! # fn main() {
+//! let future = future::ok::<_, bool>(6);
 //! let shared1 = future.shared();
 //! let shared2 = shared1.clone();
-//! assert_eq!(6, *shared1.wait().unwrap());
-//! assert_eq!(6, *shared2.wait().unwrap());
+//! run(|c| {
+//!     assert_eq!(6, *c.block_on(shared1).unwrap());
+//!     assert_eq!(6, *c.block_on(shared2).unwrap());
+//! });
+//! # }
 //! ```
 
 use std::{error, fmt, mem, ops};

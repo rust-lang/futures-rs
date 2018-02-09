@@ -141,11 +141,15 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
     ///
+    /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let rx = rx.map(|x| x + 3);
+    /// # }
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
         where F: FnMut(Self::Item) -> U,
@@ -167,11 +171,15 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
     ///
+    /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let rx = rx.map_err(|()| 3);
+    /// # }
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
         where F: FnMut(Self::Error) -> U,
@@ -198,12 +206,15 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::future;
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
     ///
+    /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let evens = rx.filter(|x| future::ok(x % 2 == 0));
+    /// let evens = rx.filter(|x| Ok(x % 2 == 0));
+    /// # }
     /// ```
     fn filter<P, R>(self, pred: P) -> Filter<Self, P, R>
         where P: FnMut(&Self::Item) -> R,
@@ -230,13 +241,15 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::future;
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
     ///
+    /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens_plus_one = rx.filter_map(|x| {
-    ///     future::ok(
+    ///     Ok(
     ///         if x % 0 == 2 {
     ///             Some(x + 1)
     ///         } else {
@@ -244,6 +257,7 @@ pub trait StreamExt: Stream {
     ///         }
     ///     )
     /// });
+    /// # }
     /// ```
     fn filter_map<F, R, B>(self, f: F) -> FilterMap<Self, F, R>
         where F: FnMut(Self::Item) -> R,
@@ -273,9 +287,12 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
     ///
+    /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     ///
     /// let rx = rx.then(|result| {
@@ -284,6 +301,7 @@ pub trait StreamExt: Stream {
     ///         Err(()) => Err(4),
     ///     }
     /// });
+    /// # }
     /// ```
     fn then<F, U>(self, f: F) -> Then<Self, F, U>
         where F: FnMut(Result<Self::Item, Self::Error>) -> U,
@@ -319,9 +337,12 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
     ///
+    /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     ///
     /// let rx = rx.and_then(|result| {
@@ -331,6 +352,7 @@ pub trait StreamExt: Stream {
     ///         Err(())
     ///     }
     /// });
+    /// # }
     /// ```
     fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
         where F: FnMut(Self::Item) -> U,
@@ -383,21 +405,27 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    /// # extern crate futures_channel;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
+    /// use futures_executor::current_thread::run;
     ///
-    /// let (mut tx, rx) = mpsc::channel(1);
+    /// # fn main() {
+    /// let (mut tx, rx) = mpsc::unbounded();
     ///
-    /// thread::spawn(|| {
+    /// thread::spawn(move || {
     ///     for i in (0..5).rev() {
-    ///         tx = tx.send(i + 1).wait().unwrap();
+    ///         tx.unbounded_send(i + 1).unwrap();
     ///     }
     /// });
     ///
-    /// let mut result = rx.collect();
-    /// assert_eq!(result.wait(), Ok(vec![5, 4, 3, 2, 1]));
+    /// let result = run(|c| c.block_on(rx.collect()));
+    /// assert_eq!(result, Ok(vec![5, 4, 3, 2, 1]));
+    /// # }
     /// ```
     #[cfg(feature = "std")]
     fn collect(self) -> Collect<Self>
@@ -417,21 +445,27 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    /// # extern crate futures_channel;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
+    /// use futures_executor::current_thread::run;
     ///
-    /// let (mut tx, rx) = mpsc::channel(1);
+    /// # fn main() {
+    /// let (mut tx, rx) = mpsc::unbounded();
     ///
     /// thread::spawn(move || {
     ///     for i in (0..3).rev() {
     ///         let n = i * 3;
-    ///         tx = tx.send(vec![n + 1, n + 2, n + 3]).wait().unwrap();
+    ///         tx.unbounded_send(vec![n + 1, n + 2, n + 3]).unwrap();
     ///     }
     /// });
-    /// let result = rx.concat();
-    /// assert_eq!(result.wait(), Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
+    /// let result = run(|c| c.block_on(rx.concat()));
+    /// assert_eq!(result, Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
+    /// # }
     /// ```
     fn concat(self) -> Concat<Self>
         where Self: Sized,
@@ -455,13 +489,20 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::stream;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let number_stream = stream::iter_ok::<_, ()>(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ok(acc + x));
-    /// assert_eq!(sum.wait(), Ok(15));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(sum), Ok(15));
+    /// });
+    /// # }
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
         where F: FnMut(T, Self::Item) -> Fut,
@@ -479,30 +520,36 @@ pub trait StreamExt: Stream {
     /// individual stream will get exhausted before moving on to the next.
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_channel;
+    /// # extern crate futures_executor;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures::sync::mpsc;
+    /// use futures_channel::mpsc;
+    /// use futures_executor::current_thread::run;
     ///
-    /// let (tx1, rx1) = mpsc::channel::<i32>(1);
-    /// let (tx2, rx2) = mpsc::channel::<i32>(1);
-    /// let (tx3, rx3) = mpsc::channel(1);
+    /// # fn main() {
+    /// let (tx1, rx1) = mpsc::unbounded::<i32>();
+    /// let (tx2, rx2) = mpsc::unbounded::<i32>();
+    /// let (tx3, rx3) = mpsc::unbounded();
     ///
-    /// thread::spawn(|| {
-    ///     tx1.send(1).wait().unwrap()
-    ///        .send(2).wait().unwrap();
+    /// thread::spawn(move || {
+    ///     tx1.unbounded_send(1).unwrap();
+    ///     tx1.unbounded_send(2).unwrap();
     /// });
-    /// thread::spawn(|| {
-    ///     tx2.send(3).wait().unwrap()
-    ///        .send(4).wait().unwrap();
+    /// thread::spawn(move || {
+    ///     tx2.unbounded_send(3).unwrap();
+    ///     tx2.unbounded_send(4).unwrap();
     /// });
-    /// thread::spawn(|| {
-    ///     tx3.send(rx1).wait().unwrap()
-    ///        .send(rx2).wait().unwrap();
+    /// thread::spawn(move || {
+    ///     tx3.unbounded_send(rx1).unwrap();
+    ///     tx3.unbounded_send(rx2).unwrap();
     /// });
     ///
-    /// let mut result = rx3.flatten().collect();
-    /// assert_eq!(result.wait(), Ok(vec![1, 2, 3, 4]));
+    /// let result = run(|c| c.block_on(rx3.flatten().collect()));
+    /// assert_eq!(result, Ok(vec![1, 2, 3, 4]));
+    /// # }
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream<Error = Self::Error>,
@@ -637,18 +684,25 @@ pub trait StreamExt: Stream {
     /// ownership of the original stream.
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::stream;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let mut stream = stream::iter_ok::<_, ()>(1..5);
     ///
-    /// let sum = stream.by_ref().take(2).fold(0, |a, b| future::ok(a + b)).wait();
-    /// assert_eq!(sum, Ok(3));
+    /// run(|c| {
+    ///     let sum = c.block_on(stream.by_ref().take(2).fold(0, |a, b| future::ok(a + b)));
+    ///     assert_eq!(sum, Ok(3));
     ///
-    /// // You can use the stream again
-    /// let sum = stream.take(2).fold(0, |a, b| future::ok(a + b)).wait();
-    /// assert_eq!(sum, Ok(7));
+    ///     // You can use the stream again
+    ///     let sum = c.block_on(stream.take(2).fold(0, |a, b| future::ok(a + b)));
+    ///     assert_eq!(sum, Ok(7));
+    /// });
+    /// # }
     /// ```
     fn by_ref(&mut self) -> &mut Self
         where Self: Sized
@@ -677,17 +731,30 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```rust
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    ///
     /// use futures::prelude::*;
     /// use futures::stream;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let stream = stream::iter_ok::<_, bool>(vec![Some(10), None, Some(11)]);
     /// // panic on second element
     /// let stream_panicking = stream.map(|o| o.unwrap());
-    /// let mut iter = stream_panicking.catch_unwind().wait();
+    /// // collect all the results
+    /// let stream = stream_panicking.catch_unwind().then(|r| Ok::<_, ()>(r));
     ///
-    /// assert_eq!(Ok(10), iter.next().unwrap().ok().unwrap());
-    /// assert!(iter.next().unwrap().is_err());
-    /// assert!(iter.next().is_none());
+    /// run(|c| {
+    ///     let results = c.block_on(stream.collect()).unwrap();
+    ///     match results[0] {
+    ///         Ok(Ok(10)) => {}
+    ///         _ => panic!("unexpected result!"),
+    ///     }
+    ///     assert!(results[1].is_err());
+    ///     assert_eq!(results.len(), 2);
+    /// });
+    /// # }
     /// ```
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
@@ -756,18 +823,29 @@ pub trait StreamExt: Stream {
     /// first stream reaches the end, emits the elements from the second stream.
     ///
     /// ```rust
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::stream;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let stream1 = stream::iter_result(vec![Ok(10), Err(false)]);
     /// let stream2 = stream::iter_result(vec![Err(true), Ok(20)]);
-    /// let mut chain = stream1.chain(stream2).wait();
     ///
-    /// assert_eq!(Some(Ok(10)), chain.next());
-    /// assert_eq!(Some(Err(false)), chain.next());
-    /// assert_eq!(Some(Err(true)), chain.next());
-    /// assert_eq!(Some(Ok(20)), chain.next());
-    /// assert_eq!(None, chain.next());
+    /// let stream = stream1.chain(stream2)
+    ///     .then(|result| Ok::<_, ()>(result));
+    ///
+    /// run(|c| {
+    ///     let result = c.block_on(stream.collect()).unwrap();
+    ///     assert_eq!(result, vec![
+    ///         Ok(10),
+    ///         Err(false),
+    ///         Err(true),
+    ///         Ok(20),
+    ///     ]);
+    /// });
+    /// # }
     /// ```
     fn chain<S>(self, other: S) -> Chain<Self, S>
         where S: Stream<Item = Self::Item, Error = Self::Error>,

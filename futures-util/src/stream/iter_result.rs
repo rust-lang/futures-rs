@@ -16,13 +16,17 @@ pub struct IterResult<I> {
 /// always calls `iter.next()` and returns that.
 ///
 /// ```rust
-/// use futures::*;
+/// # extern crate futures;
+/// use futures::prelude::*;
+/// use futures::stream;
 ///
+/// # fn main() {
 /// let mut stream = stream::iter_result(vec![Ok(17), Err(false), Ok(19)]);
 /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
 /// assert_eq!(Err(false), stream.poll());
 /// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
 /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// # }
 /// ```
 pub fn iter_result<J, T, E>(i: J) -> IterResult<J::IntoIter>
 where

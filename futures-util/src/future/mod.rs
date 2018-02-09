@@ -89,23 +89,38 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = future::ok::<u32, u32>(1);
     /// let new_future = future.map(|x| x + 3);
-    /// assert_eq!(new_future.wait(), Ok(4));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(new_future), Ok(4));
+    /// });
+    /// # }
     /// ```
     ///
     /// Calling `map` on an errored `Future` has no effect:
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = future::err::<u32, u32>(1);
     /// let new_future = future.map(|x| x + 3);
-    /// assert_eq!(new_future.wait(), Err(1));
+    ///
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(new_future), Err(1));
+    /// });
+    /// # }
     /// ```
     fn map<F, U>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U,
@@ -131,21 +146,37 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::future::*;
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    /// use futures::future::err;
+    /// use futures::prelude::*;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = err::<u32, u32>(1);
     /// let new_future = future.map_err(|x| x + 3);
-    /// assert_eq!(new_future.wait(), Err(4));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(new_future), Err(4));
+    /// });
+    /// # }
     /// ```
     ///
     /// Calling `map_err` on a successful `Future` has no effect:
     ///
     /// ```
-    /// use futures::future::*;
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    /// use futures::future::ok;
+    /// use futures::prelude::*;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = ok::<u32, u32>(1);
     /// let new_future = future.map_err(|x| x + 3);
-    /// assert_eq!(new_future.wait(), Ok(1));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(new_future), Ok(1));
+    /// });
+    /// # }
     /// ```
     fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
@@ -171,11 +202,14 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     ///
+    /// # fn main() {
     /// let future_with_err_u8 = future::err::<(), u8>(1);
     /// let future_with_err_u32 = future_with_err_u8.from_err::<u32>();
+    /// # }
     /// ```
     fn from_err<E:From<Self::Error>>(self) -> FromErr<Self, E>
         where Self: Sized,
@@ -205,9 +239,11 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     ///
+    /// # fn main() {
     /// let future_of_1 = future::ok::<u32, u32>(1);
     /// let future_of_4 = future_of_1.then(|x| {
     ///     x.map(|y| y + 3)
@@ -220,6 +256,7 @@ pub trait FutureExt: Future {
     ///         Err(y) => future::ok::<u32, u32>(y + 3),
     ///     }
     /// });
+    /// # }
     /// ```
     fn then<F, B>(self, f: F) -> Then<Self, B, F>
         where F: FnOnce(result::Result<Self::Item, Self::Error>) -> B,
@@ -249,18 +286,21 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future;
     ///
+    /// # fn main() {
     /// let future_of_1 = future::ok::<u32, u32>(1);
     /// let future_of_4 = future_of_1.and_then(|x| {
     ///     Ok(x + 3)
     /// });
     ///
     /// let future_of_err_1 = future::err::<u32, u32>(1);
-    /// future_of_err_1.and_then(|_| -> FutureResult<u32, u32> {
+    /// future_of_err_1.and_then(|_| -> future::Result<u32, u32> {
     ///     panic!("should not be called in case of an error");
     /// });
+    /// # }
     /// ```
     fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
@@ -290,18 +330,21 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future;
     ///
+    /// # fn main() {
     /// let future_of_err_1 = future::err::<u32, u32>(1);
     /// let future_of_4 = future_of_err_1.or_else(|x| -> Result<u32, u32> {
     ///     Ok(x + 3)
     /// });
     ///
     /// let future_of_1 = future::ok::<u32, u32>(1);
-    /// future_of_1.or_else(|_| -> FutureResult<u32, u32> {
+    /// future_of_1.or_else(|_| -> future::Result<u32, u32> {
     ///     panic!("should not be called in case of success");
     /// });
+    /// # }
     /// ```
     fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B,
@@ -324,29 +367,42 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```no_run
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    /// # extern crate futures_channel;
+    /// use std::thread;
+    /// use std::time::Duration;
+    ///
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use std::thread;
-    /// use std::time;
+    /// use futures_executor::current_thread::run;
+    /// use futures_channel::oneshot;
     ///
-    /// let future1 = future::lazy(|| {
-    ///     thread::sleep(time::Duration::from_secs(5));
-    ///     future::ok::<char, ()>('a')
+    /// # fn main() {
+    /// let (tx, future1) = oneshot::channel();
+    /// thread::spawn(move || {
+    ///     thread::sleep(Duration::from_secs(5));
+    ///     tx.send('a').unwrap();
     /// });
     ///
-    /// let future2 = future::lazy(|| {
-    ///     thread::sleep(time::Duration::from_secs(3));
-    ///     future::ok::<char, ()>('b')
+    /// let (tx, future2) = oneshot::channel();
+    /// thread::spawn(move || {
+    ///     thread::sleep(Duration::from_secs(2));
+    ///     tx.send('b').unwrap();
     /// });
     ///
-    /// let (value, last_future) = future1.select(future2).wait().ok().unwrap();
-    /// assert_eq!(value, 'a');
-    /// assert_eq!(last_future.wait().unwrap(), 'b');
+    /// run(|c| {
+    ///     let (value, last_future) = c.block_on(future1.select(future2)).ok().unwrap();
+    ///     assert_eq!(value, 'b');
+    ///     assert_eq!(c.block_on(last_future).unwrap(), 'a');
+    /// });
+    /// # }
     /// ```
     ///
     /// A poor-man's `join` implemented on top of `select`:
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     ///
@@ -360,6 +416,7 @@ pub trait FutureExt: Future {
     ///         }
     ///     }))
     /// }
+    /// # fn main() {}
     /// ```
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
@@ -387,6 +444,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
@@ -406,6 +464,7 @@ pub trait FutureExt: Future {
     ///         }
     ///     }))
     /// }
+    /// # fn main() {}
     /// ```
     fn select2<B>(self, other: B) -> Select2<Self, B::Future>
         where B: IntoFuture, Self: Sized
@@ -429,28 +488,42 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let a = future::ok::<u32, u32>(1);
     /// let b = future::ok::<u32, u32>(2);
     /// let pair = a.join(b);
     ///
-    /// assert_eq!(pair.wait(), Ok((1, 2)));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(pair), Ok((1, 2)));
+    /// });
+    /// # }
     /// ```
     ///
     /// If one or both of the joined `Future`s is errored, the resulting
     /// `Future` will be errored:
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let a = future::ok::<u32, u32>(1);
     /// let b = future::err::<u32, u32>(2);
     /// let pair = a.join(b);
     ///
-    /// assert_eq!(pair.wait(), Err(2));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(pair), Err(2));
+    /// });
+    /// # }
     /// ```
     fn join<B>(self, other: B) -> Join<Self, B::Future>
         where B: IntoFuture<Error=Self::Error>,
@@ -501,9 +574,11 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     ///
+    /// # fn main() {
     /// let future = future::ok::<_, bool>(17);
     /// let mut stream = future.into_stream();
     /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
@@ -513,6 +588,7 @@ pub trait FutureExt: Future {
     /// let mut stream = future.into_stream();
     /// assert_eq!(Err(19), stream.poll());
     /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    /// # }
     /// ```
     fn into_stream(self) -> IntoStream<Self>
         where Self: Sized
@@ -537,24 +613,38 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let nested_future = future::ok::<_, u32>(future::ok::<u32, u32>(1));
     /// let future = nested_future.flatten();
-    /// assert_eq!(future.wait(), Ok(1));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(future), Ok(1));
+    /// });
+    /// # }
     /// ```
     ///
     /// Calling `flatten` on an errored `Future`, or if the inner `Future` is
     /// errored, will result in an errored `Future`:
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let nested_future = future::ok::<_, u32>(future::err::<u32, u32>(1));
     /// let future = nested_future.flatten();
-    /// assert_eq!(future.wait(), Err(1));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(future), Err(1));
+    /// });
+    /// # }
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: IntoFuture<Error = <Self as Future>::Error>,
@@ -579,20 +669,23 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::stream;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let stream_items = vec![17, 18, 19];
     /// let future_of_a_stream = future::ok::<_, bool>(stream::iter_ok(stream_items));
     ///
     /// let stream = future_of_a_stream.flatten_stream();
-    ///
-    /// let mut iter = stream.wait();
-    /// assert_eq!(Ok(17), iter.next().unwrap());
-    /// assert_eq!(Ok(18), iter.next().unwrap());
-    /// assert_eq!(Ok(19), iter.next().unwrap());
-    /// assert_eq!(None, iter.next());
+    /// run(|c| {
+    ///     let list = c.block_on(stream.collect()).unwrap();
+    ///     assert_eq!(list, vec![17, 18, 19]);
+    /// });
+    /// # }
     /// ```
     fn flatten_stream(self) -> FlattenStream<Self>
         where <Self as Future>::Item: Stream<Error=Self::Error>,
@@ -620,9 +713,11 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```rust
+    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     ///
+    /// # fn main() {
     /// let mut future = future::ok::<i32, u32>(2);
     /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
     ///
@@ -633,6 +728,7 @@ pub trait FutureExt: Future {
     /// let mut future = future::ok::<i32, u32>(2).fuse();
     /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
     /// assert_eq!(future.poll(), Ok(Async::Pending));
+    /// # }
     /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
@@ -650,12 +746,19 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = future::ok::<u32, u32>(1);
     /// let new_future = future.inspect(|&x| println!("about to resolve: {}", x));
-    /// assert_eq!(new_future.wait(), Ok(1));
+    /// run(|c| {
+    ///     assert_eq!(c.block_on(new_future), Ok(1));
+    /// });
+    /// # }
     /// ```
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
         where F: FnOnce(&Self::Item) -> (),
@@ -683,17 +786,24 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```rust
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
-    /// let mut future = future::ok::<i32, u32>(2);
-    /// assert!(future.catch_unwind().wait().is_ok());
+    /// # fn main() {
+    /// run(|c| {
+    ///     let mut future = future::ok::<i32, u32>(2);
+    ///     assert!(c.block_on(future.catch_unwind()).is_ok());
     ///
-    /// let mut future = future::lazy(|| -> FutureResult<i32, u32> {
-    ///     panic!();
-    ///     future::ok::<i32, u32>(2)
+    ///     let mut future = future::lazy(|| -> future::Result<i32, u32> {
+    ///         panic!();
+    ///         future::ok::<i32, u32>(2)
+    ///     });
+    ///     assert!(c.block_on(future.catch_unwind()).is_err());
     /// });
-    /// assert!(future.catch_unwind().wait().is_err());
+    /// # }
     /// ```
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
@@ -720,29 +830,47 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = future::ok::<_, bool>(6);
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
-    /// assert_eq!(6, *shared1.wait().unwrap());
-    /// assert_eq!(6, *shared2.wait().unwrap());
+    ///
+    /// run(|c| {
+    ///     assert_eq!(6, *c.block_on(shared1).unwrap());
+    ///     assert_eq!(6, *c.block_on(shared2).unwrap());
+    /// });
+    /// # }
     /// ```
     ///
     /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use std::thread;
+    ///
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
+    /// # fn main() {
     /// let future = future::ok::<_, bool>(6);
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     /// let join_handle = thread::spawn(move || {
-    ///     assert_eq!(6, *shared2.wait().unwrap());
+    ///     run(|c| {
+    ///         assert_eq!(6, *c.block_on(shared2).unwrap());
+    ///     });
     /// });
-    /// assert_eq!(6, *shared1.wait().unwrap());
+    /// run(|c| {
+    ///     assert_eq!(6, *c.block_on(shared1).unwrap());
+    /// });
     /// join_handle.join().unwrap();
+    /// # }
     /// ```
     #[cfg(feature = "std")]
     fn shared(self) -> Shared<Self>

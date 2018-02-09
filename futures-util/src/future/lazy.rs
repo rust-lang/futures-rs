@@ -32,14 +32,18 @@ enum _Lazy<F, R> {
 /// # Examples
 ///
 /// ```
-/// use futures::future::*;
+/// # extern crate futures;
+/// use futures::prelude::*;
+/// use futures::future;
 ///
-/// let a = lazy(|| ok::<u32, u32>(1));
+/// # fn main() {
+/// let a = future::lazy(|| future::ok::<u32, u32>(1));
 ///
-/// let b = lazy(|| -> FutureResult<u32, u32> {
+/// let b = future::lazy(|| -> future::Result<u32, u32> {
 ///     panic!("oh no!")
 /// });
 /// drop(b); // closure is never run
+/// # }
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F, R>
     where F: FnOnce() -> R,

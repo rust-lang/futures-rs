@@ -28,9 +28,15 @@ use futures_core::{Future, IntoFuture, Async, Poll, Stream};
 /// # Example
 ///
 /// ```rust
-/// use futures::stream::{self, Stream};
-/// use futures::future::{self, Future};
+/// # extern crate futures;
+/// # extern crate futures_executor;
 ///
+/// use futures::prelude::*;
+/// use futures::stream;
+/// use futures::future;
+/// use futures_executor::current_thread::run;
+///
+/// # fn main() {
 /// let mut stream = stream::unfold(0, |state| {
 ///     if state <= 2 {
 ///         let next_state = state + 1;
@@ -42,8 +48,9 @@ use futures_core::{Future, IntoFuture, Async, Poll, Stream};
 ///     }
 /// });
 ///
-/// let result = stream.collect().wait();
+/// let result = run(|c| c.block_on(stream.collect()));
 /// assert_eq!(result, Ok(vec![0, 2, 4]));
+/// # }
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
     where F: FnMut(T) -> Option<Fut>,

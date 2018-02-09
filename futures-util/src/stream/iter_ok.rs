@@ -19,12 +19,16 @@ pub struct IterOk<I, E> {
 /// simply always calls `iter.next()` and returns that.
 ///
 /// ```rust
-/// use futures::*;
+/// # extern crate futures;
+/// use futures::prelude::*;
+/// use futures::stream;
 ///
+/// # fn main() {
 /// let mut stream = stream::iter_ok::<_, ()>(vec![17, 19]);
 /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
 /// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
 /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// # }
 /// ```
 pub fn iter_ok<I, E>(i: I) -> IterOk<I::IntoIter, E>
     where I: IntoIterator,
