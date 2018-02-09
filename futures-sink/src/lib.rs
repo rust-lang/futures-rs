@@ -27,7 +27,7 @@ use futures_core::Poll;
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AsyncSink<T> {
     /// The `start_send` attempt succeeded, so the sending process has
-    /// *started*; you must use `Sink::poll_complete` to drive the send
+    /// *started*; you must use `Sink::flush` to drive the send
     /// to completion.
     Ready,
 
@@ -83,7 +83,7 @@ if_std! {
             Ok(::AsyncSink::Ready)
         }
 
-        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+        fn flush(&mut self) -> Poll<(), Self::SinkError> {
             Ok(::Async::Ready(()))
         }
 
@@ -105,8 +105,8 @@ if_std! {
             (**self).start_send(item)
         }
 
-        fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-            (**self).poll_complete()
+        fn flush(&mut self) -> Poll<(), Self::SinkError> {
+            (**self).flush()
         }
 
         fn close(&mut self) -> Poll<(), Self::SinkError> {
@@ -160,21 +160,21 @@ pub trait Sink {
     /// until the buffer is fully flushed. Since sinks are designed to work with
     /// asynchronous I/O, the process of actually writing out the data to an
     /// underlying object takes place asynchronously. **You *must* use
-    /// `poll_complete` in order to drive completion of a send**. In particular,
+    /// `flush` in order to drive completion of a send**. In particular,
     /// `start_send` does not begin the flushing process
     ///
     /// # Return value
     ///
     /// This method returns `AsyncSink::Ready` if the sink was able to start
     /// sending `item`. In that case, you *must* ensure that you call
-    /// `poll_complete` to process the sent item to completion. Note, however,
+    /// `flush` to process the sent item to completion. Note, however,
     /// that several calls to `start_send` can be made prior to calling
-    /// `poll_complete`, which will work on completing all pending items.
+    /// `flush`, which will work on completing all pending items.
     ///
     /// The method returns `AsyncSink::Pending` if the sink was unable to begin
     /// sending, usually due to being full. The sink must have attempted to
     /// complete processing any outstanding requests (equivalent to
-    /// `poll_complete`) before yielding this result. The current task will be
+    /// `flush`) before yielding this result. The current task will be
     /// automatically scheduled for notification when the sink may be ready to
     /// receive new values.
     ///
@@ -190,7 +190,7 @@ pub trait Sink {
     /// sink:
     ///
     /// - It is called outside of the context of a task.
-    /// - A previous call to `start_send` or `poll_complete` yielded an error.
+    /// - A previous call to `start_send` or `flush` yielded an error.
     fn start_send(&mut self, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError>;
 
@@ -230,7 +230,7 @@ pub trait Sink {
     /// This method may panic in a few situations, depending on the specific sink:
     ///
     /// - It is called outside of the context of a task.
-    /// - A previous call to `start_send` or `poll_complete` yielded an error.
+    /// - A previous call to `start_send` or `flush` yielded an error.
     ///
     /// # Compatibility nodes
     ///
@@ -240,34 +240,34 @@ pub trait Sink {
     /// this method to what it's always done, just flushing.
     ///
     /// In the 0.2 release series of futures this method will be renamed to
-    /// `poll_flush`. For 0.1, however, the breaking change is not happening
+    /// `flush`. For 0.1, however, the breaking change is not happening
     /// yet.
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError>;
+    fn flush(&mut self) -> Poll<(), Self::SinkError>;
 
     /// A method to indicate that no more values will ever be pushed into this
     /// sink.
     ///
     /// This method is used to indicate that a sink will no longer even be given
     /// another value by the caller. That is, the `start_send` method above will
-    /// be called no longer (nor `poll_complete`). This method is intended to
+    /// be called no longer (nor `flush`). This method is intended to
     /// model "graceful shutdown" in various protocols where the intent to shut
     /// down is followed by a little more blocking work.
     ///
     /// Callers of this function should work it it in a similar fashion to
-    /// `poll_complete`. Once called it may return `Pending` which indicates
+    /// `flush`. Once called it may return `Pending` which indicates
     /// that more external work needs to happen to make progress. The current
     /// task will be scheduled to receive a notification in such an event,
     /// however.
     ///
-    /// Note that this function will imply `poll_complete` above. That is, if a
+    /// Note that this function will imply `flush` above. That is, if a
     /// sink has buffered data, then it'll be flushed out during a `close`
-    /// operation. It is not necessary to have `poll_complete` return `Ready`
+    /// operation. It is not necessary to have `flush` return `Ready`
     /// before a `close` is called. Once a `close` is called, though,
-    /// `poll_complete` cannot be called.
+    /// `flush` cannot be called.
     ///
     /// # Return value
     ///
-    /// This function, like `poll_complete`, returns a `Poll`. The value is
+    /// This function, like `flush`, returns a `Poll`. The value is
     /// `Ready` once the close operation has completed. At that point it should
     /// be safe to drop the sink and deallocate associated resources.
     ///
@@ -286,7 +286,7 @@ pub trait Sink {
     /// always be true.
     ///
     /// Note that it's also typically an error to call `start_send` or
-    /// `poll_complete` after the `close` function is called. This method will
+    /// `flush` after the `close` function is called. This method will
     /// *initiate* a close, and continuing to send values after that (or attempt
     /// to flush) may result in strange behavior, panics, errors, etc. Once this
     /// method is called, it must be the only method called on this `Sink`.
@@ -296,12 +296,12 @@ pub trait Sink {
     /// This method may panic or cause panics if:
     ///
     /// * It is called outside the context of a future's task
-    /// * It is called and then `start_send` or `poll_complete` is called
+    /// * It is called and then `start_send` or `flush` is called
     ///
     /// # Compatibility notes
     ///
     /// Note that this function is currently by default a provided function,
-    /// defaulted to calling `poll_complete` above. This function was added
+    /// defaulted to calling `flush` above. This function was added
     /// in the 0.1 series of the crate as a backwards-compatible addition. It
     /// is intended that in the 0.2 series the method will no longer be a
     /// default method.
@@ -321,8 +321,8 @@ impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
         (**self).start_send(item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        (**self).poll_complete()
+    fn flush(&mut self) -> Poll<(), Self::SinkError> {
+        (**self).flush()
     }
 
     fn close(&mut self) -> Poll<(), Self::SinkError> {

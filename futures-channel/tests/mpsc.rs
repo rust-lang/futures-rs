@@ -34,7 +34,7 @@ fn send_recv_no_buffer() {
 
     // Run on a task context
     let f = lazy(move || {
-        assert!(tx.poll_complete().unwrap().is_ready());
+        assert!(tx.flush().unwrap().is_ready());
         assert!(tx.poll_ready().unwrap().is_ready());
 
         // Send first message

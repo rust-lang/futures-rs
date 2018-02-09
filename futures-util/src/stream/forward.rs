@@ -98,11 +98,11 @@ impl<T, U> Future for Forward<T, U>
             {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").poll_complete());
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush());
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::Pending => {
-                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").poll_complete());
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush());
                     return Ok(Async::Pending)
                 }
             }

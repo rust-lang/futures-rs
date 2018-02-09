@@ -40,7 +40,7 @@ impl<S: Sink> Wait<S> {
     /// Flushes any buffered data in this sink, blocking the current thread
     /// until it's entirely flushed.
     ///
-    /// This function will call the underlying sink's `poll_complete` method
+    /// This function will call the underlying sink's `flush` method
     /// until it returns that it's ready to proceed. If the method returns
     /// `Pending` the current thread will be blocked until it's otherwise
     /// ready to proceed.

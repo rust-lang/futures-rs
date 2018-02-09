@@ -24,8 +24,8 @@ impl<T, U: Sink> Sink for Join<T, U> {
         self.1.start_send(item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), U::SinkError> {
-        self.1.poll_complete()
+    fn flush(&mut self) -> Poll<(), U::SinkError> {
+        self.1.flush()
     }
 
     fn close(&mut self) -> Poll<(), U::SinkError> {

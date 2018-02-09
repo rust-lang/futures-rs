@@ -137,11 +137,11 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Fut::Error> {
+    fn flush(&mut self) -> Poll<(), Fut::Error> {
         // poll ourselves first, to push data downward
         let me_ready = self.poll()?;
-        // always propagate `poll_complete` downward to attempt to make progress
-        try_ready!(self.sink.poll_complete());
+        // always propagate `flush` downward to attempt to make progress
+        try_ready!(self.sink.flush());
         Ok(me_ready)
     }
 
