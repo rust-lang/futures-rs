@@ -913,13 +913,12 @@ pub trait StreamExt: Stream {
     ///
     /// This future will drive the stream to keep producing items until it is
     /// exhausted, sending each item to the sink. It will complete once both the
-    /// stream is exhausted, and the sink has fully processed received item,
-    /// flushed successfully, and closed successfully.
+    /// stream is exhausted, and the sink has received and flushed all items.
+    /// Note that the sink is **not** closed.
     ///
     /// Doing `stream.forward(sink)` is roughly equivalent to
     /// `sink.send_all(stream)`. The returned future will exhaust all items from
-    /// `self`, sending them all to `sink`. Furthermore the `sink` will be
-    /// closed and flushed.
+    /// `self`, sending them all to `sink`.
     ///
     /// On completion, the pair `(stream, sink)` is returned.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
