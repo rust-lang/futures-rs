@@ -14,11 +14,11 @@ use futures_executor::current_thread::run;
 fn smoke_poll() {
     let (mut tx, rx) = channel::<u32>();
     let f = lazy(|| {
-        assert!(tx.poll_cancel(&mut TaskContext).unwrap().is_not_ready());
-        assert!(tx.poll_cancel(&mut TaskContext).unwrap().is_not_ready());
+        assert!(tx.poll_cancel(&mut TaskContext::panicking()).unwrap().is_not_ready());
+        assert!(tx.poll_cancel(&mut TaskContext::panicking()).unwrap().is_not_ready());
         drop(rx);
-        assert!(tx.poll_cancel(&mut TaskContext).unwrap().is_ready());
-        assert!(tx.poll_cancel(&mut TaskContext).unwrap().is_ready());
+        assert!(tx.poll_cancel(&mut TaskContext::panicking()).unwrap().is_ready());
+        assert!(tx.poll_cancel(&mut TaskContext::panicking()).unwrap().is_ready());
         ok::<(), ()>(())
     });
 
@@ -78,8 +78,8 @@ fn cancel_lots() {
 fn close() {
     let (mut tx, mut rx) = channel::<u32>();
     rx.close();
-    assert!(rx.poll(&mut TaskContext).is_err());
-    assert!(tx.poll_cancel(&mut TaskContext).unwrap().is_ready());
+    assert!(rx.poll(&mut TaskContext::panicking()).is_err());
+    assert!(tx.poll_cancel(&mut TaskContext::panicking()).unwrap().is_ready());
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn cancel_sends() {
         orx.close();
         // Not necessary to wrap in a task because the implementation of oneshot
         // never calls `task::current()` if the channel has been closed already.
-        let _ = orx.poll(&mut TaskContext);
+        let _ = orx.poll(&mut TaskContext::panicking());
     }
 
     drop(tx);

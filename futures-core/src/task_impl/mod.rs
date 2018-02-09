@@ -16,8 +16,41 @@ pub use self::std::*;
 pub use self::core::*;
 
 /// The context for the currently running task.
-#[derive(Debug)]
-pub struct Context;
+pub struct Context {
+    waker: Option<Waker>,
+}
+
+impl Context {
+    /// Returns a `Context` which will panic when `waker` is called.
+    /// This is useful when calling `poll` on a `Future` which doesn't
+    /// access the context.
+    pub fn panicking() -> Context {
+        Context { waker: None }
+    }
+
+    /// Returns a `Waker` which can be used to wake up the current task.
+    pub fn waker(&self) -> Waker {
+        self.waker.clone().expect("waker should not be called on a panicking context")
+    }
+}
+
+impl fmt::Debug for Context {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Context")
+         .finish()
+    }
+}
+
+/// A handle used to awaken a task.
+#[derive(Clone)]
+pub struct Waker(());
+
+impl fmt::Debug for Waker {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Waker")
+         .finish()
+    }
+}
 
 pub struct BorrowedTask<'a> {
     unpark: BorrowedUnpark<'a>,
@@ -256,7 +289,7 @@ impl<T: ?Sized> Spawn<T> {
             map: &self.data,
         };
         let obj = &mut self.obj;
-        set(&borrowed, || f(obj, &mut Context))
+        set(&borrowed, || f(obj, &mut Context::panicking()))
     }
 }
 
