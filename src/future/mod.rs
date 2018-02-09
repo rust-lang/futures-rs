@@ -115,7 +115,8 @@ if_std! {
     }
 }
 
-use {Poll, stream};
+use {Async, Never, Poll, stream};
+use never::InfallibleResultExt;
 
 /// Trait for types which are a placeholder of a value that may become
 /// available at some later point in time.
@@ -271,6 +272,16 @@ pub trait Future {
     /// error.
     fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
 
+    /// Poll a future that can not fail.
+    ///
+    /// Works similar to `poll`, except that it returns an `Async` value directly
+    /// rather than `Poll`.
+    fn poll_infallible(&mut self) -> Async<Self::Item>
+        where Self: Future<Error=Never> + Sized
+    {
+        self.poll().infallible()
+    }
+
     /// Block the current thread until this future is resolved.
     ///
     /// This method will consume ownership of this future, driving it to
@@ -297,6 +308,17 @@ pub trait Future {
         where Self: Sized
     {
         ::executor::spawn(self).wait_future()
+    }
+
+    /// Wait on a future that can not fail.
+    ///
+    /// Works similar to `wait`, except that it returns the item directly rather
+    /// than a `Result`.
+    #[cfg(feature = "use_std")]
+    fn wait_infallible(self) -> Self::Item
+        where Self: Future<Error=Never> + Sized
+    {
+        self.wait().infallible()
     }
 
     /// Convenience function for turning this future into a trait object which
@@ -413,8 +435,6 @@ pub trait Future {
     {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
     }
-
-
 
     /// Map this future's error to any error implementing `From` for
     /// this future's `Error`, returning a new future.

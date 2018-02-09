@@ -15,7 +15,7 @@
 //!
 //! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
-use {IntoFuture, Poll};
+use {IntoFuture, Never, Poll};
 
 mod iter;
 #[allow(deprecated)]
@@ -61,6 +61,8 @@ mod then;
 mod unfold;
 mod zip;
 mod forward;
+#[cfg(feature = "use_std")]
+mod wait_infallible;
 pub use self::and_then::AndThen;
 pub use self::chain::Chain;
 #[allow(deprecated)]
@@ -94,6 +96,8 @@ pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
 pub use self::forward::Forward;
+#[cfg(feature = "use_std")]
+pub use self::wait_infallible::WaitInfallible;
 use sink::{Sink};
 
 if_std! {
@@ -245,6 +249,17 @@ pub trait Stream {
         where Self: Sized
     {
         wait::new(self)
+    }
+
+    /// Wait on a stream that can not fail.
+    ///
+    /// Works similar to `wait`, except that it yields the items directly rather
+    /// than a `Result`.
+    #[cfg(feature = "use_std")]
+    fn wait_infallible(self) -> WaitInfallible<Self>
+        where Self: Stream<Error=Never> + Sized
+    {
+        wait_infallible::new(self)
     }
 
     /// Convenience function for turning this stream into a trait object.
