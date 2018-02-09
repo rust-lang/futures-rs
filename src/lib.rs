@@ -156,6 +156,7 @@
 //! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
 
 #![no_std]
+#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
@@ -199,6 +200,7 @@ pub use future::{
 
 #[cfg(feature = "use_std")]
 mod lock;
+#[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 mod task_impl;
 
 mod resultstream;

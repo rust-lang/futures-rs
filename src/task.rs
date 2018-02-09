@@ -33,6 +33,7 @@
 #[allow(deprecated)]
 pub use task_impl::{Spawn, spawn, Unpark, Executor, Run, park};
 
+#[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 pub use task_impl::{Task, AtomicTask, current, init};
 
 #[allow(deprecated)]

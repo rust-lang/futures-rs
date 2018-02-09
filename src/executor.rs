@@ -11,6 +11,8 @@
 #[cfg(feature = "use_std")]
 pub use task_impl::{Unpark, Executor, Run};
 
+#[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 pub use task_impl::{Spawn, spawn, Notify, with_notify};
 
+#[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 pub use task_impl::{UnsafeNotify, NotifyHandle};
