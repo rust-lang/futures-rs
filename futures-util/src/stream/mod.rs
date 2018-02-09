@@ -93,6 +93,7 @@ if_std! {
     mod catch_unwind;
     mod chunks;
     mod collect;
+    mod select_all;
     mod split;
     pub mod futures_unordered;
     mod futures_ordered;
@@ -101,6 +102,7 @@ if_std! {
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
+    pub use self::select_all::SelectAll;
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
     pub use self::futures_unordered::FuturesUnordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
@@ -910,6 +912,29 @@ pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFutu
 
     for future in futures {
         set.push(future.into_future());
+    }
+
+    return set
+}
+
+/// Convert a list of streams into a `Stream` of results from the streams.
+///
+/// This essentially takes a list of streams (e.g. a vector, an iterator, etc.)
+/// and bundles them together into a single stream.
+/// The stream will yield items as they become available on the underlying
+/// streams internally, in the order they become available.
+///
+/// Note that the returned set can also be used to dynamically push more
+/// futures into the set as they become available.
+#[cfg(feature = "use_std")]
+pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
+    where I: IntoIterator,
+          I::Item: Stream
+{
+    let mut set = SelectAll::new();
+
+    for stream in streams {
+        set.push(stream);
     }
 
     return set
