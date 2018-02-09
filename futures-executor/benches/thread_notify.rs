@@ -1,10 +1,12 @@
 #![feature(test)]
 
 extern crate futures;
+extern crate futures_executor;
 extern crate test;
 
-use futures::{Future, Poll, Async};
+use futures::prelude::*;
 use futures::task::{self, Task};
+use futures_executor::current_thread::run;
 
 use test::Bencher;
 
@@ -33,7 +35,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
 
     b.iter(|| {
         let y = Yield { rem: NUM };
-        y.wait().unwrap();
+        run(|c| c.block_on(y).unwrap());
     });
 }
 
@@ -63,7 +65,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
     b.iter(|| {
         for _ in 0..NUM {
             let y = Yield { rem: 1 };
-            y.wait().unwrap();
+            run(|c| c.block_on(y).unwrap());
         }
     });
 }
@@ -109,6 +111,6 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
             tx: tx.clone(),
         };
 
-        y.wait().unwrap();
+        run(|c| c.block_on(y).unwrap());
     });
 }

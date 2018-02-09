@@ -1,12 +1,13 @@
 extern crate futures;
+extern crate futures;
 
 use std::thread;
 
 use futures::prelude::*;
-use futures::executor;
+use futures::task;
 use futures::stream;
 use futures::future;
-use futures::sync::BiLock;
+use futures_util::lock::BiLock;
 
 mod support;
 use support::*;
@@ -44,7 +45,7 @@ fn smoke() {
         Ok::<(), ()>(())
     });
 
-    assert!(executor::spawn(future)
+    assert!(task::spawn(future)
                 .poll_future_notify(&notify_noop(), 0)
                 .expect("failure in poll")
                 .is_ready());

@@ -1,19 +1,16 @@
 #![feature(test)]
 
 extern crate futures;
+extern crate futures_channel;
 extern crate test;
 
-use futures::{Async, Poll, AsyncSink};
-use futures::executor;
-use futures::executor::{Notify, NotifyHandle};
+use futures::task::{self, Notify, NotifyHandle};
+use futures::prelude::*;
 
-use futures::sink::Sink;
-use futures::stream::Stream;
-
-use futures::sync::mpsc::unbounded;
-use futures::sync::mpsc::channel;
-use futures::sync::mpsc::Sender;
-use futures::sync::mpsc::UnboundedSender;
+use futures_channel::mpsc::unbounded;
+use futures_channel::mpsc::channel;
+use futures_channel::mpsc::Sender;
+use futures_channel::mpsc::UnboundedSender;
 
 
 use test::Bencher;
@@ -36,7 +33,7 @@ fn unbounded_1_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, rx) = unbounded();
 
-        let mut rx = executor::spawn(rx);
+        let mut rx = task::spawn(rx);
 
         // 1000 iterations to avoid measuring overhead of initialization
         // Result should be divided by 1000
@@ -59,7 +56,7 @@ fn unbounded_100_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, rx) = unbounded();
 
-        let mut rx = executor::spawn(rx);
+        let mut rx = task::spawn(rx);
 
         let tx: Vec<_> = (0..100).map(|_| tx.clone()).collect();
 
@@ -104,12 +101,12 @@ impl Stream for TestSender {
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         match self.tx.start_send(self.last + 1) {
             Err(_) => panic!(),
-            Ok(AsyncSink::Ready) => {
+            Ok(Ok(())) => {
                 self.last += 1;
                 assert_eq!(Ok(Async::Ready(())), self.tx.poll_complete());
                 Ok(Async::Ready(Some(self.last)))
             }
-            Ok(AsyncSink::Pending(_)) => {
+            Ok(Err(_)) => {
                 Ok(Async::Pending)
             }
         }
@@ -123,12 +120,12 @@ fn bounded_1_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, rx) = channel(0);
 
-        let mut tx = executor::spawn(TestSender {
+        let mut tx = task::spawn(TestSender {
             tx: tx,
             last: 0,
         });
 
-        let mut rx = executor::spawn(rx);
+        let mut rx = task::spawn(rx);
 
         for i in 0..1000 {
             assert_eq!(Ok(Async::Ready(Some(i + 1))), tx.poll_stream_notify(&notify_noop(), 1));
@@ -146,13 +143,13 @@ fn bounded_100_tx(b: &mut Bencher) {
         let (tx, rx) = channel(0);
 
         let mut tx: Vec<_> = (0..100).map(|_| {
-            executor::spawn(TestSender {
+            task::spawn(TestSender {
                 tx: tx.clone(),
                 last: 0
             })
         }).collect();
 
-        let mut rx = executor::spawn(rx);
+        let mut rx = task::spawn(rx);
 
         for i in 0..10 {
             for j in 0..tx.len() {

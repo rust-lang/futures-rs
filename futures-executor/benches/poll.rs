@@ -3,9 +3,8 @@
 extern crate futures;
 extern crate test;
 
-use futures::*;
-use futures::executor::{Notify, NotifyHandle};
-use futures::task::Task;
+use futures::prelude::*;
+use futures::task::{self, Task, Notify, NotifyHandle};
 
 use test::Bencher;
 
@@ -58,7 +57,7 @@ fn task_init(b: &mut Bencher) {
 
     let notify = notify_noop();
 
-    let mut fut = executor::spawn(MyFuture {
+    let mut fut = task::spawn(MyFuture {
         num: 0,
         task: None,
     });

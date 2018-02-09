@@ -1,11 +1,15 @@
 #![feature(test)]
 
 extern crate futures;
+extern crate futures_channel;
+extern crate futures_executor;
 extern crate test;
 
-use futures::*;
+use futures::prelude::*;
+use futures::future;
 use futures::stream::FuturesUnordered;
-use futures::sync::oneshot;
+use futures_channel::oneshot;
+use futures_executor::current_thread::run;
 
 use test::Bencher;
 
@@ -32,12 +36,15 @@ fn oneshots(b: &mut Bencher) {
             }
         });
 
-        future::lazy(move || {
-            loop {
-                if let Ok(Async::Ready(None)) = rxs.poll() {
-                    return Ok::<(), ()>(());
+        run(|c| {
+            let f = future::lazy(move || {
+                loop {
+                    if let Ok(Async::Ready(None)) = rxs.poll() {
+                        return Ok::<(), ()>(());
+                    }
                 }
-            }
-        }).wait().unwrap();
+            });
+            c.block_on(f).unwrap();
+        });
     });
 }

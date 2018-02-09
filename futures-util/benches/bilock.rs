@@ -1,17 +1,14 @@
 #![feature(test)]
 
 extern crate futures;
+extern crate futures_util;
 extern crate test;
 
-use futures::{Async, Poll};
-use futures::executor;
-use futures::executor::{Notify, NotifyHandle};
-use futures::sync::BiLock;
-use futures::sync::BiLockAcquire;
-use futures::sync::BiLockAcquired;
-use futures::future::Future;
-use futures::stream::Stream;
-
+use futures::prelude::*;
+use futures::task::{self, Notify, NotifyHandle};
+use futures_util::lock::BiLock;
+use futures_util::lock::BiLockAcquire;
+use futures_util::lock::BiLockAcquired;
 
 use test::Bencher;
 
@@ -65,8 +62,8 @@ fn contended(b: &mut Bencher) {
     b.iter(|| {
         let (x, y) = BiLock::new(1);
 
-        let mut x = executor::spawn(LockStream::new(x));
-        let mut y = executor::spawn(LockStream::new(y));
+        let mut x = task::spawn(LockStream::new(x));
+        let mut y = task::spawn(LockStream::new(y));
 
         for _ in 0..1000 {
             let x_guard = match x.poll_stream_notify(&notify_noop(), 11) {
@@ -98,8 +95,8 @@ fn lock_unlock(b: &mut Bencher) {
     b.iter(|| {
         let (x, y) = BiLock::new(1);
 
-        let mut x = executor::spawn(LockStream::new(x));
-        let mut y = executor::spawn(LockStream::new(y));
+        let mut x = task::spawn(LockStream::new(x));
+        let mut y = task::spawn(LockStream::new(y));
 
         for _ in 0..1000 {
             let x_guard = match x.poll_stream_notify(&notify_noop(), 11) {
