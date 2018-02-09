@@ -197,8 +197,6 @@ pub use future::{
     SelectNext, Then
 };
 
-#[cfg(feature = "use_std")]
-mod lock;
 mod task_impl;
 
 mod resultstream;
