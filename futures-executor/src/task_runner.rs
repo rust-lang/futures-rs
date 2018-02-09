@@ -116,7 +116,7 @@ impl TaskRunner {
         set_current(&self.executor(), |_e| self._poll(f))
     }
 
-    fn _poll(&mut self, f: &Fn() -> NotifyHandle) {
+    pub(crate) fn _poll(&mut self, f: &Fn() -> NotifyHandle) {
         let f = &::IntoNotifyHandle(f);
 
         loop {
@@ -274,11 +274,9 @@ pub fn set_current<F, R>(current: &TaskExecutor, f: F) -> R
             }
         }
 
-        let _reset;
-        if c.get() != current {
-            _reset = Reset(c);
-            c.set(current);
-        }
+        assert!(c.get().is_null());
+        let _reset = Reset(c);
+        c.set(current);
         f(enter)
     })
 }

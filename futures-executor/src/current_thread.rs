@@ -132,7 +132,7 @@ impl<'a> Context<'a> {
                 Err(e) => return Err(e),
                 Ok(Async::Pending) => {}
             }
-            self.runner.poll(self.handle);
+            self.runner._poll(self.handle);
             self.thread.park();
         }
     }
