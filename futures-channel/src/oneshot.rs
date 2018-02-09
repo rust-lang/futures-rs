@@ -91,14 +91,17 @@ struct Inner<T> {
 /// fn main() {
 ///     let (p, c) = oneshot::channel::<i32>();
 ///
+/// # let t =
 ///     thread::spawn(|| {
 ///         let future = c.map(|i| {
 ///             println!("got: {}", i);
 ///         });
 ///         // ...
+/// # return future;
 ///     });
 ///
 ///     p.send(3).unwrap();
+/// # t.join().unwrap();
 /// }
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
