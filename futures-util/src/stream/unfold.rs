@@ -53,8 +53,8 @@ use futures_core::{Future, IntoFuture, Async, Poll, Stream};
 /// # }
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
-    where F: FnMut(T) -> Option<Fut>,
-          Fut: IntoFuture<Item = (It, T)>,
+    where F: FnMut(T) -> Fut,
+          Fut: IntoFuture<Item = Option<(It, T)>>,
 {
     Unfold {
         f: f,
@@ -73,8 +73,8 @@ pub struct Unfold<T, F, Fut> where Fut: IntoFuture {
 }
 
 impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Option<Fut>,
-          Fut: IntoFuture<Item = (It, T)>,
+    where F: FnMut(T) -> Fut,
+          Fut: IntoFuture<Item = Option<(It, T)>>,
 {
     type Item = It;
     type Error = Fut::Error;
@@ -85,16 +85,16 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
                 // State::Empty may happen if the future returned an error
                 State::Empty => { return Ok(Async::Ready(None)); }
                 State::Ready(state) => {
-                    match (self.f)(state) {
-                        Some(fut) => { self.state = State::Processing(fut.into_future()); }
-                        None => { return Ok(Async::Ready(None)); }
-                    }
+                    self.state = State::Processing((self.f)(state).into_future());
                 }
                 State::Processing(mut fut) => {
                     match fut.poll()? {
-                        Async:: Ready((item, next_state)) => {
+                        Async:: Ready(Some((item, next_state))) => {
                             self.state = State::Ready(next_state);
                             return Ok(Async::Ready(Some(item)));
+                        }
+                        Async:: Ready(None) => {
+                            return Ok(Async::Ready(None))
                         }
                         Async::Pending => {
                             self.state = State::Processing(fut);
