@@ -22,14 +22,16 @@ pub struct Repeat<T, E>
 ///
 /// ```rust
 /// # extern crate futures;
+/// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
+/// use futures_executor::current_thread::run;
 ///
 /// # fn main() {
 /// let mut stream = stream::repeat::<_, bool>(10);
-/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(10))), stream.poll());
+/// run(|c| {
+///     assert_eq!(Ok(vec![10, 10, 10]), c.block_on(stream.take(3).collect()));
+/// });
 /// # }
 /// ```
 pub fn repeat<T, E>(item: T) -> Repeat<T, E>

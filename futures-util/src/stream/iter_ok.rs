@@ -20,14 +20,16 @@ pub struct IterOk<I, E> {
 ///
 /// ```rust
 /// # extern crate futures;
+/// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
+/// use futures_executor::current_thread::run;
 ///
 /// # fn main() {
 /// let mut stream = stream::iter_ok::<_, ()>(vec![17, 19]);
-/// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// run(|c| {
+///     assert_eq!(Ok(vec![17, 19]), c.block_on(stream.collect()));
+/// });
 /// # }
 /// ```
 pub fn iter_ok<I, E>(i: I) -> IterOk<I::IntoIter, E>
