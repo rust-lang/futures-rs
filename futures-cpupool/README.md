@@ -3,8 +3,8 @@
 A library for creating futures representing work happening concurrently on a
 dedicated thread pool.
 
-[![Build Status](https://travis-ci.org/alexcrichton/futures-rs.svg?branch=master)](https://travis-ci.org/alexcrichton/futures-rs)
-[![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/alexcrichton/futures-rs)
+[![Build Status](https://travis-ci.org/rust-lang-nursery/futures-rs.svg?branch=master)](https://travis-ci.org/rust-lang-nursery/futures-rs)
+[![Build status](https://ci.appveyor.com/api/projects/status/yl5w3ittk4kggfsh?svg=true)](https://ci.appveyor.com/project/rust-lang-nursery/futures-rs)
 
 [Documentation](https://docs.rs/futures-cpupool)
 
