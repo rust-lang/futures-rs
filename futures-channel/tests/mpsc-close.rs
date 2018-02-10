@@ -20,7 +20,8 @@ fn smoke() {
         });
     });
 
-    let _s = run(|c| c.block_on(receiver.take(3).for_each(|_| Ok(())))).unwrap();
+    // `receiver` needs to be dropped for `sender` to stop sending and therefore before the join.
+    let _ = run(|c| c.block_on(receiver.take(3).for_each(|_| Ok(())))).unwrap();
 
     t.join().unwrap()
 }
