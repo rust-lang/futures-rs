@@ -19,13 +19,17 @@ pub fn new<S: Sink>(sink: S, item: S::SinkItem) -> Send<S> {
 
 impl<S: Sink> Send<S> {
     /// Get a shared reference to the inner sink.
-    pub fn get_ref(&self) -> &S {
-        self.sink.as_ref().take().expect("Attempted Send::get_ref after completion")
+    ///
+    /// Returns `None` if the future has completed already.
+    pub fn get_ref(&self) -> Option<&S> {
+        self.sink.as_ref()
     }
 
     /// Get a mutable reference to the inner sink.
-    pub fn get_mut(&mut self) -> &mut S {
-        self.sink.as_mut().take().expect("Attempted Send::get_mut after completion")
+    ///
+    /// Returns `None` if the future has completed already.
+    pub fn get_mut(&mut self) -> Option<&mut S> {
+        self.sink.as_mut()
     }
 
     fn sink_mut(&mut self) -> &mut S {
