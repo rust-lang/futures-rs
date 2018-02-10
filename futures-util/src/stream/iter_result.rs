@@ -17,15 +17,23 @@ pub struct IterResult<I> {
 ///
 /// ```rust
 /// # extern crate futures;
+/// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
+/// use futures_executor::current_thread::run;
 ///
 /// # fn main() {
 /// let mut stream = stream::iter_result(vec![Ok(17), Err(false), Ok(19)]);
-/// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
-/// assert_eq!(Err(false), stream.poll());
-/// assert_eq!(Ok(Async::Ready(Some(19))), stream.poll());
-/// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+/// run(|c| {
+///     let (item, stream) = c.block_on(stream.into_future()).unwrap();
+///     assert_eq!(Some(17), item);
+///     let (err, stream) = c.block_on(stream.into_future()).unwrap_err();
+///     assert_eq!(false, err);
+///     let (item, stream) = c.block_on(stream.into_future()).unwrap();
+///     assert_eq!(Some(19), item);
+///     let (item, _) = c.block_on(stream.into_future()).unwrap();
+///     assert_eq!(None, item);
+/// });
 /// # }
 /// ```
 pub fn iter_result<J, T, E>(i: J) -> IterResult<J::IntoIter>

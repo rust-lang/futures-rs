@@ -575,19 +575,23 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
+    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures_executor::current_thread::run;
     ///
     /// # fn main() {
     /// let future = future::ok::<_, bool>(17);
-    /// let mut stream = future.into_stream();
-    /// assert_eq!(Ok(Async::Ready(Some(17))), stream.poll());
-    /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    /// let mut stream = future.into_stream().collect();
+    /// run(|c| {
+    ///     assert_eq!(Ok(vec![17]), c.block_on(stream));
+    /// });
     ///
     /// let future = future::err::<bool, _>(19);
-    /// let mut stream = future.into_stream();
-    /// assert_eq!(Err(19), stream.poll());
-    /// assert_eq!(Ok(Async::Ready(None)), stream.poll());
+    /// let mut stream = future.into_stream().collect();
+    /// run(|c| {
+    ///     assert_eq!(Err(19), c.block_on(stream));
+    /// });
     /// # }
     /// ```
     fn into_stream(self) -> IntoStream<Self>
