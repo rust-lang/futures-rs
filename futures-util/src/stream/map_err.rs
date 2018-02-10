@@ -58,8 +58,8 @@ impl<S, F> Sink for MapErr<S, F>
         self.stream.start_send(item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.poll_complete()
+    fn flush(&mut self) -> Poll<(), S::SinkError> {
+        self.stream.flush()
     }
 
     fn close(&mut self) -> Poll<(), S::SinkError> {

@@ -53,8 +53,8 @@ impl<S, E> Sink for SinkFromErr<S, E>
         self.sink.start_send(item).map_err(|e| e.into())
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        self.sink.poll_complete().map_err(|e| e.into())
+    fn flush(&mut self) -> Poll<(), Self::SinkError> {
+        self.sink.flush().map_err(|e| e.into())
     }
 
     fn close(&mut self) -> Poll<(), Self::SinkError> {

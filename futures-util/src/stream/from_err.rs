@@ -70,8 +70,8 @@ impl<S: Stream + Sink, E> Sink for FromErr<S, E> {
         self.stream.start_send(item)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        self.stream.poll_complete()
+    fn flush(&mut self) -> Poll<(), Self::SinkError> {
+        self.stream.flush()
     }
 
     fn close(&mut self) -> Poll<(), Self::SinkError> {

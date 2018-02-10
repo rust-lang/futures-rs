@@ -103,7 +103,7 @@ impl Stream for TestSender {
             Err(_) => panic!(),
             Ok(Ok(())) => {
                 self.last += 1;
-                assert_eq!(Ok(Async::Ready(())), self.tx.poll_complete());
+                assert_eq!(Ok(Async::Ready(())), self.tx.flush());
                 Ok(Async::Ready(Some(self.last)))
             }
             Ok(Err(_)) => {

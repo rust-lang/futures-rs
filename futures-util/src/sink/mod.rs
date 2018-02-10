@@ -11,28 +11,30 @@
 use futures_core::{Stream, IntoFuture};
 use futures_sink::Sink;
 
-mod with;
-mod with_flat_map;
+mod close;
+mod fanout;
 mod flush;
 mod from_err;
+mod map_err;
 mod send;
 mod send_all;
-mod map_err;
-mod fanout;
+mod with;
+mod with_flat_map;
 
 if_std! {
     mod buffer;
     pub use self::buffer::Buffer;
 }
 
-pub use self::with::With;
-pub use self::with_flat_map::WithFlatMap;
-pub use self::flush::Flush;
+pub use self::close::{Close, close};
+pub use self::fanout::Fanout;
+pub use self::flush::{Flush, flush};
+pub use self::from_err::SinkFromErr;
+pub use self::map_err::SinkMapErr;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
-pub use self::map_err::SinkMapErr;
-pub use self::from_err::SinkFromErr;
-pub use self::fanout::Fanout;
+pub use self::with::With;
+pub use self::with_flat_map::WithFlatMap;
 
 impl<T: ?Sized> SinkExt for T where T: Sink {}
 
@@ -142,7 +144,7 @@ pub trait SinkExt: Sink {
     /// Adds a fixed-size buffer to the current sink.
     ///
     /// The resulting sink will buffer up to `amt` items when the underlying
-    /// sink is unwilling to accept additional items. Calling `poll_complete` on
+    /// sink is unwilling to accept additional items. Calling `flush` on
     /// the buffered sink will attempt to both empty the buffer and complete
     /// processing on the underlying sink.
     ///
@@ -168,18 +170,6 @@ pub trait SinkExt: Sink {
               S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
     {
         fanout::new(self, other)
-    }
-
-    /// A future that completes when the sink has finished processing all
-    /// pending requests.
-    ///
-    /// The sink itself is returned after flushing is complete; this adapter is
-    /// intended to be used when you want to stop sending to the sink until
-    /// all current requests are processed.
-    fn flush(self) -> Flush<Self>
-        where Self: Sized
-    {
-        flush::new(self)
     }
 
     /// A future that completes after the given item has been fully processed

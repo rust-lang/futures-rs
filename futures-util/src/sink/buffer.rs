@@ -48,7 +48,7 @@ impl<S: Sink> Buffer<S> {
                 self.buf.push_front(item);
 
                 // ensure that we attempt to complete any pushes we've started
-                self.sink.poll_complete()?;
+                self.sink.flush()?;
 
                 return Ok(Async::Pending);
             }
@@ -85,14 +85,14 @@ impl<S: Sink> Sink for Buffer<S> {
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+    fn flush(&mut self) -> Poll<(), Self::SinkError> {
         if self.cap == 0 {
-            return self.sink.poll_complete();
+            return self.sink.flush();
         }
 
         try_ready!(self.try_empty_buffer());
         debug_assert!(self.buf.is_empty());
-        self.sink.poll_complete()
+        self.sink.flush()
     }
 
     fn close(&mut self) -> Poll<(), Self::SinkError> {

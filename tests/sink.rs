@@ -200,7 +200,7 @@ impl<T> Sink for ManualFlush<T> {
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), ()> {
+    fn flush(&mut self) -> Poll<(), ()> {
         if self.data.is_empty() {
             Ok(Async::Ready(()))
         } else {
@@ -310,7 +310,7 @@ impl<T> Sink for ManualAllow<T> {
         }
     }
 
-    fn poll_complete(&mut self) -> Poll<(), ()> {
+    fn flush(&mut self) -> Poll<(), ()> {
         Ok(Async::Ready(()))
     }
 
@@ -408,7 +408,7 @@ fn map_err() {
         let (tx, _rx) = mpsc::channel(1);
         let mut tx = tx.sink_map_err(|_| ());
         assert_eq!(tx.start_send(()), Ok(AsyncSink::Ready));
-        assert_eq!(tx.poll_complete(), Ok(Async::Ready(())));
+        assert_eq!(tx.flush(), Ok(Async::Ready(())));
     }
 
     let tx = mpsc::channel(0).0;
@@ -430,7 +430,7 @@ fn from_err() {
         let (tx, _rx) = mpsc::channel(1);
         let mut tx: SinkFromErr<mpsc::Sender<()>, FromErrTest> = tx.sink_from_err();
         assert_eq!(tx.start_send(()), Ok(AsyncSink::Ready));
-        assert_eq!(tx.poll_complete(), Ok(Async::Ready(())));
+        assert_eq!(tx.flush(), Ok(Async::Ready(())));
     }
 
     let tx = mpsc::channel(0).0;

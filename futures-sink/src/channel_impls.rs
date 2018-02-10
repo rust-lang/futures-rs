@@ -16,7 +16,7 @@ impl<T> Sink for Sender<T> {
         self.start_send(msg).map(res_to_async_sink)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn flush(&mut self) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 
@@ -33,7 +33,7 @@ impl<T> Sink for UnboundedSender<T> {
         self.start_send(msg).map(res_to_async_sink)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn flush(&mut self) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 
@@ -51,7 +51,7 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
         Ok(AsyncSink::Ready)
     }
 
-    fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
+    fn flush(&mut self) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 

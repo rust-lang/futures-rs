@@ -67,9 +67,9 @@ impl<A, B> Sink for Fanout<A, B>
         }
     }
 
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
-        let left_async = self.left.poll_complete()?;
-        let right_async = self.right.poll_complete()?;
+    fn flush(&mut self) -> Poll<(), Self::SinkError> {
+        let left_async = self.left.flush()?;
+        let right_async = self.right.flush()?;
         // Only if both downstream sinks are ready, signal readiness.
         if left_async.is_ready() && right_async.is_ready() {
             Ok(Async::Ready(()))
@@ -112,9 +112,9 @@ impl<S: Sink> Downstream<S> {
         Ok(())
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+    fn flush(&mut self) -> Poll<(), S::SinkError> {
         self.keep_flushing()?;
-        let async = self.sink.poll_complete()?;
+        let async = self.sink.flush()?;
         // Only if all values have been sent _and_ the underlying
         // sink is completely flushed, signal readiness.
         if self.state.is_ready() && async.is_ready() {

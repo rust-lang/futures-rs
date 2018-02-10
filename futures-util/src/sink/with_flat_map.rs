@@ -109,11 +109,11 @@ where
         self.try_empty_stream()?;
         Ok(AsyncSink::Ready)
     }
-    fn poll_complete(&mut self) -> Poll<(), Self::SinkError> {
+    fn flush(&mut self) -> Poll<(), Self::SinkError> {
         if self.try_empty_stream()?.is_not_ready() {
             return Ok(Async::Pending);
         }
-        self.sink.poll_complete()
+        self.sink.flush()
     }
     fn close(&mut self) -> Poll<(), Self::SinkError> {
         if self.try_empty_stream()?.is_not_ready() {

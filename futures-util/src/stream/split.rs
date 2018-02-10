@@ -60,9 +60,9 @@ impl<S: Sink> Sink for SplitSink<S> {
         }
     }
 
-    fn poll_complete(&mut self) -> Poll<(), S::SinkError> {
+    fn flush(&mut self) -> Poll<(), S::SinkError> {
         match self.0.poll_lock() {
-            Async::Ready(mut inner) => inner.poll_complete(),
+            Async::Ready(mut inner) => inner.flush(),
             Async::Pending => Ok(Async::Pending),
         }
     }

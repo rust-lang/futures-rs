@@ -1,7 +1,7 @@
 use futures_core::{Poll, Async, Future};
 use futures_sink::Sink;
 
-/// Future for the `Sink::flush` combinator, which polls the sink until all data
+/// Future for the `flush` combinator, which polls the sink until all data
 /// has been flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
@@ -9,7 +9,13 @@ pub struct Flush<S> {
     sink: Option<S>,
 }
 
-pub fn new<S: Sink>(sink: S) -> Flush<S> {
+/// A future that completes when the sink has finished processing all
+/// pending requests.
+///
+/// The sink itself is returned after flushing is complete; this adapter is
+/// intended to be used when you want to stop sending to the sink until
+/// all current requests are processed.
+pub fn flush<S: Sink>(sink: S) -> Flush<S> {
     Flush { sink: Some(sink) }
 }
 
@@ -39,7 +45,7 @@ impl<S: Sink> Future for Flush<S> {
 
     fn poll(&mut self) -> Poll<S, S::SinkError> {
         let mut sink = self.sink.take().expect("Attempted to poll Flush after it completed");
-        if sink.poll_complete()?.is_ready() {
+        if sink.flush()?.is_ready() {
             Ok(Async::Ready(sink))
         } else {
             self.sink = Some(sink);
