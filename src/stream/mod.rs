@@ -128,7 +128,7 @@ if_std! {
     #[doc(hidden)]
     #[deprecated(note = "removed without replacement, recommended to use a \
                          local extension trait or function if needed, more \
-                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
+                         details in https://github.com/rust-lang-nursery/futures-rs/issues/228")]
     pub type BoxStream<T, E> = ::std::boxed::Box<Stream<Item = T, Error = E> + Send>;
 
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
@@ -179,7 +179,7 @@ if_std! {
 /// entirely. If one of these use cases suits you perfectly and not the other,
 /// please feel welcome to comment on [the issue][being considered]!
 ///
-/// [being considered]: https://github.com/alexcrichton/futures-rs/issues/206
+/// [being considered]: https://github.com/rust-lang-nursery/futures-rs/issues/206
 pub trait Stream {
     /// The type of item this stream will yield on success.
     type Item;
@@ -271,7 +271,7 @@ pub trait Stream {
     #[doc(hidden)]
     #[deprecated(note = "removed without replacement, recommended to use a \
                          local extension trait or function if needed, more \
-                         details in https://github.com/alexcrichton/futures-rs/issues/228")]
+                         details in https://github.com/rust-lang-nursery/futures-rs/issues/228")]
     #[allow(deprecated)]
     fn boxed(self) -> BoxStream<Self::Item, Self::Error>
         where Self: Sized + Send + 'static,
