@@ -30,7 +30,7 @@ fn select() {
     let pool = CpuPool::new(2);
     let a = pool.spawn(done(1));
     let b = pool.spawn(done(2));
-    let (item1, next) = run(|c| c.block_on(a.select(b))).ok().unwrap();
+    let (item1, next) = run(|c| c.block_on(a.select(b))).ok().unwrap().split();
     let item2 = run(|c| c.block_on(next)).unwrap();
 
     assert!(item1 != item2);
