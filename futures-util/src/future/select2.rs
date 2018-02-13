@@ -1,4 +1,4 @@
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, FutureMove, Poll, Async};
 
 use future::Either;
 
@@ -21,8 +21,11 @@ pub fn new<A, B>(a: A, b: B) -> Select2<A, B> {
 impl<A, B> Future for Select2<A, B> where A: Future, B: Future {
     type Item = Either<(A::Item, B), (B::Item, A)>;
     type Error = Either<(A::Error, B), (B::Error, A)>;
+    poll_safe!();
+}
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+impl<A, B> FutureMove for Select2<A, B> where A: FutureMove, B: FutureMove {
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select2 twice");
         match a.poll() {
             Err(e) => Err(Either::A((e, b))),

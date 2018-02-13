@@ -10,6 +10,10 @@ description = """
 The core traits and types in for the `futures` library.
 """
 
+[dependencies.anchor-experiment]
+git = "https://github.com/withoutboats/anchor_experiment"
+default-features = false
+
 [features]
 default = ["std"]
-std = []
+std = ["anchor-experiment/std"]

@@ -3,7 +3,7 @@ use std::collections::BinaryHeap;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 
-use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_core::{Async, Future, FutureMove, IntoFuture, Poll, Stream};
 
 use stream::FuturesUnordered;
 
@@ -40,8 +40,20 @@ impl<T> Future for OrderWrapper<T>
     type Item = OrderWrapper<T::Item>;
     type Error = T::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = try_ready!(self.item.poll());
+    unsafe fn poll_unsafe(&mut self) -> Poll<Self::Item, Self::Error> {
+        let result = try_ready!(self.item.poll_unsafe());
+        Ok(Async::Ready(OrderWrapper {
+            item: result,
+            index: self.index
+        }))
+    }
+}
+
+impl<T> FutureMove for OrderWrapper<T>
+    where T: FutureMove
+{
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+        let result = try_ready!(self.item.poll_move());
         Ok(Async::Ready(OrderWrapper {
             item: result,
             index: self.index

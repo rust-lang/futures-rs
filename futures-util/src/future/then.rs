@@ -1,4 +1,5 @@
-use futures_core::{Future, IntoFuture, Poll};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, IntoFuture, Poll};
 use super::chain::Chain;
 
 /// Future for the `then` combinator, chaining computations on the end of
@@ -28,9 +29,20 @@ impl<A, B, F> Future for Then<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Poll<B::Item, B::Error> {
-        self.state.poll(|a, f| {
+    unsafe fn poll_unsafe(&mut self) -> Poll<B::Item, B::Error> {
+        self.state.poll_unsafe(|a, f| {
             Ok(Err(f(a).into_future()))
         })
+    }
+}
+
+impl<A, B, F> FutureMove for Then<A, B, F>
+    where A: FutureMove,
+          B: IntoFuture,
+          B::Future: FutureMove,
+          F: FnOnce(Result<A::Item, A::Error>) -> B + MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<B::Item, B::Error> {
+        unsafe { self.poll_unsafe() }
     }
 }

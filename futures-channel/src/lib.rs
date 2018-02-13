@@ -9,6 +9,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+#[macro_use]
 extern crate futures_core;
 
 macro_rules! if_std {

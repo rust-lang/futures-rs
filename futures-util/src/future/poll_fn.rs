@@ -1,6 +1,7 @@
 //! Definition of the `PollFn` adapter combinator
 
-use futures_core::{Future, Poll};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, Poll};
 
 /// A future which adapts a function returning `Poll`.
 ///
@@ -42,7 +43,15 @@ impl<T, E, F> Future for PollFn<F>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<T, E> {
+    unsafe fn poll_unsafe(&mut self) -> Poll<T, E> {
+        (self.inner)()
+    }
+}
+
+impl<T, E, F> FutureMove for PollFn<F>
+    where F: FnMut() -> Poll<T, E> + MovePinned
+{
+    fn poll_move(&mut self) -> Poll<T, E> {
         (self.inner)()
     }
 }

@@ -1,6 +1,6 @@
 //! Definition of the `Option` (optional step) combinator
 
-use {Future, IntoFuture, Poll, Async};
+use {Future, FutureMove, IntoFuture, Poll, Async};
 
 use core::option;
 
@@ -27,10 +27,19 @@ impl<F, T, E> Future for Option<F> where F: Future<Item=T, Error=E> {
     type Item = option::Option<T>;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<option::Option<T>, E> {
+    unsafe fn poll_unsafe(&mut self) -> Poll<option::Option<T>, E> {
         match self.inner {
             None => Ok(Async::Ready(None)),
-            Some(ref mut x) => x.poll().map(|x| x.map(Some)),
+            Some(ref mut x) => x.poll_unsafe().map(|x| x.map(Some)),
+        }
+    }
+}
+
+impl<F, T, E> FutureMove for Option<F> where F: FutureMove<Item=T, Error=E> {
+    fn poll_move(&mut self) -> Poll<option::Option<T>, E> {
+        match self.inner {
+            None => Ok(Async::Ready(None)),
+            Some(ref mut x) => x.poll_move().map(|x| x.map(Some)),
         }
     }
 }

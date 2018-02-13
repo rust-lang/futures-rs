@@ -1,4 +1,4 @@
-use {Future, IntoFuture, Poll, Async};
+use {Future, FutureMove, IntoFuture, Poll, Async};
 use core::result;
 
 /// A future representing a value that is immediately ready.
@@ -75,7 +75,15 @@ impl<T, E> Future for Result<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<T, E> {
+    unsafe fn poll_unsafe(&mut self) -> Poll<T, E> {
+        self.inner.take().expect("cannot poll Result twice").map(Async::Ready)
+    }
+}
+
+impl<T, E> FutureMove for Result<T, E> where
+    Result<T, E>: ::anchor_experiment::MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<T, E> {
         self.inner.take().expect("cannot poll Result twice").map(Async::Ready)
     }
 }

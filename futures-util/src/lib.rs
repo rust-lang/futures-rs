@@ -1,12 +1,13 @@
 //! Combinators and utilities for working with futures-rs `Futures`s, `Stream`s, and `Sink`s.
 
 #![no_std]
-#![deny(missing_docs, missing_debug_implementations, warnings)]
+//#![deny(missing_docs, missing_debug_implementations, warnings)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[macro_use]
 extern crate futures_core;
 extern crate futures_sink;
+extern crate anchor_experiment;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(

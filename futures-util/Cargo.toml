@@ -11,10 +11,11 @@ Common utilities and extension traits for the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std", "futures-sink/std"]
+std = ["futures-core/std", "futures-sink/std", "anchor-experiment/std"]
 default = ["std"]
 
 [dependencies]
+anchor-experiment = { git = "https://github.com/withoutboats/anchor_experiment", default-features = false }
 futures-core = { path = "../futures-core", version = "0.2.0", default-features = false }
 futures-channel = { path = "../futures-channel", version = "0.2.0", default-features = false }
 futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false}

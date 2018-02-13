@@ -7,7 +7,7 @@ use std::ptr;
 use std::sync::{Arc, Mutex, Condvar, Once, ONCE_INIT};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use {Future, Stream, Async};
+use {FutureMove, Stream, Async};
 use super::core;
 use super::{BorrowedTask, NotifyHandle, Spawn, Notify, UnsafeNotify};
 pub use super::core::{BorrowedUnpark, TaskUnpark};
@@ -74,7 +74,7 @@ pub fn set<'a, F, R>(task: &BorrowedTask<'a>, f: F) -> R
     }
 }
 
-impl<F: Future> Spawn<F> {
+impl<F: FutureMove> Spawn<F> {
     /// Waits for the internal future to complete, blocking this thread's
     /// execution until it does.
     ///

@@ -1,4 +1,4 @@
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, FutureMove, Poll, Async};
 
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.
@@ -6,7 +6,7 @@ use futures_core::{Future, Poll, Async};
 /// This is created by the `Future::select` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
+pub struct Select<A, B> where A: FutureMove, B: FutureMove<Item=A::Item, Error=A::Error> {
     inner: Option<(A, B)>,
 }
 
@@ -16,19 +16,19 @@ pub struct Select<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error>
 /// `select` which finished second.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SelectNext<A, B> where A: Future, B: Future<Item=A::Item, Error=A::Error> {
+pub struct SelectNext<A, B> where A: FutureMove, B: FutureMove<Item=A::Item, Error=A::Error> {
     inner: OneOf<A, B>,
 }
 
 #[derive(Debug)]
-enum OneOf<A, B> where A: Future, B: Future {
+enum OneOf<A, B> where A: FutureMove, B: FutureMove {
     A(A),
     B(B),
 }
 
 pub fn new<A, B>(a: A, b: B) -> Select<A, B>
-    where A: Future,
-          B: Future<Item=A::Item, Error=A::Error>
+    where A: FutureMove,
+          B: FutureMove<Item=A::Item, Error=A::Error>
 {
     Select {
         inner: Some((a, b)),
@@ -36,20 +36,26 @@ pub fn new<A, B>(a: A, b: B) -> Select<A, B>
 }
 
 impl<A, B> Future for Select<A, B>
-    where A: Future,
-          B: Future<Item=A::Item, Error=A::Error>,
+    where A: FutureMove,
+          B: FutureMove<Item=A::Item, Error=A::Error>,
 {
     type Item = (A::Item, SelectNext<A, B>);
     type Error = (A::Error, SelectNext<A, B>);
+    poll_safe!();
+}
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+impl<A, B> FutureMove for Select<A, B>
+    where A: FutureMove,
+          B: FutureMove<Item=A::Item, Error=A::Error>,
+{
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
-                match a.poll() {
+                match a.poll_move() {
                     Err(a) => (Err(a), true),
                     Ok(Async::Ready(a)) => (Ok(a), true),
                     Ok(Async::Pending) => {
-                        match b.poll() {
+                        match b.poll_move() {
                             Err(a) => (Err(a), false),
                             Ok(Async::Ready(a)) => (Ok(a), false),
                             Ok(Async::Pending) => return Ok(Async::Pending),
@@ -71,16 +77,22 @@ impl<A, B> Future for Select<A, B>
 }
 
 impl<A, B> Future for SelectNext<A, B>
-    where A: Future,
-          B: Future<Item=A::Item, Error=A::Error>,
+    where A: FutureMove,
+          B: FutureMove<Item=A::Item, Error=A::Error>,
 {
     type Item = A::Item;
     type Error = A::Error;
+    poll_safe!();
+}
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+impl<A, B> FutureMove for SelectNext<A, B>
+    where A: FutureMove,
+          B: FutureMove<Item=A::Item, Error=A::Error>,
+{
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
         match self.inner {
-            OneOf::A(ref mut a) => a.poll(),
-            OneOf::B(ref mut b) => b.poll(),
+            OneOf::A(ref mut a) => a.poll_move(),
+            OneOf::B(ref mut b) => b.poll_move(),
         }
     }
 }

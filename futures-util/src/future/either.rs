@@ -1,4 +1,4 @@
-use futures_core::{Future, Poll};
+use futures_core::{Future, FutureMove, Poll};
 
 /// Combines two different futures yielding the same item and error
 /// types into a single type.
@@ -30,10 +30,22 @@ impl<A, B> Future for Either<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<A::Item, A::Error> {
+    unsafe fn poll_unsafe(&mut self) -> Poll<A::Item, A::Error> {
         match *self {
-            Either::A(ref mut a) => a.poll(),
-            Either::B(ref mut b) => b.poll(),
+            Either::A(ref mut a) => a.poll_unsafe(),
+            Either::B(ref mut b) => b.poll_unsafe(),
+        }
+    }
+}
+
+impl<A, B> FutureMove for Either<A, B>
+    where A: FutureMove,
+          B: FutureMove<Item = A::Item, Error = A::Error>
+{
+    fn poll_move(&mut self) -> Poll<A::Item, A::Error> {
+        match *self {
+            Either::A(ref mut a) => a.poll_move(),
+            Either::B(ref mut b) => b.poll_move(),
         }
     }
 }

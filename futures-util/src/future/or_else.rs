@@ -1,4 +1,5 @@
-use futures_core::{Future, IntoFuture, Poll};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, IntoFuture, Poll};
 use super::chain::Chain;
 
 /// Future for the `or_else` combinator, chaining a computation onto the end of
@@ -28,12 +29,23 @@ impl<A, B, F> Future for OrElse<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Poll<B::Item, B::Error> {
-        self.state.poll(|a, f| {
+    unsafe fn poll_unsafe(&mut self) -> Poll<B::Item, B::Error> {
+        self.state.poll_unsafe(|a, f| {
             match a {
                 Ok(item) => Ok(Ok(item)),
                 Err(e) => Ok(Err(f(e).into_future()))
             }
         })
+    }
+}
+
+impl<A, B, F> FutureMove for OrElse<A, B, F>
+    where A: FutureMove,
+          B: IntoFuture<Item=A::Item>,
+          B::Future: FutureMove,
+          F: FnOnce(A::Error) -> B + MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<B::Item, B::Error> {
+        unsafe { self.poll_unsafe() }
     }
 }
