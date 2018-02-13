@@ -1,4 +1,5 @@
-use futures_core::{Future, Poll, Async};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, Poll, Async};
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -26,8 +27,23 @@ impl<U, A, F> Future for Map<A, F>
     type Item = U;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<U, A::Error> {
-        let e = match self.future.poll() {
+    unsafe fn poll_unsafe(&mut self) -> Poll<U, A::Error> {
+        let e = match self.future.poll_unsafe() {
+            Ok(Async::Pending) => return Ok(Async::Pending),
+            Ok(Async::Ready(e)) => Ok(e),
+            Err(e) => Err(e),
+        };
+        e.map(self.f.take().expect("cannot poll Map twice"))
+         .map(Async::Ready)
+    }
+}
+
+impl<U, A, F> FutureMove for Map<A, F>
+    where A: FutureMove,
+          F: FnOnce(A::Item) -> U + MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<U, A::Error> {
+        let e = match self.future.poll_move() {
             Ok(Async::Pending) => return Ok(Async::Pending),
             Ok(Async::Ready(e)) => Ok(e),
             Err(e) => Err(e),

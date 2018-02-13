@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
-use futures_core::{Future, Poll, Async};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, Poll, Async};
 
 /// Future for the `from_err` combinator, changing the error type of a future.
 ///
@@ -12,6 +13,9 @@ pub struct FromErr<A, E> where A: Future {
     f: PhantomData<E>
 }
 
+// Safe because there is only a PhantomData of the error type.
+unsafe impl<A: Future + MovePinned, E> MovePinned for FromErr<A, E> where { }
+
 pub fn new<A, E>(future: A) -> FromErr<A, E>
     where A: Future
 {
@@ -21,12 +25,22 @@ pub fn new<A, E>(future: A) -> FromErr<A, E>
     }
 }
 
-impl<A:Future, E:From<A::Error>> Future for FromErr<A, E> {
+impl<A: Future, E: From<A::Error>> Future for FromErr<A, E> {
     type Item = A::Item;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<A::Item, E> {
-        let e = match self.future.poll() {
+    unsafe fn poll_unsafe(&mut self) -> Poll<A::Item, E> {
+        let e = match self.future.poll_unsafe() {
+            Ok(Async::Pending) => return Ok(Async::Pending),
+            other => other,
+        };
+        e.map_err(From::from)
+    }
+}
+
+impl<A: FutureMove, E: From<A::Error>> FutureMove for FromErr<A, E> {
+    fn poll_move(&mut self) -> Poll<A::Item, E> {
+        let e = match self.future.poll_move() {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };

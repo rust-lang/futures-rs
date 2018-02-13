@@ -17,7 +17,7 @@ impl<A, B, C> Chain<A, B, C>
         Chain::First(a, c)
     }
 
-    pub fn poll<F>(&mut self, f: F) -> Poll<B::Item, B::Error>
+    pub unsafe fn poll_unsafe<F>(&mut self, f: F) -> Poll<B::Item, B::Error>
         where F: FnOnce(Result<A::Item, A::Error>, C)
                         -> Result<Result<B::Item, B>, B::Error>,
     {

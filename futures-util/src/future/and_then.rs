@@ -1,4 +1,5 @@
-use futures_core::{Future, IntoFuture, Poll};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, IntoFuture, Poll};
 
 use super::chain::Chain;
 
@@ -29,11 +30,22 @@ impl<A, B, F> Future for AndThen<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Poll<B::Item, B::Error> {
-        self.state.poll(|result, f| {
+    unsafe fn poll_unsafe(&mut self) -> Poll<B::Item, B::Error> {
+        self.state.poll_unsafe(|result, f| {
             result.map(|e| {
                 Err(f(e).into_future())
             })
         })
+    }
+}
+
+impl<A, B, F> FutureMove for AndThen<A, B, F>
+    where A: FutureMove,
+          B: IntoFuture<Error=A::Error>,
+          B::Future: FutureMove,
+          F: FnOnce(A::Item) -> B + MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<B::Item, B::Error> {
+        unsafe { self.poll_unsafe()  }
     }
 }
