@@ -5,7 +5,7 @@
 
 use core::result;
 
-use futures_core::{Future, IntoFuture, Stream};
+use futures_core::{Future, FutureMove, IntoFuture, Stream};
 
 // Primitive futures
 mod empty;
@@ -420,7 +420,8 @@ pub trait FutureExt: Future {
     /// ```
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
-              Self: Sized,
+              B::Future: FutureMove,
+              Self: FutureMove + Sized,
     {
         let f = select::new(self, other.into_future());
         assert_future::<(Self::Item, SelectNext<Self, B::Future>),
@@ -467,7 +468,9 @@ pub trait FutureExt: Future {
     /// # fn main() {}
     /// ```
     fn select2<B>(self, other: B) -> Select2<Self, B::Future>
-        where B: IntoFuture, Self: Sized
+        where B: IntoFuture,
+              B::Future: FutureMove,
+              Self: FutureMove + Sized,
     {
         select2::new(self, other.into_future())
     }
