@@ -111,18 +111,23 @@
 //!
 //!     let ret = data.select(timeout).then(|result| {
 //!         match result {
-//!             // One future succeeded, and it was the one which was
-//!             // downloading data from the connection.
-//!             Ok((Ok(data), _other_future)) => Ok(data),
+//!             Ok(result) => {
+//!                 let (data, _other_future) = result.split();
+//!                 match data {
+//!                     // One future succeeded, and it was the one which was
+//!                     // downloading data from the connection.
+//!                     Ok(data) => Ok(data),
 //!
-//!             // The timeout fired, and otherwise no error was found, so
-//!             // we translate this to an error.
-//!             Ok((Err(_timeout), _other_future)) => {
-//!                 Err(io::Error::new(io::ErrorKind::Other, "timeout"))
+//!                     // The timeout fired, and otherwise no error was found, so
+//!                     // we translate this to an error.
+//!                     Err(_timeout) => {
+//!                         Err(io::Error::new(io::ErrorKind::Other, "timeout"))
+//!                     }
+//!                 }
 //!             }
 //!
 //!             // A normal I/O error happened, so we pass that on through.
-//!             Err((e, _other_future)) => Err(e),
+//!             Err(err) => Err(err.split().0),
 //!         }
 //!     });
 //!     return Box::new(ret);

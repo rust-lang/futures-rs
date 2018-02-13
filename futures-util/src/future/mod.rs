@@ -29,7 +29,6 @@ mod map_err;
 mod from_err;
 mod or_else;
 mod select;
-mod select2;
 mod then;
 mod either;
 mod inspect;
@@ -47,8 +46,7 @@ pub use self::map::Map;
 pub use self::map_err::MapErr;
 pub use self::from_err::FromErr;
 pub use self::or_else::OrElse;
-pub use self::select::{Select, SelectNext};
-pub use self::select2::Select2;
+pub use self::select::Select;
 pub use self::then::Then;
 pub use self::either::Either;
 pub use self::inspect::Inspect;
@@ -354,79 +352,6 @@ pub trait FutureExt: Future {
         assert_future::<Self::Item, B::Error, _>(or_else::new(self, f))
     }
 
-    /// Waits for either one of two futures to complete.
-    ///
-    /// This function will return a new future which awaits for either this or
-    /// the `other` future to complete. The returned future will finish with
-    /// both the value resolved and a future representing the completion of the
-    /// other work. Both futures must have the same item and error type.
-    ///
-    /// Note that this function consumes the receiving futures and returns a
-    /// wrapped version of them.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// # extern crate futures_channel;
-    /// use std::thread;
-    /// use std::time::Duration;
-    ///
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::current_thread::run;
-    /// use futures_channel::oneshot;
-    ///
-    /// # fn main() {
-    /// let (tx, future1) = oneshot::channel();
-    /// thread::spawn(move || {
-    ///     thread::sleep(Duration::from_secs(5));
-    ///     tx.send('a').unwrap();
-    /// });
-    ///
-    /// let (tx, future2) = oneshot::channel();
-    /// thread::spawn(move || {
-    ///     thread::sleep(Duration::from_secs(2));
-    ///     tx.send('b').unwrap();
-    /// });
-    ///
-    /// run(|c| {
-    ///     let (value, last_future) = c.block_on(future1.select(future2)).ok().unwrap();
-    ///     assert_eq!(value, 'b');
-    ///     assert_eq!(c.block_on(last_future).unwrap(), 'a');
-    /// });
-    /// # }
-    /// ```
-    ///
-    /// A poor-man's `join` implemented on top of `select`:
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    ///
-    /// fn join<A>(a: A, b: A) -> Box<Future<Item=(u32, u32), Error=u32>>
-    ///     where A: Future<Item = u32, Error = u32> + 'static,
-    /// {
-    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
-    ///         match res {
-    ///             Ok((a, b)) => Box::new(b.map(move |b| (a, b))),
-    ///             Err((a, _)) => Box::new(future::err(a)),
-    ///         }
-    ///     }))
-    /// }
-    /// # fn main() {}
-    /// ```
-    fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture<Item=Self::Item, Error=Self::Error>,
-              Self: Sized,
-    {
-        let f = select::new(self, other.into_future());
-        assert_future::<(Self::Item, SelectNext<Self, B::Future>),
-                        (Self::Error, SelectNext<Self, B::Future>), _>(f)
-    }
-
     /// Waits for either one of two differently-typed futures to complete.
     ///
     /// This function will return a new future which awaits for either this or
@@ -448,14 +373,14 @@ pub trait FutureExt: Future {
     /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
-    /// // A poor-man's join implemented on top of select2
+    /// // A poor-man's join implemented on top of select
     ///
     /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
     ///     where A: Future<Error = E> + 'static,
     ///           B: Future<Error = E> + 'static,
     ///           E: 'static,
     /// {
-    ///     Box::new(a.select2(b).then(|res| -> Box<Future<Item=_, Error=_>> {
+    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
     ///         match res {
     ///             Ok(Either::A((x, b))) => Box::new(b.map(move |y| (x, y))),
     ///             Ok(Either::B((y, a))) => Box::new(a.map(move |x| (x, y))),
@@ -466,10 +391,10 @@ pub trait FutureExt: Future {
     /// }
     /// # fn main() {}
     /// ```
-    fn select2<B>(self, other: B) -> Select2<Self, B::Future>
+    fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture, Self: Sized
     {
-        select2::new(self, other.into_future())
+        select::new(self, other.into_future())
     }
 
     /// Joins the result of two futures, waiting for them both to complete.
