@@ -11,6 +11,15 @@ mod option;
 mod result_;
 pub use self::result_::{result, ok, err, Result};
 
+#[macro_export]
+macro_rules! poll_safe {
+    () => {
+        unsafe fn poll_unsafe(&mut self) -> $crate::Poll<Self::Item, Self::Error> {
+            <Self as $crate::FutureMove>::poll_move(self)
+        }
+    }
+}
+
 /// Trait for types which are a placeholder of a value that may become
 /// available at some later point in time.
 ///
@@ -163,15 +172,39 @@ pub trait Future {
     /// This future may have failed to finish the computation, in which case
     /// the `Err` variant will be returned with an appropriate payload of an
     /// error.
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
+    unsafe fn poll_unsafe(&mut self) -> Poll<Self::Item, Self::Error>;
+}
+
+pub trait FutureMove: Future + ::anchor_experiment::MovePinned {
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error>;
 }
 
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        (**self).poll()
+    unsafe fn poll_unsafe(&mut self) -> Poll<Self::Item, Self::Error> {
+        (**self).poll_unsafe()
+    }
+}
+
+impl<'a, F: ?Sized + FutureMove> FutureMove for &'a mut F {
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+        (**self).poll_move()
+    }
+}
+
+impl<'a, F: ?Sized + Future> Future for ::anchor_experiment::PinMut<'a, F> {
+    type Item = F::Item;
+    type Error = F::Error;
+    poll_safe!();
+}
+
+impl<'a, F: ?Sized + Future> FutureMove for ::anchor_experiment::PinMut<'a, F> {
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+        unsafe {
+            ::anchor_experiment::PinMut::get_mut(self).poll_unsafe()
+        }
     }
 }
 
@@ -180,18 +213,41 @@ if_std! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            (**self).poll()
+        unsafe fn poll_unsafe(&mut self) -> Poll<Self::Item, Self::Error> {
+            (**self).poll_unsafe()
         }
     }
 
+    impl<F: ?Sized + FutureMove> FutureMove for ::std::boxed::Box<F> {
+        fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+            (**self).poll_move()
+        }
+    }
 
     impl<F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(&mut self) -> Poll<F::Item, F::Error> {
-            self.0.poll()
+        unsafe fn poll_unsafe(&mut self) -> Poll<F::Item, F::Error> {
+            self.0.poll_unsafe()
+        }
+    }
+
+    impl<F: FutureMove> FutureMove for ::std::panic::AssertUnwindSafe<F> {
+        fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+            (**self).poll_move()
+        }
+    }
+
+    impl<F: ?Sized + Future> Future for ::anchor_experiment::AnchoredBox<F> {
+        type Item = F::Item;
+        type Error = F::Error;
+        poll_safe!();
+    }
+
+    impl<F: ?Sized + Future> FutureMove for ::anchor_experiment::AnchoredBox<F> {
+        fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+            self.as_pin_mut().poll_move()
         }
     }
 }

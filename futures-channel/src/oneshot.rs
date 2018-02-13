@@ -6,7 +6,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::error::Error;
 use std::fmt;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, FutureMove, Poll, Async};
 use futures_core::task::{self, Task};
 
 use lock::Lock;
@@ -411,8 +411,11 @@ impl<T> Receiver<T> {
 impl<T> Future for Receiver<T> {
     type Item = T;
     type Error = Canceled;
+    poll_safe!();
+}
 
-    fn poll(&mut self) -> Poll<T, Canceled> {
+impl<T> FutureMove for Receiver<T> {
+    fn poll_move(&mut self) -> Poll<T, Canceled> {
         self.inner.recv()
     }
 }

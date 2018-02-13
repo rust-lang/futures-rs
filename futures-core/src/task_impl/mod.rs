@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-use {Poll, Future, Stream};
+use {Poll, FutureMove, Stream};
 
 mod atomic_task;
 pub use self::atomic_task::AtomicTask;
@@ -204,9 +204,9 @@ impl<T: ?Sized> Spawn<T> {
                                  notify: &N,
                                  id: usize) -> Poll<T::Item, T::Error>
         where N: Clone + Into<NotifyHandle>,
-              T: Future,
+              T: FutureMove,
     {
-        self.poll_notify(notify, id, |s| s.poll())
+        self.poll_notify(notify, id, |s| s.poll_move())
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.

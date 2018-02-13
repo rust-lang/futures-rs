@@ -1,6 +1,6 @@
 //! Definition and trait implementations for the `Never` type.
 
-use {Future, Stream, Poll};
+use {Future, FutureMove, Stream, Poll};
 
 /// A type that can never exist.
 /// This is used to indicate values which can never be created, such as the
@@ -21,7 +21,13 @@ impl Future for Never {
     type Item = Never;
     type Error = Never;
 
-    fn poll(&mut self) -> Poll<Never, Never> {
+    unsafe fn poll_unsafe(&mut self) -> Poll<Never, Never> {
+        match *self {}
+    }
+}
+
+impl FutureMove for Never {
+    fn poll_move(&mut self) -> Poll<Never, Never> {
         match *self {}
     }
 }
