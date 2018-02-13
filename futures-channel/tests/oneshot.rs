@@ -14,12 +14,12 @@ use futures_executor::current_thread::run;
 #[test]
 fn smoke_poll() {
     let (mut tx, rx) = channel::<u32>();
-    let f = lazy(|| {
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_not_ready());
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_not_ready());
+    let f = lazy(|ctx| {
+        assert!(tx.poll_cancel(ctx).unwrap().is_not_ready());
+        assert!(tx.poll_cancel(ctx).unwrap().is_not_ready());
         drop(rx);
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_ready());
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_ready());
+        assert!(tx.poll_cancel(ctx).unwrap().is_ready());
+        assert!(tx.poll_cancel(ctx).unwrap().is_ready());
         ok::<(), ()>(())
     });
 

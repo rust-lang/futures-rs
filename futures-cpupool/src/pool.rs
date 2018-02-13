@@ -209,7 +209,7 @@ impl CpuPool {
               R::Item: Send + 'static,
               R::Error: Send + 'static,
     {
-        self.spawn(lazy(f))
+        self.spawn(lazy(|_| f()))
     }
 }
 
