@@ -56,7 +56,7 @@ impl<A> FutureMove for Flatten<A>
           <<A as Future>::Item as IntoFuture>::Future: FutureMove,
           <<A as Future>::Item as IntoFuture>::Error: From<<A as Future>::Error>
 {
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
         unsafe { self.poll_unsafe() }
     }
 }

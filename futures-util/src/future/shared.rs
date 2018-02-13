@@ -28,7 +28,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, FutureMove, Poll, Async};
 use futures_core::task::{self, Notify, Spawn, Task};
 
 /// A future that is cloneable and can be polled in multiple threads.
@@ -120,12 +120,17 @@ impl<F> Shared<F> where F: Future {
 }
 
 impl<F> Future for Shared<F>
-    where F: Future
+    where F: FutureMove
 {
     type Item = SharedItem<F::Item>;
     type Error = SharedError<F::Error>;
+    poll_safe!();
+}
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+impl<F> FutureMove for Shared<F>
+    where F: FutureMove
+{
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
         self.set_waiter();
 
         match self.inner.notifier.state.compare_and_swap(IDLE, POLLING, SeqCst) {
