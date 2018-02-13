@@ -49,6 +49,13 @@ pub struct Task {
 trait AssertSend: Send {}
 impl AssertSend for Task {}
 
+impl Context {
+    /// TODO: dox
+    pub fn waker(&mut self) -> Task {
+        current()
+    }
+}
+
 /// Returns a handle to the current task to call `notify` at a later date.
 ///
 /// The returned handle implements the `Send` and `'static` bounds and may also
@@ -71,7 +78,7 @@ impl AssertSend for Task {}
 /// This function will panic if a task is not currently being executed. That
 /// is, this method can be dangerous to call outside of an implementation of
 /// `poll`.
-pub fn current() -> Task {
+fn current() -> Task {
     with(|borrowed| {
         let unpark = borrowed.unpark.to_owned();
 

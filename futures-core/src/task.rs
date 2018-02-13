@@ -38,7 +38,6 @@ pub use task_impl::{
     UnsafeNotify,
 
     // Functions
-    current,
     init,
     spawn,
     with_notify,

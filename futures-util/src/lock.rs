@@ -79,7 +79,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, _cx: &mut task::Context) -> Async<BiLockGuard<T>> {
+    pub fn poll_lock(&self, cx: &mut task::Context) -> Async<BiLockGuard<T>> {
         loop {
             match self.inner.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -95,7 +95,7 @@ impl<T> BiLock<T> {
                 }
             }
 
-            let me = Box::new(task::current());
+            let me = Box::new(cx.waker());
             let me = Box::into_raw(me) as usize;
 
             match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {

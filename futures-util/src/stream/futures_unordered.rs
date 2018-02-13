@@ -283,7 +283,7 @@ impl<T> Stream for FuturesUnordered<T>
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    task::current().notify();
+                    cx.waker().notify();
                     return Ok(Async::Pending);
                 }
                 Dequeue::Data(node) => node,
