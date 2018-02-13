@@ -1,4 +1,5 @@
 use futures_core::{Future, Poll, Stream};
+use futures_core::task;
 
 /// Combines two different futures yielding the same item and error
 /// types into a single type.
@@ -30,10 +31,10 @@ impl<A, B> Future for Either<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<A::Item, A::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, A::Error> {
         match *self {
-            Either::A(ref mut a) => a.poll(),
-            Either::B(ref mut b) => b.poll(),
+            Either::A(ref mut a) => a.poll(ctx),
+            Either::B(ref mut b) => b.poll(ctx),
         }
     }
 }
@@ -45,10 +46,10 @@ impl<A, B> Stream for Either<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<Option<A::Item>, A::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<A::Item>, A::Error> {
         match *self {
-            Either::A(ref mut a) => a.poll(),
-            Either::B(ref mut b) => b.poll(),
+            Either::A(ref mut a) => a.poll(cx),
+            Either::B(ref mut b) => b.poll(cx),
         }
     }
 }

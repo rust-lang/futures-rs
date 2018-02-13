@@ -1,4 +1,5 @@
 use futures_core::{Future, IntoFuture, Poll};
+use futures_core::task;
 use super::chain::Chain;
 
 /// Future for the `or_else` combinator, chaining a computation onto the end of
@@ -28,8 +29,8 @@ impl<A, B, F> Future for OrElse<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self) -> Poll<B::Item, B::Error> {
-        self.state.poll(|a, f| {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<B::Item, B::Error> {
+        self.state.poll(ctx, |a, f| {
             match a {
                 Ok(item) => Ok(Ok(item)),
                 Err(e) => Ok(Err(f(e).into_future()))

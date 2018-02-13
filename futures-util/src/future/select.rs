@@ -1,4 +1,6 @@
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
+
 use future::Either;
 
 /// Future for the `select2` combinator, waiting for one of two differently-typed
@@ -21,12 +23,12 @@ impl<A, B> Future for Select<A, B> where A: Future, B: Future {
     type Item = Either<(A::Item, B), (B::Item, A)>;
     type Error = Either<(A::Error, B), (B::Error, A)>;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select2 twice");
-        match a.poll() {
+        match a.poll(cx) {
             Err(e) => Err(Either::A((e, b))),
             Ok(Async::Ready(x)) => Ok(Async::Ready(Either::A((x, b)))),
-            Ok(Async::Pending) => match b.poll() {
+            Ok(Async::Pending) => match b.poll(cx) {
                 Err(e) => Err(Either::B((e, a))),
                 Ok(Async::Ready(x)) => Ok(Async::Ready(Either::B((x, a)))),
                 Ok(Async::Pending) => {

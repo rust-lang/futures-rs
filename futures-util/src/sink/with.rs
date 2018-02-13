@@ -2,6 +2,7 @@ use core::mem;
 use core::marker::PhantomData;
 
 use futures_core::{IntoFuture, Future, Poll, Async, Stream};
+use futures_core::task;
 use futures_sink::{Sink, AsyncSink, StartSend};
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
@@ -59,8 +60,8 @@ impl<S, U, F, Fut> Stream for With<S, U, F, Fut>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll(ctx)
     }
 }
 
@@ -88,12 +89,12 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
         self.sink
     }
 
-    fn poll(&mut self) -> Poll<(), Fut::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<(), Fut::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => break,
                 State::Process(mut fut) => {
-                    match fut.poll()? {
+                    match fut.poll(ctx)? {
                         Async::Ready(item) => {
                             self.state = State::Buffered(item);
                         }
@@ -104,7 +105,7 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
                     }
                 }
                 State::Buffered(item) => {
-                    if let AsyncSink::Pending(item) = self.sink.start_send(item)? {
+                    if let AsyncSink::Pending(item) = self.sink.start_send(ctx, item)? {
                         self.state = State::Buffered(item);
                         break
                     }
@@ -129,24 +130,24 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
     type SinkItem = U;
     type SinkError = Fut::Error;
 
-    fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Fut::Error> {
-        if self.poll()?.is_not_ready() {
+    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Fut::Error> {
+        if self.poll(ctx)?.is_not_ready() {
             return Ok(AsyncSink::Pending(item))
         }
         self.state = State::Process((self.f)(item).into_future());
         Ok(AsyncSink::Ready)
     }
 
-    fn flush(&mut self) -> Poll<(), Fut::Error> {
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Fut::Error> {
         // poll ourselves first, to push data downward
-        let me_ready = self.poll()?;
+        let me_ready = self.poll(ctx)?;
         // always propagate `flush` downward to attempt to make progress
-        try_ready!(self.sink.flush());
+        try_ready!(self.sink.flush(ctx));
         Ok(me_ready)
     }
 
-    fn close(&mut self) -> Poll<(), Fut::Error> {
-        try_ready!(self.poll());
-        Ok(self.sink.close()?)
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Fut::Error> {
+        try_ready!(self.poll(ctx));
+        Ok(self.sink.close(ctx)?)
     }
 }

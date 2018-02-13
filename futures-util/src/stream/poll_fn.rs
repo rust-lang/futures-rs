@@ -1,6 +1,7 @@
 //! Definition of the `PollFn` combinator
 
 use futures_core::{Stream, Poll};
+use futures_core::task;
 
 /// A stream which adapts a function returning `Poll`.
 ///
@@ -25,7 +26,7 @@ pub struct PollFn<F> {
 /// # fn main() {
 /// let mut counter = 1usize;
 ///
-/// let read_stream = poll_fn(move || -> Poll<Option<String>, std::io::Error> {
+/// let read_stream = poll_fn(move |_| -> Poll<Option<String>, std::io::Error> {
 ///     if counter == 0 { return Ok(Async::Ready(None)); }
 ///     counter -= 1;
 ///     Ok(Async::Ready(Some("Hello, World!".to_owned())))
@@ -34,19 +35,19 @@ pub struct PollFn<F> {
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
 where
-    F: FnMut() -> Poll<Option<T>, E>,
+    F: FnMut(&mut task::Context) -> Poll<Option<T>, E>,
 {
     PollFn { inner: f }
 }
 
 impl<T, E, F> Stream for PollFn<F>
 where
-    F: FnMut() -> Poll<Option<T>, E>,
+    F: FnMut(&mut task::Context) -> Poll<Option<T>, E>,
 {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
-        (self.inner)()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<T>, E> {
+        (self.inner)(ctx)
     }
 }

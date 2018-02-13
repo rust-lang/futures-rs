@@ -1,4 +1,5 @@
 use {Async, Sink, AsyncSink, StartSend, Poll};
+use futures_core::task;
 use futures_channel::mpsc::{Sender, SendError, UnboundedSender};
 
 fn res_to_async_sink<T>(res: Result<(), T>) -> AsyncSink<T> {
@@ -12,15 +13,15 @@ impl<T> Sink for Sender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send(msg).map(res_to_async_sink)
+    fn start_send(&mut self, ctx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
+        self.start_send(ctx, msg).map(res_to_async_sink)
     }
 
-    fn flush(&mut self) -> Poll<(), SendError<T>> {
+    fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 
-    fn close(&mut self) -> Poll<(), SendError<T>> {
+    fn close(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -29,15 +30,15 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send(msg).map(res_to_async_sink)
+    fn start_send(&mut self, ctx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
+        self.start_send(ctx, msg).map(res_to_async_sink)
     }
 
-    fn flush(&mut self) -> Poll<(), SendError<T>> {
+    fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 
-    fn close(&mut self) -> Poll<(), SendError<T>> {
+    fn close(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }
@@ -46,16 +47,16 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, msg: T) -> StartSend<T, SendError<T>> {
+    fn start_send(&mut self, _: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
         self.unbounded_send(msg)?;
         Ok(AsyncSink::Ready)
     }
 
-    fn flush(&mut self) -> Poll<(), SendError<T>> {
+    fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 
-    fn close(&mut self) -> Poll<(), SendError<T>> {
+    fn close(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
         Ok(Async::Ready(()))
     }
 }

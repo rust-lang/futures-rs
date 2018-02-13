@@ -3,6 +3,7 @@
 use std::fmt::{self, Debug};
 
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 
 use stream::{StreamExt, StreamFuture, FuturesUnordered};
 
@@ -65,8 +66,8 @@ impl<S: Stream> Stream for SelectAll<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.inner.poll().map_err(|(err, _)| err)? {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        match self.inner.poll(ctx).map_err(|(err, _)| err)? {
             Async::Pending => Ok(Async::Pending),
             Async::Ready(Some((Some(item), remaining))) => {
                 self.push(remaining);

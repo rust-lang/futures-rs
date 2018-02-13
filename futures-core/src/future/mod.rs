@@ -5,6 +5,7 @@
 //! `Box`, `Option`, and `Result`.
 
 use Poll;
+use task;
 
 mod option;
 #[path = "result.rs"]
@@ -163,15 +164,15 @@ pub trait Future {
     /// This future may have failed to finish the computation, in which case
     /// the `Err` variant will be returned with an appropriate payload of an
     /// error.
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error>;
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
 }
 
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        (**self).poll()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        (**self).poll(ctx)
     }
 }
 
@@ -180,8 +181,8 @@ if_std! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            (**self).poll()
+        fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+            (**self).poll(ctx)
         }
     }
 
@@ -190,8 +191,8 @@ if_std! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(&mut self) -> Poll<F::Item, F::Error> {
-            self.0.poll()
+        fn poll(&mut self, ctx: &mut task::Context) -> Poll<F::Item, F::Error> {
+            self.0.poll(ctx)
         }
     }
 }

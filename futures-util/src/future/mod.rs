@@ -645,18 +645,19 @@ pub trait FutureExt: Future {
     /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures::task;
     ///
     /// # fn main() {
     /// let mut future = future::ok::<i32, u32>(2);
-    /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
+    /// assert_eq!(future.poll(&mut task::Context), Ok(Async::Ready(2)));
     ///
     /// // Normally, a call such as this would panic:
     /// //future.poll();
     ///
     /// // This, however, is guaranteed to not panic
     /// let mut future = future::ok::<i32, u32>(2).fuse();
-    /// assert_eq!(future.poll(), Ok(Async::Ready(2)));
-    /// assert_eq!(future.poll(), Ok(Async::Pending));
+    /// assert_eq!(future.poll(&mut task::Context), Ok(Async::Ready(2)));
+    /// assert_eq!(future.poll(&mut task::Context), Ok(Async::Pending));
     /// # }
     /// ```
     fn fuse(self) -> Fuse<Self>

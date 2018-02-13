@@ -1,4 +1,5 @@
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
 ///
@@ -52,7 +53,7 @@ where
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Ok(Async::Ready(Some(e))),
             Some(Err(e)) => Err(e),

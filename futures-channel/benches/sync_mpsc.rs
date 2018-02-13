@@ -81,7 +81,7 @@ fn unbounded_uncontended(b: &mut Bencher) {
         for i in 0..1000 {
             UnboundedSender::unbounded_send(&tx, i).expect("send");
             // No need to create a task, because poll is not going to park.
-            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll());
+            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut task::Context));
         }
     })
 }
@@ -98,12 +98,12 @@ impl Stream for TestSender {
     type Item = u32;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.tx.start_send(self.last + 1) {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        match self.tx.start_send(ctx, self.last + 1) {
             Err(_) => panic!(),
             Ok(Ok(())) => {
                 self.last += 1;
-                assert_eq!(Ok(Async::Ready(())), self.tx.flush());
+                assert_eq!(Ok(Async::Ready(())), self.tx.flush(&mut task::Context));
                 Ok(Async::Ready(Some(self.last)))
             }
             Ok(Err(_)) => {
