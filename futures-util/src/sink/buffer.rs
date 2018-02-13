@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use futures_core::{Poll, Async, Stream};
+use futures_core::task;
 use futures_sink::{StartSend, AsyncSink, Sink};
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
@@ -42,13 +43,13 @@ impl<S: Sink> Buffer<S> {
         self.sink
     }
 
-    fn try_empty_buffer(&mut self) -> Poll<(), S::SinkError> {
+    fn try_empty_buffer(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
         while let Some(item) = self.buf.pop_front() {
-            if let AsyncSink::Pending(item) = self.sink.start_send(item)? {
+            if let AsyncSink::Pending(item) = self.sink.start_send(ctx, item)? {
                 self.buf.push_front(item);
 
                 // ensure that we attempt to complete any pushes we've started
-                self.sink.flush()?;
+                self.sink.flush(ctx)?;
 
                 return Ok(Async::Pending);
             }
@@ -63,8 +64,8 @@ impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll(ctx)
     }
 }
 
@@ -72,12 +73,12 @@ impl<S: Sink> Sink for Buffer<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
         if self.cap == 0 {
-            return self.sink.start_send(item);
+            return self.sink.start_send(ctx, item);
         }
 
-        self.try_empty_buffer()?;
+        self.try_empty_buffer(ctx)?;
         if self.buf.len() == self.cap {
             return Ok(AsyncSink::Pending(item));
         }
@@ -85,25 +86,25 @@ impl<S: Sink> Sink for Buffer<S> {
         Ok(AsyncSink::Ready)
     }
 
-    fn flush(&mut self) -> Poll<(), Self::SinkError> {
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
         if self.cap == 0 {
-            return self.sink.flush();
+            return self.sink.flush(ctx);
         }
 
-        try_ready!(self.try_empty_buffer());
+        try_ready!(self.try_empty_buffer(ctx));
         debug_assert!(self.buf.is_empty());
-        self.sink.flush()
+        self.sink.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), Self::SinkError> {
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
         if self.cap == 0 {
-            return self.sink.close();
+            return self.sink.close(ctx);
         }
 
         if self.buf.len() > 0 {
-            try_ready!(self.try_empty_buffer());
+            try_ready!(self.try_empty_buffer(ctx));
         }
         assert_eq!(self.buf.len(), 0);
-        self.sink.close()
+        self.sink.close(ctx)
     }
 }

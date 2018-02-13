@@ -1,7 +1,9 @@
 use futures_core::{Async, Poll, Future, Stream};
+use futures_core::task;
 
 /// Future that forwards one element from the underlying future
 /// (whether it is success of error) and emits EOF after that.
+#[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct IntoStream<F: Future> {
     future: Option<F>
@@ -17,11 +19,11 @@ impl<F: Future> Stream for IntoStream<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         let ret = match self.future {
             None => return Ok(Async::Ready(None)),
             Some(ref mut future) => {
-                match future.poll() {
+                match future.poll(ctx) {
                     Ok(Async::Pending) => return Ok(Async::Pending),
                     Err(e) => Err(e),
                     Ok(Async::Ready(r)) => Ok(r),

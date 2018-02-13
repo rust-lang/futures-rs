@@ -1,4 +1,5 @@
 use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_core::task;
 
 /// A stream combinator which executes a unit closure over each item on a
 /// stream.
@@ -32,10 +33,10 @@ impl<S, F, U> Future for ForEach<S, F, U>
     type Item = S;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<S, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<S, S::Error> {
         loop {
             if let Some(mut fut) = self.fut.take() {
-                if fut.poll()?.is_not_ready() {
+                if fut.poll(ctx)?.is_not_ready() {
                     self.fut = Some(fut);
                     return Ok(Async::Pending);
                 }
@@ -43,7 +44,7 @@ impl<S, F, U> Future for ForEach<S, F, U>
 
             match self.stream {
                 Some(ref mut stream) => {
-                    match try_ready!(stream.poll()) {
+                    match try_ready!(stream.poll(ctx)) {
                         Some(e) => self.fut = Some((self.f)(e).into_future()),
                         None => break,
                     }

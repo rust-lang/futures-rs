@@ -20,7 +20,7 @@ fn spawning_from_init_future() {
     run(|_| {
         let cnt = cnt.clone();
 
-        spawn(lazy(move || {
+        spawn(lazy(move |_| {
             cnt.set(1 + cnt.get());
             Ok(())
         }));
@@ -55,7 +55,7 @@ fn block_waits_for_non_daemon() {
 #[test]
 #[should_panic]
 fn spawning_out_of_executor_context() {
-    spawn(lazy(|| Ok(())));
+    spawn(lazy(|_| Ok(())));
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn spawn_many() {
     run(|_| {
         for _ in 0..ITER {
             let cnt = cnt.clone();
-            spawn(lazy(move || {
+            spawn(lazy(move |_| {
                 cnt.set(1 + cnt.get());
                 Ok::<(), ()>(())
             }));
@@ -83,7 +83,7 @@ impl Future for Never {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self) -> Poll<(), ()> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<(), ()> {
         Ok(Async::Pending)
     }
 }
@@ -114,7 +114,7 @@ fn nesting_run() {
 #[should_panic]
 fn run_in_future() {
     run(|_| {
-        spawn(lazy(|| {
+        spawn(lazy(|_| {
             run(|_| {
             });
             Ok::<(), ()>(())
@@ -135,7 +135,7 @@ fn tasks_are_scheduled_fairly() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self, _ctx: &mut task::Context) -> Poll<(), ()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {

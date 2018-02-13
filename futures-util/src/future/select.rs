@@ -1,4 +1,5 @@
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 /// Future for the `select` combinator, waiting for one of two futures to
 /// complete.
@@ -42,14 +43,14 @@ impl<A, B> Future for Select<A, B>
     type Item = (A::Item, SelectNext<A, B>);
     type Error = (A::Error, SelectNext<A, B>);
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let (ret, is_a) = match self.inner {
             Some((ref mut a, ref mut b)) => {
-                match a.poll() {
+                match a.poll(ctx) {
                     Err(a) => (Err(a), true),
                     Ok(Async::Ready(a)) => (Ok(a), true),
                     Ok(Async::Pending) => {
-                        match b.poll() {
+                        match b.poll(ctx) {
                             Err(a) => (Err(a), false),
                             Ok(Async::Ready(a)) => (Ok(a), false),
                             Ok(Async::Pending) => return Ok(Async::Pending),
@@ -77,10 +78,10 @@ impl<A, B> Future for SelectNext<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         match self.inner {
-            OneOf::A(ref mut a) => a.poll(),
-            OneOf::B(ref mut b) => b.poll(),
+            OneOf::A(ref mut a) => a.poll(ctx),
+            OneOf::B(ref mut b) => b.poll(ctx),
         }
     }
 }

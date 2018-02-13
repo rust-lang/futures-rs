@@ -22,7 +22,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self, _ctx: &mut task::Context) -> Poll<(), ()> {
             if self.rem == 0 {
                 Ok(Async::Ready(()))
             } else {
@@ -51,7 +51,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self, _ctx: &mut task::Context) -> Poll<(), ()> {
             if self.rem == 0 {
                 Ok(Async::Ready(()))
             } else {
@@ -88,7 +88,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self) -> Poll<(), ()> {
+        fn poll(&mut self, _ctx: &mut task::Context) -> Poll<(), ()> {
             if self.rem == 0 {
                 Ok(Async::Ready(()))
             } else {

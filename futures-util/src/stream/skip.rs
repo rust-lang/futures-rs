@@ -1,4 +1,5 @@
 use futures_core::{Poll, Async, Stream};
+use futures_core::task;
 use futures_sink::{StartSend, Sink};
 
 /// A stream combinator which skips a number of elements before continuing.
@@ -52,16 +53,16 @@ impl<S> Sink for Skip<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -71,14 +72,14 @@ impl<S> Stream for Skip<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         while self.remaining > 0 {
-            match try_ready!(self.stream.poll()) {
+            match try_ready!(self.stream.poll(ctx)) {
                 Some(_) => self.remaining -= 1,
                 None => return Ok(Async::Ready(None)),
             }
         }
 
-        self.stream.poll()
+        self.stream.poll(ctx)
     }
 }

@@ -1,4 +1,5 @@
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 /// Do something with the item of a future, passing it on.
 ///
@@ -27,8 +28,8 @@ impl<A, F> Future for Inspect<A, F>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<A::Item, A::Error> {
-        match self.future.poll() {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, A::Error> {
+        match self.future.poll(ctx) {
             Ok(Async::Pending) => Ok(Async::Pending),
             Ok(Async::Ready(e)) => {
                 (self.f.take().expect("cannot poll Inspect twice"))(&e);

@@ -1,4 +1,5 @@
 use futures_core::{Poll, Async, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
@@ -56,16 +57,16 @@ impl<S> Sink for Flatten<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -77,16 +78,16 @@ impl<S> Stream for Flatten<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             if self.next.is_none() {
-                match try_ready!(self.stream.poll()) {
+                match try_ready!(self.stream.poll(ctx)) {
                     Some(e) => self.next = Some(e),
                     None => return Ok(Async::Ready(None)),
                 }
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll() {
+            match self.next.as_mut().unwrap().poll(ctx) {
                 Ok(Async::Ready(None)) => self.next = None,
                 other => return other,
             }

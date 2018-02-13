@@ -1,4 +1,5 @@
 use futures_core::{Async, Poll, IntoFuture, Future, Stream};
+use futures_core::task;
 use futures_sink::{StartSend, Sink};
 
 /// A stream combinator which takes elements from a stream while a predicate
@@ -59,16 +60,16 @@ impl<S, P, R> Sink for TakeWhile<S, P, R>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -80,13 +81,13 @@ impl<S, P, R> Stream for TakeWhile<S, P, R>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         if self.done_taking {
             return Ok(Async::Ready(None));
         }
 
         if self.pending.is_none() {
-            let item = match try_ready!(self.stream.poll()) {
+            let item = match try_ready!(self.stream.poll(ctx)) {
                 Some(e) => e,
                 None => return Ok(Async::Ready(None)),
             };
@@ -94,7 +95,7 @@ impl<S, P, R> Stream for TakeWhile<S, P, R>
         }
 
         assert!(self.pending.is_some());
-        match self.pending.as_mut().unwrap().0.poll() {
+        match self.pending.as_mut().unwrap().0.poll(ctx) {
             Ok(Async::Ready(true)) => {
                 let (_, item) = self.pending.take().unwrap();
                 Ok(Async::Ready(Some(item)))

@@ -1,6 +1,7 @@
 //! Definition of the `LoopFn` combinator, implementing `Future` loops.
 
 use futures_core::{Async, Future, IntoFuture, Poll};
+use futures_core::task;
 
 /// The status of a `loop_fn` loop.
 #[derive(Debug)]
@@ -16,6 +17,7 @@ pub enum Loop<T, S> {
 /// A future implementing a tail-recursive loop.
 ///
 /// Created by the `loop_fn` function.
+#[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct LoopFn<A, F> where A: IntoFuture {
     future: A::Future,
@@ -92,9 +94,9 @@ impl<S, T, A, F> Future for LoopFn<A, F>
     type Item = T;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         loop {
-            match try_ready!(self.future.poll()) {
+            match try_ready!(self.future.poll(ctx)) {
                 Loop::Break(x) => return Ok(Async::Ready(x)),
                 Loop::Continue(s) => self.future = (self.func)(s).into_future(),
             }

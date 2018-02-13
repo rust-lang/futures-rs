@@ -1,4 +1,5 @@
 use futures_core::{Async, Future, Poll, Stream};
+use futures_core::task;
 use futures_sink::{Sink, AsyncSink};
 
 use stream::{StreamExt, Fuse};
@@ -63,11 +64,11 @@ impl<T, U> Forward<T, U>
         (fuse.into_inner(), sink)
     }
 
-    fn try_start_send(&mut self, item: T::Item) -> Poll<(), U::SinkError> {
+    fn try_start_send(&mut self, ctx: &mut task::Context, item: T::Item) -> Poll<(), U::SinkError> {
         debug_assert!(self.buffered.is_none());
         if let AsyncSink::Pending(item) = self.sink_mut()
             .take().expect("Attempted to poll Forward after completion")
-            .start_send(item)?
+            .start_send(ctx, item)?
         {
             self.buffered = Some(item);
             return Ok(Async::Pending)
@@ -84,25 +85,25 @@ impl<T, U> Future for Forward<T, U>
     type Item = (T, U);
     type Error = T::Error;
 
-    fn poll(&mut self) -> Poll<(T, U), T::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<(T, U), T::Error> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered.take() {
-            try_ready!(self.try_start_send(item))
+            try_ready!(self.try_start_send(ctx, item))
         }
 
         loop {
             match self.stream_mut()
                 .take().expect("Attempted to poll Forward after completion")
-                .poll()?
+                .poll(ctx)?
             {
-                Async::Ready(Some(item)) => try_ready!(self.try_start_send(item)),
+                Async::Ready(Some(item)) => try_ready!(self.try_start_send(ctx, item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush());
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush(ctx));
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::Pending => {
-                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush());
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush(ctx));
                     return Ok(Async::Pending)
                 }
             }

@@ -3,11 +3,13 @@ use std::error::Error;
 use std::fmt;
 
 use futures_core::{Stream, Poll, Async};
+use futures_core::task;
 use futures_sink::{StartSend, Sink, AsyncSink};
 
 use lock::BiLock;
 
 /// A `Stream` part of the split pair
+#[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
 pub struct SplitStream<S>(BiLock<S>);
 
@@ -24,9 +26,9 @@ impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        match self.0.poll_lock() {
-            Async::Ready(mut inner) => inner.poll(),
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        match self.0.poll_lock(ctx) {
+            Async::Ready(mut inner) => inner.poll(ctx),
             Async::Pending => Ok(Async::Pending),
         }
     }
@@ -51,25 +53,25 @@ impl<S: Sink> Sink for SplitSink<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem)
         -> StartSend<S::SinkItem, S::SinkError>
     {
-        match self.0.poll_lock() {
-            Async::Ready(mut inner) => inner.start_send(item),
+        match self.0.poll_lock(ctx) {
+            Async::Ready(mut inner) => inner.start_send(ctx, item),
             Async::Pending => Ok(AsyncSink::Pending(item)),
         }
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        match self.0.poll_lock() {
-            Async::Ready(mut inner) => inner.flush(),
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        match self.0.poll_lock(ctx) {
+            Async::Ready(mut inner) => inner.flush(ctx),
             Async::Pending => Ok(Async::Pending),
         }
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        match self.0.poll_lock() {
-            Async::Ready(mut inner) => inner.close(),
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        match self.0.poll_lock(ctx) {
+            Async::Ready(mut inner) => inner.close(ctx),
             Async::Pending => Ok(Async::Pending),
         }
     }
