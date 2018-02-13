@@ -3,6 +3,7 @@ use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::default::Default;
 
 use futures_core::{Async, Future, Poll, Stream};
+use futures_core::task;
 
 /// A stream combinator to concatenate the results of a stream into the first
 /// yielded item.
@@ -40,8 +41,8 @@ impl<S> Future for Concat<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll().map(|a| {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll(ctx).map(|a| {
             match a {
                 Async::Pending => Async::Pending,
                 Async::Ready(None) => Async::Ready(Default::default()),
@@ -78,9 +79,9 @@ impl<S> Future for ConcatSafe<S>
     type Item = Option<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         loop {
-            match self.stream.poll() {
+            match self.stream.poll(ctx) {
                 Ok(Async::Ready(Some(i))) => {
                     match self.extend {
                         Inner::First => {

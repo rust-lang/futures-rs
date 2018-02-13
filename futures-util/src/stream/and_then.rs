@@ -1,4 +1,5 @@
 use futures_core::{IntoFuture, Future, Poll, Async, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 /// A stream combinator which chains a computation onto values produced by a
@@ -61,16 +62,16 @@ impl<S, F, U: IntoFuture> Sink for AndThen<S, F, U>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -82,16 +83,16 @@ impl<S, F, U> Stream for AndThen<S, F, U>
     type Item = U::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<U::Item>, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<U::Item>, S::Error> {
         if self.future.is_none() {
-            let item = match try_ready!(self.stream.poll()) {
+            let item = match try_ready!(self.stream.poll(ctx)) {
                 None => return Ok(Async::Ready(None)),
                 Some(e) => e,
             };
             self.future = Some((self.f)(item).into_future());
         }
         assert!(self.future.is_some());
-        match self.future.as_mut().unwrap().poll() {
+        match self.future.as_mut().unwrap().poll(ctx) {
             Ok(Async::Ready(e)) => {
                 self.future = None;
                 Ok(Async::Ready(Some(e)))

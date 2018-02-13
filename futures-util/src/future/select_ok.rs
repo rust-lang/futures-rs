@@ -5,6 +5,7 @@ use std::mem;
 use std::prelude::v1::*;
 
 use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::task;
 
 /// Future for the `select_ok` combinator, waiting for one of any of a list of
 /// futures to successfully complete. Unlike `select_all`, this future ignores all
@@ -44,11 +45,11 @@ impl<A> Future for SelectOk<A> where A: Future {
     type Item = (A::Item, Vec<A>);
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-                match f.poll() {
+                match f.poll(ctx) {
                     Ok(Async::Pending) => None,
                     Ok(Async::Ready(e)) => Some((i, Ok(e))),
                     Err(e) => Some((i, Err(e))),

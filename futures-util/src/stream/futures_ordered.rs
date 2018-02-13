@@ -4,9 +4,11 @@ use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 
 use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_core::task;
 
 use stream::FuturesUnordered;
 
+#[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 struct OrderWrapper<T> {
     item: T,
@@ -40,8 +42,8 @@ impl<T> Future for OrderWrapper<T>
     type Item = OrderWrapper<T::Item>;
     type Error = T::Error;
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let result = try_ready!(self.item.poll());
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        let result = try_ready!(self.item.poll(ctx));
         Ok(Async::Ready(OrderWrapper {
             item: result,
             index: self.index
@@ -167,10 +169,10 @@ impl<T> Stream for FuturesOrdered<T>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         // Get any completed futures from the unordered set.
         loop {
-            match self.in_progress.poll()? {
+            match self.in_progress.poll(ctx)? {
                 Async::Ready(Some(result)) => self.queued_results.push(result),
                 Async::Ready(None) | Async::Pending => break,
             }

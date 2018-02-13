@@ -28,6 +28,7 @@
 //! it's ready to make progress through the `Task::notify` method.
 pub use task_impl::{
     // Types
+    Context,
     NotifyHandle,
     Spawn,
     Task,

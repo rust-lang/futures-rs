@@ -4,6 +4,7 @@
 use core::mem;
 
 use futures_core::{Future, IntoFuture, Poll};
+use futures_core::task;
 
 /// A future which defers creation of the actual future until a callback is
 /// scheduled.
@@ -82,7 +83,7 @@ impl<F, R> Future for Lazy<F, R>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self) -> Poll<R::Item, R::Error> {
-        self.get().poll()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<R::Item, R::Error> {
+        self.get().poll(ctx)
     }
 }

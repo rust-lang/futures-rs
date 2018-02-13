@@ -7,6 +7,7 @@ use std::fmt;
 use std::mem;
 
 use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::task;
 
 #[derive(Debug)]
 enum ElemState<T> where T: Future {
@@ -93,13 +94,13 @@ impl<Item> Future for JoinAll<Item>
     type Error = <Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
-                    match t.poll() {
+                    match t.poll(ctx) {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::Pending) => {
                             all_done = false;

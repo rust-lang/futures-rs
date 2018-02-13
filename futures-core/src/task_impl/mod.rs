@@ -15,6 +15,10 @@ pub use self::std::*;
 #[cfg(not(feature = "std"))]
 pub use self::core::*;
 
+/// The context for the currently running task.
+#[derive(Debug)]
+pub struct Context;
+
 pub struct BorrowedTask<'a> {
     unpark: BorrowedUnpark<'a>,
     // Task-local storage
@@ -206,7 +210,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Future,
     {
-        self.poll_notify(notify, id, |s| s.poll())
+        self.poll_notify(notify, id, |s, ctx| s.poll(ctx))
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.
@@ -217,13 +221,13 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Stream,
     {
-        self.poll_notify(notify, id, |s| s.poll())
+        self.poll_notify(notify, id, |s, ctx| s.poll(ctx))
     }
 
     /// Invokes the function with the provided `notify` in the task context.
     pub fn poll_notify<N, F, R>(&mut self, notify: &N, id: usize, f: F) -> R
         where N: Clone + Into<NotifyHandle>,
-              F: FnOnce(&mut T) -> R
+              F: FnOnce(&mut T, &mut Context) -> R
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), f)
@@ -245,14 +249,14 @@ impl<T: ?Sized> Spawn<T> {
     }
 
     fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
-        where F: FnOnce(&mut T) -> R
+        where F: FnOnce(&mut T, &mut Context) -> R
     {
         let borrowed = BorrowedTask {
             unpark: unpark,
             map: &self.data,
         };
         let obj = &mut self.obj;
-        set(&borrowed, || f(obj))
+        set(&borrowed, || f(obj, &mut Context))
     }
 }
 

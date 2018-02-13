@@ -1,4 +1,5 @@
 use futures_core::{Poll, Async, Stream};
+use futures_core::task;
 
 /// A stream which emits single element and then EOF.
 ///
@@ -36,7 +37,7 @@ impl<T, E> Stream for Once<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<T>, E> {
         match self.0.take() {
             Some(Ok(e)) => Ok(Async::Ready(Some(e))),
             Some(Err(e)) => Err(e),

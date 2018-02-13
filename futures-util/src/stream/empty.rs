@@ -1,6 +1,7 @@
 use core::marker;
 
 use futures_core::{Stream, Poll, Async};
+use futures_core::task;
 
 /// A stream which contains no elements.
 ///
@@ -22,7 +23,7 @@ impl<T, E> Stream for Empty<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(Async::Ready(None))
     }
 }

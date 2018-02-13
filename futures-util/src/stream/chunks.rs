@@ -2,6 +2,7 @@ use std::mem;
 use std::prelude::v1::*;
 
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 use stream::Fuse;
@@ -40,16 +41,16 @@ impl<S> Sink for Chunks<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -90,14 +91,14 @@ impl<S> Stream for Chunks<S>
     type Item = Vec<<S as Stream>::Item>;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(err) = self.err.take() {
             return Err(err)
         }
 
         let cap = self.items.capacity();
         loop {
-            match self.stream.poll() {
+            match self.stream.poll(ctx) {
                 Ok(Async::Pending) => return Ok(Async::Pending),
 
                 // Push the item into the buffer and check whether it is full.

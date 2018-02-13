@@ -1,4 +1,5 @@
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 use stream::{StreamExt, Fuse};
@@ -30,16 +31,16 @@ impl<S> Sink for Peekable<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -47,11 +48,11 @@ impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(item) = self.peeked.take() {
             return Ok(Async::Ready(Some(item)))
         }
-        self.stream.poll()
+        self.stream.poll(ctx)
     }
 }
 
@@ -61,11 +62,11 @@ impl<S: Stream> Peekable<S> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn peek(&mut self) -> Poll<Option<&S::Item>, S::Error> {
+    pub fn peek(&mut self, ctx: &mut task::Context) -> Poll<Option<&S::Item>, S::Error> {
         if self.peeked.is_some() {
             return Ok(Async::Ready(self.peeked.as_ref()))
         }
-        match try_ready!(self.poll()) {
+        match try_ready!(self.poll(ctx)) {
             None => Ok(Async::Ready(None)),
             Some(item) => {
                 self.peeked = Some(item);
