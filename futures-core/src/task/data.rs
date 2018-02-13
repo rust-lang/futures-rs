@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::collections::HashMap;
 
-use task_impl::with;
+use task;
 
 /// A macro to create a `static` of type `LocalKey`
 ///
@@ -111,21 +111,19 @@ impl<T: Send + 'static> LocalKey<T> {
     /// * If there is not a current task.
     /// * If the initialization expression is run and it panics
     /// * If the closure provided panics
-    pub fn with<F, R>(&'static self, f: F) -> R
+    pub fn with<F, R>(&'static self, cx: &mut task::Context, f: F) -> R
         where F: FnOnce(&T) -> R
     {
         let key = (self.__key)();
-        with(|task| {
-            let raw_pointer = {
-                let mut data = task.map.borrow_mut();
-                let entry = data.entry(key).or_insert_with(|| {
-                    Box::new((self.__init)())
-                });
-                &**entry as *const Opaque as *const T
-            };
-            unsafe {
-                f(&*raw_pointer)
-            }
-        })
+        let raw_pointer = {
+            let mut data = cx.map.inner.borrow_mut();
+            let entry = data.entry(key).or_insert_with(|| {
+                Box::new((self.__init)())
+            });
+            &**entry as *const Opaque as *const T
+        };
+        unsafe {
+            f(&*raw_pointer)
+        }
     }
 }

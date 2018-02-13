@@ -10,7 +10,7 @@ use std::fmt;
 use futures::channel::oneshot::{channel, Sender, Receiver};
 use futures::future::lazy;
 use futures::prelude::*;
-use futures::task::{self, Notify, Spawn};
+use futures::task::{self, Notify, LocalMap};
 use futures_executor::enter;
 use num_cpus;
 
@@ -145,7 +145,8 @@ impl CpuPool {
         where F: Future<Item = (), Error = ()> + Send + 'static
     {
         let run = Run {
-            spawn: task::spawn(Box::new(future)),
+            spawn: Box::new(future),
+            map: LocalMap::new(),
             inner: Arc::new(RunInner {
                 exec: self.inner.clone(),
                 mutex: UnparkMutex::new(),
@@ -406,7 +407,8 @@ impl Builder {
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 struct Run {
-    spawn: Spawn<Box<Future<Item = (), Error = ()> + Send>>,
+    spawn: Box<Future<Item = (), Error = ()> + Send>,
+    map: LocalMap,
     inner: Arc<RunInner>,
 }
 
@@ -419,7 +421,7 @@ impl Run {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
     pub fn run(self) {
-        let Run { mut spawn, inner } = self;
+        let Run { mut spawn, inner, mut map } = self;
 
         // SAFETY: the ownership of this `Run` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
@@ -427,15 +429,23 @@ impl Run {
             inner.mutex.start_poll();
 
             loop {
-                match spawn.poll_future_notify(&inner, 0) {
+                let res = spawn.poll(&mut task::Context::new(
+                    &mut map,
+                    0,
+                    &mut || inner.clone().into(),
+                ));
+                match res {
                     Ok(Async::Pending) => {}
                     Ok(Async::Ready(())) |
                     Err(()) => return inner.mutex.complete(),
                 }
-                let run = Run { spawn: spawn, inner: inner.clone() };
+                let run = Run { spawn, map, inner: inner.clone() };
                 match inner.mutex.wait(run) {
                     Ok(()) => return,            // we've waited
-                    Err(r) => spawn = r.spawn,   // someone's notified us
+                    Err(r) => { // someone's notified us
+                        spawn = r.spawn;
+                        map = r.map;
+                    }
                 }
             }
         }

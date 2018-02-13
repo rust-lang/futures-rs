@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures::prelude::*;
-use futures::future::lazy;
+use futures::future::poll_fn;
 use futures::task;
 use futures_channel::mpsc;
 use futures_channel::oneshot;
@@ -34,32 +34,32 @@ fn send_recv_no_buffer() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
 
     // Run on a task context
-    let f = lazy(move || {
-        assert!(tx.flush(&mut task::Context).unwrap().is_ready());
-        assert!(tx.poll_ready(&mut task::Context).unwrap().is_ready());
+    let f = poll_fn(move |cx| {
+        assert!(tx.flush(cx).unwrap().is_ready());
+        assert!(tx.poll_ready(cx).unwrap().is_ready());
 
         // Send first message
-        let res = tx.start_send(&mut task::Context, 1).unwrap();
+        let res = tx.start_send(cx, 1).unwrap();
         assert!(res.is_ok());
-        assert!(tx.poll_ready(&mut task::Context).unwrap().is_not_ready());
+        assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Send second message
-        let res = tx.start_send(&mut task::Context, 2).unwrap();
+        let res = tx.start_send(cx, 2).unwrap();
         assert!(res.is_err());
 
         // Take the value
-        assert_eq!(rx.poll(&mut task::Context).unwrap(), Async::Ready(Some(1)));
-        assert!(tx.poll_ready(&mut task::Context).unwrap().is_ready());
+        assert_eq!(rx.poll(cx).unwrap(), Async::Ready(Some(1)));
+        assert!(tx.poll_ready(cx).unwrap().is_ready());
 
-        let res = tx.start_send(&mut task::Context, 2).unwrap();
+        let res = tx.start_send(cx, 2).unwrap();
         assert!(res.is_ok());
-        assert!(tx.poll_ready(&mut task::Context).unwrap().is_not_ready());
+        assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Take the value
-        assert_eq!(rx.poll(&mut task::Context).unwrap(), Async::Ready(Some(2)));
-        assert!(tx.poll_ready(&mut task::Context).unwrap().is_ready());
+        assert_eq!(rx.poll(cx).unwrap(), Async::Ready(Some(2)));
+        assert!(tx.poll_ready(cx).unwrap().is_ready());
 
-        Ok::<(), ()>(())
+        Ok::<_, ()>(Async::Ready(()))
     });
     run(|c| c.block_on(f)).unwrap();
 }
@@ -123,15 +123,15 @@ fn recv_close_gets_none() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(10);
 
     // Run on a task context
-    let f = lazy(move || {
+    let f = poll_fn(move |cx| {
         rx.close();
 
-        assert_eq!(rx.poll(&mut task::Context), Ok(Async::Ready(None)));
-        assert!(tx.poll_ready(&mut task::Context).is_err());
+        assert_eq!(rx.poll(cx), Ok(Async::Ready(None)));
+        assert!(tx.poll_ready(cx).is_err());
 
-        drop(tx);
+        drop(&tx);
 
-        Ok::<(), ()>(())
+        Ok::<_, ()>(Async::Ready(()))
     });
 
     run(|c| c.block_on(f)).unwrap();
@@ -142,11 +142,11 @@ fn tx_close_gets_none() {
     let (_, mut rx) = mpsc::channel::<i32>(10);
 
     // Run on a task context
-    let f = lazy(move || {
-        assert_eq!(rx.poll(&mut task::Context), Ok(Async::Ready(None)));
-        assert_eq!(rx.poll(&mut task::Context), Ok(Async::Ready(None)));
+    let f = poll_fn(move |cx| {
+        assert_eq!(rx.poll(cx), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll(cx), Ok(Async::Ready(None)));
 
-        Ok::<(), ()>(())
+        Ok::<_, ()>(Async::Ready(()))
     });
 
     run(|c| c.block_on(f)).unwrap();
@@ -307,10 +307,11 @@ fn stress_receiver_multi_task_bounded_hard() {
                     let mut lock = rx.lock().ok().unwrap();
 
                     let mut rx = match lock.take() {
-                        Some(rx) => rx,
+                        Some(rx) => Some(rx),
                         None => break,
                     };
                     if i % 5 == 0 {
+                        let rx = rx.unwrap();
                         let (item, rest) = c.block_on(rx.into_future()).ok().unwrap();
 
                         if item.is_none() {
@@ -322,8 +323,9 @@ fn stress_receiver_multi_task_bounded_hard() {
                     } else {
                         // Just poll
                         let n = n.clone();
-                        let f = lazy(move || {
-                            let r = match rx.poll(&mut task::Context).unwrap() {
+                        let f = poll_fn(move |cx| {
+                            let mut rx = rx.take().unwrap();
+                            let r = match rx.poll(cx).unwrap() {
                                 Async::Ready(Some(_)) => {
                                     n.fetch_add(1, Ordering::Relaxed);
                                     *lock = Some(rx);
@@ -338,7 +340,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                                 }
                             };
 
-                            Ok::<bool, ()>(r)
+                            Ok::<_, ()>(Async::Ready(r))
                         });
 
                         if c.block_on(f).unwrap() {
@@ -523,9 +525,9 @@ fn try_send_2() {
 
     let th = thread::spawn(|| {
         run(|c| {
-            c.block_on(lazy(|| {
-                assert!(tx.start_send(&mut task::Context, "fail").unwrap().is_err());
-                Ok::<_, ()>(())
+            c.block_on(poll_fn(|cx| {
+                assert!(tx.start_send(cx, "fail").unwrap().is_err());
+                Ok::<_, ()>(Async::Ready(()))
             })).unwrap();
 
             drop(readytx);

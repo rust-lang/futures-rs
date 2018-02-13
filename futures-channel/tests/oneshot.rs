@@ -5,7 +5,7 @@ extern crate futures_executor;
 use std::sync::mpsc;
 use std::thread;
 
-use futures::future::{lazy, ok};
+use futures::future::poll_fn;
 use futures::prelude::*;
 use futures::task;
 use futures_channel::oneshot::*;
@@ -14,13 +14,14 @@ use futures_executor::current_thread::run;
 #[test]
 fn smoke_poll() {
     let (mut tx, rx) = channel::<u32>();
-    let f = lazy(|| {
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_not_ready());
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_not_ready());
-        drop(rx);
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_ready());
-        assert!(tx.poll_cancel(&mut task::Context).unwrap().is_ready());
-        ok::<(), ()>(())
+    let mut rx = Some(rx);
+    let f = poll_fn(|cx| {
+        assert!(tx.poll_cancel(cx).unwrap().is_not_ready());
+        assert!(tx.poll_cancel(cx).unwrap().is_not_ready());
+        drop(rx.take());
+        assert!(tx.poll_cancel(cx).unwrap().is_ready());
+        assert!(tx.poll_cancel(cx).unwrap().is_ready());
+        Ok::<_, ()>(Async::Ready(()))
     });
 
     run(|c| c.block_on(f)).unwrap();
@@ -79,8 +80,12 @@ fn cancel_lots() {
 fn close() {
     let (mut tx, mut rx) = channel::<u32>();
     rx.close();
-    assert!(rx.poll(&mut task::Context).is_err());
-    assert!(tx.poll_cancel(&mut task::Context).unwrap().is_ready());
+    let f = poll_fn(|cx| {
+        assert!(rx.poll(cx).is_err());
+        assert!(tx.poll_cancel(cx).unwrap().is_ready());
+        Ok::<_, ()>(Async::Ready(()))
+    });
+    run(|c| c.block_on(f)).unwrap();
 }
 
 #[test]
@@ -120,9 +125,8 @@ fn cancel_sends() {
         tx.send(otx).unwrap();
 
         orx.close();
-        // Not necessary to wrap in a task because the implementation of oneshot
-        // never calls `task::current()` if the channel has been closed already.
-        let _ = orx.poll(&mut task::Context);
+        let f = poll_fn(|cx| orx.poll(cx));
+        drop(run(|c| c.block_on(f)));
     }
 
     drop(tx);

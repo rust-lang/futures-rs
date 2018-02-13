@@ -6,8 +6,7 @@ use std::sync::atomic::*;
 use std::thread;
 
 use futures::prelude::*;
-use futures::future::result;
-use futures::task;
+use futures::future::{result, poll_fn};
 use futures_executor::current_thread::run;
 use futures_channel::mpsc;
 
@@ -42,10 +41,10 @@ fn sequence() {
 fn drop_sender() {
     let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
-    match rx.poll(&mut task::Context) {
-        Ok(Async::Ready(None)) => {}
-        _ => panic!("channel should be done"),
-    }
+    let f = poll_fn(|cx| {
+        rx.poll(cx)
+    });
+    assert_eq!(run(|c| c.block_on(f)).unwrap(), None)
 }
 
 #[test]

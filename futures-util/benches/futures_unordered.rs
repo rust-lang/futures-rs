@@ -8,7 +8,6 @@ extern crate test;
 use futures::prelude::*;
 use futures::future;
 use futures::stream::FuturesUnordered;
-use futures::task;
 use futures_channel::oneshot;
 use futures_executor::current_thread::run;
 
@@ -38,12 +37,13 @@ fn oneshots(b: &mut Bencher) {
         });
 
         run(|c| {
-            let f = future::lazy(move || {
+            let f = future::poll_fn(move |cx| {
                 loop {
-                    if let Ok(Async::Ready(None)) = rxs.poll(&mut task::Context) {
-                        return Ok::<(), ()>(());
+                    if let Ok(Async::Ready(None)) = rxs.poll(cx) {
+                        break
                     }
                 }
+                Ok::<_, ()>(Async::Ready(()))
             });
             c.block_on(f).unwrap();
         });

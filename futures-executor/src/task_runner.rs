@@ -5,8 +5,8 @@ use std::fmt;
 use std::ptr;
 use std::rc::{Rc, Weak};
 
-use futures_core::{Future, Poll, Async};
-use futures_core::task::{self, Spawn, NotifyHandle};
+use futures_core::{Future, Poll, Async, Stream};
+use futures_core::task::{self, NotifyHandle, LocalMap};
 use futures_util::FutureExt;
 use futures_util::stream::FuturesUnordered;
 
@@ -30,7 +30,8 @@ use {enter, Enter};
 /// which already knows about `futures`).
 pub struct TaskRunner {
     inner: Rc<Inner>,
-    futures: Spawn<FuturesUnordered<SpawnedFuture>>,
+    futures: FuturesUnordered<SpawnedFuture>,
+    map: LocalMap,
 }
 
 struct Inner {
@@ -40,7 +41,8 @@ struct Inner {
 }
 
 struct SpawnedFuture {
-    inner: Spawn<Box<Future<Item = bool, Error = bool>>>,
+    inner: Box<Future<Item = bool, Error = bool>>,
+    map: LocalMap,
 }
 
 impl TaskRunner {
@@ -55,7 +57,8 @@ impl TaskRunner {
     /// `poll` again.
     pub fn new() -> TaskRunner {
         TaskRunner {
-            futures: task::spawn(FuturesUnordered::new()),
+            futures: FuturesUnordered::new(),
+            map: LocalMap::new(),
             inner: Rc::new(Inner {
                 canceled: Cell::new(false),
                 new_futures: RefCell::new(Vec::new()),
@@ -112,18 +115,16 @@ impl TaskRunner {
     ///
     /// This method also does not attempt to catch panics of the underlying
     /// futures.  Instead it will propagate panics if any polled future panics.
-    pub fn poll(&mut self, f: &Fn() -> NotifyHandle) {
+    pub fn poll(&mut self, f: &mut FnMut() -> NotifyHandle) {
         set_current(&self.executor(), |_e| self._poll(f))
     }
 
-    pub(crate) fn _poll(&mut self, f: &Fn() -> NotifyHandle) {
-        let f = &::IntoNotifyHandle(f);
-
+    pub(crate) fn _poll(&mut self, f: &mut FnMut() -> NotifyHandle) {
         loop {
             // Make progress on all spawned futures as long as we can
             while !self.is_done() {
-                let res = self.futures.poll_stream_notify(f, 0);
-                match res {
+                let mut cx = task::Context::new(&mut self.map, 0, f);
+                match self.futures.poll(&mut cx) {
                     Ok(Async::Ready(Some(/* is_daemon = */ true))) |
                     Err(true) => {}
                     Ok(Async::Ready(Some(false))) |
@@ -142,7 +143,7 @@ impl TaskRunner {
                 break
             }
             for future in futures.drain(..) {
-                self.futures.get_mut().push(future);
+                self.futures.push(future);
             }
         }
     }
@@ -252,7 +253,8 @@ fn spawn<F>(inner: &Weak<Inner>, future: F, daemon: bool)
 
 fn _spawn(inner: &Inner, future: Box<Future<Item = bool, Error = bool>>) {
     inner.new_futures.borrow_mut().push(SpawnedFuture {
-        inner: task::spawn(future),
+        inner: future,
+        map: LocalMap::new(),
     });
 }
 
@@ -298,6 +300,6 @@ impl Future for SpawnedFuture {
     type Error = bool;
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<bool, bool> {
-        self.inner.with_task_data(|f| f.poll(cx))
+        self.inner.poll(&mut cx.with_locals(&mut self.map))
     }
 }

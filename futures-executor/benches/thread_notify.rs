@@ -5,7 +5,7 @@ extern crate futures_executor;
 extern crate test;
 
 use futures::prelude::*;
-use futures::task::{self, Task};
+use futures::task::{self, Waker};
 use futures_executor::current_thread::run;
 
 use test::Bencher;
@@ -22,12 +22,12 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
             if self.rem == 0 {
                 Ok(Async::Ready(()))
             } else {
                 self.rem -= 1;
-                task::current().notify();
+                cx.waker().notify();
                 Ok(Async::Pending)
             }
         }
@@ -51,12 +51,12 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
             if self.rem == 0 {
                 Ok(Async::Ready(()))
             } else {
                 self.rem -= 1;
-                task::current().notify();
+                cx.waker().notify();
                 Ok(Async::Pending)
             }
         }
@@ -77,23 +77,23 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
 
     const NUM: usize = 1_000;
 
-    let (tx, rx) = mpsc::sync_channel::<Task>(10_000);
+    let (tx, rx) = mpsc::sync_channel::<Waker>(10_000);
 
     struct Yield {
         rem: usize,
-        tx: mpsc::SyncSender<Task>,
+        tx: mpsc::SyncSender<Waker>,
     }
 
     impl Future for Yield {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
             if self.rem == 0 {
                 Ok(Async::Ready(()))
             } else {
                 self.rem -= 1;
-                self.tx.send(task::current()).unwrap();
+                self.tx.send(cx.waker()).unwrap();
                 Ok(Async::Pending)
             }
         }

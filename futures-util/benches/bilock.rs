@@ -59,32 +59,36 @@ impl Stream for LockStream {
 
 #[bench]
 fn contended(b: &mut Bencher) {
+    let mut notify = || notify_noop().into();
+    let mut map = task::LocalMap::new();
+    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+
     b.iter(|| {
         let (x, y) = BiLock::new(1);
 
-        let mut x = task::spawn(LockStream::new(x));
-        let mut y = task::spawn(LockStream::new(y));
+        let mut x = LockStream::new(x);
+        let mut y = LockStream::new(y);
 
         for _ in 0..1000 {
-            let x_guard = match x.poll_stream_notify(&notify_noop(), 11) {
+            let x_guard = match x.poll(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             // Try poll second lock while first lock still holds the lock
-            match y.poll_stream_notify(&notify_noop(), 11) {
+            match y.poll(&mut cx) {
                 Ok(Async::Pending) => (),
                 _ => panic!(),
             };
 
-            x.get_mut().release_lock(x_guard);
+            x.release_lock(x_guard);
 
-            let y_guard = match y.poll_stream_notify(&notify_noop(), 11) {
+            let y_guard = match y.poll(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
-            y.get_mut().release_lock(y_guard);
+            y.release_lock(y_guard);
         }
         (x, y)
     });
@@ -92,26 +96,30 @@ fn contended(b: &mut Bencher) {
 
 #[bench]
 fn lock_unlock(b: &mut Bencher) {
+    let mut notify = || notify_noop().into();
+    let mut map = task::LocalMap::new();
+    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+
     b.iter(|| {
         let (x, y) = BiLock::new(1);
 
-        let mut x = task::spawn(LockStream::new(x));
-        let mut y = task::spawn(LockStream::new(y));
+        let mut x = LockStream::new(x);
+        let mut y = LockStream::new(y);
 
         for _ in 0..1000 {
-            let x_guard = match x.poll_stream_notify(&notify_noop(), 11) {
+            let x_guard = match x.poll(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
-            x.get_mut().release_lock(x_guard);
+            x.release_lock(x_guard);
 
-            let y_guard = match y.poll_stream_notify(&notify_noop(), 11) {
+            let y_guard = match y.poll(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
-            y.get_mut().release_lock(y_guard);
+            y.release_lock(y_guard);
         }
         (x, y)
     })

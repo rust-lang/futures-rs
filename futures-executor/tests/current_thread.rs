@@ -135,7 +135,7 @@ fn tasks_are_scheduled_fairly() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {
@@ -154,7 +154,7 @@ fn tasks_are_scheduled_fairly() {
                 return Ok(().into());
             }
 
-            task::current().notify();
+            cx.waker().notify();
             Ok(Async::Pending)
         }
     }

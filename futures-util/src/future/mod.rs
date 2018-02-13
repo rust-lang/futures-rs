@@ -638,28 +638,6 @@ pub trait FutureExt: Future {
     ///
     /// This combinator will drop this future as soon as it's been completed to
     /// ensure resources are reclaimed as soon as possible.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::task;
-    ///
-    /// # fn main() {
-    /// let mut future = future::ok::<i32, u32>(2);
-    /// assert_eq!(future.poll(&mut task::Context), Ok(Async::Ready(2)));
-    ///
-    /// // Normally, a call such as this would panic:
-    /// //future.poll();
-    ///
-    /// // This, however, is guaranteed to not panic
-    /// let mut future = future::ok::<i32, u32>(2).fuse();
-    /// assert_eq!(future.poll(&mut task::Context), Ok(Async::Ready(2)));
-    /// assert_eq!(future.poll(&mut task::Context), Ok(Async::Pending));
-    /// # }
-    /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {
