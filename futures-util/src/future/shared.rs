@@ -29,7 +29,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
 
 use futures_core::{Future, Poll, Async};
-use futures_core::task::{self, Notify, Spawn, Task};
+use futures_core::task::{self, Notify, Waker, LocalMap};
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.
@@ -54,14 +54,14 @@ impl<F> fmt::Debug for Shared<F>
 
 struct Inner<F: Future> {
     next_clone_id: AtomicUsize,
-    future: UnsafeCell<Option<Spawn<F>>>,
+    future: UnsafeCell<Option<(F, LocalMap)>>,
     result: UnsafeCell<Option<Result<SharedItem<F::Item>, SharedError<F::Error>>>>,
     notifier: Arc<Notifier>,
 }
 
 struct Notifier {
     state: AtomicUsize,
-    waiters: Mutex<HashMap<usize, Task>>,
+    waiters: Mutex<HashMap<usize, Waker>>,
 }
 
 const IDLE: usize = 0;
@@ -78,7 +78,7 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
                 state: AtomicUsize::new(IDLE),
                 waiters: Mutex::new(HashMap::new()),
             }),
-            future: UnsafeCell::new(Some(task::spawn(future))),
+            future: UnsafeCell::new(Some((future, LocalMap::new()))),
             result: UnsafeCell::new(None),
         }),
         waiter: 0,
@@ -99,9 +99,9 @@ impl<F> Shared<F> where F: Future {
         }
     }
 
-    fn set_waiter(&mut self, _cx: &mut task::Context) {
+    fn set_waiter(&mut self, cx: &mut task::Context) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.insert(self.waiter, task::current());
+        waiters.insert(self.waiter, cx.waker());
     }
 
     unsafe fn clone_result(&self) -> Result<SharedItem<F::Item>, SharedError<F::Error>> {
@@ -162,8 +162,11 @@ impl<F> Future for Shared<F>
 
             // Poll the future
             let res = unsafe {
-                (*self.inner.future.get()).as_mut().unwrap()
-                    .poll_future_notify(&self.inner.notifier, 0)
+                let (ref mut f, ref mut data) = *(*self.inner.future.get()).as_mut().unwrap();
+                let notifier = &self.inner.notifier;
+                let mut notifier = move || notifier.clone().into();
+                let mut cx = task::Context::new(data, 0, &mut notifier);
+                f.poll(&mut cx)
             };
             match res {
                 Ok(Async::Pending) => {

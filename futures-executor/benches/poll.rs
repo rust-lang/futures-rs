@@ -4,7 +4,7 @@ extern crate futures;
 extern crate test;
 
 use futures::prelude::*;
-use futures::task::{self, Task, Notify, NotifyHandle};
+use futures::task::{self, Waker, Notify, NotifyHandle, LocalMap};
 
 use test::Bencher;
 
@@ -26,27 +26,25 @@ fn task_init(b: &mut Bencher) {
 
     struct MyFuture {
         num: u32,
-        task: Option<Task>,
+        task: Option<Waker>,
     };
 
     impl Future for MyFuture {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
             if self.num == NUM {
                 Ok(Async::Ready(()))
             } else {
                 self.num += 1;
 
                 if let Some(ref t) = self.task {
-                    if t.will_notify_current() {
-                        t.notify();
-                        return Ok(Async::Pending);
-                    }
+                    t.notify();
+                    return Ok(Async::Pending);
                 }
 
-                let t = task::current();
+                let t = cx.waker();
                 t.notify();
                 self.task = Some(t);
 
@@ -55,17 +53,18 @@ fn task_init(b: &mut Bencher) {
         }
     }
 
-    let notify = notify_noop();
-
-    let mut fut = task::spawn(MyFuture {
+    let mut fut = MyFuture {
         num: 0,
         task: None,
-    });
+    };
+    let mut notify = || notify_noop().into();
+    let mut map = LocalMap::new();
+    let mut cx = task::Context::new(&mut map, 0, &mut notify);
 
     b.iter(|| {
-        fut.get_mut().num = 0;
+        fut.num = 0;
 
-        while let Ok(Async::Pending) = fut.poll_future_notify(&notify, 0) {
+        while let Ok(Async::Pending) = fut.poll(&mut cx) {
         }
     });
 }

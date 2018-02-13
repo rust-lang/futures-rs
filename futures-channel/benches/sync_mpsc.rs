@@ -31,21 +31,22 @@ fn notify_noop() -> NotifyHandle {
 #[bench]
 fn unbounded_1_tx(b: &mut Bencher) {
     b.iter(|| {
-        let (tx, rx) = unbounded();
-
-        let mut rx = task::spawn(rx);
+        let (tx, mut rx) = unbounded();
+        let mut notify = || notify_noop().into();
+        let mut map = task::LocalMap::new();
+        let mut cx = task::Context::new(&mut map, 0, &mut notify);
 
         // 1000 iterations to avoid measuring overhead of initialization
         // Result should be divided by 1000
         for i in 0..1000 {
 
             // Poll, not ready, park
-            assert_eq!(Ok(Async::Pending), rx.poll_stream_notify(&notify_noop(), 1));
+            assert_eq!(Ok(Async::Pending), rx.poll(&mut cx));
 
             UnboundedSender::unbounded_send(&tx, i).unwrap();
 
             // Now poll ready
-            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_stream_notify(&notify_noop(), 1));
+            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut cx));
         }
     })
 }
@@ -54,20 +55,21 @@ fn unbounded_1_tx(b: &mut Bencher) {
 #[bench]
 fn unbounded_100_tx(b: &mut Bencher) {
     b.iter(|| {
-        let (tx, rx) = unbounded();
-
-        let mut rx = task::spawn(rx);
+        let (tx, mut rx) = unbounded();
+        let mut notify = || notify_noop().into();
+        let mut map = task::LocalMap::new();
+        let mut cx = task::Context::new(&mut map, 0, &mut notify);
 
         let tx: Vec<_> = (0..100).map(|_| tx.clone()).collect();
 
         // 1000 send/recv operations total, result should be divided by 1000
         for _ in 0..10 {
             for i in 0..tx.len() {
-                assert_eq!(Ok(Async::Pending), rx.poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Pending), rx.poll(&mut cx));
 
                 UnboundedSender::unbounded_send(&tx[i], i).unwrap();
 
-                assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut cx));
             }
         }
     })
@@ -75,13 +77,17 @@ fn unbounded_100_tx(b: &mut Bencher) {
 
 #[bench]
 fn unbounded_uncontended(b: &mut Bencher) {
+    let mut notify = || notify_noop().into();
+    let mut map = task::LocalMap::new();
+    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+
     b.iter(|| {
         let (tx, mut rx) = unbounded();
 
         for i in 0..1000 {
             UnboundedSender::unbounded_send(&tx, i).expect("send");
             // No need to create a task, because poll is not going to park.
-            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut task::Context));
+            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut cx));
         }
     })
 }
@@ -103,7 +109,7 @@ impl Stream for TestSender {
             Err(_) => panic!(),
             Ok(Ok(())) => {
                 self.last += 1;
-                assert_eq!(Ok(Async::Ready(())), self.tx.flush(&mut task::Context));
+                assert_eq!(Ok(Async::Ready(())), self.tx.flush(cx));
                 Ok(Async::Ready(Some(self.last)))
             }
             Ok(Err(_)) => {
@@ -117,20 +123,22 @@ impl Stream for TestSender {
 /// Single producers, single consumer
 #[bench]
 fn bounded_1_tx(b: &mut Bencher) {
-    b.iter(|| {
-        let (tx, rx) = channel(0);
+    let mut notify = || notify_noop().into();
+    let mut map = task::LocalMap::new();
+    let mut cx = task::Context::new(&mut map, 0, &mut notify);
 
-        let mut tx = task::spawn(TestSender {
+    b.iter(|| {
+        let (tx, mut rx) = channel(0);
+
+        let mut tx = TestSender {
             tx: tx,
             last: 0,
-        });
-
-        let mut rx = task::spawn(rx);
+        };
 
         for i in 0..1000 {
-            assert_eq!(Ok(Async::Ready(Some(i + 1))), tx.poll_stream_notify(&notify_noop(), 1));
-            assert_eq!(Ok(Async::Pending), tx.poll_stream_notify(&notify_noop(), 1));
-            assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll_stream_notify(&notify_noop(), 1));
+            assert_eq!(Ok(Async::Ready(Some(i + 1))), tx.poll(&mut cx));
+            assert_eq!(Ok(Async::Pending), tx.poll(&mut cx));
+            assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll(&mut cx));
         }
     })
 }
@@ -140,25 +148,26 @@ fn bounded_1_tx(b: &mut Bencher) {
 fn bounded_100_tx(b: &mut Bencher) {
     b.iter(|| {
         // Each sender can send one item after specified capacity
-        let (tx, rx) = channel(0);
+        let (tx, mut rx) = channel(0);
+        let mut notify = || notify_noop().into();
+        let mut map = task::LocalMap::new();
+        let mut cx = task::Context::new(&mut map, 0, &mut notify);
 
         let mut tx: Vec<_> = (0..100).map(|_| {
-            task::spawn(TestSender {
+            TestSender {
                 tx: tx.clone(),
                 last: 0
-            })
+            }
         }).collect();
-
-        let mut rx = task::spawn(rx);
 
         for i in 0..10 {
             for j in 0..tx.len() {
                 // Send an item
-                assert_eq!(Ok(Async::Ready(Some(i + 1))), tx[j].poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Ready(Some(i + 1))), tx[j].poll(&mut cx));
                 // Then block
-                assert_eq!(Ok(Async::Pending), tx[j].poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Pending), tx[j].poll(&mut cx));
                 // Recv the item
-                assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll_stream_notify(&notify_noop(), 1));
+                assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll(&mut cx));
             }
         }
     })

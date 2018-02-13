@@ -1,6 +1,6 @@
 //! TODO: dox
 
-use futures_core::task::{self, NotifyHandle};
+use futures_core::task::{self, NotifyHandle, LocalMap};
 use futures_core::{Future, Async};
 
 use Enter;
@@ -14,7 +14,7 @@ use task_runner::{set_current, with_current, TaskRunner};
 pub struct Context<'a> {
     enter: Enter,
     runner: &'a mut TaskRunner,
-    handle: &'a (Fn() -> NotifyHandle + 'a),
+    handle: &'a mut (FnMut() -> NotifyHandle + 'a),
     thread: &'a ThreadNotify,
 }
 
@@ -24,7 +24,7 @@ pub fn run<F, R>(f: F) -> R
 {
     ThreadNotify::with_current(|thread| {
         let mut runner = TaskRunner::new();
-        let handle = &|| thread.clone().into();
+        let handle = &mut || thread.clone().into();
 
         // Kick off any initial work through the callback provided
         let ret = set_current(&runner.executor(), |enter| {
@@ -122,12 +122,12 @@ impl<'a> Context<'a> {
     /// only be acquired from the `run` function in this module, which means
     /// that other futures may be spawned on the current thread as a daemon or
     /// not.
-    pub fn block_on<F>(&mut self, future: F) -> Result<F::Item, F::Error>
+    pub fn block_on<F>(&mut self, mut future: F) -> Result<F::Item, F::Error>
         where F: Future,
     {
-        let mut future = task::spawn(future);
+        let mut map = LocalMap::new();
         loop {
-            match future.poll_future_notify(&::IntoNotifyHandle(self.handle), 0) {
+            match future.poll(&mut task::Context::new(&mut map, 0, self.handle)) {
                 Ok(Async::Ready(e)) => return Ok(e),
                 Err(e) => return Err(e),
                 Ok(Async::Pending) => {}

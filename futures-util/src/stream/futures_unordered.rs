@@ -12,7 +12,7 @@ use std::sync::{Arc, Weak};
 use std::usize;
 
 use futures_core::{Stream, Future, Poll, Async};
-use futures_core::task::{self, AtomicTask, Notify, UnsafeNotify, NotifyHandle};
+use futures_core::task::{self, AtomicWaker, Notify, UnsafeNotify, NotifyHandle};
 
 /// An unbounded set of futures.
 ///
@@ -78,7 +78,7 @@ unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
 #[allow(missing_debug_implementations)]
 struct Inner<T> {
     // The task using `FuturesUnordered`.
-    parent: AtomicTask,
+    parent: AtomicWaker,
 
     // Head/tail of the readiness queue
     head_readiness: AtomicPtr<Node<T>>,
@@ -130,7 +130,7 @@ impl<T> FuturesUnordered<T>
         });
         let stub_ptr = &*stub as *const Node<T>;
         let inner = Arc::new(Inner {
-            parent: AtomicTask::new(),
+            parent: AtomicWaker::new(),
             head_readiness: AtomicPtr::new(stub_ptr as *mut _),
             tail_readiness: UnsafeCell::new(stub_ptr),
             stub: stub,
@@ -268,7 +268,7 @@ impl<T> Stream for FuturesUnordered<T>
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
         // Ensure `parent` is correctly set.
-        self.inner.parent.register();
+        self.inner.parent.register(cx);
 
         loop {
             let node = match unsafe { self.inner.dequeue() } {
@@ -283,7 +283,7 @@ impl<T> Stream for FuturesUnordered<T>
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    task::current().notify();
+                    cx.waker().notify();
                     return Ok(Async::Pending);
                 }
                 Dequeue::Data(node) => node,
@@ -358,9 +358,9 @@ impl<T> Stream for FuturesUnordered<T>
                 // deallocating the node if need be.
                 let res = {
                     let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                    task::with_notify(&notify, 0, || {
-                        future.poll(cx)
-                    })
+                    let mut notify = move || notify.clone().into();
+                    let mut cx = cx.with_waker(0, &mut notify);
+                    future.poll(&mut cx)
                 };
 
                 let ret = match res {

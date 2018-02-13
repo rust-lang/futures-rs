@@ -25,7 +25,6 @@ pub use future::{Future, IntoFuture};
 pub mod stream;
 pub use stream::Stream;
 
-mod task_impl;
 pub mod task;
 
 pub mod never;
