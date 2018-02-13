@@ -3,7 +3,8 @@
 use core::fmt;
 use core::mem;
 
-use futures_core::{Future, Poll, Async};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, Poll, Async};
 
 macro_rules! generate {
     ($(
@@ -63,7 +64,7 @@ macro_rules! generate {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+            unsafe fn poll_unsafe(&mut self) -> Poll<Self::Item, Self::Error> {
                 let mut all_done = match self.a.poll() {
                     Ok(done) => done,
                     Err(e) => {
@@ -86,6 +87,15 @@ macro_rules! generate {
                 } else {
                     Ok(Async::Pending)
                 }
+            }
+        }
+
+        impl<A, $($B),*> FutureMove for $Join<A, $($B),*>
+            where A: FutureMove, A::Item: MovePinned,
+                  $($B: FutureMove<Error=A::Error>, $B::Item: MovePinned),*
+        {
+            fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+                unsafe { self.poll_unsafe() }
             }
         }
 

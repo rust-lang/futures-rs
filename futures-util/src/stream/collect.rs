@@ -2,7 +2,8 @@ use std::prelude::v1::*;
 
 use std::mem;
 
-use futures_core::{Future, Poll, Async, Stream};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, Poll, Async, Stream};
 
 /// A future which collects all of the values of a stream into a vector.
 ///
@@ -35,7 +36,13 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Vec<S::Item>, S::Error> {
+    poll_safe!();
+}
+
+impl<S> FutureMove for Collect<S>
+    where S: Stream + MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<Vec<S::Item>, S::Error> {
         loop {
             match self.stream.poll() {
                 Ok(Async::Ready(Some(e))) => self.items.push(e),

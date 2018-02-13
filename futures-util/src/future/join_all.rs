@@ -6,7 +6,7 @@ use std::prelude::v1::*;
 use std::fmt;
 use std::mem;
 
-use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::{Future, FutureMove, IntoFuture, Poll, Async};
 
 #[derive(Debug)]
 enum ElemState<T> where T: Future {
@@ -93,13 +93,13 @@ impl<Item> Future for JoinAll<Item>
     type Error = <Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+    unsafe fn poll_unsafe(&mut self) -> Poll<Self::Item, Self::Error> {
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
-                    match t.poll() {
+                    match t.poll_unsafe() {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::Pending) => {
                             all_done = false;
@@ -134,5 +134,14 @@ impl<Item> Future for JoinAll<Item>
         } else {
             Ok(Async::Pending)
         }
+    }
+}
+
+impl<Item> FutureMove for JoinAll<Item>
+    where Item: IntoFuture,
+          Item::Future: FutureMove,
+{
+    fn poll_move(&mut self) -> Poll<Self::Item, Self::Error> {
+        unsafe { self.poll_unsafe() }
     }
 }

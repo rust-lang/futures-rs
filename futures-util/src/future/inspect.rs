@@ -1,4 +1,5 @@
-use futures_core::{Future, Poll, Async};
+use anchor_experiment::MovePinned;
+use futures_core::{Future, FutureMove, Poll, Async};
 
 /// Do something with the item of a future, passing it on.
 ///
@@ -27,8 +28,24 @@ impl<A, F> Future for Inspect<A, F>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<A::Item, A::Error> {
-        match self.future.poll() {
+    unsafe fn poll_unsafe(&mut self) -> Poll<A::Item, A::Error> {
+        match self.future.poll_unsafe() {
+            Ok(Async::Pending) => Ok(Async::Pending),
+            Ok(Async::Ready(e)) => {
+                (self.f.take().expect("cannot poll Inspect twice"))(&e);
+                Ok(Async::Ready(e))
+            },
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl<A, F> FutureMove for Inspect<A, F>
+    where A: FutureMove,
+          F: FnOnce(&A::Item) + MovePinned,
+{
+    fn poll_move(&mut self) -> Poll<A::Item, A::Error> {
+        match self.future.poll_move() {
             Ok(Async::Pending) => Ok(Async::Pending),
             Ok(Async::Ready(e)) => {
                 (self.f.take().expect("cannot poll Inspect twice"))(&e);
