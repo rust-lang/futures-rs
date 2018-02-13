@@ -158,7 +158,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, _cx: &mut task::Context) -> Poll<(), ()> {
+    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<(), ()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -180,7 +180,7 @@ impl<T> Inner<T> {
         // may have been dropped. The first thing it does is set the flag, and
         // if it fails to acquire the lock it assumes that we'll see the flag
         // later on. So... we then try to see the flag later on!
-        let handle = task::current();
+        let handle = cx.waker();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Ok(Async::Ready(())),
@@ -238,7 +238,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, _cx: &mut task::Context) -> Poll<T, Canceled> {
+    fn recv(&self, cx: &mut task::Context) -> Poll<T, Canceled> {
         let mut done = false;
 
         // Check to see if some data has arrived. If it hasn't then we need to
@@ -251,7 +251,7 @@ impl<T> Inner<T> {
         if self.complete.load(SeqCst) {
             done = true;
         } else {
-            let task = task::current();
+            let task = cx.waker();
             match self.rx_task.try_lock() {
                 Some(mut slot) => *slot = Some(task),
                 None => done = true,
