@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fmt;
 
 use futures_core::{Future, Poll, Async};
-use futures_core::task::{self, Task};
+use futures_core::task;
 
 use lock::Lock;
 
@@ -60,11 +60,11 @@ struct Inner<T> {
     /// the `Lock` here, unlike in `data` above, is important to resolve races.
     /// Both the `Receiver` and the `Sender` halves understand that if they
     /// can't acquire the lock then some important interference is happening.
-    rx_task: Lock<Option<Task>>,
+    rx_task: Lock<Option<task::Waker>>,
 
     /// Like `rx_task` above, except for the task blocked in
     /// `Sender::poll_cancel`. Additionally, `Lock` cannot be `UnsafeCell`.
-    tx_task: Lock<Option<Task>>,
+    tx_task: Lock<Option<task::Waker>>,
 }
 
 /// Creates a new futures-aware, one-shot channel.
@@ -158,7 +158,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self) -> Poll<(), ()> {
+    fn poll_cancel(&self, ctx: &mut task::Context) -> Poll<(), ()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -180,9 +180,8 @@ impl<T> Inner<T> {
         // may have been dropped. The first thing it does is set the flag, and
         // if it fails to acquire the lock it assumes that we'll see the flag
         // later on. So... we then try to see the flag later on!
-        let handle = task::current();
         match self.tx_task.try_lock() {
-            Some(mut p) => *p = Some(handle),
+            Some(mut p) => *p = Some(ctx.waker()),
             None => return Ok(Async::Ready(())),
         }
         if self.complete.load(SeqCst) {
@@ -221,7 +220,7 @@ impl<T> Inner<T> {
         if let Some(mut slot) = self.rx_task.try_lock() {
             if let Some(task) = slot.take() {
                 drop(slot);
-                task.notify();
+                task.wake();
             }
         }
     }
@@ -233,12 +232,12 @@ impl<T> Inner<T> {
         if let Some(mut handle) = self.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
-                task.notify()
+                task.wake()
             }
         }
     }
 
-    fn recv(&self) -> Poll<T, Canceled> {
+    fn recv(&self, ctx: &mut task::Context) -> Poll<T, Canceled> {
         let mut done = false;
 
         // Check to see if some data has arrived. If it hasn't then we need to
@@ -251,9 +250,8 @@ impl<T> Inner<T> {
         if self.complete.load(SeqCst) {
             done = true;
         } else {
-            let task = task::current();
             match self.rx_task.try_lock() {
-                Some(mut slot) => *slot = Some(task),
+                Some(mut slot) => *slot = Some(ctx.waker()),
                 None => done = true,
             }
         }
@@ -306,7 +304,7 @@ impl<T> Inner<T> {
         if let Some(mut handle) = self.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
-                task.notify()
+                task.wake()
             }
         }
     }
@@ -351,8 +349,8 @@ impl<T> Sender<T> {
     ///
     /// If you're calling this function from a context that does not have a
     /// task, then you can use the `is_canceled` API instead.
-    pub fn poll_cancel(&mut self) -> Poll<(), ()> {
-        self.inner.poll_cancel()
+    pub fn poll_cancel(&mut self, ctx: &mut task::Context) -> Poll<(), ()> {
+        self.inner.poll_cancel(ctx)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
@@ -412,8 +410,8 @@ impl<T> Future for Receiver<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self) -> Poll<T, Canceled> {
-        self.inner.recv()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<T, Canceled> {
+        self.inner.recv(ctx)
     }
 }
 

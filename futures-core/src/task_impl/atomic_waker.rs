@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::Task;
+use super::{Context, Waker};
 
 use core::fmt;
 use core::cell::UnsafeCell;
@@ -9,7 +9,7 @@ use core::sync::atomic::Ordering::{Acquire, Release};
 
 /// A synchronization primitive for task notification.
 ///
-/// `AtomicTask` will coordinate concurrent notifications with the consumer
+/// `AtomicWaker` will coordinate concurrent notifications with the consumer
 /// potentially "updating" the underlying task to notify. This is useful in
 /// scenarios where a computation completes in another thread and wants to
 /// notify the consumer, but the consumer is in the process of being migrated to
@@ -20,18 +20,18 @@ use core::sync::atomic::Ordering::{Acquire, Release};
 /// differs from the usual `thread::park` pattern). It is also permitted for
 /// `notify` to be called **before** `register`. This results in a no-op.
 ///
-/// A single `AtomicTask` may be reused for any number of calls to `register` or
+/// A single `AtomicWaker` may be reused for any number of calls to `register` or
 /// `notify`.
 ///
-/// `AtomicTask` does not provide any memory ordering guarantees, as such the
+/// `AtomicWaker` does not provide any memory ordering guarantees, as such the
 /// user should use caution and use other synchronization primitives to guard
 /// the result of the underlying computation.
-pub struct AtomicTask {
+pub struct AtomicWaker {
     state: AtomicUsize,
-    task: UnsafeCell<Option<Task>>,
+    task: UnsafeCell<Option<Waker>>,
 }
 
-/// Initial state, the `AtomicTask` is currently not being used.
+/// Initial state, the `AtomicWaker` is currently not being used.
 ///
 /// The value `2` is picked specifically because it between the write lock &
 /// read lock values. Since the read lock is represented by an incrementing
@@ -40,7 +40,7 @@ pub struct AtomicTask {
 const WAITING: usize = 2;
 
 /// The `register` function has determined that the task is no longer current.
-/// This implies that `AtomicTask::register` is being called from a different
+/// This implies that `AtomicWaker::register` is being called from a different
 /// task than is represented by the currently stored task. The write lock is
 /// obtained to update the task cell.
 const LOCKED_WRITE: usize = 0;
@@ -58,14 +58,14 @@ const LOCKED_WRITE_NOTIFIED: usize = 1;
 #[allow(dead_code)]
 const LOCKED_READ: usize = 3;
 
-impl AtomicTask {
-    /// Create an `AtomicTask` initialized with the given `Task`
-    pub fn new() -> AtomicTask {
+impl AtomicWaker {
+    /// Create an `AtomicWaker` initialized with the given `Waker`
+    pub fn new() -> AtomicWaker {
         // Make sure that task is Sync
         trait AssertSync: Sync {}
-        impl AssertSync for Task {}
+        impl AssertSync for Waker {}
 
-        AtomicTask {
+        AtomicWaker {
             state: AtomicUsize::new(WAITING),
             task: UnsafeCell::new(None),
         }
@@ -86,21 +86,18 @@ impl AtomicTask {
     /// idea. Concurrent calls to `register` will attempt to register different
     /// tasks to be notified. One of the callers will win and have its task set,
     /// but there is no guarantee as to which caller will succeed.
-    pub fn register(&self) {
-        // Get a new task handle
-        let task = super::current();
-
+    pub fn register(&self, ctx: &mut Context) {
         match self.state.compare_and_swap(WAITING, LOCKED_WRITE, Acquire) {
             WAITING => {
                 unsafe {
                     // Locked acquired, update the task cell
-                    *self.task.get() = Some(task);
+                    *self.task.get() = Some(ctx.waker());
 
                     // Release the lock. If the state transitioned to
                     // `LOCKED_NOTIFIED`, this means that an notify has been
                     // signaled, so notify the task.
                     if LOCKED_WRITE_NOTIFIED == self.state.swap(WAITING, Release) {
-                        (*self.task.get()).as_ref().unwrap().notify();
+                        (*self.task.get()).as_ref().unwrap().wake();
                     }
                 }
             }
@@ -118,7 +115,7 @@ impl AtomicTask {
                 // Currently in a read locked state, this implies that `notify`
                 // is currently being called on the old task handle. So, we call
                 // notify on the new task handle
-                task.notify();
+                ctx.waker().wake();
             }
         }
     }
@@ -126,7 +123,7 @@ impl AtomicTask {
     /// Notifies the task that last called `register`.
     ///
     /// If `register` has not been called yet, then this does nothing.
-    pub fn notify(&self) {
+    pub fn wake(&self) {
         let mut curr = WAITING;
 
         loop {
@@ -156,7 +153,7 @@ impl AtomicTask {
                     // Notify the task
                     unsafe {
                         if let Some(ref task) = *self.task.get() {
-                            task.notify();
+                            task.wake();
                         }
                     }
 
@@ -175,17 +172,17 @@ impl AtomicTask {
     }
 }
 
-impl Default for AtomicTask {
+impl Default for AtomicWaker {
     fn default() -> Self {
-        AtomicTask::new()
+        AtomicWaker::new()
     }
 }
 
-impl fmt::Debug for AtomicTask {
+impl fmt::Debug for AtomicWaker {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "AtomicTask")
+        write!(fmt, "AtomicWaker")
     }
 }
 
-unsafe impl Send for AtomicTask {}
-unsafe impl Sync for AtomicTask {}
+unsafe impl Send for AtomicWaker {}
+unsafe impl Sync for AtomicWaker {}

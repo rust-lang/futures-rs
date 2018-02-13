@@ -1,6 +1,7 @@
 use core::mem;
 
 use futures_core::{Stream, Async, Poll};
+use futures_core::task;
 
 /// State of chain stream.
 #[derive(Debug)]
@@ -35,14 +36,14 @@ impl<S1, S2> Stream for Chain<S1, S2>
     type Item = S1::Item;
     type Error = S1::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             match self.state {
-                State::First(ref mut s1, ref _s2) => match s1.poll() {
+                State::First(ref mut s1, ref _s2) => match s1.poll(ctx) {
                     Ok(Async::Ready(None)) => (), // roll
                     x => return x,
                 },
-                State::Second(ref mut s2) => return s2.poll(),
+                State::Second(ref mut s2) => return s2.poll(ctx),
                 State::Temp => unreachable!(),
             }
 

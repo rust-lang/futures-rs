@@ -1,4 +1,5 @@
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 
 use stream::{StreamExt, Fuse};
 
@@ -33,15 +34,15 @@ impl<S1, S2> Stream for Zip<S1, S2>
     type Item = (S1::Item, S2::Item);
     type Error = S1::Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         if self.queued1.is_none() {
-            match self.stream1.poll()? {
+            match self.stream1.poll(ctx)? {
                 Async::Ready(Some(item1)) => self.queued1 = Some(item1),
                 Async::Ready(None) | Async::Pending => {}
             }
         }
         if self.queued2.is_none() {
-            match self.stream2.poll()? {
+            match self.stream2.poll(ctx)? {
                 Async::Ready(Some(item2)) => self.queued2 = Some(item2),
                 Async::Ready(None) | Async::Pending => {}
             }

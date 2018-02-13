@@ -4,6 +4,7 @@ use core::fmt;
 use core::mem;
 
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 macro_rules! generate {
     ($(
@@ -63,8 +64,8 @@ macro_rules! generate {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-                let mut all_done = match self.a.poll() {
+            fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+                let mut all_done = match self.a.poll(ctx) {
                     Ok(done) => done,
                     Err(e) => {
                         self.erase();
@@ -72,7 +73,7 @@ macro_rules! generate {
                     }
                 };
                 $(
-                    all_done = match self.$B.poll() {
+                    all_done = match self.$B.poll(ctx) {
                         Ok(done) => all_done && done,
                         Err(e) => {
                             self.erase();
@@ -151,9 +152,9 @@ enum MaybeDone<A: Future> {
 }
 
 impl<A: Future> MaybeDone<A> {
-    fn poll(&mut self) -> Result<bool, A::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Result<bool, A::Error> {
         let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll()?,
+            MaybeDone::NotYet(ref mut a) => a.poll(ctx)?,
             MaybeDone::Done(_) => return Ok(true),
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };

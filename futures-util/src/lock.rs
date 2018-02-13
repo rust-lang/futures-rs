@@ -12,7 +12,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
 use futures_core::{Async, Future, Poll};
-use futures_core::task::{self, Task};
+use futures_core::task;
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.
@@ -74,12 +74,7 @@ impl<T> BiLock<T> {
     /// `Async::Pending`. In this case the current task will also be scheduled
     /// to receive a notification when the lock would otherwise become
     /// available.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if called outside the context of a future's
-    /// task.
-    pub fn poll_lock(&self) -> Async<BiLockGuard<T>> {
+    pub fn poll_lock(&self, ctx: &mut task::Context) -> Async<BiLockGuard<T>> {
         loop {
             match self.inner.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -91,11 +86,11 @@ impl<T> BiLock<T> {
                 // A task was previously blocked on this lock, likely our task,
                 // so we need to update that task.
                 n => unsafe {
-                    drop(Box::from_raw(n as *mut Task));
+                    drop(Box::from_raw(n as *mut task::Waker));
                 }
             }
 
-            let me = Box::new(task::current());
+            let me = Box::new(ctx.waker());
             let me = Box::into_raw(me) as usize;
 
             match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -107,7 +102,7 @@ impl<T> BiLock<T> {
                 // and before the compare_exchange. Deallocate what we just
                 // allocated and go through the loop again.
                 Err(0) => unsafe {
-                    drop(Box::from_raw(me as *mut Task));
+                    drop(Box::from_raw(me as *mut task::Waker));
                 },
 
                 // The top of this loop set the previous state to 1, so if we
@@ -163,7 +158,7 @@ impl<T> BiLock<T> {
             // Another task has parked themselves on this lock, let's wake them
             // up as its now their turn.
             n => unsafe {
-                Box::from_raw(n as *mut Task).notify();
+                Box::from_raw(n as *mut task::Waker).wake();
             }
         }
     }
@@ -236,6 +231,7 @@ impl<'a, T> Drop for BiLockGuard<'a, T> {
 
 /// Future returned by `BiLock::lock` which will resolve when the lock is
 /// acquired.
+#[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct BiLockAcquire<T> {
     inner: Option<BiLock<T>>,
@@ -245,8 +241,8 @@ impl<T> Future for BiLockAcquire<T> {
     type Item = BiLockAcquired<T>;
     type Error = ();
 
-    fn poll(&mut self) -> Poll<BiLockAcquired<T>, ()> {
-        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock() {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<BiLockAcquired<T>, ()> {
+        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock(ctx) {
             Async::Ready(r) => {
                 mem::forget(r);
             }

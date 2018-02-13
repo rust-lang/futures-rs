@@ -1,4 +1,5 @@
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -26,8 +27,8 @@ impl<U, A, F> Future for Map<A, F>
     type Item = U;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<U, A::Error> {
-        let e = match self.future.poll() {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<U, A::Error> {
+        let e = match self.future.poll(ctx) {
             Ok(Async::Pending) => return Ok(Async::Pending),
             Ok(Async::Ready(e)) => Ok(e),
             Err(e) => Err(e),

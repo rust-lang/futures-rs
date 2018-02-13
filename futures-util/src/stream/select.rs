@@ -1,4 +1,5 @@
 use futures_core::{Async, Poll, Stream};
+use futures_core::task;
 
 use stream::{StreamExt, Fuse};
 
@@ -33,7 +34,7 @@ impl<S1, S2> Stream for Select<S1, S2>
     type Item = S1::Item;
     type Error = S1::Error;
 
-    fn poll(&mut self) -> Poll<Option<S1::Item>, S1::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S1::Item>, S1::Error> {
         let (a, b) = if self.flag {
             (&mut self.stream2 as &mut Stream<Item=_, Error=_>,
              &mut self.stream1 as &mut Stream<Item=_, Error=_>)
@@ -43,13 +44,13 @@ impl<S1, S2> Stream for Select<S1, S2>
         };
         self.flag = !self.flag;
 
-        let a_done = match a.poll()? {
+        let a_done = match a.poll(ctx)? {
             Async::Ready(Some(item)) => return Ok(Some(item).into()),
             Async::Ready(None) => true,
             Async::Pending => false,
         };
 
-        match b.poll()? {
+        match b.poll(ctx)? {
             Async::Ready(Some(item)) => {
                 // If the other stream isn't finished yet, give them a chance to
                 // go first next time as we pulled something off `b`.

@@ -1,4 +1,5 @@
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 /// A future which "fuses" a future once it's been resolved.
 ///
@@ -23,8 +24,8 @@ impl<A: Future> Future for Fuse<A> {
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self) -> Poll<A::Item, A::Error> {
-        let res = self.future.as_mut().map(|f| f.poll());
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, A::Error> {
+        let res = self.future.as_mut().map(|f| f.poll(ctx));
         match res.unwrap_or(Ok(Async::Pending)) {
             res @ Ok(Async::Ready(_)) |
             res @ Err(_) => {

@@ -238,6 +238,8 @@ pub mod prelude {
         Poll,
     };
 
+    pub use futures_core::task::Context as TaskContext;
+
     pub use futures_sink::{
         Sink,
         AsyncSink,

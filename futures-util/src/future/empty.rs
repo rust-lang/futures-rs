@@ -3,6 +3,7 @@
 use core::marker;
 
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 /// A future which is never resolved.
 ///
@@ -25,7 +26,7 @@ impl<T, E> Future for Empty<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<T, E> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<T, E> {
         Ok(Async::Pending)
     }
 }

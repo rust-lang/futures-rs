@@ -3,8 +3,8 @@ use core::marker::PhantomData;
 
 use {Poll, Future, Stream};
 
-mod atomic_task;
-pub use self::atomic_task::AtomicTask;
+mod atomic_waker;
+pub use self::atomic_waker::AtomicWaker;
 
 mod core;
 
@@ -15,69 +15,64 @@ pub use self::std::*;
 #[cfg(not(feature = "std"))]
 pub use self::core::*;
 
-pub struct BorrowedTask<'a> {
-    unpark: BorrowedUnpark<'a>,
-    // Task-local storage
+pub struct ContextInner<'a> {
+    unpark: TaskUnpark,
     map: &'a LocalMap,
 }
 
-fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
-    unsafe {
-        let task = get_ptr().expect("no Task is currently running");
-        assert!(!task.is_null(), "no Task is currently running");
-        f(&*(task as *const BorrowedTask))
-    }
-}
-
-/// A handle to a "task", which represents a single lightweight "thread" of
-/// execution driving a future to completion.
+/// The context for the currently running task.
+///
+/// A task represents a single lightweight "thread" of execution driving a
+/// future to completion.
 ///
 /// In general, futures are composed into large units of work, which are then
 /// spawned as tasks onto an *executor*. The executor is responsible for polling
 /// the future as notifications arrive, until the future terminates.
 ///
-/// This is obtained by the `task::current` function.
+/// The poll function accepts a context, which is usually provided by the executor.
+pub struct Context<'a>(Option<ContextInner<'a>>);
+
+impl<'a> Context<'a> {
+    /// Returns a `Context` which will panic when `waker` is called.
+    /// This is useful when calling `poll` on a `Future` which doesn't
+    /// access the context.
+    pub fn panicking() -> Context<'a> {
+        Context(None)
+    }
+
+    /// Returns a `Waker` which can be used to wake up the current task.
+    pub fn waker(&self) -> Waker {
+        Waker {
+            unpark: self.get().unpark.clone(),
+        }
+    }
+
+    fn get(&self) -> &ContextInner<'a> {
+        self.0.as_ref().expect("waker should not be called on a panicking context")
+    }
+
+    fn get_mut(&mut self) -> &mut ContextInner<'a> {
+        self.0.as_mut().expect("waker should not be called on a panicking context")
+    }
+}
+
+impl<'a> fmt::Debug for Context<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Context")
+         .finish()
+    }
+}
+
+/// A handle used to awaken a task.
 #[derive(Clone)]
-pub struct Task {
+pub struct Waker {
     unpark: TaskUnpark,
 }
 
 trait AssertSend: Send {}
-impl AssertSend for Task {}
+impl AssertSend for Waker {}
 
-/// Returns a handle to the current task to call `notify` at a later date.
-///
-/// The returned handle implements the `Send` and `'static` bounds and may also
-/// be cheaply cloned. This is useful for squirreling away the handle into a
-/// location which is then later signaled that a future can make progress.
-///
-/// Implementations of the `Future` trait typically use this function if they
-/// would otherwise perform a blocking operation. When something isn't ready
-/// yet, this `current` function is called to acquire a handle to the current
-/// task, and then the future arranges it such that when the blocking operation
-/// otherwise finishes (perhaps in the background) it will `notify` the
-/// returned handle.
-///
-/// It's sometimes necessary to pass extra information to the task when
-/// unparking it, so that the task knows something about *why* it was woken.
-/// See the `FutureQueue` documentation for details on how to do this.
-///
-/// # Panics
-///
-/// This function will panic if a task is not currently being executed. That
-/// is, this method can be dangerous to call outside of an implementation of
-/// `poll`.
-pub fn current() -> Task {
-    with(|borrowed| {
-        let unpark = borrowed.unpark.to_owned();
-
-        Task {
-            unpark: unpark,
-        }
-    })
-}
-
-impl Task {
+impl Waker {
     /// Indicate that the task should attempt to poll its future in a timely
     /// fashion.
     ///
@@ -86,39 +81,14 @@ impl Task {
     /// If the task is currently polling its future when `notify` is called, it
     /// must poll the future *again* afterwards, ensuring that all relevant
     /// events are eventually observed by the future.
-    pub fn notify(&self) {
-        self.unpark.notify();
-    }
-
-    /// This function is intended as a performance optimization for structures
-    /// which store a `Task` internally.
-    ///
-    /// The purpose of this function is to answer the question "if I `notify`
-    /// this task is it equivalent to `task::current().notify()`". An answer
-    /// "yes" may mean that you don't actually need to call `task::current()`
-    /// and store it, but rather you can simply leave a stored task in place. An
-    /// answer of "no" typically means that you need to call `task::current()`
-    /// and store it somewhere.
-    ///
-    /// As this is purely a performance optimization a valid implementation for
-    /// this function is to always return `false`. A best effort is done to
-    /// return `true` where possible, but false negatives may happen. Note that
-    /// this function will not return a false positive, however.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if no current future is being polled.
-    #[allow(deprecated)]
-    pub fn will_notify_current(&self) -> bool {
-        with(|current| {
-            self.unpark.will_notify(&current.unpark)
-        })
+    pub fn wake(&self) {
+        self.unpark.notify()
     }
 }
 
-impl fmt::Debug for Task {
+impl fmt::Debug for Waker {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Task")
+        f.debug_struct("Waker")
          .finish()
     }
 }
@@ -206,7 +176,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Future,
     {
-        self.poll_notify(notify, id, |s| s.poll())
+        self.poll_notify(notify, id, |s, ctx| s.poll(ctx))
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.
@@ -217,42 +187,28 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Stream,
     {
-        self.poll_notify(notify, id, |s| s.poll())
+        self.poll_notify(notify, id, |s, ctx| s.poll(ctx))
     }
 
     /// Invokes the function with the provided `notify` in the task context.
     pub fn poll_notify<N, F, R>(&mut self, notify: &N, id: usize, f: F) -> R
         where N: Clone + Into<NotifyHandle>,
-              F: FnOnce(&mut T) -> R
+              F: FnOnce(&mut T, &mut Context) -> R
     {
         let mk = || notify.clone().into();
         self.enter(BorrowedUnpark::new(&mk, id), f)
     }
 
-    /// TODO: dox
-    pub fn with_task_data<F, R>(&mut self, f: F) -> R
-        where F: FnOnce(&mut T) -> R,
-    {
-        let Spawn { ref data, ref mut obj, .. } = *self;
-        with(|task| {
-            let new_task = BorrowedTask {
-                unpark: task.unpark,
-                map: data,
-            };
-
-            set(&new_task, || f(obj))
-        })
-    }
-
     fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
-        where F: FnOnce(&mut T) -> R
+        where F: FnOnce(&mut T, &mut Context) -> R
     {
-        let borrowed = BorrowedTask {
-            unpark: unpark,
-            map: &self.data,
-        };
         let obj = &mut self.obj;
-        set(&borrowed, || f(obj))
+
+        let mut ctx = Context(Some(ContextInner {
+            unpark: unpark.to_owned(),
+            map: &self.data,
+        }));
+        f(obj, &mut ctx)
     }
 }
 
@@ -356,19 +312,16 @@ pub trait Notify: Send + Sync {
 /// This function will panic if it is called outside the context of a future's
 /// task. This is only valid to call once you've already entered a future via
 /// `Spawn::poll_*` functions.
-pub fn with_notify<F, T, R>(notify: &T, id: usize, f: F) -> R
-    where F: FnOnce() -> R,
+pub fn with_notify<F, T, R>(ctx: &mut Context, notify: &T, id: usize, f: F) -> R
+    where F: FnOnce(&mut Context) -> R,
           T: Clone + Into<NotifyHandle>,
 {
-    with(|task| {
-        let mk = || notify.clone().into();
-        let new_task = BorrowedTask {
-            unpark: BorrowedUnpark::new(&mk, id),
-            map: task.map,
-        };
-
-        set(&new_task, f)
-    })
+    let mk = || notify.clone().into();
+    let mut ctx = Context(Some(ContextInner {
+        unpark: BorrowedUnpark::new(&mk, id).to_owned(),
+        map: ctx.get().map,
+    }));
+    f(&mut ctx)
 }
 
 /// An unsafe trait for implementing custom forms of memory management behind a

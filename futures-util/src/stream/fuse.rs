@@ -1,4 +1,5 @@
 use futures_core::{Poll, Async, Stream};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 /// A stream which "fuse"s a stream once it's terminated.
@@ -20,16 +21,16 @@ impl<S> Sink for Fuse<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(item)
+    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(ctx, item)
     }
 
-    fn flush(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.flush()
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(ctx)
     }
 
-    fn close(&mut self) -> Poll<(), S::SinkError> {
-        self.stream.close()
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(ctx)
     }
 }
 
@@ -41,11 +42,11 @@ impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         if self.done {
             Ok(Async::Ready(None))
         } else {
-            let r = self.stream.poll();
+            let r = self.stream.poll(ctx);
             if let Ok(Async::Ready(None)) = r {
                 self.done = true;
             }

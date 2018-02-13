@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
 use futures_core::{Stream, Poll};
+use futures_core::task;
 use futures_sink::{Sink, StartSend};
 
 /// A sink combinator to change the error type of a sink.
@@ -49,16 +50,16 @@ impl<S, E> Sink for SinkFromErr<S, E>
     type SinkItem = S::SinkItem;
     type SinkError = E;
 
-    fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        self.sink.start_send(item).map_err(|e| e.into())
+    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        self.sink.start_send(ctx, item).map_err(|e| e.into())
     }
 
-    fn flush(&mut self) -> Poll<(), Self::SinkError> {
-        self.sink.flush().map_err(|e| e.into())
+    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.flush(ctx).map_err(|e| e.into())
     }
 
-    fn close(&mut self) -> Poll<(), Self::SinkError> {
-        self.sink.close().map_err(|e| e.into())
+    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.close(ctx).map_err(|e| e.into())
     }
 }
 
@@ -66,7 +67,7 @@ impl<S: Stream, E> Stream for SinkFromErr<S, E> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll()
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll(ctx)
     }
 }

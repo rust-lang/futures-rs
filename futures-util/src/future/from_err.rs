@@ -1,6 +1,7 @@
 use core::marker::PhantomData;
 
 use futures_core::{Future, Poll, Async};
+use futures_core::task;
 
 /// Future for the `from_err` combinator, changing the error type of a future.
 ///
@@ -25,8 +26,8 @@ impl<A:Future, E:From<A::Error>> Future for FromErr<A, E> {
     type Item = A::Item;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<A::Item, E> {
-        let e = match self.future.poll() {
+    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, E> {
+        let e = match self.future.poll(ctx) {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };
