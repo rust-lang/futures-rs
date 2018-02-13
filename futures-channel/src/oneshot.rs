@@ -158,7 +158,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, _ctx: &mut task::Context) -> Poll<(), ()> {
+    fn poll_cancel(&self, _cx: &mut task::Context) -> Poll<(), ()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -238,7 +238,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, _ctx: &mut task::Context) -> Poll<T, Canceled> {
+    fn recv(&self, _cx: &mut task::Context) -> Poll<T, Canceled> {
         let mut done = false;
 
         // Check to see if some data has arrived. If it hasn't then we need to
@@ -351,8 +351,8 @@ impl<T> Sender<T> {
     ///
     /// If you're calling this function from a context that does not have a
     /// task, then you can use the `is_canceled` API instead.
-    pub fn poll_cancel(&mut self, ctx: &mut task::Context) -> Poll<(), ()> {
-        self.inner.poll_cancel(ctx)
+    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        self.inner.poll_cancel(cx)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
@@ -412,8 +412,8 @@ impl<T> Future for Receiver<T> {
     type Item = T;
     type Error = Canceled;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<T, Canceled> {
-        self.inner.recv(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, Canceled> {
+        self.inner.recv(cx)
     }
 }
 

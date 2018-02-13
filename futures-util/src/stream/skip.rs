@@ -53,16 +53,16 @@ impl<S> Sink for Skip<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(ctx, item)
+    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(cx)
     }
 }
 
@@ -72,14 +72,14 @@ impl<S> Stream for Skip<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         while self.remaining > 0 {
-            match try_ready!(self.stream.poll(ctx)) {
+            match try_ready!(self.stream.poll(cx)) {
                 Some(_) => self.remaining -= 1,
                 None => return Ok(Async::Ready(None)),
             }
         }
 
-        self.stream.poll(ctx)
+        self.stream.poll(cx)
     }
 }

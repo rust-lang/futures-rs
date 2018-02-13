@@ -41,8 +41,8 @@ impl<S> Future for Concat<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        self.inner.poll(ctx).map(|a| {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll(cx).map(|a| {
             match a {
                 Async::Pending => Async::Pending,
                 Async::Ready(None) => Async::Ready(Default::default()),
@@ -79,9 +79,9 @@ impl<S> Future for ConcatSafe<S>
     type Item = Option<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         loop {
-            match self.stream.poll(ctx) {
+            match self.stream.poll(cx) {
                 Ok(Async::Ready(Some(i))) => {
                     match self.extend {
                         Inner::First => {

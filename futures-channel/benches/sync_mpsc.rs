@@ -98,8 +98,8 @@ impl Stream for TestSender {
     type Item = u32;
     type Error = ();
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.tx.start_send(ctx, self.last + 1) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        match self.tx.start_send(cx, self.last + 1) {
             Err(_) => panic!(),
             Ok(Ok(())) => {
                 self.last += 1;

@@ -24,8 +24,8 @@ impl<A: Future> Future for Fuse<A> {
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, A::Error> {
-        let res = self.future.as_mut().map(|f| f.poll(ctx));
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<A::Item, A::Error> {
+        let res = self.future.as_mut().map(|f| f.poll(cx));
         match res.unwrap_or(Ok(Async::Pending)) {
             res @ Ok(Async::Ready(_)) |
             res @ Err(_) => {

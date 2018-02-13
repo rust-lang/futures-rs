@@ -28,8 +28,8 @@ impl<A, F> Future for Inspect<A, F>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, A::Error> {
-        match self.future.poll(ctx) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<A::Item, A::Error> {
+        match self.future.poll(cx) {
             Ok(Async::Pending) => Ok(Async::Pending),
             Ok(Async::Ready(e)) => {
                 (self.f.take().expect("cannot poll Inspect twice"))(&e);

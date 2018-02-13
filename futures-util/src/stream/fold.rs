@@ -46,12 +46,12 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
     type Item = T;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<T, S::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, S::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll(ctx)? {
+                    match self.stream.poll(cx)? {
                         Async::Ready(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();
@@ -65,7 +65,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
                     }
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll(ctx)? {
+                    match fut.poll(cx)? {
                         Async::Ready(state) => self.state = State::Ready(state),
                         Async::Pending => {
                             self.state = State::Processing(fut);

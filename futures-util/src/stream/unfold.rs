@@ -80,7 +80,7 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
     type Item = It;
     type Error = Fut::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<It>, Fut::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<It>, Fut::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 // State::Empty may happen if the future returned an error
@@ -89,7 +89,7 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
                     self.state = State::Processing((self.f)(state).into_future());
                 }
                 State::Processing(mut fut) => {
-                    match fut.poll(ctx)? {
+                    match fut.poll(cx)? {
                         Async:: Ready(Some((item, next_state))) => {
                             self.state = State::Ready(next_state);
                             return Ok(Async::Ready(Some(item)));

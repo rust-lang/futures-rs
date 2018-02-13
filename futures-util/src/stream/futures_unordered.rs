@@ -266,7 +266,7 @@ impl<T> Stream for FuturesUnordered<T>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
         // Ensure `parent` is correctly set.
         self.inner.parent.register();
 
@@ -359,7 +359,7 @@ impl<T> Stream for FuturesUnordered<T>
                 let res = {
                     let notify = NodeToHandle(bomb.node.as_ref().unwrap());
                     task::with_notify(&notify, 0, || {
-                        future.poll(ctx)
+                        future.poll(cx)
                     })
                 };
 

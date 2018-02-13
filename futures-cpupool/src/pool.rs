@@ -267,8 +267,8 @@ impl<T: Send + 'static, E: Send + 'static> Future for CpuFuture<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<T, E> {
-        match self.inner.poll(ctx).expect("cannot poll CpuFuture twice") {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, E> {
+        match self.inner.poll(cx).expect("cannot poll CpuFuture twice") {
             Async::Ready(Ok(Ok(e))) => Ok(e.into()),
             Async::Ready(Ok(Err(e))) => Err(e),
             Async::Ready(Err(e)) => panic::resume_unwind(e),
@@ -281,15 +281,15 @@ impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<(), ()> {
-        if let Ok(Async::Ready(_)) = self.tx.as_mut().unwrap().poll_cancel(ctx) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        if let Ok(Async::Ready(_)) = self.tx.as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running_flag.load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Ok(().into())
             }
         }
 
-        let res = match self.fut.poll(ctx) {
+        let res = match self.fut.poll(cx) {
             Ok(Async::Ready(e)) => Ok(e),
             Ok(Async::Pending) => return Ok(Async::Pending),
             Err(e) => Err(e),

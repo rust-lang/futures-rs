@@ -33,10 +33,10 @@ impl<S, F, U> Future for ForEach<S, F, U>
     type Item = S;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<S, S::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::Error> {
         loop {
             if let Some(mut fut) = self.fut.take() {
-                if fut.poll(ctx)?.is_not_ready() {
+                if fut.poll(cx)?.is_not_ready() {
                     self.fut = Some(fut);
                     return Ok(Async::Pending);
                 }
@@ -44,7 +44,7 @@ impl<S, F, U> Future for ForEach<S, F, U>
 
             match self.stream {
                 Some(ref mut stream) => {
-                    match try_ready!(stream.poll(ctx)) {
+                    match try_ready!(stream.poll(cx)) {
                         Some(e) => self.fut = Some((self.f)(e).into_future()),
                         None => break,
                     }

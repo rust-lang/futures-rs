@@ -42,8 +42,8 @@ impl<T> Future for OrderWrapper<T>
     type Item = OrderWrapper<T::Item>;
     type Error = T::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        let result = try_ready!(self.item.poll(ctx));
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        let result = try_ready!(self.item.poll(cx));
         Ok(Async::Ready(OrderWrapper {
             item: result,
             index: self.index
@@ -169,10 +169,10 @@ impl<T> Stream for FuturesOrdered<T>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         // Get any completed futures from the unordered set.
         loop {
-            match self.in_progress.poll(ctx)? {
+            match self.in_progress.poll(cx)? {
                 Async::Ready(Some(result)) => self.queued_results.push(result),
                 Async::Ready(None) | Async::Pending => break,
             }

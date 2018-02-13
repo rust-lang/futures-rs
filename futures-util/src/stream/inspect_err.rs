@@ -54,16 +54,16 @@ impl<S, F> Sink for InspectErr<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(ctx, item)
+    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(cx)
     }
 }
 
@@ -74,8 +74,8 @@ impl<S, F> Stream for InspectErr<S, F>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.stream.poll(ctx).map_err(|e| {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.stream.poll(cx).map_err(|e| {
             (self.inspect)(&e);
             e
         })

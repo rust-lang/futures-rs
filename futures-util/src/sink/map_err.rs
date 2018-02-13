@@ -41,16 +41,16 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = E;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        self.sink.start_send(ctx, item).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        self.sink.start_send(cx, item).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.sink.flush(ctx).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.flush(cx).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.sink.close(ctx).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.close(cx).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
     }
 }
 
@@ -58,7 +58,7 @@ impl<S: Stream, F> Stream for SinkMapErr<S, F> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll(cx)
     }
 }

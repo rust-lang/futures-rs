@@ -53,8 +53,8 @@ impl<S: Stream, E: From<S::Error>> Stream for FromErr<S, E> {
     type Item = S::Item;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, E> {
-        let e = match self.stream.poll(ctx) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, E> {
+        let e = match self.stream.poll(cx) {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };
@@ -67,15 +67,15 @@ impl<S: Stream + Sink, E> Sink for FromErr<S, E> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        self.stream.start_send(ctx, item)
+    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        self.stream.start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.stream.flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.stream.flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.stream.close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.stream.close(cx)
     }
 }

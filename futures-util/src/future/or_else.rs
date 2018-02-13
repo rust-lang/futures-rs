@@ -29,8 +29,8 @@ impl<A, B, F> Future for OrElse<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<B::Item, B::Error> {
-        self.state.poll(ctx, |a, f| {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<B::Item, B::Error> {
+        self.state.poll(cx, |a, f| {
             match a {
                 Ok(item) => Ok(Ok(item)),
                 Err(e) => Ok(Err(f(e).into_future()))

@@ -94,13 +94,13 @@ impl<Item> Future for JoinAll<Item>
     type Error = <Item as IntoFuture>::Error;
 
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
-                    match t.poll(ctx) {
+                    match t.poll(cx) {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::Pending) => {
                             all_done = false;

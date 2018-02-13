@@ -210,7 +210,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Future,
     {
-        self.poll_notify(notify, id, |s, ctx| s.poll(ctx))
+        self.poll_notify(notify, id, |s, cx| s.poll(cx))
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.
@@ -221,7 +221,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Stream,
     {
-        self.poll_notify(notify, id, |s, ctx| s.poll(ctx))
+        self.poll_notify(notify, id, |s, cx| s.poll(cx))
     }
 
     /// Invokes the function with the provided `notify` in the task context.

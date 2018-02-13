@@ -94,9 +94,9 @@ impl<S, T, A, F> Future for LoopFn<A, F>
     type Item = T;
     type Error = A::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         loop {
-            match try_ready!(self.future.poll(ctx)) {
+            match try_ready!(self.future.poll(cx)) {
                 Loop::Break(x) => return Ok(Async::Ready(x)),
                 Loop::Continue(s) => self.future = (self.func)(s).into_future(),
             }

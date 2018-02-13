@@ -25,7 +25,7 @@ pub struct PollFn<F> {
 /// use futures::task;
 ///
 /// # fn main() {
-/// fn read_line(ctx: &mut task::Context) -> Poll<String, std::io::Error> {
+/// fn read_line(cx: &mut task::Context) -> Poll<String, std::io::Error> {
 ///     Ok(Async::Ready("Hello, World!".into()))
 /// }
 ///
@@ -44,7 +44,7 @@ impl<T, E, F> Future for PollFn<F>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<T, E> {
-        (self.inner)(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, E> {
+        (self.inner)(cx)
     }
 }

@@ -26,9 +26,9 @@ impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        match self.0.poll_lock(ctx) {
-            Async::Ready(mut inner) => inner.poll(ctx),
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        match self.0.poll_lock(cx) {
+            Async::Ready(mut inner) => inner.poll(cx),
             Async::Pending => Ok(Async::Pending),
         }
     }
@@ -53,25 +53,25 @@ impl<S: Sink> Sink for SplitSink<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem)
+    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem)
         -> StartSend<S::SinkItem, S::SinkError>
     {
-        match self.0.poll_lock(ctx) {
-            Async::Ready(mut inner) => inner.start_send(ctx, item),
+        match self.0.poll_lock(cx) {
+            Async::Ready(mut inner) => inner.start_send(cx, item),
             Async::Pending => Ok(AsyncSink::Pending(item)),
         }
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        match self.0.poll_lock(ctx) {
-            Async::Ready(mut inner) => inner.flush(ctx),
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        match self.0.poll_lock(cx) {
+            Async::Ready(mut inner) => inner.flush(cx),
             Async::Pending => Ok(Async::Pending),
         }
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        match self.0.poll_lock(ctx) {
-            Async::Ready(mut inner) => inner.close(ctx),
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        match self.0.poll_lock(cx) {
+            Async::Ready(mut inner) => inner.close(cx),
             Async::Pending => Ok(Async::Pending),
         }
     }

@@ -33,7 +33,7 @@ fn task_init(b: &mut Bencher) {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _ctx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
             if self.num == NUM {
                 Ok(Async::Ready(()))
             } else {

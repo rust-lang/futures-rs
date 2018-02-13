@@ -45,8 +45,8 @@ impl Future for WaitForCancel {
     type Item = ();
     type Error = ();
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<(), ()> {
-        self.tx.poll_cancel(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        self.tx.poll_cancel(cx)
     }
 }
 

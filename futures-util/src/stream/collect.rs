@@ -36,9 +36,9 @@ impl<S> Future for Collect<S>
     type Item = Vec<S::Item>;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Vec<S::Item>, S::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Vec<S::Item>, S::Error> {
         loop {
-            match self.stream.poll(ctx) {
+            match self.stream.poll(cx) {
                 Ok(Async::Ready(Some(e))) => self.items.push(e),
                 Ok(Async::Ready(None)) => return Ok(Async::Ready(self.finish())),
                 Ok(Async::Pending) => return Ok(Async::Pending),

@@ -60,16 +60,16 @@ where
         self.sink
     }
 
-    fn try_empty_stream(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
+    fn try_empty_stream(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
         if let Some(x) = self.buffer.take() {
-            if let AsyncSink::Pending(x) = self.sink.start_send(ctx, x)? {
+            if let AsyncSink::Pending(x) = self.sink.start_send(cx, x)? {
                 self.buffer = Some(x);
                 return Ok(Async::Pending);
             }
         }
         if let Some(mut stream) = self.stream.take() {
-            while let Some(x) = try_ready!(stream.poll(ctx)) {
-                if let AsyncSink::Pending(x) = self.sink.start_send(ctx, x)? {
+            while let Some(x) = try_ready!(stream.poll(cx)) {
+                if let AsyncSink::Pending(x) = self.sink.start_send(cx, x)? {
                     self.stream = Some(stream);
                     self.buffer = Some(x);
                     return Ok(Async::Pending);
@@ -88,8 +88,8 @@ where
 {
     type Item = S::Item;
     type Error = S::Error;
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll(cx)
     }
 }
 
@@ -101,26 +101,26 @@ where
 {
     type SinkItem = U;
     type SinkError = S::SinkError;
-    fn start_send(&mut self, ctx: &mut task::Context, i: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        if self.try_empty_stream(ctx)?.is_not_ready() {
+    fn start_send(&mut self, cx: &mut task::Context, i: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+        if self.try_empty_stream(cx)?.is_not_ready() {
             return Ok(AsyncSink::Pending(i));
         }
         assert!(self.stream.is_none());
         self.stream = Some((self.f)(i));
-        self.try_empty_stream(ctx)?;
+        self.try_empty_stream(cx)?;
         Ok(AsyncSink::Ready)
     }
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(ctx)?.is_not_ready() {
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        if self.try_empty_stream(cx)?.is_not_ready() {
             return Ok(Async::Pending);
         }
-        self.sink.flush(ctx)
+        self.sink.flush(cx)
     }
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(ctx)?.is_not_ready() {
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        if self.try_empty_stream(cx)?.is_not_ready() {
             return Ok(Async::Pending);
         }
         assert!(self.stream.is_none());
-        self.sink.close(ctx)
+        self.sink.close(cx)
     }
 }

@@ -13,8 +13,8 @@ impl<T> Sink for Sender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, ctx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send(ctx, msg).map(res_to_async_sink)
+    fn start_send(&mut self, cx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
+        self.start_send(cx, msg).map(res_to_async_sink)
     }
 
     fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
@@ -30,8 +30,8 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, ctx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send(ctx, msg).map(res_to_async_sink)
+    fn start_send(&mut self, cx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
+        self.start_send(cx, msg).map(res_to_async_sink)
     }
 
     fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {

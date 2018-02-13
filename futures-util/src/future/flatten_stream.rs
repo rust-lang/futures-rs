@@ -57,11 +57,11 @@ impl<F> Stream for FlattenStream<F>
     type Item = <F::Item as Stream>::Item;
     type Error = <F::Item as Stream>::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             let (next_state, ret_opt) = match self.state {
                 State::Future(ref mut f) => {
-                    match f.poll(ctx) {
+                    match f.poll(cx) {
                         Ok(Async::Pending) => {
                             // State is not changed, early return.
                             return Ok(Async::Pending)
@@ -80,7 +80,7 @@ impl<F> Stream for FlattenStream<F>
                 State::Stream(ref mut s) => {
                     // Just forward call to the stream,
                     // do not track its state.
-                    return s.poll(ctx);
+                    return s.poll(cx);
                 }
                 State::Eof => {
                     (State::Done, Some(Ok(Async::Ready(None))))

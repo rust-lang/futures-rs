@@ -1,6 +1,6 @@
 use std::prelude::v1::*;
 use std::any::Any;
-use std::panic::{catch_unwind, UnwindSafe};
+use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
 use futures_core::{Future, Poll, Async};
 use futures_core::task;
@@ -28,10 +28,11 @@ impl<F> Future for CatchUnwind<F>
     type Item = Result<F::Item, F::Error>;
     type Error = Box<Any + Send>;
 
-    fn poll(&mut self, _ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let mut future = self.future.take().expect("cannot poll twice");
-        // FIXME: fix passing the actual context here.
-        let (res, future) = catch_unwind(|| (future.poll(&mut task::Context), future))?;
+        let (res, future) = catch_unwind(AssertUnwindSafe(|| {
+            (future.poll(cx), future)
+        }))?;
         match res {
             Ok(Async::Pending) => {
                 self.future = Some(future);

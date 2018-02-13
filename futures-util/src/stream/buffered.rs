@@ -85,16 +85,16 @@ impl<S> Sink for Buffered<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(ctx, item)
+    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(cx)
     }
 }
 
@@ -105,11 +105,11 @@ impl<S> Stream for Buffered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.queue.len() < self.max {
-            let future = match self.stream.poll(ctx)? {
+            let future = match self.stream.poll(cx)? {
                 Async::Ready(Some(s)) => s.into_future(),
                 Async::Ready(None) |
                 Async::Pending => break,
@@ -119,7 +119,7 @@ impl<S> Stream for Buffered<S>
         }
 
         // Try polling a new future
-        if let Some(val) = try_ready!(self.queue.poll(ctx)) {
+        if let Some(val) = try_ready!(self.queue.poll(cx)) {
             return Ok(Async::Ready(Some(val)));
         }
 

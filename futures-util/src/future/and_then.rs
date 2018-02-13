@@ -30,8 +30,8 @@ impl<A, B, F> Future for AndThen<A, B, F>
     type Item = B::Item;
     type Error = B::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<B::Item, B::Error> {
-        self.state.poll(ctx, |result, f| {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<B::Item, B::Error> {
+        self.state.poll(cx, |result, f| {
             result.map(|e| {
                 Err(f(e).into_future())
             })

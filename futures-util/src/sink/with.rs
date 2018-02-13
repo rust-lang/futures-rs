@@ -60,8 +60,8 @@ impl<S, U, F, Fut> Stream for With<S, U, F, Fut>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll(cx)
     }
 }
 
@@ -89,12 +89,12 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
         self.sink
     }
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<(), Fut::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Fut::Error> {
         loop {
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => break,
                 State::Process(mut fut) => {
-                    match fut.poll(ctx)? {
+                    match fut.poll(cx)? {
                         Async::Ready(item) => {
                             self.state = State::Buffered(item);
                         }
@@ -105,7 +105,7 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
                     }
                 }
                 State::Buffered(item) => {
-                    if let AsyncSink::Pending(item) = self.sink.start_send(ctx, item)? {
+                    if let AsyncSink::Pending(item) = self.sink.start_send(cx, item)? {
                         self.state = State::Buffered(item);
                         break
                     }
@@ -130,24 +130,24 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
     type SinkItem = U;
     type SinkError = Fut::Error;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Fut::Error> {
-        if self.poll(ctx)?.is_not_ready() {
+    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Fut::Error> {
+        if self.poll(cx)?.is_not_ready() {
             return Ok(AsyncSink::Pending(item))
         }
         self.state = State::Process((self.f)(item).into_future());
         Ok(AsyncSink::Ready)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Fut::Error> {
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Fut::Error> {
         // poll ourselves first, to push data downward
-        let me_ready = self.poll(ctx)?;
+        let me_ready = self.poll(cx)?;
         // always propagate `flush` downward to attempt to make progress
-        try_ready!(self.sink.flush(ctx));
+        try_ready!(self.sink.flush(cx));
         Ok(me_ready)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Fut::Error> {
-        try_ready!(self.poll(ctx));
-        Ok(self.sink.close(ctx)?)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Fut::Error> {
+        try_ready!(self.poll(cx));
+        Ok(self.sink.close(cx)?)
     }
 }

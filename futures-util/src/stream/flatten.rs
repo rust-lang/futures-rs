@@ -57,16 +57,16 @@ impl<S> Sink for Flatten<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(ctx, item)
+    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(cx)
     }
 }
 
@@ -78,16 +78,16 @@ impl<S> Stream for Flatten<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             if self.next.is_none() {
-                match try_ready!(self.stream.poll(ctx)) {
+                match try_ready!(self.stream.poll(cx)) {
                     Some(e) => self.next = Some(e),
                     None => return Ok(Async::Ready(None)),
                 }
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll(ctx) {
+            match self.next.as_mut().unwrap().poll(cx) {
                 Ok(Async::Ready(None)) => self.next = None,
                 other => return other,
             }

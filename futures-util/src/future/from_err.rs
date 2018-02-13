@@ -26,8 +26,8 @@ impl<A:Future, E:From<A::Error>> Future for FromErr<A, E> {
     type Item = A::Item;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, E> {
-        let e = match self.future.poll(ctx) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<A::Item, E> {
+        let e = match self.future.poll(cx) {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };

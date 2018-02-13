@@ -43,8 +43,8 @@ impl<A> Future for Flatten<A>
     type Item = <<A as Future>::Item as IntoFuture>::Item;
     type Error = <<A as Future>::Item as IntoFuture>::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        self.state.poll(ctx, |a, ()| {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+        self.state.poll(cx, |a, ()| {
             let future = a?.into_future();
             Ok(Err(future))
         })

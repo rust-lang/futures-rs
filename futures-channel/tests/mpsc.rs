@@ -444,12 +444,12 @@ fn stress_poll_ready() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, ctx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
             // In a loop, check if the channel is ready. If so, push an item onto the channel
             // (asserting that it doesn't attempt to block).
             while self.count > 0 {
-                try_ready!(self.sender.poll_ready(ctx).map_err(|_| ()));
-                assert!(self.sender.start_send(ctx, self.count).unwrap().is_ok());
+                try_ready!(self.sender.poll_ready(cx).map_err(|_| ()));
+                assert!(self.sender.start_send(cx, self.count).unwrap().is_ok());
                 self.count -= 1;
             }
             Ok(Async::Ready(()))

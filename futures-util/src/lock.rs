@@ -79,7 +79,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, _ctx: &mut task::Context) -> Async<BiLockGuard<T>> {
+    pub fn poll_lock(&self, _cx: &mut task::Context) -> Async<BiLockGuard<T>> {
         loop {
             match self.inner.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -246,8 +246,8 @@ impl<T> Future for BiLockAcquire<T> {
     type Item = BiLockAcquired<T>;
     type Error = ();
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<BiLockAcquired<T>, ()> {
-        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock(ctx) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<BiLockAcquired<T>, ()> {
+        match self.inner.as_ref().expect("cannot poll after Ready").poll_lock(cx) {
             Async::Ready(r) => {
                 mem::forget(r);
             }

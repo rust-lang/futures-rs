@@ -83,7 +83,7 @@ impl<F, R> Future for Lazy<F, R>
     type Item = R::Item;
     type Error = R::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<R::Item, R::Error> {
-        self.get().poll(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<R::Item, R::Error> {
+        self.get().poll(cx)
     }
 }

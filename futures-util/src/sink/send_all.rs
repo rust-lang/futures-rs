@@ -48,9 +48,9 @@ impl<T, U> SendAll<T, U>
         (sink, fuse.into_inner())
     }
 
-    fn try_start_send(&mut self, ctx: &mut task::Context, item: U::Item) -> Poll<(), T::SinkError> {
+    fn try_start_send(&mut self, cx: &mut task::Context, item: U::Item) -> Poll<(), T::SinkError> {
         debug_assert!(self.buffered.is_none());
-        if let AsyncSink::Pending(item) = self.sink_mut().start_send(ctx, item)? {
+        if let AsyncSink::Pending(item) = self.sink_mut().start_send(cx, item)? {
             self.buffered = Some(item);
             return Ok(Async::Pending)
         }
@@ -66,22 +66,22 @@ impl<T, U> Future for SendAll<T, U>
     type Item = (T, U);
     type Error = T::SinkError;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<(T, U), T::SinkError> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<(T, U), T::SinkError> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered.take() {
-            try_ready!(self.try_start_send(ctx, item))
+            try_ready!(self.try_start_send(cx, item))
         }
 
         loop {
-            match self.stream_mut().poll(ctx)? {
-                Async::Ready(Some(item)) => try_ready!(self.try_start_send(ctx, item)),
+            match self.stream_mut().poll(cx)? {
+                Async::Ready(Some(item)) => try_ready!(self.try_start_send(cx, item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().flush(ctx));
+                    try_ready!(self.sink_mut().flush(cx));
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::Pending => {
-                    try_ready!(self.sink_mut().flush(ctx));
+                    try_ready!(self.sink_mut().flush(cx));
                     return Ok(Async::Pending)
                 }
             }

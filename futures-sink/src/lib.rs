@@ -101,17 +101,17 @@ if_std! {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
 
-        fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem)
+        fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem)
                       -> StartSend<Self::SinkItem, Self::SinkError> {
-            (**self).start_send(ctx, item)
+            (**self).start_send(cx, item)
         }
 
-        fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            (**self).flush(ctx)
+        fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+            (**self).flush(cx)
         }
 
-        fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            (**self).close(ctx)
+        fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+            (**self).close(cx)
         }
     }
 }
@@ -192,7 +192,7 @@ pub trait Sink {
     ///
     /// - It is called outside of the context of a task.
     /// - A previous call to `start_send` or `flush` yielded an error.
-    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem)
+    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError>;
 
     /// Flush all output from this sink, if necessary.
@@ -243,7 +243,7 @@ pub trait Sink {
     /// In the 0.2 release series of futures this method will be renamed to
     /// `flush`. For 0.1, however, the breaking change is not happening
     /// yet.
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 
     /// A method to indicate that no more values will ever be pushed into this
     /// sink.
@@ -310,23 +310,23 @@ pub trait Sink {
     /// It is highly recommended to consider this method a required method and
     /// to implement it whenever you implement `Sink` locally. It is especially
     /// crucial to be sure to close inner sinks, if applicable.
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 }
 
 impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: Self::SinkItem)
+    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem)
                   -> StartSend<Self::SinkItem, Self::SinkError> {
-        (**self).start_send(ctx, item)
+        (**self).start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        (**self).flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        (**self).flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        (**self).close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        (**self).close(cx)
     }
 }

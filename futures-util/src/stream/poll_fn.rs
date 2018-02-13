@@ -47,7 +47,7 @@ where
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<T>, E> {
-        (self.inner)(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T>, E> {
+        (self.inner)(cx)
     }
 }

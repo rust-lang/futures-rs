@@ -27,8 +27,8 @@ impl<U, A, F> Future for MapErr<A, F>
     type Item = A::Item;
     type Error = U;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<A::Item, U> {
-        let e = match self.future.poll(ctx) {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<A::Item, U> {
+        let e = match self.future.poll(cx) {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };

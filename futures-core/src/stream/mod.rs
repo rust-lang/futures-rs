@@ -88,15 +88,15 @@ pub trait Stream {
     /// further calls to `poll` may result in a panic or other "bad behavior".
     /// If this is difficult to guard against then the `fuse` adapter can be
     /// used to ensure that `poll` always has well-defined semantics.
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 }
 
 impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        (**self).poll(ctx)
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        (**self).poll(cx)
     }
 }
 
@@ -105,8 +105,8 @@ if_std! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            (**self).poll(ctx)
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            (**self).poll(cx)
         }
     }
 
@@ -114,8 +114,8 @@ if_std! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-            self.0.poll(ctx)
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+            self.0.poll(cx)
         }
     }
 }

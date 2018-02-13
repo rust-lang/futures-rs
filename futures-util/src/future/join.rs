@@ -64,8 +64,8 @@ macro_rules! generate {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-                let mut all_done = match self.a.poll(ctx) {
+            fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+                let mut all_done = match self.a.poll(cx) {
                     Ok(done) => done,
                     Err(e) => {
                         self.erase();
@@ -73,7 +73,7 @@ macro_rules! generate {
                     }
                 };
                 $(
-                    all_done = match self.$B.poll(ctx) {
+                    all_done = match self.$B.poll(cx) {
                         Ok(done) => all_done && done,
                         Err(e) => {
                             self.erase();
@@ -152,9 +152,9 @@ enum MaybeDone<A: Future> {
 }
 
 impl<A: Future> MaybeDone<A> {
-    fn poll(&mut self, ctx: &mut task::Context) -> Result<bool, A::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Result<bool, A::Error> {
         let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll(ctx)?,
+            MaybeDone::NotYet(ref mut a) => a.poll(cx)?,
             MaybeDone::Done(_) => return Ok(true),
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };

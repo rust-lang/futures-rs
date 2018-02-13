@@ -135,7 +135,7 @@ fn tasks_are_scheduled_fairly() {
         type Item = ();
         type Error = ();
 
-        fn poll(&mut self, _ctx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, _cx: &mut task::Context) -> Poll<(), ()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {

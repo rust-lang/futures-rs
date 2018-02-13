@@ -28,10 +28,10 @@ impl<F, T, E> Future for Option<F> where F: Future<Item=T, Error=E> {
     type Item = option::Option<T>;
     type Error = E;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<option::Option<T>, E> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<option::Option<T>, E> {
         match self.inner {
             None => Ok(Async::Ready(None)),
-            Some(ref mut x) => x.poll(ctx).map(|x| x.map(Some)),
+            Some(ref mut x) => x.poll(cx).map(|x| x.map(Some)),
         }
     }
 }

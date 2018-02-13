@@ -60,16 +60,16 @@ impl<S, P, R> Sink for TakeWhile<S, P, R>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, ctx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(ctx, item)
+    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
+        self.stream.start_send(cx, item)
     }
 
-    fn flush(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(ctx)
+    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.flush(cx)
     }
 
-    fn close(&mut self, ctx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(ctx)
+    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.stream.close(cx)
     }
 }
 
@@ -81,13 +81,13 @@ impl<S, P, R> Stream for TakeWhile<S, P, R>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         if self.done_taking {
             return Ok(Async::Ready(None));
         }
 
         if self.pending.is_none() {
-            let item = match try_ready!(self.stream.poll(ctx)) {
+            let item = match try_ready!(self.stream.poll(cx)) {
                 Some(e) => e,
                 None => return Ok(Async::Ready(None)),
             };
@@ -95,7 +95,7 @@ impl<S, P, R> Stream for TakeWhile<S, P, R>
         }
 
         assert!(self.pending.is_some());
-        match self.pending.as_mut().unwrap().0.poll(ctx) {
+        match self.pending.as_mut().unwrap().0.poll(cx) {
             Ok(Async::Ready(true)) => {
                 let (_, item) = self.pending.take().unwrap();
                 Ok(Async::Ready(Some(item)))
