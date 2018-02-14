@@ -85,7 +85,7 @@ pub trait SinkExt: Sink {
     /// use futures::prelude::*;
     /// use futures::stream;
     /// use futures_channel::mpsc;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let (tx, rx) = mpsc::channel::<i32>(5);
@@ -94,10 +94,8 @@ pub trait SinkExt: Sink {
     ///     stream::iter_ok(vec![42; x].into_iter().map(|y| y))
     /// });
     ///
-    /// run(|c| {
-    ///     c.block_on(tx.send(5)).unwrap();
-    ///     assert_eq!(c.block_on(rx.collect()), Ok(vec![42, 42, 42, 42, 42]));
-    /// });
+    /// block_on(tx.send(5)).unwrap();
+    /// assert_eq!(block_on(rx.collect()), Ok(vec![42, 42, 42, 42, 42]));
     /// # }
     /// ```
     fn with_flat_map<U, F, St>(self, f: F) -> WithFlatMap<Self, U, F, St>

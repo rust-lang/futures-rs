@@ -8,16 +8,14 @@
 //! # extern crate futures_executor;
 //! use futures::prelude::*;
 //! use futures::future;
-//! use futures_executor::current_thread::run;
+//! use futures_executor::block_on;
 //!
 //! # fn main() {
 //! let future = future::ok::<_, bool>(6);
 //! let shared1 = future.shared();
 //! let shared2 = shared1.clone();
-//! run(|c| {
-//!     assert_eq!(6, *c.block_on(shared1).unwrap());
-//!     assert_eq!(6, *c.block_on(shared2).unwrap());
-//! });
+//! assert_eq!(6, *block_on(shared1).unwrap());
+//! assert_eq!(6, *block_on(shared2).unwrap());
 //! # }
 //! ```
 

@@ -26,13 +26,11 @@ pub struct Repeat<T, E>
 /// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
-/// use futures_executor::current_thread::run;
+/// use futures_executor::block_on;
 ///
 /// # fn main() {
 /// let mut stream = stream::repeat::<_, bool>(10);
-/// run(|c| {
-///     assert_eq!(Ok(vec![10, 10, 10]), c.block_on(stream.take(3).collect()));
-/// });
+/// assert_eq!(Ok(vec![10, 10, 10]), block_on(stream.take(3).collect()));
 /// # }
 /// ```
 pub fn repeat<T, E>(item: T) -> Repeat<T, E>

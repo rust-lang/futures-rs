@@ -412,7 +412,7 @@ pub trait StreamExt: Stream {
     ///
     /// use futures::prelude::*;
     /// use futures_channel::mpsc;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -423,7 +423,7 @@ pub trait StreamExt: Stream {
     ///     }
     /// });
     ///
-    /// let result = run(|c| c.block_on(rx.collect()));
+    /// let result = block_on(rx.collect());
     /// assert_eq!(result, Ok(vec![5, 4, 3, 2, 1]));
     /// # }
     /// ```
@@ -452,7 +452,7 @@ pub trait StreamExt: Stream {
     ///
     /// use futures::prelude::*;
     /// use futures_channel::mpsc;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -463,7 +463,7 @@ pub trait StreamExt: Stream {
     ///         tx.unbounded_send(vec![n + 1, n + 2, n + 3]).unwrap();
     ///     }
     /// });
-    /// let result = run(|c| c.block_on(rx.concat()));
+    /// let result = block_on(rx.concat());
     /// assert_eq!(result, Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
     /// # }
     /// ```
@@ -494,14 +494,12 @@ pub trait StreamExt: Stream {
     /// use futures::prelude::*;
     /// use futures::stream;
     /// use futures::future;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let number_stream = stream::iter_ok::<_, ()>(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ok(acc + x));
-    /// run(|c| {
-    ///     assert_eq!(c.block_on(sum), Ok(15));
-    /// });
+    /// assert_eq!(block_on(sum), Ok(15));
     /// # }
     /// ```
     fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
@@ -527,7 +525,7 @@ pub trait StreamExt: Stream {
     ///
     /// use futures::prelude::*;
     /// use futures_channel::mpsc;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let (tx1, rx1) = mpsc::unbounded::<i32>();
@@ -547,7 +545,7 @@ pub trait StreamExt: Stream {
     ///     tx3.unbounded_send(rx2).unwrap();
     /// });
     ///
-    /// let result = run(|c| c.block_on(rx3.flatten().collect()));
+    /// let result = block_on(rx3.flatten().collect());
     /// assert_eq!(result, Ok(vec![1, 2, 3, 4]));
     /// # }
     /// ```
@@ -689,19 +687,17 @@ pub trait StreamExt: Stream {
     /// use futures::prelude::*;
     /// use futures::stream;
     /// use futures::future;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let mut stream = stream::iter_ok::<_, ()>(1..5);
     ///
-    /// run(|c| {
-    ///     let sum = c.block_on(stream.by_ref().take(2).fold(0, |a, b| future::ok(a + b)));
-    ///     assert_eq!(sum, Ok(3));
+    /// let sum = block_on(stream.by_ref().take(2).fold(0, |a, b| future::ok(a + b)));
+    /// assert_eq!(sum, Ok(3));
     ///
-    ///     // You can use the stream again
-    ///     let sum = c.block_on(stream.take(2).fold(0, |a, b| future::ok(a + b)));
-    ///     assert_eq!(sum, Ok(7));
-    /// });
+    /// // You can use the stream again
+    /// let sum = block_on(stream.take(2).fold(0, |a, b| future::ok(a + b)));
+    /// assert_eq!(sum, Ok(7));
     /// # }
     /// ```
     fn by_ref(&mut self) -> &mut Self
@@ -736,7 +732,7 @@ pub trait StreamExt: Stream {
     ///
     /// use futures::prelude::*;
     /// use futures::stream;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let stream = stream::iter_ok::<_, bool>(vec![Some(10), None, Some(11)]);
@@ -745,15 +741,13 @@ pub trait StreamExt: Stream {
     /// // collect all the results
     /// let stream = stream_panicking.catch_unwind().then(|r| Ok::<_, ()>(r));
     ///
-    /// run(|c| {
-    ///     let results = c.block_on(stream.collect()).unwrap();
-    ///     match results[0] {
-    ///         Ok(Ok(10)) => {}
-    ///         _ => panic!("unexpected result!"),
-    ///     }
-    ///     assert!(results[1].is_err());
-    ///     assert_eq!(results.len(), 2);
-    /// });
+    /// let results = block_on(stream.collect()).unwrap();
+    /// match results[0] {
+    ///     Ok(Ok(10)) => {}
+    ///     _ => panic!("unexpected result!"),
+    /// }
+    /// assert!(results[1].is_err());
+    /// assert_eq!(results.len(), 2);
     /// # }
     /// ```
     #[cfg(feature = "std")]
@@ -827,7 +821,7 @@ pub trait StreamExt: Stream {
     /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::stream;
-    /// use futures_executor::current_thread::run;
+    /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let stream1 = stream::iter_result(vec![Ok(10), Err(false)]);
@@ -836,15 +830,13 @@ pub trait StreamExt: Stream {
     /// let stream = stream1.chain(stream2)
     ///     .then(|result| Ok::<_, ()>(result));
     ///
-    /// run(|c| {
-    ///     let result = c.block_on(stream.collect()).unwrap();
-    ///     assert_eq!(result, vec![
-    ///         Ok(10),
-    ///         Err(false),
-    ///         Err(true),
-    ///         Ok(20),
-    ///     ]);
-    /// });
+    /// let result = block_on(stream.collect()).unwrap();
+    /// assert_eq!(result, vec![
+    ///     Ok(10),
+    ///     Err(false),
+    ///     Err(true),
+    ///     Ok(20),
+    /// ]);
     /// # }
     /// ```
     fn chain<S>(self, other: S) -> Chain<Self, S>

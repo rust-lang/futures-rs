@@ -21,20 +21,18 @@ pub struct IterResult<I> {
 /// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
-/// use futures_executor::current_thread::run;
+/// use futures_executor::block_on;
 ///
 /// # fn main() {
 /// let mut stream = stream::iter_result(vec![Ok(17), Err(false), Ok(19)]);
-/// run(|c| {
-///     let (item, stream) = c.block_on(stream.into_future()).unwrap();
-///     assert_eq!(Some(17), item);
-///     let (err, stream) = c.block_on(stream.into_future()).unwrap_err();
-///     assert_eq!(false, err);
-///     let (item, stream) = c.block_on(stream.into_future()).unwrap();
-///     assert_eq!(Some(19), item);
-///     let (item, _) = c.block_on(stream.into_future()).unwrap();
-///     assert_eq!(None, item);
-/// });
+/// let (item, stream) = block_on(stream.into_future()).unwrap();
+/// assert_eq!(Some(17), item);
+/// let (err, stream) = block_on(stream.into_future()).unwrap_err();
+/// assert_eq!(false, err);
+/// let (item, stream) = block_on(stream.into_future()).unwrap();
+/// assert_eq!(Some(19), item);
+/// let (item, _) = block_on(stream.into_future()).unwrap();
+/// assert_eq!(None, item);
 /// # }
 /// ```
 pub fn iter_result<J, T, E>(i: J) -> IterResult<J::IntoIter>
