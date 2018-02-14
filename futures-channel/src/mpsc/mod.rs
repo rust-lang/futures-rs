@@ -413,23 +413,10 @@ impl<T> Sender<T> {
     }
 
     /// Attempt to start sending a message on the channel.
-    ///
-    /// If there is not room on the channel, this function will return
-    /// `Ok(Err(msg))`, and the current `Task` will be
-    /// awoken when the channel is ready to receive more messages.
-    ///
-    /// On successful completion, this function will return `Ok(Ok(()))`.
-    pub fn start_send(&mut self, cx: &mut task::Context, msg: T) -> Result<Result<(), T>, SendError<T>> {
-        // If the sender is currently blocked, reject the message before doing
-        // any work.
-        if !self.poll_unparked(Some(cx)).is_ready() {
-            return Ok(Err(msg));
-        }
-
-        // The channel has capacity to accept the message, so send it.
-        self.do_send(Some(msg), Some(cx))?;
-
-        Ok(Ok(()))
+    /// This function should only be called after `poll_ready` has responded
+    /// that the channel is ready to receive a message.
+    pub fn start_send(&mut self, msg: T) -> Result<(), SendError<T>> {
+        self.do_send(Some(msg), None)
     }
 
     // Do the send without failing
@@ -643,16 +630,16 @@ impl<T> Sender<T> {
 }
 
 impl<T> UnboundedSender<T> {
+    /// Check if the channel is ready to receive a message.
+    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), SendError<()>> {
+        self.0.poll_ready(cx)
+    }
+
     /// Attempt to start sending a message on the channel.
-    ///
-    /// If there is not room on the channel, this function will return
-    /// `Ok(Err(msg))`, and the current `Task` will be
-    /// awoken when the channel is ready to receive more messages.
-    ///
-    /// On a successful `start_send`, this function will return
-    /// `Ok(Ok(())`.
-    pub fn start_send(&mut self, cx: &mut task::Context, msg: T) -> Result<Result<(), T>, SendError<T>> {
-        self.0.start_send(cx, msg)
+    /// This function should only be called after `poll_ready` has been used to
+    /// verify that the channel is ready to receive a message.
+    pub fn start_send(&mut self, msg: T) -> Result<(), SendError<T>> {
+        self.0.start_send(msg)
     }
 
     /// Sends the provided message along this channel.

@@ -1,44 +1,67 @@
-use {Async, Sink, AsyncSink, StartSend, Poll};
+use {Async, Sink, Poll};
 use futures_core::task;
 use futures_channel::mpsc::{Sender, SendError, UnboundedSender};
 
-fn res_to_async_sink<T>(res: Result<(), T>) -> AsyncSink<T> {
-    match res {
-        Ok(()) => AsyncSink::Ready,
-        Err(x) => AsyncSink::Pending(x),
+/// The error type of `<Sender<T> as Sink>`
+///
+/// It will contain a value of type `T` if one was passed to `start_send`
+/// after the channel was closed.
+#[derive(Debug)]
+pub struct ChannelClosed<T>(Option<T>);
+
+impl<T> ChannelClosed<T> {
+    /// Extract the inner message.
+    pub fn into_inner(self) -> Option<T> {
+        self.0
+    }
+
+    fn from_send_error(err: SendError<T>) -> Self {
+        ChannelClosed(Some(err.into_inner()))
+    }
+
+    fn from_empty_send_error(_: SendError<()>) -> Self {
+        ChannelClosed(None)
     }
 }
 
 impl<T> Sink for Sender<T> {
     type SinkItem = T;
-    type SinkError = SendError<T>;
+    type SinkError = ChannelClosed<T>;
 
-    fn start_send(&mut self, cx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send(cx, msg).map(res_to_async_sink)
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.poll_ready(cx).map_err(ChannelClosed::from_empty_send_error)
     }
 
-    fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
-        Ok(Async::Ready(()))
+    fn start_send(&mut self, msg: T) -> Result<(), Self::SinkError> {
+        self.start_send(msg).map_err(ChannelClosed::from_send_error)
     }
 
-    fn close(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
+    fn start_close(&mut self) -> Result<(), Self::SinkError> {
+        Ok(())
+    }
+
+    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }
 
 impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
-    type SinkError = SendError<T>;
+    type SinkError = ChannelClosed<T>;
 
-    fn start_send(&mut self, cx: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
-        self.start_send(cx, msg).map(res_to_async_sink)
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.poll_ready(cx).map_err(ChannelClosed::from_empty_send_error)
     }
 
-    fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
-        Ok(Async::Ready(()))
+    fn start_send(&mut self, msg: T) -> Result<(), Self::SinkError> {
+        self.start_send(msg).map_err(ChannelClosed::from_send_error)
     }
 
-    fn close(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
+    fn start_close(&mut self) -> Result<(), Self::SinkError> {
+        Ok(())
+    }
+
+    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }
@@ -47,16 +70,19 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError<T>;
 
-    fn start_send(&mut self, _: &mut task::Context, msg: T) -> StartSend<T, SendError<T>> {
-        self.unbounded_send(msg)?;
-        Ok(AsyncSink::Ready)
-    }
-
-    fn flush(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
+    fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 
-    fn close(&mut self, _: &mut task::Context) -> Poll<(), SendError<T>> {
+    fn start_send(&mut self, msg: T) -> Result<(), Self::SinkError> {
+        self.unbounded_send(msg)
+    }
+
+    fn start_close(&mut self) -> Result<(), Self::SinkError> {
+        Ok(())
+    }
+
+    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }
