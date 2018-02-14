@@ -80,7 +80,7 @@ fn send_recv_threads() {
     let (tx, rx) = mpsc::channel::<i32>(16);
 
     let t = thread::spawn(move|| {
-        block_on(tx.send(1));
+        block_on(tx.send(1)).unwrap();
     });
 
     assert_eq!(block_on(rx.take(1).collect()).unwrap(), vec![1]);
@@ -341,6 +341,7 @@ fn stress_receiver_multi_task_bounded_hard() {
     for i in 0..AMT {
         tx = block_on(tx.send(i)).unwrap();
     }
+    drop(tx);
 
     for t in th {
         t.join().unwrap();

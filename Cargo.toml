@@ -3,7 +3,6 @@ members = [
   "futures",
   "futures-core",
   "futures-channel",
-  "futures-cpupool",
   "futures-executor",
   "futures-util",
   "futures-sink",

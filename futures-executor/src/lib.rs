@@ -18,11 +18,17 @@ macro_rules! if_std {
 if_std! {
     extern crate futures_core;
     extern crate futures_util;
+    extern crate futures_channel;
+    extern crate num_cpus;
 
     mod thread;
 
     mod local_pool;
     pub use local_pool::{block_on, LocalPool, LocalExecutor};
+
+    mod unpark_mutex;
+    mod thread_pool;
+    pub use thread_pool::{ThreadPool, ThreadPoolBuilder};
 
     mod enter;
     pub use enter::{enter, Enter, EnterError};
