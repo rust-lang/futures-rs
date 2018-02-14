@@ -1,20 +1,17 @@
 //! TODO: dox
 
-use futures_core::task::{self, NotifyHandle, LocalMap};
+use futures_core::task::{self, Waker, LocalMap};
 use futures_core::{Future, Async};
 
 use Enter;
 use thread::ThreadNotify;
 use task_runner::{set_current, with_current, TaskRunner};
 
-/// Provides execution context
-///
-/// This currently does not do anything, but allows future improvements to be
-/// made in a backwards compatible way.
+/// dox
 pub struct Context<'a> {
     enter: Enter,
     runner: &'a mut TaskRunner,
-    handle: &'a mut (FnMut() -> NotifyHandle + 'a),
+    waker: &'a Waker,
     thread: &'a ThreadNotify,
 }
 
@@ -24,14 +21,14 @@ pub fn run<F, R>(f: F) -> R
 {
     ThreadNotify::with_current(|thread| {
         let mut runner = TaskRunner::new();
-        let handle = &mut || thread.clone().into();
+        let waker = &Waker::from(thread.clone());
 
         // Kick off any initial work through the callback provided
         let ret = set_current(&runner.executor(), |enter| {
             f(&mut Context {
                 enter,
                 runner: &mut runner,
-                handle,
+                waker,
                 thread,
             })
         });
@@ -39,7 +36,7 @@ pub fn run<F, R>(f: F) -> R
         // So long as there's pending work we keep polling and sleeping.
         if !runner.is_done() {
             loop {
-                runner.poll(handle);
+                runner.poll(waker);
                 if runner.is_done() {
                     break
                 }
@@ -127,12 +124,12 @@ impl<'a> Context<'a> {
     {
         let mut map = LocalMap::new();
         loop {
-            match future.poll(&mut task::Context::new(&mut map, 0, self.handle)) {
+            match future.poll(&mut task::Context::new(&mut map, self.waker)) {
                 Ok(Async::Ready(e)) => return Ok(e),
                 Err(e) => return Err(e),
                 Ok(Async::Pending) => {}
             }
-            self.runner._poll(self.handle);
+            self.runner._poll(self.waker);
             self.thread.park();
         }
     }

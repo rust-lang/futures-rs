@@ -10,7 +10,7 @@ use std::fmt;
 use futures::channel::oneshot::{channel, Sender, Receiver};
 use futures::future::lazy;
 use futures::prelude::*;
-use futures::task::{self, Notify, LocalMap};
+use futures::task::{self, Wake, Waker, LocalMap};
 use futures_executor::enter;
 use num_cpus;
 
@@ -422,6 +422,7 @@ impl Run {
     /// thread.
     pub fn run(self) {
         let Run { mut spawn, inner, mut map } = self;
+        let waker = Waker::from(inner.clone());
 
         // SAFETY: the ownership of this `Run` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
@@ -429,11 +430,7 @@ impl Run {
             inner.mutex.start_poll();
 
             loop {
-                let res = spawn.poll(&mut task::Context::new(
-                    &mut map,
-                    0,
-                    &mut || inner.clone().into(),
-                ));
+                let res = spawn.poll(&mut task::Context::new(&mut map, &waker));
                 match res {
                     Ok(Async::Pending) => {}
                     Ok(Async::Ready(())) |
@@ -460,8 +457,8 @@ impl fmt::Debug for Run {
     }
 }
 
-impl Notify for RunInner {
-    fn notify(&self, _id: usize) {
+impl Wake for RunInner {
+    fn wake(&self) {
         match self.mutex.notify() {
             Ok(run) => self.exec.send(Message::Run(run)),
             Err(()) => {}
@@ -487,4 +484,3 @@ mod tests {
         assert_eq!(count, 2);
     }
 }
-

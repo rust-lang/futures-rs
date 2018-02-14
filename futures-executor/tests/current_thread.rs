@@ -154,7 +154,7 @@ fn tasks_are_scheduled_fairly() {
                 return Ok(().into());
             }
 
-            cx.waker().notify();
+            cx.waker().wake();
             Ok(Async::Pending)
         }
     }

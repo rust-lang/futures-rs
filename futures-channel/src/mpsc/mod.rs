@@ -311,7 +311,7 @@ impl SenderTask {
         self.is_parked = false;
 
         if let Some(task) = self.task.take() {
-            task.notify();
+            task.wake();
         }
     }
 }
@@ -571,7 +571,7 @@ impl<T> Sender<T> {
         };
 
         if let Some(task) = task {
-            task.notify();
+            task.wake();
         }
     }
 

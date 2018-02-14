@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::thread::{self, Thread};
 
-use futures_core::task::Notify;
+use futures_core::task::Wake;
 
 pub struct ThreadNotify {
     thread: Thread,
@@ -25,8 +25,8 @@ impl ThreadNotify {
     }
 }
 
-impl Notify for ThreadNotify {
-    fn notify(&self, _unpark_id: usize) {
+impl Wake for ThreadNotify {
+    fn wake(&self) {
         self.thread.unpark();
     }
 }

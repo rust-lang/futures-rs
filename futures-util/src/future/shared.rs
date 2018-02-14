@@ -29,7 +29,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
 
 use futures_core::{Future, Poll, Async};
-use futures_core::task::{self, Notify, Waker, LocalMap};
+use futures_core::task::{self, Wake, Waker, LocalMap};
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.
@@ -115,7 +115,7 @@ impl<F> Shared<F> where F: Future {
     fn complete(&self) {
         unsafe { *self.inner.future.get() = None };
         self.inner.notifier.state.store(COMPLETE, SeqCst);
-        self.inner.notifier.notify(0);
+        self.inner.notifier.wake();
     }
 }
 
@@ -163,9 +163,8 @@ impl<F> Future for Shared<F>
             // Poll the future
             let res = unsafe {
                 let (ref mut f, ref mut data) = *(*self.inner.future.get()).as_mut().unwrap();
-                let notifier = &self.inner.notifier;
-                let mut notifier = move || notifier.clone().into();
-                let mut cx = task::Context::new(data, 0, &mut notifier);
+                let waker = Waker::from(self.inner.notifier.clone());
+                let mut cx = task::Context::new(data, &waker);
                 f.poll(&mut cx)
             };
             match res {
@@ -225,14 +224,14 @@ impl<F> Drop for Shared<F> where F: Future {
     }
 }
 
-impl Notify for Notifier {
-    fn notify(&self, _id: usize) {
+impl Wake for Notifier {
+    fn wake(&self) {
         self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
         let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), HashMap::new());
 
         for (_, waiter) in waiters {
-            waiter.notify();
+            waiter.wake();
         }
     }
 }

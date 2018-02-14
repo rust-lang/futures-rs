@@ -6,7 +6,7 @@ use std::ptr;
 use std::rc::{Rc, Weak};
 
 use futures_core::{Future, Poll, Async, Stream};
-use futures_core::task::{self, NotifyHandle, LocalMap};
+use futures_core::task::{self, Waker, LocalMap};
 use futures_util::FutureExt;
 use futures_util::stream::FuturesUnordered;
 
@@ -115,15 +115,15 @@ impl TaskRunner {
     ///
     /// This method also does not attempt to catch panics of the underlying
     /// futures.  Instead it will propagate panics if any polled future panics.
-    pub fn poll(&mut self, f: &mut FnMut() -> NotifyHandle) {
-        set_current(&self.executor(), |_e| self._poll(f))
+    pub fn poll(&mut self, w: &Waker) {
+        set_current(&self.executor(), |_e| self._poll(w))
     }
 
-    pub(crate) fn _poll(&mut self, f: &mut FnMut() -> NotifyHandle) {
+    pub(crate) fn _poll(&mut self, w: &Waker) {
         loop {
             // Make progress on all spawned futures as long as we can
             while !self.is_done() {
-                let mut cx = task::Context::new(&mut self.map, 0, f);
+                let mut cx = task::Context::new(&mut self.map, w);
                 match self.futures.poll(&mut cx) {
                     Ok(Async::Ready(Some(/* is_daemon = */ true))) |
                     Err(true) => {}

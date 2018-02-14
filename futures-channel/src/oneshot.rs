@@ -221,7 +221,7 @@ impl<T> Inner<T> {
         if let Some(mut slot) = self.rx_task.try_lock() {
             if let Some(task) = slot.take() {
                 drop(slot);
-                task.notify();
+                task.wake();
             }
         }
     }
@@ -233,7 +233,7 @@ impl<T> Inner<T> {
         if let Some(mut handle) = self.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
-                task.notify()
+                task.wake()
             }
         }
     }
@@ -306,7 +306,7 @@ impl<T> Inner<T> {
         if let Some(mut handle) = self.tx_task.try_lock() {
             if let Some(task) = handle.take() {
                 drop(handle);
-                task.notify()
+                task.wake()
             }
         }
     }
