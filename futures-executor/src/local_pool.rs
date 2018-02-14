@@ -69,7 +69,7 @@ impl LocalPool {
     }
 
     /// todo: dox
-    pub fn run_until<F, E>(&mut self, mut f: F, exec: &Executor) -> Result<F::Item, F::Error>
+    pub fn run_until<F>(&mut self, mut f: F, exec: &Executor) -> Result<F::Item, F::Error>
         where F: Future
     {
         // persistent state for the "main task"
@@ -92,20 +92,26 @@ impl LocalPool {
 
     // dox
     fn poll_pool(&mut self, waker: &Waker, exec: &Executor) -> Async<()> {
-        // empty the incoming queue of newly-spawned tasks
-        {
-            let mut incoming = self.incoming.borrow_mut();
-            for task in incoming.drain(..) {
-                self.pool.push(task)
-            }
-        }
-
         // state for the FuturesUnordered, which will never be used
         let mut pool_map = LocalMap::new();
         let mut pool_cx = Context::new(&mut pool_map, waker, exec);
 
         loop {
+            // empty the incoming queue of newly-spawned tasks
+            {
+                let mut incoming = self.incoming.borrow_mut();
+                for task in incoming.drain(..) {
+                    self.pool.push(task)
+                }
+            }
+
             if let Ok(ret) = self.pool.poll(&mut pool_cx) {
+                // we queued up some new tasks; add them and poll again
+                if !self.incoming.borrow().is_empty() {
+                    continue;
+                }
+
+                // no queued tasks; we may be done
                 match ret {
                     Async::Pending => return Async::Pending,
                     Async::Ready(None) => return Async::Ready(()),

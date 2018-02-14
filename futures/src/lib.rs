@@ -209,6 +209,7 @@ pub mod executor {
     //! spawned and executed asynchronously.
 
     pub use futures_executor::*;
+    pub use futures_core::executor::*;
 }
 
 pub mod future {
