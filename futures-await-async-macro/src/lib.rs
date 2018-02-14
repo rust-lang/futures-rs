@@ -31,7 +31,7 @@ macro_rules! quote_cs {
     ($($t:tt)*) => (quote_spanned!(Span::call_site() => $($t)*))
 }
 
-fn async_inner<F>(
+fn async_move_inner<F>(
     boxed: bool,
     function: TokenStream,
     gen_function: Tokens,
@@ -86,7 +86,7 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
     // into roughly:
     //
     //      fn foo(__arg_0: u32) -> impl Future<...> {
-    //          gen(move || {
+    //          gen_move(move || {
     //              let ref a = __arg0;
     //
     //              // ...
@@ -182,7 +182,7 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
         #[allow(unreachable_code)]
         {
             return __e;
-            loop { yield ::futures::Async::NotReady }
+            loop { yield ::futures::__rt::Async::Pending }
         }
     };
     let mut gen_body = Tokens::new();
@@ -224,7 +224,6 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
 
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
-    // Handle arguments to the #[async] attribute, if any
     let (boxed, send) = match &attribute.to_string() as &str {
         "( boxed )" => (true, false),
         "( boxed_send )" => (true, true),
@@ -232,20 +231,37 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         _ => panic!("the #[async] attribute currently only takes `boxed` as an arg"),
     };
 
+    /*
     async_inner(boxed, function, quote_cs! { ::futures::__rt::gen }, |output| {
+    })
+    */
+    panic!()
+}
+
+#[proc_macro_attribute]
+pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async_move] attribute, if any
+    let (boxed, send) = match &attribute.to_string() as &str {
+        "( boxed )" => (true, false),
+        "( boxed_send )" => (true, true),
+        "" => (false, false),
+        _ => panic!("the #[async_move] attribute currently only takes `boxed` as an arg"),
+    };
+
+    async_move_inner(boxed, function, quote_cs! { ::futures::__rt::gen_move }, |output| {
         // TODO: can we lift the restriction that `futures` must be at the root of
         //       the crate?
         let output_span = first_last(&output);
         let return_ty = if boxed && !send {
             quote_cs! {
-                ::futures::__rt::std::boxed::Box<::futures::Future<
+                ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
             }
         } else if boxed && send {
             quote_cs! {
-                ::futures::__rt::std::boxed::Box<::futures::Future<
+                ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 > + Send>
@@ -254,7 +270,7 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
             // Dunno why this is buggy, hits weird typecheck errors in tests
             //
             // quote_cs! {
-            //     impl ::futures::Future<
+            //     impl ::futures::__rt::Future<
             //         Item = <#output as ::futures::__rt::MyTry>::MyOk,
             //         Error = <#output as ::futures::__rt::MyTry>::MyError,
             //     >
@@ -267,8 +283,8 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStream {
-    // Handle arguments to the #[async_stream] attribute, if any
+pub fn async_stream_move(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async_stream_move] attribute, if any
     let args = syn::parse::<AsyncStreamArgs>(attribute)
         .expect("failed to parse attribute arguments");
 
@@ -280,34 +296,34 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
             AsyncStreamArg(term, None) => {
                 if term == "boxed" {
                     if boxed {
-                        panic!("duplicate 'boxed' argument to #[async_stream]");
+                        panic!("duplicate 'boxed' argument to #[async_stream_move]");
                     }
                     boxed = true;
                 } else {
-                    panic!("unexpected #[async_stream] argument '{}'", term);
+                    panic!("unexpected #[async_stream_move] argument '{}'", term);
                 }
             }
             AsyncStreamArg(term, Some(ty)) => {
                 if term == "item" {
                     if item_ty.is_some() {
-                        panic!("duplicate 'item' argument to #[async_stream]");
+                        panic!("duplicate 'item' argument to #[async_stream_move]");
                     }
                     item_ty = Some(ty);
                 } else {
-                    panic!("unexpected #[async_stream] argument '{}'", quote_cs!(#term = #ty));
+                    panic!("unexpected #[async_stream_move] argument '{}'", quote_cs!(#term = #ty));
                 }
             }
         }
     }
 
     let boxed = boxed;
-    let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
+    let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
 
-    async_inner(boxed, function, quote_cs! { ::futures::__rt::gen_stream }, |output| {
+    async_move_inner(boxed, function, quote_cs! { ::futures::__rt::gen_stream }, |output| {
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {
-                ::futures::__rt::std::boxed::Box<::futures::Stream<
+                ::futures::__rt::std::boxed::Box<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
@@ -331,7 +347,7 @@ pub fn async_block(input: TokenStream) -> TokenStream {
     let expr = ExpandAsyncFor.fold_expr(expr);
 
     let mut tokens = quote_cs! {
-        ::futures::__rt::gen
+        ::futures::__rt::gen_move
     };
 
     // Use some manual token construction here instead of `quote_cs!` to ensure
@@ -342,7 +358,7 @@ pub fn async_block(input: TokenStream) -> TokenStream {
         syn::token::OrOr([span, span]).to_tokens(tokens);
         syn::token::Brace(span).surround(tokens, |tokens| {
             (quote_cs! {
-                if false { yield ::futures::Async::NotReady }
+                if false { yield ::futures::__rt::Async::Pending }
             }).to_tokens(tokens);
             expr.to_tokens(tokens);
         });
@@ -373,7 +389,7 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
         syn::token::OrOr([span, span]).to_tokens(tokens);
         syn::token::Brace(span).surround(tokens, |tokens| {
             (quote_cs! {
-                if false { yield ::futures::Async::NotReady }
+                if false { yield ::futures::__rt::Async::Pending }
             }).to_tokens(tokens);
             expr.to_tokens(tokens);
         });
@@ -416,16 +432,17 @@ impl Fold for ExpandAsyncFor {
             loop {
                 let #pat = {
                     extern crate futures_await;
-                    let r = futures_await::Stream::poll(&mut __stream)?;
+                    let ctx = futures_await::__rt::get_ctx();
+                    let r = futures_await::__rt::Stream::poll(&mut __stream, unsafe { &mut *ctx })?;
                     match r {
-                        futures_await::Async::Ready(e) => {
+                        futures_await::__rt::Async::Ready(e) => {
                             match e {
                                 futures_await::__rt::std::option::Option::Some(e) => e,
                                 futures_await::__rt::std::option::Option::None => break,
                             }
                         }
-                        futures_await::Async::NotReady => {
-                            yield futures_await::Async::NotReady;
+                        futures_await::__rt::Async::Pending => {
+                            yield futures_await::__rt::Async::Pending;
                             continue
                         }
                     }

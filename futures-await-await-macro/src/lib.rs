@@ -13,16 +13,17 @@ macro_rules! await {
     ($e:expr) => ({
         let mut future = $e;
         loop {
-            match ::futures::Future::poll(&mut future) {
-                ::futures::__rt::std::result::Result::Ok(::futures::Async::Ready(e)) => {
+            let ctx = ::futures::__rt::get_ctx();
+            match ::futures::__rt::Future::poll(&mut future, unsafe { &mut *ctx }) {
+                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)
                 }
-                ::futures::__rt::std::result::Result::Ok(::futures::Async::NotReady) => {}
+                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
                 ::futures::__rt::std::result::Result::Err(e) => {
                     break ::futures::__rt::std::result::Result::Err(e)
                 }
             }
-            yield ::futures::Async::NotReady
+            yield ::futures::__rt::Async::Pending
         }
     })
 }
@@ -36,17 +37,18 @@ macro_rules! await {
 macro_rules! await_item {
     ($e:expr) => ({
         loop {
-            match ::futures::Stream::poll(&mut $e) {
-                ::futures::__rt::std::result::Result::Ok(::futures::Async::Ready(e)) => {
+            let ctx = ::futures::__rt::get_ctx();
+            match ::futures::Stream::poll(&mut $e, unsafe { &mut *ctx }) {
+                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)
                 }
-                ::futures::__rt::std::result::Result::Ok(::futures::Async::NotReady) => {}
+                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
                 ::futures::__rt::std::result::Result::Err(e) => {
                     break ::futures::__rt::std::result::Result::Err(e)
                 }
             }
 
-            yield ::futures::Async::NotReady
+            yield ::futures::__rt::Async::Pending
         }
     })
 }
@@ -58,6 +60,6 @@ macro_rules! await_item {
 macro_rules! stream_yield {
     ($e:expr) => ({
         let e = $e;
-        yield ::futures::Async::Ready(e)
+        yield ::futures::__rt::Async::Ready(e)
     })
 }

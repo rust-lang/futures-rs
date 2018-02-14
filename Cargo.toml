@@ -21,9 +21,9 @@ members = ["testcrate"]
 [dependencies]
 futures-await-async-macro = { path = "futures-await-async-macro", version = "0.1" }
 futures-await-await-macro = { path = "futures-await-await-macro", version = "0.1" }
-futures = "0.1"
+futures = { git = "https://github.com/rust-lang-nursery/futures-rs", branch = "0.2" }
 
 [dev-dependencies]
-futures-cpupool = "0.1"
+futures-cpupool = { git = "https://github.com/rust-lang-nursery/futures-rs", branch = "0.2" }
 tokio-core = "0.1"
 tokio-io = "0.1"
