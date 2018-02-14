@@ -20,9 +20,9 @@ if_std! {
     extern crate futures_util;
 
     mod thread;
-    mod task_runner;
 
-    pub mod current_thread;
+    mod local_pool;
+    pub use local_pool::{LocalPool, LocalExecutor};
 
     mod enter;
     pub use enter::{enter, Enter, EnterError};

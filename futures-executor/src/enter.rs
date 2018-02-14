@@ -1,5 +1,5 @@
 use std::prelude::v1::*;
-use std::cell::{RefCell, Cell};
+use std::cell::Cell;
 use std::fmt;
 
 thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
@@ -8,24 +8,21 @@ thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
 ///
 /// For more details, see [`enter` documentation](fn.enter.html)
 pub struct Enter {
-    on_exit: RefCell<Vec<Box<Callback>>>,
-    permanent: bool,
+    _a: ()
 }
 
 /// An error returned by `enter` if an execution scope has already been
 /// entered.
 #[derive(Debug)]
 pub struct EnterError {
-	_a: (),
+    _a: (),
 }
 
 /// Marks the current thread as being within the dynamic extent of an
 /// executor.
 ///
 /// Executor implementations should call this function before blocking the
-/// thread. If `None` is returned, the executor should fail by panicking or
-/// taking some other action without blocking the current thread. This prevents
-/// deadlocks due to multiple executors competing for the same thread.
+/// thread.
 ///
 /// # Error
 ///
@@ -37,29 +34,9 @@ pub fn enter() -> Result<Enter, EnterError> {
         } else {
             c.set(true);
 
-            Ok(Enter {
-                on_exit: RefCell::new(Vec::new()),
-                permanent: false,
-            })
+            Ok(Enter { _a: () })
         }
     })
-}
-
-impl Enter {
-    /// Register a callback to be invoked if and when the thread
-    /// ceased to act as an executor.
-    pub fn on_exit<F>(&self, f: F) where F: FnOnce() + 'static {
-        self.on_exit.borrow_mut().push(Box::new(f));
-    }
-
-    /// Treat the remainder of execution on this thread as part of an
-    /// executor; used mostly for thread pool worker threads.
-    ///
-    /// All registered `on_exit` callbacks are *dropped* without being
-    /// invoked.
-    pub fn make_permanent(mut self) {
-        self.permanent = true;
-    }
 }
 
 impl fmt::Debug for Enter {
@@ -72,25 +49,7 @@ impl Drop for Enter {
     fn drop(&mut self) {
         ENTERED.with(|c| {
             assert!(c.get());
-            if self.permanent {
-                return
-            }
-
-            let mut on_exit = self.on_exit.borrow_mut();
-            for callback in on_exit.drain(..) {
-                callback.call();
-            }
             c.set(false);
         });
-    }
-}
-
-trait Callback: 'static {
-    fn call(self: Box<Self>);
-}
-
-impl<F: FnOnce() + 'static> Callback for F {
-    fn call(self: Box<Self>) {
-        (*self)()
     }
 }
