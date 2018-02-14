@@ -30,6 +30,8 @@
 use core::fmt;
 use core::marker::PhantomData;
 
+use executor::Executor;
+
 mod atomic_waker;
 pub use self::atomic_waker::AtomicWaker;
 
@@ -37,12 +39,13 @@ pub use self::atomic_waker::AtomicWaker;
 pub struct Context<'a> {
     waker: &'a Waker,
     map: &'a mut LocalMap,
+    executor: &'a Executor,
 }
 
 impl<'a> Context<'a> {
     /// TODO: dox
-    pub fn new(map: &'a mut LocalMap, waker: &'a Waker) -> Context<'a> {
-        Context { waker, map }
+    pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a Executor) -> Context<'a> {
+        Context { waker, map, executor }
     }
 
     /// TODO: dox
@@ -52,14 +55,19 @@ impl<'a> Context<'a> {
 
     /// TODO: dox
     pub fn with_waker<'b>(&'b mut self, waker: &'b Waker) -> Context<'b> {
-        Context { map: self.map, waker }
+        Context { map: self.map, executor: self.executor, waker }
     }
 
     /// TODO: dox
     pub fn with_locals<'b>(&'b mut self, map: &'b mut LocalMap)
         -> Context<'b>
     {
-        Context { map, waker: self.waker }
+        Context { map, waker: self.waker, executor: self.executor }
+    }
+
+    /// TODO: dox
+    pub fn executor(&self) -> &Executor {
+        self.executor
     }
 }
 

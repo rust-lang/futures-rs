@@ -27,4 +27,6 @@ pub use stream::Stream;
 
 pub mod task;
 
+pub mod executor;
+
 pub mod never;
