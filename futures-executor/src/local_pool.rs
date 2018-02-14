@@ -122,6 +122,19 @@ impl LocalPool {
     }
 }
 
+/// todo: dox
+pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
+    let mut pool = LocalPool::new();
+    let exec = pool.executor();
+
+    // run our main future to completion
+    let res = pool.run_until(f, &exec);
+    // run any remainingspawned tasks to completion
+    pool.run(&exec);
+
+    res
+}
+
 impl Executor for LocalExecutor {
     fn spawn(&self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
         self.spawn_task(Task {

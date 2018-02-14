@@ -22,7 +22,7 @@ if_std! {
     mod thread;
 
     mod local_pool;
-    pub use local_pool::{LocalPool, LocalExecutor};
+    pub use local_pool::{block_on, LocalPool, LocalExecutor};
 
     mod enter;
     pub use enter::{enter, Enter, EnterError};
