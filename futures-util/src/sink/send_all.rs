@@ -1,6 +1,6 @@
 use futures_core::{Poll, Async, Future, Stream};
 use futures_core::task;
-use futures_sink::{Sink, AsyncSink};
+use futures_sink::{Sink};
 
 use stream::{StreamExt, Fuse};
 
@@ -50,11 +50,16 @@ impl<T, U> SendAll<T, U>
 
     fn try_start_send(&mut self, cx: &mut task::Context, item: U::Item) -> Poll<(), T::SinkError> {
         debug_assert!(self.buffered.is_none());
-        if let AsyncSink::Pending(item) = self.sink_mut().start_send(cx, item)? {
-            self.buffered = Some(item);
-            return Ok(Async::Pending)
+        match self.sink_mut().poll_ready(cx)? {
+            Async::Ready(()) => {
+                self.sink_mut().start_send(item)?;
+                Ok(Async::Ready(()))
+            }
+            Async::Pending => {
+                self.buffered = Some(item);
+                Ok(Async::Pending)
+            }
         }
-        Ok(Async::Ready(()))
     }
 }
 
@@ -77,11 +82,11 @@ impl<T, U> Future for SendAll<T, U>
             match self.stream_mut().poll(cx)? {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(cx, item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().flush(cx));
+                    try_ready!(self.sink_mut().poll_flush(cx));
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::Pending => {
-                    try_ready!(self.sink_mut().flush(cx));
+                    try_ready!(self.sink_mut().poll_flush(cx));
                     return Ok(Async::Pending)
                 }
             }

@@ -15,6 +15,26 @@ macro_rules! if_std {
     )*)
 }
 
+macro_rules! delegate_sink {
+    ($field:ident) => {
+        fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+            self.$field.poll_ready(cx)
+        }
+
+        fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+            self.$field.start_send(item)
+        }
+
+        fn start_close(&mut self) -> Result<(), Self::SinkError> {
+            self.$field.start_close()
+        }
+
+        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+            self.$field.poll_flush(cx)
+        }
+    }
+}
+
 #[macro_use]
 #[cfg(feature = "std")]
 extern crate std;

@@ -46,7 +46,7 @@ impl<S: Sink> Future for Flush<S> {
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
         let mut sink = self.sink.take().expect("Attempted to poll Flush after it completed");
-        if sink.flush(cx)?.is_ready() {
+        if sink.poll_flush(cx)?.is_ready() {
             Ok(Async::Ready(sink))
         } else {
             self.sink = Some(sink);

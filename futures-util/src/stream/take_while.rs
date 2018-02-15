@@ -1,6 +1,6 @@
 use futures_core::{Async, Poll, IntoFuture, Future, Stream};
 use futures_core::task;
-use futures_sink::{StartSend, Sink};
+use futures_sink::{ Sink};
 
 /// A stream combinator which takes elements from a stream while a predicate
 /// holds.
@@ -60,17 +60,7 @@ impl<S, P, R> Sink for TakeWhile<S, P, R>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(cx)
-    }
+    delegate_sink!(stream);
 }
 
 impl<S, P, R> Stream for TakeWhile<S, P, R>

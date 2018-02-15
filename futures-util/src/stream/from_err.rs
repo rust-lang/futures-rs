@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use futures_core::{Async, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend};
+use futures_sink::{Sink};
 
 /// A stream combinator to change the error type of a stream.
 ///
@@ -66,16 +66,6 @@ impl<S: Stream, E: From<S::Error>> Stream for FromErr<S, E> {
 impl<S: Stream + Sink, E> Sink for FromErr<S, E> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
-
-    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.stream.close(cx)
-    }
+    
+    delegate_sink!(stream);
 }

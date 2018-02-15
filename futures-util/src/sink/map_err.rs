@@ -1,6 +1,6 @@
 use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend};
+use futures_sink::{Sink};
 
 /// Sink for the `Sink::sink_map_err` combinator.
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub fn new<S, F>(s: S, f: F) -> SinkMapErr<S, F> {
     SinkMapErr { sink: s, f: Some(f) }
 }
 
-impl<S, E> SinkMapErr<S, E> {
+impl<S, F> SinkMapErr<S, F> {
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &S {
         &self.sink
@@ -32,6 +32,10 @@ impl<S, E> SinkMapErr<S, E> {
     pub fn into_inner(self) -> S {
         self.sink
     }
+
+    fn expect_f(&mut self) -> F {
+        self.f.take().expect("cannot use MapErr after an error")
+    }
 }
 
 impl<S, F, E> Sink for SinkMapErr<S, F>
@@ -41,16 +45,20 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = E;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        self.sink.start_send(cx, item).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.poll_ready(cx).map_err(|e| self.expect_f()(e))
     }
 
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.sink.flush(cx).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        self.sink.start_send(item).map_err(|e| self.expect_f()(e))
     }
 
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.sink.close(cx).map_err(|e| self.f.take().expect("cannot use MapErr after an error")(e))
+    fn start_close(&mut self) -> Result<(), Self::SinkError> {
+        self.sink.start_close().map_err(|e| self.expect_f()(e))
+    }
+
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.poll_flush(cx).map_err(|e| self.expect_f()(e))
     }
 }
 

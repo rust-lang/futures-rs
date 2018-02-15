@@ -1,6 +1,6 @@
 use futures_core::{IntoFuture, Future, Poll, Async, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend};
+use futures_sink::{Sink};
 
 /// A stream combinator which chains a computation onto errors produced by a
 /// stream.
@@ -35,17 +35,7 @@ impl<S, F, U> Sink for OrElse<S, F, U>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(cx)
-    }
+    delegate_sink!(stream);
 }
 
 impl<S, F, U> Stream for OrElse<S, F, U>
