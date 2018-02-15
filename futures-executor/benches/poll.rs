@@ -4,20 +4,21 @@ extern crate futures;
 extern crate test;
 
 use futures::prelude::*;
-use futures::task::{self, Waker, Notify, NotifyHandle, LocalMap};
+use futures::task::{self, Waker, Wake};
+use futures::executor::LocalPool;
 
 use test::Bencher;
 
-fn notify_noop() -> NotifyHandle {
+fn notify_noop() -> Waker {
     struct Noop;
 
-    impl Notify for Noop {
-        fn notify(&self, _id: usize) {}
+    impl Wake for Noop {
+        fn wake(&self) {}
     }
 
     const NOOP : &'static Noop = &Noop;
 
-    NotifyHandle::from(NOOP)
+    Waker::from(NOOP)
 }
 
 #[bench]
@@ -40,12 +41,12 @@ fn task_init(b: &mut Bencher) {
                 self.num += 1;
 
                 if let Some(ref t) = self.task {
-                    t.notify();
+                    t.wake();
                     return Ok(Async::Pending);
                 }
 
                 let t = cx.waker();
-                t.notify();
+                t.wake();
                 self.task = Some(t);
 
                 Ok(Async::Pending)
@@ -57,9 +58,12 @@ fn task_init(b: &mut Bencher) {
         num: 0,
         task: None,
     };
-    let mut notify = || notify_noop().into();
-    let mut map = LocalMap::new();
-    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+
+    let pool = LocalPool::new();
+    let exec = pool.executor();
+    let waker = notify_noop();
+    let mut map = task::LocalMap::new();
+    let mut cx = task::Context::new(&mut map, &waker, &exec);
 
     b.iter(|| {
         fut.num = 0;

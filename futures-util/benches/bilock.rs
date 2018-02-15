@@ -5,23 +5,24 @@ extern crate futures_util;
 extern crate test;
 
 use futures::prelude::*;
-use futures::task::{self, Notify, NotifyHandle};
+use futures::task::{self, Wake, Waker};
+use futures::executor::LocalPool;
 use futures_util::lock::BiLock;
 use futures_util::lock::BiLockAcquire;
 use futures_util::lock::BiLockAcquired;
 
 use test::Bencher;
 
-fn notify_noop() -> NotifyHandle {
+fn notify_noop() -> Waker {
     struct Noop;
 
-    impl Notify for Noop {
-        fn notify(&self, _id: usize) {}
+    impl Wake for Noop {
+        fn wake(&self) {}
     }
 
     const NOOP : &'static Noop = &Noop;
 
-    NotifyHandle::from(NOOP)
+    Waker::from(NOOP)
 }
 
 
@@ -59,9 +60,11 @@ impl Stream for LockStream {
 
 #[bench]
 fn contended(b: &mut Bencher) {
-    let mut notify = || notify_noop().into();
+    let pool = LocalPool::new();
+    let exec = pool.executor();
+    let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+    let mut cx = task::Context::new(&mut map, &waker, &exec);
 
     b.iter(|| {
         let (x, y) = BiLock::new(1);
@@ -96,9 +99,11 @@ fn contended(b: &mut Bencher) {
 
 #[bench]
 fn lock_unlock(b: &mut Bencher) {
-    let mut notify = || notify_noop().into();
+    let pool = LocalPool::new();
+    let exec = pool.executor();
+    let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+    let mut cx = task::Context::new(&mut map, &waker, &exec);
 
     b.iter(|| {
         let (x, y) = BiLock::new(1);

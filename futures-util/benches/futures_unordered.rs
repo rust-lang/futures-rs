@@ -9,7 +9,7 @@ use futures::prelude::*;
 use futures::future;
 use futures::stream::FuturesUnordered;
 use futures_channel::oneshot;
-use futures_executor::current_thread::run;
+use futures_executor::block_on;
 
 use test::Bencher;
 
@@ -36,16 +36,14 @@ fn oneshots(b: &mut Bencher) {
             }
         });
 
-        run(|c| {
-            let f = future::poll_fn(move |cx| {
-                loop {
-                    if let Ok(Async::Ready(None)) = rxs.poll(cx) {
-                        break
-                    }
+        let f = future::poll_fn(move |cx| {
+            loop {
+                if let Ok(Async::Ready(None)) = rxs.poll(cx) {
+                    break
                 }
-                Ok::<_, ()>(Async::Ready(()))
-            });
-            c.block_on(f).unwrap();
+            }
+            Ok::<_, ()>(Async::Ready(()))
         });
+        block_on(f).unwrap();
     });
 }
