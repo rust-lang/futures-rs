@@ -201,3 +201,22 @@ fn spawn_kill_dead_stream() {
         },
     }
 }
+
+/// Test case for PR #768 (issue #766).
+#[test]
+fn dropped_sender_of_unused_channel_notifies_receiver() {
+    let core = Core::new();
+    let (tx, rx) = mpsc::channel::<u8>(1);
+    let future_1: Box<futures::Future<Item=(), Error=()>> = Box::new(
+        futures::stream::iter_ok(vec![])
+        .forward(tx)
+        .map_err(|_: mpsc::SendError<u8>| ())
+        .map(|_| ())
+    );
+    let future_2: Box<futures::Future<Item=(), Error=()>> = Box::new(
+        rx.fold((), |_, _| Ok(())).map(|_|())
+    );
+    // The order of the tested futures is important to test fix of PR #768.
+    // We want future_2 to poll on the Receiver before the Sender is dropped.
+    core.run(futures::future::join_all(vec![future_2, future_1])).unwrap();
+}
