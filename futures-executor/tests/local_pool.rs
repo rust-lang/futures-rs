@@ -39,12 +39,12 @@ fn run_until_single_future() {
 
     {
         let mut pool = LocalPool::new();
-        let exec = pool.executor();
+        let mut exec = pool.executor();
         let fut = lazy(|| {
             cnt += 1;
             DONE
         });
-        pool.run_until(fut, &exec).unwrap();
+        pool.run_until(fut, &mut exec).unwrap();
     }
 
     assert_eq!(cnt, 1);
@@ -53,21 +53,21 @@ fn run_until_single_future() {
 #[test]
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     exec.spawn_local(Box::new(never())).unwrap();
-    pool.run_until(lazy(|| DONE), &exec).unwrap();
+    pool.run_until(lazy(|| DONE), &mut exec).unwrap();
 }
 
 #[test]
 fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     exec.spawn_local(Box::new(lazy(move || {
         tx.send(()).unwrap();
         DONE
     }))).unwrap();
-    pool.run_until(rx, &exec).unwrap();
+    pool.run_until(rx, &mut exec).unwrap();
 }
 
 #[test]
@@ -76,8 +76,8 @@ fn run_executes_spawned() {
     let cnt2 = cnt.clone();
 
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
-    let exec2 = pool.executor();
+    let mut exec = pool.executor();
+    let mut exec2 = pool.executor();
 
     exec.spawn_local(Box::new(lazy(move || {
         exec2.spawn_local(Box::new(lazy(move || {
@@ -87,7 +87,7 @@ fn run_executes_spawned() {
         DONE
     }))).unwrap();
 
-    pool.run(&exec);
+    pool.run(&mut exec);
 
     assert_eq!(cnt.get(), 1);
 }
@@ -99,7 +99,7 @@ fn run_spawn_many() {
     let cnt = Rc::new(Cell::new(0));
 
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
@@ -109,7 +109,7 @@ fn run_spawn_many() {
         }))).unwrap();
     }
 
-    pool.run(&exec);
+    pool.run(&mut exec);
 
     assert_eq!(cnt.get(), ITER);
 }
@@ -118,15 +118,15 @@ fn run_spawn_many() {
 #[should_panic]
 fn nesting_run() {
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
 
     exec.spawn(Box::new(lazy(|| {
         let mut pool = LocalPool::new();
-        let exec = pool.executor();
-        pool.run(&exec);
+        let mut exec = pool.executor();
+        pool.run(&mut exec);
         Ok(())
     }))).unwrap();
-    pool.run(&exec);
+    pool.run(&mut exec);
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn tasks_are_scheduled_fairly() {
     }
 
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
 
     exec.spawn_local(Box::new(Spin {
         state: state.clone(),
@@ -179,5 +179,5 @@ fn tasks_are_scheduled_fairly() {
         idx: 1,
     })).unwrap();
 
-    pool.run(&exec);
+    pool.run(&mut exec);
 }

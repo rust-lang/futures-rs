@@ -39,12 +39,12 @@ pub use self::atomic_waker::AtomicWaker;
 pub struct Context<'a> {
     waker: &'a Waker,
     map: &'a mut LocalMap,
-    executor: &'a Executor,
+    executor: &'a mut Executor,
 }
 
 impl<'a> Context<'a> {
     /// TODO: dox
-    pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a Executor) -> Context<'a> {
+    pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
         Context { waker, map, executor }
     }
 
@@ -66,7 +66,7 @@ impl<'a> Context<'a> {
     }
 
     /// TODO: dox
-    pub fn executor(&self) -> &Executor {
+    pub fn executor(&mut self) -> &mut Executor {
         self.executor
     }
 }

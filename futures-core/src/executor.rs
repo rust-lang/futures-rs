@@ -7,7 +7,7 @@ if_std! {
     /// TODO: dox
     pub trait Executor {
         /// TODO: dox
-        fn spawn(&self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError>;
+        fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError>;
 
         /// TODO: dox
         fn status(&self) -> Result<(), SpawnError> {

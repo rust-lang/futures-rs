@@ -127,7 +127,7 @@ impl ThreadPool {
 }
 
 impl Executor for ThreadPool {
-    fn spawn(&self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
+    fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
         let task = Task {
             spawn: f,
             map: LocalMap::new(),
@@ -135,6 +135,7 @@ impl Executor for ThreadPool {
                 exec: self.clone(),
                 mutex: UnparkMutex::new(),
             }),
+            exec: self.clone(),
         };
         self.state.send(Message::Run(task));
         Ok(())
@@ -286,6 +287,7 @@ impl ThreadPoolBuilder {
 struct Task {
     spawn: Box<Future<Item = (), Error = ()> + Send>,
     map: LocalMap,
+    exec: ThreadPool,
     wake_handle: Arc<WakeHandle>,
 }
 
@@ -298,7 +300,7 @@ impl Task {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
     pub fn run(self) {
-        let Task { mut spawn, wake_handle, mut map } = self;
+        let Task { mut spawn, wake_handle, mut map, mut exec } = self;
         let waker = Waker::from(wake_handle.clone());
 
         // SAFETY: the ownership of this `Task` object is evidence that
@@ -308,7 +310,7 @@ impl Task {
 
             loop {
                 let res = {
-                    let mut cx = task::Context::new(&mut map, &waker, &wake_handle.exec);
+                    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
                     spawn.poll(&mut cx)
                 };
                 match res {
@@ -316,12 +318,18 @@ impl Task {
                     Ok(Async::Ready(())) |
                     Err(()) => return wake_handle.mutex.complete(),
                 }
-                let task = Task { spawn, map, wake_handle: wake_handle.clone() };
+                let task = Task {
+                    spawn,
+                    map,
+                    wake_handle: wake_handle.clone(),
+                    exec: exec
+                };
                 match wake_handle.mutex.wait(task) {
                     Ok(()) => return,            // we've waited
                     Err(r) => { // someone's notified us
                         spawn = r.spawn;
                         map = r.map;
+                        exec = r.exec;
                     }
                 }
             }

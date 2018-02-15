@@ -64,25 +64,27 @@ impl LocalPool {
     }
 
     /// todo: dox
-    pub fn run(&mut self, exec: &Executor) {
+    pub fn run(&mut self, exec: &mut Executor) {
         run_executor(|waker| self.poll_pool(waker, exec))
     }
 
     /// todo: dox
-    pub fn run_until<F>(&mut self, mut f: F, exec: &Executor) -> Result<F::Item, F::Error>
+    pub fn run_until<F>(&mut self, mut f: F, exec: &mut Executor) -> Result<F::Item, F::Error>
         where F: Future
     {
         // persistent state for the "main task"
         let mut main_map = LocalMap::new();
 
         run_executor(|waker| {
-            let mut main_cx = Context::new(&mut main_map, waker, exec);
+            {
+                let mut main_cx = Context::new(&mut main_map, waker, exec);
 
-            // if our main task is done, so are we
-            match f.poll(&mut main_cx) {
-                Ok(Async::Ready(v)) => return Async::Ready(Ok(v)),
-                Err(err) => return Async::Ready(Err(err)),
-                _ => {}
+                // if our main task is done, so are we
+                match f.poll(&mut main_cx) {
+                    Ok(Async::Ready(v)) => return Async::Ready(Ok(v)),
+                    Err(err) => return Async::Ready(Err(err)),
+                    _ => {}
+                }
             }
 
             self.poll_pool(waker, exec);
@@ -91,7 +93,7 @@ impl LocalPool {
     }
 
     // dox
-    fn poll_pool(&mut self, waker: &Waker, exec: &Executor) -> Async<()> {
+    fn poll_pool(&mut self, waker: &Waker, exec: &mut Executor) -> Async<()> {
         // state for the FuturesUnordered, which will never be used
         let mut pool_map = LocalMap::new();
         let mut pool_cx = Context::new(&mut pool_map, waker, exec);
@@ -125,18 +127,18 @@ impl LocalPool {
 /// todo: dox
 pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
     let mut pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
 
     // run our main future to completion
-    let res = pool.run_until(f, &exec);
+    let res = pool.run_until(f, &mut exec);
     // run any remainingspawned tasks to completion
-    pool.run(&exec);
+    pool.run(&mut exec);
 
     res
 }
 
 impl Executor for LocalExecutor {
-    fn spawn(&self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
+    fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
         self.spawn_task(Task {
             fut: f,
             map: LocalMap::new(),
@@ -160,7 +162,7 @@ impl LocalExecutor {
     }
 
     /// dox
-    pub fn spawn_local<F>(&self, f: F) -> Result<(), SpawnError>
+    pub fn spawn_local<F>(&mut self, f: F) -> Result<(), SpawnError>
         where F: Future<Item = (), Error = ()> + 'static
     {
         self.spawn_task(Task {
