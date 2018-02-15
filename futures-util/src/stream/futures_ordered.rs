@@ -114,7 +114,7 @@ pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<<I::Item as IntoFuture>:
         queue.push(future.into_future());
     }
 
-    return queue
+    queue
 }
 
 impl<T> FuturesOrdered<T>

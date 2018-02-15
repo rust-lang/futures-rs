@@ -234,7 +234,7 @@ impl<T> FuturesUnordered<T> {
 
         self.head_all = ptr;
         self.len += 1;
-        return ptr
+        ptr
     }
 
     /// Remove the node from the linked list tracking all nodes currently
@@ -256,7 +256,7 @@ impl<T> FuturesUnordered<T> {
             self.head_all = next;
         }
         self.len -= 1;
-        return node
+        node
     }
 }
 
@@ -445,7 +445,7 @@ impl<'a, F> Iterator for IterMut<'a, F> {
             let next = *(*self.node).next_all.get();
             self.node = next;
             self.len -= 1;
-            return Some(future);
+            Some(future)
         }
     }
 
@@ -644,7 +644,7 @@ impl<T> Drop for Node<T> {
 fn arc2ptr<T>(ptr: Arc<T>) -> *const T {
     let addr = &*ptr as *const T;
     mem::forget(ptr);
-    return addr
+    addr
 }
 
 unsafe fn ptr2arc<T>(ptr: *const T) -> Arc<T> {
