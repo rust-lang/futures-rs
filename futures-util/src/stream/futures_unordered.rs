@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use futures_core::{Stream, Future, Poll, Async};
+use futures_core::{Stream, Future, Poll, Async, IntoFuture};
 use futures_core::task::{self, AtomicWaker, Wake, UnsafeWake, Waker};
 
 /// An unbounded set of futures.
@@ -668,4 +668,27 @@ fn abort(s: &str) -> ! {
 
     let _bomb = DoublePanic;
     panic!("{}", s);
+}
+
+/// Converts a list of futures into a `Stream` of results from the futures.
+///
+/// This function will take an list of futures (e.g. a vector, an iterator,
+/// etc), and return a stream. The stream will yield items as they become
+/// available on the futures internally, in the order that they become
+/// available. This function is similar to `buffer_unordered` in that it may
+/// return items in a different order than in the list specified.
+///
+/// Note that the returned set can also be used to dynamically push more
+/// futures into the set as they become available.
+pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
+    where I: IntoIterator,
+        I::Item: IntoFuture
+{
+    let mut set = FuturesUnordered::new();
+
+    for future in futures {
+        set.push(future.into_future());
+    }
+
+    set
 }
