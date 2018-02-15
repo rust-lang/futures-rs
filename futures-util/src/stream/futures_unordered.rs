@@ -417,13 +417,11 @@ impl<T> Drop for FuturesUnordered<T> {
 
 impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
     fn from_iter<T>(iter: T) -> Self
-        where T: IntoIterator<Item = F>
+    where
+        T: IntoIterator<Item = F>,
     {
-        let mut new = FuturesUnordered::new();
-        for future in iter {
-            new.push(future);
-        }
-        new
+        let acc = FuturesUnordered::new();
+        iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
 }
 

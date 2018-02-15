@@ -205,12 +205,10 @@ impl<T: Debug> Debug for FuturesOrdered<T>
 
 impl<F: Future> FromIterator<F> for FuturesOrdered<F> {
     fn from_iter<T>(iter: T) -> Self
-        where T: IntoIterator<Item = F>
+    where
+        T: IntoIterator<Item = F>,
     {
-        let mut new = FuturesOrdered::new();
-        for future in iter {
-            new.push(future);
-        }
-        new
+        let acc = FuturesOrdered::new();
+        iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
 }
