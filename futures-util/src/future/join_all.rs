@@ -10,9 +10,9 @@ use futures_core::{Future, IntoFuture, Poll, Async};
 use futures_core::task;
 
 #[derive(Debug)]
-enum ElemState<T> where T: Future {
-    Pending(T),
-    Done(T::Item),
+enum ElemState<F> where F: Future {
+    Pending(F),
+    Done(F::Item),
 }
 
 /// A future which takes a list of futures and resolves with a vector of the
@@ -20,16 +20,15 @@ enum ElemState<T> where T: Future {
 ///
 /// This future is created with the `join_all` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct JoinAll<Item>
-    where Item: IntoFuture,
+pub struct JoinAll<F>
+    where F: Future,
 {
-    elems: Vec<ElemState<<Item as IntoFuture>::Future>>,
+    elems: Vec<ElemState<F>>,
 }
 
-impl<I> fmt::Debug for JoinAll<I>
-    where I: IntoFuture,
-          <I as IntoFuture>::Future: fmt::Debug,
-          <I as IntoFuture>::Item: fmt::Debug,
+impl<F> fmt::Debug for JoinAll<F>
+    where F: Future + fmt::Debug,
+          F::Item: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("JoinAll")
@@ -77,21 +76,21 @@ impl<I> fmt::Debug for JoinAll<I>
 /// });
 /// # }
 /// ```
-pub fn join_all<I>(i: I) -> JoinAll<I::Item>
+pub fn join_all<I>(i: I) -> JoinAll<<I::Item as IntoFuture>::Future>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
     let elems = i.into_iter().map(|f| {
         ElemState::Pending(f.into_future())
     }).collect();
-    JoinAll { elems: elems }
+    JoinAll { elems }
 }
 
-impl<Item> Future for JoinAll<Item>
-    where Item: IntoFuture,
+impl<F> Future for JoinAll<F>
+    where F: Future,
 {
-    type Item = Vec<<Item as IntoFuture>::Item>;
-    type Error = <Item as IntoFuture>::Error;
+    type Item = Vec<F::Item>;
+    type Error = F::Error;
 
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
