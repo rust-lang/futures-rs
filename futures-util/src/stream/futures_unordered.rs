@@ -679,14 +679,9 @@ fn abort(s: &str) -> ! {
 /// Note that the returned set can also be used to dynamically push more
 /// futures into the set as they become available.
 pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
-    where I: IntoIterator,
-        I::Item: IntoFuture
+where
+    I: IntoIterator,
+    I::Item: IntoFuture,
 {
-    let mut set = FuturesUnordered::new();
-
-    for future in futures {
-        set.push(future.into_future());
-    }
-
-    set
+    futures.into_iter().map(|f| f.into_future()).collect()
 }
