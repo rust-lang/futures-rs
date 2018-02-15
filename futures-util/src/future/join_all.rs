@@ -5,6 +5,7 @@ use std::prelude::v1::*;
 
 use std::fmt;
 use std::mem;
+use std::iter::FromIterator;
 
 use futures_core::{Future, IntoFuture, Poll, Async};
 use futures_core::task;
@@ -135,4 +136,29 @@ impl<F> Future for JoinAll<F>
             Ok(Async::Pending)
         }
     }
+}
+
+impl<F: IntoFuture> FromIterator<F> for JoinAll<F::Future> {
+    fn from_iter<T: IntoIterator<Item=F>>(iter: T) -> Self {
+        join_all(iter)
+    }
+}
+
+#[test]
+fn join_all_from_iter() {
+    let f_ok = |a| {
+        let r: Result<i32, ()> = Ok(a);
+        r.into_future()
+    };
+
+    pub fn assert_done<T, F>(_f: F, _result: Result<T::Item, T::Error>)
+        where T: Future,
+              T::Item: Eq + fmt::Debug,
+              T::Error: Eq + fmt::Debug,
+              F: FnOnce() -> T,
+    {
+        //FIXME: write a real test somehow somewhere
+    }
+
+    assert_done(|| vec![f_ok(1), f_ok(2)].into_iter().collect::<JoinAll<_>>(), Ok(vec![1, 2]))
 }
