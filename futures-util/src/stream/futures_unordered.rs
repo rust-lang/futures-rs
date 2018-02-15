@@ -420,7 +420,7 @@ impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
         where T: IntoIterator<Item = F>
     {
         let mut new = FuturesUnordered::new();
-        for future in iter.into_iter() {
+        for future in iter {
             new.push(future);
         }
         new

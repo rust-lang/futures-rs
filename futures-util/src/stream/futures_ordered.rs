@@ -208,7 +208,7 @@ impl<F: Future> FromIterator<F> for FuturesOrdered<F> {
         where T: IntoIterator<Item = F>
     {
         let mut new = FuturesOrdered::new();
-        for future in iter.into_iter() {
+        for future in iter {
             new.push(future);
         }
         new
