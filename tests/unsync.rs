@@ -207,16 +207,28 @@ fn spawn_kill_dead_stream() {
 fn dropped_sender_of_unused_channel_notifies_receiver() {
     let core = Core::new();
     let (tx, rx) = mpsc::channel::<u8>(1);
-    let future_1: Box<futures::Future<Item=(), Error=()>> = Box::new(
-        futures::stream::iter_ok(vec![])
-        .forward(tx)
-        .map_err(|_: mpsc::SendError<u8>| ())
-        .map(|_| ())
-    );
-    let future_2: Box<futures::Future<Item=(), Error=()>> = Box::new(
-        rx.fold((), |_, _| Ok(())).map(|_|())
-    );
+    let make_future_1 = |tx| -> Box<futures::Future<Item=_, Error=_>> {
+        Box::new(futures::stream::iter_ok(vec![])
+            .forward(tx)
+            .map_err(|_: mpsc::SendError<u8>| ())
+            .map(|_| ())
+        )
+    };
+    let make_future_2 = |rx: mpsc::Receiver<u8>| -> Box<futures::Future<Item=_, Error=_>> {
+        Box::new(rx.fold((), |_, _| Ok(())).map(|_| ()))
+    };
+
     // The order of the tested futures is important to test fix of PR #768.
     // We want future_2 to poll on the Receiver before the Sender is dropped.
-    core.run(futures::future::join_all(vec![future_2, future_1])).unwrap();
+    core.run(futures::future::join_all(vec![
+        make_future_2(rx),
+        make_future_1(tx),
+    ])).unwrap();
+
+    // Test the opposite order as well:
+    let (tx, rx) = mpsc::channel::<u8>(1);
+    core.run(futures::future::join_all(vec![
+        make_future_1(tx),
+        make_future_2(rx),
+    ])).unwrap();
 }
