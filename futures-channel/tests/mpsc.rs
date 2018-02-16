@@ -32,24 +32,22 @@ fn send_recv_no_buffer() {
 
     // Run on a task context
     let f = poll_fn(move |cx| {
-        assert!(tx.flush(cx).unwrap().is_ready());
+        assert!(tx.poll_flush(cx).unwrap().is_ready());
         assert!(tx.poll_ready(cx).unwrap().is_ready());
 
         // Send first message
-        let res = tx.start_send(cx, 1).unwrap();
-        assert!(res.is_ok());
+        assert!(tx.start_send(1).is_ok());
         assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Send second message
-        let res = tx.start_send(cx, 2).unwrap();
-        assert!(res.is_err());
+        assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Take the value
         assert_eq!(rx.poll(cx).unwrap(), Async::Ready(Some(1)));
         assert!(tx.poll_ready(cx).unwrap().is_ready());
 
-        let res = tx.start_send(cx, 2).unwrap();
-        assert!(res.is_ok());
+        assert!(tx.poll_ready(cx).unwrap().is_ready());
+        assert!(tx.start_send(2).is_ok());
         assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Take the value
@@ -430,7 +428,7 @@ fn stress_poll_ready() {
             // (asserting that it doesn't attempt to block).
             while self.count > 0 {
                 try_ready!(self.sender.poll_ready(cx).map_err(|_| ()));
-                assert!(self.sender.start_send(cx, self.count).unwrap().is_ok());
+                assert!(self.sender.start_send(self.count).is_ok());
                 self.count -= 1;
             }
             Ok(Async::Ready(()))
@@ -502,7 +500,7 @@ fn try_send_2() {
 
     let th = thread::spawn(|| {
         block_on(poll_fn(|cx| {
-            assert!(tx.start_send(cx, "fail").unwrap().is_err());
+            assert!(tx.poll_ready(cx).unwrap().is_not_ready());
             Ok::<_, ()>(Async::Ready(()))
         })).unwrap();
 
