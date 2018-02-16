@@ -60,10 +60,10 @@ fn task_init(b: &mut Bencher) {
     };
 
     let pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &exec);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         fut.num = 0;

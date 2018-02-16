@@ -33,10 +33,10 @@ fn unbounded_1_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, mut rx) = unbounded();
         let pool = LocalPool::new();
-        let exec = pool.executor();
+        let mut exec = pool.executor();
         let waker = notify_noop();
         let mut map = task::LocalMap::new();
-        let mut cx = task::Context::new(&mut map, &waker, &exec);
+        let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
         // 1000 iterations to avoid measuring overhead of initialization
         // Result should be divided by 1000
@@ -59,10 +59,10 @@ fn unbounded_100_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, mut rx) = unbounded();
         let pool = LocalPool::new();
-        let exec = pool.executor();
+        let mut exec = pool.executor();
         let waker = notify_noop();
         let mut map = task::LocalMap::new();
-        let mut cx = task::Context::new(&mut map, &waker, &exec);
+        let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
         let tx: Vec<_> = (0..100).map(|_| tx.clone()).collect();
 
@@ -82,10 +82,10 @@ fn unbounded_100_tx(b: &mut Bencher) {
 #[bench]
 fn unbounded_uncontended(b: &mut Bencher) {
     let pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &exec);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (tx, mut rx) = unbounded();
@@ -130,10 +130,10 @@ impl Stream for TestSender {
 #[bench]
 fn bounded_1_tx(b: &mut Bencher) {
     let pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &exec);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (tx, mut rx) = channel(0);
@@ -158,10 +158,10 @@ fn bounded_100_tx(b: &mut Bencher) {
         // Each sender can send one item after specified capacity
         let (tx, mut rx) = channel(0);
         let pool = LocalPool::new();
-        let exec = pool.executor();
+        let mut exec = pool.executor();
         let waker = notify_noop();
         let mut map = task::LocalMap::new();
-        let mut cx = task::Context::new(&mut map, &waker, &exec);
+        let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
         let mut tx: Vec<_> = (0..100).map(|_| {
             TestSender {

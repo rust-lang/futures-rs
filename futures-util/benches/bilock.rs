@@ -61,10 +61,10 @@ impl Stream for LockStream {
 #[bench]
 fn contended(b: &mut Bencher) {
     let pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &exec);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (x, y) = BiLock::new(1);
@@ -100,10 +100,10 @@ fn contended(b: &mut Bencher) {
 #[bench]
 fn lock_unlock(b: &mut Bencher) {
     let pool = LocalPool::new();
-    let exec = pool.executor();
+    let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &exec);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (x, y) = BiLock::new(1);
