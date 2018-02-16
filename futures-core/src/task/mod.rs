@@ -30,7 +30,14 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-use executor::Executor;
+if_std! {
+    use executor::Executor;
+    type Exec<'a> = &'a mut Executor;
+}
+
+if_not_std! {
+    type Exec<'a> = ();
+}
 
 mod atomic_waker;
 pub use self::atomic_waker::AtomicWaker;
@@ -39,15 +46,10 @@ pub use self::atomic_waker::AtomicWaker;
 pub struct Context<'a> {
     waker: &'a Waker,
     map: &'a mut LocalMap,
-    executor: &'a mut Executor,
+    executor: Exec<'a>,
 }
 
 impl<'a> Context<'a> {
-    /// TODO: dox
-    pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
-        Context { waker, map, executor }
-    }
-
     /// TODO: dox
     pub fn waker(&self) -> Waker {
         self.waker.clone()
@@ -64,10 +66,28 @@ impl<'a> Context<'a> {
     {
         Context { map, waker: self.waker, executor: self.executor }
     }
+}
 
-    /// TODO: dox
-    pub fn executor(&mut self) -> &mut Executor {
-        self.executor
+if_std! {
+    impl<'a> Context<'a> {
+        /// TODO: dox
+        pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
+            Context { waker, map, executor }
+        }
+
+        /// TODO: dox
+        pub fn executor(&mut self) -> &mut Executor {
+            self.executor
+        }
+    }
+}
+
+if_not_std! {
+    impl<'a> Context<'a> {
+        /// TODO: dox
+        pub fn new(map: &'a mut LocalMap, waker: &'a Waker) -> Context<'a> {
+            Context { waker, map, executor: () }
+        }
     }
 }
 
