@@ -1,5 +1,6 @@
 #![feature(test)]
 
+#[macro_use]
 extern crate futures;
 extern crate futures_channel;
 extern crate test;
@@ -111,17 +112,11 @@ impl Stream for TestSender {
     type Error = ();
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.tx.start_send(cx, self.last + 1) {
-            Err(_) => panic!(),
-            Ok(Ok(())) => {
-                self.last += 1;
-                assert_eq!(Ok(Async::Ready(())), self.tx.flush(cx));
-                Ok(Async::Ready(Some(self.last)))
-            }
-            Ok(Err(_)) => {
-                Ok(Async::Pending)
-            }
-        }
+        try_ready!(self.tx.poll_ready(cx).map_err(|_| ()));
+        self.tx.start_send(self.last + 1).unwrap();
+        self.last += 1;
+        assert!(self.tx.poll_flush(cx).unwrap().is_ready());
+        Ok(Async::Ready(Some(self.last)))
     }
 }
 
