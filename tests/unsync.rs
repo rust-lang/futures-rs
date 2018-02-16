@@ -202,33 +202,64 @@ fn spawn_kill_dead_stream() {
     }
 }
 
+
 /// Test case for PR #768 (issue #766).
+/// The issue was:
+/// Given that an empty channel is polled by the Receiver, and the only Sender
+/// gets dropped without sending anything, then the Receiver would get stuck.
+
 #[test]
 fn dropped_sender_of_unused_channel_notifies_receiver() {
     let core = Core::new();
-    let (tx, rx) = mpsc::channel::<u8>(1);
-    let make_future_1 = |tx| -> Box<futures::Future<Item=_, Error=_>> {
-        Box::new(futures::stream::iter_ok(vec![])
-            .forward(tx)
-            .map_err(|_: mpsc::SendError<u8>| ())
-            .map(|_| ())
-        )
+    type FUTURE = Box<futures::Future<Item=u8, Error=()>>;
+
+    // Constructs the channel which we want to test, and two futures which
+    // act on that channel.
+    let pair = |reverse| -> Vec<FUTURE> {
+        // This is the channel which we want to test.
+        let (tx, rx) = mpsc::channel::<u8>(1);
+        let mut futures: Vec<FUTURE> = vec![
+            Box::new(futures::stream::iter_ok(vec![])
+                .forward(tx)
+                .map_err(|_: mpsc::SendError<u8>| ())
+                .map(|_| 42)
+            ),
+            Box::new(rx.fold((), |_, _| Ok(()))
+                .map(|_| 24)
+            ),
+        ];
+        if reverse {
+            futures.reverse();
+        }
+        futures
     };
-    let make_future_2 = |rx: mpsc::Receiver<u8>| -> Box<futures::Future<Item=_, Error=_>> {
-        Box::new(rx.fold((), |_, _| Ok(())).map(|_| ()))
+
+    let make_test_future = |reverse| -> Box<Future<Item=Vec<u8>, Error=()>> {
+        let f = futures::future::join_all(pair(reverse));
+
+        // Use a timeout. This is not meant to test the `sync::oneshot` but
+        // merely uses it to implement this timeout.
+        let (timeout_tx, timeout_rx) = futures::sync::oneshot::channel::<Vec<u8>>();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            let x = timeout_tx.send(vec![0]);
+            assert!(x.is_err(), "Test timed out.");
+        });
+
+        Box::new(f.select(timeout_rx.map_err(|_|()))
+            .map_err(|x| x.0)
+            .map(|x| x.0)
+        )
     };
 
     // The order of the tested futures is important to test fix of PR #768.
     // We want future_2 to poll on the Receiver before the Sender is dropped.
-    core.run(futures::future::join_all(vec![
-        make_future_2(rx),
-        make_future_1(tx),
-    ])).unwrap();
+    let result = core.run(make_test_future(false));
+    assert!(result.is_ok());
+    assert_eq!(vec![42, 24], result.unwrap());
 
-    // Test the opposite order as well:
-    let (tx, rx) = mpsc::channel::<u8>(1);
-    core.run(futures::future::join_all(vec![
-        make_future_1(tx),
-        make_future_2(rx),
-    ])).unwrap();
+    // Test also the other ordering:
+    let result = core.run(make_test_future(true));
+    assert!(result.is_ok());
+    assert_eq!(vec![24, 42], result.unwrap());
 }
