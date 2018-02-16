@@ -6,22 +6,20 @@ use std::thread;
 
 use futures::prelude::*;
 use futures_channel::mpsc::*;
-use futures_executor::current_thread::run;
+use futures_executor::block_on;
 
 #[test]
 fn smoke() {
     let (mut sender, receiver) = channel(1);
 
     let t = thread::spawn(move || {
-        run(|c| {
-            while let Ok(s) = c.block_on(sender.send(42)) {
-                sender = s;
-            }
-        });
+        while let Ok(s) = block_on(sender.send(42)) {
+            sender = s;
+        }
     });
 
     // `receiver` needs to be dropped for `sender` to stop sending and therefore before the join.
-    let _ = run(|c| c.block_on(receiver.take(3).for_each(|_| Ok(())))).unwrap();
+    block_on(receiver.take(3).for_each(|_| Ok(()))).unwrap();
 
     t.join().unwrap()
 }

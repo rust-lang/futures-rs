@@ -163,7 +163,7 @@ impl<T> BiLock<T> {
             // Another task has parked themselves on this lock, let's wake them
             // up as its now their turn.
             n => unsafe {
-                Box::from_raw(n as *mut Waker).notify();
+                Box::from_raw(n as *mut Waker).wake();
             }
         }
     }

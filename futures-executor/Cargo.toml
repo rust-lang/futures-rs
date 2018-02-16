@@ -11,12 +11,14 @@ Executors for asynchronous tasks based on the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std", "futures-util/std"]
+std = ["futures-core/std", "futures-util/std", "futures-channel/std"]
 default = ["std"]
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.2.0", default-features = false}
 futures-util = { path = "../futures-util", version = "0.2.0", default-features = false}
+futures-channel = { path = "../futures-channel", version = "0.2.0", default-features = false}
+num_cpus = "1.0"
 
 [dev-dependencies]
 futures = { path = "../futures", version = "0.2", default-features = false }

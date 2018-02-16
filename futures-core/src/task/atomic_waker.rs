@@ -100,7 +100,7 @@ impl AtomicWaker {
                     // `LOCKED_NOTIFIED`, this means that an notify has been
                     // signaled, so notify the task.
                     if LOCKED_WRITE_NOTIFIED == self.state.swap(WAITING, Release) {
-                        (*self.task.get()).as_ref().unwrap().notify();
+                        (*self.task.get()).as_ref().unwrap().wake();
                     }
                 }
             }
@@ -118,7 +118,7 @@ impl AtomicWaker {
                 // Currently in a read locked state, this implies that `notify`
                 // is currently being called on the old task handle. So, we call
                 // notify on the new task handle
-                task.notify();
+                task.wake();
             }
         }
     }
@@ -156,7 +156,7 @@ impl AtomicWaker {
                     // Notify the task
                     unsafe {
                         if let Some(ref task) = *self.task.get() {
-                            task.notify();
+                            task.wake();
                         }
                     }
 

@@ -193,6 +193,8 @@ macro_rules! try_ready {
 
 // TODO: task_local macro
 
+pub use futures_core::{Async, Poll};
+
 #[cfg(feature = "std")]
 pub mod channel {
     //! Channels
@@ -209,6 +211,7 @@ pub mod executor {
     //! spawned and executed asynchronously.
 
     pub use futures_executor::*;
+    pub use futures_core::executor::*;
 }
 
 pub mod future {

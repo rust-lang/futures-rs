@@ -24,89 +24,69 @@
 //!
 //! There is an important bare function in this module: `current`. The
 //! `current` function returns a handle to the currently running task, panicking
-//! if one isn't present. This handle is then used to later notify the task that
-//! it's ready to make progress through the `Task::notify` method.
+//! if one isn't present. This handle is then used to later wake the task that
+//! it's ready to make progress through the `Task::wake` method.
 
 use core::fmt;
 use core::marker::PhantomData;
+
+if_std! {
+    use executor::Executor;
+    type Exec<'a> = &'a mut Executor;
+}
+
+if_not_std! {
+    type Exec<'a> = ();
+}
 
 mod atomic_waker;
 pub use self::atomic_waker::AtomicWaker;
 
 /// The context for the currently running task.
 pub struct Context<'a> {
-    handle_factory: &'a mut (FnMut() -> NotifyHandle + 'a),
-    id: usize,
+    waker: &'a Waker,
     map: &'a mut LocalMap,
+    executor: Exec<'a>,
 }
 
 impl<'a> Context<'a> {
     /// TODO: dox
-    pub fn new(
-        map: &'a mut LocalMap,
-        id: usize,
-        handle_factory: &'a mut (FnMut() -> NotifyHandle + 'a),
-    )
-        -> Context<'a>
-    {
-        Context {
-            handle_factory,
-            id,
-            map,
-        }
-    }
-
-    /// Returns a handle to the current task to call `notify` at a later date.
-    ///
-    /// The returned handle implements the `Send` and `'static` bounds and may
-    /// also be cheaply cloned. This is useful for squirreling away the handle
-    /// into a location which is then later signaled that a future can make
-    /// progress.
-    ///
-    /// Implementations of the `Future` trait typically use this function if
-    /// they would otherwise perform a blocking operation. When something isn't
-    /// ready yet, this `current` function is called to acquire a handle to the
-    /// current task, and then the future arranges it such that when the
-    /// blocking operation otherwise finishes (perhaps in the background) it
-    /// will `notify` the returned handle.
-    ///
-    /// It's sometimes necessary to pass extra information to the task when
-    /// unparking it, so that the task knows something about *why* it was woken.
-    /// See the `FutureQueue` documentation for details on how to do this.
-    ///
-    /// # Panics
-    ///
-    /// This function will panic if a task is not currently being executed.
-    /// That is, this method can be dangerous to call outside of an
-    /// implementation of `poll`.
-    pub fn waker(&mut self) -> Waker {
-        Waker {
-            notify: (self.handle_factory)(),
-            id: self.id,
-        }
+    pub fn waker(&self) -> Waker {
+        self.waker.clone()
     }
 
     /// TODO: dox
-    pub fn with_waker<'b>(&'b mut self,
-                          id: usize,
-                          handle_factory: &'b mut (FnMut() -> NotifyHandle + 'b))
-        -> Context<'b>
-    {
-        Context {
-            map: self.map,
-            id,
-            handle_factory,
-        }
+    pub fn with_waker<'b>(&'b mut self, waker: &'b Waker) -> Context<'b> {
+        Context { map: self.map, executor: self.executor, waker }
     }
 
     /// TODO: dox
     pub fn with_locals<'b>(&'b mut self, map: &'b mut LocalMap)
         -> Context<'b>
     {
-        Context {
-            map,
-            id: self.id,
-            handle_factory: self.handle_factory,
+        Context { map, waker: self.waker, executor: self.executor }
+    }
+}
+
+if_std! {
+    impl<'a> Context<'a> {
+        /// TODO: dox
+        pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
+            Context { waker, map, executor }
+        }
+
+        /// TODO: dox
+        pub fn executor(&mut self) -> &mut Executor {
+            self.executor
+        }
+    }
+}
+
+if_not_std! {
+    impl<'a> Context<'a> {
+        /// TODO: dox
+        pub fn new(map: &'a mut LocalMap, waker: &'a Waker) -> Context<'a> {
+            Context { waker, map, executor: () }
         }
     }
 }
@@ -114,7 +94,6 @@ impl<'a> Context<'a> {
 impl<'a> fmt::Debug for Context<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Context")
-         .field("id", &self.id)
          .finish()
     }
 }
@@ -139,74 +118,22 @@ impl fmt::Debug for LocalMap {
     }
 }
 
-/// A handle to a "task", which represents a single lightweight "thread" of
-/// execution driving a future to completion.
-///
-/// In general, futures are composed into large units of work, which are then
-/// spawned as tasks onto an *executor*. The executor is responsible for polling
-/// the future as notifications arrive, until the future terminates.
-///
-/// This is obtained by the `task::current` function.
-pub struct Waker {
-    notify: NotifyHandle,
-    id: usize,
-}
-
-impl Waker {
-    /// Indicate that the task should attempt to poll its future in a timely
-    /// fashion.
-    ///
-    /// It's typically guaranteed that, for each call to `notify`, `poll` will
-    /// be called at least once subsequently (unless the future has terminated).
-    /// If the task is currently polling its future when `notify` is called, it
-    /// must poll the future *again* afterwards, ensuring that all relevant
-    /// events are eventually observed by the future.
-    pub fn notify(&self) {
-        self.notify.notify(self.id);
-    }
-}
-
-impl Clone for Waker {
-    fn clone(&self) -> Waker {
-        let id = self.notify.clone_id(self.id);
-        Waker { notify: self.notify.clone(), id }
-    }
-}
-
-impl Drop for Waker {
-    fn drop(&mut self) {
-        self.notify.drop_id(self.id);
-    }
-}
-
-trait AssertSend: Send {}
-impl AssertSend for Waker {}
-
-impl fmt::Debug for Waker {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Waker")
-         .field("id", &self.id)
-         .field("notify", &self.notify.inner)
-         .finish()
-    }
-}
-
 /// A trait which represents a sink of notifications that a future is ready to
 /// make progress.
 ///
-/// This trait is provided as an argument to the `Spawn::*_notify` family of
-/// functions. It's transitively used as part of the `Task::notify` method to
+/// This trait is provided as an argument to the `Spawn::*_wake` family of
+/// functions. It's transitively used as part of the `Task::wake` method to
 /// internally deliver notifications of readiness of a future to move forward.
 ///
-/// An instance of `Notify` has one primary method, `notify`, which is given a
+/// An instance of `Wake` has one primary method, `wake`, which is given a
 /// contextual argument as to what's being notified. This contextual argument is
-/// *also* provided to the `Spawn::*_notify` family of functions and can be used
-/// to reuse an instance of `Notify` across many futures.
+/// *also* provided to the `Spawn::*_wake` family of functions and can be used
+/// to reuse an instance of `Wake` across many futures.
 ///
-/// Instances of `Notify` must be safe to share across threads, and the methods
+/// Instances of `Wake` must be safe to share across threads, and the methods
 /// be invoked concurrently. They must also live for the `'static` lifetime,
 /// not containing any stack references.
-pub trait Notify: Send + Sync {
+pub trait Wake: Send + Sync {
     /// Indicates that an associated future and/or task are ready to make
     /// progress.
     ///
@@ -214,7 +141,7 @@ pub trait Notify: Send + Sync {
     /// arrange for the future to get poll'd in a prompt fashion.
     ///
     /// This method takes an `id` as an argument which was transitively passed
-    /// in from the original call to `Spawn::*_notify`. This id can be used to
+    /// in from the original call to `Spawn::*_wake`. This id can be used to
     /// disambiguate which precise future became ready for polling.
     ///
     /// # Panics
@@ -224,42 +151,7 @@ pub trait Notify: Send + Sync {
     /// is not guaranteed not to panic, and callers should be wary. If a panic
     /// occurs, that panic may or may not be propagated to the end-user of the
     /// future that you'd otherwise wake up.
-    fn notify(&self, id: usize);
-
-    /// This function is called whenever a new copy of `id` is needed.
-    ///
-    /// This is called in one of two situations:
-    ///
-    /// * A `Task` is being created through `task::current` while a future is
-    ///   being polled. In that case the instance of `Notify` passed in to one
-    ///   of the `poll_*` functions is called with the `id` passed into the same
-    ///   `poll_*` function.
-    /// * A `Task` is itself being cloned. Each `Task` contains its own id and a
-    ///   handle to the `Notify` behind it, and the task's `Notify` is used to
-    ///   clone the internal `id` to assign to the new task.
-    ///
-    /// The `id` returned here will be stored in the `Task`-to-be and used later
-    /// to pass to `notify` when the `Task::notify` function is called on that
-    /// `Task`.
-    ///
-    /// Note that typically this is just the identity function, passing through
-    /// the identifier. For more unsafe situations, however, if `id` is itself a
-    /// pointer of some kind this can be used as a hook to "clone" the pointer,
-    /// depending on what that means for the specified pointer.
-    fn clone_id(&self, id: usize) -> usize {
-        id
-    }
-
-    /// All instances of `Task` store an `id` that they're going to internally
-    /// notify with, and this function is called when the `Task` is dropped.
-    ///
-    /// This function provides a hook for schemes which encode pointers in this
-    /// `id` argument to deallocate resources associated with the pointer. It's
-    /// guaranteed that after this function is called the `Task` containing this
-    /// `id` will no longer use the `id`.
-    fn drop_id(&self, id: usize) {
-        drop(id);
-    }
+    fn wake(&self);
 }
 
 /// An unsafe trait for implementing custom forms of memory management behind a
@@ -276,22 +168,22 @@ pub trait Notify: Send + Sync {
 /// quite cheap to clone and pass around. Plus, it's 100% safe!
 ///
 /// When working outside the standard library, however, you don't always have
-/// and `Arc` type available to you. This trait, `UnsafeNotify`, is intended
-/// to be the "unsafe version" of the `Notify` trait. This trait encodes the
+/// and `Arc` type available to you. This trait, `UnsafeWake`, is intended
+/// to be the "unsafe version" of the `Wake` trait. This trait encodes the
 /// memory management operations of a `Task`'s notification handle, allowing
 /// custom implementations for the memory management of a notification handle.
 ///
 /// Put another way, the core notification type in this library,
-/// `NotifyHandle`, simply internally contains an instance of
-/// `*mut UnsafeNotify`. This "unsafe trait object" is then used exclusively
-/// to operate with, dynamically dispatching calls to clone, drop, and notify.
+/// `Waker`, simply internally contains an instance of
+/// `*mut UnsafeWake`. This "unsafe trait object" is then used exclusively
+/// to operate with, dynamically dispatching calls to clone, drop, and wake.
 /// Critically though as a raw pointer it doesn't require a particular form
 /// of memory management, allowing external implementations.
 ///
-/// A default implementation of the `UnsafeNotify` trait is provided for the
+/// A default implementation of the `UnsafeWake` trait is provided for the
 /// `Arc` type in the standard library. If the `std` feature of this crate
 /// is not available however, you'll be required to implement your own
-/// instance of this trait to pass it into `NotifyHandle::new`.
+/// instance of this trait to pass it into `Waker::new`.
 ///
 /// # Unsafety
 ///
@@ -308,25 +200,25 @@ pub trait Notify: Send + Sync {
 /// In general it's recommended to review the trait documentation as well as
 /// the implementation for `Arc` in this crate. When in doubt ping the
 /// `futures` authors to clarify an unsafety question here.
-pub unsafe trait UnsafeNotify: Notify {
-    /// Creates a new `NotifyHandle` from this instance of `UnsafeNotify`.
+pub unsafe trait UnsafeWake: Wake {
+    /// Creates a new `Waker` from this instance of `UnsafeWake`.
     ///
     /// This function will create a new uniquely owned handle that under the
     /// hood references the same notification instance. In other words calls
-    /// to `notify` on the returned handle should be equivalent to calls to
-    /// `notify` on this handle.
+    /// to `wake` on the returned handle should be equivalent to calls to
+    /// `wake` on this handle.
     ///
     /// # Unsafety
     ///
     /// This trait is unsafe to implement, as are all these methods. This
-    /// method is also unsafe to call as it's asserting the `UnsafeNotify`
+    /// method is also unsafe to call as it's asserting the `UnsafeWake`
     /// value is in a consistent state. In general it's recommended to
     /// review the trait documentation as well as the implementation for `Arc`
     /// in this crate. When in doubt ping the `futures` authors to clarify
     /// an unsafety question here.
-    unsafe fn clone_raw(&self) -> NotifyHandle;
+    unsafe fn clone_raw(&self) -> Waker;
 
-    /// Drops this instance of `UnsafeNotify`, deallocating resources
+    /// Drops this instance of `UnsafeWake`, deallocating resources
     /// associated with it.
     ///
     /// This method is intended to have a signature such as:
@@ -344,7 +236,7 @@ pub unsafe trait UnsafeNotify: Notify {
     /// # Unsafety
     ///
     /// This trait is unsafe to implement, as are all these methods. This
-    /// method is also unsafe to call as it's asserting the `UnsafeNotify`
+    /// method is also unsafe to call as it's asserting the `UnsafeWake`
     /// value is in a consistent state. In general it's recommended to
     /// review the trait documentation as well as the implementation for `Arc`
     /// in this crate. When in doubt ping the `futures` authors to clarify
@@ -352,66 +244,58 @@ pub unsafe trait UnsafeNotify: Notify {
     unsafe fn drop_raw(&self);
 }
 
-/// A `NotifyHandle` is the core value through which notifications are routed
+/// A `Waker` is the core value through which notifications are routed
 /// in the `futures` crate.
 ///
-/// All instances of `Task` will contain a `NotifyHandle` handle internally.
+/// All instances of `Task` will contain a `Waker` handle internally.
 /// This handle itself contains a trait object pointing to an instance of the
-/// `Notify` trait, allowing notifications to get routed through it.
+/// `Wake` trait, allowing notifications to get routed through it.
 ///
-/// The `NotifyHandle` type internally does not codify any particular memory
+/// The `Waker` type internally does not codify any particular memory
 /// management strategy. Internally it contains an instance of `*mut
-/// UnsafeNotify`, and more details about that trait can be found on its own
+/// UnsafeWake`, and more details about that trait can be found on its own
 /// documentation. Consequently, though, the one constructor of this type,
-/// `NotifyHandle::new`, is `unsafe` to call. It is not recommended to call
+/// `Waker::new`, is `unsafe` to call. It is not recommended to call
 /// this constructor directly.
 ///
 /// If you're working with the standard library then it's recommended to
 /// work with the `Arc` type. If you have a struct, `T`, which implements the
-/// `Notify` trait, then you can construct this with
-/// `NotifyHandle::from(t: Arc<T>)`. The coercion to `UnsafeNotify` will
+/// `Wake` trait, then you can construct this with
+/// `Waker::from(t: Arc<T>)`. The coercion to `UnsafeWake` will
 /// happen automatically and safely for you.
 ///
 /// When working externally from the standard library it's recommended to
 /// provide a similar safe constructor for your custom type as opposed to
-/// recommending an invocation of `NotifyHandle::new` directly.
-pub struct NotifyHandle {
-    inner: *mut UnsafeNotify,
+/// recommending an invocation of `Waker::new` directly.
+pub struct Waker {
+    inner: *mut UnsafeWake,
 }
 
-unsafe impl Send for NotifyHandle {}
-unsafe impl Sync for NotifyHandle {}
+unsafe impl Send for Waker {}
+unsafe impl Sync for Waker {}
 
-impl NotifyHandle {
-    /// Constructs a new `NotifyHandle` directly.
+impl Waker {
+    /// Constructs a new `Waker` directly.
     ///
     /// Note that most code will not need to call this. Implementers of the
-    /// `UnsafeNotify` trait will typically provide a wrapper that calls this
+    /// `UnsafeWake` trait will typically provide a wrapper that calls this
     /// but you otherwise shouldn't call it directly.
     ///
     /// If you're working with the standard library then it's recommended to
-    /// use the `NotifyHandle::from` function instead which works with the safe
-    /// `Arc` type and the safe `Notify` trait.
+    /// use the `Waker::from` function instead which works with the safe
+    /// `Arc` type and the safe `Wake` trait.
     #[inline]
-    pub unsafe fn new(inner: *mut UnsafeNotify) -> NotifyHandle {
-        NotifyHandle { inner: inner }
+    pub unsafe fn new(inner: *mut UnsafeWake) -> Waker {
+        Waker { inner: inner }
     }
 
-    /// Invokes the underlying instance of `Notify` with the provided `id`.
-    pub fn notify(&self, id: usize) {
-        unsafe { (*self.inner).notify(id) }
-    }
-
-    fn clone_id(&self, id: usize) -> usize {
-        unsafe { (*self.inner).clone_id(id) }
-    }
-
-    fn drop_id(&self, id: usize) {
-        unsafe { (*self.inner).drop_id(id) }
+    /// dox
+    pub fn wake(&self) {
+        unsafe { (*self.inner).wake() }
     }
 }
 
-impl Clone for NotifyHandle {
+impl Clone for Waker {
     #[inline]
     fn clone(&self) -> Self {
         unsafe {
@@ -420,14 +304,14 @@ impl Clone for NotifyHandle {
     }
 }
 
-impl fmt::Debug for NotifyHandle {
+impl fmt::Debug for Waker {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("NotifyHandle")
+        f.debug_struct("Waker")
          .finish()
     }
 }
 
-impl Drop for NotifyHandle {
+impl Drop for Waker {
     fn drop(&mut self) {
         unsafe {
             (*self.inner).drop_raw()
@@ -438,34 +322,24 @@ impl Drop for NotifyHandle {
 /// Marker for a `T` that is behind &'static.
 struct StaticRef<T>(PhantomData<T>);
 
-impl<T: Notify> Notify for StaticRef<T> {
-    fn notify(&self, id: usize) {
+impl<T: Wake> Wake for StaticRef<T> {
+    fn wake(&self) {
         let me = unsafe { &*(self as *const _ as *const T) };
-        me.notify(id);
-    }
-
-    fn clone_id(&self, id: usize) -> usize {
-        let me = unsafe { &*(self as *const _ as *const T) };
-        me.clone_id(id)
-    }
-
-    fn drop_id(&self, id: usize) {
-        let me = unsafe { &*(self as *const _ as *const T) };
-        me.drop_id(id);
+        me.wake();
     }
 }
 
-unsafe impl<T: Notify + 'static> UnsafeNotify for StaticRef<T> {
-    unsafe fn clone_raw(&self) -> NotifyHandle {
-        NotifyHandle::new(self as *const _ as *mut StaticRef<T>)
+unsafe impl<T: Wake + 'static> UnsafeWake for StaticRef<T> {
+    unsafe fn clone_raw(&self) -> Waker {
+        Waker::new(self as *const _ as *mut StaticRef<T>)
     }
 
     unsafe fn drop_raw(&self) {}
 }
 
-impl<T: Notify> From<&'static T> for NotifyHandle {
-    fn from(src : &'static T) -> NotifyHandle {
-        unsafe { NotifyHandle::new(src as *const _ as *mut StaticRef<T>) }
+impl<T: Wake> From<&'static T> for Waker {
+    fn from(src : &'static T) -> Waker {
+        unsafe { Waker::new(src as *const _ as *mut StaticRef<T>) }
     }
 }
 
@@ -478,7 +352,7 @@ if_std! {
 
     pub use self::data::LocalKey;
 
-    // Safe implementation of `UnsafeNotify` for `Arc` in the standard library.
+    // Safe implementation of `UnsafeWake` for `Arc` in the standard library.
     //
     // Note that this is a very unsafe implementation! The crucial pieces is that
     // these two values are considered equivalent:
@@ -490,44 +364,27 @@ if_std! {
     // implementation detail in the standard library. We can work, though, by
     // casting it through and back an `Arc<T>`.
     //
-    // This also means that you won't actually fine `UnsafeNotify for Arc<T>`
+    // This also means that you won't actually find `UnsafeWake for Arc<T>`
     // because it's the wrong level of indirection. These methods are sort of
     // receiving Arc<T>, but not an owned version. It's... complicated. We may be
     // one of the first users of unsafe trait objects!
 
     struct ArcWrapped<T>(PhantomData<T>);
 
-    impl<T: Notify + 'static> Notify for ArcWrapped<T> {
-        fn notify(&self, id: usize) {
+    impl<T: Wake + 'static> Wake for ArcWrapped<T> {
+        fn wake(&self) {
             unsafe {
                 let me: *const ArcWrapped<T> = self;
-                T::notify(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                          id)
-            }
-        }
-
-        fn clone_id(&self, id: usize) -> usize {
-            unsafe {
-                let me: *const ArcWrapped<T> = self;
-                T::clone_id(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                            id)
-            }
-        }
-
-        fn drop_id(&self, id: usize) {
-            unsafe {
-                let me: *const ArcWrapped<T> = self;
-                T::drop_id(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>),
-                           id)
+                T::wake(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>))
             }
         }
     }
 
-    unsafe impl<T: Notify + 'static> UnsafeNotify for ArcWrapped<T> {
-        unsafe fn clone_raw(&self) -> NotifyHandle {
+    unsafe impl<T: Wake + 'static> UnsafeWake for ArcWrapped<T> {
+        unsafe fn clone_raw(&self) -> Waker {
             let me: *const ArcWrapped<T> = self;
             let arc = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
-            NotifyHandle::from(arc)
+            Waker::from(arc)
         }
 
         unsafe fn drop_raw(&self) {
@@ -537,13 +394,13 @@ if_std! {
         }
     }
 
-    impl<T> From<Arc<T>> for NotifyHandle
-        where T: Notify + 'static,
+    impl<T> From<Arc<T>> for Waker
+        where T: Wake + 'static,
     {
-        fn from(rc: Arc<T>) -> NotifyHandle {
+        fn from(rc: Arc<T>) -> Waker {
             unsafe {
                 let ptr = mem::transmute::<Arc<T>, *mut ArcWrapped<T>>(rc);
-                NotifyHandle::new(ptr)
+                Waker::new(ptr)
             }
         }
     }

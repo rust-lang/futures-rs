@@ -4,7 +4,8 @@ extern crate futures;
 extern crate futures_channel;
 extern crate test;
 
-use futures::task::{self, Notify, NotifyHandle};
+use futures::task::{self, Wake, Waker};
+use futures::executor::LocalPool;
 use futures::prelude::*;
 
 use futures_channel::mpsc::unbounded;
@@ -12,19 +13,18 @@ use futures_channel::mpsc::channel;
 use futures_channel::mpsc::Sender;
 use futures_channel::mpsc::UnboundedSender;
 
-
 use test::Bencher;
 
-fn notify_noop() -> NotifyHandle {
+fn notify_noop() -> Waker {
     struct Noop;
 
-    impl Notify for Noop {
-        fn notify(&self, _id: usize) {}
+    impl Wake for Noop {
+        fn wake(&self) {}
     }
 
     const NOOP : &'static Noop = &Noop;
 
-    NotifyHandle::from(NOOP)
+    Waker::from(NOOP)
 }
 
 /// Single producer, single consumer
@@ -32,9 +32,11 @@ fn notify_noop() -> NotifyHandle {
 fn unbounded_1_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, mut rx) = unbounded();
-        let mut notify = || notify_noop().into();
+        let pool = LocalPool::new();
+        let mut exec = pool.executor();
+        let waker = notify_noop();
         let mut map = task::LocalMap::new();
-        let mut cx = task::Context::new(&mut map, 0, &mut notify);
+        let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
         // 1000 iterations to avoid measuring overhead of initialization
         // Result should be divided by 1000
@@ -56,9 +58,11 @@ fn unbounded_1_tx(b: &mut Bencher) {
 fn unbounded_100_tx(b: &mut Bencher) {
     b.iter(|| {
         let (tx, mut rx) = unbounded();
-        let mut notify = || notify_noop().into();
+        let pool = LocalPool::new();
+        let mut exec = pool.executor();
+        let waker = notify_noop();
         let mut map = task::LocalMap::new();
-        let mut cx = task::Context::new(&mut map, 0, &mut notify);
+        let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
         let tx: Vec<_> = (0..100).map(|_| tx.clone()).collect();
 
@@ -77,9 +81,11 @@ fn unbounded_100_tx(b: &mut Bencher) {
 
 #[bench]
 fn unbounded_uncontended(b: &mut Bencher) {
-    let mut notify = || notify_noop().into();
+    let pool = LocalPool::new();
+    let mut exec = pool.executor();
+    let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (tx, mut rx) = unbounded();
@@ -123,9 +129,11 @@ impl Stream for TestSender {
 /// Single producers, single consumer
 #[bench]
 fn bounded_1_tx(b: &mut Bencher) {
-    let mut notify = || notify_noop().into();
+    let pool = LocalPool::new();
+    let mut exec = pool.executor();
+    let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, 0, &mut notify);
+    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (tx, mut rx) = channel(0);
@@ -149,9 +157,11 @@ fn bounded_100_tx(b: &mut Bencher) {
     b.iter(|| {
         // Each sender can send one item after specified capacity
         let (tx, mut rx) = channel(0);
-        let mut notify = || notify_noop().into();
+        let pool = LocalPool::new();
+        let mut exec = pool.executor();
+        let waker = notify_noop();
         let mut map = task::LocalMap::new();
-        let mut cx = task::Context::new(&mut map, 0, &mut notify);
+        let mut cx = task::Context::new(&mut map, &waker, &mut exec);
 
         let mut tx: Vec<_> = (0..100).map(|_| {
             TestSender {

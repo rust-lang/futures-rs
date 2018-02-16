@@ -9,7 +9,7 @@ use futures::future::poll_fn;
 use futures::prelude::*;
 use futures::task;
 use futures_channel::oneshot::*;
-use futures_executor::current_thread::run;
+use futures_executor::block_on;
 
 #[test]
 fn smoke_poll() {
@@ -24,7 +24,7 @@ fn smoke_poll() {
         Ok::<_, ()>(Async::Ready(()))
     });
 
-    run(|c| c.block_on(f)).unwrap();
+    block_on(f).unwrap();
 }
 
 #[test]
@@ -32,10 +32,10 @@ fn cancel_notifies() {
     let (tx, rx) = channel::<u32>();
 
     let t = thread::spawn(|| {
-        run(|c| c.block_on(WaitForCancel { tx: tx }))
+        block_on(WaitForCancel { tx: tx }).unwrap();
     });
     drop(rx);
-    t.join().unwrap().unwrap();
+    t.join().unwrap();
 }
 
 struct WaitForCancel {
@@ -55,13 +55,9 @@ impl Future for WaitForCancel {
 fn cancel_lots() {
     let (tx, rx) = mpsc::channel::<(Sender<_>, mpsc::Sender<_>)>();
     let t = thread::spawn(move || {
-        run(|c| {
-            for (tx, tx2) in rx {
-                c.block_on(
-                    WaitForCancel { tx: tx }.then(move |v| tx2.send(v))
-                ).unwrap();
-            }
-        });
+        for (tx, tx2) in rx {
+            block_on(WaitForCancel { tx: tx }.then(move |v| tx2.send(v))).unwrap();
+        }
     });
 
     for _ in 0..20000 {
@@ -85,7 +81,7 @@ fn close() {
         assert!(tx.poll_cancel(cx).unwrap().is_ready());
         Ok::<_, ()>(Async::Ready(()))
     });
-    run(|c| c.block_on(f)).unwrap();
+    block_on(f).unwrap();
 }
 
 #[test]
@@ -96,9 +92,7 @@ fn close_wakes() {
         rx.close();
         rx2.recv().unwrap();
     });
-    run(|c| {
-        c.block_on(WaitForCancel { tx: tx }).unwrap();
-    });
+    block_on(WaitForCancel { tx: tx }).unwrap();
     tx2.send(()).unwrap();
     t.join().unwrap();
 }
@@ -126,7 +120,7 @@ fn cancel_sends() {
 
         orx.close();
         let f = poll_fn(|cx| orx.poll(cx));
-        drop(run(|c| c.block_on(f)));
+        drop(block_on(f));
     }
 
     drop(tx);

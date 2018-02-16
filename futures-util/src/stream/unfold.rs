@@ -35,7 +35,7 @@ use futures_core::task;
 /// use futures::prelude::*;
 /// use futures::stream;
 /// use futures::future;
-/// use futures_executor::current_thread::run;
+/// use futures_executor::block_on;
 ///
 /// # fn main() {
 /// let mut stream = stream::unfold(0, |state| {
@@ -49,7 +49,7 @@ use futures_core::task;
 ///     }
 /// });
 ///
-/// let result = run(|c| c.block_on(stream.collect()));
+/// let result = block_on(stream.collect());
 /// assert_eq!(result, Ok(vec![0, 2, 4]));
 /// # }
 /// ```

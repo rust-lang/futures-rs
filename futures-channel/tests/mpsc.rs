@@ -12,7 +12,7 @@ use futures::future::poll_fn;
 use futures::task;
 use futures_channel::mpsc;
 use futures_channel::oneshot;
-use futures_executor::current_thread::run;
+use futures_executor::block_on;
 
 trait AssertSend: Send {}
 impl AssertSend for mpsc::Sender<i32> {}
@@ -22,11 +22,8 @@ impl AssertSend for mpsc::Receiver<i32> {}
 fn send_recv() {
     let (tx, rx) = mpsc::channel::<i32>(16);
 
-    run(|c| {
-        c.block_on(tx.send(1)).unwrap();
-
-        assert_eq!(c.block_on(rx.collect()).unwrap(), vec![1]);
-    });
+    block_on(tx.send(1)).unwrap();
+    assert_eq!(block_on(rx.collect()).unwrap(), vec![1]);
 }
 
 #[test]
@@ -61,7 +58,7 @@ fn send_recv_no_buffer() {
 
         Ok::<_, ()>(Async::Ready(()))
     });
-    run(|c| c.block_on(f)).unwrap();
+    block_on(f).unwrap();
 }
 
 #[test]
@@ -69,15 +66,13 @@ fn send_shared_recv() {
     let (tx1, rx) = mpsc::channel::<i32>(16);
     let tx2 = tx1.clone();
 
-    run(|c| {
-        c.block_on(tx1.send(1)).unwrap();
-        let (item, rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(item, Some(1));
+    block_on(tx1.send(1)).unwrap();
+    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(item, Some(1));
 
-        c.block_on(tx2.send(2)).unwrap();
-        let item = c.block_on(rx.into_future()).ok().unwrap().0;
-        assert_eq!(item, Some(2));
-    });
+    block_on(tx2.send(2)).unwrap();
+    let item = block_on(rx.into_future()).ok().unwrap().0;
+    assert_eq!(item, Some(2));
 }
 
 #[test]
@@ -85,12 +80,12 @@ fn send_recv_threads() {
     let (tx, rx) = mpsc::channel::<i32>(16);
 
     let t = thread::spawn(move|| {
-        run(|c| c.block_on(tx.send(1)))
+        block_on(tx.send(1)).unwrap();
     });
 
-    assert_eq!(run(|c| c.block_on(rx.take(1).collect())).unwrap(), vec![1]);
+    assert_eq!(block_on(rx.take(1).collect()).unwrap(), vec![1]);
 
-    t.join().unwrap().unwrap();
+    t.join().unwrap();
 }
 
 #[test]
@@ -100,20 +95,16 @@ fn send_recv_threads_no_capacity() {
     let (readytx, readyrx) = mpsc::channel::<()>(2);
     let t = thread::spawn(move|| {
         let readytx = readytx.sink_map_err(|_| panic!());
-        run(|c| {
-            let (a, b) = c.block_on(tx.send(1).join(readytx.send(()))).unwrap();
-            c.block_on(a.send(2).join(b.send(()))).unwrap();
-        })
+        let (a, b) = block_on(tx.send(1).join(readytx.send(()))).unwrap();
+        block_on(a.send(2).join(b.send(()))).unwrap();
     });
 
-    run(|c| {
-        let readyrx = c.block_on(readyrx.into_future()).ok().unwrap().1;
-        let (item, rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(item, Some(1));
-        drop(c.block_on(readyrx.into_future()).ok().unwrap());
-        let item = c.block_on(rx.into_future()).ok().unwrap().0;
-        assert_eq!(item, Some(2));
-    });
+    let readyrx = block_on(readyrx.into_future()).ok().unwrap().1;
+    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(item, Some(1));
+    drop(block_on(readyrx.into_future()).ok().unwrap());
+    let item = block_on(rx.into_future()).ok().unwrap().0;
+    assert_eq!(item, Some(2));
 
     t.join().unwrap();
 }
@@ -134,7 +125,7 @@ fn recv_close_gets_none() {
         Ok::<_, ()>(Async::Ready(()))
     });
 
-    run(|c| c.block_on(f)).unwrap();
+    block_on(f).unwrap();
 }
 
 #[test]
@@ -149,7 +140,7 @@ fn tx_close_gets_none() {
         Ok::<_, ()>(Async::Ready(()))
     });
 
-    run(|c| c.block_on(f)).unwrap();
+    block_on(f).unwrap();
 }
 
 // #[test]
@@ -226,13 +217,11 @@ fn stress_shared_unbounded() {
     let (tx, rx) = mpsc::unbounded::<i32>();
 
     let t = thread::spawn(move|| {
-        run(|c| {
-            let result = c.block_on(rx.collect()).unwrap();
-            assert_eq!(result.len(), (AMT * NTHREADS) as usize);
-            for item in result {
-                assert_eq!(item, 1);
-            }
-        });
+        let result = block_on(rx.collect()).unwrap();
+        assert_eq!(result.len(), (AMT * NTHREADS) as usize);
+        for item in result {
+            assert_eq!(item, 1);
+        }
     });
 
     for _ in 0..NTHREADS {
@@ -257,24 +246,20 @@ fn stress_shared_bounded_hard() {
     let (tx, rx) = mpsc::channel::<i32>(0);
 
     let t = thread::spawn(move|| {
-        run(|c| {
-            let result = c.block_on(rx.collect()).unwrap();
-            assert_eq!(result.len(), (AMT * NTHREADS) as usize);
-            for item in result {
-                assert_eq!(item, 1);
-            }
-        });
+        let result = block_on(rx.collect()).unwrap();
+        assert_eq!(result.len(), (AMT * NTHREADS) as usize);
+        for item in result {
+            assert_eq!(item, 1);
+        }
     });
 
     for _ in 0..NTHREADS {
         let mut tx = tx.clone();
 
         thread::spawn(move || {
-            run(|c| {
-                for _ in 0..AMT {
-                    tx = c.block_on(tx.send(1)).unwrap();
-                }
-            });
+            for _ in 0..AMT {
+                tx = block_on(tx.send(1)).unwrap();
+            }
         });
     }
 
@@ -301,64 +286,62 @@ fn stress_receiver_multi_task_bounded_hard() {
         let t = thread::spawn(move || {
             let mut i = 0;
 
-            run(|c| {
-                loop {
-                    i += 1;
-                    let mut lock = rx.lock().ok().unwrap();
+            loop {
+                i += 1;
+                let mut lock = rx.lock().ok().unwrap();
 
-                    let mut rx = match lock.take() {
-                        Some(rx) => Some(rx),
-                        None => break,
-                    };
-                    if i % 5 == 0 {
-                        let rx = rx.unwrap();
-                        let (item, rest) = c.block_on(rx.into_future()).ok().unwrap();
+                let mut rx = match lock.take() {
+                    Some(rx) => Some(rx),
+                    None => break,
+                };
+                if i % 5 == 0 {
+                    let rx = rx.unwrap();
+                    let (item, rest) = block_on(rx.into_future()).ok().unwrap();
 
-                        if item.is_none() {
-                            break;
-                        }
+                    if item.is_none() {
+                        break;
+                    }
 
-                        n.fetch_add(1, Ordering::Relaxed);
-                        *lock = Some(rest);
-                    } else {
-                        // Just poll
-                        let n = n.clone();
-                        let f = poll_fn(move |cx| {
-                            let mut rx = rx.take().unwrap();
-                            let r = match rx.poll(cx).unwrap() {
-                                Async::Ready(Some(_)) => {
-                                    n.fetch_add(1, Ordering::Relaxed);
-                                    *lock = Some(rx);
-                                    false
-                                }
-                                Async::Ready(None) => {
-                                    true
-                                }
-                                Async::Pending => {
-                                    *lock = Some(rx);
-                                    false
-                                }
-                            };
+                    n.fetch_add(1, Ordering::Relaxed);
+                    *lock = Some(rest);
+                } else {
+                    // Just poll
+                    let n = n.clone();
+                    let f = poll_fn(move |cx| {
+                        let mut rx = rx.take().unwrap();
+                        let r = match rx.poll(cx).unwrap() {
+                            Async::Ready(Some(_)) => {
+                                n.fetch_add(1, Ordering::Relaxed);
+                                *lock = Some(rx);
+                                false
+                            }
+                            Async::Ready(None) => {
+                                true
+                            }
+                            Async::Pending => {
+                                *lock = Some(rx);
+                                false
+                            }
+                        };
 
-                            Ok::<_, ()>(Async::Ready(r))
-                        });
+                        Ok::<_, ()>(Async::Ready(r))
+                    });
 
-                        if c.block_on(f).unwrap() {
-                            break;
-                        }
+                    if block_on(f).unwrap() {
+                        break;
                     }
                 }
-            });
+            }
         });
 
         th.push(t);
     }
 
-    run(move |c| {
-        for i in 0..AMT {
-            tx = c.block_on(tx.send(i)).unwrap();
-        }
-    });
+
+    for i in 0..AMT {
+        tx = block_on(tx.send(i)).unwrap();
+    }
+    drop(tx);
 
     for t in th {
         t.join().unwrap();
@@ -377,16 +360,14 @@ fn stress_drop_sender() {
           .and_then(|tx| tx.send(Ok(2)))
           .and_then(|tx| tx.send(Ok(3)));
         thread::spawn(move || {
-            run(|c| c.block_on(f).unwrap());
+            block_on(f).unwrap();
         });
         Box::new(rx.then(|r| r.unwrap()))
     }
 
-    run(|c| {
-        for _ in 0..10000 {
-            assert_eq!(c.block_on(list().collect()).unwrap(), vec![1, 2, 3]);
-        }
-    });
+    for _ in 0..10000 {
+        assert_eq!(block_on(list().collect()).unwrap(), vec![1, 2, 3]);
+    }
 }
 
 /// Stress test that after receiver dropped,
@@ -404,26 +385,24 @@ fn stress_close_receiver_iter() {
     });
 
     // Read one message to make sure thread effectively started
-    run(|c| {
-        let (item, mut rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(Some(1), item);
+    let (item, mut rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(Some(1), item);
 
-        rx.close();
+    rx.close();
 
-        for i in 2.. {
-            let (item, r) = c.block_on(rx.into_future()).ok().unwrap();
-            rx = r;
-            match item {
-                Some(r) => assert!(i == r),
-                None => {
-                    let unwritten = unwritten_rx.recv().expect("unwritten_rx");
-                    assert_eq!(unwritten, i);
-                    th.join().unwrap();
-                    return;
-                }
+    for i in 2.. {
+        let (item, r) = block_on(rx.into_future()).ok().unwrap();
+        rx = r;
+        match item {
+            Some(r) => assert!(i == r),
+            None => {
+                let unwritten = unwritten_rx.recv().expect("unwritten_rx");
+                assert_eq!(unwritten, i);
+                th.join().unwrap();
+                return;
             }
         }
-    });
+    }
 }
 
 #[test]
@@ -468,17 +447,15 @@ fn stress_poll_ready() {
         for _ in 0..NTHREADS {
             let sender = tx.clone();
             threads.push(thread::spawn(move || {
-                run(|c| {
-                    c.block_on(SenderTask {
-                        sender: sender,
-                        count: AMT,
-                    })
+                block_on(SenderTask {
+                    sender: sender,
+                    count: AMT,
                 })
             }));
         }
         drop(tx);
 
-        let result = run(|c| c.block_on(rx.collect())).unwrap();
+        let result = block_on(rx.collect()).unwrap();
         assert_eq!(result.len() as u32, AMT * NTHREADS);
 
         for thread in threads {
@@ -507,7 +484,7 @@ fn try_send_1() {
         }
     });
 
-    let result = run(|c| c.block_on(rx.collect())).unwrap();
+    let result = block_on(rx.collect()).unwrap();
     for (i, j) in result.into_iter().enumerate() {
         assert_eq!(i, j);
     }
@@ -524,26 +501,22 @@ fn try_send_2() {
     let (readytx, readyrx) = oneshot::channel::<()>();
 
     let th = thread::spawn(|| {
-        run(|c| {
-            c.block_on(poll_fn(|cx| {
-                assert!(tx.start_send(cx, "fail").unwrap().is_err());
-                Ok::<_, ()>(Async::Ready(()))
-            })).unwrap();
+        block_on(poll_fn(|cx| {
+            assert!(tx.start_send(cx, "fail").unwrap().is_err());
+            Ok::<_, ()>(Async::Ready(()))
+        })).unwrap();
 
-            drop(readytx);
-            c.block_on(tx.send("goodbye")).unwrap();
-        })
+        drop(readytx);
+        block_on(tx.send("goodbye")).unwrap();
     });
 
-    run(|c| {
-        drop(c.block_on(readyrx));
-        let (item, rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(item, Some("hello"));
-        let (item, rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(item, Some("goodbye"));
-        let item = c.block_on(rx.into_future()).ok().unwrap().0;
-        assert_eq!(item, None);
-    });
+    drop(block_on(readyrx));
+    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(item, Some("hello"));
+    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(item, Some("goodbye"));
+    let item = block_on(rx.into_future()).ok().unwrap().0;
+    assert_eq!(item, None);
 
     th.join().unwrap();
 }
@@ -557,16 +530,14 @@ fn try_send_fail() {
     // This should fail
     assert!(tx.try_send("fail").is_err());
 
-    run(|c| {
-        let (item, rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(item, Some("hello"));
+    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(item, Some("hello"));
 
-        tx.try_send("goodbye").unwrap();
-        drop(tx);
+    tx.try_send("goodbye").unwrap();
+    drop(tx);
 
-        let (item, rx) = c.block_on(rx.into_future()).ok().unwrap();
-        assert_eq!(item, Some("goodbye"));
-        let item = c.block_on(rx.into_future()).ok().unwrap().0;
-        assert_eq!(item, None);
-    });
+    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    assert_eq!(item, Some("goodbye"));
+    let item = block_on(rx.into_future()).ok().unwrap().0;
+    assert_eq!(item, None);
 }

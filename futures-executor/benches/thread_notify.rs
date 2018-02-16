@@ -6,7 +6,7 @@ extern crate test;
 
 use futures::prelude::*;
 use futures::task::{self, Waker};
-use futures_executor::current_thread::run;
+use futures_executor::block_on;
 
 use test::Bencher;
 
@@ -27,7 +27,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
                 Ok(Async::Ready(()))
             } else {
                 self.rem -= 1;
-                cx.waker().notify();
+                cx.waker().wake();
                 Ok(Async::Pending)
             }
         }
@@ -35,7 +35,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
 
     b.iter(|| {
         let y = Yield { rem: NUM };
-        run(|c| c.block_on(y).unwrap());
+        block_on(y).unwrap();
     });
 }
 
@@ -56,7 +56,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
                 Ok(Async::Ready(()))
             } else {
                 self.rem -= 1;
-                cx.waker().notify();
+                cx.waker().wake();
                 Ok(Async::Pending)
             }
         }
@@ -65,7 +65,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
     b.iter(|| {
         for _ in 0..NUM {
             let y = Yield { rem: 1 };
-            run(|c| c.block_on(y).unwrap());
+            block_on(y).unwrap();
         }
     });
 }
@@ -101,7 +101,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
 
     thread::spawn(move || {
         while let Ok(task) = rx.recv() {
-            task.notify();
+            task.wake();
         }
     });
 
@@ -111,6 +111,6 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
             tx: tx.clone(),
         };
 
-        run(|c| c.block_on(y).unwrap());
+        block_on(y).unwrap();
     });
 }

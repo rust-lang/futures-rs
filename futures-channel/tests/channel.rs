@@ -7,7 +7,7 @@ use std::thread;
 
 use futures::prelude::*;
 use futures::future::{result, poll_fn};
-use futures_executor::current_thread::run;
+use futures_executor::block_on;
 use futures_channel::mpsc;
 
 #[test]
@@ -16,15 +16,15 @@ fn sequence() {
 
     let amt = 20;
     let t = thread::spawn(move || {
-        run(|c| c.block_on(send(amt, tx)))
+        block_on(send(amt, tx)).unwrap()
     });
-    let mut list = run(|c| c.block_on(rx.collect())).unwrap().into_iter();
+    let mut list = block_on(rx.collect()).unwrap().into_iter();
     for i in (1..amt + 1).rev() {
         assert_eq!(list.next(), Some(i));
     }
     assert_eq!(list.next(), None);
 
-    t.join().unwrap().unwrap();
+    t.join().unwrap();
 
     fn send(n: u32, sender: mpsc::Sender<u32>)
             -> Box<Future<Item=(), Error=()> + Send> {
@@ -44,15 +44,15 @@ fn drop_sender() {
     let f = poll_fn(|cx| {
         rx.poll(cx)
     });
-    assert_eq!(run(|c| c.block_on(f)).unwrap(), None)
+    assert_eq!(block_on(f).unwrap(), None)
 }
 
 #[test]
 fn drop_rx() {
     let (tx, rx) = mpsc::channel::<u32>(1);
-    let tx = run(|c| c.block_on(tx.send(1))).unwrap();
+    let tx = block_on(tx.send(1)).unwrap();
     drop(rx);
-    assert!(run(|c| c.block_on(tx.send(1))).is_err());
+    assert!(block_on(tx.send(1)).is_err());
 }
 
 #[test]
@@ -68,10 +68,10 @@ fn drop_order() {
         }
     }
 
-    let tx = run(|c| c.block_on(tx.send(A))).unwrap();
+    let tx = block_on(tx.send(A)).unwrap();
     assert_eq!(DROPS.load(Ordering::SeqCst), 0);
     drop(rx);
     assert_eq!(DROPS.load(Ordering::SeqCst), 1);
-    assert!(run(|c| c.block_on(tx.send(A))).is_err());
+    assert!(block_on(tx.send(A)).is_err());
     assert_eq!(DROPS.load(Ordering::SeqCst), 2);
 }
