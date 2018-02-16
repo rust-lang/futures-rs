@@ -16,16 +16,20 @@
 #![feature(generator_trait)]
 #![feature(use_extern_macros)]
 #![feature(on_unimplemented)]
+#![feature(arbitrary_self_types)]
+
+extern crate anchor_experiment;
 
 extern crate futures_await_async_macro as async_macro;
 extern crate futures_await_await_macro as await_macro;
 extern crate futures;
+pub extern crate futures_stable as stable;
 
 pub use futures::*;
 
 pub mod prelude {
     pub use futures::prelude::*;
-    pub use async_macro::{async, async_move, async_stream_move, async_block, async_stream_block};
+    pub use async_macro::{async, async_move, async_stream, async_stream_move, async_block, async_stream_block};
     pub use await_macro::{await, stream_yield, await_item};
 }
 

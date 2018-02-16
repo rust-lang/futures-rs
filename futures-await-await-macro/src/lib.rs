@@ -13,8 +13,17 @@ macro_rules! await {
     ($e:expr) => ({
         let mut future = $e;
         loop {
-            let ctx = ::futures::__rt::get_ctx();
-            match ::futures::__rt::Future::poll(&mut future, unsafe { &mut *ctx }) {
+            let poll = unsafe {
+                let pin = ::futures::__rt::anchor_experiment::PinMut::pinned_unchecked(&mut future);
+                let ctx = ::futures::__rt::get_ctx();
+                let ctx = if ctx == ::futures::__rt::std::ptr::null_mut() {
+                    panic!("Cannot use `await!` outside of an `async` function.")
+                } else {
+                    &mut *ctx
+                };
+                ::futures::__rt::PinnedFuture::poll(pin, ctx)
+            };
+            match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)
                 }

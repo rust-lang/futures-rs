@@ -31,13 +31,14 @@ macro_rules! quote_cs {
     ($($t:tt)*) => (quote_spanned!(Span::call_site() => $($t)*))
 }
 
-fn async_move_inner<F>(
+fn async_inner<F>(
     boxed: bool,
+    pinned: bool,
     function: TokenStream,
     gen_function: Tokens,
     return_ty: F,
 ) -> TokenStream
-where F: FnOnce(&Type) -> proc_macro2::TokenStream
+where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
 {
     // Parse our item, expecting a function. This function may be an actual
     // top-level function or it could be a method (typically dictated by the
@@ -162,7 +163,9 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
     // Basically just take all those expression and expand them.
     let block = ExpandAsyncFor.fold_block(*block);
 
-    let return_ty = return_ty(&output);
+    let lifetimes: Vec<_> = generics.lifetimes().map(|l| &l.lifetime).collect();
+
+    let return_ty = return_ty(&output, &lifetimes);
 
     let block_inner = quote_cs! {
         #( let #patterns = #temp_bindings; )*
@@ -195,8 +198,14 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
     // sure if more errors will highlight this function call...
     let output_span = first_last(&output);
     let gen_function = respan(gen_function.into(), &output_span);
-    let body_inner = quote_cs! {
-        #gen_function (move || -> #output #gen_body)
+    let body_inner = if pinned {
+        quote_cs! {
+            #gen_function (#[allow(unused_unsafe)] unsafe { static move || -> #output #gen_body })
+        }
+    } else {
+        quote_cs! {
+            #gen_function (move || -> #output #gen_body)
+        }
     };
     let body_inner = if boxed {
         let body = quote_cs! { ::futures::__rt::std::boxed::Box::new(#body_inner) };
@@ -225,17 +234,38 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let (boxed, send) = match &attribute.to_string() as &str {
-        "( boxed )" => (true, false),
-        "( boxed_send )" => (true, true),
+        "( anchored )" => (true, false),
+        "( anchored_send )" => (true, true),
         "" => (false, false),
-        _ => panic!("the #[async] attribute currently only takes `boxed` as an arg"),
+        _ => panic!("the #[async] attribute currently only takes `anchored` as an arg"),
     };
 
-    /*
-    async_inner(boxed, function, quote_cs! { ::futures::__rt::gen }, |output| {
+    async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
+        // TODO: can we lift the restriction that `futures` must be at the root of
+        //       the crate?
+        let output_span = first_last(&output);
+        let return_ty = if boxed && !send {
+            quote_cs! {
+                ::futures::__rt::AnchoredBox<::futures::__rt::Future<
+                    Item = <! as ::futures::__rt::IsResult>::Ok,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                >>
+            }
+        } else if boxed && send {
+            quote_cs! {
+                ::futures::__rt::AnchoredBox<::futures::__rt::Future<
+                    Item = <! as ::futures::__rt::IsResult>::Ok,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                > + Send>
+            }
+        } else {
+            quote_cs! {
+                impl ::futures::__rt::MyPinnedFuture<!> + #( #lifetimes + )*
+            }
+        };
+        let return_ty = respan(return_ty.into(), &output_span);
+        replace_bang(return_ty, &output)
     })
-    */
-    panic!()
 }
 
 #[proc_macro_attribute]
@@ -248,7 +278,7 @@ pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream 
         _ => panic!("the #[async_move] attribute currently only takes `boxed` as an arg"),
     };
 
-    async_move_inner(boxed, function, quote_cs! { ::futures::__rt::gen_move }, |output| {
+    async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_move }, |output, lifetimes| {
         // TODO: can we lift the restriction that `futures` must be at the root of
         //       the crate?
         let output_span = first_last(&output);
@@ -257,14 +287,14 @@ pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream 
                 ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                >>
+                > + #(#lifetimes +)*>
             }
         } else if boxed && send {
             quote_cs! {
                 ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                > + Send>
+                > + Send + #(#lifetimes +)*>
             }
         } else {
             // Dunno why this is buggy, hits weird typecheck errors in tests
@@ -275,10 +305,64 @@ pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream 
             //         Error = <#output as ::futures::__rt::MyTry>::MyError,
             //     >
             // }
-            quote_cs! { impl ::futures::__rt::MyFuture<!> + 'static }
+            quote_cs! { impl ::futures::__rt::MyFuture<!> + #(#lifetimes +)* }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bang(return_ty, &output)
+    })
+}
+
+#[proc_macro_attribute]
+pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async_stream_move] attribute, if any
+    let args = syn::parse::<AsyncStreamArgs>(attribute)
+        .expect("failed to parse attribute arguments");
+
+    let mut boxed = false;
+    let mut item_ty = None;
+
+    for arg in args.0 {
+        match arg {
+            AsyncStreamArg(term, None) => {
+                if term == "anchored" {
+                    if boxed {
+                        panic!("duplicate 'anchored' argument to #[async_stream_move]");
+                    }
+                    boxed = true;
+                } else {
+                    panic!("unexpected #[async_stream_move] argument '{}'", term);
+                }
+            }
+            AsyncStreamArg(term, Some(ty)) => {
+                if term == "item" {
+                    if item_ty.is_some() {
+                        panic!("duplicate 'item' argument to #[async_stream_move]");
+                    }
+                    item_ty = Some(ty);
+                } else {
+                    panic!("unexpected #[async_stream_move] argument '{}'", quote_cs!(#term = #ty));
+                }
+            }
+        }
+    }
+
+    let boxed = boxed;
+    let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
+
+    async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, _| {
+        let output_span = first_last(&output);
+        let return_ty = if boxed {
+            quote_cs! {
+                ::futures::__rt::AnchoredBox<::futures::__rt::Stream<
+                    Item = !,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                >>
+            }
+        } else {
+            quote_cs! { impl ::futures::__rt::MyPinnedStream<!, !> + 'static }
+        };
+        let return_ty = respan(return_ty.into(), &output_span);
+        replace_bangs(return_ty, &[&item_ty, &output])
     })
 }
 
@@ -319,7 +403,7 @@ pub fn async_stream_move(attribute: TokenStream, function: TokenStream) -> Token
     let boxed = boxed;
     let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
 
-    async_move_inner(boxed, function, quote_cs! { ::futures::__rt::gen_stream }, |output| {
+    async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_stream }, |output, _| {
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {

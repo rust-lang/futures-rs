@@ -1,5 +1,7 @@
 mod future;
 mod stream;
+mod pinned_future;
+mod pinned_stream;
 
 use std::cell::Cell;
 use std::ptr;
@@ -7,10 +9,15 @@ use futures::task;
 
 pub use self::future::*;
 pub use self::stream::*;
+pub use self::pinned_future::*;
+pub use self::pinned_stream::*;
 
 pub use futures::prelude::{Async, Future, Stream};
+pub use stable::{PinnedFuture, PinnedStream};
 
 pub extern crate std;
+pub extern crate anchor_experiment;
+
 pub use std::ops::Generator;
 
 #[rustc_on_unimplemented = "async functions must return a `Result` or \

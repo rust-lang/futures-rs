@@ -2,45 +2,48 @@ use std::ops::{Generator, GeneratorState};
 use std::marker::PhantomData;
 use std::mem;
 
+use anchor_experiment::PinMut;
 use futures::task;
-use futures::prelude::{Poll, Async, Stream};
+use futures::prelude::{Poll, Async};
+use stable::PinnedStream;
 
 use super::{CTX, Reset, IsResult};
 
-pub trait MyStream<T, U: IsResult<Ok=()>>: Stream<Item=T, Error=U::Err> {}
+pub trait MyPinnedStream<T, U: IsResult<Ok=()>>: PinnedStream<Item=T, Error=U::Err> {}
 
-impl<F, T, U> MyStream<T, U> for F
-    where F: Stream<Item = T, Error = U::Err> + ?Sized,
+impl<F, T, U> MyPinnedStream<T, U> for F
+    where F: PinnedStream<Item = T, Error = U::Err> + ?Sized,
           U: IsResult<Ok=()>
 {}
 
 /// Small shim to translate from a generator to a stream.
-struct GenStream<U, T> {
+struct GenPinnedStream<U, T> {
     gen: T,
     done: bool,
     phantom: PhantomData<U>,
 }
 
-pub fn gen_stream<T, U>(gen: T) -> impl MyStream<U, T::Return>
+pub fn gen_stream_pinned<T, U>(gen: T) -> impl MyPinnedStream<U, T::Return>
     where T: Generator<Yield = Async<U>>,
           T::Return: IsResult<Ok = ()>,
 {
-    GenStream { gen, done: false, phantom: PhantomData }
+    GenPinnedStream { gen, done: false, phantom: PhantomData }
 }
 
-impl<U, T> Stream for GenStream<U, T>
+impl<U, T> PinnedStream for GenPinnedStream<U, T>
     where T: Generator<Yield = Async<U>>,
           T::Return: IsResult<Ok = ()>,
 {
     type Item = U;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset(cell.get(), cell);
             cell.set(unsafe { mem::transmute(ctx) });
-            if self.done { return Ok(Async::Ready(None)) }
-            match self.gen.resume() {
+            let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
+            if this.done { return Ok(Async::Ready(None)) }
+            match this.gen.resume() {
                 GeneratorState::Yielded(Async::Ready(e)) => {
                     Ok(Async::Ready(Some(e)))
                 }
@@ -48,7 +51,7 @@ impl<U, T> Stream for GenStream<U, T>
                     Ok(Async::Pending)
                 }
                 GeneratorState::Complete(e) => {
-                    self.done = true;
+                    this.done = true;
                     e.into_result().map(|()| Async::Ready(None))
                 }
             }
