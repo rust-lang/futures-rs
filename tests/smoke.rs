@@ -42,7 +42,7 @@ pub fn _foo4() -> io::Result<i32> {
 }
 
 #[async_move]
-fn _foo5<T: Clone + 'static>(t: T) -> Result<T, i32> {
+fn _foo5<T: Clone>(t: T) -> Result<T, i32> {
     Ok(t.clone())
 }
 
@@ -53,7 +53,7 @@ fn _foo6(ref a: i32) -> Result<i32, i32> {
 
 #[async_move]
 fn _foo7<T>(t: T) -> Result<T, i32>
-    where T: Clone + 'static,
+    where T: Clone,
 {
     Ok(t.clone())
 }
@@ -104,7 +104,7 @@ fn _stream1() -> Result<(), i32> {
 }
 
 #[async_stream_move(item = T)]
-fn _stream2<T: Clone + 'static>(t: T) -> Result<(), i32> {
+fn _stream2<T: Clone>(t: T) -> Result<(), i32> {
     stream_yield!(t.clone());
     stream_yield!(t.clone());
     Ok(())

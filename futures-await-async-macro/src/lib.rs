@@ -409,17 +409,17 @@ pub fn async_stream_move(attribute: TokenStream, function: TokenStream) -> Token
     let boxed = boxed;
     let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
 
-    async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_stream }, |output, _| {
+    async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_stream }, |output, lifetimes| {
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {
                 ::futures::__rt::std::boxed::Box<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                >>
+                > + #(#lifetimes +)*>
             }
         } else {
-            quote_cs! { impl ::futures::__rt::MyStream<!, !> + 'static }
+            quote_cs! { impl ::futures::__rt::MyStream<!, !> + #(#lifetimes +)* }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bangs(return_ty, &[&item_ty, &output])
