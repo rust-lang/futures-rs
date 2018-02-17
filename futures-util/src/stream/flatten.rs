@@ -1,6 +1,6 @@
 use futures_core::{Poll, Async, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend};
+use futures_sink::{Sink};
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.
@@ -57,17 +57,7 @@ impl<S> Sink for Flatten<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(cx)
-    }
+    delegate_sink!(stream);
 }
 
 impl<S> Stream for Flatten<S>

@@ -1,6 +1,6 @@
 use futures_core::{Async, Future, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink, AsyncSink};
+use futures_sink::{Sink};
 
 use stream::{StreamExt, Fuse};
 
@@ -66,14 +66,15 @@ impl<T, U> Forward<T, U>
 
     fn try_start_send(&mut self, cx: &mut task::Context, item: T::Item) -> Poll<(), U::SinkError> {
         debug_assert!(self.buffered.is_none());
-        if let AsyncSink::Pending(item) = self.sink_mut()
-            .take().expect("Attempted to poll Forward after completion")
-            .start_send(cx, item)?
         {
-            self.buffered = Some(item);
-            return Ok(Async::Pending)
+            let sink_mut = self.sink_mut().take().expect("Attempted to poll Forward after completion");
+            if let Async::Ready(()) = sink_mut.poll_ready(cx)? {
+                sink_mut.start_send(item)?;
+                return Ok(Async::Ready(()))
+            }
         }
-        Ok(Async::Ready(()))
+        self.buffered = Some(item);
+        Ok(Async::Pending)
     }
 }
 
@@ -99,11 +100,11 @@ impl<T, U> Future for Forward<T, U>
             {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(cx, item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush(cx));
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").poll_flush(cx));
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::Pending => {
-                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").flush(cx));
+                    try_ready!(self.sink_mut().take().expect("Attempted to poll Forward after completion").poll_flush(cx));
                     return Ok(Async::Pending)
                 }
             }

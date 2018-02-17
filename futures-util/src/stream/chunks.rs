@@ -3,7 +3,7 @@ use std::prelude::v1::*;
 
 use futures_core::{Async, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend};
+use futures_sink::{Sink};
 
 use stream::Fuse;
 
@@ -41,17 +41,7 @@ impl<S> Sink for Chunks<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(cx)
-    }
+    delegate_sink!(stream);
 }
 
 

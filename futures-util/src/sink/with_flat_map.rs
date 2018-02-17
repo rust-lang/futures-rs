@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use futures_core::{Poll, Async, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend, AsyncSink};
+use futures_sink::Sink;
 
 /// Sink for the `Sink::with_flat_map` combinator, chaining a computation that returns an iterator
 /// to run prior to pushing a value into the underlying sink
@@ -15,6 +15,7 @@ where
     St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     sink: S,
+    do_close: bool,
     f: F,
     stream: Option<St>,
     buffer: Option<S::SinkItem>,
@@ -29,6 +30,7 @@ where
 {
     WithFlatMap {
         sink: sink,
+        do_close: false,
         f: f,
         stream: None,
         buffer: None,
@@ -62,17 +64,23 @@ where
 
     fn try_empty_stream(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
         if let Some(x) = self.buffer.take() {
-            if let AsyncSink::Pending(x) = self.sink.start_send(cx, x)? {
-                self.buffer = Some(x);
-                return Ok(Async::Pending);
+            match self.sink.poll_ready(cx)? {
+                Async::Ready(()) => self.sink.start_send(x)?,
+                Async::Pending => {
+                    self.buffer = Some(x);
+                    return Ok(Async::Pending);
+                }
             }
         }
         if let Some(mut stream) = self.stream.take() {
             while let Some(x) = try_ready!(stream.poll(cx)) {
-                if let AsyncSink::Pending(x) = self.sink.start_send(cx, x)? {
-                    self.stream = Some(stream);
-                    self.buffer = Some(x);
-                    return Ok(Async::Pending);
+                match self.sink.poll_ready(cx)? {
+                    Async::Ready(()) => self.sink.start_send(x)?,
+                    Async::Pending => {
+                        self.stream = Some(stream);
+                        self.buffer = Some(x);
+                        return Ok(Async::Pending);
+                    }
                 }
             }
         }
@@ -101,26 +109,30 @@ where
 {
     type SinkItem = U;
     type SinkError = S::SinkError;
-    fn start_send(&mut self, cx: &mut task::Context, i: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        if self.try_empty_stream(cx)?.is_not_ready() {
-            return Ok(AsyncSink::Pending(i));
-        }
+
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.try_empty_stream(cx)
+    }
+
+    fn start_send(&mut self, i: Self::SinkItem) -> Result<(), Self::SinkError> {
         assert!(self.stream.is_none());
         self.stream = Some((self.f)(i));
-        self.try_empty_stream(cx)?;
-        Ok(AsyncSink::Ready)
+        Ok(())
     }
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+
+    fn start_close(&mut self) -> Result<(), Self::SinkError> {
+        self.do_close = true;
+        Ok(())
+    }
+
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         if self.try_empty_stream(cx)?.is_not_ready() {
             return Ok(Async::Pending);
         }
-        self.sink.flush(cx)
-    }
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(cx)?.is_not_ready() {
-            return Ok(Async::Pending);
+        if self.do_close {
+            self.sink.start_close()?;
+            self.do_close = false;
         }
-        assert!(self.stream.is_none());
-        self.sink.close(cx)
+        self.sink.poll_flush(cx)
     }
 }

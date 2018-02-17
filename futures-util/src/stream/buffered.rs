@@ -2,7 +2,7 @@ use std::fmt;
 
 use futures_core::{Async, IntoFuture, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink, StartSend};
+use futures_sink::{Sink};
 
 use stream::{Fuse, FuturesOrdered};
 
@@ -84,18 +84,8 @@ impl<S> Sink for Buffered<S>
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
-
-    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(cx)
-    }
+    
+    delegate_sink!(stream);
 }
 
 impl<S> Stream for Buffered<S>

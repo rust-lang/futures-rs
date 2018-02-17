@@ -246,11 +246,7 @@ pub mod prelude {
         Poll,
     };
 
-    pub use futures_sink::{
-        Sink,
-        AsyncSink,
-        StartSend,
-    };
+    pub use futures_sink::Sink;
 
     pub use futures_util::{
 		FutureExt,

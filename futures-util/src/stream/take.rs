@@ -1,6 +1,6 @@
 use futures_core::{Async, Poll, Stream};
 use futures_core::task;
-use futures_sink::{StartSend, Sink};
+use futures_sink::{ Sink};
 
 /// A stream combinator which returns a maximum number of elements.
 ///
@@ -53,17 +53,7 @@ impl<S> Sink for Take<S>
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: S::SinkItem) -> StartSend<S::SinkItem, S::SinkError> {
-        self.stream.start_send(cx, item)
-    }
-
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.flush(cx)
-    }
-
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        self.stream.close(cx)
-    }
+    delegate_sink!(stream);
 }
 
 impl<S> Stream for Take<S>

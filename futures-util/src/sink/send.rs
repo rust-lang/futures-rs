@@ -1,6 +1,6 @@
 use futures_core::{Poll, Async, Future};
 use futures_core::task;
-use futures_sink::{Sink, AsyncSink};
+use futures_sink::{Sink};
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
 /// then waits until the sink has fully flushed.
@@ -48,15 +48,20 @@ impl<S: Sink> Future for Send<S> {
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
         if let Some(item) = self.item.take() {
-            if let AsyncSink::Pending(item) = self.sink_mut().start_send(cx, item)? {
-                self.item = Some(item);
-                return Ok(Async::Pending);
+            match self.sink_mut().poll_ready(cx)? {
+                Async::Ready(()) => {
+                    self.sink_mut().start_send(item)?;
+                }
+                Async::Pending => {
+                    self.item = Some(item);
+                    return Ok(Async::Pending);
+                }
             }
         }
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        try_ready!(self.sink_mut().flush(cx));
+        try_ready!(self.sink_mut().poll_flush(cx));
 
         // now everything's emptied, so return the sink for further use
         Ok(Async::Ready(self.take_sink()))

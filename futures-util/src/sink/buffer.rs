@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use futures_core::{Poll, Async, Stream};
 use futures_core::task;
-use futures_sink::{StartSend, AsyncSink, Sink};
+use futures_sink::Sink;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.
@@ -14,6 +14,10 @@ pub struct Buffer<S: Sink> {
 
     // Track capacity separately from the `VecDeque`, which may be rounded up
     cap: usize,
+
+    // Whether or not to try closing the inner sink once the current buffer has
+    // been flushed into it.
+    do_close: bool,
 }
 
 pub fn new<S: Sink>(sink: S, amt: usize) -> Buffer<S> {
@@ -21,6 +25,7 @@ pub fn new<S: Sink>(sink: S, amt: usize) -> Buffer<S> {
         sink: sink,
         buf: VecDeque::with_capacity(amt),
         cap: amt,
+        do_close: false,
     }
 }
 
@@ -44,14 +49,13 @@ impl<S: Sink> Buffer<S> {
     }
 
     fn try_empty_buffer(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        try_ready!(self.sink.poll_ready(cx));
         while let Some(item) = self.buf.pop_front() {
-            if let AsyncSink::Pending(item) = self.sink.start_send(cx, item)? {
-                self.buf.push_front(item);
-
-                return Ok(Async::Pending);
+            self.sink.start_send(item)?;
+            if self.buf.len() != 0 {
+                try_ready!(self.sink.poll_ready(cx));
             }
         }
-
         Ok(Async::Ready(()))
     }
 }
@@ -70,38 +74,42 @@ impl<S: Sink> Sink for Buffer<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn start_send(&mut self, cx: &mut task::Context, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         if self.cap == 0 {
-            return self.sink.start_send(cx, item);
+            return self.sink.poll_ready(cx);
         }
 
         self.try_empty_buffer(cx)?;
-        if self.buf.len() == self.cap {
-            return Ok(AsyncSink::Pending(item));
-        }
-        self.buf.push_back(item);
-        Ok(AsyncSink::Ready)
+
+        Ok(if self.buf.len() >= self.cap {
+            Async::Pending
+        } else {
+            Async::Ready(())
+        })
     }
 
-    fn flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
         if self.cap == 0 {
-            return self.sink.flush(cx);
+            self.sink.start_send(item)
+        } else {
+            self.buf.push_back(item);
+            Ok(())
         }
+    }
 
+    fn start_close(&mut self) -> Result<(), Self::SinkError> {
+        self.do_close = true;
+        Ok(())
+    }
+
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf.is_empty());
-        self.sink.flush(cx)
-    }
 
-    fn close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.cap == 0 {
-            return self.sink.close(cx);
+        if self.do_close {
+            self.sink.start_close()?;
+            self.do_close = false;
         }
-
-        if self.buf.len() > 0 {
-            try_ready!(self.try_empty_buffer(cx));
-        }
-        assert_eq!(self.buf.len(), 0);
-        self.sink.close(cx)
+        self.sink.poll_flush(cx)
     }
 }
