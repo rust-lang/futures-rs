@@ -30,17 +30,11 @@ fn _stream1() -> Result<(), i32> {
     Ok(())
 }
 
-#[async]
-fn new_elision(x: &'_ i32) -> Result<i32, i32> {
-    Ok(*x)
-}
-
 #[test]
 fn main() {
     current_thread::run(|ctx| {
         assert_eq!(ctx.block_on(foo().anchor()), Ok(1));
         assert_eq!(ctx.block_on(bar(&1).anchor()), Ok(1));
         assert_eq!(ctx.block_on(baz(17).anchor()), Ok(17));
-        assert_eq!(ctx.block_on(new_elision(&1).anchor()), Ok(1));
     })
 }
