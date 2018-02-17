@@ -6,15 +6,13 @@
 #![feature(proc_macro, conservative_impl_trait, generators)]
 
 extern crate futures_await as futures;
-extern crate futures_cpupool;
 
-use futures::executor::current_thread;
+use futures::executor::{self, Executor};
 
 use std::io;
 
 use futures::future::poll_fn;
 use futures::prelude::*;
-use futures_cpupool::CpuPool;
 
 #[async_move]
 fn foo() -> Result<i32, i32> {
@@ -204,18 +202,16 @@ fn test_await_item() -> Result<(), ()> {
 
 #[test]
 fn main() {
-    current_thread::run(|ctx| {
-        assert_eq!(ctx.block_on(foo()), Ok(1));
-        assert_eq!(ctx.block_on(foo()), Ok(1));
-        assert_eq!(ctx.block_on(_bar()), Ok(1));
-        assert_eq!(ctx.block_on(_bar2()), Ok(2));
-        assert_eq!(ctx.block_on(_bar3()), Ok(2));
-        assert_eq!(ctx.block_on(_bar4()), Ok(10));
-        assert_eq!(ctx.block_on(_foo6(8)), Err(8));
-        // assert_eq!(A(11).a_foo(), 11);
-        assert_eq!(ctx.block_on(loop_in_loop()), Ok(true));
-        assert_eq!(ctx.block_on(test_await_item()), Ok(()));
-    })
+    assert_eq!(executor::block_on(foo()), Ok(1));
+    assert_eq!(executor::block_on(foo()), Ok(1));
+    assert_eq!(executor::block_on(_bar()), Ok(1));
+    assert_eq!(executor::block_on(_bar2()), Ok(2));
+    assert_eq!(executor::block_on(_bar3()), Ok(2));
+    assert_eq!(executor::block_on(_bar4()), Ok(10));
+    assert_eq!(executor::block_on(_foo6(8)), Err(8));
+    // assert_eq!(A(11).a_foo(), 11);
+    assert_eq!(executor::block_on(loop_in_loop()), Ok(true));
+    assert_eq!(executor::block_on(test_await_item()), Ok(()));
 }
 
 #[async_move]
@@ -242,18 +238,14 @@ fn poll_stream_after_error_stream() -> Result<(), ()> {
 
 #[test]
 fn poll_stream_after_error() {
-    current_thread::run(|ctx| {
-        let mut s = poll_stream_after_error_stream();
-        assert_eq!(ctx.block_on(poll_fn(|ctx| s.poll(ctx))), Ok(Some(5)));
-        assert_eq!(ctx.block_on(poll_fn(|ctx| s.poll(ctx))), Err(()));
-        assert_eq!(ctx.block_on(poll_fn(|ctx| s.poll(ctx))), Ok(None));
-    })
+    let mut s = poll_stream_after_error_stream();
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll(ctx))), Ok(Some(5)));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll(ctx))), Err(()));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll(ctx))), Ok(None));
 }
 
 #[test]
 fn run_boxed_future_in_cpu_pool() {
-    current_thread::run(|ctx| {
-        let pool = CpuPool::new_num_cpus();
-        ctx.block_on(pool.spawn(_foo9())).unwrap();
-    })
+    let mut pool = executor::ThreadPool::new_num_cpus();
+    pool.spawn(_foo9()).unwrap();
 }

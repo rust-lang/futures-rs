@@ -3,7 +3,7 @@
 extern crate futures_await as futures;
 
 use futures::stable::PinnedFuture;
-use futures::executor::current_thread;
+use futures::executor;
 use futures::prelude::*;
 
 struct Ref<'a, T: 'a>(&'a T);
@@ -31,10 +31,8 @@ fn _streams(x: &i32) -> Result<(), i32> {
 
 #[test]
 fn main() {
-    current_thread::run(|ctx| {
-        let x = 0;
-        assert_eq!(ctx.block_on(references(&x).anchor()), Ok(0));
-        assert_eq!(ctx.block_on(new_types(Ref(&x)).anchor()), Ok(0));
-        assert_eq!(ctx.block_on(references_move(&x)), Ok(0));
-    })
+    let x = 0;
+    assert_eq!(executor::block_on(references(&x).anchor()), Ok(0));
+    assert_eq!(executor::block_on(new_types(Ref(&x)).anchor()), Ok(0));
+    assert_eq!(executor::block_on(references_move(&x)), Ok(0));
 }
