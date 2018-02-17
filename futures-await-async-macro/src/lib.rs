@@ -10,7 +10,7 @@
 //! lifting, this is just a very small shim around creating a closure/future out
 //! of a generator.
 
-#![feature(proc_macro)]
+#![feature(proc_macro, match_default_bindings)]
 #![recursion_limit = "128"]
 
 extern crate proc_macro2;
@@ -26,6 +26,8 @@ use quote::{Tokens, ToTokens};
 use syn::*;
 use syn::punctuated::Punctuated;
 use syn::fold::Fold;
+
+mod elision;
 
 macro_rules! quote_cs {
     ($($t:tt)*) => (quote_spanned!(Span::call_site() => $($t)*))
@@ -61,7 +63,7 @@ where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
         inputs,
         output,
         variadic,
-        generics,
+        mut generics,
         fn_token,
         ..
     } = { *decl };
@@ -154,6 +156,7 @@ where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
         }
     }
 
+
     // This is the point where we handle
     //
     //      #[async]
@@ -163,9 +166,12 @@ where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
     // Basically just take all those expression and expand them.
     let block = ExpandAsyncFor.fold_block(*block);
 
+
+    let inputs_no_patterns = elision::unelide_lifetimes(&mut generics.params, inputs_no_patterns);
     let lifetimes: Vec<_> = generics.lifetimes().map(|l| &l.lifetime).collect();
 
     let return_ty = return_ty(&output, &lifetimes);
+
 
     let block_inner = quote_cs! {
         #( let #patterns = #temp_bindings; )*
@@ -349,17 +355,17 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
     let boxed = boxed;
     let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
 
-    async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, _| {
+    async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, lifetimes| {
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {
                 ::futures::__rt::AnchoredBox<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                >>
+                > + #(#lifetimes +)*>
             }
         } else {
-            quote_cs! { impl ::futures::__rt::MyPinnedStream<!, !> + 'static }
+            quote_cs! { impl ::futures::__rt::MyPinnedStream<!, !> + #(#lifetimes +)* }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bangs(return_ty, &[&item_ty, &output])
