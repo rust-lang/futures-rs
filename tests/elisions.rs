@@ -29,10 +29,27 @@ fn _streams(x: &i32) -> Result<(), i32> {
     Ok(())
 }
 
+struct Foo(i32);
+
+impl Foo {
+    #[async]
+    fn foo(&self) -> Result<&i32, i32> {
+        Ok(&self.0)
+    }
+}
+
+#[async]
+fn single_ref(x: &i32) -> Result<&i32, i32> {
+    Ok(x)
+}
+
 #[test]
 fn main() {
     let x = 0;
-    assert_eq!(executor::block_on(references(&x).anchor()), Ok(0));
-    assert_eq!(executor::block_on(new_types(Ref(&x)).anchor()), Ok(0));
-    assert_eq!(executor::block_on(references_move(&x)), Ok(0));
+    let foo = Foo(x);
+    assert_eq!(executor::block_on(references(&x).anchor()), Ok(x));
+    assert_eq!(executor::block_on(new_types(Ref(&x)).anchor()), Ok(x));
+    assert_eq!(executor::block_on(references_move(&x)), Ok(x));
+    assert_eq!(executor::block_on(single_ref(&x).anchor()), Ok(&x));
+    assert_eq!(executor::block_on(foo.foo().anchor()), Ok(&x));
 }
