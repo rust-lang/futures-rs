@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::{Generator, GeneratorState};
 
-use anchor_experiment::PinMut;
+use anchor_experiment::{PinMut, MovePinned};
 
 use super::{IsResult, Mu, Reset, CTX};
 
@@ -17,6 +17,8 @@ impl<F, T> MyPinnedFuture<T> for F
 {}
 
 struct GenPinnedFuture<T>(T);
+
+impl<T> !MovePinned for GenPinnedFuture<T> { }
 
 impl<T> PinnedFuture for GenPinnedFuture<T>
     where T: Generator<Yield = Async<Mu>>,

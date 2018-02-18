@@ -17,6 +17,7 @@
 #![feature(use_extern_macros)]
 #![feature(on_unimplemented)]
 #![feature(arbitrary_self_types)]
+#![feature(optin_builtin_traits)]
 
 extern crate anchor_experiment;
 

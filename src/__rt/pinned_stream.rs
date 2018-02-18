@@ -2,7 +2,7 @@ use std::ops::{Generator, GeneratorState};
 use std::marker::PhantomData;
 use std::mem;
 
-use anchor_experiment::PinMut;
+use anchor_experiment::{PinMut, MovePinned};
 use futures::task;
 use futures::prelude::{Poll, Async};
 use stable::PinnedStream;
@@ -22,6 +22,8 @@ struct GenPinnedStream<U, T> {
     done: bool,
     phantom: PhantomData<U>,
 }
+
+impl<U, T> !MovePinned for GenPinnedStream<U, T> { }
 
 pub fn gen_stream_pinned<T, U>(gen: T) -> impl MyPinnedStream<U, T::Return>
     where T: Generator<Yield = Async<U>>,
