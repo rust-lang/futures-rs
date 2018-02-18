@@ -320,7 +320,7 @@ pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream 
 
 #[proc_macro_attribute]
 pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStream {
-    // Handle arguments to the #[async_stream_move] attribute, if any
+    // Handle arguments to the #[async_stream] attribute, if any
     let args = syn::parse::<AsyncStreamArgs>(attribute)
         .expect("failed to parse attribute arguments");
 
@@ -332,28 +332,28 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
             AsyncStreamArg(term, None) => {
                 if term == "anchored" {
                     if boxed {
-                        panic!("duplicate 'anchored' argument to #[async_stream_move]");
+                        panic!("duplicate 'anchored' argument to #[async_stream]");
                     }
                     boxed = true;
                 } else {
-                    panic!("unexpected #[async_stream_move] argument '{}'", term);
+                    panic!("unexpected #[async_stream] argument '{}'", term);
                 }
             }
             AsyncStreamArg(term, Some(ty)) => {
                 if term == "item" {
                     if item_ty.is_some() {
-                        panic!("duplicate 'item' argument to #[async_stream_move]");
+                        panic!("duplicate 'item' argument to #[async_stream]");
                     }
                     item_ty = Some(ty);
                 } else {
-                    panic!("unexpected #[async_stream_move] argument '{}'", quote_cs!(#term = #ty));
+                    panic!("unexpected #[async_stream] argument '{}'", quote_cs!(#term = #ty));
                 }
             }
         }
     }
 
     let boxed = boxed;
-    let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
+    let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
 
     async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, lifetimes| {
         let output_span = first_last(&output);

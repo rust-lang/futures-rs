@@ -5,7 +5,7 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   |             ^^^ async functions must return a `Result` or a typedef of `Result`
   |
   = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
-  = note: required by `futures::__rt::gen`
+  = note: required by `futures::__rt::gen_move`
 
 error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   --> $DIR/not-a-result.rs:13:17
@@ -25,7 +25,7 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
    |             ^^^ async functions must return a `Result` or a typedef of `Result`
    |
    = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
-   = note: required by `futures::__rt::gen`
+   = note: required by `futures::__rt::gen_move`
 
 error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   --> $DIR/not-a-result.rs:18:14
