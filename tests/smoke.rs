@@ -156,31 +156,19 @@ pub fn _stream8() -> Result<(), i32> {
     Ok(())
 }
 
-// struct A(i32);
-//
-// impl A {
-//     #[async]
-//     fn a_foo(self) -> Result<i32, i32> {
-//         Ok(self.0)
-//     }
-//
-//     #[async]
-//     fn _a_foo2(self: Box<Self>) -> Result<i32, i32> {
-//         Ok(self.0)
-//     }
-// }
+struct A(i32);
 
-// trait B {
-//     #[async]
-//     fn b(self) -> Result<i32, i32>;
-// }
-//
-// impl B for A {
-//     #[async]
-//     fn b(self) -> Result<i32, i32> {
-//         Ok(self.0)
-//     }
-// }
+impl A {
+    #[async_move]
+    fn a_foo(self) -> Result<i32, i32> {
+        Ok(self.0)
+    }
+
+    #[async_move]
+    fn _a_foo2(self: Box<Self>) -> Result<i32, i32> {
+        Ok(self.0)
+    }
+}
 
 #[async_stream_move(item = u64)]
 fn await_item_stream() -> Result<(), i32> {
@@ -209,7 +197,7 @@ fn main() {
     assert_eq!(executor::block_on(_bar3()), Ok(2));
     assert_eq!(executor::block_on(_bar4()), Ok(10));
     assert_eq!(executor::block_on(_foo6(8)), Err(8));
-    // assert_eq!(A(11).a_foo(), 11);
+    assert_eq!(executor::block_on(A(11).a_foo()), Ok(11));
     assert_eq!(executor::block_on(loop_in_loop()), Ok(true));
     assert_eq!(executor::block_on(test_await_item()), Ok(()));
 }

@@ -8,16 +8,7 @@ pub fn unelide_lifetimes(generics: &mut Punctuated<GenericParam, Comma>, args: V
     -> Vec<FnArg>
 {
     let mut folder = UnelideLifetimes::new(generics);
-    let mut new_args = vec![];
-    
-    for arg in args {
-        let arg = if let FnArg::Captured(ArgCaptured { ty, pat, colon_token }) = arg {
-            FnArg::Captured(ArgCaptured { pat, colon_token, ty: folder.fold_type(ty) })
-        } else { arg };
-        new_args.push(arg);
-    }
-
-    new_args
+    args.into_iter().map(|arg| folder.fold_fn_arg(arg)).collect()
 }
 
 struct UnelideLifetimes<'a> {
@@ -40,6 +31,7 @@ impl<'a> UnelideLifetimes<'a> {
 
     }
 
+    // Constitute a new lifetime
     fn new_lifetime(&mut self) -> Lifetime {
         let lifetime_name = format!("'{}{}", self.lifetime_name, self.count);
         let lifetime = Lifetime::new(Term::intern(&lifetime_name), Span::call_site());
@@ -50,9 +42,24 @@ impl<'a> UnelideLifetimes<'a> {
 
         lifetime
     }
+
+    // Take an Option<Lifetime> and guarantee its an unelided lifetime
+    fn expand_lifetime(&mut self, lifetime: Option<Lifetime>) -> Lifetime {
+        match lifetime {
+            Some(l) => self.fold_lifetime(l),
+            None    => self.new_lifetime(),
+        }
+    }
 }
 
 impl<'a> Fold for UnelideLifetimes<'a> {
+    // Handling self arguments
+    fn fold_arg_self_ref(&mut self, arg: ArgSelfRef) -> ArgSelfRef {
+        let ArgSelfRef { and_token, lifetime, mutability, self_token } = arg;
+        let lifetime = Some(self.expand_lifetime(lifetime));
+        ArgSelfRef { and_token, lifetime, mutability, self_token }
+    }
+
     // If the lifetime is `'_`, replace it with a new unelided lifetime
     fn fold_lifetime(&mut self, lifetime: Lifetime) -> Lifetime {
         if lifetime.to_string() == "'_" { self.new_lifetime() }
@@ -62,10 +69,7 @@ impl<'a> Fold for UnelideLifetimes<'a> {
     // If the reference's lifetime is elided, replace it with a new unelided lifetime
     fn fold_type_reference(&mut self, ty_ref: TypeReference) -> TypeReference {
         let TypeReference { and_token, lifetime, mutability, elem } = ty_ref;
-        let lifetime = match lifetime {
-            Some(l) => Some(self.fold_lifetime(l)),
-            None    => Some(self.new_lifetime()),
-        };
+        let lifetime = Some(self.expand_lifetime(lifetime));
         let elem = Box::new(self.fold_type(*elem));
         TypeReference { and_token, lifetime, mutability, elem }
     }
