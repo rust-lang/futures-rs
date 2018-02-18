@@ -33,7 +33,7 @@ impl<'a> UnelideLifetimes<'a> {
 
     // Constitute a new lifetime
     fn new_lifetime(&mut self) -> Lifetime {
-        let lifetime_name = format!("'{}{}", self.lifetime_name, self.count);
+        let lifetime_name = format!("{}{}", self.lifetime_name, self.count);
         let lifetime = Lifetime::new(Term::intern(&lifetime_name), Span::call_site());
 
         let idx = self.lifetime_index + self.count as usize;
@@ -84,7 +84,7 @@ fn lifetime_index(generics: &Punctuated<GenericParam, Comma>) -> usize {
 // Determine the prefix for all lifetime names. Ensure it doesn't
 // overlap with any existing lifetime names.
 fn lifetime_name(generics: &Punctuated<GenericParam, Comma>) -> String {
-    let mut lifetime_name = String::from("_async");
+    let mut lifetime_name = String::from("'_async");
     let existing_lifetimes: Vec<String> = generics.iter().filter_map(|param| {
         if let GenericParam::Lifetime(LifetimeDef { lifetime, .. }) = param { Some(lifetime.to_string()) }
         else { None }

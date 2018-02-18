@@ -43,6 +43,11 @@ fn single_ref(x: &i32) -> Result<&i32, i32> {
     Ok(x)
 }
 
+#[async]
+fn check_for_name_colision<'_async0, T>(_x: &T, _y: &'_async0 i32) -> Result<(), ()> {
+    Ok(())
+}
+
 #[test]
 fn main() {
     let x = 0;
@@ -52,4 +57,5 @@ fn main() {
     assert_eq!(executor::block_on(references_move(&x)), Ok(x));
     assert_eq!(executor::block_on(single_ref(&x).anchor()), Ok(&x));
     assert_eq!(executor::block_on(foo.foo().anchor()), Ok(&x));
+    assert_eq!(executor::block_on(check_for_name_colision(&x, &x).anchor()), Ok(()));
 }
