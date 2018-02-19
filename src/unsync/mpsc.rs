@@ -110,7 +110,8 @@ impl<T> Drop for Sender<T> {
             Some(shared) => shared,
             None => return,
         };
-        if Rc::weak_count(&shared) == 0 {
+        if Rc::weak_count(&shared) == 1 {
+            // `self.shared` is the only remaining weak reference, meaning that the last sender is being dropped.
             if let Some(task) = shared.borrow_mut().blocked_recv.take() {
                 // Wake up receiver as its stream has ended
                 task.notify();
