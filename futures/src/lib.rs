@@ -166,6 +166,7 @@
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;
+extern crate futures_io;
 extern crate futures_sink;
 extern crate futures_util;
 
@@ -223,6 +224,16 @@ pub mod future {
     pub use futures_util::future::*;
 }
 
+#[cfg(feature = "std")]
+pub mod io {
+    //! IO
+    //!
+    //! This module contains the `AsyncRead` and `AsyncWrite` traits, as well
+    //! as a number of combinators and extensions for using them.
+    pub use futures_io::*;
+    pub use futures_util::io::*;
+}
+
 pub mod prelude {
 	//! A "prelude" for crates using the `futures` crate.
 	//!
@@ -252,6 +263,14 @@ pub mod prelude {
 		FutureExt,
 		StreamExt,
         SinkExt,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::{
+        AsyncRead,
+        AsyncWrite,
+        AsyncReadExt,
+        AsyncWriteExt,
     };
 }
 
