@@ -51,7 +51,7 @@ impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
             match mem::replace(&mut self.state, State::Empty) {
                 State::Empty => panic!("cannot poll Fold twice"),
                 State::Ready(state) => {
-                    match self.stream.poll(cx)? {
+                    match self.stream.poll_next(cx)? {
                         Async::Ready(Some(e)) => {
                             let future = (self.f)(state, e);
                             let future = future.into_future();

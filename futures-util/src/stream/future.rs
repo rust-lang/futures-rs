@@ -61,7 +61,7 @@ impl<S: Stream> Future for StreamFuture<S> {
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            match s.poll(cx) {
+            match s.poll_next(cx) {
                 Ok(Async::Pending) => return Ok(Async::Pending),
                 Ok(Async::Ready(e)) => Ok(e),
                 Err(e) => Err(e),

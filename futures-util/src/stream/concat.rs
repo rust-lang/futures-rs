@@ -81,7 +81,7 @@ impl<S> Future for ConcatSafe<S>
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         loop {
-            match self.stream.poll(cx) {
+            match self.stream.poll_next(cx) {
                 Ok(Async::Ready(Some(i))) => {
                     match self.extend {
                         Inner::First => {

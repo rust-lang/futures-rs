@@ -32,11 +32,11 @@ impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         if self.done {
             Ok(Async::Ready(None))
         } else {
-            let r = self.stream.poll(cx);
+            let r = self.stream.poll_next(cx);
             if let Ok(Async::Ready(None)) = r {
                 self.done = true;
             }

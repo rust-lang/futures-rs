@@ -85,18 +85,18 @@ pub trait Stream {
     /// # Panics
     ///
     /// Once a stream is finished, that is `Ready(None)` has been returned,
-    /// further calls to `poll` may result in a panic or other "bad behavior".
+    /// further calls to `poll_next` may result in a panic or other "bad behavior".
     /// If this is difficult to guard against then the `fuse` adapter can be
-    /// used to ensure that `poll` always has well-defined semantics.
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
+    /// used to ensure that `poll_next` always has well-defined semantics.
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 }
 
 impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        (**self).poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        (**self).poll_next(cx)
     }
 }
 
@@ -105,8 +105,8 @@ if_std! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            (**self).poll(cx)
+        fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            (**self).poll_next(cx)
         }
     }
 
@@ -114,8 +114,8 @@ if_std! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-            self.0.poll(cx)
+        fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+            self.0.poll_next(cx)
         }
     }
 }

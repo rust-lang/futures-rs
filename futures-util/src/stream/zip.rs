@@ -34,15 +34,15 @@ impl<S1, S2> Stream for Zip<S1, S2>
     type Item = (S1::Item, S2::Item);
     type Error = S1::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         if self.queued1.is_none() {
-            match self.stream1.poll(cx)? {
+            match self.stream1.poll_next(cx)? {
                 Async::Ready(Some(item1)) => self.queued1 = Some(item1),
                 Async::Ready(None) | Async::Pending => {}
             }
         }
         if self.queued2.is_none() {
-            match self.stream2.poll(cx)? {
+            match self.stream2.poll_next(cx)? {
                 Async::Ready(Some(item2)) => self.queued2 = Some(item2),
                 Async::Ready(None) | Async::Pending => {}
             }

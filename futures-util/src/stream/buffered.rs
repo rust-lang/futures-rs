@@ -95,11 +95,11 @@ impl<S> Stream for Buffered<S>
     type Item = <S::Item as IntoFuture>::Item;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.queue.len() < self.max {
-            let future = match self.stream.poll(cx)? {
+            let future = match self.stream.poll_next(cx)? {
                 Async::Ready(Some(s)) => s.into_future(),
                 Async::Ready(None) |
                 Async::Pending => break,
@@ -109,7 +109,7 @@ impl<S> Stream for Buffered<S>
         }
 
         // Try polling a new future
-        if let Some(val) = try_ready!(self.queue.poll(cx)) {
+        if let Some(val) = try_ready!(self.queue.poll_next(cx)) {
             return Ok(Async::Ready(Some(val)));
         }
 

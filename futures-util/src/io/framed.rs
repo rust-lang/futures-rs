@@ -120,8 +120,8 @@ impl<T, U> Stream for Framed<T, U>
     type Item = U::Item;
     type Error = U::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        self.inner.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        self.inner.poll_next(cx)
     }
 }
 

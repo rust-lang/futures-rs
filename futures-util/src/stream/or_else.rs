@@ -46,9 +46,9 @@ impl<S, F, U> Stream for OrElse<S, F, U>
     type Item = S::Item;
     type Error = U::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, U::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, U::Error> {
         if self.future.is_none() {
-            let item = match self.stream.poll(cx) {
+            let item = match self.stream.poll_next(cx) {
                 Ok(Async::Ready(e)) => return Ok(Async::Ready(e)),
                 Ok(Async::Pending) => return Ok(Async::Pending),
                 Err(e) => e,

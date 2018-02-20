@@ -62,11 +62,11 @@ impl<S> Stream for Take<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         if self.remaining == 0 {
             Ok(Async::Ready(None))
         } else {
-            let next = try_ready!(self.stream.poll(cx));
+            let next = try_ready!(self.stream.poll_next(cx));
             match next {
                 Some(_) => self.remaining -= 1,
                 None => self.remaining = 0,

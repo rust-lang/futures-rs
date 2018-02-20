@@ -53,8 +53,8 @@ impl<S: Stream, E: From<S::Error>> Stream for FromErr<S, E> {
     type Item = S::Item;
     type Error = E;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, E> {
-        let e = match self.stream.poll(cx) {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, E> {
+        let e = match self.stream.poll_next(cx) {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };

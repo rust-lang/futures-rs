@@ -79,7 +79,7 @@ impl<T, U> Future for SendAll<T, U>
         }
 
         loop {
-            match self.stream_mut().poll(cx)? {
+            match self.stream_mut().poll_next(cx)? {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(cx, item)),
                 Async::Ready(None) => {
                     try_ready!(self.sink_mut().poll_flush(cx));

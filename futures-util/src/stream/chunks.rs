@@ -81,14 +81,14 @@ impl<S> Stream for Chunks<S>
     type Item = Vec<<S as Stream>::Item>;
     type Error = <S as Stream>::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(err) = self.err.take() {
             return Err(err)
         }
 
         let cap = self.items.capacity();
         loop {
-            match self.stream.poll(cx) {
+            match self.stream.poll_next(cx) {
                 Ok(Async::Pending) => return Ok(Async::Pending),
 
                 // Push the item into the buffer and check whether it is full.

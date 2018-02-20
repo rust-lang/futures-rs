@@ -46,10 +46,10 @@ impl<A, B> Stream for Either<A, B>
     type Item = A::Item;
     type Error = A::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<A::Item>, A::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<A::Item>, A::Error> {
         match *self {
-            Either::A(ref mut a) => a.poll(cx),
-            Either::B(ref mut b) => b.poll(cx),
+            Either::A(ref mut a) => a.poll_next(cx),
+            Either::B(ref mut b) => b.poll_next(cx),
         }
     }
 }

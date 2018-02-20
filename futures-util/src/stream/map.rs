@@ -65,8 +65,8 @@ impl<S, F, U> Stream for Map<S, F>
     type Item = U;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<U>, S::Error> {
-        let option = try_ready!(self.stream.poll(cx));
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<U>, S::Error> {
+        let option = try_ready!(self.stream.poll_next(cx));
         Ok(Async::Ready(option.map(&mut self.f)))
     }
 }

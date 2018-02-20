@@ -167,8 +167,8 @@ impl<T, D> Stream for FramedRead<T, D>
     type Item = D::Item;
     type Error = D::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        self.inner.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        self.inner.poll_next(cx)
     }
 }
 
@@ -258,7 +258,7 @@ impl<T> Stream for FramedRead2<T>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             // Repeatedly call `decode` or `decode_eof` as long as it is
             // "readable". Readable is defined as not having returned `None`. If

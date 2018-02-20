@@ -169,10 +169,10 @@ impl<T> Stream for FuturesOrdered<T>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         // Get any completed futures from the unordered set.
         loop {
-            match self.in_progress.poll(cx)? {
+            match self.in_progress.poll_next(cx)? {
                 Async::Ready(Some(result)) => self.queued_results.push(result),
                 Async::Ready(None) | Async::Pending => break,
             }

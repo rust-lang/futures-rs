@@ -65,8 +65,8 @@ impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll_next(cx)
     }
 }
 

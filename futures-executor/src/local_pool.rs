@@ -107,7 +107,7 @@ impl LocalPool {
                 }
             }
 
-            if let Ok(ret) = self.pool.poll(&mut pool_cx) {
+            if let Ok(ret) = self.pool.poll_next(&mut pool_cx) {
                 // we queued up some new tasks; add them and poll again
                 if !self.incoming.borrow().is_empty() {
                     continue;

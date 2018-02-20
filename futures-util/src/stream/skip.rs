@@ -62,14 +62,14 @@ impl<S> Stream for Skip<S>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         while self.remaining > 0 {
-            match try_ready!(self.stream.poll(cx)) {
+            match try_ready!(self.stream.poll_next(cx)) {
                 Some(_) => self.remaining -= 1,
                 None => return Ok(Async::Ready(None)),
             }
         }
 
-        self.stream.poll(cx)
+        self.stream.poll_next(cx)
     }
 }

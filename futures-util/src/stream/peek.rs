@@ -38,11 +38,11 @@ impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         if let Some(item) = self.peeked.take() {
             return Ok(Async::Ready(Some(item)))
         }
-        self.stream.poll(cx)
+        self.stream.poll_next(cx)
     }
 }
 
@@ -56,7 +56,7 @@ impl<S: Stream> Peekable<S> {
         if self.peeked.is_some() {
             return Ok(Async::Ready(self.peeked.as_ref()))
         }
-        match try_ready!(self.poll(cx)) {
+        match try_ready!(self.poll_next(cx)) {
             None => Ok(Async::Ready(None)),
             Some(item) => {
                 self.peeked = Some(item);

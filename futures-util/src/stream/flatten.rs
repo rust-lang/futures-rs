@@ -68,16 +68,16 @@ impl<S> Stream for Flatten<S>
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             if self.next.is_none() {
-                match try_ready!(self.stream.poll(cx)) {
+                match try_ready!(self.stream.poll_next(cx)) {
                     Some(e) => self.next = Some(e),
                     None => return Ok(Async::Ready(None)),
                 }
             }
             assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll(cx) {
+            match self.next.as_mut().unwrap().poll_next(cx) {
                 Ok(Async::Ready(None)) => self.next = None,
                 other => return other,
             }

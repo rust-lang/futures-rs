@@ -36,14 +36,14 @@ impl<S1, S2> Stream for Chain<S1, S2>
     type Item = S1::Item;
     type Error = S1::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             match self.state {
-                State::First(ref mut s1, ref _s2) => match s1.poll(cx) {
+                State::First(ref mut s1, ref _s2) => match s1.poll_next(cx) {
                     Ok(Async::Ready(None)) => (), // roll
                     x => return x,
                 },
-                State::Second(ref mut s2) => return s2.poll(cx),
+                State::Second(ref mut s2) => return s2.poll_next(cx),
                 State::Temp => unreachable!(),
             }
 

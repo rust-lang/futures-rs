@@ -96,7 +96,7 @@ impl<T, U> Future for Forward<T, U>
         loop {
             match self.stream_mut()
                 .take().expect("Attempted to poll Forward after completion")
-                .poll(cx)?
+                .poll_next(cx)?
             {
                 Async::Ready(Some(item)) => try_ready!(self.try_start_send(cx, item)),
                 Async::Ready(None) => {
