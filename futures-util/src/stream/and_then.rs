@@ -73,9 +73,9 @@ impl<S, F, U> Stream for AndThen<S, F, U>
     type Item = U::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<U::Item>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<U::Item>, S::Error> {
         if self.future.is_none() {
-            let item = match try_ready!(self.stream.poll(cx)) {
+            let item = match try_ready!(self.stream.poll_next(cx)) {
                 None => return Ok(Async::Ready(None)),
                 Some(e) => e,
             };

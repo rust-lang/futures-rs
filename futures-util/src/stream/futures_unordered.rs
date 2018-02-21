@@ -266,7 +266,7 @@ impl<T> Stream for FuturesUnordered<T>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
         // Ensure `parent` is correctly set.
         self.inner.parent.register(cx);
 

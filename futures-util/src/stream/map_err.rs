@@ -65,7 +65,7 @@ impl<S, F, U> Stream for MapErr<S, F>
     type Item = S::Item;
     type Error = U;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, U> {
-        self.stream.poll(cx).map_err(&mut self.f)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, U> {
+        self.stream.poll_next(cx).map_err(&mut self.f)
     }
 }

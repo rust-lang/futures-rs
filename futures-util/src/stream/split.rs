@@ -26,9 +26,9 @@ impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         match self.0.poll_lock(cx) {
-            Async::Ready(mut inner) => inner.poll(cx),
+            Async::Ready(mut inner) => inner.poll_next(cx),
             Async::Pending => Ok(Async::Pending),
         }
     }

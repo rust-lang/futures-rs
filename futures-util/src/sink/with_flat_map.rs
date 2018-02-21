@@ -73,7 +73,7 @@ where
             }
         }
         if let Some(mut stream) = self.stream.take() {
-            while let Some(x) = try_ready!(stream.poll(cx)) {
+            while let Some(x) = try_ready!(stream.poll_next(cx)) {
                 match self.sink.poll_ready(cx)? {
                     Async::Ready(()) => self.sink.start_send(x)?,
                     Async::Pending => {
@@ -96,8 +96,8 @@ where
 {
     type Item = S::Item;
     type Error = S::Error;
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.sink.poll_next(cx)
     }
 }
 

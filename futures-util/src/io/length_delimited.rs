@@ -138,8 +138,8 @@ impl<T: AsyncRead, B: IntoBuf> Stream for Framed<T, B> {
     type Item = BytesMut;
     type Error = io::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<BytesMut>, io::Error> {
-        self.inner.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<BytesMut>, io::Error> {
+        self.inner.poll_next(cx)
     }
 }
 
@@ -222,8 +222,8 @@ impl<T: AsyncRead> Stream for FramedRead<T> {
     type Item = BytesMut;
     type Error = io::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<BytesMut>, io::Error> {
-        self.inner.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<BytesMut>, io::Error> {
+        self.inner.poll_next(cx)
     }
 }
 
@@ -518,8 +518,8 @@ impl<T: Stream, B: IntoBuf> Stream for FramedWrite<T, B> {
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
-        self.inner.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
+        self.inner.poll_next(cx)
     }
 }
 

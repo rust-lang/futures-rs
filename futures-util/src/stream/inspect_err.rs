@@ -64,8 +64,8 @@ impl<S, F> Stream for InspectErr<S, F>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.stream.poll(cx).map_err(|e| {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        self.stream.poll_next(cx).map_err(|e| {
             (self.inspect)(&e);
             e
         })

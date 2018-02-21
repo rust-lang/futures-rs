@@ -79,10 +79,10 @@ impl<S, F, R, B> Stream for FilterMap<S, F, R>
     type Item = B;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<B>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<B>, S::Error> {
         loop {
             if self.pending.is_none() {
-                let item = match try_ready!(self.stream.poll(cx)) {
+                let item = match try_ready!(self.stream.poll_next(cx)) {
                     Some(e) => e,
                     None => return Ok(Async::Ready(None)),
                 };

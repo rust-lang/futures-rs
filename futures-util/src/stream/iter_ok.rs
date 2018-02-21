@@ -46,7 +46,7 @@ impl<I, E> Stream for IterOk<I, E>
     type Item = I::Item;
     type Error = E;
 
-    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<I::Item>, E> {
+    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<I::Item>, E> {
         Ok(Async::Ready(self.iter.next()))
     }
 }

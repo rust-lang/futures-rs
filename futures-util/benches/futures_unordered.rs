@@ -38,7 +38,7 @@ fn oneshots(b: &mut Bencher) {
 
         let f = future::poll_fn(move |cx| {
             loop {
-                if let Ok(Async::Ready(None)) = rxs.poll(cx) {
+                if let Ok(Async::Ready(None)) = rxs.poll_next(cx) {
                     break
                 }
             }

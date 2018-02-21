@@ -71,14 +71,14 @@ impl<S, P, R> Stream for SkipWhile<S, P, R>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         if self.done_skipping {
-            return self.stream.poll(cx);
+            return self.stream.poll_next(cx);
         }
 
         loop {
             if self.pending.is_none() {
-                let item = match try_ready!(self.stream.poll(cx)) {
+                let item = match try_ready!(self.stream.poll_next(cx)) {
                     Some(e) => e,
                     None => return Ok(Async::Ready(None)),
                 };

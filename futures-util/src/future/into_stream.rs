@@ -19,7 +19,7 @@ impl<F: Future> Stream for IntoStream<F> {
     type Item = F::Item;
     type Error = F::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         let ret = match self.future {
             None => return Ok(Async::Ready(None)),
             Some(ref mut future) => {

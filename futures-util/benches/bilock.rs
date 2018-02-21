@@ -49,7 +49,7 @@ impl Stream for LockStream {
     type Item = BiLockAcquired<u32>;
     type Error = ();
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         self.lock.poll(cx).map(|a| match a {
             Async::Ready(a) => Async::Ready(Some(a)),
             Async::Pending => Async::Pending,
@@ -73,20 +73,20 @@ fn contended(b: &mut Bencher) {
         let mut y = LockStream::new(y);
 
         for _ in 0..1000 {
-            let x_guard = match x.poll(&mut cx) {
+            let x_guard = match x.poll_next(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             // Try poll second lock while first lock still holds the lock
-            match y.poll(&mut cx) {
+            match y.poll_next(&mut cx) {
                 Ok(Async::Pending) => (),
                 _ => panic!(),
             };
 
             x.release_lock(x_guard);
 
-            let y_guard = match y.poll(&mut cx) {
+            let y_guard = match y.poll_next(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
@@ -112,14 +112,14 @@ fn lock_unlock(b: &mut Bencher) {
         let mut y = LockStream::new(y);
 
         for _ in 0..1000 {
-            let x_guard = match x.poll(&mut cx) {
+            let x_guard = match x.poll_next(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             x.release_lock(x_guard);
 
-            let y_guard = match y.poll(&mut cx) {
+            let y_guard = match y.poll_next(&mut cx) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };

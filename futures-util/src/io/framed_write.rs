@@ -112,8 +112,8 @@ impl<T, D> Stream for FramedWrite<T, D>
     type Item = T::Item;
     type Error = T::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        self.inner.inner.0.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+        self.inner.inner.0.poll_next(cx)
     }
 }
 

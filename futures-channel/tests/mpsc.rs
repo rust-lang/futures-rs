@@ -43,7 +43,7 @@ fn send_recv_no_buffer() {
         assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Take the value
-        assert_eq!(rx.poll(cx).unwrap(), Async::Ready(Some(1)));
+        assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(1)));
         assert!(tx.poll_ready(cx).unwrap().is_ready());
 
         assert!(tx.poll_ready(cx).unwrap().is_ready());
@@ -51,7 +51,7 @@ fn send_recv_no_buffer() {
         assert!(tx.poll_ready(cx).unwrap().is_not_ready());
 
         // Take the value
-        assert_eq!(rx.poll(cx).unwrap(), Async::Ready(Some(2)));
+        assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(2)));
         assert!(tx.poll_ready(cx).unwrap().is_ready());
 
         Ok::<_, ()>(Async::Ready(()))
@@ -115,7 +115,7 @@ fn recv_close_gets_none() {
     let f = poll_fn(move |cx| {
         rx.close();
 
-        assert_eq!(rx.poll(cx), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll_next(cx), Ok(Async::Ready(None)));
         assert!(tx.poll_ready(cx).is_err());
 
         drop(&tx);
@@ -132,8 +132,8 @@ fn tx_close_gets_none() {
 
     // Run on a task context
     let f = poll_fn(move |cx| {
-        assert_eq!(rx.poll(cx), Ok(Async::Ready(None)));
-        assert_eq!(rx.poll(cx), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll_next(cx), Ok(Async::Ready(None)));
+        assert_eq!(rx.poll_next(cx), Ok(Async::Ready(None)));
 
         Ok::<_, ()>(Async::Ready(()))
     });
@@ -307,7 +307,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                     let n = n.clone();
                     let f = poll_fn(move |cx| {
                         let mut rx = rx.take().unwrap();
-                        let r = match rx.poll(cx).unwrap() {
+                        let r = match rx.poll_next(cx).unwrap() {
                             Async::Ready(Some(_)) => {
                                 n.fetch_add(1, Ordering::Relaxed);
                                 *lock = Some(rx);

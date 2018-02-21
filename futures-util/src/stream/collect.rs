@@ -38,7 +38,7 @@ impl<S> Future for Collect<S>
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Vec<S::Item>, S::Error> {
         loop {
-            match self.stream.poll(cx) {
+            match self.stream.poll_next(cx) {
                 Ok(Async::Ready(Some(e))) => self.items.push(e),
                 Ok(Async::Ready(None)) => return Ok(Async::Ready(self.finish())),
                 Ok(Async::Pending) => return Ok(Async::Pending),

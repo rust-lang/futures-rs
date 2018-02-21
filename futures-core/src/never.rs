@@ -31,7 +31,7 @@ impl Stream for Never {
     type Item = Never;
     type Error = Never;
 
-    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<Never>, Never> {
+    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<Never>, Never> {
         match *self {}
     }
 }

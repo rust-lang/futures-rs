@@ -44,12 +44,12 @@ fn unbounded_1_tx(b: &mut Bencher) {
         for i in 0..1000 {
 
             // Poll, not ready, park
-            assert_eq!(Ok(Async::Pending), rx.poll(&mut cx));
+            assert_eq!(Ok(Async::Pending), rx.poll_next(&mut cx));
 
             UnboundedSender::unbounded_send(&tx, i).unwrap();
 
             // Now poll ready
-            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut cx));
+            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_next(&mut cx));
         }
     })
 }
@@ -70,11 +70,11 @@ fn unbounded_100_tx(b: &mut Bencher) {
         // 1000 send/recv operations total, result should be divided by 1000
         for _ in 0..10 {
             for i in 0..tx.len() {
-                assert_eq!(Ok(Async::Pending), rx.poll(&mut cx));
+                assert_eq!(Ok(Async::Pending), rx.poll_next(&mut cx));
 
                 UnboundedSender::unbounded_send(&tx[i], i).unwrap();
 
-                assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut cx));
+                assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_next(&mut cx));
             }
         }
     })
@@ -94,7 +94,7 @@ fn unbounded_uncontended(b: &mut Bencher) {
         for i in 0..1000 {
             UnboundedSender::unbounded_send(&tx, i).expect("send");
             // No need to create a task, because poll is not going to park.
-            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll(&mut cx));
+            assert_eq!(Ok(Async::Ready(Some(i))), rx.poll_next(&mut cx));
         }
     })
 }
@@ -111,7 +111,7 @@ impl Stream for TestSender {
     type Item = u32;
     type Error = ();
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         try_ready!(self.tx.poll_ready(cx).map_err(|_| ()));
         self.tx.start_send(self.last + 1).unwrap();
         self.last += 1;
@@ -139,9 +139,9 @@ fn bounded_1_tx(b: &mut Bencher) {
         };
 
         for i in 0..1000 {
-            assert_eq!(Ok(Async::Ready(Some(i + 1))), tx.poll(&mut cx));
-            assert_eq!(Ok(Async::Pending), tx.poll(&mut cx));
-            assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll(&mut cx));
+            assert_eq!(Ok(Async::Ready(Some(i + 1))), tx.poll_next(&mut cx));
+            assert_eq!(Ok(Async::Pending), tx.poll_next(&mut cx));
+            assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll_next(&mut cx));
         }
     })
 }
@@ -168,11 +168,11 @@ fn bounded_100_tx(b: &mut Bencher) {
         for i in 0..10 {
             for j in 0..tx.len() {
                 // Send an item
-                assert_eq!(Ok(Async::Ready(Some(i + 1))), tx[j].poll(&mut cx));
+                assert_eq!(Ok(Async::Ready(Some(i + 1))), tx[j].poll_next(&mut cx));
                 // Then block
-                assert_eq!(Ok(Async::Pending), tx[j].poll(&mut cx));
+                assert_eq!(Ok(Async::Pending), tx[j].poll_next(&mut cx));
                 // Recv the item
-                assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll(&mut cx));
+                assert_eq!(Ok(Async::Ready(Some(i + 1))), rx.poll_next(&mut cx));
             }
         }
     })

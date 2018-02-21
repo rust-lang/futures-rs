@@ -44,7 +44,7 @@ impl<S, F, U> Future for ForEach<S, F, U>
 
             match self.stream {
                 Some(ref mut stream) => {
-                    match try_ready!(stream.poll(cx)) {
+                    match try_ready!(stream.poll_next(cx)) {
                         Some(e) => self.fut = Some((self.f)(e).into_future()),
                         None => break,
                     }

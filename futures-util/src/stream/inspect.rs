@@ -64,8 +64,8 @@ impl<S, F> Stream for Inspect<S, F>
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        match try_ready!(self.stream.poll(cx)) {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
+        match try_ready!(self.stream.poll_next(cx)) {
             Some(e) => {
                 (self.inspect)(&e);
                 Ok(Async::Ready(Some(e)))

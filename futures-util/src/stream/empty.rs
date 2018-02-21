@@ -23,7 +23,7 @@ impl<T, E> Stream for Empty<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self, _: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         Ok(Async::Ready(None))
     }
 }

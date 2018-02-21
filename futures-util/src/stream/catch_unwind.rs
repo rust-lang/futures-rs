@@ -36,7 +36,7 @@ impl<S> Stream for CatchUnwind<S>
     type Item = Result<S::Item, S::Error>;
     type Error = Box<Any + Send>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         let mut stream = match mem::replace(&mut self.state, CatchUnwindState::Eof) {
             CatchUnwindState::Done => panic!("cannot poll after eof"),
             CatchUnwindState::Eof => {
@@ -45,7 +45,7 @@ impl<S> Stream for CatchUnwind<S>
             }
             CatchUnwindState::Stream(stream) => stream,
         };
-        let res = catch_unwind(AssertUnwindSafe(|| (stream.poll(cx), stream)));
+        let res = catch_unwind(AssertUnwindSafe(|| (stream.poll_next(cx), stream)));
         match res {
             Err(e) => Err(e), // and state is already Eof
             Ok((poll, stream)) => {

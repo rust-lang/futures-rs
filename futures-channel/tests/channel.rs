@@ -42,7 +42,7 @@ fn drop_sender() {
     let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
     let f = poll_fn(|cx| {
-        rx.poll(cx)
+        rx.poll_next(cx)
     });
     assert_eq!(block_on(f).unwrap(), None)
 }

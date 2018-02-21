@@ -842,7 +842,7 @@ impl<T> Stream for Receiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T>, ()> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T>, ()> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -909,8 +909,8 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
     type Error = ();
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T>, ()> {
-        self.0.poll(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T>, ()> {
+        self.0.poll_next(cx)
     }
 }
 
