@@ -12,9 +12,9 @@ use task;
 /// asynchronous version of `Iterator`. A stream represents a sequence of
 /// value-producing events that occur asynchronously to the caller.
 ///
-/// The trait is modeled after `Future`, but allows `poll` to be called even
-/// after a value has been produced, yielding `None` once the stream has been
-/// fully exhausted.
+/// The trait is modeled after `Future`, but allows `poll_next` to be called
+/// even after a value has been produced, yielding `None` once the stream has
+/// been fully exhausted.
 ///
 /// # Errors
 ///
@@ -50,22 +50,22 @@ pub trait Stream {
     ///
     /// - [`Ok(Ready(Some(val)))`](::Async) means that the stream has
     /// successfully produced a value, `val`, and may produce further values
-    /// on subsequent `poll` calls.
+    /// on subsequent `poll_next` calls.
     ///
     /// - [`Ok(Ready(None))`](::Async) means that the stream has terminated, and
-    /// `poll` should not be invoked again.
+    /// `poll_next` should not be invoked again.
     ///
     /// - `Err(err)` means that the stream encountered an error while trying to
-    /// `poll`. Subsequent calls to `poll` *are* allowed, and may return further
-    /// values or errors.
+    /// `poll_next`. Subsequent calls to `poll_next` *are* allowed, and may
+    /// return further values or errors.
     ///
     /// # Panics
     ///
     /// Once a stream is finished, i.e. `Ready(None)` has been returned, further
-    /// calls to `poll` may result in a panic or other "bad behavior".  If this
+    /// calls to `poll_next` may result in a panic or other "bad behavior".  If this
     /// is difficult to guard against then the `fuse` adapter can be used to
     /// ensure that `poll_next` always returns `Ready(None)` in subsequent calls.
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 }
 
 impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
