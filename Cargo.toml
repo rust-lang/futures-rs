@@ -4,6 +4,7 @@ members = [
   "futures-core",
   "futures-channel",
   "futures-executor",
+  "futures-io",
   "futures-util",
   "futures-sink",
 ]

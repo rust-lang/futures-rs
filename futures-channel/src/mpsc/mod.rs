@@ -407,7 +407,7 @@ impl<T> Sender<T> {
         }
 
         // The channel has capacity to accept the message, so send it
-        self.do_send(Some(msg), None)
+        self.do_send(None, Some(msg))
             .map_err(|ChannelClosed(v)| {
                 TryChannelClosed {
                     kind: TryChannelClosedKind::Disconnected(v.unwrap()),
@@ -419,12 +419,12 @@ impl<T> Sender<T> {
     /// This function should only be called after `poll_ready` has responded
     /// that the channel is ready to receive a message.
     pub fn start_send(&mut self, msg: T) -> Result<(), ChannelClosed<T>> {
-        self.do_send(Some(msg), None)
+        self.do_send(None, Some(msg))
     }
 
     // Do the send without failing
     // None means close
-    fn do_send(&mut self, msg: Option<T>, cx: Option<&mut task::Context>)
+    fn do_send(&mut self, cx: Option<&mut task::Context>, msg: Option<T>)
         -> Result<(), ChannelClosed<T>>
     {
         // First, increment the number of messages contained by the channel.

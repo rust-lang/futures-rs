@@ -6,7 +6,13 @@
 
 #[macro_use]
 extern crate futures_core;
+extern crate futures_io;
 extern crate futures_sink;
+
+#[cfg(feature = "std")]
+use futures_core::{Async, Future, Poll, Stream, task};
+#[cfg(feature = "std")]
+use futures_sink::Sink;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -14,6 +20,16 @@ macro_rules! if_std {
         $i
     )*)
 }
+
+if_std! {
+    extern crate bytes;
+    #[macro_use]
+    extern crate log;
+}
+
+#[cfg(feature = "std")]
+#[macro_use]
+extern crate std;
 
 macro_rules! delegate_sink {
     ($field:ident) => {
@@ -35,15 +51,16 @@ macro_rules! delegate_sink {
     }
 }
 
-#[macro_use]
-#[cfg(feature = "std")]
-extern crate std;
-
 #[cfg(feature = "std")]
 pub mod lock;
 
 pub mod future;
 pub use future::FutureExt;
+
+#[cfg(feature = "std")]
+pub mod io;
+#[cfg(feature = "std")]
+pub use io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt};
 
 pub mod stream;
 pub use stream::StreamExt;
@@ -54,4 +71,6 @@ pub use sink::SinkExt;
 pub mod prelude {
     //! Prelude with common traits from the `futures-util` crate.
     pub use {FutureExt, StreamExt, SinkExt};
+    #[cfg(feature = "std")]
+    pub use {AsyncReadExt, AsyncWriteExt};
 }
