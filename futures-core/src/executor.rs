@@ -1,15 +1,34 @@
-//! dox
+//! Executors.
 
 if_std! {
     use std::boxed::Box;
     use Future;
 
-    /// TODO: dox
+    /// A task executor.
+    ///
+    /// A *task* is a `()`-producing future that runs at the top level, and will
+    /// be `poll`ed until completion. Executors, such as thread pools, allow
+    /// tasks to be spawned and are responsible for performing this polling.
     pub trait Executor {
-        /// TODO: dox
+        /// Spawn the given task, polling it until completion.
+        ///
+        /// Task errors are silently ignored, as the type suggestions; it is the
+        /// client's reponsibility to route any errors elsewhere via a channel
+        /// or some other means of communication.
+        ///
+        /// # Errors
+        ///
+        /// The executor may be unable to spawn tasks, either because it has
+        /// been shut down or is resource-constrained.
         fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError>;
 
-        /// TODO: dox
+        /// Determine whether the executor is able to spawn new tasks.
+        ///
+        /// # Returns
+        ///
+        /// An `Ok` return means the executor is *likely* (but not guaranteed)
+        /// to accept a subsequent spawn attempt. Likewise, an `Err` return
+        /// means that `spawn` is likely, but not guaranteed, to yield an error.
         fn status(&self) -> Result<(), SpawnError> {
             Ok(())
         }
@@ -17,16 +36,21 @@ if_std! {
         // TODO: downcasting hooks
     }
 
-    /// TODO: dox
+    /// Provides the reason that an executor was unable to spawn.
     #[derive(Debug)]
     pub struct SpawnError {
         _a: ()
     }
 
     impl SpawnError {
-        /// todo: dox
+        /// Spawning is failing because the executor has been shut down.
         pub fn shutdown() -> SpawnError {
             SpawnError { _a: () }
+        }
+
+        /// Check whether this error is the `shutdown` error.
+        pub fn is_shutdown() -> bool {
+            true
         }
     }
 }

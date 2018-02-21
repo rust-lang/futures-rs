@@ -1,4 +1,7 @@
 //! Core traits and types for asynchronous operations in Rust.
+//!
+//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
+//! overview.
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]

@@ -7,10 +7,11 @@ use core::sync::atomic::Ordering::{Acquire, Release};
 
 use task::{self, Waker};
 
-/// A synchronization primitive for task notification.
+/// A synchronization primitive for task wakeup.
 ///
-/// `AtomicWaker` will coordinate concurrent notifications with the consumer
-/// potentially "updating" the underlying task to notify. This is useful in
+/// Sometimes the task interested in a given event will change over time.
+/// An `AtomicWaker` can coordinate concurrent notifications with the consumer
+/// potentially "updating" the underlying task to wake up. This is useful in
 /// scenarios where a computation completes in another thread and wants to
 /// notify the consumer, but the consumer is in the process of being migrated to
 /// a new logical task.
@@ -59,7 +60,7 @@ const LOCKED_WRITE_NOTIFIED: usize = 1;
 const LOCKED_READ: usize = 3;
 
 impl AtomicWaker {
-    /// Create an `AtomicWaker` initialized with the given `Waker`
+    /// Create an `AtomicWaker` with no initial `Waker`
     pub fn new() -> AtomicWaker {
         // Make sure that task is Sync
         trait AssertSync: Sync {}
