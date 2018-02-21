@@ -37,7 +37,6 @@ pub struct FramedWrite<T, E> {
 pub struct FramedWrite2<T> {
     inner: T,
     buffer: BytesMut,
-    do_close: bool,
 }
 
 const INITIAL_CAPACITY: usize = 8 * 1024;
@@ -136,7 +135,6 @@ pub fn framed_write2<T>(inner: T) -> FramedWrite2<T> {
     FramedWrite2 {
         inner,
         buffer: BytesMut::with_capacity(INITIAL_CAPACITY),
-        do_close: false,
     }
 }
 
@@ -148,7 +146,6 @@ pub fn framed_write2_with_buffer<T>(inner: T, mut buf: BytesMut) -> FramedWrite2
     FramedWrite2 {
         inner,
         buffer: buf,
-        do_close: false,
     }
 }
 
@@ -167,6 +164,28 @@ impl<T> FramedWrite2<T> {
 
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.inner
+    }
+}
+
+impl<T: AsyncWrite + Encoder> FramedWrite2<T> {
+    fn poll_write_internal(&mut self, cx: &mut task::Context) -> Poll<(), T::Error> {
+        trace!("flushing framed transport");
+
+        while !self.buffer.is_empty() {
+            trace!("writing; remaining={}", self.buffer.len());
+
+            let n = try_ready!(self.inner.poll_write(cx, &self.buffer));
+
+            if n == 0 {
+                return Err(io::Error::new(io::ErrorKind::WriteZero, "failed to
+                                          write frame to transport").into());
+            }
+
+            // TODO: Add a way to `bytes` to do this w/o returning the drained
+            // data.
+            let _ = self.buffer.split_to(n);
+        }
+        Ok(Async::Ready(()))
     }
 }
 
@@ -196,36 +215,14 @@ impl<T> Sink for FramedWrite2<T>
         self.inner.encode(item, &mut self.buffer)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.do_close = true;
-        Ok(())
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        try_ready!(self.poll_write_internal(cx));
+        self.inner.poll_flush(cx).map_err(Into::into)
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        trace!("flushing framed transport");
-
-        while !self.buffer.is_empty() {
-            trace!("writing; remaining={}", self.buffer.len());
-
-            let n = try_ready!(self.inner.poll_write(cx, &self.buffer));
-
-            if n == 0 {
-                return Err(io::Error::new(io::ErrorKind::WriteZero, "failed to
-                                          write frame to transport").into());
-            }
-
-            // TODO: Add a way to `bytes` to do this w/o returning the drained
-            // data.
-            let _ = self.buffer.split_to(n);
-        }
-
-        try_ready!(self.inner.poll_flush(cx));
-
-        if self.do_close {
-            self.inner.poll_close(cx).map_err(Into::into)
-        } else {
-            Ok(Async::Ready(()))
-        }
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        try_ready!(self.poll_write_internal(cx));
+        self.inner.poll_close(cx).map_err(Into::into)
     }
 }
 

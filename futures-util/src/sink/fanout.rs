@@ -66,16 +66,21 @@ impl<A, B> Sink for Fanout<A, B>
         Ok(())
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.left.start_close();
-        self.right.start_close();
-        Ok(())
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         let left_async = self.left.poll_flush(cx)?;
         let right_async = self.right.poll_flush(cx)?;
-        // Only if both downstream sinks are ready, signal readiness.
+
+        if left_async.is_ready() && right_async.is_ready() {
+            Ok(Async::Ready(()))
+        } else {
+            Ok(Async::Pending)
+        }
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        let left_async = self.left.poll_close(cx)?;
+        let right_async = self.right.poll_close(cx)?;
+
         if left_async.is_ready() && right_async.is_ready() {
             Ok(Async::Ready(()))
         } else {
@@ -88,20 +93,15 @@ impl<A, B> Sink for Fanout<A, B>
 struct Downstream<S: Sink> {
     sink: S,
     state: Option<S::SinkItem>,
-    do_close: bool,
 }
 
 impl<S: Sink> Downstream<S> {
     fn new(sink: S) -> Self {
-        Downstream { sink: sink, state: None, do_close: false }
+        Downstream { sink: sink, state: None }
     }
 
     fn is_ready(&self) -> bool {
         self.state.is_none()
-    }
-
-    fn start_close(&mut self) {
-        self.do_close = true;
     }
 
     fn keep_flushing(&mut self, cx: &mut task::Context) -> Result<(), S::SinkError> {
@@ -117,9 +117,21 @@ impl<S: Sink> Downstream<S> {
         self.keep_flushing(cx)?;
         let async = self.sink.poll_flush(cx)?;
 
-        if self.is_ready() && self.do_close {
-            self.sink.start_close()?;
-            self.do_close = false;
+        // Only if all values have been sent _and_ the underlying
+        // sink is completely flushed, signal readiness.
+        if self.state.is_none() && async.is_ready() {
+            Ok(Async::Ready(()))
+        } else {
+            Ok(Async::Pending)
+        }
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        self.keep_flushing(cx)?;
+        let async = self.sink.poll_flush(cx)?;
+
+        if self.is_ready() {
+            try_ready!(self.sink.poll_close(cx));
         }
 
         // Only if all values have been sent _and_ the underlying

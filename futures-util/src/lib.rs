@@ -41,13 +41,14 @@ macro_rules! delegate_sink {
             self.$field.start_send(item)
         }
 
-        fn start_close(&mut self) -> Result<(), Self::SinkError> {
-            self.$field.start_close()
-        }
-
         fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
             self.$field.poll_flush(cx)
         }
+
+        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+            self.$field.poll_close(cx)
+        }
+
     }
 }
 

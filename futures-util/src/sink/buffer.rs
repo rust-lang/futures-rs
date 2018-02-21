@@ -14,10 +14,6 @@ pub struct Buffer<S: Sink> {
 
     // Track capacity separately from the `VecDeque`, which may be rounded up
     cap: usize,
-
-    // Whether or not to try closing the inner sink once the current buffer has
-    // been flushed into it.
-    do_close: bool,
 }
 
 pub fn new<S: Sink>(sink: S, amt: usize) -> Buffer<S> {
@@ -25,7 +21,6 @@ pub fn new<S: Sink>(sink: S, amt: usize) -> Buffer<S> {
         sink: sink,
         buf: VecDeque::with_capacity(amt),
         cap: amt,
-        do_close: false,
     }
 }
 
@@ -97,19 +92,15 @@ impl<S: Sink> Sink for Buffer<S> {
         }
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.do_close = true;
-        Ok(())
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf.is_empty());
-
-        if self.do_close {
-            self.sink.start_close()?;
-            self.do_close = false;
-        }
         self.sink.poll_flush(cx)
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        try_ready!(self.try_empty_buffer(cx));
+        debug_assert!(self.buf.is_empty());
+        self.sink.poll_close(cx)
     }
 }

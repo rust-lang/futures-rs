@@ -91,8 +91,6 @@ pub struct FramedWrite<T, B: IntoBuf = BytesMut> {
 
     // Current frame being written
     frame: Option<Chain<Cursor<BytesMut>, B::Buf>>,
-
-    do_close: bool,
 }
 
 // ===== impl Framed =====
@@ -500,12 +498,15 @@ impl<T: AsyncWrite, B: IntoBuf> Sink for FramedWrite<T, B> {
         self.set_frame(item.into_buf())
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.do_close = true;
-        Ok(())
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        // Write any buffered frame to T
+        try_ready!(self.do_write(cx));
+
+        // Try flushing the underlying IO
+        self.inner.poll_flush(cx)
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         // Write any buffered frame to T
         try_ready!(self.do_write(cx));
 
@@ -839,7 +840,6 @@ impl Builder {
             inner: inner,
             builder: *self,
             frame: None,
-            do_close: false,
         }
     }
 

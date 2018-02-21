@@ -41,11 +41,11 @@ if_std! {
             Ok(())
         }
 
-        fn start_close(&mut self) -> Result<(), Self::SinkError> {
-            Ok(())
+        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+            Ok(Async::Ready(()))
         }
 
-        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
             Ok(Async::Ready(()))
         }
     }
@@ -66,12 +66,12 @@ if_std! {
             (**self).start_send(item)
         }
 
-        fn start_close(&mut self) -> Result<(), Self::SinkError> {
-            (**self).start_close()
-        }
-
         fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
             (**self).poll_flush(cx)
+        }
+
+        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+            (**self).poll_close(cx)
         }
     }
 }
@@ -158,10 +158,6 @@ pub trait Sink {
     fn start_send(&mut self, item: Self::SinkItem)
                   -> Result<(), Self::SinkError>;
 
-
-    /// Set the `Sink` to start closing.
-    fn start_close(&mut self) -> Result<(), Self::SinkError>;
-
     /// Flush all output from this sink, if necessary.
     ///
     /// Some sinks may buffer intermediate data as an optimization to improve
@@ -211,6 +207,9 @@ pub trait Sink {
     /// `flush`. For 0.1, however, the breaking change is not happening
     /// yet.
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+
+    /// TODO: dox
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 }
 
 impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
@@ -225,11 +224,11 @@ impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
         (**self).start_send(item)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        (**self).start_close()
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         (**self).poll_flush(cx)
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        (**self).poll_close(cx)
     }
 }

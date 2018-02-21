@@ -186,12 +186,12 @@ impl<T, D> Sink for FramedRead<T, D>
         self.inner.inner.0.start_send(item)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.inner.inner.0.start_close()
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         self.inner.inner.0.poll_flush(cx)
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.inner.inner.0.poll_close(cx)
     }
 }
 
