@@ -1,9 +1,11 @@
-//! Definition and trait implementations for the `Never` type.
+//! Definition and trait implementations for the `Never` type,
+//! a stand-in for the `!` type until it becomes stable.
 
 use {Future, Stream, Poll};
 use task;
 
-/// A type that can never exist.
+/// A type with no possible values.
+///
 /// This is used to indicate values which can never be created, such as the
 /// error type of infallible futures.
 ///

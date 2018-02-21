@@ -4,7 +4,8 @@ use core::result;
 
 /// A future representing a value that is immediately ready.
 ///
-/// Created by the `result` function.
+/// Created by the [`result`](::future::result), [`ok`](::future::ok) or
+/// [`err`](::future::err) functions.
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Result<T, E> {
@@ -21,11 +22,7 @@ impl<T, E> IntoFuture for result::Result<T, E> {
     }
 }
 
-/// Creates a new "leaf future" which will resolve with the given result.
-///
-/// The returned future represents a computation which is finished immediately.
-/// This can be useful with the `finished` and `failed` base future types to
-/// convert an immediate value to a future to interoperate elsewhere.
+/// Creates a new future that will immediate resolve with the given result.
 ///
 /// # Examples
 ///
@@ -39,11 +36,7 @@ pub fn result<T, E>(r: result::Result<T, E>) -> Result<T, E> {
     Result { inner: Some(r) }
 }
 
-/// Creates a "leaf future" from an immediate value of a finished and
-/// successful computation.
-///
-/// The returned future is similar to `result` where it will immediately run a
-/// scheduled callback with the provided value.
+/// Creates a new future that will immediately resolve successfully to the given value.
 ///
 /// # Examples
 ///
@@ -56,10 +49,7 @@ pub fn ok<T, E>(t: T) -> Result<T, E> {
     result(Ok(t))
 }
 
-/// Creates a "leaf future" from an immediate value of a failed computation.
-///
-/// The returned future is similar to `result` where it will immediately run a
-/// scheduled callback with the provided value.
+/// Creates a new future that will immediately fail with the given error.
 ///
 /// # Examples
 ///

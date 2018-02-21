@@ -1,93 +1,66 @@
 //! Asynchronous streams
 //!
-//! This module contains the `Stream` trait and a number of adaptors for this
-//! trait. This trait is very similar to the `Iterator` trait in the standard
-//! library except that it expresses the concept of blocking as well. A stream
-//! here is a sequential sequence of values which may take some amount of time
-//! in between to produce.
-//!
-//! A stream may request that it is blocked between values while the next value
-//! is calculated, and provides a way to get notified once the next value is
-//! ready as well.
-//!
-//! You can find more information/tutorials about streams [online at
-//! https://tokio.rs][online]
-//!
-//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
+//! overview.
 
 use Poll;
 use task;
 
-/// A stream of values, not all of which may have been produced yet.
+/// A stream of values produced asynchronously.
 ///
-/// `Stream` is a trait to represent any source of sequential events or items
-/// which acts like an iterator but long periods of time may pass between
-/// items. Like `Future` the methods of `Stream` never block and it is thus
-/// suitable for programming in an asynchronous fashion. This trait is very
-/// similar to the `Iterator` trait in the standard library where `Some` is
-/// used to signal elements of the stream and `None` is used to indicate that
-/// the stream is finished.
+/// If `Future` is an asynchronous version of `Result`, then `Stream` is an
+/// asynchronous version of `Iterator`. A stream represents a sequence of
+/// value-producing events that occur asynchronously to the caller.
 ///
-/// Like futures a stream has basic combinators to transform the stream, perform
-/// more work on each item, etc.
-///
-/// You can find more information/tutorials about streams [online at
-/// https://tokio.rs][online]
-///
-/// [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
-///
-/// # Streams as Futures
-///
-/// Any instance of `Stream` can also be viewed as a `Future` where the resolved
-/// value is the next item in the stream along with the rest of the stream. The
-/// `into_future` adaptor can be used here to convert any stream into a future
-/// for use with other future methods like `join` and `select`.
+/// The trait is modeled after `Future`, but allows `poll_next` to be called
+/// even after a value has been produced, yielding `None` once the stream has
+/// been fully exhausted.
 ///
 /// # Errors
 ///
-/// Streams, like futures, can also model errors in their computation. All
-/// streams have an associated `Error` type like with futures. Currently as of
-/// the 0.1 release of this library an error on a stream **does not terminate
-/// the stream**. That is, after one error is received, another error may be
-/// received from the same stream (it's valid to keep polling).
-///
-/// This property of streams, however, is [being considered] for change in 0.2
-/// where an error on a stream is similar to `None`, it terminates the stream
-/// entirely. If one of these use cases suits you perfectly and not the other,
-/// please feel welcome to comment on [the issue][being considered]!
-///
-/// [being considered]: https://github.com/alexcrichton/futures-rs/issues/206
+/// Streams, like futures, also bake in errors through an associated `Error`
+/// type. An error on a stream **does not terminate the stream**. That is,
+/// after one error is received, another value may be received from the same
+/// stream (it's valid to keep polling). Thus a stream is somewhat like an
+/// `Iterator<Item = Result<T, E>>`, and is always terminated by returning
+/// `None`.
 pub trait Stream {
-    /// The type of item this stream will yield on success.
+    /// Values yielded by the stream.
     type Item;
 
-    /// The type of error this stream may generate.
+    /// Errors yielded by the stream.
     type Error;
 
-    /// Attempt to pull out the next value of this stream, returning `None` if
-    /// the stream is finished.
-    ///
-    /// This method, like `Future::poll`, is the sole method of pulling out a
-    /// value from a stream. This method must also be run within the context of
-    /// a task typically and implementors of this trait must ensure that
-    /// implementations of this method do not block, as it may cause consumers
-    /// to behave badly.
+    /// Attempt to pull out the next value of this stream, registering the
+    /// current task for wakeup if the value is not yet available, and returning
+    /// `None` if the stream is exhausted.
     ///
     /// # Return value
     ///
-    /// If `Pending` is returned then this stream's next value is not ready
-    /// yet and implementations will ensure that the current task will be
-    /// notified when the next value may be ready. If `Some` is returned then
-    /// the returned value represents the next value on the stream. `Err`
-    /// indicates an error happened, while `Ok` indicates whether there was a
-    /// new item on the stream or whether the stream has terminated.
+    /// There are several possible return values, each indicating a distinct
+    /// stream state:
+    ///
+    /// - [`Ok(Pending)`](::Async) means that this stream's next value is not
+    /// ready yet. Implementations will ensure that the current task will be
+    /// notified when the next value may be ready.
+    ///
+    /// - [`Ok(Ready(Some(val)))`](::Async) means that the stream has
+    /// successfully produced a value, `val`, and may produce further values
+    /// on subsequent `poll_next` calls.
+    ///
+    /// - [`Ok(Ready(None))`](::Async) means that the stream has terminated, and
+    /// `poll_next` should not be invoked again.
+    ///
+    /// - `Err(err)` means that the stream encountered an error while trying to
+    /// `poll_next`. Subsequent calls to `poll_next` *are* allowed, and may
+    /// return further values or errors.
     ///
     /// # Panics
     ///
-    /// Once a stream is finished, that is `Ready(None)` has been returned,
-    /// further calls to `poll_next` may result in a panic or other "bad behavior".
-    /// If this is difficult to guard against then the `fuse` adapter can be
-    /// used to ensure that `poll_next` always has well-defined semantics.
+    /// Once a stream is finished, i.e. `Ready(None)` has been returned, further
+    /// calls to `poll_next` may result in a panic or other "bad behavior".  If this
+    /// is difficult to guard against then the `fuse` adapter can be used to
+    /// ensure that `poll_next` always returns `Ready(None)` in subsequent calls.
     fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 }
 
