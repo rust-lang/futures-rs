@@ -31,13 +31,9 @@ pub trait Stream {
     /// Errors yielded by the stream.
     type Error;
 
-    /// Attempt to pull out the next value of this stream, returning `None` if
-    /// the stream is finished.
-    ///
-    /// This method, like [`Future::poll`](::future::Future::poll), makes
-    /// progress on producing the next value in the stream, but does not block
-    /// if one is not available yet; it instead queues the current task to be
-    /// woken up when more progress is possible.
+    /// Attempt to pull out the next value of this stream, registering the
+    /// current task for wakeup if the value is not yet available, and returning
+    /// `None` if the stream is exhausted.
     ///
     /// # Return value
     ///
