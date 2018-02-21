@@ -69,6 +69,9 @@ impl<'a> Context<'a> {
 }
 
 if_std! {
+    use std::boxed::Box;
+    use Future;
+
     impl<'a> Context<'a> {
         /// TODO: dox
         pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
@@ -78,6 +81,13 @@ if_std! {
         /// TODO: dox
         pub fn executor(&mut self) -> &mut Executor {
             self.executor
+        }
+
+        /// TODO: dox
+        pub fn spawn<F>(&mut self, f: F)
+            where F: Future<Item = (), Error = ()> + 'static + Send
+        {
+            self.executor.spawn(Box::new(f)).unwrap()
         }
     }
 }

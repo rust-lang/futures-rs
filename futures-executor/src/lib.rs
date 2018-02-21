@@ -32,4 +32,7 @@ if_std! {
 
     mod enter;
     pub use enter::{enter, Enter, EnterError};
+
+    mod spawn;
+    pub use spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle};
 }
