@@ -491,7 +491,9 @@ impl<T: AsyncWrite, B: IntoBuf> Sink for FramedWrite<T, B> {
     type SinkError = io::Error;
 
     fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.do_write(cx)
+        try_ready!(self.do_write(cx));
+        self.inner.poll_flush(cx)?;
+        Ok(Async::Ready(()))
     }
 
     fn start_send(&mut self, item: B) -> Result<(), Self::SinkError> {
@@ -509,6 +511,7 @@ impl<T: AsyncWrite, B: IntoBuf> Sink for FramedWrite<T, B> {
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         // Write any buffered frame to T
         try_ready!(self.do_write(cx));
+        try_ready!(self.inner.poll_flush(cx));
 
         // Try flushing the underlying IO
         self.inner.poll_close(cx)
