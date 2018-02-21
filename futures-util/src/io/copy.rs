@@ -61,7 +61,7 @@ impl<R, W> Future for Copy<R, W>
             // continue.
             if self.pos == self.cap && !self.read_done {
                 let reader = self.reader.as_mut().unwrap();
-                let n = try_ready!(reader.poll_read(&mut self.buf, cx));
+                let n = try_ready!(reader.poll_read(cx, &mut self.buf));
                 if n == 0 {
                     self.read_done = true;
                 } else {
@@ -73,7 +73,7 @@ impl<R, W> Future for Copy<R, W>
             // If our buffer has some data, let's write it out!
             while self.pos < self.cap {
                 let writer = self.writer.as_mut().unwrap();
-                let i = try_ready!(writer.poll_write(&self.buf[self.pos..self.cap], cx));
+                let i = try_ready!(writer.poll_write(cx, &self.buf[self.pos..self.cap]));
                 if i == 0 {
                     return Err(io::Error::new(io::ErrorKind::WriteZero,
                                               "write zero byte into writer"));

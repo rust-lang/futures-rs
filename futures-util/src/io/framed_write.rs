@@ -207,7 +207,7 @@ impl<T> Sink for FramedWrite2<T>
         while !self.buffer.is_empty() {
             trace!("writing; remaining={}", self.buffer.len());
 
-            let n = try_ready!(self.inner.poll_write(&self.buffer, cx));
+            let n = try_ready!(self.inner.poll_write(cx, &self.buffer));
 
             if n == 0 {
                 return Err(io::Error::new(io::ErrorKind::WriteZero, "failed to
@@ -253,15 +253,15 @@ impl<T: AsyncRead> AsyncRead for FramedWrite2<T> {
         self.inner.initializer()
     }
 
-    fn poll_read(&mut self, buf: &mut [u8], cx: &mut task::Context)
+    fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
         -> Poll<usize, io::Error>
     {
-        self.inner.poll_read(buf, cx)
+        self.inner.poll_read(cx, buf)
     }
 
-    fn poll_vectored_read(&mut self, vec: &mut [&mut IoVec], cx: &mut task::Context)
+    fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
         -> Poll<usize, io::Error>
     {
-        self.inner.poll_vectored_read(vec, cx)
+        self.inner.poll_vectored_read(cx, vec)
     }
 }

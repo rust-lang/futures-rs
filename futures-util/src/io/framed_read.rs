@@ -287,7 +287,7 @@ impl<T> Stream for FramedRead2<T>
             // got room for at least one byte to read to ensure that we don't
             // get a spurious 0 that looks like EOF
             self.buffer.reserve(1);
-            if 0 == try_ready!(self.inner.read_buf(&mut self.buffer, cx)) {
+            if 0 == try_ready!(self.inner.read_buf(cx, &mut self.buffer)) {
                 self.eof = true;
             }
 

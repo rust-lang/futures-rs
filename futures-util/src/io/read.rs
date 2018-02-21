@@ -45,7 +45,7 @@ impl<R, T> Future for Read<R, T>
     fn poll(&mut self, cx: &mut task::Context) -> Poll<(R, T, usize), io::Error> {
         let nread = match self.state {
             State::Pending { ref mut rd, ref mut buf } =>
-                try_ready!(rd.poll_read(&mut buf.as_mut()[..], cx)),
+                try_ready!(rd.poll_read(cx, &mut buf.as_mut()[..])),
             State::Empty => panic!("poll a Read after it's done"),
         };
 

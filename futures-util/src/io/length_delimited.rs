@@ -245,16 +245,16 @@ impl<T: io::Write> io::Write for FramedRead<T> {
 }
 
 impl<T: AsyncWrite> AsyncWrite for FramedRead<T> {
-    fn poll_write(&mut self, buf: &[u8], cx: &mut task::Context)
+    fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
         -> Poll<usize, io::Error>
     {
-        self.inner.get_mut().poll_write(buf, cx)
+        self.inner.get_mut().poll_write(cx, buf)
     }
 
-    fn poll_vectored_write(&mut self, vec: &[&IoVec], cx: &mut task::Context)
+    fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
         -> Poll<usize, io::Error>
     {
-        self.inner.get_mut().poll_vectored_write(vec, cx)
+        self.inner.get_mut().poll_vectored_write(cx, vec)
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), io::Error> {
@@ -439,7 +439,7 @@ impl<T: AsyncWrite, B: IntoBuf> FramedWrite<T, B> {
 
         loop {
             let frame = self.frame.as_mut().unwrap();
-            try_ready!(self.inner.write_buf(frame, cx));
+            try_ready!(self.inner.write_buf(cx, frame));
 
             if !frame.has_remaining() {
                 break;
@@ -534,16 +534,16 @@ impl<T: AsyncRead, U: IntoBuf> AsyncRead for FramedWrite<T, U> {
         self.get_ref().initializer()
     }
 
-    fn poll_read(&mut self, buf: &mut [u8], cx: &mut task::Context)
+    fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
         -> Poll<usize, io::Error>
     {
-        self.get_mut().poll_read(buf, cx)
+        self.get_mut().poll_read(cx, buf)
     }
 
-    fn poll_vectored_read(&mut self, vec: &mut [&mut IoVec], cx: &mut task::Context)
+    fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
         -> Poll<usize, io::Error>
     {
-        self.get_mut().poll_vectored_read(vec, cx)
+        self.get_mut().poll_vectored_read(cx, vec)
     }
 }
 

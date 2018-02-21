@@ -175,16 +175,16 @@ impl<T: AsyncRead, U> AsyncRead for Fuse<T, U> {
         self.0.initializer()
     }
 
-    fn poll_read(&mut self, buf: &mut [u8], cx: &mut task::Context)
+    fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
         -> Poll<usize, io::Error>
     {
-        self.0.poll_read(buf, cx)
+        self.0.poll_read(cx, buf)
     }
 
-    fn poll_vectored_read(&mut self, vec: &mut [&mut IoVec], cx: &mut task::Context)
+    fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
         -> Poll<usize, io::Error>
     {
-        self.0.poll_vectored_read(vec, cx)
+        self.0.poll_vectored_read(cx, vec)
     }
 }
 
@@ -199,16 +199,16 @@ impl<T: Write, U> Write for Fuse<T, U> {
 }
 
 impl<T: AsyncWrite, U> AsyncWrite for Fuse<T, U> {
-    fn poll_write(&mut self, buf: &[u8], cx: &mut task::Context)
+    fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
         -> Poll<usize, io::Error>
     {
-        self.0.poll_write(buf, cx)
+        self.0.poll_write(cx, buf)
     }
 
-    fn poll_vectored_write(&mut self, vec: &[&IoVec], cx: &mut task::Context)
+    fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
         -> Poll<usize, io::Error>
     {
-        self.0.poll_vectored_write(vec, cx)
+        self.0.poll_vectored_write(cx, vec)
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), io::Error> {

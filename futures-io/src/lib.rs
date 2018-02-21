@@ -97,7 +97,7 @@ if_std! {
         /// If reading would block, this function returns `Ok(Async::Pending)`
         /// and arranges for `cx.waker()` to receive a notification when the
         /// object becomes readable or is closed.
-        fn poll_read(&mut self, buf: &mut [u8], cx: &mut task::Context)
+        fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
             -> Poll<usize, Error>;
 
         /// Attempt to read from the `AsyncRead` into `vec` using vectored
@@ -113,11 +113,11 @@ if_std! {
         /// If reading would block, this function returns `Ok(Async::Pending)`
         /// and arranges for `cx.waker()` to receive a notification when the
         /// object becomes readable or is closed.
-        fn poll_vectored_read(&mut self, vec: &mut [&mut IoVec], cx: &mut task::Context)
+        fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
             -> Poll<usize, Error>
         {
-            if let Some(first_iovec) = vec.get_mut(0) {
-                self.poll_read(&mut *first_iovec, cx)
+            if let Some(ref mut first_iovec) = vec.get_mut(0) {
+                self.poll_read(cx, first_iovec)
             } else {
                 // `vec` is empty.
                 return Ok(Async::Ready(0));
@@ -134,7 +134,7 @@ if_std! {
         /// If writing would block, this function returns `Ok(Async::Pending)`
         /// and arranges for `cx.waker()` to receive a notification when the
         /// the object becomes writable or is closed.
-        fn poll_write(&mut self, buf: &[u8], cx: &mut task::Context)
+        fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
             -> Poll<usize, Error>;
 
         /// Attempt to write bytes from `vec` into the object using vectored
@@ -150,11 +150,11 @@ if_std! {
         /// If writing would block, this function returns `Ok(Async::Pending)`
         /// and arranges for `cx.waker()` to receive a notification when the
         /// object becomes writable or is closed.
-        fn poll_vectored_write(&mut self, vec: &[&IoVec], cx: &mut task::Context)
+        fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
             -> Poll<usize, Error>
         {
-            if let Some(first_iovec) = vec.get(0) {
-                self.poll_write(&*first_iovec, cx)
+            if let Some(ref first_iovec) = vec.get(0) {
+                self.poll_write(cx, &*first_iovec)
             } else {
                 // `vec` is empty.
                 return Ok(Async::Ready(0));
@@ -187,16 +187,16 @@ if_std! {
                 (**self).initializer()
             }
 
-            fn poll_read(&mut self, buf: &mut [u8], cx: &mut task::Context)
+            fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
                 -> Poll<usize, Error>
             {
-                (**self).poll_read(buf, cx)
+                (**self).poll_read(cx, buf)
             }
 
-            fn poll_vectored_read(&mut self, vec: &mut [&mut IoVec], cx: &mut task::Context)
+            fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
                 -> Poll<usize, Error>
             {
-                (**self).poll_vectored_read(vec, cx)
+                (**self).poll_vectored_read(cx, vec)
             }
         }
     }
@@ -217,7 +217,7 @@ if_std! {
                 Initializer::nop()
             }
 
-            fn poll_read(&mut self, buf: &mut [u8], _: &mut task::Context)
+            fn poll_read(&mut self, _: &mut task::Context, buf: &mut [u8])
                 -> Poll<usize, Error>
             {
                 Ok(Async::Ready(StdIo::Read::read(self, buf)?))
@@ -239,16 +239,16 @@ if_std! {
 
     macro_rules! deref_async_write {
         () => {
-            fn poll_write(&mut self, buf: &[u8], cx: &mut task::Context)
+            fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
                 -> Poll<usize, Error>
             {
-                (**self).poll_write(buf, cx)
+                (**self).poll_write(cx, buf)
             }
 
-            fn poll_vectored_write(&mut self, vec: &[&IoVec], cx: &mut task::Context)
+            fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
                 -> Poll<usize, Error>
             {
-                (**self).poll_vectored_write(vec, cx)
+                (**self).poll_vectored_write(cx, vec)
             }
 
             fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
@@ -271,7 +271,7 @@ if_std! {
 
     macro_rules! delegate_async_write_to_stdio {
         () => {
-            fn poll_write(&mut self, buf: &[u8], _: &mut task::Context)
+            fn poll_write(&mut self, _: &mut task::Context, buf: &[u8])
                 -> Poll<usize, Error>
             {
                 Ok(Async::Ready(StdIo::Write::write(self, buf)?))

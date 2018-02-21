@@ -38,8 +38,8 @@ pub fn read_to_end<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
 {
     ReadToEnd {
         state: State::Reading {
-            a: a,
-            buf: buf,
+            a,
+            buf,
         }
     }
 }
@@ -61,7 +61,7 @@ impl<'a> Drop for Guard<'a> {
 //
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
-fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>, cx: &mut task::Context)
+fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context, buf: &mut Vec<u8>)
     -> Poll<usize, io::Error>
 {
     let start_len = buf.len();
@@ -77,7 +77,7 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>, cx:
             }
         }
 
-        match r.poll_read(&mut g.buf[g.len..], cx) {
+        match r.poll_read(cx, &mut g.buf[g.len..]) {
             Ok(Async::Ready(0)) => {
                 ret = Ok(Async::Ready(g.len - start_len));
                 break;
@@ -107,7 +107,7 @@ impl<A> Future for ReadToEnd<A>
                 // If we get `Ok`, then we know the stream hit EOF and we're done. If we
                 // hit "would block" then all the read data so far is in our buffer, and
                 // otherwise we propagate errors
-                try_ready!(read_to_end_internal(a, buf, cx));
+                try_ready!(read_to_end_internal(a, cx, buf));
             },
             State::Empty => panic!("poll ReadToEnd after it's done"),
         }

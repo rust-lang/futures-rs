@@ -32,30 +32,30 @@ pub fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {
 }
 
 impl<T: AsyncRead> AsyncRead for ReadHalf<T> {
-    fn poll_read(&mut self, buf: &mut [u8], cx: &mut task::Context)
+    fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
         -> Poll<usize, io::Error>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_read(buf, cx))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_read(cx, buf))
     }
 
-    fn poll_vectored_read(&mut self, vec: &mut [&mut IoVec], cx: &mut task::Context)
+    fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
         -> Poll<usize, io::Error>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_read(vec, cx))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_read(cx, vec))
     }
 }
 
 impl<T: AsyncWrite> AsyncWrite for WriteHalf<T> {
-    fn poll_write(&mut self, buf: &[u8], cx: &mut task::Context)
+    fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
         -> Poll<usize, Error>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_write(buf, cx))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_write(cx, buf))
     }
 
-    fn poll_vectored_write(&mut self, vec: &[&IoVec], cx: &mut task::Context)
+    fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
         -> Poll<usize, Error>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_write(vec, cx))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_write(cx, vec))
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error> {

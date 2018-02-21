@@ -47,7 +47,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// The `buf` provided will have bytes read into it and the internal cursor
     /// will be advanced if any bytes were read. Note that this method typically
     /// will not reallocate the buffer provided.
-    fn read_buf<B: BufMut>(&mut self, buf: &mut B, cx: &mut task::Context)
+    fn read_buf<B: BufMut>(&mut self, cx: &mut task::Context, buf: &mut B)
         -> Poll<usize, std_io::Error>
         where Self: Sized,
     {
@@ -83,7 +83,7 @@ pub trait AsyncReadExt: AsyncRead {
                     b13.into(), b14.into(), b15.into(), b16.into(),
                 ];
                 let n = buf.bytes_vec_mut(&mut bufs);
-                try_ready!(self.poll_vectored_read(&mut bufs[..n], cx))
+                try_ready!(self.poll_vectored_read(cx, &mut bufs[..n]))
             };
 
             buf.advance_mut(n);
@@ -133,7 +133,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     ///
     /// Note that this method will advance the `buf` provided automatically by
     /// the number of bytes written.
-    fn write_buf<B: Buf>(&mut self, buf: &mut B, cx: &mut task::Context)
+    fn write_buf<B: Buf>(&mut self, cx: &mut task::Context, buf: &mut B)
         -> Poll<usize, std_io::Error>
         where Self: Sized,
     {
@@ -149,7 +149,7 @@ pub trait AsyncWriteExt: AsyncWrite {
             let iovec = <&IoVec>::from(DUMMY);
             let mut bufs = [iovec; 64];
             let n = buf.bytes_vec(&mut bufs);
-            try_ready!(self.poll_vectored_write(&bufs[..n], cx))
+            try_ready!(self.poll_vectored_write(cx, &bufs[..n]))
         };
         buf.advance(n);
         Ok(Async::Ready(n))
