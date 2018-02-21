@@ -1,7 +1,6 @@
 use std::prelude::v1::*;
 
 use std::any::TypeId;
-use std::cell::RefCell;
 use std::hash::{BuildHasherDefault, Hasher};
 use std::collections::HashMap;
 
@@ -31,12 +30,10 @@ macro_rules! task_local {
     )
 }
 
-pub type LocalMap = RefCell<HashMap<TypeId,
-                                    Box<Opaque>,
-                                    BuildHasherDefault<IdHasher>>>;
+pub struct LocalMap(HashMap<TypeId, Box<Opaque>, BuildHasherDefault<IdHasher>>);
 
 pub fn local_map() -> LocalMap {
-    RefCell::new(HashMap::default())
+    LocalMap(HashMap::default())
 }
 
 pub trait Opaque: Send {}
@@ -91,39 +88,19 @@ impl Hasher for IdHasher {
 }
 
 impl<T: Send + 'static> LocalKey<T> {
-    /// Access this task-local key, running the provided closure with a
-    /// reference to the value.
+    /// Access this task-local key.
     ///
     /// This function will access this task-local key to retrieve the data
     /// associated with the current task and this key. If this is the first time
     /// this key has been accessed on this task, then the key will be
     /// initialized with the initialization expression provided at the time the
     /// `task_local!` macro was called.
-    ///
-    /// The provided closure will be provided a shared reference to the
-    /// underlying data associated with this task-local-key. The data itself is
-    /// stored inside of the current task.
-    ///
-    /// # Panics
-    ///
-    /// This function can possibly panic for a number of reasons:
-    ///
-    /// * If there is not a current task.
-    /// * If the initialization expression is run and it panics
-    /// * If the closure provided panics
-    pub fn with<F, R>(&'static self, cx: &mut task::Context, f: F) -> R
-        where F: FnOnce(&T) -> R
-    {
+    pub fn get_mut(&'static self, cx: &mut task::Context) -> &mut T {
         let key = (self.__key)();
-        let raw_pointer = {
-            let mut data = cx.map.inner.borrow_mut();
-            let entry = data.entry(key).or_insert_with(|| {
-                Box::new((self.__init)())
-            });
-            &**entry as *const Opaque as *const T
-        };
-        unsafe {
-            f(&*raw_pointer)
-        }
+        let data = &mut cx.map.inner.0;
+        let entry: &mut Box<Opaque> = data.entry(key).or_insert_with(|| {
+            Box::new((self.__init)())
+        });
+        unsafe { &mut *(&mut **entry as *mut Opaque as *mut T) }
     }
 }
