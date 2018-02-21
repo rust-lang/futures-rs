@@ -13,24 +13,23 @@ pub use self::result_::{result, ok, err, Result};
 
 /// A future represents an asychronous computation that may fail.
 ///
-/// In a way, a future is like a `Result` value that may not have finished
-/// computing yet. This kind of "asynchronous value" makes it possible for a
-/// thread to continue doing useful work while it waits for the value to become
-/// available.
+/// A future is like a `Result` value that may not have finished computing
+/// yet. This kind of "asynchronous value" makes it possible for a thread to
+/// continue doing useful work while it waits for the value to become available.
 ///
 /// The ergonomics and implementation of the `Future` trait are very similar to
-/// the `Iterator` trait in that there is just one methods you need to
+/// the `Iterator` trait in that there is just one method you need to
 /// implement, but you get a whole lot of others for free as a result. These
 /// other methods allow you to chain together large computations based on
 /// futures, which will automatically handle asynchrony for you.
 ///
 /// # The `poll` method
 ///
-/// The core method of future, `poll`, *attempt* to resolve the future into a
+/// The core method of future, `poll`, *attempts* to resolve the future into a
 /// final value. This method does not block if the value is not ready. Instead,
 /// the current task is scheduled to be woken up when it's possible to make
-/// further progress by `poll`ing again. In this way, the futures task system
-/// implements lightweight threads in user space.
+/// further progress by `poll`ing again. The wake up is performed using
+/// `cx.waker()`, a handle for waking up the current task.
 ///
 /// When using a future, you generally won't call `poll` directly, but instead
 /// use combinators to build up asynchronous computations. A complete

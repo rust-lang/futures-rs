@@ -7,8 +7,10 @@ if_std! {
     /// A task executor.
     ///
     /// A *task* is a `()`-producing future that runs at the top level, and will
-    /// be `poll`ed until completion. Executors, such as thread pools, allow
-    /// tasks to be spawned and are responsible for performing this polling.
+    /// be `poll`ed until completion. It's also the unit at which wake-up
+    /// notifications occur. Executors, such as thread pools, allow tasks to be
+    /// spawned and are responsible for putting tasks onto ready queues when
+    /// they are woken up, and polling them when they are ready.
     pub trait Executor {
         /// Spawn the given task, polling it until completion.
         ///

@@ -19,7 +19,7 @@ use task;
 /// # Errors
 ///
 /// Streams, like futures, also bake in errors through an associated `Error`
-/// type.  an error on a stream **does not terminate the stream**. That is,
+/// type. An error on a stream **does not terminate the stream**. That is,
 /// after one error is received, another value may be received from the same
 /// stream (it's valid to keep polling). Thus a stream is somewhat like an
 /// `Iterator<Item = Result<T, E>>`, and is always terminated by returning
@@ -34,7 +34,10 @@ pub trait Stream {
     /// Attempt to pull out the next value of this stream, returning `None` if
     /// the stream is finished.
     ///
-    /// This method, like [`Future::poll`](::future::Future::poll),
+    /// This method, like [`Future::poll`](::future::Future::poll), makes
+    /// progress on producing the next value in the stream, but does not block
+    /// if one is not available yet; it instead queues the current task to be
+    /// woken up when more progress is possible.
     ///
     /// # Return value
     ///
