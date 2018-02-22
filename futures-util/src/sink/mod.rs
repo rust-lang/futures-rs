@@ -1,12 +1,5 @@
-//! Asynchronous sinks
-//!
 //! This module contains the `Sink` trait, along with a number of adapter types
 //! for it. An overview is available in the documentation for the trait itself.
-//!
-//! You can find more information/tutorials about streams [online at
-//! https://tokio.rs][online]
-//!
-//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
 use futures_core::{Stream, IntoFuture};
 use futures_sink::Sink;

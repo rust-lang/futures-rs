@@ -1,19 +1,5 @@
-//! Asynchronous streams
-//!
-//! This module contains the `Stream` trait and a number of adaptors for this
-//! trait. This trait is very similar to the `Iterator` trait in the standard
-//! library except that it expresses the concept of blocking as well. A stream
-//! here is a sequential sequence of values which may take some amount of time
-//! in between to produce.
-//!
-//! A stream may request that it is blocked between values while the next value
-//! is calculated, and provides a way to get notified once the next value is
-//! ready as well.
-//!
-//! You can find more information/tutorials about streams [online at
-//! https://tokio.rs][online]
-//!
-//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+//! This module contains the `StreamExt` trait and a number of adaptors for this
+//! trait. See the crate docs, and the docs for `Stream`, for full detail.
 
 use futures_core::{IntoFuture, Stream};
 use futures_sink::Sink;

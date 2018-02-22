@@ -102,10 +102,6 @@ impl<T, U> Framed<T, U> {
     /// Note that care should be taken to not tamper with the underlying stream
     /// of data coming in as it may corrupt the stream of frames otherwise
     /// being worked with.
-    ///
-    /// Note that this function will be removed once the codec has been
-    /// integrated into `FramedParts` in a new version (see
-    /// [#53](https://github.com/tokio-rs/tokio-io/pull/53)).
     pub fn into_parts_and_codec(self) -> (FramedParts<T>, U) {
         let (inner, readbuf) = self.inner.into_parts();
         let (inner, writebuf) = inner.into_parts();

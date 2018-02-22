@@ -1,5 +1,3 @@
-//! Futures
-//!
 //! This module contains the `FutureExt` trait and a number of adaptors for this
 //! trait. See the crate docs, and the docs for `Future`, for full detail.
 
@@ -173,8 +171,6 @@ pub trait FutureExt: Future {
     {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
     }
-
-
 
     /// Map this future's error to any error implementing `From` for
     /// this future's `Error`, returning a new future.
