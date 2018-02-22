@@ -52,7 +52,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// The `buf` provided will have bytes read into it and the internal cursor
     /// will be advanced if any bytes were read. Note that this method typically
     /// will not reallocate the buffer provided.
-    fn read_buf<B: BufMut>(&mut self, cx: &mut task::Context, buf: &mut B)
+    fn poll_read_buf<B: BufMut>(&mut self, cx: &mut task::Context, buf: &mut B)
         -> Poll<usize, std_io::Error>
         where Self: Sized,
     {
@@ -222,7 +222,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     ///
     /// Note that this method will advance the `buf` provided automatically by
     /// the number of bytes written.
-    fn write_buf<B: Buf>(&mut self, cx: &mut task::Context, buf: &mut B)
+    fn poll_write_buf<B: Buf>(&mut self, cx: &mut task::Context, buf: &mut B)
         -> Poll<usize, std_io::Error>
         where Self: Sized,
     {

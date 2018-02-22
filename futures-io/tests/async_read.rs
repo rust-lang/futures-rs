@@ -23,7 +23,7 @@ fn dummy_cx<F>(f: F) where F: FnOnce(&mut task::Context) {
 }
 
 #[test]
-fn read_buf_success() {
+fn poll_read_buf_success() {
     struct R;
 
     impl AsyncRead for R {
@@ -37,7 +37,7 @@ fn read_buf_success() {
     let mut buf = BytesMut::with_capacity(65);
 
     dummy_cx(|cx| {
-        let n = match R.read_buf(cx, &mut buf).unwrap() {
+        let n = match R.poll_read_buf(cx, &mut buf).unwrap() {
             Async::Ready(n) => n,
             _ => panic!(),
         };
@@ -48,7 +48,7 @@ fn read_buf_success() {
 }
 
 #[test]
-fn read_buf_no_capacity() {
+fn poll_read_buf_no_capacity() {
     struct R;
 
     impl AsyncRead for R {
@@ -62,7 +62,7 @@ fn read_buf_no_capacity() {
     buf.put(&[0; 64][..]);
 
     dummy_cx(|cx| {
-        let n = match R.read_buf(cx, &mut buf).unwrap() {
+        let n = match R.poll_read_buf(cx, &mut buf).unwrap() {
             Async::Ready(n) => n,
             _ => panic!(),
         };
@@ -72,7 +72,7 @@ fn read_buf_no_capacity() {
 }
 
 #[test]
-fn read_buf_no_uninitialized() {
+fn poll_read_buf_no_uninitialized() {
     struct R;
 
     impl AsyncRead for R {
@@ -89,7 +89,7 @@ fn read_buf_no_uninitialized() {
     let mut buf = BytesMut::with_capacity(64);
 
     dummy_cx(|cx| {
-        let n = match R.read_buf(cx, &mut buf).unwrap() {
+        let n = match R.poll_read_buf(cx, &mut buf).unwrap() {
             Async::Ready(n) => n,
             _ => panic!(),
         };
@@ -99,7 +99,7 @@ fn read_buf_no_uninitialized() {
 }
 
 #[test]
-fn read_buf_uninitialized_ok() {
+fn poll_read_buf_uninitialized_ok() {
     struct R;
 
     impl AsyncRead for R {
@@ -120,7 +120,7 @@ fn read_buf_uninitialized_ok() {
     }
 
     dummy_cx(|cx| {
-        let n = match R.read_buf(cx, &mut buf).unwrap() {
+        let n = match R.poll_read_buf(cx, &mut buf).unwrap() {
             Async::Ready(n) => n,
             _ => panic!(),
         };
