@@ -22,21 +22,7 @@ pub struct Copy<R, W> {
     buf: Box<[u8]>,
 }
 
-/// Creates a future which represents copying all the bytes from one object to
-/// another.
-///
-/// The returned future will copy all the bytes read from `reader` into the
-/// `writer` specified. This future will only complete once the `reader` has hit
-/// EOF and all bytes have been written to and flushed from the `writer`
-/// provided.
-///
-/// On success the number of bytes is returned and the `reader` and `writer` are
-/// consumed. On error the error is returned and the I/O objects are consumed as
-/// well.
-pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W>
-    where R: AsyncRead,
-          W: AsyncWrite,
-{
+pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W> {
     Copy {
         reader: Some(reader),
         read_done: false,

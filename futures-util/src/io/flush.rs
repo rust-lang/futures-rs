@@ -16,12 +16,6 @@ pub struct Flush<A> {
     a: Option<A>,
 }
 
-/// Creates a future which will entirely flush an I/O object and then yield the
-/// object itself.
-///
-/// This function will consume the object provided if an error happens, and
-/// otherwise it will repeatedly call `flush` until it sees `Ok(())`, scheduling
-/// a retry if `WouldBlock` is seen along the way.
 pub fn flush<A>(a: A) -> Flush<A>
     where A: AsyncWrite,
 {
