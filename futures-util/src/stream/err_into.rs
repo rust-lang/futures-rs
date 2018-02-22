@@ -6,24 +6,24 @@ use futures_sink::{Sink};
 
 /// A stream combinator to change the error type of a stream.
 ///
-/// This is created by the `Stream::from_err` method.
+/// This is created by the `Stream::err_into` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct FromErr<S, E> {
+pub struct ErrInto<S, E> {
     stream: S,
     f: PhantomData<E>
 }
 
-pub fn new<S, E>(stream: S) -> FromErr<S, E>
+pub fn new<S, E>(stream: S) -> ErrInto<S, E>
     where S: Stream
 {
-    FromErr {
+    ErrInto {
         stream: stream,
         f: PhantomData
     }
 }
 
-impl<S, E> FromErr<S, E> {
+impl<S, E> ErrInto<S, E> {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -49,7 +49,9 @@ impl<S, E> FromErr<S, E> {
 }
 
 
-impl<S: Stream, E: From<S::Error>> Stream for FromErr<S, E> {
+impl<S: Stream, E> Stream for ErrInto<S, E>
+    where S::Error: Into<E>,
+{
     type Item = S::Item;
     type Error = E;
 
@@ -58,12 +60,12 @@ impl<S: Stream, E: From<S::Error>> Stream for FromErr<S, E> {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };
-        e.map_err(From::from)
+        e.map_err(Into::into)
     }
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S: Stream + Sink, E> Sink for FromErr<S, E> {
+impl<S: Stream + Sink, E> Sink for ErrInto<S, E> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
     

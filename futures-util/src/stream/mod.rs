@@ -21,7 +21,7 @@ mod filter_map;
 mod flatten;
 mod fold;
 mod for_each;
-mod from_err;
+mod err_into;
 mod fuse;
 mod future;
 mod inspect;
@@ -50,7 +50,7 @@ pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
-pub use self::from_err::FromErr;
+pub use self::err_into::ErrInto;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::inspect::Inspect;
@@ -593,8 +593,7 @@ pub trait StreamExt: Stream {
         for_each::new(self, f)
     }
 
-    /// Map this stream's error to any error implementing `From` for
-    /// this stream's `Error`, returning a new stream.
+    /// Map this stream's error to a different type using the `Into` trait.
     ///
     /// This function does for streams what `try!` does for `Result`,
     /// by letting the compiler infer the type of the resulting error.
@@ -604,10 +603,11 @@ pub trait StreamExt: Stream {
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
-    fn from_err<E: From<Self::Error>>(self) -> FromErr<Self, E>
+    fn err_into<E>(self) -> ErrInto<Self, E>
         where Self: Sized,
+              Self::Error: Into<E>,
     {
-        from_err::new(self)
+        err_into::new(self)
     }
 
     /// Creates a new stream of at most `amt` items of the underlying stream.
