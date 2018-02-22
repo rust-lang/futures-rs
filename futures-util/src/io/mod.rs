@@ -98,12 +98,12 @@ pub trait AsyncReadExt: AsyncRead {
 
     /// Creates a future which copies all the bytes from one object to another.
     ///
-    /// The returned future will copy all the bytes read from `reader` into the
+    /// The returned future will copy all the bytes read from this `AsyncRead` into the
     /// `writer` specified. This future will only complete once the `reader` has hit
     /// EOF and all bytes have been written to and flushed from the `writer`
     /// provided.
     ///
-    /// On success the number of bytes is returned and the `reader` and `writer` are
+    /// On success the number of bytes is returned and this `AsyncRead` and `writer` are
     /// consumed. On error the error is returned and the I/O objects are consumed as
     /// well.
     fn copy<W>(self, writer: W) -> Copy<Self, W>
@@ -166,8 +166,7 @@ pub trait AsyncReadExt: AsyncRead {
         read_exact::read_exact(self, buf)
     }
 
-    /// Creates a future which will read all the bytes associated with the I/O
-    /// object `A` into the buffer provided.
+    /// Creates a future which will read all the bytes from this `AsyncRead`.
     ///
     /// In the case of an error the buffer and the object will be discarded, with
     /// the error yielded. In the case of success the object will be destroyed and
@@ -194,24 +193,18 @@ impl<T: AsyncRead + ?Sized> AsyncReadExt for T {}
 
 /// An extension trait which adds utility methods to `AsyncWrite` types.
 pub trait AsyncWriteExt: AsyncWrite {
-    /// Creates a future which will entirely flush an I/O object and then yield the
-    /// object itself.
+    /// Creates a future which will entirely flush this `AsyncWrite` and then return `self`.
     ///
-    /// This function will consume the object provided if an error happens, and
-    /// otherwise it will repeatedly call `flush` until it sees `Ok(())`, scheduling
-    /// a retry if `WouldBlock` is seen along the way.
+    /// This function will consume `self` if an error occurs.
     fn flush(self) -> Flush<Self>
         where Self: Sized,
     {
         flush::flush(self)
     }
 
-    /// Creates a future which will entirely close an I/O object and then yield
-    /// the object itself.
+    /// Creates a future which will entirely close this `AsyncWrite` and then return `self`.
     ///
-    /// This function will consume the object provided if an error happens, and
-    /// otherwise it will repeatedly call `poll_close` until it sees `Ok(Ready(()))`,
-    /// scheduling a retry if `Pending` is seen along the way.
+    /// This function will consume the object provided if an error occurs.
     fn close(self) -> Close<Self>
         where Self: Sized,
     {
@@ -244,15 +237,15 @@ pub trait AsyncWriteExt: AsyncWrite {
         Ok(Async::Ready(n))
     }
 
-    /// Creates a future that will write the entire contents of the buffer `buf` to
-    /// the stream `a` provided.
+    /// Creates a future that will write the entire contents of the buffer `buf` into
+    /// this `AsyncWrite`.
     ///
-    /// The returned future will not return until all the data has been written, and
-    /// the future will resolve to the stream as well as the buffer (for reuse if
-    /// needed).
+    /// The returned future will not complete until all the data has been written.
+    /// The future will resolve to a tuple of `self` and `buf`
+    /// (so the buffer can be reused as needed).
     ///
     /// Any error which happens during writing will cause both the stream and the
-    /// buffer to get destroyed.
+    /// buffer to be destroyed.
     ///
     /// The `buf` parameter here only requires the `AsRef<[u8]>` trait, which should
     /// be broadly applicable to accepting data which can be converted to a slice.
