@@ -80,7 +80,7 @@ macro_rules! task_local {
     )
 }
 
-pub use futures_core::{Async, Poll};
+pub use futures_core::{Async, Poll, Never};
 
 #[cfg(feature = "std")]
 pub mod channel {
@@ -255,6 +255,7 @@ pub mod prelude {
         Stream,
         Async,
         Poll,
+        Never,
         task,
     };
 

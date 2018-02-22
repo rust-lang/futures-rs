@@ -6,13 +6,14 @@ use std::rc::{Rc, Weak};
 use futures_core::{Future, Poll, Async, Stream};
 use futures_core::task::{Context, Waker, LocalMap};
 use futures_core::executor::{Executor, SpawnError};
+use futures_core::never::Never;
 use futures_util::stream::FuturesUnordered;
 
 use thread::ThreadNotify;
 use enter;
 
 struct Task {
-    fut: Box<Future<Item = (), Error = ()>>,
+    fut: Box<Future<Item = (), Error = Never>>,
     map: LocalMap,
 }
 
@@ -207,7 +208,7 @@ pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
 }
 
 impl Executor for LocalExecutor {
-    fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
+    fn spawn(&mut self, f: Box<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
         self.spawn_task(Task {
             fut: f,
             map: LocalMap::new(),
@@ -232,7 +233,7 @@ impl LocalExecutor {
 
     /// Spawn a non-`Send` future onto the associated [`LocalPool`](LocalPool).
     pub fn spawn_local<F>(&mut self, f: F) -> Result<(), SpawnError>
-        where F: Future<Item = (), Error = ()> + 'static
+        where F: Future<Item = (), Error = Never> + 'static
     {
         self.spawn_task(Task {
             fut: Box::new(f),
@@ -243,9 +244,9 @@ impl LocalExecutor {
 
 impl Future for Task {
     type Item = ();
-    type Error = ();
+    type Error = Never;
 
-    fn poll(&mut self, cx: &mut Context) -> Poll<(), ()> {
+    fn poll(&mut self, cx: &mut Context) -> Poll<(), Never> {
         self.fut.poll(&mut cx.with_locals(&mut self.map))
     }
 }

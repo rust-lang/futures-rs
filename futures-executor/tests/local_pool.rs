@@ -16,22 +16,22 @@ use futures::task;
 use futures_executor::*;
 use futures_channel::oneshot;
 
-struct Never(Rc<()>);
+struct Pending(Rc<()>);
 
-impl Future for Never {
+impl Future for Pending {
     type Item = ();
-    type Error = ();
+    type Error = Never;
 
-    fn poll(&mut self, _: &mut task::Context) -> Poll<(), ()> {
+    fn poll(&mut self, _: &mut task::Context) -> Poll<(), Never> {
         Ok(Async::Pending)
     }
 }
 
-fn never() -> Never {
-    Never(Rc::new(()))
+fn pending() -> Pending {
+    Pending(Rc::new(()))
 }
 
-const DONE: Result<(), ()> = Ok(());
+const DONE: Result<(), Never> = Ok(());
 
 #[test]
 fn run_until_single_future() {
@@ -54,7 +54,7 @@ fn run_until_single_future() {
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
-    exec.spawn_local(Box::new(never())).unwrap();
+    exec.spawn_local(Box::new(pending())).unwrap();
     pool.run_until(lazy(|| DONE), &mut exec).unwrap();
 }
 
@@ -140,9 +140,9 @@ fn tasks_are_scheduled_fairly() {
 
     impl Future for Spin {
         type Item = ();
-        type Error = ();
+        type Error = Never;
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {

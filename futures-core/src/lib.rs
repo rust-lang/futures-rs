@@ -40,3 +40,4 @@ pub mod task;
 pub mod executor;
 
 pub mod never;
+pub use never::Never;
