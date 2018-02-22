@@ -70,7 +70,7 @@ if_std! {
         ///
         /// - Task-local data
         /// - A means of waking the task
-        /// - A means of spawning new tasks, i.e. an [executor](::executor::Executor)
+        /// - A means of spawning new tasks, i.e. an [executor]()
         pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
             Context { waker, map, executor }
         }

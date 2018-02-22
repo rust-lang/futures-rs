@@ -33,8 +33,9 @@ pub use self::result_::{result, ok, err, Result};
 ///
 /// When using a future, you generally won't call `poll` directly, but instead
 /// use combinators to build up asynchronous computations. A complete
-/// computation can then be spawned onto an [executor](::executor::Executor) as
-/// a new, independent task that will automatically be `poll`ed to completion.
+/// computation can then be spawned onto an
+/// [executor](../futures_core/executor/trait.Executor.html) as a new, independent
+/// task that will automatically be `poll`ed to completion.
 ///
 /// # Combinators
 ///
@@ -84,9 +85,9 @@ pub trait Future {
     /// actively re-`poll` pending futures that it still has an interest in.
     /// Usually this is done by building up a large computation as a single
     /// future (using combinators), then spawning that future as a *task* onto
-    /// an [executor](::executor::Executor). Executors ensure that each task is
-    /// `poll`ed every time a future internal to that task is ready to make
-    /// progress.
+    /// an [executor](../futures_core/executor/trait.Executor.html). Executors
+    /// ensure that each task is `poll`ed every time a future internal to that
+    /// task is ready to make progress.
     ///
     /// The `poll` function is not called repeatedly in a tight loop for
     /// futures, but only whenever the future itself is ready, as signaled via

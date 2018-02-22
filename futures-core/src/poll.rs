@@ -13,8 +13,7 @@ macro_rules! try_ready {
 
 /// A convenience wrapper for `Result<Async<T>, E>`.
 ///
-/// `Poll` is the return type of the [`poll` method](::future::Future::poll) on
-/// the [`Future` trait](::future::Future).
+/// `Poll` is the return type of the `poll` method on the `Future` trait.
 ///
 /// * `Ok(Async::Ready(t))` means the future has successfully resolved.
 /// * `Ok(Async::Pending)` means the future is not able to fully resolve yet.
