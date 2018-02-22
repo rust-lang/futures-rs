@@ -15,7 +15,6 @@ where
     St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     sink: S,
-    do_close: bool,
     f: F,
     stream: Option<St>,
     buffer: Option<S::SinkItem>,
@@ -30,7 +29,6 @@ where
 {
     WithFlatMap {
         sink: sink,
-        do_close: false,
         f: f,
         stream: None,
         buffer: None,
@@ -120,19 +118,17 @@ where
         Ok(())
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.do_close = true;
-        Ok(())
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         if self.try_empty_stream(cx)?.is_not_ready() {
             return Ok(Async::Pending);
         }
-        if self.do_close {
-            self.sink.start_close()?;
-            self.do_close = false;
-        }
         self.sink.poll_flush(cx)
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        if self.try_empty_stream(cx)?.is_not_ready() {
+            return Ok(Async::Pending);
+        }
+        self.sink.poll_close(cx)
     }
 }

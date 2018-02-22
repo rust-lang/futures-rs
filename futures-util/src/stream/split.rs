@@ -39,7 +39,6 @@ fn SplitSink<S: Sink>(lock: BiLock<S>) -> SplitSink<S> {
     SplitSink {
         lock,
         slot: None,
-        do_close: false,
     }
 }
 
@@ -48,9 +47,6 @@ fn SplitSink<S: Sink>(lock: BiLock<S>) -> SplitSink<S> {
 pub struct SplitSink<S: Sink> {
     lock: BiLock<S>,
     slot: Option<S::SinkItem>,
-    // Whether or not to attempt to close the underlying sink when
-    // `slot` is emptied.
-    do_close: bool,
 }
 
 impl<S: Sink> SplitSink<S> {
@@ -82,11 +78,6 @@ impl<S: Sink> Sink for SplitSink<S> {
         Ok(())
     }
 
-    fn start_close(&mut self) -> Result<(), S::SinkError> {
-        self.do_close = true;
-        Ok(())
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
         match self.lock.poll_lock(cx) {
             Async::Ready(mut inner) => {
@@ -94,11 +85,20 @@ impl<S: Sink> Sink for SplitSink<S> {
                     try_ready!(inner.poll_ready(cx));
                     inner.start_send(self.slot.take().unwrap())?;
                 }
-                if self.do_close {
-                    inner.start_close()?;
-                    self.do_close = false;
-                }
                 inner.poll_flush(cx)
+            }
+            Async::Pending => Ok(Async::Pending),
+        }
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
+        match self.lock.poll_lock(cx) {
+            Async::Ready(mut inner) => {
+                if self.slot.is_some() {
+                    try_ready!(inner.poll_ready(cx));
+                    inner.start_send(self.slot.take().unwrap())?;
+                }
+                inner.poll_close(cx)
             }
             Async::Pending => Ok(Async::Pending),
         }

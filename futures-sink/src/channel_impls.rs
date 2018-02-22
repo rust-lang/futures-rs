@@ -14,11 +14,11 @@ impl<T> Sink for Sender<T> {
         self.start_send(msg)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        Ok(())
+    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+        Ok(Async::Ready(()))
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }
@@ -35,11 +35,11 @@ impl<T> Sink for UnboundedSender<T> {
         self.start_send(msg)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        Ok(())
+    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+        Ok(Async::Ready(()))
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }
@@ -56,11 +56,11 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
         self.unbounded_send(msg)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        Ok(())
+    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+        Ok(Async::Ready(()))
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }

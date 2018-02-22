@@ -15,7 +15,6 @@ pub struct With<S, U, F, Fut>
           Fut: IntoFuture,
 {
     sink: S,
-    do_close: bool,
     f: F,
     state: State<Fut::Future, S::SinkItem>,
     _phantom: PhantomData<fn(U)>,
@@ -47,7 +46,6 @@ pub fn new<S, U, F, Fut>(sink: S, f: F) -> With<S, U, F, Fut>
     With {
         state: State::Empty,
         sink: sink,
-        do_close: false,
         f: f,
         _phantom: PhantomData,
     }
@@ -144,17 +142,13 @@ impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
         Ok(())
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.do_close = true;
-        Ok(())
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         try_ready!(self.poll(cx));
-        if self.do_close {
-            self.sink.start_close()?;
-            self.do_close = false;
-        }
         self.sink.poll_flush(cx).map_err(Into::into)
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        try_ready!(self.poll(cx));
+        self.sink.poll_close(cx).map_err(Into::into)
     }
 }

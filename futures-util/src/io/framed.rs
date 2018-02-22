@@ -141,12 +141,12 @@ impl<T, U> Sink for Framed<T, U>
         self.inner.get_mut().start_send(item)
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.inner.get_mut().start_close()
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         self.inner.get_mut().poll_flush(cx)
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.inner.get_mut().poll_close(cx)
     }
 }
 

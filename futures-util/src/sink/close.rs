@@ -8,14 +8,13 @@ use futures_sink::Sink;
 #[must_use = "futures do nothing unless polled"]
 pub struct Close<S> {
     sink: Option<S>,
-    started_close: bool,
 }
 
 /// A future that completes when the sink has finished closing.
 ///
 /// The sink itself is returned after closeing is complete.
 pub fn close<S: Sink>(sink: S) -> Close<S> {
-    Close { sink: Some(sink), started_close: false }
+    Close { sink: Some(sink) }
 }
 
 impl<S: Sink> Close<S> {
@@ -44,11 +43,7 @@ impl<S: Sink> Future for Close<S> {
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
         let mut sink = self.sink.take().expect("Attempted to poll Close after it completed");
-        if !self.started_close {
-            sink.start_close()?;
-            self.started_close = true;
-        }
-        if sink.poll_flush(cx)?.is_ready() {
+        if sink.poll_close(cx)?.is_ready() {
             Ok(Async::Ready(sink))
         } else {
             self.sink = Some(sink);

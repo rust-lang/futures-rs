@@ -53,12 +53,12 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
         self.sink.start_send(item).map_err(|e| self.expect_f()(e))
     }
 
-    fn start_close(&mut self) -> Result<(), Self::SinkError> {
-        self.sink.start_close().map_err(|e| self.expect_f()(e))
-    }
-
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         self.sink.poll_flush(cx).map_err(|e| self.expect_f()(e))
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        self.sink.poll_close(cx).map_err(|e| self.expect_f()(e))
     }
 }
 
