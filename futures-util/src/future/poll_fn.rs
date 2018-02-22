@@ -22,10 +22,11 @@ pub struct PollFn<F> {
 /// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::future::poll_fn;
+/// use futures::never::Never;
 /// use futures::task;
 ///
 /// # fn main() {
-/// fn read_line(cx: &mut task::Context) -> Poll<String, std::io::Error> {
+/// fn read_line(cx: &mut task::Context) -> Poll<String, Never> {
 ///     Ok(Async::Ready("Hello, World!".into()))
 /// }
 ///
