@@ -114,101 +114,70 @@ pub trait Sink {
     /// The type of value produced by the sink when an error occurs.
     type SinkError;
 
-    /// Check if the sink is ready to start sending a value.
+    /// Attempts to prepare the `Sink` to receive a value.
+    ///
+    /// This method must be called and return `Ok(Async::Ready(()))` prior to
+    /// each call to `start_send`.
+    ///
+    /// This method returns `Async::Ready` once the underlying sink is ready to
+    /// receive data. If this method returns `Async::Pending`, the current task
+    /// is registered to be notified (via `cx.waker()`) when `poll_ready`
+    /// should be called again.
+    ///
+    /// In most cases, if the sink encounters an error, the sink will
+    /// permanently be unable to receive items.
     fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 
     /// Begin the process of sending a value to the sink.
+    /// Each call to this function must be proceeded by a successful call to
+    /// `poll_ready` which returned `Ok(Async::Ready(()))`.
     ///
     /// As the name suggests, this method only *begins* the process of sending
     /// the item. If the sink employs buffering, the item isn't fully processed
     /// until the buffer is fully flushed. Since sinks are designed to work with
     /// asynchronous I/O, the process of actually writing out the data to an
-    /// underlying object takes place asynchronously. **You *must* use
-    /// `flush` in order to drive completion of a send**. In particular,
-    /// `start_send` does not begin the flushing process
-    ///
-    /// # Return value
+    /// underlying object takes place asynchronously.**You *must* use
+    /// `poll_flush` or `poll_close` in order to guarantee completion of a
+    /// send**.
     ///
     /// This method returns `AsyncSink::Ready` if the sink was able to start
     /// sending `item`. In that case, you *must* ensure that you call
-    /// `flush` to process the sent item to completion. Note, however,
+    /// `poll_flush` to process the sent item to completion. Note, however,
     /// that several calls to `start_send` can be made prior to calling
-    /// `flush`, which will work on completing all pending items.
+    /// `poll_flush`, which will work on completing all pending items.
+    /// When sending multiple items, be sure to call `poll_ready` before each
+    /// call to `start_send` to ensure that the Sink is ready to receive values.
     ///
-    /// The method returns `AsyncSink::Pending` if the sink was unable to begin
-    /// sending, usually due to being full. The sink must have attempted to
-    /// complete processing any outstanding requests (equivalent to
-    /// `flush`) before yielding this result. The current task will be
-    /// automatically scheduled for notification when the sink may be ready to
-    /// receive new values.
-    ///
-    /// # Errors
-    ///
-    /// If the sink encounters an error other than being temporarily full, it
-    /// uses the `Err` variant to signal that error. In most cases, such errors
-    /// mean that the sink will permanently be unable to receive items.
-    ///
-    /// # Panics
-    ///
-    /// This method may panic in a few situations, depending on the specific
-    /// sink:
-    ///
-    /// - It is called outside of the context of a task.
-    /// - A previous call to `start_send` or `flush` yielded an error.
+    /// In most cases, if the sink encounters an error, the sink will
+    /// permanently be unable to receive items.
     fn start_send(&mut self, item: Self::SinkItem)
                   -> Result<(), Self::SinkError>;
 
     /// Flush all output from this sink, if necessary.
     ///
-    /// Some sinks may buffer intermediate data as an optimization to improve
-    /// throughput. In other words, if a sink has a corresponding receiver then
-    /// a successful `start_send` above may not guarantee that the value is
-    /// actually ready to be received by the receiver. This function is intended
-    /// to be used to ensure that values do indeed make their way to the
-    /// receiver.
-    ///
-    /// This function will attempt to process any pending requests on behalf of
-    /// the sink and drive it to completion.
-    ///
-    /// # Return value
-    ///
     /// Returns `Ok(Async::Ready(()))` when no buffered items remain. If this
     /// value is returned then it is guaranteed that all previous values sent
-    /// via `start_send` will be guaranteed to be available to a listening
-    /// receiver.
+    /// via `start_send` have been flushed.
     ///
     /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
-    /// case the current task is scheduled to wake up when more progress may be
-    /// possible.
+    /// case the current task is scheduled (via `cx.waker()`) to wake up when
+    /// `poll_flush` should be called again.
     ///
-    /// # Errors
-    ///
-    /// Returns `Err` if the sink encounters an error while processing one of
-    /// its pending requests. Due to the buffered nature of requests, it is not
-    /// generally possible to correlate the error with a particular request. As
-    /// with `start_send`, these errors are generally "fatal" for continued use
-    /// of the sink.
-    ///
-    /// # Panics
-    ///
-    /// This method may panic in a few situations, depending on the specific sink:
-    ///
-    /// - It is called outside of the context of a task.
-    /// - A previous call to `start_send` or `flush` yielded an error.
-    ///
-    /// # Compatibility nodes
-    ///
-    /// The name of this method may be slightly misleading as the original
-    /// intention was to have this method be more general than just flushing
-    /// requests. Over time though it was decided to trim back the ambitions of
-    /// this method to what it's always done, just flushing.
-    ///
-    /// In the 0.2 release series of futures this method will be renamed to
-    /// `flush`. For 0.1, however, the breaking change is not happening
-    /// yet.
+    /// In most cases, if the sink encounters an error, the sink will
+    /// permanently be unable to receive items.
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 
-    /// TODO: dox
+    /// Flush any remaining output and close this sink, if necessary.
+    ///
+    /// Returns `Ok(Async::Ready(()))` when no buffered items remain and the sink
+    /// has been successfully closed.
+    ///
+    /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
+    /// case the current task is scheduled (via `cx.waker()`) to wake up when
+    /// `poll_close` should be called again.
+    ///
+    /// If this function encounters an error, the sink should be considered to
+    /// have failed permanently, and no more `Sink` methods should be called.
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 }
 
