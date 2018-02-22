@@ -255,6 +255,7 @@ pub mod prelude {
         Stream,
         Async,
         Poll,
+        task,
     };
 
     pub use futures_sink::Sink;
