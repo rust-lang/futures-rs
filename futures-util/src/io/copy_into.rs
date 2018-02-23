@@ -7,12 +7,12 @@ use futures_io::{AsyncRead, AsyncWrite};
 
 /// A future which will copy all data from a reader into a writer.
 ///
-/// Created by the [`copy`] function, this future will resolve to the number of
+/// Created by the [`copy_into`] function, this future will resolve to the number of
 /// bytes copied or an error if one happens.
 ///
-/// [`copy`]: fn.copy.html
+/// [`copy_into`]: fn.copy_into.html
 #[derive(Debug)]
-pub struct Copy<R, W> {
+pub struct CopyInto<R, W> {
     reader: Option<R>,
     read_done: bool,
     writer: Option<W>,
@@ -22,8 +22,8 @@ pub struct Copy<R, W> {
     buf: Box<[u8]>,
 }
 
-pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W> {
-    Copy {
+pub fn copy_into<R, W>(reader: R, writer: W) -> CopyInto<R, W> {
+    CopyInto {
         reader: Some(reader),
         read_done: false,
         writer: Some(writer),
@@ -34,7 +34,7 @@ pub fn copy<R, W>(reader: R, writer: W) -> Copy<R, W> {
     }
 }
 
-impl<R, W> Future for Copy<R, W>
+impl<R, W> Future for CopyInto<R, W>
     where R: AsyncRead,
           W: AsyncWrite,
 {

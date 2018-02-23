@@ -10,7 +10,7 @@ use bytes::{Buf, BufMut};
 pub mod codec;
 
 pub use self::allow_std::AllowStdIo;
-pub use self::copy::Copy;
+pub use self::copy_into::CopyInto;
 pub use self::flush::Flush;
 pub use self::read::Read;
 pub use self::read_exact::ReadExact;
@@ -28,7 +28,7 @@ pub use self::write_all::WriteAll;
 
 mod allow_std;
 mod codecs;
-mod copy;
+mod copy_into;
 mod flush;
 mod framed;
 mod framed_read;
@@ -106,11 +106,11 @@ pub trait AsyncReadExt: AsyncRead {
     /// On success the number of bytes is returned and this `AsyncRead` and `writer` are
     /// consumed. On error the error is returned and the I/O objects are consumed as
     /// well.
-    fn copy<W>(self, writer: W) -> Copy<Self, W>
+    fn copy_into<W>(self, writer: W) -> CopyInto<Self, W>
         where W: AsyncWrite,
               Self: Sized,
     {
-        copy::copy(self, writer)
+        copy_into::copy_into(self, writer)
     }
 
     /// Provides a `Stream` and `Sink` interface for reading and writing to this
