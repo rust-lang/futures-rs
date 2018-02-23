@@ -103,8 +103,8 @@ pub mod channel {
 pub mod executor {
     //! Task execution.
     //!
-    //! All asynchronous computation occurs within an *executor*, which is
-    //! capable of "spawning" futures as *tasks*. This module provides several
+    //! All asynchronous computation occurs within an executor, which is
+    //! capable of spawning futures as tasks. This module provides several
     //! built-in executors, as well as tools for building your own.
     //!
     //! # Using a thread pool (M:N task scheduling)
@@ -136,7 +136,8 @@ pub mod executor {
     //! There are two ways to spawn a task:
     //!
     //! - Spawn onto a "default" execuctor by calling the top-level
-    //! [`spawn`](::executor::spawn) function.
+    //! [`spawn`](::executor::spawn) function or [pulling the executor from the
+    //! task context](::task::Context::executor).
     //!
     //! - Spawn onto a specific executor by calling its
     //! [`spawn`](::executor::Executor::spawn) method directly.
@@ -179,7 +180,7 @@ pub mod future {
     //! - The [`FutureExt`](::future::FutureExt) trait, which provides adapters
     //! for chaining and composing futures.
     //!
-    //! - Top-level future contructors like [`lazy`](::future::lazy) which
+    //! - Top-level future combinators like [`lazy`](::future::lazy) which
     //! creates a future from a closure that defines its return value, and
     //! [`result`](::future::result), which constructs a future with an
     //! immediate defined value.
@@ -188,7 +189,7 @@ pub mod future {
         Result, Future, FutureFrom, IntoFuture, err, ok, result
     };
     pub use futures_util::future::{
-        AndThen, Empty, Flatten, FlattenStream, FromErr, Fuse,
+        AndThen, Empty, Flatten, FlattenStream, ErrInto, Fuse,
         Inspect, IntoStream, Join, Join3, Join4, Join5, Lazy, LoopFn,
         Map, MapErr, OrElse, PollFn, Select, Then, Either, Loop, FutureExt, empty,
         lazy, loop_fn, poll_fn
@@ -213,13 +214,17 @@ pub mod io {
     //! reading (or writing), the thread is not blocked, and instead the current
     //! task is queued to be woken when I/O is ready.
     //!
-    // TODO: document utility functions once the re-org is done
+    //! In addition, the [`AsyncReadExt`](::io::AsyncReadExt) and
+    //! [`AsyncWriteExt`](::io::AsyncWriteExt) extension traits offer a variety
+    //! of useful combinators for operating with asynchronous I/O objects,
+    //! including ways to work with them using futures, streams and sinks.
 
     pub use futures_io::{
         Error, Initializer, IoVec, ErrorKind, AsyncRead, AsyncWrite, Result
     };
     pub use futures_util::io::{
-        codec, io, AsyncReadExt, AsyncWriteExt
+        codec, AsyncReadExt, AsyncWriteExt, AllowStdIo, Close, CopyInto, Flush,
+        Read, ReadExact, ReadHalf, ReadToEnd, Window, WriteAll, WriteHalf,
     };
 }
 
@@ -283,7 +288,7 @@ pub mod sink {
     pub use futures_sink::Sink;
 
     pub use futures_util::sink::{
-        Close, Fanout, Flush, Send, SendAll, SinkFromErr, SinkMapErr, With,
+        Close, Fanout, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
         WithFlatMap, SinkExt, close, flush,
     };
 
@@ -314,7 +319,7 @@ pub mod stream {
 
     pub use futures_util::stream::{
         AndThen, Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold,
-        ForEach, Forward, FromErr, Fuse, Inspect, InspectErr, IterOk,
+        ForEach, Forward, ErrInto, Fuse, Inspect, InspectErr, IterOk,
         IterResult, Map, MapErr, Once, OrElse, Peekable, PollFn, Repeat, Select,
         Skip, SkipWhile, StreamFuture, Take, TakeWhile, Then, Unfold, Zip,
         StreamExt, empty, iter_ok, iter_result, once, poll_fn, repeat, unfold,
