@@ -7,7 +7,7 @@
 //!
 //! - [Streams](::Stream), which represent a series of values or errors produced asynchronously.
 //!
-//! - [Sinks](::Sink), which represent asynchronous writing of data.
+//! - [Sinks](::Sink), which support asynchronous writing of data.
 //!
 //! - [Executors](::executor), which are responsible for running asynchronous tasks.
 //!
@@ -16,12 +16,12 @@
 //!
 //! Underlying all of this is the *task system*, which is a form of lightweight
 //! threading. Large asynchronous computations are built up using futures,
-//! streams and sinks, and then spawned as independent, asynchronous tasks which
-//! run to completion, but *do not block* the thread running them.
+//! streams and sinks, and then spawned as independent tasks that are run to
+//! completion, but *do not block* the thread running them.
 //!
 //! **The best way to learn about this crate is through the [Asynchronous
 //! Programming in Rust](https://aturon.github.io/apr/) book**, which provides a
-//! comprehensive introduction. The docs within this crate, by contract, are
+//! comprehensive introduction. The docs within this crate, by contrast, are
 //! intended primarily as a reference.
 
 #![no_std]
@@ -59,7 +59,7 @@ macro_rules! try_ready {
 /// A macro to create a `static` of type `LocalKey`
 ///
 /// This macro is intentionally similar to the `thread_local!`, and creates a
-/// `static` which has a `with` method to access the data on a task.
+/// `static` which has a `get_mut` method to access the data on a task.
 ///
 /// The data associated with each task local is per-task, so different tasks
 /// will contain different values.

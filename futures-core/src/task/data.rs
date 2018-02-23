@@ -9,7 +9,7 @@ use task;
 /// A macro to create a `static` of type `LocalKey`
 ///
 /// This macro is intentionally similar to the `thread_local!`, and creates a
-/// `static` which has a `with` method to access the data on a task.
+/// `static` which has a `get_mut` method to access the data on a task.
 ///
 /// The data associated with each task local is per-task, so different tasks
 /// will contain different values.
