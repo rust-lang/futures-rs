@@ -81,48 +81,20 @@ enum Message {
 }
 
 impl ThreadPool {
-    /// Creates a new thread pool with `size` worker threads associated with it.
-    ///
-    /// The returned handle can use `execute` to run work on this thread pool,
-    /// and clones can be made of it to get multiple references to the same
-    /// thread pool.
-    ///
-    /// This is a shortcut for:
-    ///
-    /// ```rust
-    /// # use futures_executor::{ThreadPoolBuilder, ThreadPool};
-    /// #
-    /// # fn new(size: usize) -> ThreadPool {
-    /// ThreadPoolBuilder::new().pool_size(size).create()
-    /// # }
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if `size == 0`.
-    pub fn new(size: usize) -> ThreadPool {
-        ThreadPoolBuilder::new().pool_size(size).create()
-    }
-
     /// Creates a new thread pool with a number of workers equal to the number
     /// of CPUs on the host.
-    ///
-    /// This is a shortcut for:
-    ///
-    /// ```rust
-    /// # use futures_executor::{ThreadPoolBuilder, ThreadPool};
-    /// #
-    /// # fn new_num_cpus() -> ThreadPool {
-    /// ThreadPoolBuilder::new().create()
-    /// # }
-    /// ```
-    pub fn new_num_cpus() -> ThreadPool {
+    pub fn new() -> ThreadPool {
         ThreadPoolBuilder::new().create()
     }
 
     /// dox
     pub fn builder() -> ThreadPoolBuilder {
         ThreadPoolBuilder::new()
+    }
+
+    /// dox
+    pub fn run<F: Future>(&mut self, f: F) -> Result<F::Item, F::Error> {
+        ::LocalPool::new().run_until(f, self)
     }
 }
 
