@@ -1,5 +1,3 @@
-//! Futures
-//!
 //! This module contains the `FutureExt` trait and a number of adaptors for this
 //! trait. See the crate docs, and the docs for `Future`, for full detail.
 
@@ -26,7 +24,7 @@ mod into_stream;
 mod join;
 mod map;
 mod map_err;
-mod from_err;
+mod err_into;
 mod or_else;
 mod select;
 mod then;
@@ -44,7 +42,7 @@ pub use self::into_stream::IntoStream;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::map::Map;
 pub use self::map_err::MapErr;
-pub use self::from_err::FromErr;
+pub use self::err_into::ErrInto;
 pub use self::or_else::OrElse;
 pub use self::select::Select;
 pub use self::then::Then;
@@ -174,10 +172,7 @@ pub trait FutureExt: Future {
         assert_future::<Self::Item, E, _>(map_err::new(self, f))
     }
 
-
-
-    /// Map this future's error to any error implementing `From` for
-    /// this future's `Error`, returning a new future.
+    /// Map this future's error to a new error type using the `Into` trait.
     ///
     /// This function does for futures what `try!` does for `Result`,
     /// by letting the compiler infer the type of the resulting error.
@@ -197,13 +192,14 @@ pub trait FutureExt: Future {
     ///
     /// # fn main() {
     /// let future_with_err_u8 = future::err::<(), u8>(1);
-    /// let future_with_err_u32 = future_with_err_u8.from_err::<u32>();
+    /// let future_with_err_u32 = future_with_err_u8.err_into::<u32>();
     /// # }
     /// ```
-    fn from_err<E:From<Self::Error>>(self) -> FromErr<Self, E>
+    fn err_into<E>(self) -> ErrInto<Self, E>
         where Self: Sized,
+              Self::Error: Into<E>
     {
-        assert_future::<Self::Item, E, _>(from_err::new(self))
+        assert_future::<Self::Item, E, _>(err_into::new(self))
     }
 
     /// Chain on a computation for when a future finished, passing the result of

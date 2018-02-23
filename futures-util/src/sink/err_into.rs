@@ -5,23 +5,23 @@ use sink::{SinkExt, SinkMapErr};
 
 /// A sink combinator to change the error type of a sink.
 ///
-/// This is created by the `Sink::from_err` method.
+/// This is created by the `Sink::err_into` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SinkFromErr<S: Sink, E> {
+pub struct SinkErrInto<S: Sink, E> {
     sink: SinkMapErr<S, fn(S::SinkError) -> E>,
 }
 
-pub fn new<S, E>(sink: S) -> SinkFromErr<S, E>
+pub fn new<S, E>(sink: S) -> SinkErrInto<S, E>
     where S: Sink,
-          E: From<S::SinkError>
+          S::SinkError: Into<E>
 {
-    SinkFromErr {
+    SinkErrInto {
         sink: SinkExt::sink_map_err(sink, Into::into),
     }
 }
 
-impl<S: Sink, E> SinkFromErr<S, E> {
+impl<S: Sink, E> SinkErrInto<S, E> {
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &S {
         self.sink.get_ref()
@@ -41,9 +41,9 @@ impl<S: Sink, E> SinkFromErr<S, E> {
     }
 }
 
-impl<S, E> Sink for SinkFromErr<S, E>
+impl<S, E> Sink for SinkErrInto<S, E>
     where S: Sink,
-          E: From<S::SinkError>
+          S::SinkError: Into<E>,
 {
     type SinkItem = S::SinkItem;
     type SinkError = E;
@@ -51,7 +51,7 @@ impl<S, E> Sink for SinkFromErr<S, E>
     delegate_sink!(sink);
 }
 
-impl<S: Sink + Stream, E> Stream for SinkFromErr<S, E> {
+impl<S: Sink + Stream, E> Stream for SinkErrInto<S, E> {
     type Item = S::Item;
     type Error = S::Error;
 

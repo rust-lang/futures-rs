@@ -3,26 +3,28 @@ use core::marker::PhantomData;
 use futures_core::{Future, Poll, Async};
 use futures_core::task;
 
-/// Future for the `from_err` combinator, changing the error type of a future.
+/// Future for the `err_into` combinator, changing the error type of a future.
 ///
-/// This is created by the `Future::from_err` method.
+/// This is created by the `Future::err_into` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct FromErr<A, E> where A: Future {
+pub struct ErrInto<A, E> where A: Future {
     future: A,
     f: PhantomData<E>
 }
 
-pub fn new<A, E>(future: A) -> FromErr<A, E>
+pub fn new<A, E>(future: A) -> ErrInto<A, E>
     where A: Future
 {
-    FromErr {
+    ErrInto {
         future: future,
         f: PhantomData
     }
 }
 
-impl<A:Future, E:From<A::Error>> Future for FromErr<A, E> {
+impl<A: Future, E> Future for ErrInto<A, E>
+    where A::Error: Into<E>
+{
     type Item = A::Item;
     type Error = E;
 
@@ -31,6 +33,6 @@ impl<A:Future, E:From<A::Error>> Future for FromErr<A, E> {
             Ok(Async::Pending) => return Ok(Async::Pending),
             other => other,
         };
-        e.map_err(From::from)
+        e.map_err(Into::into)
     }
 }

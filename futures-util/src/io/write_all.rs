@@ -25,20 +25,6 @@ enum State<A, T> {
     Empty,
 }
 
-/// Creates a future that will write the entire contents of the buffer `buf` to
-/// the stream `a` provided.
-///
-/// The returned future will not return until all the data has been written, and
-/// the future will resolve to the stream as well as the buffer (for reuse if
-/// needed).
-///
-/// Any error which happens during writing will cause both the stream and the
-/// buffer to get destroyed.
-///
-/// The `buf` parameter here only requires the `AsRef<[u8]>` trait, which should
-/// be broadly applicable to accepting data which can be converted to a slice.
-/// The `Window` struct is also available in this crate to provide a different
-/// window into a slice if necessary.
 pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
     where A: AsyncWrite,
           T: AsRef<[u8]>,

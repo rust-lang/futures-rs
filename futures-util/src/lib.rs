@@ -1,4 +1,5 @@
-//! Combinators and utilities for working with futures-rs `Futures`s, `Stream`s, and `Sink`s.
+//! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
+//! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
@@ -71,6 +72,9 @@ pub use sink::SinkExt;
 
 pub mod prelude {
     //! Prelude with common traits from the `futures-util` crate.
+    //!
+    //! This prelude includes all of the `...Ext` traits.
+    //! These traits add convenience methods to types that implement the base traits.
     pub use {FutureExt, StreamExt, SinkExt};
     #[cfg(feature = "std")]
     pub use {AsyncReadExt, AsyncWriteExt};

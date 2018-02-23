@@ -234,6 +234,14 @@ pub mod io {
     pub use futures_util::io::*;
 }
 
+#[cfg(feature = "std")]
+pub mod never {
+    //! This module contains the `Never` type.
+    //!
+    //! Values of this type can never be created and will never exist.
+    pub use futures_core::never::*;
+}
+
 pub mod prelude {
 	//! A "prelude" for crates using the `futures` crate.
 	//!

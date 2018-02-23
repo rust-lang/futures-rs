@@ -1,19 +1,5 @@
-//! Asynchronous streams
-//!
-//! This module contains the `Stream` trait and a number of adaptors for this
-//! trait. This trait is very similar to the `Iterator` trait in the standard
-//! library except that it expresses the concept of blocking as well. A stream
-//! here is a sequential sequence of values which may take some amount of time
-//! in between to produce.
-//!
-//! A stream may request that it is blocked between values while the next value
-//! is calculated, and provides a way to get notified once the next value is
-//! ready as well.
-//!
-//! You can find more information/tutorials about streams [online at
-//! https://tokio.rs][online]
-//!
-//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+//! This module contains the `StreamExt` trait and a number of adaptors for this
+//! trait. See the crate docs, and the docs for `Stream`, for full detail.
 
 use futures_core::{IntoFuture, Stream};
 use futures_sink::Sink;
@@ -35,7 +21,7 @@ mod filter_map;
 mod flatten;
 mod fold;
 mod for_each;
-mod from_err;
+mod err_into;
 mod fuse;
 mod future;
 mod inspect;
@@ -64,7 +50,7 @@ pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
-pub use self::from_err::FromErr;
+pub use self::err_into::ErrInto;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::inspect::Inspect;
@@ -607,8 +593,7 @@ pub trait StreamExt: Stream {
         for_each::new(self, f)
     }
 
-    /// Map this stream's error to any error implementing `From` for
-    /// this stream's `Error`, returning a new stream.
+    /// Map this stream's error to a different type using the `Into` trait.
     ///
     /// This function does for streams what `try!` does for `Result`,
     /// by letting the compiler infer the type of the resulting error.
@@ -618,10 +603,11 @@ pub trait StreamExt: Stream {
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
-    fn from_err<E: From<Self::Error>>(self) -> FromErr<Self, E>
+    fn err_into<E>(self) -> ErrInto<Self, E>
         where Self: Sized,
+              Self::Error: Into<E>,
     {
-        from_err::new(self)
+        err_into::new(self)
     }
 
     /// Creates a new stream of at most `amt` items of the underlying stream.

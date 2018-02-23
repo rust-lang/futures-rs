@@ -1,12 +1,5 @@
-//! Asynchronous sinks
-//!
 //! This module contains the `Sink` trait, along with a number of adapter types
 //! for it. An overview is available in the documentation for the trait itself.
-//!
-//! You can find more information/tutorials about streams [online at
-//! https://tokio.rs][online]
-//!
-//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
 
 use futures_core::{Stream, IntoFuture};
 use futures_sink::Sink;
@@ -14,7 +7,7 @@ use futures_sink::Sink;
 mod close;
 mod fanout;
 mod flush;
-mod from_err;
+mod err_into;
 mod map_err;
 mod send;
 mod send_all;
@@ -29,7 +22,7 @@ if_std! {
 pub use self::close::{Close, close};
 pub use self::fanout::Fanout;
 pub use self::flush::{Flush, flush};
-pub use self::from_err::SinkFromErr;
+pub use self::err_into::SinkErrInto;
 pub use self::map_err::SinkMapErr;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
@@ -128,14 +121,14 @@ pub trait SinkExt: Sink {
         map_err::new(self, f)
     }
 
-    /// Map this sink's error to any error implementing `From` for this sink's
-    /// `Error`, returning a new sink.
+    /// Map this sink's error to a different error type using the `Into` trait.
     ///
-    /// If wanting to map errors of a `Sink + Stream`, use `.sink_from_err().from_err()`.
-    fn sink_from_err<E: From<Self::SinkError>>(self) -> from_err::SinkFromErr<Self, E>
+    /// If wanting to map errors of a `Sink + Stream`, use `.sink_err_into().err_into()`.
+    fn sink_err_into<E>(self) -> err_into::SinkErrInto<Self, E>
         where Self: Sized,
+              Self::SinkError: Into<E>,
     {
-        from_err::new(self)
+        err_into::new(self)
     }
 
 

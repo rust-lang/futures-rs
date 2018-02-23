@@ -437,7 +437,7 @@ impl<T: AsyncWrite, B: IntoBuf> FramedWrite<T, B> {
 
         loop {
             let frame = self.frame.as_mut().unwrap();
-            try_ready!(self.inner.write_buf(cx, frame));
+            try_ready!(self.inner.poll_write_buf(cx, frame));
 
             if !frame.has_remaining() {
                 break;
