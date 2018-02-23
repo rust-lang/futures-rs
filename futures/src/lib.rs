@@ -1,164 +1,28 @@
-//! Zero-cost Futures in Rust
+//! Abstractions for asynchronous programming
 //!
-//! This library is an implementation of futures in Rust which aims to provide
-//! a robust implementation of handling asynchronous computations, ergonomic
-//! composition and usage, and zero-cost abstractions over what would otherwise
-//! be written by hand.
+//! This crate provides a number of core abstractions for writing asynchronous code:
 //!
-//! Futures are a concept for an object which is a proxy for another value that
-//! may not be ready yet. For example issuing an HTTP request may return a
-//! future for the HTTP response, as it probably hasn't arrived yet. With an
-//! object representing a value that will eventually be available, futures allow
-//! for powerful composition of tasks through basic combinators that can perform
-//! operations like chaining computations, changing the types of futures, or
-//! waiting for two futures to complete at the same time.
+//! - [Futures](::Future) (sometimes called promises), which represent a single
+//! asychronous computation that may result in a final value or an error.
 //!
-//! You can find extensive tutorials and documentations at [https://tokio.rs]
-//! for both this crate (asynchronous programming in general) as well as the
-//! Tokio stack to perform async I/O with.
+//! - [Streams](::Stream), which represent a series of values or errors produced asynchronously.
 //!
-//! [https://tokio.rs]: https://tokio.rs
+//! - [Sinks](::Sink), which represent asynchronous writing of data.
 //!
-//! ## Installation
+//! - [Executors](::executor), which are responsible for running asynchronous tasks.
 //!
-//! Add this to your `Cargo.toml`:
+//! The crate also contains abstractions for [asynchronous I/O](::io) and
+//! [cross-task communication](::channel).
 //!
-//! ```toml
-//! [dependencies]
-//! futures = "0.1"
-//! ```
+//! Underlying all of this is the *task system*, which is a form of lightweight
+//! threading. Large asynchronous computations are built up using futures,
+//! streams and sinks, and then spawned as independent, asynchronous tasks which
+//! run to completion, but *do not block* the thread running them.
 //!
-//! ## Examples
-//!
-//! Let's take a look at a few examples of how futures might be used:
-//!
-//! ```
-//! extern crate futures;
-//!
-//! use std::io;
-//! use std::time::Duration;
-//! use futures::prelude::*;
-//! use futures::future::Map;
-//!
-//! // A future is actually a trait implementation, so we can generically take a
-//! // future of any integer and return back a future that will resolve to that
-//! // value plus 10 more.
-//! //
-//! // Note here that like iterators, we're returning the `Map` combinator in
-//! // the futures crate, not a boxed abstraction. This is a zero-cost
-//! // construction of a future.
-//! fn add_ten<F>(future: F) -> Map<F, fn(i32) -> i32>
-//!     where F: Future<Item=i32>,
-//! {
-//!     fn add(a: i32) -> i32 { a + 10 }
-//!     future.map(add)
-//! }
-//!
-//! // Not only can we modify one future, but we can even compose them together!
-//! // Here we have a function which takes two futures as input, and returns a
-//! // future that will calculate the sum of their two values.
-//! //
-//! // Above we saw a direct return value of the `Map` combinator, but
-//! // performance isn't always critical and sometimes it's more ergonomic to
-//! // return a trait object like we do here. Note though that there's only one
-//! // allocation here, not any for the intermediate futures.
-//! fn add<'a, A, B>(a: A, b: B) -> Box<Future<Item=i32, Error=A::Error> + 'a>
-//!     where A: Future<Item=i32> + 'a,
-//!           B: Future<Item=i32, Error=A::Error> + 'a,
-//! {
-//!     Box::new(a.join(b).map(|(a, b)| a + b))
-//! }
-//!
-//! // Futures also allow chaining computations together, starting another after
-//! // the previous finishes. Here we wait for the first computation to finish,
-//! // and then decide what to do depending on the result.
-//! fn download_timeout(url: &str,
-//!                     timeout_dur: Duration)
-//!                     -> Box<Future<Item=Vec<u8>, Error=io::Error>> {
-//!     use std::io;
-//!     use std::net::{SocketAddr, TcpStream};
-//!
-//!     type IoFuture<T> = Box<Future<Item=T, Error=io::Error>>;
-//!
-//!     // First thing to do is we need to resolve our URL to an address. This
-//!     // will likely perform a DNS lookup which may take some time.
-//!     let addr = resolve(url);
-//!
-//!     // After we acquire the address, we next want to open up a TCP
-//!     // connection.
-//!     let tcp = addr.and_then(|addr| connect(&addr));
-//!
-//!     // After the TCP connection is established and ready to go, we're off to
-//!     // the races!
-//!     let data = tcp.and_then(|conn| download(conn));
-//!
-//!     // That all might take awhile, though, so let's not wait too long for it
-//!     // to all come back. The `select` combinator here returns a future which
-//!     // resolves to the first value that's ready plus the next future.
-//!     //
-//!     // Note we can also use the `then` combinator which is similar to
-//!     // `and_then` above except that it receives the result of the
-//!     // computation, not just the successful value.
-//!     //
-//!     // Again note that all the above calls to `and_then` and the below calls
-//!     // to `map` and such require no allocations. We only ever allocate once
-//!     // we hit the `Box::new()` call at the end here, which means we've built
-//!     // up a relatively involved computation with only one box, and even that
-//!     // was optional!
-//!
-//!     let data = data.map(Ok);
-//!     let timeout = timeout(timeout_dur).map(Err);
-//!
-//!     let ret = data.select(timeout).then(|result| {
-//!         match result {
-//!             Ok(result) => {
-//!                 let (data, _other_future) = result.split();
-//!                 match data {
-//!                     // One future succeeded, and it was the one which was
-//!                     // downloading data from the connection.
-//!                     Ok(data) => Ok(data),
-//!
-//!                     // The timeout fired, and otherwise no error was found, so
-//!                     // we translate this to an error.
-//!                     Err(_timeout) => {
-//!                         Err(io::Error::new(io::ErrorKind::Other, "timeout"))
-//!                     }
-//!                 }
-//!             }
-//!
-//!             // A normal I/O error happened, so we pass that on through.
-//!             Err(err) => Err(err.split().0),
-//!         }
-//!     });
-//!     return Box::new(ret);
-//!
-//!     fn resolve(url: &str) -> IoFuture<SocketAddr> {
-//!         // ...
-//! #       panic!("unimplemented");
-//!     }
-//!
-//!     fn connect(hostname: &SocketAddr) -> IoFuture<TcpStream> {
-//!         // ...
-//! #       panic!("unimplemented");
-//!     }
-//!
-//!     fn download(stream: TcpStream) -> IoFuture<Vec<u8>> {
-//!         // ...
-//! #       panic!("unimplemented");
-//!     }
-//!
-//!     fn timeout(stream: Duration) -> IoFuture<()> {
-//!         // ...
-//! #       panic!("unimplemented");
-//!     }
-//! }
-//! # fn main() {}
-//! ```
-//!
-//! Some more information can also be found in the [README] for now, but
-//! otherwise feel free to jump in to the docs below!
-//!
-//! [README]: https://github.com/alexcrichton/futures-rs#futures-rs
+//! **The best way to learn about this crate is through the [Asynchronous
+//! Programming in Rust](https://aturon.github.io/apr/) book**, which provides a
+//! comprehensive introduction. The docs within this crate, by contract, are
+//! intended primarily as a reference.
 
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/futures/0.2")]
@@ -181,7 +45,7 @@ pub use futures_util::sink::SinkExt;
 
 /// A macro for extracting the successful type of a `Poll<T, E>`.
 ///
-/// This macro bakes propagation of both errors and `Pending` signals by
+/// This macro bakes in propagation of both errors and `Pending` signals by
 /// returning early.
 #[macro_export]
 macro_rules! try_ready {
@@ -192,46 +56,171 @@ macro_rules! try_ready {
     })
 }
 
-// TODO: task_local macro
+/// A macro to create a `static` of type `LocalKey`
+///
+/// This macro is intentionally similar to the `thread_local!`, and creates a
+/// `static` which has a `with` method to access the data on a task.
+///
+/// The data associated with each task local is per-task, so different tasks
+/// will contain different values.
+#[macro_export]
+macro_rules! task_local {
+    (static $NAME:ident: $t:ty = $e:expr) => (
+        static $NAME: $crate::task::LocalKey<$t> = {
+            fn __init() -> $t { $e }
+            fn __key() -> ::std::any::TypeId {
+                struct __A;
+                ::std::any::TypeId::of::<__A>()
+            }
+            $crate::task::LocalKey {
+                __init: __init,
+                __key: __key,
+            }
+        };
+    )
+}
 
 pub use futures_core::{Async, Poll};
 
 #[cfg(feature = "std")]
 pub mod channel {
-    //! Channels
+    //! Cross-task communciation.
     //!
-    //! This module contains channels for asynchronous
-    //! communication.
-    pub use futures_channel::*;
+    //! Like threads, concurrent tasks sometimes need to communicate with each
+    //! other. This module contains two basic abstractions for doing so:
+    //!
+    //! - [oneshot](::channel::oneshot), a way of sending a single value from
+    //! one task to another.
+    //!
+    //! - [mpsc](::channel::mpsc), a multi-producer, single-consumer channel for
+    //! sending values between tasks, analogous to the similarly-named structure
+    //! in the standard library.
+
+    pub use futures_channel::{oneshot, mpsc};
 }
 
+#[cfg(feature = "std")]
 pub mod executor {
-    //! Executors
+    //! Task execution.
     //!
-    //! This module contains the `Executor` trait, which allows futures to be
-    //! spawned and executed asynchronously.
+    //! All asynchronous computation occurs within an *executor*, which is
+    //! capable of "spawning" futures as *tasks*. This module provides several
+    //! built-in executors, as well as tools for building your own.
+    //!
+    //! # Using a thread pool (M:N task scheduling)
+    //!
+    //! Most of the time tasks should be executed on a [thread
+    //! pool](::executor::ThreadPool). A small set of worker threads can handle
+    //! a very large set of spawned tasks (which are much lighter weight than
+    //! threads).
+    //!
+    //! The simplest way to use a thread pool is to
+    //! [`run`](::executor::ThreadPool::run) an initial task on it, which can
+    //! then spawn further tasks back onto the pool to complete its work:
+    //!
+    //! ```
+    //! use futures::executor::ThreadPool;
+    //! # use futures::future::{Future, lazy};
+    //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|| Ok(())));
+    //!
+    //! // assumping `my_app: Future`
+    //! ThreadPool::new().run(my_app);
+    //! ```
+    //!
+    //! The call to [`run`](::executor::ThreadPool::run) will block the current
+    //! thread until the future defined by `my_app` completes, and will return
+    //! the result of that future.
+    //!
+    //! # Spawning additional tasks
+    //!
+    //! There are two ways to spawn a task:
+    //!
+    //! - Spawn onto a "default" execuctor by calling the top-level
+    //! [`spawn`](::executor::spawn) function.
+    //!
+    //! - Spawn onto a specific executor by calling its
+    //! [`spawn`](::executor::Executor::spawn) method directly.
+    //!
+    //! Every task always has an associated default executor, which is usually
+    //! the executor on which the task is running.
+    //!
+    //! # Single-threaded execution
+    //!
+    //! In addition to thread pools, it's possible to run a task (and the tasks
+    //! it spawns) entirely within a single thread via the
+    //! [`LocalPool`](::executor::LocalPool) executor. Aside from cutting down
+    //! on synchronization costs, this executor also makes it possible to
+    //! execute non-`Send` tasks, via
+    //! [`spawn_local`](::executor::LocalExecutor::spawn_local). The `LocalPool`
+    //! is best suited for running I/O-bound tasks that do relatively little
+    //! work between I/O operations.
+    //!
+    //! There is also a convenience function,
+    //! [`block_on`](::executor::block_on), for simply running a future to
+    //! completion on the current thread. However, any tasks spawned by the
+    //! future will *also* be run on the current thread (via `LocalPool`), and
+    //! will be dropped when the primary future completes.
+    // TODO: add docs (or link to apr) for implementing an executor
 
-    pub use futures_executor::*;
-    pub use futures_core::executor::*;
+    pub use futures_executor::{
+        Enter, EnterError, LocalExecutor, LocalPool, Spawn, SpawnWithHandle, ThreadPool,
+        ThreadPoolBuilder, block_on, enter, spawn, spawn_with_handle
+    };
+    pub use futures_core::executor::{SpawnError, Executor};
 }
 
 pub mod future {
-    //! Futures
+    //! Asynchronous values.
     //!
-    //! This module contains the `Future` trait and adapters for this trait.
+    //! This module contains:
+    //!
+    //! - The [`Future` trait](::Future).
+    //!
+    //! - The [`FutureExt`](::future::FutureExt) trait, which provides adapters
+    //! for chaining and composing futures.
+    //!
+    //! - Top-level future contructors like [`lazy`](::future::lazy) which
+    //! creates a future from a closure that defines its return value, and
+    //! [`result`](::future::result), which constructs a future with an
+    //! immediate defined value.
 
-    pub use futures_core::future::*;
-    pub use futures_util::future::*;
+    pub use futures_core::future::{
+        Result, Future, FutureFrom, IntoFuture, err, ok, result
+    };
+    pub use futures_util::future::{
+        AndThen, Empty, Flatten, FlattenStream, FromErr, Fuse,
+        Inspect, IntoStream, Join, Join3, Join4, Join5, Lazy, LoopFn,
+        Map, MapErr, OrElse, PollFn, Select, Then, Either, Loop, FutureExt, empty,
+        lazy, loop_fn, poll_fn
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::future::{
+        CatchUnwind, JoinAll, SelectAll, SelectOk, Shared, SharedError, SharedItem,
+        join_all, select_all, select_ok
+    };
 }
 
 #[cfg(feature = "std")]
 pub mod io {
-    //! IO
+    //! Asynchronous I/O.
     //!
-    //! This module contains the `AsyncRead` and `AsyncWrite` traits, as well
-    //! as a number of combinators and extensions for using them.
-    pub use futures_io::*;
-    pub use futures_util::io::*;
+    //! This module is the asynchronous version of `std::io`. It defines two
+    //! traits, [`AsyncRead`](::io::AsyncRead) and
+    //! [`AsyncWrite`](::io::AsyncWrite), which mirror the `Read` and `Write`
+    //! traits of the standard library. However, these traits integrate with the
+    //! asynchronous task system, so that if an I/O object isn't ready for
+    //! reading (or writing), the thread is not blocked, and instead the current
+    //! task is queued to be woken when I/O is ready.
+    //!
+    // TODO: document utility functions once the re-org is done
+
+    pub use futures_io::{
+        Error, Initializer, IoVec, ErrorKind, AsyncRead, AsyncWrite, Result
+    };
+    pub use futures_util::io::{
+        codec, io, AsyncReadExt, AsyncWriteExt
+    };
 }
 
 #[cfg(feature = "std")]
@@ -243,19 +232,17 @@ pub mod never {
 }
 
 pub mod prelude {
-	//! A "prelude" for crates using the `futures` crate.
-	//!
-	//! This prelude is similar to the standard library's prelude in that you'll
-	//! almost always want to import its entire contents, but unlike the standard
-	//! library's prelude you'll have to do so manually. An example of using this is:
-	//!
-	//! ```
-	//! use futures::prelude::*;
-	//! ```
-	//!
-	//! We may add items to this over time as they become ubiquitous as well, but
-	//! otherwise this should help cut down on futures-related imports when you're
-	//! working with the `futures` crate!
+    //! A "prelude" for crates using the `futures` crate.
+    //!
+    //! This prelude is similar to the standard library's prelude in that you'll
+    //! almost always want to import its entire contents, but unlike the standard
+    //! library's prelude you'll have to do so manually:
+    //!
+    //! ```
+    //! use futures::prelude::*;
+    //! ```
+    //!
+    //! The prelude may grow over time as additional items see ubiquitous use.
 
     pub use futures_core::{
         Future,
@@ -269,8 +256,8 @@ pub mod prelude {
     pub use futures_sink::Sink;
 
     pub use futures_util::{
-		FutureExt,
-		StreamExt,
+        FutureExt,
+        StreamExt,
         SinkExt,
     };
 
@@ -284,43 +271,87 @@ pub mod prelude {
 }
 
 pub mod sink {
-	//! Asynchronous sinks
-	//!
-	//! This module contains the `Sink` trait, along with a number of adapter types
-	//! for it. An overview is available in the documentation for the trait itself.
-	//!
-	//! You can find more information/tutorials about streams [online at
-	//! https://tokio.rs][online]
-	//!
-	//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+    //! Asynchronous sinks.
+    //!
+    //! This module contains:
+    //!
+    //! - The [`Sink` trait](::Sink), which allows you to asynchronously write data.
+    //!
+    //! - The [`SinkExt`](::sink::SinkExt) trait, which provides adapters
+    //! for chaining and composing sinks.
 
-    pub use futures_sink::*;
-    pub use futures_util::sink::*;
+    pub use futures_sink::Sink;
+
+    pub use futures_util::sink::{
+        Close, Fanout, Flush, Send, SendAll, SinkFromErr, SinkMapErr, With,
+        WithFlatMap, SinkExt, close, flush,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_sink::BoxSink;
+
+    #[cfg(feature = "std")]
+    pub use futures_util::sink::Buffer;
 }
 
 pub mod stream {
-	//! Asynchronous streams
-	//!
-	//! This module contains the `Stream` trait and a number of adaptors for this
-	//! trait. This trait is very similar to the `Iterator` trait in the standard
-	//! library except that it expresses the concept of blocking as well. A stream
-	//! here is a sequential sequence of values which may take some amount of time
-	//! in between to produce.
-	//!
-	//! A stream may request that it is blocked between values while the next value
-	//! is calculated, and provides a way to get notified once the next value is
-	//! ready as well.
-	//!
-	//! You can find more information/tutorials about streams [online at
-	//! https://tokio.rs][online]
-	//!
-	//! [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+    //! Asynchronous streams.
+    //!
+    //! This module contains:
+    //!
+    //! - The [`Stream` trait](::Stream), for objects that can asynchronously
+    //! produce a sequence of values.
+    //!
+    //! - The [`StreamExt`](::future::StreamExt) trait, which provides adapters
+    //! for chaining and composing streams.
+    //!
+    //! - Top-level stream contructors like [`iter_ok`](::stream::iter_ok) which
+    //! creates a stream from an iterator, and
+    //! [`futures_unordered`](::stream::futures_unordered()), which constructs a
+    //! stream from a collection of futures.
 
-    pub use futures_core::stream::*;
-    pub use futures_util::stream::*;
+    pub use futures_core::stream::Stream;
+
+    pub use futures_util::stream::{
+        AndThen, Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold,
+        ForEach, Forward, FromErr, Fuse, Inspect, InspectErr, IterOk,
+        IterResult, Map, MapErr, Once, OrElse, Peekable, PollFn, Repeat, Select,
+        Skip, SkipWhile, StreamFuture, Take, TakeWhile, Then, Unfold, Zip,
+        StreamExt, empty, iter_ok, iter_result, once, poll_fn, repeat, unfold,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::stream::{
+        futures_unordered, BufferUnordered, Buffered, CatchUnwind, Chunks, Collect,
+        FuturesUnordered, FuturesOrdered, ReuniteError, SelectAll, SplitSink, SplitStream,
+        futures_ordered,
+    };
 }
 
 pub mod task {
-    //! Task executon
-    pub use futures_core::task::*;
+    //! Tools for working with tasks.
+    //!
+    //! This module contains:
+    //!
+    //! - [`Context`](::task::Context), which provides contextual data present
+    //! for every task, including a handle for waking up the task.
+    //!
+    //! - [`Waker`](::task::Waker), a handle for waking up a task.
+    //!
+    //! - [`LocalKey`](::task::LocalKey), a key for task-local data; you should
+    //! use the [`task_local` macro](../macro.task_local.html) to set up such keys.
+    //!
+    //! Tasks themselves are generally created by spawning a future onto [an
+    //! executor](::executor). However, you can manually construct a task by
+    //! creating your own `Context` instance, and polling a future with it.
+    //!
+    //! The remaining types and traits in the module are used for implementing
+    //! executors or dealing with synchronization issues around task wakeup.
+
+    pub use futures_core::task::{
+        AtomicWaker, Context, LocalMap, Waker, UnsafeWake, Wake
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_core::task::LocalKey;
 }
