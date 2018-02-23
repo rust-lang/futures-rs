@@ -223,7 +223,7 @@ pub mod io {
         Error, Initializer, IoVec, ErrorKind, AsyncRead, AsyncWrite, Result
     };
     pub use futures_util::io::{
-        codec, AsyncReadExt, AsyncWriteExt, AllowStdIo, Close, CopyInto, Flush,
+        AsyncReadExt, AsyncWriteExt, AllowStdIo, Close, CopyInto, Flush,
         Read, ReadExact, ReadHalf, ReadToEnd, Window, WriteAll, WriteHalf,
     };
 }
