@@ -87,8 +87,24 @@ pub trait AsyncReadExt: AsyncRead {
                     b9.into(), b10.into(), b11.into(), b12.into(),
                     b13.into(), b14.into(), b15.into(), b16.into(),
                 ];
+                // Fill `bufs` with pointers to the `IoVec`s backing `buf`
                 let n = buf.bytes_vec_mut(&mut bufs);
-                try_ready!(self.poll_vectored_read(cx, &mut bufs[..n]))
+
+                // We only care about the first `n` bufs which were written
+                // to by `bytes_vec_mut`.
+                let mut bufs = &mut bufs[..n];
+
+                // `bytes_vec_mut` may point to uninitalized memory, so we must
+                // use `AsyncRead::initializer` to zero it out before passing
+                // it to `poll_vectored_read`.
+                let initializer = self.initializer();
+                if initializer.should_initialize() {
+                    for buf in bufs.iter_mut() {
+                        initializer.initialize(buf);
+                    }
+                }
+
+                try_ready!(self.poll_vectored_read(cx, bufs))
             };
 
             buf.advance_mut(n);
