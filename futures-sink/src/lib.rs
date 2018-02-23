@@ -136,24 +136,21 @@ pub trait Sink {
     /// the item. If the sink employs buffering, the item isn't fully processed
     /// until the buffer is fully flushed. Since sinks are designed to work with
     /// asynchronous I/O, the process of actually writing out the data to an
-    /// underlying object takes place asynchronously.**You *must* use
+    /// underlying object takes place asynchronously. **You *must* use
     /// `poll_flush` or `poll_close` in order to guarantee completion of a
     /// send**.
     ///
-    /// This method returns `AsyncSink::Ready` if the sink was able to start
-    /// sending `item`. In that case, you *must* ensure that you call
-    /// `poll_flush` to process the sent item to completion. Note, however,
-    /// that several calls to `start_send` can be made prior to calling
-    /// `poll_flush`, which will work on completing all pending items.
-    /// When sending multiple items, be sure to call `poll_ready` before each
-    /// call to `start_send` to ensure that the Sink is ready to receive values.
+    /// Implementations of `poll_ready` and `start_send` will usually involve
+    /// flushing behind the scenes in order to make room for new messages. 
+    /// It is only necessary to call `poll_flush` if you need to guarantee that
+    /// *all* of the items placed into the `Sink` have been sent.
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
     fn start_send(&mut self, item: Self::SinkItem)
                   -> Result<(), Self::SinkError>;
 
-    /// Flush all output from this sink, if necessary.
+    /// Flush any remaining output from this sink.
     ///
     /// Returns `Ok(Async::Ready(()))` when no buffered items remain. If this
     /// value is returned then it is guaranteed that all previous values sent
