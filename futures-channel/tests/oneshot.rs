@@ -8,6 +8,7 @@ use std::thread;
 use futures::future::poll_fn;
 use futures::prelude::*;
 use futures::task;
+use futures::never::Never;
 use futures_channel::oneshot::*;
 use futures_executor::block_on;
 
@@ -44,9 +45,9 @@ struct WaitForCancel {
 
 impl Future for WaitForCancel {
     type Item = ();
-    type Error = ();
+    type Error = Never;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
         self.tx.poll_cancel(cx)
     }
 }

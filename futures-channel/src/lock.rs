@@ -16,14 +16,14 @@ use self::core::sync::atomic::AtomicBool;
 /// This lock only supports the `try_lock` operation, however, and does not
 /// implement poisoning.
 #[derive(Debug)]
-pub struct Lock<T> {
+pub(crate) struct Lock<T> {
     locked: AtomicBool,
     data: UnsafeCell<T>,
 }
 
 /// Sentinel representing an acquired lock through which the data can be
 /// accessed.
-pub struct TryLock<'a, T: 'a> {
+pub(crate) struct TryLock<'a, T: 'a> {
     __ptr: &'a Lock<T>,
 }
 
@@ -38,7 +38,7 @@ unsafe impl<T: Send> Sync for Lock<T> {}
 
 impl<T> Lock<T> {
     /// Creates a new lock around the given value.
-    pub fn new(t: T) -> Lock<T> {
+    pub(crate) fn new(t: T) -> Lock<T> {
         Lock {
             locked: AtomicBool::new(false),
             data: UnsafeCell::new(t),
@@ -54,7 +54,7 @@ impl<T> Lock<T> {
     ///
     /// If `None` is returned then the lock is already locked, either elsewhere
     /// on this thread or on another thread.
-    pub fn try_lock(&self) -> Option<TryLock<T>> {
+    pub(crate) fn try_lock(&self) -> Option<TryLock<T>> {
         if !self.locked.swap(true, SeqCst) {
             Some(TryLock { __ptr: self })
         } else {

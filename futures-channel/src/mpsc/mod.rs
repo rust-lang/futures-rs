@@ -1,31 +1,38 @@
-//! A multi-producer, single-consumer, futures-aware, FIFO queue with back pressure.
+//! A multi-producer, single-consumer queue for sending values across
+//! asynchronous tasks.
 //!
-//! A channel can be used as a communication primitive between tasks running on
-//! `futures-rs` executors. Channel creation provides `Receiver` and `Sender`
-//! handles. `Receiver` implements `Stream` and allows a task to read values
-//! out of the channel. If there is no message to read from the channel, the
-//! current task will be notified when a new value is sent. `Sender` implements
-//! the `Sink` trait and allows a task to send messages into the channel. If
-//! the channel is at capacity, then send will be rejected and the task will be
-//! notified when additional capacity is available.
+//! Similarly to the `std`, channel creation provides [`Receiver`](Receiver) and
+//! [`Sender`](Sender) handles. [`Receiver`](Receiver) implements
+//! [`Stream`](futures_core::Stream) and allows a task to read values out of the
+//! channel. If there is no message to read from the channel, the current task
+//! will be notified when a new value is sent. [`Sender`](Sender) implements the
+//! [`Sink`](futures_core::Sink) trait and allows a task to send messages into
+//! the channel. If the channel is at capacity, the send will be rejected and
+//! the task will be notified when additional capacity is available. In other
+//! words, the channel provides backpressure.
+//!
+//! Unbounded channels are also available using the [`unbounded`](unbounded)
+//! constructor.
 //!
 //! # Disconnection
 //!
-//! When all `Sender` handles have been dropped, it is no longer possible to
-//! send values into the channel. This is considered the termination event of
-//! the stream. As such, `Sender::poll` will return `Ok(Ready(None))`.
+//! When all [`Sender`](Sender) handles have been dropped, it is no longer
+//! possible to send values into the channel. This is considered the termination
+//! event of the stream. As such, [`Sender::poll`](Sender::poll) will return
+//! `Ok(Ready(None))`.
 //!
-//! If the receiver handle is dropped, then messages can no longer be read out
-//! of the channel. In this case, a `send` will result in an error.
+//! If the [`Receiver`](Receiver) handle is dropped, then messages can no longer
+//! be read out of the channel. In this case, all further attempts to send will
+//! result in an error.
 //!
 //! # Clean Shutdown
 //!
-//! If the `Receiver` is simply dropped, then it is possible for there to be
-//! messages still in the channel that will not be processed. As such, it is
-//! usually desirable to perform a "clean" shutdown. To do this, the receiver
-//! will first call `close`, which will prevent any further messages to be sent
-//! into the channel. Then, the receiver consumes the channel to completion, at
-//! which point the receiver can be dropped.
+//! If the [`Receiver`](Receiver) is simply dropped, then it is possible for
+//! there to be messages still in the channel that will not be processed. As
+//! such, it is usually desirable to perform a "clean" shutdown. To do this, the
+//! receiver will first call `close`, which will prevent any further messages to
+//! be sent into the channel. Then, the receiver consumes the channel to
+//! completion, at which point the receiver can be dropped.
 
 // At the core, the channel uses an atomic FIFO queue for message passing. This
 // queue is used as the primary coordination primitive. In order to enforce
@@ -83,9 +90,9 @@ use mpsc::queue::{Queue, PopResult};
 
 mod queue;
 
-/// The transmission end of a channel which is used to send values.
+/// The transmission end of a bounded mpsc channel.
 ///
-/// This is created by the `channel` method.
+/// This value is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Sender<T> {
     // Channel state shared between the sender and receiver.
@@ -101,41 +108,36 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
-/// The transmission end of a channel which is used to send values.
+/// The transmission end of an unbounded mpsc channel.
 ///
-/// This is created by the `unbounded` method.
+/// This value is created by the [`unbounded`](unbounded) function.
 #[derive(Debug)]
 pub struct UnboundedSender<T>(Sender<T>);
 
 trait AssertKinds: Send + Sync + Clone {}
 impl AssertKinds for UnboundedSender<u32> {}
 
-
-/// The receiving end of a channel which implements the `Stream` trait.
+/// The receiving end of a bounded mpsc channel.
 ///
-/// This is a concrete implementation of a stream which can be used to represent
-/// a stream of values being computed elsewhere. This is created by the
-/// `channel` method.
+/// This value is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
 
-/// The receiving end of a channel which implements the `Stream` trait.
+/// The receiving end of an unbounded mpsc channel.
 ///
-/// This is a concrete implementation of a stream which can be used to represent
-/// a stream of values being computed elsewhere. This is created by the
-/// `unbounded` method.
+/// This value is created by the [`unbounded`](unbounded) function.
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-/// The error type of `<Sender<T> as Sink>`
+/// The error type for [`Sender`s](Sender) used as [`Sink`s](futures_core::Sink).
 ///
 /// It will contain a value of type `T` if one was passed to `start_send`
 /// after the channel was closed.
 pub struct ChannelClosed<T>(Option<T>);
 
-/// Error type returned from `try_send`
+/// The error type returned from [`try_send`](Sender::try_send).
 #[derive(Clone, PartialEq, Eq)]
 pub struct TryChannelClosed<T> {
     kind: TryChannelClosedKind<T>,
@@ -206,7 +208,7 @@ impl<T: Any> Error for TryChannelClosed<T> {
 }
 
 impl<T> TryChannelClosed<T> {
-    /// Returns true if this error is a result of the channel being full
+    /// Returns true if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
         use self::TryChannelClosedKind::*;
 
@@ -216,7 +218,7 @@ impl<T> TryChannelClosed<T> {
         }
     }
 
-    /// Returns true if this error is a result of the receiver being dropped
+    /// Returns true if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
         use self::TryChannelClosedKind::*;
 
@@ -319,19 +321,16 @@ impl SenderTask {
     }
 }
 
-/// Creates an in-memory channel implementation of the `Stream` trait with
-/// bounded capacity.
+/// Creates a bounded mpsc channel for communicating between asynchronous tasks.
 ///
-/// This method creates a concrete implementation of the `Stream` trait which
-/// can be used to send values across threads in a streaming fashion. This
-/// channel is unique in that it implements back pressure to ensure that the
-/// sender never outpaces the receiver. The channel capacity is equal to
-/// `buffer + num-senders`. In other words, each sender gets a guaranteed slot
-/// in the channel capacity, and on top of that there are `buffer` "first come,
-/// first serve" slots available to all senders.
+/// Being bounded, this channel provides back pressure to ensure that the sender
+/// outpaces the receiver by only a limited amount. The channel's capacity is
+/// equal to `buffer + num-senders`. In other words, each sender gets a
+/// guaranteed slot in the channel capacity, and on top of that there are
+/// `buffer` "first come, first serve" slots available to all senders.
 ///
-/// The `Receiver` returned implements the `Stream` trait and has access to any
-/// number of the associated combinators for transforming the result.
+/// The [`Receiver`](Receiver) returned implements the [`Stream`](Stream) trait,
+/// while [`Sender`](Sender) implements [`Sink`](Sink).
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.
@@ -339,14 +338,11 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     channel2(Some(buffer))
 }
 
-/// Creates an in-memory channel implementation of the `Stream` trait with
-/// unbounded capacity.
+/// Creates an unbounded mpsc channel for communicating between asynchronous tasks.
 ///
-/// This method creates a concrete implementation of the `Stream` trait which
-/// can be used to send values across threads in a streaming fashion. A `send`
-/// on this channel will always succeed as long as the receive half has not
-/// been closed. If the receiver falls behind, messages will be buffered
-/// internally.
+/// A `send` on this channel will always succeed as long as the receive half has
+/// not been closed. If the receiver falls behind, messages will be arbitrarily
+/// buffered.
 ///
 /// **Note** that the amount of available system memory is an implicit bound to
 /// the channel. Using an `unbounded` channel has the ability of causing the
@@ -389,11 +385,7 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
  */
 
 impl<T> Sender<T> {
-    /// Attempts to send a message on this `Sender<T>` without blocking.
-    ///
-    /// This function, unlike `start_send`, is safe to call whether it's being
-    /// called on a task or not. Note that this function, however, will *not*
-    /// attempt to block the current task if the message cannot be sent.
+    /// Attempts to send a message on this `Sender` without blocking.
     ///
     /// It is not recommended to call this function from inside of a future,
     /// only from an external thread where you've otherwise arranged to be
@@ -415,9 +407,11 @@ impl<T> Sender<T> {
             })
     }
 
-    /// Attempt to start sending a message on the channel.
-    /// This function should only be called after `poll_ready` has responded
-    /// that the channel is ready to receive a message.
+    /// Send a message on the channel.
+    ///
+    /// This function should only be called after
+    /// [`poll_ready`](Sender::poll_ready) has reported that the channel is
+    /// ready to receive a message.
     pub fn start_send(&mut self, msg: T) -> Result<(), ChannelClosed<T>> {
         self.do_send(None, Some(msg))
     }
@@ -586,16 +580,17 @@ impl<T> Sender<T> {
         self.maybe_parked = state.is_open;
     }
 
-    /// Polls the channel to determine if there is guaranteed to be capacity to send at least one
-    /// item without waiting.
+    /// Polls the channel to determine if there is guaranteed capacity to send
+    /// at least one item without waiting.
     ///
-    /// Returns `Ok(Async::Ready(_))` if there is sufficient capacity, or returns
-    /// `Ok(Async::Pending)` if the channel is not guaranteed to have capacity. Returns
-    /// `Err(ChannelClosed(_))` if the receiver has been dropped.
+    /// # Return value
     ///
-    /// # Panics
+    /// This method returns:
     ///
-    /// This method will panic if called from outside the context of a task or future.
+    /// - `Ok(Async::Ready(_))` if there is sufficient capacity;
+    /// - `Ok(Async::Pending)` if the channel may not have
+    /// capacity, in which case the current task is queued to be notified once capacity is available;
+    /// - `Err(ChannelClosed(_))` if the receiver has been dropped.
     pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), ChannelClosed<T>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
@@ -638,14 +633,15 @@ impl<T> UnboundedSender<T> {
         self.0.poll_ready(cx)
     }
 
-    /// Attempt to start sending a message on the channel.
-    /// This function should only be called after `poll_ready` has been used to
+    /// Send a message on the channel.
+    ///
+    /// This method should only be called after `poll_ready` has been used to
     /// verify that the channel is ready to receive a message.
     pub fn start_send(&mut self, msg: T) -> Result<(), ChannelClosed<T>> {
         self.0.start_send(msg)
     }
 
-    /// Sends the provided message along this channel.
+    /// Sends a message along this channel.
     ///
     /// This is an unbounded sender, so this function differs from `Sink::send`
     /// by ensuring the return type reflects that the channel is always ready to
@@ -713,7 +709,7 @@ impl<T> Drop for Sender<T> {
  */
 
 impl<T> Receiver<T> {
-    /// Closes the receiving half
+    /// Closes the receiving half of a channel, without dropping it.
     ///
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
@@ -896,7 +892,7 @@ impl<T> Drop for Receiver<T> {
 }
 
 impl<T> UnboundedReceiver<T> {
-    /// Closes the receiving half
+    /// Closes the receiving half of the channel, without dropping it.
     ///
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.

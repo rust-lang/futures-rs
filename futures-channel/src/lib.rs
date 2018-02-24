@@ -1,6 +1,10 @@
-//! Asynchronous channels
+//! Asynchronous channels.
 //!
-//! This crate provides channels which can be used to communicate between futures.
+//! This crate provides channels that can be used to communicate between
+//! asynchronous tasks.
+//!
+//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
+//! overview.
 
 #![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures-channel/0.2")]
