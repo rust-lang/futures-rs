@@ -11,21 +11,13 @@ extern crate futures_io;
 extern crate futures_sink;
 
 #[cfg(feature = "std")]
-use futures_core::{Async, Future, Poll, Stream, task};
-#[cfg(feature = "std")]
-use futures_sink::Sink;
+use futures_core::{Async, Future, Poll, task};
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
         $i
     )*)
-}
-
-if_std! {
-    extern crate bytes;
-    #[macro_use]
-    extern crate log;
 }
 
 #[cfg(feature = "std")]
