@@ -7,7 +7,7 @@ use std::sync::atomic::Ordering::SeqCst;
 /// Used to ensure that concurrent `unpark` invocations lead to (1) `poll` being
 /// invoked on only a single thread at a time (2) `poll` being invoked at least
 /// once after each `unpark` (unless the future has completed).
-pub struct UnparkMutex<D> {
+pub(crate) struct UnparkMutex<D> {
     // The state of task execution (state machine described below)
     status: AtomicUsize,
 
@@ -43,7 +43,7 @@ const REPOLL: usize = 2;        // --> POLLING
 const COMPLETE: usize = 3;      // No transitions out
 
 impl<D> UnparkMutex<D> {
-    pub fn new() -> UnparkMutex<D> {
+    pub(crate) fn new() -> UnparkMutex<D> {
         UnparkMutex {
             status: AtomicUsize::new(WAITING),
             inner: UnsafeCell::new(None),
@@ -56,7 +56,7 @@ impl<D> UnparkMutex<D> {
     /// the caller can proceed to poll the future. An `Err` result indicates
     /// that polling is not necessary (because the task is finished or the
     /// polling has been delegated).
-    pub fn notify(&self) -> Result<D, ()> {
+    pub(crate) fn notify(&self) -> Result<D, ()> {
         let mut status = self.status.load(SeqCst);
         loop {
             match status {
@@ -104,7 +104,7 @@ impl<D> UnparkMutex<D> {
     ///
     /// Callable only from the `POLLING`/`REPOLL` states, i.e. between
     /// successful calls to `notify` and `wait`/`complete`.
-    pub unsafe fn start_poll(&self) {
+    pub(crate) unsafe fn start_poll(&self) {
         self.status.store(POLLING, SeqCst);
     }
 
@@ -114,7 +114,7 @@ impl<D> UnparkMutex<D> {
     ///
     /// Callable only from the `POLLING`/`REPOLL` states, i.e. between
     /// successful calls to `notify` and `wait`/`complete`.
-    pub unsafe fn wait(&self, data: D) -> Result<(), D> {
+    pub(crate) unsafe fn wait(&self, data: D) -> Result<(), D> {
         *self.inner.get() = Some(data);
 
         match self.status.compare_exchange(POLLING, WAITING, SeqCst, SeqCst) {
@@ -138,7 +138,7 @@ impl<D> UnparkMutex<D> {
     ///
     /// Callable only from the `POLLING`/`REPOLL` states, i.e. between
     /// successful calls to `notify` and `wait`/`complete`.
-    pub unsafe fn complete(&self) {
+    pub(crate) unsafe fn complete(&self) {
         self.status.store(COMPLETE, SeqCst);
     }
 }

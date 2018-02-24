@@ -10,11 +10,18 @@ use std::sync::atomic::Ordering;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::atomic::AtomicBool;
 
-/// dox
+/// A future representing the completion of task spawning.
+///
+/// See [`spawn`](spawn()) for details.
 #[derive(Debug)]
 pub struct Spawn<F>(Option<F>);
 
-/// TODO: dox
+/// Spawn a task onto the default executor.
+///
+/// This function returns a future that will spawn the given future as a task
+/// onto the default executor. It does *not* provide any way to wait on task
+/// completion or extract a value from the task. That can either be done through
+/// a channel, or by using [`spawn_with_handle`](::spawn_with_handle).
 pub fn spawn<F>(f: F) -> Spawn<F>
     where F: Future<Item = (), Error = ()> + 'static + Send
 {
@@ -30,11 +37,20 @@ impl<F: Future<Item = (), Error = ()> + Send + 'static> Future for Spawn<F> {
     }
 }
 
-/// dox
+/// A future representing the completion of task spawning, yielding a
+/// [`JoinHandle`](::JoinHandle) to the spawned task.
+///
+/// See [`spawn_with_handle`](::spawn_with_handle) for details.
 #[derive(Debug)]
 pub struct SpawnWithHandle<F>(Option<F>);
 
-/// TODO: dox
+/// Spawn a task onto the default executor, yielding a
+/// [`JoinHandle`](::JoinHandle) to the spawned task.
+///
+/// This function returns a future that will spawn the given future as a task
+/// onto the default executor. On completion, that future will yield a
+/// [`JoinHandle`](::JoinHandle) that can itself be used as a future
+/// representing the completion of the spawned task.
 pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
     where F: Future + 'static + Send, F::Item: Send, F::Error: Send
 {
@@ -87,11 +103,11 @@ pub struct JoinHandle<T, E> {
 }
 
 impl<T, E> JoinHandle<T, E> {
-    /// Drop this future without canceling the underlying future.
+    /// Drop this handle *without* canceling the underlying future.
     ///
-    /// When `JoinHandle` is dropped, `ThreadPool` will try to abort the underlying
-    /// future. This function can be used when user wants to drop but keep
-    /// executing the underlying future.
+    /// When `JoinHandle` is dropped, `ThreadPool` will try to abort the associated
+    /// task. This function can be used when you want to drop the handle but keep
+    /// executing the task.
     pub fn forget(self) {
         self.keep_running_flag.store(true, Ordering::SeqCst);
     }
