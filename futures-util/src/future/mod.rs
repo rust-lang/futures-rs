@@ -30,7 +30,6 @@ mod err_into;
 mod or_else;
 mod select;
 mod then;
-mod either;
 mod inspect;
 mod recover;
 
@@ -49,9 +48,10 @@ pub use self::err_into::ErrInto;
 pub use self::or_else::OrElse;
 pub use self::select::Select;
 pub use self::then::Then;
-pub use self::either::Either;
 pub use self::inspect::Inspect;
 pub use self::recover::Recover;
+
+pub use either::Either;
 
 if_std! {
     mod catch_unwind;
@@ -373,10 +373,10 @@ pub trait FutureExt: Future {
     /// {
     ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
     ///         match res {
-    ///             Ok(Either::A((x, b))) => Box::new(b.map(move |y| (x, y))),
-    ///             Ok(Either::B((y, a))) => Box::new(a.map(move |x| (x, y))),
-    ///             Err(Either::A((e, _))) => Box::new(future::err(e)),
-    ///             Err(Either::B((e, _))) => Box::new(future::err(e)),
+    ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
+    ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
+    ///             Err(Either::Left((e, _))) => Box::new(future::err(e)),
+    ///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
     ///         }
     ///     }))
     /// }

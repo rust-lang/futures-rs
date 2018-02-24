@@ -8,6 +8,8 @@ pub use self::option::FutureOption;
 #[path = "result.rs"]
 mod result_;
 pub use self::result_::{result, ok, err, FutureResult};
+#[cfg(feature = "either")]
+mod either;
 
 /// A future represents an asychronous computation that may fail.
 ///
