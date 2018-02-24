@@ -14,32 +14,15 @@ use enter;
 use num_cpus;
 use unpark_mutex::UnparkMutex;
 
-/// A thread pool intended to run CPU intensive work.
+/// A general-purpose thread pool for scheduling asynchronous tasks.
 ///
-/// This thread pool will hand out futures representing the completed work
-/// that happens on the thread pool itself, and the futures can then be later
-/// composed with other work as part of an overall computation.
-///
-/// The worker threads associated with a thread pool are kept alive so long as
-/// there is an open handle to the `ThreadPool` or there is work running on them. Once
-/// all work has been drained and all references have gone away the worker
-/// threads will be shut down.
-///
-/// Currently `ThreadPool` implements `Clone` which just clones a new reference to
-/// the underlying thread pool.
-///
-/// **Note:** if you use ThreadPool inside a library it's better accept a
-/// `ThreadPoolBuilder` object for thread configuration rather than configuring just
-/// pool size.  This not only future proof for other settings but also allows
-/// user to attach monitoring tools to lifecycle hooks.
+/// The thread pool multiplexes any number of tasks onto a fixed number of
+/// worker threads.
 pub struct ThreadPool {
     state: Arc<PoolState>,
 }
 
-/// Thread pool configuration object
-///
-/// ThreadPoolBuilder starts with a number of workers equal to the number
-/// of CPUs on the host. But you can change it until you call `create()`.
+/// Thread pool configuration object.
 pub struct ThreadPoolBuilder {
     pool_size: usize,
     stack_size: usize,
@@ -81,18 +64,33 @@ enum Message {
 }
 
 impl ThreadPool {
-    /// Creates a new thread pool with a number of workers equal to the number
-    /// of CPUs on the host.
+    /// Creates a new thread pool with the default configuration.
+    ///
+    /// See documentation for the methods in
+    /// [`ThreadPoolBuilder`](::ThreadPoolBuilder) for details on the default
+    /// configuration.
     pub fn new() -> ThreadPool {
         ThreadPoolBuilder::new().create()
     }
 
-    /// dox
+    /// Create a default thread pool configuration, which can then be customized.
+    ///
+    /// See documentation for the methods in
+    /// [`ThreadPoolBuilder`](::ThreadPoolBuilder) for details on the default
+    /// configuration.
     pub fn builder() -> ThreadPoolBuilder {
         ThreadPoolBuilder::new()
     }
 
-    /// dox
+    /// Runs the given future with this thread pool as the default executor for
+    /// spawning tasks.
+    ///
+    /// **This function will block the calling thread** until the given future
+    /// is complete. While executing that future, any tasks spawned onto the
+    /// default executor will be routed to this thread pool.
+    ///
+    /// Note that the function will return when the provided future completes,
+    /// even if some of the tasks it spawned are still running.
     pub fn run<F: Future>(&mut self, f: F) -> Result<F::Item, F::Error> {
         ::LocalPool::new().run_until(f, self)
     }
@@ -154,8 +152,9 @@ impl Drop for ThreadPool {
 }
 
 impl ThreadPoolBuilder {
-    /// Create a builder a number of workers equal to the number
-    /// of CPUs on the host.
+    /// Create a default thread pool configuration.
+    ///
+    /// See the other methods on this type for details on the defaults.
     pub fn new() -> ThreadPoolBuilder {
         ThreadPoolBuilder {
             pool_size: num_cpus::get(),
@@ -168,35 +167,40 @@ impl ThreadPoolBuilder {
 
     /// Set size of a future ThreadPool
     ///
-    /// The size of a thread pool is the number of worker threads spawned
+    /// The size of a thread pool is the number of worker threads spawned.  By
+    /// default, this is equal to the number of CPU cores.
     pub fn pool_size(&mut self, size: usize) -> &mut Self {
         self.pool_size = size;
         self
     }
 
     /// Set stack size of threads in the pool.
+    ///
+    /// By default, worker threads use Rust's standard stack size.
     pub fn stack_size(&mut self, stack_size: usize) -> &mut Self {
         self.stack_size = stack_size;
         self
     }
 
-    /// Set thread name prefix of a future ThreadPool
+    /// Set thread name prefix of a future ThreadPool.
     ///
     /// Thread name prefix is used for generating thread names. For example, if prefix is
     /// `my-pool-`, then threads in the pool will get names like `my-pool-1` etc.
+    ///
+    /// By default, worker threads are assigned Rust's standard thread name.
     pub fn name_prefix<S: Into<String>>(&mut self, name_prefix: S) -> &mut Self {
         self.name_prefix = Some(name_prefix.into());
         self
     }
 
-    /// Execute function `f` right after each thread is started but before
-    /// running any jobs on it.
+    /// Execute the closure `f` immediately after each worker thread is started,
+    /// but before running any tasks on it.
     ///
-    /// This is initially intended for bookkeeping and monitoring uses.
-    /// The `f` will be deconstructed after the `builder` is deconstructed
-    /// and all threads in the pool has executed it.
+    /// This hook is intended for bookkeeping and monitoring.
+    /// The closure `f` will be dropped after the `builder` is dropped
+    /// and all worker threads in the pool have executed it.
     ///
-    /// The closure provided will receive an index corresponding to which worker
+    /// The closure provided will receive an index corresponding to the worker
     /// thread it's running on.
     pub fn after_start<F>(&mut self, f: F) -> &mut Self
         where F: Fn(usize) + Send + Sync + 'static
@@ -205,13 +209,13 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Execute function `f` before each worker thread stops.
+    /// Execute closure `f` just prior to shutting down each worker thread.
     ///
-    /// This is initially intended for bookkeeping and monitoring uses.
-    /// The `f` will be deconstructed after the `builder` is deconstructed
-    /// and all threads in the pool has executed it.
+    /// This hook is intended for bookkeeping and monitoring.
+    /// The closure `f` will be dropped after the `builder` is droppped
+    /// and all threads in the pool have executed it.
     ///
-    /// The closure provided will receive an index corresponding to which worker
+    /// The closure provided will receive an index corresponding to the worker
     /// thread it's running on.
     pub fn before_stop<F>(&mut self, f: F) -> &mut Self
         where F: Fn(usize) + Send + Sync + 'static
@@ -220,7 +224,7 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Create ThreadPool with configured parameters
+    /// Create a [`ThreadPool`](::ThreadPool) with the given configuration.
     ///
     /// # Panics
     ///

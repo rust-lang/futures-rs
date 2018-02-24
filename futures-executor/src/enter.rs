@@ -6,7 +6,7 @@ thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
 
 /// Represents an executor context.
 ///
-/// For more details, see [`enter` documentation](fn.enter.html)
+/// For more details, see [`enter` documentation](::enter())
 pub struct Enter {
     _a: ()
 }
@@ -22,11 +22,13 @@ pub struct EnterError {
 /// executor.
 ///
 /// Executor implementations should call this function before blocking the
-/// thread.
+/// thread. Doing so ensures that executors aren't accidentally invoked in a
+/// nested fashion.
 ///
 /// # Error
 ///
-/// Returns an error if the current thread is already marked
+/// Returns an error if the current thread is already marked, in which case the
+/// caller should panic with a tailored error message.
 pub fn enter() -> Result<Enter, EnterError> {
     ENTERED.with(|c| {
         if c.get() {

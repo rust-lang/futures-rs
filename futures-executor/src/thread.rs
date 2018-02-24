@@ -3,7 +3,7 @@ use std::thread::{self, Thread};
 
 use futures_core::task::Wake;
 
-pub struct ThreadNotify {
+pub(crate) struct ThreadNotify {
     thread: Thread,
 }
 
@@ -14,13 +14,13 @@ thread_local! {
 }
 
 impl ThreadNotify {
-    pub fn with_current<F, R>(f: F) -> R
+    pub(crate) fn with_current<F, R>(f: F) -> R
         where F: FnOnce(&Arc<ThreadNotify>) -> R,
     {
         CURRENT_THREAD_NOTIFY.with(f)
     }
 
-    pub fn park(&self) {
+    pub(crate) fn park(&self) {
         thread::park();
     }
 }
