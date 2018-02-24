@@ -10,6 +10,8 @@ mod option;
 #[path = "result.rs"]
 mod result_;
 pub use self::result_::{result, ok, err, Result};
+#[cfg(feature = "either")]
+mod either;
 
 /// A future represents an asychronous computation that may fail.
 ///

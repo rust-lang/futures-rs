@@ -12,7 +12,7 @@ Common utilities and extension traits for the futures-rs library.
 
 [features]
 std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std"]
-default = ["std"]
+default = ["std", "futures-core/either"]
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.2.0", default-features = false }
