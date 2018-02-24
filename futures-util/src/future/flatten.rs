@@ -5,8 +5,9 @@ use futures_core::task;
 
 use super::chain::Chain;
 
-/// Future for the `flatten` combinator, flattening a future-of-a-future to get just
-/// the result of the final future.
+/// Future for the `flatten` combinator.
+///
+/// This combinator turns a `Future`-of-a-`Future` into a single `Future`.
 ///
 /// This is created by the `Future::flatten` method.
 #[must_use = "futures do nothing unless polled"]

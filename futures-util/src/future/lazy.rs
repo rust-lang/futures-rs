@@ -6,8 +6,8 @@ use core::mem;
 use futures_core::{Future, IntoFuture, Poll};
 use futures_core::task;
 
-/// A future which defers creation of the actual future until a callback is
-/// scheduled.
+/// A future which defers creation of the actual future until the future
+/// is `poll`ed.
 ///
 /// This is created by the `lazy` function.
 #[derive(Debug)]
@@ -26,9 +26,8 @@ enum _Lazy<F, R> {
 /// Creates a new future which will eventually be the same as the one created
 /// by the closure provided.
 ///
-/// The provided closure is only run once the future has a callback scheduled
-/// on it, otherwise the callback never runs. Once run, however, this future is
-/// the same as the one the closure creates.
+/// The provided closure is only run once the future is polled.
+/// Once run, however, this future is the same as the one the closure creates.
 ///
 /// # Examples
 ///

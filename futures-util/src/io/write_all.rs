@@ -3,7 +3,7 @@ use std::mem;
 
 use {Poll, Future, task};
 
-use AsyncWrite;
+use futures_io::AsyncWrite;
 
 /// A future used to write the entire contents of some data to a stream.
 ///

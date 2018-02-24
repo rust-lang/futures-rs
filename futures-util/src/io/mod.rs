@@ -1,4 +1,10 @@
-//! Core I/O traits and combinators.
+//! IO
+//!
+//! This module contains a number of functions for working with
+//! `AsyncRead` and `AsyncWrite` types, including the
+//! `AsyncReadExt` and `AsyncWriteExt` traits which add methods
+//! to the `AsyncRead` and `AsyncWrite` types.
+
 
 use std::vec::Vec;
 

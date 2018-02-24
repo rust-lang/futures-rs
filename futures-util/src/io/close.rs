@@ -2,7 +2,7 @@ use std::io;
 
 use {Poll, Future, Async, task};
 
-use AsyncWrite;
+use futures_io::AsyncWrite;
 
 /// A future used to fully close an I/O object.
 ///
