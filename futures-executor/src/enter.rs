@@ -21,9 +21,9 @@ pub struct EnterError {
 /// Marks the current thread as being within the dynamic extent of an
 /// executor.
 ///
-/// Executor implementations should call this function before blocking the
-/// thread. Doing so ensures that executors aren't accidentally invoked in a
-/// nested fashion.
+/// Executor implementations should call this function before beginning to
+/// execute any tasks. Doing so ensures that executors aren't accidentally
+/// invoked in a nested fashion.
 ///
 /// # Error
 ///
