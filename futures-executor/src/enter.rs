@@ -22,8 +22,22 @@ pub struct EnterError {
 /// executor.
 ///
 /// Executor implementations should call this function before beginning to
-/// execute any tasks. Doing so ensures that executors aren't accidentally
-/// invoked in a nested fashion.
+/// execute a tasks, and drop the returned [`Enter`](Enter) value after
+/// completing task execution:
+///
+/// ```rust
+/// # extern crate futures;
+/// # use futures::executor::enter;
+///
+/// # fn main() {
+/// let enter = enter().expect("...");
+/// /* run task */
+/// drop(enter);
+/// # }
+/// ```
+///
+/// Doing so ensures that executors aren't
+/// accidentally invoked in a nested fashion.
 ///
 /// # Error
 ///
