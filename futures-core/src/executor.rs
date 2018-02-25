@@ -3,6 +3,7 @@
 if_std! {
     use std::boxed::Box;
     use Future;
+    use never::Never;
 
     /// A task executor.
     ///
@@ -14,7 +15,7 @@ if_std! {
     pub trait Executor {
         /// Spawn the given task, polling it until completion.
         ///
-        /// Task errors are silently ignored, as the type suggestions; it is the
+        /// Tasks must be infallible, as the type suggests; it is the
         /// client's reponsibility to route any errors elsewhere via a channel
         /// or some other means of communication.
         ///
@@ -22,7 +23,7 @@ if_std! {
         ///
         /// The executor may be unable to spawn tasks, either because it has
         /// been shut down or is resource-constrained.
-        fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError>;
+        fn spawn(&mut self, f: Box<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError>;
 
         /// Determine whether the executor is able to spawn new tasks.
         ///

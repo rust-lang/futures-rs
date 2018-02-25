@@ -23,12 +23,12 @@ pub struct Spawn<F>(Option<F>);
 /// completion or extract a value from the task. That can either be done through
 /// a channel, or by using [`spawn_with_handle`](::spawn_with_handle).
 pub fn spawn<F>(f: F) -> Spawn<F>
-    where F: Future<Item = (), Error = ()> + 'static + Send
+    where F: Future<Item = (), Error = Never> + 'static + Send
 {
     Spawn(Some(f))
 }
 
-impl<F: Future<Item = (), Error = ()> + Send + 'static> Future for Spawn<F> {
+impl<F: Future<Item = (), Error = Never> + Send + 'static> Future for Spawn<F> {
     type Item = ();
     type Error = Never;
     fn poll(&mut self, cx: &mut Context) -> Poll<(), Never> {
@@ -58,7 +58,7 @@ pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
 }
 
 impl<F> Future for SpawnWithHandle<F>
-    where F: Future<Item = (), Error = ()> + Send + 'static,
+    where F: Future<Item = (), Error = Never> + Send + 'static,
           F::Item: Send,
           F::Error: Send,
 {
@@ -129,9 +129,9 @@ impl<T: Send + 'static, E: Send + 'static> Future for JoinHandle<T, E> {
 
 impl<F: Future> Future for MySender<F, Result<F::Item, F::Error>> {
     type Item = ();
-    type Error = ();
+    type Error = Never;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
         if let Ok(Async::Ready(_)) = self.tx.as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running_flag.load(Ordering::SeqCst) {
                 // Cancelled, bail out

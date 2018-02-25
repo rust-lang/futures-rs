@@ -7,6 +7,7 @@ use core::fmt;
 use core::marker::PhantomData;
 
 if_std! {
+    use never::Never;
     use executor::Executor;
     type Exec<'a> = &'a mut Executor;
 }
@@ -91,7 +92,7 @@ if_std! {
         /// To handle executor errors, use [executor()](self::Context::executor)
         /// instead.
         pub fn spawn<F>(&mut self, f: F)
-            where F: Future<Item = (), Error = ()> + 'static + Send
+            where F: Future<Item = (), Error = Never> + 'static + Send
         {
             self.executor.spawn(Box::new(f)).unwrap()
         }

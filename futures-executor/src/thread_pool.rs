@@ -9,6 +9,7 @@ use std::fmt;
 use futures_core::*;
 use futures_core::task::{self, Wake, Waker, LocalMap};
 use futures_core::executor::{Executor, SpawnError};
+use futures_core::never::Never;
 
 use enter;
 use num_cpus;
@@ -97,7 +98,7 @@ impl ThreadPool {
 }
 
 impl Executor for ThreadPool {
-    fn spawn(&mut self, f: Box<Future<Item = (), Error = ()> + Send>) -> Result<(), SpawnError> {
+    fn spawn(&mut self, f: Box<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
         let task = Task {
             spawn: f,
             map: LocalMap::new(),
@@ -261,7 +262,7 @@ impl ThreadPoolBuilder {
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 struct Task {
-    spawn: Box<Future<Item = (), Error = ()> + Send>,
+    spawn: Box<Future<Item = (), Error = Never> + Send>,
     map: LocalMap,
     exec: ThreadPool,
     wake_handle: Arc<WakeHandle>,
@@ -291,8 +292,8 @@ impl Task {
                 };
                 match res {
                     Ok(Async::Pending) => {}
-                    Ok(Async::Ready(())) |
-                    Err(()) => return wake_handle.mutex.complete(),
+                    Ok(Async::Ready(())) => return wake_handle.mutex.complete(),
+                    Err(never) => match never {},
                 }
                 let task = Task {
                     spawn,
