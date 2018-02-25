@@ -1,7 +1,7 @@
 //! Definition of the `Option` (optional step) combinator
 
 use {Future, IntoFuture, Poll, Async};
-use std::option;
+use core::option;
 
 /// An optional future.
 ///
