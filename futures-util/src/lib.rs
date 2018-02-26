@@ -9,6 +9,7 @@
 extern crate futures_core;
 extern crate futures_io;
 extern crate futures_sink;
+extern crate either;
 
 #[cfg(feature = "std")]
 use futures_core::{Async, Future, Poll, task};
