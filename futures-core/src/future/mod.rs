@@ -7,6 +7,7 @@ use Poll;
 use task;
 
 mod option;
+pub use self::option::Option;
 #[path = "result.rs"]
 mod result_;
 pub use self::result_::{result, ok, err, Result};

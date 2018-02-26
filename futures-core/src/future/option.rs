@@ -35,3 +35,9 @@ impl<F, T, E> Future for Option<F> where F: Future<Item=T, Error=E> {
         }
     }
 }
+
+impl<T> From<option::Option<T>> for Option<T> {
+    fn from(o: option::Option<T>) -> Self {
+        Option { inner: o }
+    }
+}
