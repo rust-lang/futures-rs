@@ -80,11 +80,13 @@ pub use self::inspect::Inspect;
 if_std! {
     mod catch_unwind;
     mod join_all;
+    mod killable;
     mod select_all;
     mod select_ok;
     mod shared;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::join_all::{join_all, JoinAll};
+    pub use self::killable::{killable, Killable, Killed, KillHandle, KillRegistration};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
     pub use self::shared::{Shared, SharedItem, SharedError};
