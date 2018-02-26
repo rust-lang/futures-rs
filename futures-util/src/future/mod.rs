@@ -277,7 +277,7 @@ pub trait FutureExt: Future {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future;
+    /// use futures::future::{self, FutureResult};
     ///
     /// # fn main() {
     /// let future_of_1 = future::ok::<u32, u32>(1);
@@ -286,7 +286,7 @@ pub trait FutureExt: Future {
     /// });
     ///
     /// let future_of_err_1 = future::err::<u32, u32>(1);
-    /// future_of_err_1.and_then(|_| -> future::Result<u32, u32> {
+    /// future_of_err_1.and_then(|_| -> FutureResult<u32, u32> {
     ///     panic!("should not be called in case of an error");
     /// });
     /// # }
@@ -321,7 +321,7 @@ pub trait FutureExt: Future {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future;
+    /// use futures::future::{self, FutureResult};
     ///
     /// # fn main() {
     /// let future_of_err_1 = future::err::<u32, u32>(1);
@@ -330,7 +330,7 @@ pub trait FutureExt: Future {
     /// });
     ///
     /// let future_of_1 = future::ok::<u32, u32>(1);
-    /// future_of_1.or_else(|_| -> future::Result<u32, u32> {
+    /// future_of_1.or_else(|_| -> FutureResult<u32, u32> {
     ///     panic!("should not be called in case of success");
     /// });
     /// # }
@@ -672,14 +672,14 @@ pub trait FutureExt: Future {
     /// # extern crate futures;
     /// # extern crate futures_executor;
     /// use futures::prelude::*;
-    /// use futures::future;
+    /// use futures::future::{self, FutureResult};
     /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let mut future = future::ok::<i32, u32>(2);
     /// assert!(block_on(future.catch_unwind()).is_ok());
     ///
-    /// let mut future = future::lazy(|| -> future::Result<i32, u32> {
+    /// let mut future = future::lazy(|| -> FutureResult<i32, u32> {
     ///     panic!();
     ///     future::ok::<i32, u32>(2)
     /// });

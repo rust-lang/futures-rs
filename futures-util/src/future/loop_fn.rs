@@ -41,7 +41,7 @@ pub struct LoopFn<A, F> where A: IntoFuture {
 /// ```
 /// # extern crate futures;
 /// use futures::prelude::*;
-/// use futures::future::{self, ok, loop_fn, Loop};
+/// use futures::future::{self, ok, loop_fn, Loop, FutureResult};
 /// use futures::never::Never;
 ///
 /// struct Client {
@@ -53,11 +53,11 @@ pub struct LoopFn<A, F> where A: IntoFuture {
 ///         Client { ping_count: 0 }
 ///     }
 ///
-///     fn send_ping(self) -> future::Result<Self, Never> {
+///     fn send_ping(self) -> FutureResult<Self, Never> {
 ///         ok(Client { ping_count: self.ping_count + 1 })
 ///     }
 ///
-///     fn receive_pong(self) -> future::Result<(Self, bool), Never> {
+///     fn receive_pong(self) -> FutureResult<(Self, bool), Never> {
 ///         let done = self.ping_count >= 5;
 ///         ok((self, done))
 ///     }

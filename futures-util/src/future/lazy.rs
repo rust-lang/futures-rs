@@ -34,12 +34,12 @@ enum _Lazy<R, F> {
 /// ```
 /// # extern crate futures;
 /// use futures::prelude::*;
-/// use futures::future;
+/// use futures::future::{self, FutureResult};
 ///
 /// # fn main() {
 /// let a = future::lazy(|| future::ok::<u32, u32>(1));
 ///
-/// let b = future::lazy(|| -> future::Result<u32, u32> {
+/// let b = future::lazy(|| -> FutureResult<u32, u32> {
 ///     panic!("oh no!")
 /// });
 /// drop(b); // closure is never run
