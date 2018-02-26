@@ -8,14 +8,14 @@ use futures_sink::{ Sink};
 /// This structure is produced by the `Stream::take_while` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TakeWhile<S, P, R> where S: Stream, R: IntoFuture {
+pub struct TakeWhile<S, R, P> where S: Stream, R: IntoFuture {
     stream: S,
     pred: P,
     pending: Option<(R::Future, S::Item)>,
     done_taking: bool,
 }
 
-pub fn new<S, P, R>(s: S, p: P) -> TakeWhile<S, P, R>
+pub fn new<S, R, P>(s: S, p: P) -> TakeWhile<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,
@@ -28,7 +28,7 @@ pub fn new<S, P, R>(s: S, p: P) -> TakeWhile<S, P, R>
     }
 }
 
-impl<S, P, R> TakeWhile<S, P, R> where S: Stream, R: IntoFuture {
+impl<S, R, P> TakeWhile<S, R, P> where S: Stream, R: IntoFuture {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -54,7 +54,7 @@ impl<S, P, R> TakeWhile<S, P, R> where S: Stream, R: IntoFuture {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, P, R> Sink for TakeWhile<S, P, R>
+impl<S, R, P> Sink for TakeWhile<S, R, P>
     where S: Sink + Stream, R: IntoFuture
 {
     type SinkItem = S::SinkItem;
@@ -63,7 +63,7 @@ impl<S, P, R> Sink for TakeWhile<S, P, R>
     delegate_sink!(stream);
 }
 
-impl<S, P, R> Stream for TakeWhile<S, P, R>
+impl<S, R, P> Stream for TakeWhile<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,

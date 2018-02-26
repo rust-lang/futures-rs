@@ -12,12 +12,12 @@ use futures_core::task;
 /// This is created by the `lazy` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Lazy<F, R: IntoFuture> {
-    inner: _Lazy<F, R::Future>,
+pub struct Lazy<R: IntoFuture, F> {
+    inner: _Lazy<R::Future, F>,
 }
 
 #[derive(Debug)]
-enum _Lazy<F, R> {
+enum _Lazy<R, F> {
     First(F),
     Second(R),
     Moved,
@@ -45,7 +45,7 @@ enum _Lazy<F, R> {
 /// drop(b); // closure is never run
 /// # }
 /// ```
-pub fn lazy<F, R>(f: F) -> Lazy<F, R>
+pub fn lazy<R, F>(f: F) -> Lazy<R, F>
     where F: FnOnce() -> R,
           R: IntoFuture
 {
@@ -54,7 +54,7 @@ pub fn lazy<F, R>(f: F) -> Lazy<F, R>
     }
 }
 
-impl<F, R> Lazy<F, R>
+impl<R, F> Lazy<R, F>
     where F: FnOnce() -> R,
           R: IntoFuture,
 {
@@ -75,7 +75,7 @@ impl<F, R> Lazy<F, R>
     }
 }
 
-impl<F, R> Future for Lazy<F, R>
+impl<R, F> Future for Lazy<R, F>
     where F: FnOnce() -> R,
           R: IntoFuture,
 {

@@ -47,7 +47,7 @@ pub trait SinkExt: Sink {
     ///
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
-    fn with<U, F, Fut>(self, f: F) -> With<Self, U, F, Fut>
+    fn with<U, Fut, F>(self, f: F) -> With<Self, U, Fut, F>
         where F: FnMut(U) -> Fut,
               Fut: IntoFuture<Item = Self::SinkItem>,
               Fut::Error: From<Self::SinkError>,
@@ -93,7 +93,7 @@ pub trait SinkExt: Sink {
     /// assert_eq!(block_on(rx.collect()), Ok(vec![42, 42, 42, 42, 42]));
     /// # }
     /// ```
-    fn with_flat_map<U, F, St>(self, f: F) -> WithFlatMap<Self, U, F, St>
+    fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
         where F: FnMut(U) -> St,
               St: Stream<Item = Self::SinkItem, Error=Self::SinkError>,
               Self: Sized
@@ -116,7 +116,7 @@ pub trait SinkExt: Sink {
      */
 
     /// Transforms the error returned by the sink.
-    fn sink_map_err<F, E>(self, f: F) -> SinkMapErr<Self, F>
+    fn sink_map_err<E, F>(self, f: F) -> SinkMapErr<Self, F>
         where F: FnOnce(Self::SinkError) -> E,
               Self: Sized,
     {

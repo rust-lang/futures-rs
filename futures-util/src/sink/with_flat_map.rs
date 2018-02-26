@@ -8,7 +8,7 @@ use futures_sink::Sink;
 /// to run prior to pushing a value into the underlying sink
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct WithFlatMap<S, U, F, St>
+pub struct WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
@@ -21,7 +21,7 @@ where
     _phantom: PhantomData<fn(U)>,
 }
 
-pub fn new<S, U, F, St>(sink: S, f: F) -> WithFlatMap<S, U, F, St>
+pub fn new<S, U, St, F>(sink: S, f: F) -> WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
@@ -36,7 +36,7 @@ where
     }
 }
 
-impl<S, U, F, St> WithFlatMap<S, U, F, St>
+impl<S, U, St, F> WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
@@ -86,7 +86,7 @@ where
     }
 }
 
-impl<S, U, F, St> Stream for WithFlatMap<S, U, F, St>
+impl<S, U, St, F> Stream for WithFlatMap<S, U, St, F>
 where
     S: Stream + Sink,
     F: FnMut(U) -> St,
@@ -99,7 +99,7 @@ where
     }
 }
 
-impl<S, U, F, St> Sink for WithFlatMap<S, U, F, St>
+impl<S, U, St, F> Sink for WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,

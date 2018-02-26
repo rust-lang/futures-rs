@@ -8,7 +8,7 @@ use futures_sink::{Sink};
 /// This structure is returned by the `Stream::filter_map` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct FilterMap<S, F, R>
+pub struct FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
           R: IntoFuture<Error=S::Error>,
@@ -18,7 +18,7 @@ pub struct FilterMap<S, F, R>
     pending: Option<R::Future>,
 }
 
-pub fn new<S, F, R>(s: S, f: F) -> FilterMap<S, F, R>
+pub fn new<S, R, F>(s: S, f: F) -> FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
           R: IntoFuture<Error=S::Error>,
@@ -30,7 +30,7 @@ pub fn new<S, F, R>(s: S, f: F) -> FilterMap<S, F, R>
     }
 }
 
-impl<S, F, R> FilterMap<S, F, R>
+impl<S, R, F> FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
           R: IntoFuture<Error=S::Error>,
@@ -60,7 +60,7 @@ impl<S, F, R> FilterMap<S, F, R>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, R> Sink for FilterMap<S, F, R>
+impl<S, R, F> Sink for FilterMap<S, R, F>
     where S: Stream + Sink,
           F: FnMut(S::Item) -> R,
           R: IntoFuture<Error=S::Error>,
@@ -71,7 +71,7 @@ impl<S, F, R> Sink for FilterMap<S, F, R>
     delegate_sink!(stream);
 }
 
-impl<S, F, R, B> Stream for FilterMap<S, F, R>
+impl<S, R, F, B> Stream for FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
           R: IntoFuture<Item=Option<B>, Error=S::Error>,
