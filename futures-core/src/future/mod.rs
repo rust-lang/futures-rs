@@ -7,10 +7,10 @@ use Poll;
 use task;
 
 mod option;
-pub use self::option::Option;
+pub use self::option::FutureOption;
 #[path = "result.rs"]
 mod result_;
-pub use self::result_::{result, ok, err, Result};
+pub use self::result_::{result, ok, err, FutureResult};
 
 /// A future represents an asychronous computation that may fail.
 ///
