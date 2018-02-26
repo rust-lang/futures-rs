@@ -1,11 +1,15 @@
-//! Asynchronous IO
+//! Asynchronous I/O
 //!
-//! This crate contains the `AsyncRead` and `AsyncWrite` traits which allow
-//! data to be read and written asynchronously.
+//! This crate contains the `AsyncRead` and `AsyncWrite` traits, the
+//! asynchronous analogs to `std::io::{Read, Write}`. The primary difference is
+//! that these traits integrate with the asynchronous task system.
+//!
+//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
+//! overview.
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://docs.rs/futures-io/0.2")]
+#![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -35,7 +39,7 @@ if_std! {
     pub use StdIo::Result as Result;
 
     /// A type used to conditionally initialize buffers passed to `AsyncRead`
-    /// methods.
+    /// methods, modeled after `std`.
     #[derive(Debug)]
     pub struct Initializer(bool);
 
@@ -74,7 +78,13 @@ if_std! {
         }
     }
 
-    /// Objects which can be read asynchronously.
+    /// Read bytes asynchronously.
+    ///
+    /// This trait is analogous to the `std::io::Read` trait, but integrates
+    /// with the asynchronous task system. In particular, the `poll_read`
+    /// method, unlike `Read::read`, will automatically queue the current task
+    /// for wakeup and return if data is not yet available, rather than blocking
+    /// the calling thread.
     pub trait AsyncRead {
         /// Determines if this `AsyncRead`er can work with buffers of
         /// uninitialized memory.
@@ -96,25 +106,29 @@ if_std! {
         ///
         /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
         ///
-        /// If reading would block, this function returns `Ok(Async::Pending)`
-        /// and arranges for `cx.waker()` to receive a notification when the
-        /// object becomes readable or is closed.
+        /// If no data is available for reading, the method returns
+        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `cx.waker()`) to receive a notification when the object becomes
+        /// readable or is closed.
         fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
             -> Poll<usize, Error>;
 
         /// Attempt to read from the `AsyncRead` into `vec` using vectored
-        /// IO operations. This allows data to be read into multiple buffers
-        /// using a single operation.
+        /// IO operations.
+        ///
+        /// This method is similar to `poll_read`, but allows data to be read
+        /// into multiple buffers using a single operation.
         ///
         /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
         ///
+        /// If no data is available for reading, the method returns
+        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `cx.waker()`) to receive a notification when the object becomes
+        /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
         /// buffer in `vec`. Objects which support vectored IO should override
         /// this method.
         ///
-        /// If reading would block, this function returns `Ok(Async::Pending)`
-        /// and arranges for `cx.waker()` to receive a notification when the
-        /// object becomes readable or is closed.
         fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
             -> Poll<usize, Error>
         {
@@ -127,31 +141,41 @@ if_std! {
         }
     }
 
-    /// Objects which can be written to asynchronously.
+    /// Write bytes asynchronously.
+    ///
+    /// This trait is analogous to the `std::io::Write` trait, but integrates
+    /// with the asynchronous task system. In particular, the `poll_write`
+    /// method, unlike `Write::write`, will automatically queue the current task
+    /// for wakeup and return if data is not yet available, rather than blocking
+    /// the calling thread.
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
         ///
         /// On success, returns `Ok(Async::Ready(num_bytes_written))`.
         ///
-        /// If writing would block, this function returns `Ok(Async::Pending)`
-        /// and arranges for `cx.waker()` to receive a notification when the
-        /// the object becomes writable or is closed.
+        /// If the object is not ready for writing, the method returns
+        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `cx.waker()`) to receive a notification when the object becomes
+        /// readable or is closed.
         fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
             -> Poll<usize, Error>;
 
         /// Attempt to write bytes from `vec` into the object using vectored
-        /// IO operations. This allows data from multiple buffers to be written
+        /// IO operations.
+        ///
+        /// This method is similar to `poll_write`, but allows data from multiple buffers to be written
         /// using a single operation.
         ///
         /// On success, returns `Ok(Async::Ready(num_bytes_written))`.
         ///
+        /// If the object is not ready for writing, the method returns
+        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `cx.waker()`) to receive a notification when the object becomes
+        /// readable or is closed.
+        ///
         /// By default, this method delegates to using `poll_write` on the first
         /// buffer in `vec`. Objects which support vectored IO should override
         /// this method.
-        ///
-        /// If writing would block, this function returns `Ok(Async::Pending)`
-        /// and arranges for `cx.waker()` to receive a notification when the
-        /// object becomes writable or is closed.
         fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
             -> Poll<usize, Error>
         {
@@ -163,23 +187,25 @@ if_std! {
             }
         }
 
-        /// Attempt to flush the object, ensuring that all intermediately
-        /// buffered contents reach their destination.
+        /// Attempt to flush the object, ensuring that any buffered data reach
+        /// their destination.
         ///
         /// On success, returns `Ok(Async::Ready(()))`.
         ///
-        /// If flushing is incomplete, this function returns `Ok(Async::Pending)`
-        /// and arranges for `cx.waker()` to receive a notification when the
-        /// object can make progress towards flushing.
+        /// If flushing cannot immediately complete, this method returns
+        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `cx.waker()`) to receive a notification when the object can make
+        /// progress towards flushing.
         fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
 
         /// Attempt to close the object.
         ///
         /// On success, returns `Ok(Async::Ready(()))`.
         ///
-        /// If closing is incomplete, this function returns `Ok(Async::Pending)`
-        /// and arranges for `cx.waker()` to receive a notification when the
-        /// object can make progress towards closing.
+        /// If closing cannot immediately complete, this function returns
+        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `cx.waker()`) to receive a notification when the object can make
+        /// progress towards closing.
         fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
     }
 
@@ -263,7 +289,7 @@ if_std! {
         }
     }
 
-    impl<T: ?Sized + AsyncWrite> AsyncWrite for Box<T> { 
+    impl<T: ?Sized + AsyncWrite> AsyncWrite for Box<T> {
         deref_async_write!();
     }
 
