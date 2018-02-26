@@ -6,7 +6,7 @@
 //! [`Stream`](futures_core::Stream) and allows a task to read values out of the
 //! channel. If there is no message to read from the channel, the current task
 //! will be notified when a new value is sent. [`Sender`](Sender) implements the
-//! [`Sink`](futures_core::Sink) trait and allows a task to send messages into
+//! `Sink` trait and allows a task to send messages into
 //! the channel. If the channel is at capacity, the send will be rejected and
 //! the task will be notified when additional capacity is available. In other
 //! words, the channel provides backpressure.
@@ -18,8 +18,8 @@
 //!
 //! When all [`Sender`](Sender) handles have been dropped, it is no longer
 //! possible to send values into the channel. This is considered the termination
-//! event of the stream. As such, [`Sender::poll`](Sender::poll) will return
-//! `Ok(Ready(None))`.
+//! event of the stream. As such, [`Receiver::poll_next`](Receiver::poll_next)
+//! will return `Ok(Ready(None))`.
 //!
 //! If the [`Receiver`](Receiver) handle is dropped, then messages can no longer
 //! be read out of the channel. In this case, all further attempts to send will
@@ -131,7 +131,7 @@ pub struct Receiver<T> {
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-/// The error type for [`Sender`s](Sender) used as [`Sink`s](futures_core::Sink).
+/// The error type for [`Sender`s](Sender) used as `Sink`s.
 ///
 /// It will contain a value of type `T` if one was passed to `start_send`
 /// after the channel was closed.
@@ -323,14 +323,15 @@ impl SenderTask {
 
 /// Creates a bounded mpsc channel for communicating between asynchronous tasks.
 ///
-/// Being bounded, this channel provides back pressure to ensure that the sender
+/// Being bounded, this channel provides backpressure to ensure that the sender
 /// outpaces the receiver by only a limited amount. The channel's capacity is
 /// equal to `buffer + num-senders`. In other words, each sender gets a
 /// guaranteed slot in the channel capacity, and on top of that there are
 /// `buffer` "first come, first serve" slots available to all senders.
 ///
-/// The [`Receiver`](Receiver) returned implements the [`Stream`](Stream) trait,
-/// while [`Sender`](Sender) implements [`Sink`](Sink).
+/// The [`Receiver`](Receiver) returned implements the
+/// [`Stream`](futures_core::Stream) trait, while [`Sender`](Sender) implements
+/// `Sink`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
     // size permitted by the system.

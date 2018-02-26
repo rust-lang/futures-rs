@@ -28,7 +28,7 @@
 //! A mostly lock-free multi-producer, single consumer queue for sending
 //! messages between asynchronous tasks.
 //!
-//! The queue implementatio is essentially the same one used for mpsc channels
+//! The queue implementation is essentially the same one used for mpsc channels
 //! in the standard library.
 //!
 //! Note that the current implementation of this queue has a caveat of the `pop`
