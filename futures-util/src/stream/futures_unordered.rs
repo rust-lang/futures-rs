@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use futures_core::{Stream, Future, Poll, Async};
+use futures_core::{Stream, Future, Poll, Async, IntoFuture};
 use futures_core::task::{self, AtomicWaker, Wake, UnsafeWake, Waker};
 
 /// An unbounded set of futures.
@@ -234,7 +234,7 @@ impl<T> FuturesUnordered<T> {
 
         self.head_all = ptr;
         self.len += 1;
-        return ptr
+        ptr
     }
 
     /// Remove the node from the linked list tracking all nodes currently
@@ -256,7 +256,7 @@ impl<T> FuturesUnordered<T> {
             self.head_all = next;
         }
         self.len -= 1;
-        return node
+        node
     }
 }
 
@@ -417,13 +417,11 @@ impl<T> Drop for FuturesUnordered<T> {
 
 impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
     fn from_iter<T>(iter: T) -> Self
-        where T: IntoIterator<Item = F>
+    where
+        T: IntoIterator<Item = F>,
     {
-        let mut new = FuturesUnordered::new();
-        for future in iter.into_iter() {
-            new.push(future);
-        }
-        new
+        let acc = FuturesUnordered::new();
+        iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
 }
 
@@ -447,7 +445,7 @@ impl<'a, F> Iterator for IterMut<'a, F> {
             let next = *(*self.node).next_all.get();
             self.node = next;
             self.len -= 1;
-            return Some(future);
+            Some(future)
         }
     }
 
@@ -646,7 +644,7 @@ impl<T> Drop for Node<T> {
 fn arc2ptr<T>(ptr: Arc<T>) -> *const T {
     let addr = &*ptr as *const T;
     mem::forget(ptr);
-    return addr
+    addr
 }
 
 unsafe fn ptr2arc<T>(ptr: *const T) -> Arc<T> {
@@ -668,4 +666,22 @@ fn abort(s: &str) -> ! {
 
     let _bomb = DoublePanic;
     panic!("{}", s);
+}
+
+/// Converts a list of futures into a `Stream` of results from the futures.
+///
+/// This function will take an list of futures (e.g. a vector, an iterator,
+/// etc), and return a stream. The stream will yield items as they become
+/// available on the futures internally, in the order that they become
+/// available. This function is similar to `buffer_unordered` in that it may
+/// return items in a different order than in the list specified.
+///
+/// Note that the returned set can also be used to dynamically push more
+/// futures into the set as they become available.
+pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
+where
+    I: IntoIterator,
+    I::Item: IntoFuture,
+{
+    futures.into_iter().map(|f| f.into_future()).collect()
 }

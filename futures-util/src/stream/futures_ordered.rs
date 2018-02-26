@@ -105,16 +105,11 @@ pub struct FuturesOrdered<T>
 /// Note that the returned queue can also be used to dynamically push more
 /// futures into the queue as they become available.
 pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<<I::Item as IntoFuture>::Future>
-    where I: IntoIterator,
-          I::Item: IntoFuture
+where
+    I: IntoIterator,
+    I::Item: IntoFuture,
 {
-    let mut queue = FuturesOrdered::new();
-
-    for future in futures {
-        queue.push(future.into_future());
-    }
-
-    return queue
+    futures.into_iter().map(|f| f.into_future()).collect()
 }
 
 impl<T> FuturesOrdered<T>
@@ -205,12 +200,10 @@ impl<T: Debug> Debug for FuturesOrdered<T>
 
 impl<F: Future> FromIterator<F> for FuturesOrdered<F> {
     fn from_iter<T>(iter: T) -> Self
-        where T: IntoIterator<Item = F>
+    where
+        T: IntoIterator<Item = F>,
     {
-        let mut new = FuturesOrdered::new();
-        for future in iter.into_iter() {
-            new.push(future);
-        }
-        new
+        let acc = FuturesOrdered::new();
+        iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
 }
