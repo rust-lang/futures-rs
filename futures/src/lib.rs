@@ -298,9 +298,6 @@ pub mod sink {
     };
 
     #[cfg(feature = "std")]
-    pub use futures_sink::BoxSink;
-
-    #[cfg(feature = "std")]
     pub use futures_util::sink::Buffer;
 }
 

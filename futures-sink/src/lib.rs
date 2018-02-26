@@ -50,10 +50,6 @@ if_std! {
         }
     }
 
-    /// A type alias for `Box<Sink + Send>`
-    pub type BoxSink<T, E> = ::std::boxed::Box<Sink<SinkItem = T, SinkError = E> +
-                                               ::core::marker::Send>;
-
     impl<S: ?Sized + Sink> Sink for ::std::boxed::Box<S> {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
