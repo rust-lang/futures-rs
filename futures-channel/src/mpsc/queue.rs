@@ -25,11 +25,11 @@
  * policies, either expressed or implied, of Dmitry Vyukov.
  */
 
-//! A mostly lock-free multi-producer, single consumer queue.
+//! A mostly lock-free multi-producer, single consumer queue for sending
+//! messages between asynchronous tasks.
 //!
-//! This module contains an implementation of a concurrent MPSC queue. This
-//! queue can be used to share data between threads, and is also used as the
-//! building block of channels in rust.
+//! The queue implementation is essentially the same one used for mpsc channels
+//! in the standard library.
 //!
 //! Note that the current implementation of this queue has a caveat of the `pop`
 //! method, and see the method for more information about it. Due to this

@@ -1,4 +1,4 @@
-//! A one-shot, futures-aware channel
+//! A channel for sending a single message between asynchronous tasks.
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -8,23 +8,22 @@ use std::fmt;
 
 use futures_core::{Future, Poll, Async};
 use futures_core::task::{self, Waker};
+use futures_core::never::Never;
 
 use lock::Lock;
 
-/// A future representing the completion of a computation happening elsewhere in
-/// memory.
+/// A future for a value that will be provided by another asynchronous task.
 ///
-/// This is created by the `oneshot::channel` function.
+/// This is created by the [`channel`](channel) function.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
 
-/// Represents the completion half of a oneshot through which the result of a
-/// computation is signaled.
+/// A means of transmitting a single value to another task.
 ///
-/// This is created by the `oneshot::channel` function.
+/// This is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
@@ -67,15 +66,15 @@ struct Inner<T> {
     tx_task: Lock<Option<Waker>>,
 }
 
-/// Creates a new futures-aware, one-shot channel.
+/// Creates a new one-shot channel for sending values across asynchronous tasks.
 ///
-/// This function is similar to Rust's channels found in the standard library.
+/// This function is similar to Rust's channel constructor found in the standard library.
 /// Two halves are returned, the first of which is a `Sender` handle, used to
 /// signal the end of a computation and provide its value. The second half is a
 /// `Receiver` which implements the `Future` trait, resolving to the value that
 /// was given to the `Sender` handle.
 ///
-/// Each half can be separately owned and sent across threads/tasks.
+/// Each half can be separately owned and sent across tasks.
 ///
 /// # Examples
 ///
@@ -158,7 +157,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<(), ()> {
+    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<(), Never> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -316,58 +315,39 @@ impl<T> Sender<T> {
     /// Completes this oneshot with a successful result.
     ///
     /// This function will consume `self` and indicate to the other end, the
-    /// `Receiver`, that the value provided is the result of the computation this
-    /// represents.
+    /// [`Receiver`](Receiver), that the value provided is the result of the
+    /// computation this represents.
     ///
     /// If the value is successfully enqueued for the remote end to receive,
-    /// then `Ok(())` is returned. If the receiving end was deallocated before
+    /// then `Ok(())` is returned. If the receiving end was dropped before
     /// this function was called, however, then `Err` is returned with the value
     /// provided.
     pub fn send(self, t: T) -> Result<(), T> {
         self.inner.send(t)
     }
 
-    /// Polls this `Sender` half to detect whether the `Receiver` this has
-    /// paired with has gone away.
+    /// Polls this `Sender` half to detect whether its associated
+    /// [`Receiver`](Receiver) with has been dropped.
     ///
-    /// This function can be used to learn about when the `Receiver` (consumer)
-    /// half has gone away and nothing will be able to receive a message sent
-    /// from `send`.
+    /// # Return values
     ///
-    /// If `Ready` is returned then it means that the `Receiver` has disappeared
-    /// and the result this `Sender` would otherwise produce should no longer
-    /// be produced.
+    /// If `Ok(Ready)` is returnd then the associated `Receiver` has been dropped,
+    /// which means any work required for sending should be cancelled.
     ///
-    /// If `Pending` is returned then the `Receiver` is still alive and may be
-    /// able to receive a message if sent. The current task, however, is
-    /// scheduled to receive a notification if the corresponding `Receiver` goes
-    /// away.
-    ///
-    /// # Panics
-    ///
-    /// Like `Future::poll`, this function will panic if it's not called from
-    /// within the context of a task. In other words, this should only ever be
-    /// called from inside another future.
-    ///
-    /// If you're calling this function from a context that does not have a
-    /// task, then you can use the `is_canceled` API instead.
-    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+    /// If `Ok(Pending)` is returned then the associated `Receiver` is still
+    /// alive and may be able to receive a message if sent. The current task,
+    /// however, is scheduled to receive a notification if the corresponding
+    /// `Receiver` goes away.
+    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
         self.inner.poll_cancel(cx)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
-    /// has gone away.
+    /// has been dropped.
     ///
-    /// This function can be used to learn about when the `Receiver` (consumer)
-    /// half has gone away and nothing will be able to receive a message sent
-    /// from `send`.
-    ///
-    /// Note that this function is intended to *not* be used in the context of a
-    /// future. If you're implementing a future you probably want to call the
-    /// `poll_cancel` function which will block the current task if the
-    /// cancellation hasn't happened yet. This can be useful when working on a
-    /// non-futures related thread, though, which would otherwise panic if
-    /// `poll_cancel` were called.
+    /// Unlike [`poll_cancel`](Sender::poll_cancel), this function does not
+    /// enqueue a task for wakeup upon cancellation, but merely reports the
+    /// current state, which may be subject to concurrent modification.
     pub fn is_canceled(&self) -> bool {
         self.inner.is_canceled()
     }
@@ -379,8 +359,8 @@ impl<T> Drop for Sender<T> {
     }
 }
 
-/// Error returned from a `Receiver<T>` whenever the corresponding `Sender<T>`
-/// is dropped.
+/// Error returned from a [`Receiver`](Receiver) when the corresponding
+/// [`Sender`](Sender) is dropped.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Canceled;
 
@@ -397,12 +377,13 @@ impl Error for Canceled {
 }
 
 impl<T> Receiver<T> {
-    /// Gracefully close this receiver, preventing sending any future messages.
+    /// Gracefully close this receiver, preventing any subsequent attempts to
+    /// send to it.
     ///
     /// Any `send` operation which happens after this method returns is
-    /// guaranteed to fail. Once this method is called the normal `poll` method
-    /// can be used to determine whether a message was actually sent or not. If
-    /// `Canceled` is returned from `poll` then no message was sent.
+    /// guaranteed to fail. After calling this method, you can use
+    /// [`Receiver::poll`](Receiver::poll) to determine whether a message had
+    /// previously been sent.
     pub fn close(&mut self) {
         self.inner.close_rx()
     }
