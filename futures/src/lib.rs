@@ -186,7 +186,7 @@ pub mod future {
     //! immediate defined value.
 
     pub use futures_core::future::{
-        Option, Result, Future, FutureFrom, IntoFuture, err, ok, result
+        FutureOption, FutureResult, Future, FutureFrom, IntoFuture, err, ok, result
     };
     pub use futures_util::future::{
         AndThen, Empty, Flatten, FlattenStream, ErrInto, Fuse,
