@@ -5,14 +5,15 @@ use std::prelude::v1::*;
 
 use std::fmt;
 use std::mem;
+use std::iter::FromIterator;
 
 use futures_core::{Future, IntoFuture, Poll, Async};
 use futures_core::task;
 
 #[derive(Debug)]
-enum ElemState<T> where T: Future {
-    Pending(T),
-    Done(T::Item),
+enum ElemState<F> where F: Future {
+    Pending(F),
+    Done(F::Item),
 }
 
 /// A future which takes a list of futures and resolves with a vector of the
@@ -20,16 +21,15 @@ enum ElemState<T> where T: Future {
 ///
 /// This future is created with the `join_all` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct JoinAll<Item>
-    where Item: IntoFuture,
+pub struct JoinAll<F>
+    where F: Future,
 {
-    elems: Vec<ElemState<<Item as IntoFuture>::Future>>,
+    elems: Vec<ElemState<F>>,
 }
 
-impl<I> fmt::Debug for JoinAll<I>
-    where I: IntoFuture,
-          <I as IntoFuture>::Future: fmt::Debug,
-          <I as IntoFuture>::Item: fmt::Debug,
+impl<F> fmt::Debug for JoinAll<F>
+    where F: Future + fmt::Debug,
+          F::Item: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("JoinAll")
@@ -77,21 +77,21 @@ impl<I> fmt::Debug for JoinAll<I>
 /// });
 /// # }
 /// ```
-pub fn join_all<I>(i: I) -> JoinAll<I::Item>
+pub fn join_all<I>(i: I) -> JoinAll<<I::Item as IntoFuture>::Future>
     where I: IntoIterator,
           I::Item: IntoFuture,
 {
     let elems = i.into_iter().map(|f| {
         ElemState::Pending(f.into_future())
     }).collect();
-    JoinAll { elems: elems }
+    JoinAll { elems }
 }
 
-impl<Item> Future for JoinAll<Item>
-    where Item: IntoFuture,
+impl<F> Future for JoinAll<F>
+    where F: Future,
 {
-    type Item = Vec<<Item as IntoFuture>::Item>;
-    type Error = <Item as IntoFuture>::Error;
+    type Item = Vec<F::Item>;
+    type Error = F::Error;
 
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
@@ -136,4 +136,29 @@ impl<Item> Future for JoinAll<Item>
             Ok(Async::Pending)
         }
     }
+}
+
+impl<F: IntoFuture> FromIterator<F> for JoinAll<F::Future> {
+    fn from_iter<T: IntoIterator<Item=F>>(iter: T) -> Self {
+        join_all(iter)
+    }
+}
+
+#[test]
+fn join_all_from_iter() {
+    let f_ok = |a| {
+        let r: Result<i32, ()> = Ok(a);
+        r.into_future()
+    };
+
+    pub fn assert_done<T, F>(_f: F, _result: Result<T::Item, T::Error>)
+        where T: Future,
+              T::Item: Eq + fmt::Debug,
+              T::Error: Eq + fmt::Debug,
+              F: FnOnce() -> T,
+    {
+        //FIXME: write a real test somehow somewhere
+    }
+
+    assert_done(|| vec![f_ok(1), f_ok(2)].into_iter().collect::<JoinAll<_>>(), Ok(vec![1, 2]))
 }
