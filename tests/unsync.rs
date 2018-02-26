@@ -137,6 +137,20 @@ fn mpsc_send_unpark() {
 }
 
 #[test]
+fn mspc_drop_sender_unparks() {
+    let (tx, rx) = mpsc::channel::<i32>(1);
+
+    let send_future = lazy(move || {
+        drop(tx);
+        Ok(())
+    });
+    rx.for_each(|_: i32| Ok(()))
+        .join(send_future)
+        .wait()
+        .unwrap();
+}
+
+#[test]
 fn spawn_sends_items() {
     let core = Core::new();
     let stream = unfold(0, |i| Ok::<_,u8>(Some((i, i + 1))));
