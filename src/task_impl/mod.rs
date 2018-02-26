@@ -38,12 +38,24 @@ fn fresh_task_id() -> usize {
     id
 }
 
+fn try_with<F: FnOnce(Option<&BorrowedTask>) -> R, R>(f: F) -> R {
+    let task = unsafe {
+        match get_ptr() {
+            Some(ptr) => {
+                if ptr.is_null() {
+                    None
+                } else {
+                    Some(&*(ptr as *const BorrowedTask))
+                }
+            },
+            None => None
+        }
+    };
+    f(task)
+}
+
 fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
-    unsafe {
-        let task = get_ptr().expect("no Task is currently running");
-        assert!(!task.is_null(), "no Task is currently running");
-        f(&*(task as *const BorrowedTask))
-    }
+    try_with(|task| f(task.expect("no Task is currently running")))
 }
 
 /// A handle to a "task", which represents a single lightweight "thread" of
@@ -103,6 +115,13 @@ pub fn current() -> Task {
 #[deprecated(note = "renamed to `current`")]
 pub fn park() -> Task {
     current()
+}
+
+/// Determines if a task is currently being executed.
+///
+/// If this function returns false, `current` and `Task::will_notify_current` will panic.
+pub fn in_task() -> bool {
+    try_with(|task| task.is_some())
 }
 
 impl Task {
