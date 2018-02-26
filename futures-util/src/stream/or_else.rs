@@ -8,7 +8,7 @@ use futures_sink::{Sink};
 /// This structure is produced by the `Stream::or_else` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct OrElse<S, F, U>
+pub struct OrElse<S, U, F>
     where U: IntoFuture,
 {
     stream: S,
@@ -16,7 +16,7 @@ pub struct OrElse<S, F, U>
     f: F,
 }
 
-pub fn new<S, F, U>(s: S, f: F) -> OrElse<S, F, U>
+pub fn new<S, U, F>(s: S, f: F) -> OrElse<S, U, F>
     where S: Stream,
           F: FnMut(S::Error) -> U,
           U: IntoFuture<Item=S::Item>,
@@ -29,7 +29,7 @@ pub fn new<S, F, U>(s: S, f: F) -> OrElse<S, F, U>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, U> Sink for OrElse<S, F, U>
+impl<S, U, F> Sink for OrElse<S, U, F>
     where S: Sink, U: IntoFuture
 {
     type SinkItem = S::SinkItem;
@@ -38,7 +38,7 @@ impl<S, F, U> Sink for OrElse<S, F, U>
     delegate_sink!(stream);
 }
 
-impl<S, F, U> Stream for OrElse<S, F, U>
+impl<S, U, F> Stream for OrElse<S, U, F>
     where S: Stream,
           F: FnMut(S::Error) -> U,
           U: IntoFuture<Item=S::Item>,

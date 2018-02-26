@@ -8,7 +8,7 @@ use futures_sink::{Sink};
 /// This structure is produced by the `Stream::and_then` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct AndThen<S, F, U>
+pub struct AndThen<S, U, F>
     where U: IntoFuture,
 {
     stream: S,
@@ -16,7 +16,7 @@ pub struct AndThen<S, F, U>
     f: F,
 }
 
-pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
+pub fn new<S, U, F>(s: S, f: F) -> AndThen<S, U, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
           U: IntoFuture<Error=S::Error>,
@@ -28,7 +28,7 @@ pub fn new<S, F, U>(s: S, f: F) -> AndThen<S, F, U>
     }
 }
 
-impl<S, F, U> AndThen<S, F, U>
+impl<S, U, F> AndThen<S, U, F>
     where U: IntoFuture,
 {
     /// Acquires a reference to the underlying stream that this combinator is
@@ -56,7 +56,7 @@ impl<S, F, U> AndThen<S, F, U>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, U: IntoFuture> Sink for AndThen<S, F, U>
+impl<S, U: IntoFuture, F> Sink for AndThen<S, U, F>
     where S: Sink
 {
     type SinkItem = S::SinkItem;
@@ -65,7 +65,7 @@ impl<S, F, U: IntoFuture> Sink for AndThen<S, F, U>
     delegate_sink!(stream);
 }
 
-impl<S, F, U> Stream for AndThen<S, F, U>
+impl<S, U, F> Stream for AndThen<S, U, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
           U: IntoFuture<Error=S::Error>,

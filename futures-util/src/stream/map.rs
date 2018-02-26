@@ -13,7 +13,7 @@ pub struct Map<S, F> {
     f: F,
 }
 
-pub fn new<S, F, U>(s: S, f: F) -> Map<S, F>
+pub fn new<S, U, F>(s: S, f: F) -> Map<S, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
 {

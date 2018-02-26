@@ -7,19 +7,19 @@ use futures_core::task;
 /// an `Item`, compatible with any error type of the caller's choosing.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
-pub struct Recover<A, F, E> {
+pub struct Recover<A, E, F> {
     inner: A,
     f: Option<F>,
     err: PhantomData<E>,
 }
 
-pub fn new<A, F, E>(future: A, f: F) -> Recover<A, F, E>
+pub fn new<A, E, F>(future: A, f: F) -> Recover<A, E, F>
     where A: Future
 {
     Recover { inner: future, f: Some(f), err: PhantomData }
 }
 
-impl<A, F, E> Future for Recover<A, F, E>
+impl<A, E, F> Future for Recover<A, E, F>
     where A: Future,
           F: FnOnce(A::Error) -> A::Item,
 {

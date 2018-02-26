@@ -8,19 +8,19 @@ use futures_core::task;
 /// is compatible with any error type of the caller's choosing.
 #[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
-pub struct Recover<A, F, E> {
+pub struct Recover<A, E, F> {
     inner: A,
     f: F,
     err: PhantomData<E>,
 }
 
-pub fn new<A, F, E>(stream: A, f: F) -> Recover<A, F, E>
+pub fn new<A, E, F>(stream: A, f: F) -> Recover<A, E, F>
     where A: Stream
 {
     Recover { inner: stream, f: f, err: PhantomData }
 }
 
-impl<A, F, E> Stream for Recover<A, F, E>
+impl<A, E, F> Stream for Recover<A, E, F>
     where A: Stream,
           F: FnMut(A::Error) -> Option<A::Item>,
 {

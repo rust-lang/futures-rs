@@ -8,7 +8,7 @@ use futures_sink::{Sink};
 /// This structure is produced by the `Stream::filter` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Filter<S, P, R>
+pub struct Filter<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,
@@ -18,7 +18,7 @@ pub struct Filter<S, P, R>
     pending: Option<(R::Future, S::Item)>,
 }
 
-pub fn new<S, P, R>(s: S, pred: P) -> Filter<S, P, R>
+pub fn new<S, R, P>(s: S, pred: P) -> Filter<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,
@@ -30,7 +30,7 @@ pub fn new<S, P, R>(s: S, pred: P) -> Filter<S, P, R>
     }
 }
 
-impl<S, P, R> Filter<S, P, R>
+impl<S, R, P> Filter<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,
@@ -60,7 +60,7 @@ impl<S, P, R> Filter<S, P, R>
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, P, R> Sink for Filter<S, P, R>
+impl<S, R, P> Sink for Filter<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,
@@ -72,7 +72,7 @@ impl<S, P, R> Sink for Filter<S, P, R>
     delegate_sink!(stream);
 }
 
-impl<S, P, R> Stream for Filter<S, P, R>
+impl<S, R, P> Stream for Filter<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
           R: IntoFuture<Item=bool, Error=S::Error>,

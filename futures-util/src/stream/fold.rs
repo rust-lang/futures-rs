@@ -8,7 +8,7 @@ use futures_core::task;
 /// This future is returned by the `Stream::fold` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Fold<S, F, Fut, T> where Fut: IntoFuture {
+pub struct Fold<S, Fut, T, F> where Fut: IntoFuture {
     stream: S,
     f: F,
     state: State<T, Fut::Future>,
@@ -26,7 +26,7 @@ enum State<T, F> where F: Future {
     Processing(F),
 }
 
-pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
+pub fn new<S, Fut, T, F>(s: S, f: F, t: T) -> Fold<S, Fut, T, F>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
           Fut: IntoFuture<Item = T, Error = S::Error>,
@@ -38,7 +38,7 @@ pub fn new<S, F, Fut, T>(s: S, f: F, t: T) -> Fold<S, F, Fut, T>
     }
 }
 
-impl<S, F, Fut, T> Future for Fold<S, F, Fut, T>
+impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
           Fut: IntoFuture<Item = T, Error = S::Error>,

@@ -204,7 +204,7 @@ pub trait StreamExt: Stream {
     /// let evens = rx.filter(|x| Ok(x % 2 == 0));
     /// # }
     /// ```
-    fn filter<P, R>(self, pred: P) -> Filter<Self, P, R>
+    fn filter<R, P>(self, pred: P) -> Filter<Self, R, P>
         where P: FnMut(&Self::Item) -> R,
               R: IntoFuture<Item=bool, Error=Self::Error>,
               Self: Sized,
@@ -247,7 +247,7 @@ pub trait StreamExt: Stream {
     /// });
     /// # }
     /// ```
-    fn filter_map<F, R, B>(self, f: F) -> FilterMap<Self, F, R>
+    fn filter_map<R, B, F>(self, f: F) -> FilterMap<Self, R, F>
         where F: FnMut(Self::Item) -> R,
               R: IntoFuture<Item=Option<B>, Error=Self::Error>,
               Self: Sized,
@@ -291,7 +291,7 @@ pub trait StreamExt: Stream {
     /// });
     /// # }
     /// ```
-    fn then<F, U>(self, f: F) -> Then<Self, F, U>
+    fn then<U, F>(self, f: F) -> Then<Self, U, F>
         where F: FnMut(Result<Self::Item, Self::Error>) -> U,
               U: IntoFuture,
               Self: Sized
@@ -342,7 +342,7 @@ pub trait StreamExt: Stream {
     /// });
     /// # }
     /// ```
-    fn and_then<F, U>(self, f: F) -> AndThen<Self, F, U>
+    fn and_then<U, F>(self, f: F) -> AndThen<Self, U, F>
         where F: FnMut(Self::Item) -> U,
               U: IntoFuture<Error = Self::Error>,
               Self: Sized
@@ -369,7 +369,7 @@ pub trait StreamExt: Stream {
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it.
-    fn or_else<F, U>(self, f: F) -> OrElse<Self, F, U>
+    fn or_else<U, F>(self, f: F) -> OrElse<Self, U, F>
         where F: FnMut(Self::Error) -> U,
               U: IntoFuture<Item = Self::Item>,
               Self: Sized
@@ -490,7 +490,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(block_on(sum), Ok(15));
     /// # }
     /// ```
-    fn fold<F, T, Fut>(self, init: T, f: F) -> Fold<Self, F, Fut, T>
+    fn fold<T, Fut, F>(self, init: T, f: F) -> Fold<Self, Fut, T, F>
         where F: FnMut(T, Self::Item) -> Fut,
               Fut: IntoFuture<Item = T, Error = Self::Error>,
               Self: Sized
@@ -551,7 +551,7 @@ pub trait StreamExt: Stream {
     /// stream until the `predicate` resolves to `false`. Once one element
     /// returns false all future elements will be returned from the underlying
     /// stream.
-    fn skip_while<P, R>(self, pred: P) -> SkipWhile<Self, P, R>
+    fn skip_while<R, P>(self, pred: P) -> SkipWhile<Self, R, P>
         where P: FnMut(&Self::Item) -> R,
               R: IntoFuture<Item=bool, Error=Self::Error>,
               Self: Sized
@@ -565,7 +565,7 @@ pub trait StreamExt: Stream {
     /// This function, like `Iterator::take_while`, will take elements from the
     /// stream until the `predicate` resolves to `false`. Once one element
     /// returns false it will always return that the stream is done.
-    fn take_while<P, R>(self, pred: P) -> TakeWhile<Self, P, R>
+    fn take_while<R, P>(self, pred: P) -> TakeWhile<Self, R, P>
         where P: FnMut(&Self::Item) -> R,
               R: IntoFuture<Item=bool, Error=Self::Error>,
               Self: Sized
@@ -587,7 +587,7 @@ pub trait StreamExt: Stream {
     ///
     /// To process each item in the stream and produce another stream instead
     /// of a single future, use `and_then` instead.
-    fn for_each<F, U>(self, f: F) -> ForEach<Self, F, U>
+    fn for_each<U, F>(self, f: F) -> ForEach<Self, U, F>
         where F: FnMut(Self::Item) -> U,
               U: IntoFuture<Item=(), Error = Self::Error>,
               Self: Sized
@@ -954,7 +954,7 @@ pub trait StreamExt: Stream {
     ///
     /// Because it can never produce an error, the returned `Recover` stream can
     /// conform to any specific `Error` type, including `Never`.
-    fn recover<F, E>(self, f: F) -> Recover<Self, F, E>
+    fn recover<E, F>(self, f: F) -> Recover<Self, E, F>
         where F: FnMut(Self::Error) -> Option<Self::Item>,
               Self: Sized,
     {

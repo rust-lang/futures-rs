@@ -14,7 +14,7 @@ thread_local! {
 }
 
 impl ThreadNotify {
-    pub(crate) fn with_current<F, R>(f: F) -> R
+    pub(crate) fn with_current<R, F>(f: F) -> R
         where F: FnOnce(&Arc<ThreadNotify>) -> R,
     {
         CURRENT_THREAD_NOTIFY.with(f)

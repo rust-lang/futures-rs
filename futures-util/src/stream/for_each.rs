@@ -7,13 +7,13 @@ use futures_core::task;
 /// This structure is returned by the `Stream::for_each` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct ForEach<S, F, U> where U: IntoFuture {
+pub struct ForEach<S, U, F> where U: IntoFuture {
     stream: Option<S>,
     f: F,
     fut: Option<U::Future>,
 }
 
-pub fn new<S, F, U>(s: S, f: F) -> ForEach<S, F, U>
+pub fn new<S, U, F>(s: S, f: F) -> ForEach<S, U, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
           U: IntoFuture<Item = (), Error = S::Error>,
@@ -25,7 +25,7 @@ pub fn new<S, F, U>(s: S, f: F) -> ForEach<S, F, U>
     }
 }
 
-impl<S, F, U> Future for ForEach<S, F, U>
+impl<S, U, F> Future for ForEach<S, U, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
           U: IntoFuture<Item= (), Error = S::Error>,

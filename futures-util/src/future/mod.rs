@@ -115,7 +115,7 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), Err(1));
     /// # }
     /// ```
-    fn map<F, U>(self, f: F) -> Map<Self, F>
+    fn map<U, F>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Item) -> U,
               Self: Sized,
     {
@@ -167,7 +167,7 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), Ok(1));
     /// # }
     /// ```
-    fn map_err<F, E>(self, f: F) -> MapErr<Self, F>
+    fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
               Self: Sized,
     {
@@ -245,7 +245,7 @@ pub trait FutureExt: Future {
     /// });
     /// # }
     /// ```
-    fn then<F, B>(self, f: F) -> Then<Self, B, F>
+    fn then<B, F>(self, f: F) -> Then<Self, B, F>
         where F: FnOnce(result::Result<Self::Item, Self::Error>) -> B,
               B: IntoFuture,
               Self: Sized,
@@ -289,7 +289,7 @@ pub trait FutureExt: Future {
     /// });
     /// # }
     /// ```
-    fn and_then<F, B>(self, f: F) -> AndThen<Self, B, F>
+    fn and_then<B, F>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
               B: IntoFuture<Error = Self::Error>,
               Self: Sized,
@@ -333,7 +333,7 @@ pub trait FutureExt: Future {
     /// });
     /// # }
     /// ```
-    fn or_else<F, B>(self, f: F) -> OrElse<Self, B, F>
+    fn or_else<B, F>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B,
               B: IntoFuture<Item = Self::Item>,
               Self: Sized,
@@ -773,7 +773,7 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), Ok(()));
     /// # }
     /// ```
-    fn recover<E, F>(self, f: F) -> Recover<Self, F, E>
+    fn recover<E, F>(self, f: F) -> Recover<Self, E, F>
         where Self: Sized,
               F: FnOnce(Self::Error) -> Self::Item
     {

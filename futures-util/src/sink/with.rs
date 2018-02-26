@@ -9,7 +9,7 @@ use futures_sink::{Sink};
 /// to pushing a value into the underlying sink.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct With<S, U, F, Fut>
+pub struct With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
           Fut: IntoFuture,
@@ -37,7 +37,7 @@ impl<Fut, T> State<Fut, T> {
     }
 }
 
-pub fn new<S, U, F, Fut>(sink: S, f: F) -> With<S, U, F, Fut>
+pub fn new<S, U, Fut, F>(sink: S, f: F) -> With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
           Fut: IntoFuture<Item = S::SinkItem>,
@@ -52,7 +52,7 @@ pub fn new<S, U, F, Fut>(sink: S, f: F) -> With<S, U, F, Fut>
 }
 
 // Forwarding impl of Stream from the underlying sink
-impl<S, U, F, Fut> Stream for With<S, U, F, Fut>
+impl<S, U, Fut, F> Stream for With<S, U, Fut, F>
     where S: Stream + Sink,
           F: FnMut(U) -> Fut,
           Fut: IntoFuture
@@ -65,7 +65,7 @@ impl<S, U, F, Fut> Stream for With<S, U, F, Fut>
     }
 }
 
-impl<S, U, F, Fut> With<S, U, F, Fut>
+impl<S, U, Fut, F> With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
           Fut: IntoFuture<Item = S::SinkItem>,
@@ -124,7 +124,7 @@ impl<S, U, F, Fut> With<S, U, F, Fut>
     }
 }
 
-impl<S, U, F, Fut> Sink for With<S, U, F, Fut>
+impl<S, U, Fut, F> Sink for With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
           Fut: IntoFuture<Item = S::SinkItem>,
