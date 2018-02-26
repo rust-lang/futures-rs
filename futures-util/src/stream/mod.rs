@@ -1,5 +1,7 @@
-//! This module contains the `StreamExt` trait and a number of adaptors for this
-//! trait. See the crate docs, and the docs for `Stream`, for full detail.
+//! Streams
+//!
+//! This module contains a number of functions for working with `Stream`s,
+//! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use futures_core::{IntoFuture, Stream};
 use futures_sink::Sink;

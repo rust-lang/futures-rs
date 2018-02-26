@@ -1,8 +1,8 @@
 use futures_core::{Async, Poll, Future, Stream};
 use futures_core::task;
 
-/// Future that forwards one element from the underlying future
-/// (whether it is success of error) and emits EOF after that.
+/// A type which converts a `Future` into a `Stream`
+/// containing a single element.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct IntoStream<F: Future> {

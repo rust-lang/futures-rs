@@ -261,6 +261,12 @@ pub mod prelude {
 
     pub use futures_sink::Sink;
 
+    #[cfg(feature = "std")]
+    pub use futures_io::{
+        AsyncRead,
+        AsyncWrite,
+    };
+
     pub use futures_util::{
         FutureExt,
         StreamExt,
@@ -269,8 +275,6 @@ pub mod prelude {
 
     #[cfg(feature = "std")]
     pub use futures_util::{
-        AsyncRead,
-        AsyncWrite,
         AsyncReadExt,
         AsyncWriteExt,
     };

@@ -1,5 +1,7 @@
-//! This module contains the `Sink` trait, along with a number of adapter types
-//! for it. An overview is available in the documentation for the trait itself.
+//! Sinks
+//!
+//! This module contains a number of functions for working with `Sink`s,
+//! including the `SinkExt` trait which adds methods to `Sink` types.
 
 use futures_core::{Stream, IntoFuture};
 use futures_sink::Sink;

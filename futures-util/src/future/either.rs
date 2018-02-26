@@ -1,8 +1,11 @@
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
-/// Combines two different futures yielding the same item and error
-/// types into a single type.
+/// A `Future` which is `Either` future `A` or future `B`.
+/// 
+/// This type can be used to return either one of two different futures
+/// from the same function, provided that the futures have the same
+/// `Item` and `Error` types.
 #[derive(Debug)]
 pub enum Either<A, B> {
     /// First branch of the type

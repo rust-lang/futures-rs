@@ -1,5 +1,7 @@
-//! This module contains the `FutureExt` trait and a number of adaptors for this
-//! trait. See the crate docs, and the docs for `Future`, for full detail.
+//! Futures
+//!
+//! This module contains a number of functions for working with `Future`s,
+//! including the `FutureExt` trait which adds methods to `Future` types.
 
 use core::result;
 

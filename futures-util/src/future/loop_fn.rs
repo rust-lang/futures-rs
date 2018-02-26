@@ -3,7 +3,7 @@
 use futures_core::{Async, Future, IntoFuture, Poll};
 use futures_core::task;
 
-/// The status of a `loop_fn` loop.
+/// An enum describing whether to `break` or `continue` a `loop_fn` loop.
 #[derive(Debug)]
 pub enum Loop<T, S> {
     /// Indicates that the loop has completed with output `T`.

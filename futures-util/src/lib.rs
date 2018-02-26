@@ -54,7 +54,7 @@ pub use future::FutureExt;
 #[cfg(feature = "std")]
 pub mod io;
 #[cfg(feature = "std")]
-pub use io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt};
+pub use io::{AsyncReadExt, AsyncWriteExt};
 
 pub mod stream;
 pub use stream::StreamExt;
@@ -63,10 +63,8 @@ pub mod sink;
 pub use sink::SinkExt;
 
 pub mod prelude {
-    //! Prelude with common traits from the `futures-util` crate.
-    //!
-    //! This prelude includes all of the `...Ext` traits.
-    //! These traits add convenience methods to types that implement the base traits.
+    //! Prelude containing the extension traits, which add functionality to
+    //! existing asynchronous types.
     pub use {FutureExt, StreamExt, SinkExt};
     #[cfg(feature = "std")]
     pub use {AsyncReadExt, AsyncWriteExt};
