@@ -143,7 +143,10 @@ impl fmt::Debug for LocalMap {
 /// A way of waking up a specific task.
 ///
 /// Any task executor must provide a way of signaling that a task it owns
-/// is ready to be `poll`ed again. Executors do so by implementing this trait.
+/// is ready to be `poll`ed again. Executors do so by implementing this trait
+/// or the `WakeArc` trait. Types which implement `Wake` will automatically
+/// receive implementaitons of `WakeArc`, so `Wake` impls should be
+/// preferred where possible.
 ///
 /// Note that, rather than working directly with `Wake` trait objects, this
 /// library instead uses a custom [`Waker`](::task::Waker) to allow for
@@ -322,6 +325,31 @@ if_std! {
 
     pub use self::data::LocalKey;
 
+    /// Any task executor must provide a way of signaling that a task it owns
+    /// is ready to be `poll`ed again. Executors do so by implementing this trait
+    /// or the `Wake` trait. This trait should be implemented only when the
+    /// `wake` implementation requires access to an `Arc` of the type being
+    /// awoken (such as when cloning and placing the `Arc` onto a readiness
+    /// queue).
+    ///
+    /// Note that, rather than working directly with `Wake` trait objects, this
+    /// library instead uses a custom [`Waker`](::task::Waker) to allow for
+    /// customization of memory management.
+    pub trait WakeArc: Send + Sync {
+        /// Indicates that the associated task is ready to make progress and should
+        /// be `poll`ed.
+        ///
+        /// Executors generally maintain a queue of "ready" tasks; `wake` should place
+        /// the associated task onto this queue.
+        fn wake_arc(arc: &Arc<Self>);
+    }
+
+    impl<T: Wake> WakeArc for T {
+        fn wake_arc(arc: &Arc<Self>) {
+            arc.wake()
+        }
+    }
+
     // Safe implementation of `UnsafeWake` for `Arc` in the standard library.
     //
     // Note that this is a very unsafe implementation! The crucial pieces is that
@@ -341,16 +369,16 @@ if_std! {
 
     struct ArcWrapped<T>(PhantomData<T>);
 
-    impl<T: Wake + 'static> Wake for ArcWrapped<T> {
+    impl<T: WakeArc + 'static> Wake for ArcWrapped<T> {
         fn wake(&self) {
             unsafe {
                 let me: *const ArcWrapped<T> = self;
-                T::wake(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>))
+                T::wake_arc(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>))
             }
         }
     }
 
-    unsafe impl<T: Wake + 'static> UnsafeWake for ArcWrapped<T> {
+    unsafe impl<T: WakeArc + 'static> UnsafeWake for ArcWrapped<T> {
         unsafe fn clone_raw(&self) -> Waker {
             let me: *const ArcWrapped<T> = self;
             let arc = (*(&me as *const *const ArcWrapped<T> as *const Arc<T>)).clone();
@@ -365,7 +393,7 @@ if_std! {
     }
 
     impl<T> From<Arc<T>> for Waker
-        where T: Wake + 'static,
+        where T: WakeArc + 'static,
     {
         fn from(rc: Arc<T>) -> Waker {
             unsafe {
