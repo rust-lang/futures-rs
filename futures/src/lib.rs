@@ -356,9 +356,9 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        AtomicWaker, Context, LocalMap, Waker, UnsafeWake, Wake
+        AtomicWaker, Context, LocalMap, Waker, UnsafeWake,
     };
 
     #[cfg(feature = "std")]
-    pub use futures_core::task::LocalKey;
+    pub use futures_core::task::{LocalKey, Wake};
 }

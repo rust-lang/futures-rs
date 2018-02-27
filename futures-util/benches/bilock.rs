@@ -11,18 +11,17 @@ use futures_util::lock::BiLock;
 use futures_util::lock::BiLockAcquire;
 use futures_util::lock::BiLockAcquired;
 
+use std::sync::Arc;
 use test::Bencher;
 
 fn notify_noop() -> Waker {
     struct Noop;
 
     impl Wake for Noop {
-        fn wake(&self) {}
+        fn wake(_: &Arc<Self>) {}
     }
 
-    const NOOP : &'static Noop = &Noop;
-
-    Waker::from(NOOP)
+    Waker::from(Arc::new(Noop))
 }
 
 
