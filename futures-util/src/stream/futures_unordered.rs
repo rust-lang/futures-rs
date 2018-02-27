@@ -12,7 +12,7 @@ use std::sync::{Arc, Weak};
 use std::usize;
 
 use futures_core::{Stream, Future, Poll, Async, IntoFuture};
-use futures_core::task::{self, AtomicWaker, Wake, UnsafeWake, Waker};
+use futures_core::task::{self, AtomicWaker, UnsafeWake, Waker};
 
 /// A set of `Future`s which may complete in any order.
 ///
@@ -551,17 +551,6 @@ struct ArcNode<T>(PhantomData<T>);
 unsafe impl<T> Send for ArcNode<T> {}
 unsafe impl<T> Sync for ArcNode<T> {}
 
-impl<T> Wake for ArcNode<T> {
-    fn wake(&self) {
-        unsafe {
-            let me: *const ArcNode<T> = self;
-            let me: *const *const ArcNode<T> = &me;
-            let me = me as *const Arc<Node<T>>;
-            Node::notify(&*me)
-        }
-    }
-}
-
 unsafe impl<T> UnsafeWake for ArcNode<T> {
     unsafe fn clone_raw(&self) -> Waker {
         let me: *const ArcNode<T> = self;
@@ -574,6 +563,13 @@ unsafe impl<T> UnsafeWake for ArcNode<T> {
         let mut me: *const ArcNode<T> = self;
         let me = &mut me as *mut *const ArcNode<T> as *mut Arc<Node<T>>;
         ptr::drop_in_place(me);
+    }
+
+    unsafe fn wake(&self) {
+        let me: *const ArcNode<T> = self;
+        let me: *const *const ArcNode<T> = &me;
+        let me = me as *const Arc<Node<T>>;
+        Node::notify(&*me)
     }
 }
 

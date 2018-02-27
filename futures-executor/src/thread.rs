@@ -26,7 +26,7 @@ impl ThreadNotify {
 }
 
 impl Wake for ThreadNotify {
-    fn wake(&self) {
-        self.thread.unpark();
+    fn wake(arc_self: &Arc<Self>) {
+        arc_self.thread.unpark();
     }
 }

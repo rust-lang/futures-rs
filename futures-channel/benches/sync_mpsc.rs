@@ -14,18 +14,17 @@ use futures_channel::mpsc::channel;
 use futures_channel::mpsc::Sender;
 use futures_channel::mpsc::UnboundedSender;
 
+use std::sync::Arc;
 use test::Bencher;
 
 fn notify_noop() -> Waker {
     struct Noop;
 
     impl Wake for Noop {
-        fn wake(&self) {}
+        fn wake(_: &Arc<Self>) {}
     }
 
-    const NOOP : &'static Noop = &Noop;
-
-    Waker::from(NOOP)
+    Waker::from(Arc::new(Noop))
 }
 
 /// Single producer, single consumer

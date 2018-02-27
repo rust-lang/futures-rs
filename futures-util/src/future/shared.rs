@@ -113,7 +113,7 @@ impl<F> Shared<F> where F: Future {
     fn complete(&self) {
         unsafe { *self.inner.future.get() = None };
         self.inner.notifier.state.store(COMPLETE, SeqCst);
-        self.inner.notifier.wake();
+        Wake::wake(&self.inner.notifier);
     }
 }
 
@@ -223,10 +223,10 @@ impl<F> Drop for Shared<F> where F: Future {
 }
 
 impl Wake for Notifier {
-    fn wake(&self) {
-        self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
+    fn wake(arc_self: &Arc<Self>) {
+        arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
-        let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), HashMap::new());
+        let waiters = mem::replace(&mut *arc_self.waiters.lock().unwrap(), HashMap::new());
 
         for (_, waiter) in waiters {
             waiter.wake();
