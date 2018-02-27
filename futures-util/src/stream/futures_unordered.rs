@@ -255,7 +255,7 @@ impl<T> Stream for FuturesUnordered<T>
 
     fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
         // Ensure `parent` is correctly set.
-        self.inner.parent.register(cx);
+        self.inner.parent.register(cx.waker());
 
         loop {
             let node = match unsafe { self.inner.dequeue() } {
