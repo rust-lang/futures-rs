@@ -1012,6 +1012,60 @@ pub trait Future {
     {
         shared::new(self)
     }
+
+    /// Wrap this future in an `Either` future, making it the left-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `right` method to write `if`
+    /// statements that evaluate to different futures in different branches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let x = 6;
+    /// let future = if x < 10 {
+    ///     ok::<_, bool>(x).left()
+    /// } else {
+    ///     empty().right()
+    /// };
+    ///
+    /// assert_eq!(x, future.wait().unwrap());
+    /// ```
+    fn left<B>(self) -> Either<Self, B>
+        where B: Future<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        Either::A(self)
+    }
+
+    /// Wrap this future in an `Either` future, making it the right-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `left` method to write `if`
+    /// statements that evaluate to different futures in different branches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::future::*;
+    ///
+    /// let x = 6;
+    /// let future = if x < 10 {
+    ///     ok::<_, bool>(x).left()
+    /// } else {
+    ///     empty().right()
+    /// };
+    ///
+    /// assert_eq!(x, future.wait().unwrap());
+    /// ```
+    fn right<A>(self) -> Either<A, Self>
+        where A: Future<Item = Self::Item, Error = Self::Error>,
+              Self: Sized,
+    {
+        Either::B(self)
+    }
 }
 
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
