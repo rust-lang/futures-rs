@@ -1,7 +1,4 @@
-//! Asynchronous streams
-//!
-//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
-//! overview.
+//! Asynchronous streams.
 
 use Poll;
 use task;

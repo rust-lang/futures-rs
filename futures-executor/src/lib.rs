@@ -1,7 +1,4 @@
 //! Built-in executors and related tools.
-//!
-//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
-//! overview.
 
 #![no_std]
 #![deny(missing_docs)]

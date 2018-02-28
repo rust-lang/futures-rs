@@ -1,7 +1,4 @@
-//! Futures
-//!
-//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
-//! overview.
+//! Futures.
 
 use Poll;
 use task;

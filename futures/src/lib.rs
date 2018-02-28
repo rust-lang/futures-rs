@@ -18,11 +18,6 @@
 //! threading. Large asynchronous computations are built up using futures,
 //! streams and sinks, and then spawned as independent tasks that are run to
 //! completion, but *do not block* the thread running them.
-//!
-//! **The best way to learn about this crate is through the [Asynchronous
-//! Programming in Rust](https://aturon.github.io/apr/) book**, which provides a
-//! comprehensive introduction. The docs within this crate, by contrast, are
-//! intended primarily as a reference.
 
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/futures/0.2")]
