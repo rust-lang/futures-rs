@@ -5,7 +5,7 @@ use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release};
 
-use task::{self, Waker};
+use task::Waker;
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -72,7 +72,7 @@ impl AtomicWaker {
         }
     }
 
-    /// Registers the current task to be notified on calls to `notify`.
+    /// Registers the waker to be notified on calls to `notify`.
     ///
     /// The new task will take place of any previous tasks that were registered
     /// by previous calls to `register`. Any calls to `notify` that happen after
@@ -87,10 +87,7 @@ impl AtomicWaker {
     /// idea. Concurrent calls to `register` will attempt to register different
     /// tasks to be notified. One of the callers will win and have its task set,
     /// but there is no guarantee as to which caller will succeed.
-    pub fn register(&self, cx: &mut task::Context) {
-        // Get a new task handle
-        let task = cx.waker();
-
+    pub fn register(&self, task: Waker) {
         match self.state.compare_and_swap(WAITING, LOCKED_WRITE, Acquire) {
             WAITING => {
                 unsafe {
