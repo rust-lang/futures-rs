@@ -1,7 +1,4 @@
 //! Task notification.
-//!
-//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
-//! overview.
 
 use core::fmt;
 

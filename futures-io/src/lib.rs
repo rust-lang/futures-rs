@@ -3,9 +3,6 @@
 //! This crate contains the `AsyncRead` and `AsyncWrite` traits, the
 //! asynchronous analogs to `std::io::{Read, Write}`. The primary difference is
 //! that these traits integrate with the asynchronous task system.
-//!
-//! See [Asynchronous Programming in Rust](https://aturon.github.io/apr/) for an
-//! overview.
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
