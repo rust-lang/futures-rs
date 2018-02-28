@@ -4,9 +4,9 @@
 //! overview.
 
 use core::fmt;
-use core::marker::PhantomData;
 
 if_std! {
+    use core::marker::PhantomData;
     use never::Never;
     use executor::Executor;
     type Exec<'a> = &'a mut Executor;
@@ -140,28 +140,6 @@ impl fmt::Debug for LocalMap {
     }
 }
 
-/// A way of waking up a specific task.
-///
-/// Any task executor must provide a way of signaling that a task it owns
-/// is ready to be `poll`ed again. Executors do so by implementing this trait.
-///
-/// Note that, rather than working directly with `Wake` trait objects, this
-/// library instead uses a custom [`Waker`](::task::Waker) to allow for
-/// customization of memory management.
-pub trait Wake: Send + Sync {
-    /// Indicates that the associated task is ready to make progress and should
-    /// be `poll`ed.
-    ///
-    /// Executors generally maintain a queue of "ready" tasks; `wake` should place
-    /// the associated task onto this queue.
-    ///
-    /// # Panics
-    ///
-    /// Implementations should avoid panicking, but clients should also be prepared
-    /// for panics.
-    fn wake(&self);
-}
-
 /// An unsafe trait for implementing custom memory management for a
 /// [`Waker`](::task::Waker).
 ///
@@ -191,7 +169,7 @@ pub trait Wake: Send + Sync {
 /// In general it's recommended to review the trait documentation as well as the
 /// implementation for `Arc` in this crate before attempting a custom
 /// implementation.
-pub unsafe trait UnsafeWake: Wake {
+pub unsafe trait UnsafeWake {
     /// Creates a new `Waker` from this instance of `UnsafeWake`.
     ///
     /// This function will create a new uniquely owned handle that under the
@@ -223,8 +201,25 @@ pub unsafe trait UnsafeWake: Wake {
     /// # Unsafety
     ///
     /// This is also unsafe to call because it's asserting the `UnsafeWake`
-    /// value is in a consistent state, i.e. hasn't been dropped.
+    /// value is in a consistent state, i.e. hasn't been dropped
     unsafe fn drop_raw(&self);
+
+    /// Indicates that the associated task is ready to make progress and should
+    /// be `poll`ed.
+    ///
+    /// Executors generally maintain a queue of "ready" tasks; `wake` should place
+    /// the associated task onto this queue.
+    ///
+    /// # Panics
+    ///
+    /// Implementations should avoid panicking, but clients should also be prepared
+    /// for panics.
+    ///
+    /// # Unsafety
+    ///
+    /// This is also unsafe to call because it's asserting the `UnsafeWake`
+    /// value is in a consistent state, i.e. hasn't been dropped
+    unsafe fn wake(&self);
 }
 
 /// A `Waker` is a handle for waking up a task by notifying its executor that it
@@ -289,30 +284,6 @@ impl Drop for Waker {
     }
 }
 
-/// Marker for a `T` that is behind &'static.
-struct StaticRef<T>(PhantomData<T>);
-
-impl<T: Wake> Wake for StaticRef<T> {
-    fn wake(&self) {
-        let me = unsafe { &*(self as *const _ as *const T) };
-        me.wake();
-    }
-}
-
-unsafe impl<T: Wake + 'static> UnsafeWake for StaticRef<T> {
-    unsafe fn clone_raw(&self) -> Waker {
-        Waker::new(self as *const _ as *mut StaticRef<T>)
-    }
-
-    unsafe fn drop_raw(&self) {}
-}
-
-impl<T: Wake> From<&'static T> for Waker {
-    fn from(src : &'static T) -> Waker {
-        unsafe { Waker::new(src as *const _ as *mut StaticRef<T>) }
-    }
-}
-
 if_std! {
     use std::mem;
     use std::ptr;
@@ -321,6 +292,28 @@ if_std! {
     mod data;
 
     pub use self::data::LocalKey;
+
+    /// A way of waking up a specific task.
+    ///
+    /// Any task executor must provide a way of signaling that a task it owns
+    /// is ready to be `poll`ed again. Executors do so by implementing this trait.
+    ///
+    /// Note that, rather than working directly with `Wake` trait objects, this
+    /// library instead uses a custom [`Waker`](::task::Waker) to allow for
+    /// customization of memory management.
+    pub trait Wake: Send + Sync {
+        /// Indicates that the associated task is ready to make progress and should
+        /// be `poll`ed.
+        ///
+        /// Executors generally maintain a queue of "ready" tasks; `wake` should place
+        /// the associated task onto this queue.
+        ///
+        /// # Panics
+        ///
+        /// Implementations should avoid panicking, but clients should also be prepared
+        /// for panics.
+        fn wake(arc_self: &Arc<Self>);
+    }
 
     // Safe implementation of `UnsafeWake` for `Arc` in the standard library.
     //
@@ -341,15 +334,6 @@ if_std! {
 
     struct ArcWrapped<T>(PhantomData<T>);
 
-    impl<T: Wake + 'static> Wake for ArcWrapped<T> {
-        fn wake(&self) {
-            unsafe {
-                let me: *const ArcWrapped<T> = self;
-                T::wake(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>))
-            }
-        }
-    }
-
     unsafe impl<T: Wake + 'static> UnsafeWake for ArcWrapped<T> {
         unsafe fn clone_raw(&self) -> Waker {
             let me: *const ArcWrapped<T> = self;
@@ -361,6 +345,11 @@ if_std! {
             let mut me: *const ArcWrapped<T> = self;
             let me = &mut me as *mut *const ArcWrapped<T> as *mut Arc<T>;
             ptr::drop_in_place(me);
+        }
+
+        unsafe fn wake(&self) {
+            let me: *const ArcWrapped<T> = self;
+            T::wake(&*(&me as *const *const ArcWrapped<T> as *const Arc<T>))
         }
     }
 

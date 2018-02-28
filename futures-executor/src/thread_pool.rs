@@ -323,9 +323,9 @@ impl fmt::Debug for Task {
 }
 
 impl Wake for WakeHandle {
-    fn wake(&self) {
-        match self.mutex.notify() {
-            Ok(task) => self.exec.state.send(Message::Run(task)),
+    fn wake(arc_self: &Arc<Self>) {
+        match arc_self.mutex.notify() {
+            Ok(task) => arc_self.exec.state.send(Message::Run(task)),
             Err(()) => {}
         }
     }
