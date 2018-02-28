@@ -59,7 +59,7 @@ pub trait Future {
     /// - `Ok(Async::Pending)` if the future is not ready yet
     /// - `Ok(Async::Ready(val))` with the result `val` of this future if it finished
     /// successfully.
-    /// - `Err(err)`` if the future is finished but resolved to an error `err`.
+    /// - `Err(err)` if the future is finished but resolved to an error `err`.
     ///
     /// Once a future has finished, clients should not `poll` it again.
     ///
