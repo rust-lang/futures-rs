@@ -601,7 +601,7 @@ impl<T> Node<T> {
         let prev = me.queued.swap(true, SeqCst);
         if !prev {
             inner.enqueue(&**me);
-            inner.parent.notify();
+            inner.parent.wake();
         }
     }
 }

@@ -124,10 +124,10 @@ impl AtomicWaker {
         }
     }
 
-    /// Notifies the task that last called `register`.
+    /// Calls `wake` on the last `Waker` passed to `register`.
     ///
     /// If `register` has not been called yet, then this does nothing.
-    pub fn notify(&self) {
+    pub fn wake(&self) {
         let mut curr = WAITING;
 
         loop {
