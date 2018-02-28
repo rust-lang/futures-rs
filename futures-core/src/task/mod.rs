@@ -255,6 +255,18 @@ impl Waker {
     pub fn wake(&self) {
         unsafe { (*self.inner).wake() }
     }
+
+    /// Returns whether or not this `Waker` and `other` awaken the same task.
+    ///
+    /// This function works on a best-effort basis, and may return false even
+    /// when the `Waker`s would awaken the same task. However, if this function
+    /// returns true, it is guaranteed that the `Waker`s will awaken the same
+    /// task.
+    ///
+    /// This function is primarily used for optimization purposes.
+    pub fn will_wake(&self, other: &Waker) -> bool {
+        self.inner == other.inner
+    }
 }
 
 impl Clone for Waker {
