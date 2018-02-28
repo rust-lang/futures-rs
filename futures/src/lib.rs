@@ -259,6 +259,9 @@ pub mod prelude {
         task,
     };
 
+    #[cfg(feature = "std")]
+    pub use futures_core::executor::Executor;
+
     pub use futures_sink::Sink;
 
     #[cfg(feature = "std")]
