@@ -2,8 +2,7 @@
 
 extern crate futures_await as futures;
 
-use futures::stable::PinnedFuture;
-use futures::executor;
+use futures::stable::block_on_stable;
 use futures::prelude::*;
 
 #[async]
@@ -32,7 +31,7 @@ fn _stream1() -> Result<(), i32> {
 
 #[test]
 fn main() {
-    assert_eq!(executor::block_on(foo().anchor()), Ok(1));
-    assert_eq!(executor::block_on(bar(&1).anchor()), Ok(1));
-    assert_eq!(executor::block_on(baz(17).anchor()), Ok(17));
+    assert_eq!(block_on_stable(foo()), Ok(1));
+    assert_eq!(block_on_stable(bar(&1)), Ok(1));
+    assert_eq!(block_on_stable(baz(17)), Ok(17));
 }

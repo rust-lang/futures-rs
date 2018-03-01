@@ -2,8 +2,7 @@
 
 extern crate futures_await as futures;
 
-use futures::stable::PinnedFuture;
-use futures::executor;
+use futures::stable::block_on_stable;
 use futures::prelude::*;
 
 struct Ref<'a, T: 'a>(&'a T);
@@ -52,10 +51,10 @@ fn check_for_name_colision<'_async0, T>(_x: &T, _y: &'_async0 i32) -> Result<(),
 fn main() {
     let x = 0;
     let foo = Foo(x);
-    assert_eq!(executor::block_on(references(&x).anchor()), Ok(x));
-    assert_eq!(executor::block_on(new_types(Ref(&x)).anchor()), Ok(x));
-    assert_eq!(executor::block_on(references_move(&x)), Ok(x));
-    assert_eq!(executor::block_on(single_ref(&x).anchor()), Ok(&x));
-    assert_eq!(executor::block_on(foo.foo().anchor()), Ok(&x));
-    assert_eq!(executor::block_on(check_for_name_colision(&x, &x).anchor()), Ok(()));
+    assert_eq!(block_on_stable(references(&x)), Ok(x));
+    assert_eq!(block_on_stable(new_types(Ref(&x))), Ok(x));
+    assert_eq!(block_on_stable(references_move(&x)), Ok(x));
+    assert_eq!(block_on_stable(single_ref(&x)), Ok(&x));
+    assert_eq!(block_on_stable(foo.foo()), Ok(&x));
+    assert_eq!(block_on_stable(check_for_name_colision(&x, &x)), Ok(()));
 }

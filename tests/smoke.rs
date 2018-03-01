@@ -11,6 +11,7 @@ use futures::executor::{self, Executor};
 
 use std::io;
 
+use futures::Never;
 use futures::future::poll_fn;
 use futures::prelude::*;
 
@@ -62,7 +63,7 @@ fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
 }
 
 #[async_move(boxed_send)]
-fn _foo9() -> Result<(), ()> {
+fn _foo9() -> Result<(), Never> {
     Ok(())
 }
 
@@ -178,7 +179,7 @@ fn await_item_stream() -> Result<(), i32> {
 }
 
 #[async_move]
-fn test_await_item() -> Result<(), ()> {
+fn test_await_item() -> Result<(), Never> {
     let mut stream = await_item_stream();
 
     assert_eq!(await_item!(stream), Ok(Some(0)));
@@ -227,13 +228,13 @@ fn poll_stream_after_error_stream() -> Result<(), ()> {
 #[test]
 fn poll_stream_after_error() {
     let mut s = poll_stream_after_error_stream();
-    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll(ctx))), Ok(Some(5)));
-    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll(ctx))), Err(()));
-    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll(ctx))), Ok(None));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll_next(ctx))), Ok(Some(5)));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll_next(ctx))), Err(()));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll_next(ctx))), Ok(None));
 }
 
 #[test]
 fn run_boxed_future_in_cpu_pool() {
-    let mut pool = executor::ThreadPool::new_num_cpus();
+    let mut pool = executor::ThreadPool::new();
     pool.spawn(_foo9()).unwrap();
 }

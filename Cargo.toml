@@ -24,7 +24,3 @@ futures-await-await-macro = { path = "futures-await-await-macro", version = "0.1
 futures = { git = "https://github.com/rust-lang-nursery/futures-rs", branch = "0.2" }
 futures-stable = { git = "https://github.com/withoutboats/futures-stable" }
 anchor-experiment = { git = "https://github.com/withoutboats/anchor_experiment" }
-
-[dev-dependencies]
-tokio-core = "0.1"
-tokio-io = "0.1"

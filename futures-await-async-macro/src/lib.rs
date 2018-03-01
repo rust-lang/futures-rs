@@ -252,21 +252,21 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         let output_span = first_last(&output);
         let return_ty = if boxed && !send {
             quote_cs! {
-                ::futures::__rt::AnchoredBox<::futures::__rt::Future<
+                ::futures::__rt::PinBox<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
             }
         } else if boxed && send {
             quote_cs! {
-                ::futures::__rt::AnchoredBox<::futures::__rt::Future<
+                ::futures::__rt::PinBox<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 > + Send>
             }
         } else {
             quote_cs! {
-                impl ::futures::__rt::MyPinnedFuture<!> + #( #lifetimes + )*
+                impl ::futures::__rt::MyStableFuture<!> + #( #lifetimes + )*
             }
         };
         let return_ty = respan(return_ty.into(), &output_span);
@@ -359,13 +359,13 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {
-                ::futures::__rt::AnchoredBox<::futures::__rt::Stream<
+                ::futures::__rt::PinBox<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 > + #(#lifetimes +)*>
             }
         } else {
-            quote_cs! { impl ::futures::__rt::MyPinnedStream<!, !> + #(#lifetimes +)* }
+            quote_cs! { impl ::futures::__rt::MyStableStream<!, !> + #(#lifetimes +)* }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bangs(return_ty, &[&item_ty, &output])
@@ -523,7 +523,7 @@ impl Fold for ExpandAsyncFor {
                 let #pat = {
                     extern crate futures_await;
                     let ctx = futures_await::__rt::get_ctx();
-                    let r = futures_await::__rt::Stream::poll(&mut __stream, unsafe { &mut *ctx })?;
+                    let r = futures_await::__rt::Stream::poll_next(&mut __stream, unsafe { &mut *ctx })?;
                     match r {
                         futures_await::__rt::Async::Ready(e) => {
                             match e {

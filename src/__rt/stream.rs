@@ -35,7 +35,7 @@ impl<U, T> Stream for GenStream<U, T>
     type Item = U;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset(cell.get(), cell);
             cell.set(unsafe { mem::transmute(ctx) });

@@ -13,7 +13,7 @@ pub use self::pinned_future::*;
 pub use self::pinned_stream::*;
 
 pub use futures::prelude::{Async, Future, Stream};
-pub use stable::{PinnedFuture, PinnedStream};
+pub use stable::{StableFuture, StableStream};
 
 pub extern crate std;
 pub extern crate anchor_experiment;
