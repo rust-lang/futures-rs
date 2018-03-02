@@ -7,6 +7,8 @@
 #[macro_use]
 #[cfg(feature = "std")]
 extern crate std;
+#[cfg(feature = "either")]
+extern crate either;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
