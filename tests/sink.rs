@@ -115,7 +115,7 @@ fn mpsc_blocking_start_send() {
         let flag = Flag::new();
         let mut task = executor::spawn(StartSendFut::new(tx, 1));
 
-        assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+        assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
         assert!(!flag.get());
         sassert_next(&mut rx, 0);
         assert!(flag.get());
@@ -143,7 +143,7 @@ fn with_flush() {
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     tx.send(()).unwrap();
     assert!(flag.get());
 
@@ -240,7 +240,7 @@ fn with_flush_propagate() {
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.flush());
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     assert!(!flag.get());
     assert_eq!(task.get_mut().get_mut().unwrap().get_mut().force_flush(), vec![0, 1]);
     assert!(flag.get());
@@ -340,7 +340,7 @@ fn buffer() {
 
     let flag = Flag::new();
     let mut task = executor::spawn(sink.send(2));
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     assert!(!flag.get());
     allow.start();
     assert!(flag.get());
@@ -376,19 +376,19 @@ fn fanout_backpressure() {
     let flag = Flag::new();
     let mut task = executor::spawn(sink.send(2));
     assert!(!flag.get());
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     let (item, left_recv) = left_recv.into_future().wait().unwrap();
     assert_eq!(item, Some(0));
     assert!(flag.get());
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     let (item, right_recv) = right_recv.into_future().wait().unwrap();
     assert_eq!(item, Some(0));
     assert!(flag.get());
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     let (item, left_recv) = left_recv.into_future().wait().unwrap();
     assert_eq!(item, Some(1));
     assert!(flag.get());
-    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_pending());
     let (item, right_recv) = right_recv.into_future().wait().unwrap();
     assert_eq!(item, Some(1));
     assert!(flag.get());

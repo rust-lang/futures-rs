@@ -27,7 +27,7 @@ pub fn assert_done<T, F>(f: F, result: Result<T::Item, T::Error>)
 }
 
 pub fn assert_empty<T: Future, F: FnMut() -> T>(mut f: F) {
-    assert!(executor::spawn(f()).poll_future_notify(&notify_panic(), 0).ok().unwrap().is_not_ready());
+    assert!(executor::spawn(f()).poll_future_notify(&notify_panic(), 0).ok().unwrap().is_pending());
 }
 
 pub fn sassert_done<S: Stream>(s: &mut S) {

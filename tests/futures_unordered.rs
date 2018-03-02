@@ -73,15 +73,15 @@ fn finished_future_ok() {
 
     let mut spawn = futures::executor::spawn(stream);
     for _ in 0..10 {
-        assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+        assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
     }
 
     b_tx.send(Box::new(())).unwrap();
     let next = spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap();
     assert!(next.is_ready());
     c_tx.send(Box::new(())).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
 }
 
 #[test]

@@ -119,14 +119,14 @@ where
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(cx)?.is_not_ready() {
+        if self.try_empty_stream(cx)?.is_pending() {
             return Ok(Async::Pending);
         }
         self.sink.poll_flush(cx)
     }
 
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(cx)?.is_not_ready() {
+        if self.try_empty_stream(cx)?.is_pending() {
             return Ok(Async::Pending);
         }
         self.sink.poll_close(cx)

@@ -17,8 +17,8 @@ fn smoke_poll() {
     let (mut tx, rx) = channel::<u32>();
     let mut rx = Some(rx);
     let f = poll_fn(|cx| {
-        assert!(tx.poll_cancel(cx).unwrap().is_not_ready());
-        assert!(tx.poll_cancel(cx).unwrap().is_not_ready());
+        assert!(tx.poll_cancel(cx).unwrap().is_pending());
+        assert!(tx.poll_cancel(cx).unwrap().is_pending());
         drop(rx.take());
         assert!(tx.poll_cancel(cx).unwrap().is_ready());
         assert!(tx.poll_cancel(cx).unwrap().is_ready());

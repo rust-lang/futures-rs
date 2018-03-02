@@ -37,10 +37,10 @@ fn send_recv_no_buffer() {
 
         // Send first message
         assert!(tx.start_send(1).is_ok());
-        assert!(tx.poll_ready(cx).unwrap().is_not_ready());
+        assert!(tx.poll_ready(cx).unwrap().is_pending());
 
         // Send second message
-        assert!(tx.poll_ready(cx).unwrap().is_not_ready());
+        assert!(tx.poll_ready(cx).unwrap().is_pending());
 
         // Take the value
         assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(1)));
@@ -48,7 +48,7 @@ fn send_recv_no_buffer() {
 
         assert!(tx.poll_ready(cx).unwrap().is_ready());
         assert!(tx.start_send(2).is_ok());
-        assert!(tx.poll_ready(cx).unwrap().is_not_ready());
+        assert!(tx.poll_ready(cx).unwrap().is_pending());
 
         // Take the value
         assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(2)));
@@ -500,7 +500,7 @@ fn try_send_2() {
 
     let th = thread::spawn(|| {
         block_on(poll_fn(|cx| {
-            assert!(tx.poll_ready(cx).unwrap().is_not_ready());
+            assert!(tx.poll_ready(cx).unwrap().is_pending());
             Ok::<_, ()>(Async::Ready(()))
         })).unwrap();
 
