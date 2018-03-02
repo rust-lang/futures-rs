@@ -29,7 +29,7 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkError = SendError;
 
     fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.poll_ready(cx)
+        UnboundedSender::poll_ready(&*self, cx)
     }
 
     fn start_send(&mut self, msg: T) -> Result<(), Self::SinkError> {
@@ -50,8 +50,8 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkItem = T;
     type SinkError = SendError;
 
-    fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-        Ok(Async::Ready(()))
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        UnboundedSender::poll_ready(*self, cx)
     }
 
     fn start_send(&mut self, msg: T) -> Result<(), Self::SinkError> {

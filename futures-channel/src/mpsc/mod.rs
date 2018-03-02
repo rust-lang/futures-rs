@@ -511,6 +511,18 @@ impl<T> Sender<T> {
         Ok(())
     }
 
+    fn poll_ready_nb(&self) -> Poll<(), SendError> {
+        let state = decode_state(self.inner.state.load(SeqCst));
+        if state.is_open {
+            Ok(Async::Ready(()))
+        } else {
+            Err(SendError {
+                kind: SendErrorKind::Full,
+            })
+        }
+    }
+
+
     // Push message to the queue and signal to the receiver
     fn queue_push_and_signal(&self, msg: Option<T>) {
         // Push the message onto the message queue
@@ -679,8 +691,8 @@ impl<T> Sender<T> {
 
 impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
-    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), SendError> {
-        self.0.poll_ready(cx)
+    pub fn poll_ready(&self, _: &mut task::Context) -> Poll<(), SendError> {
+        self.0.poll_ready_nb()
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -702,7 +714,8 @@ impl<T> UnboundedSender<T> {
     /// This method should only be called after `poll_ready` has been used to
     /// verify that the channel is ready to receive a message.
     pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
-        self.0.start_send(msg)
+        self.0.do_send_nb(Some(msg))
+            .map_err(|e| e.err)
     }
 
     /// Sends a message along this channel.
