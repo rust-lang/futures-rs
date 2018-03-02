@@ -169,7 +169,7 @@ pub trait StreamExt: Stream {
     ///
     /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let rx = rx.map_err(|()| 3);
+    /// let rx = rx.map_err(|_| 3);
     /// # }
     /// ```
     fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
@@ -289,7 +289,7 @@ pub trait StreamExt: Stream {
     /// let rx = rx.then(|result| {
     ///     match result {
     ///         Ok(e) => Ok(e + 3),
-    ///         Err(()) => Err(4),
+    ///         Err(_) => Err(4),
     ///     }
     /// });
     /// # }
@@ -338,9 +338,9 @@ pub trait StreamExt: Stream {
     ///
     /// let rx = rx.and_then(|result| {
     ///     if result % 2 == 0 {
-    ///         Ok(result)
+    ///         Ok(Some(result))
     ///     } else {
-    ///         Err(())
+    ///         Ok(None)
     ///     }
     /// });
     /// # }

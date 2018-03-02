@@ -85,6 +85,7 @@ use std::usize;
 
 use futures_core::task::{self, Waker};
 use futures_core::{Async, Poll, Stream};
+use futures_core::never::Never;
 
 use mpsc::queue::{Queue, PopResult};
 
@@ -850,9 +851,9 @@ impl<T> Receiver<T> {
 
 impl<T> Stream for Receiver<T> {
     type Item = T;
-    type Error = ();
+    type Error = Never;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T>, ()> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -917,9 +918,9 @@ impl<T> UnboundedReceiver<T> {
 
 impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
-    type Error = ();
+    type Error = Never;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T>, ()> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         self.0.poll_next(cx)
     }
 }
