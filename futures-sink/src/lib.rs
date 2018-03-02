@@ -21,11 +21,12 @@ macro_rules! if_std {
     )*)
 }
 
-use futures_core::{Async, Poll, task};
+use futures_core::{Poll, task};
 
 if_std! {
     mod channel_impls;
 
+    use futures_core::Async;
     use futures_core::never::Never;
 
     impl<T> Sink for ::std::vec::Vec<T> {
