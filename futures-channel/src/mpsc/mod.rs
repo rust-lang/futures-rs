@@ -601,6 +601,11 @@ impl<T> Sender<T> {
         Ok(self.poll_unparked(Some(cx)))
     }
 
+    /// Returns whether this channel is closed without needing a context.
+    pub fn is_closed(&self) -> bool {
+        !decode_state(self.inner.state.load(SeqCst)).is_open
+    }
+
     fn poll_unparked(&mut self, cx: Option<&mut task::Context>) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
@@ -632,6 +637,11 @@ impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
     pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), ChannelClosed<T>> {
         self.0.poll_ready(cx)
+    }
+
+    /// Returns whether this channel is closed without needing a context.
+    pub fn is_closed(&self) -> bool {
+        self.0.is_closed()
     }
 
     /// Send a message on the channel.
