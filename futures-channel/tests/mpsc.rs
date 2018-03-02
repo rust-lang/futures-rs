@@ -39,13 +39,16 @@ fn send_recv_no_buffer() {
         assert!(tx.start_send(1).is_ok());
         assert!(tx.poll_ready(cx).unwrap().is_pending());
 
-        // Send second message
+        // poll_ready said Pending, so no room in buffer, therefore new sends
+        // should get rejected with is_full.
+        assert!(tx.start_send(0).unwrap_err().is_full());
         assert!(tx.poll_ready(cx).unwrap().is_pending());
 
         // Take the value
         assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(1)));
         assert!(tx.poll_ready(cx).unwrap().is_ready());
 
+        // Send second message
         assert!(tx.poll_ready(cx).unwrap().is_ready());
         assert!(tx.start_send(2).is_ok());
         assert!(tx.poll_ready(cx).unwrap().is_pending());

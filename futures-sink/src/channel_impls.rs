@@ -1,10 +1,10 @@
 use {Async, Sink, Poll};
 use futures_core::task;
-use futures_channel::mpsc::{Sender, ChannelClosed, UnboundedSender};
+use futures_channel::mpsc::{Sender, SendError, UnboundedSender};
 
 impl<T> Sink for Sender<T> {
     type SinkItem = T;
-    type SinkError = ChannelClosed<T>;
+    type SinkError = SendError;
 
     fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         self.poll_ready(cx)
@@ -25,7 +25,7 @@ impl<T> Sink for Sender<T> {
 
 impl<T> Sink for UnboundedSender<T> {
     type SinkItem = T;
-    type SinkError = ChannelClosed<T>;
+    type SinkError = SendError;
 
     fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
         self.poll_ready(cx)
@@ -46,7 +46,7 @@ impl<T> Sink for UnboundedSender<T> {
 
 impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkItem = T;
-    type SinkError = ChannelClosed<T>;
+    type SinkError = SendError;
 
     fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
@@ -54,6 +54,7 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
 
     fn start_send(&mut self, msg: T) -> Result<(), Self::SinkError> {
         self.unbounded_send(msg)
+            .map_err(|err| err.into_send_error())
     }
 
     fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {

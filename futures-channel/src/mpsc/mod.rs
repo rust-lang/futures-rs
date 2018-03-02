@@ -132,62 +132,25 @@ pub struct Receiver<T> {
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
-///
-/// It will contain a value of type `T` if one was passed to `start_send`
-/// after the channel was closed.
-pub struct ChannelClosed<T>(Option<T>);
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SendError {
+    kind: SendErrorKind,
+}
 
 /// The error type returned from [`try_send`](Sender::try_send).
 #[derive(Clone, PartialEq, Eq)]
-pub struct TryChannelClosed<T> {
-    kind: TryChannelClosedKind<T>,
+pub struct TrySendError<T> {
+    err: SendError,
+    val: T,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-enum TryChannelClosedKind<T> {
-    Full(T),
-    Disconnected(T),
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SendErrorKind {
+    Full,
+    Disconnected,
 }
 
-impl<T> fmt::Debug for ChannelClosed<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_tuple("ChannelClosed")
-            .field(&"...")
-            .finish()
-    }
-}
-
-impl<T> fmt::Display for ChannelClosed<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "send failed because receiver is gone")
-    }
-}
-
-impl<T: Any> Error for ChannelClosed<T>
-{
-    fn description(&self) -> &str {
-        "send failed because receiver is gone"
-    }
-}
-
-impl<T> ChannelClosed<T> {
-    /// Returns the message that was attempted to be sent but failed.
-    /// This method returns `None` if no item was being sent when the
-    /// error occurred.
-    pub fn into_inner(self) -> Option<T> {
-        self.0
-    }
-}
-
-impl<T> fmt::Debug for TryChannelClosed<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_tuple("TryChannelClosed")
-            .field(&"...")
-            .finish()
-    }
-}
-
-impl<T> fmt::Display for TryChannelClosed<T> {
+impl fmt::Display for SendError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if self.is_full() {
             write!(fmt, "send failed because channel is full")
@@ -197,7 +160,7 @@ impl<T> fmt::Display for TryChannelClosed<T> {
     }
 }
 
-impl<T: Any> Error for TryChannelClosed<T> {
+impl Error for SendError {
     fn description(&self) -> &str {
         if self.is_full() {
             "send failed because channel is full"
@@ -207,34 +170,71 @@ impl<T: Any> Error for TryChannelClosed<T> {
     }
 }
 
-impl<T> TryChannelClosed<T> {
+impl SendError {
     /// Returns true if this error is a result of the channel being full.
     pub fn is_full(&self) -> bool {
-        use self::TryChannelClosedKind::*;
-
         match self.kind {
-            Full(_) => true,
+            SendErrorKind::Full => true,
             _ => false,
         }
     }
 
     /// Returns true if this error is a result of the receiver being dropped.
     pub fn is_disconnected(&self) -> bool {
-        use self::TryChannelClosedKind::*;
-
         match self.kind {
-            Disconnected(_) => true,
+            SendErrorKind::Disconnected => true,
             _ => false,
         }
+    }
+}
+
+impl<T> fmt::Debug for TrySendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("TrySendError")
+            .field("kind", &self.err.kind)
+            .finish()
+    }
+}
+
+impl<T> fmt::Display for TrySendError<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        if self.is_full() {
+            write!(fmt, "send failed because channel is full")
+        } else {
+            write!(fmt, "send failed because receiver is gone")
+        }
+    }
+}
+
+impl<T: Any> Error for TrySendError<T> {
+    fn description(&self) -> &str {
+        if self.is_full() {
+            "send failed because channel is full"
+        } else {
+            "send failed because receiver is gone"
+        }
+    }
+}
+
+impl<T> TrySendError<T> {
+    /// Returns true if this error is a result of the channel being full.
+    pub fn is_full(&self) -> bool {
+        self.err.is_full()
+    }
+
+    /// Returns true if this error is a result of the receiver being dropped.
+    pub fn is_disconnected(&self) -> bool {
+        self.err.is_disconnected()
     }
 
     /// Returns the message that was attempted to be sent but failed.
     pub fn into_inner(self) -> T {
-        use self::TryChannelClosedKind::*;
+        self.val
+    }
 
-        match self.kind {
-            Full(v) | Disconnected(v) => v,
-        }
+    /// Drops the message and converts into a `SendError`.
+    pub fn into_send_error(self) -> SendError {
+        self.err
     }
 }
 
@@ -386,26 +386,21 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
  */
 
 impl<T> Sender<T> {
-    /// Attempts to send a message on this `Sender` without blocking.
-    ///
-    /// It is not recommended to call this function from inside of a future,
-    /// only from an external thread where you've otherwise arranged to be
-    /// notified when the channel is no longer full.
-    pub fn try_send(&mut self, msg: T) -> Result<(), TryChannelClosed<T>> {
+    /// Attempts to send a message on this `Sender`, returning the message
+    /// if there was an error.
+    pub fn try_send(&mut self, msg: T) -> Result<(), TrySendError<T>> {
         // If the sender is currently blocked, reject the message
         if !self.poll_unparked(None).is_ready() {
-            return Err(TryChannelClosed {
-                kind: TryChannelClosedKind::Full(msg),
+            return Err(TrySendError {
+                err: SendError {
+                    kind: SendErrorKind::Full,
+                },
+                val: msg,
             });
         }
 
         // The channel has capacity to accept the message, so send it
-        self.do_send(None, Some(msg))
-            .map_err(|ChannelClosed(v)| {
-                TryChannelClosed {
-                    kind: TryChannelClosedKind::Disconnected(v.unwrap()),
-                }
-            })
+        self.do_send(None, msg)
     }
 
     /// Send a message on the channel.
@@ -413,15 +408,20 @@ impl<T> Sender<T> {
     /// This function should only be called after
     /// [`poll_ready`](Sender::poll_ready) has reported that the channel is
     /// ready to receive a message.
-    pub fn start_send(&mut self, msg: T) -> Result<(), ChannelClosed<T>> {
-        self.do_send(None, Some(msg))
+    pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
+        self.try_send(msg)
+            .map_err(|e| e.err)
     }
 
     // Do the send without failing
     // None means close
-    fn do_send(&mut self, cx: Option<&mut task::Context>, msg: Option<T>)
-        -> Result<(), ChannelClosed<T>>
+    fn do_send(&mut self, cx: Option<&mut task::Context>, msg: T)
+        -> Result<(), TrySendError<T>>
     {
+        // Anyone callig do_send *should* make sure there is room first,
+        // but assert here for tests as a sanity check.
+        debug_assert!(self.poll_unparked(None).is_ready());
+
         // First, increment the number of messages contained by the channel.
         // This operation will also atomically determine if the sender task
         // should be parked.
@@ -429,23 +429,14 @@ impl<T> Sender<T> {
         // None is returned in the case that the channel has been closed by the
         // receiver. This happens when `Receiver::close` is called or the
         // receiver is dropped.
-        let park_self = match self.inc_num_messages(msg.is_none()) {
+        let park_self = match self.inc_num_messages(false) {
             Some(park_self) => park_self,
-            None => {
-                // The receiver has closed the channel. Only abort if actually
-                // sending a message. It is important that the stream
-                // termination (None) is always sent. This technically means
-                // that it is possible for the queue to contain the following
-                // number of messages:
-                //
-                //     num-senders + buffer + 1
-                //
-                if let Some(msg) = msg {
-                    return Err(ChannelClosed(Some(msg)));
-                } else {
-                    return Ok(());
-                }
-            }
+            None => return Err(TrySendError {
+                err: SendError {
+                    kind: SendErrorKind::Disconnected,
+                },
+                val: msg,
+            }),
         };
 
         // If the channel has reached capacity, then the sender task needs to
@@ -459,21 +450,38 @@ impl<T> Sender<T> {
             self.park(cx);
         }
 
-        self.queue_push_and_signal(msg);
+        self.queue_push_and_signal(Some(msg));
 
         Ok(())
     }
 
     // Do the send without parking current task.
-    //
-    // To be called from unbounded sender.
-    fn do_send_nb(&self, msg: T) -> Result<(), ChannelClosed<T>> {
-        match self.inc_num_messages(false) {
+    fn do_send_nb(&self, msg: Option<T>) -> Result<(), TrySendError<T>> {
+        match self.inc_num_messages(msg.is_none()) {
             Some(park_self) => assert!(!park_self),
-            None => return Err(ChannelClosed(Some(msg))),
+            None => {
+                // The receiver has closed the channel. Only abort if actually
+                // sending a message. It is important that the stream
+                // termination (None) is always sent. This technically means
+                // that it is possible for the queue to contain the following
+                // number of messages:
+                //
+                //     num-senders + buffer + 1
+                //
+                if let Some(msg) = msg {
+                    return Err(TrySendError {
+                        err: SendError {
+                            kind: SendErrorKind::Disconnected,
+                        },
+                        val: msg,
+                    });
+                } else {
+                    return Ok(());
+                }
+            },
         };
 
-        self.queue_push_and_signal(Some(msg));
+        self.queue_push_and_signal(msg);
 
         Ok(())
     }
@@ -519,7 +527,7 @@ impl<T> Sender<T> {
                 Ok(_) => {
                     // Block if the current number of pending messages has exceeded
                     // the configured buffer size
-                    let park_self = match self.inner.buffer {
+                    let park_self = !close && match self.inner.buffer {
                         Some(buffer) => state.num_messages > buffer,
                         None => false,
                     };
@@ -591,11 +599,13 @@ impl<T> Sender<T> {
     /// - `Ok(Async::Ready(_))` if there is sufficient capacity;
     /// - `Ok(Async::Pending)` if the channel may not have
     /// capacity, in which case the current task is queued to be notified once capacity is available;
-    /// - `Err(ChannelClosed(_))` if the receiver has been dropped.
-    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), ChannelClosed<T>> {
+    /// - `Err(SendError)` if the receiver has been dropped.
+    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), SendError> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
-            return Err(ChannelClosed(None));
+            return Err(SendError {
+                kind: SendErrorKind::Disconnected,
+            });
         }
 
         Ok(self.poll_unparked(Some(cx)))
@@ -630,7 +640,7 @@ impl<T> Sender<T> {
 
 impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
-    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), ChannelClosed<T>> {
+    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), SendError> {
         self.0.poll_ready(cx)
     }
 
@@ -638,7 +648,7 @@ impl<T> UnboundedSender<T> {
     ///
     /// This method should only be called after `poll_ready` has been used to
     /// verify that the channel is ready to receive a message.
-    pub fn start_send(&mut self, msg: T) -> Result<(), ChannelClosed<T>> {
+    pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
         self.0.start_send(msg)
     }
 
@@ -647,8 +657,8 @@ impl<T> UnboundedSender<T> {
     /// This is an unbounded sender, so this function differs from `Sink::send`
     /// by ensuring the return type reflects that the channel is always ready to
     /// receive messages.
-    pub fn unbounded_send(&self, msg: T) -> Result<(), ChannelClosed<T>> {
-        self.0.do_send_nb(msg)
+    pub fn unbounded_send(&self, msg: T) -> Result<(), TrySendError<T>> {
+        self.0.do_send_nb(Some(msg))
     }
 }
 
@@ -698,7 +708,10 @@ impl<T> Drop for Sender<T> {
         let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
-            let _ = self.do_send(None, None);
+            // There's no need to park this sender, its dropping,
+            // and we don't want to check for capacity, so skip
+            // that stuff from `do_send`.
+            let _ = self.do_send_nb(None);
         }
     }
 }
