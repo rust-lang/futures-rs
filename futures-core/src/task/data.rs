@@ -95,7 +95,7 @@ impl<T: Send + 'static> LocalKey<T> {
     /// this key has been accessed on this task, then the key will be
     /// initialized with the initialization expression provided at the time the
     /// `task_local!` macro was called.
-    pub fn get_mut(&'static self, cx: &mut task::Context) -> &mut T {
+    pub fn get_mut<'a>(&'static self, cx: &'a mut task::Context) -> &'a mut T {
         let key = (self.__key)();
         let data = &mut cx.map.inner.0;
         let entry: &mut Box<Opaque> = data.entry(key).or_insert_with(|| {
