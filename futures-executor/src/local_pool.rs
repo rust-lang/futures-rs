@@ -27,7 +27,7 @@ struct Task {
 /// [`Executor`](::futures_core::executor::Executor), use the
 /// [`executor()`](LocalPool::executor) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
-/// futures, via [`spvawn_local`](LocalExecutor::spawn_local).
+/// futures, via [`spawn_local`](LocalExecutor::spawn_local).
 pub struct LocalPool {
     pool: FuturesUnordered<Task>,
     incoming: Rc<Incoming>,
