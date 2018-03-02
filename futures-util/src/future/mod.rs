@@ -478,6 +478,68 @@ pub trait FutureExt: Future {
                    e.into_future())
     }
 
+    /// Wrap this future in an `Either` future, making it the left-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `right` method to write `if`
+    /// statements that evaluate to different futures in different branches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate futures;
+    /// use futures::executor::block_on;
+    /// use futures::future::*;
+    ///
+    /// # fn main() {
+    /// let x = 6;
+    /// let future = if x < 10 {
+    ///     ok::<_, bool>(x).left()
+    /// } else {
+    ///     empty().right()
+    /// };
+    ///
+    /// assert_eq!(x, block_on(future).unwrap());
+    /// # }
+    /// ```
+    fn left<B>(self) -> Either<Self, B>
+        where B: Future<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        Either::Left(self)
+    }
+
+    /// Wrap this future in an `Either` future, making it the right-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `left` method to write `if`
+    /// statements that evaluate to different futures in different branches.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate futures;
+    /// use futures::executor::block_on;
+    /// use futures::future::*;
+    ///
+    /// # fn main() {
+    /// let x = 6;
+    /// let future = if x < 10 {
+    ///     ok::<_, bool>(x).left()
+    /// } else {
+    ///     empty().right()
+    /// };
+    ///
+    /// assert_eq!(x, block_on(future).unwrap());
+    /// # }
+    /// ```
+    fn right<A>(self) -> Either<A, Self>
+        where A: Future<Item = Self::Item, Error = Self::Error>,
+              Self: Sized,
+    {
+        Either::Right(self)
+    }
+
     /// Convert this future into a single element stream.
     ///
     /// The returned stream contains single success if this future resolves to

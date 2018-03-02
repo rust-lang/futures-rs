@@ -5,6 +5,7 @@
 
 use futures_core::{IntoFuture, Stream};
 use futures_sink::Sink;
+use super::future::Either;
 
 mod iter_ok;
 pub use self::iter_ok::{iter_ok, IterOk};
@@ -961,6 +962,31 @@ pub trait StreamExt: Stream {
               Self: Sized,
     {
         recover::new(self, f)
+    }
+
+
+    /// Wrap this stream in an `Either` stream, making it the left-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `right` method to write `if`
+    /// statements that evaluate to different streams in different branches.
+    fn left<B>(self) -> Either<Self, B>
+        where B: Stream<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        Either::Left(self)
+    }
+
+    /// Wrap this stream in an `Either` stream, making it the right-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `left` method to write `if`
+    /// statements that evaluate to different streams in different branches.
+    fn right<B>(self) -> Either<B, Self>
+        where B: Stream<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        Either::Right(self)
     }
 }
 
