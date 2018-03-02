@@ -145,7 +145,7 @@ fn select_cancels() {
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let f = b.select(d).then(unselect);
-    // assert!(f.poll(&mut Task::new()).is_not_ready());
+    // assert!(f.poll(&mut Task::new()).is_pending());
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.send(1).unwrap();
@@ -161,8 +161,8 @@ fn select_cancels() {
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
     let mut f = executor::spawn(b.select(d).then(unselect));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_not_ready());
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_not_ready());
+    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
+    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
     a.send(1).unwrap();
     assert!(f.poll_future_notify(&notify_panic(), 0).ok().unwrap().is_ready());
     drop((c, f));
@@ -207,7 +207,7 @@ fn join_incomplete() {
     let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
     let mut f = executor::spawn(ok(1).join(b).map(move |r| tx.send(r).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_not_ready());
+    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
     assert!(rx.try_recv().is_err());
     a.send(2).unwrap();
     assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_ready());
@@ -216,7 +216,7 @@ fn join_incomplete() {
     let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
     let mut f = executor::spawn(b.join(Ok(2)).map(move |r| tx.send(r).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_not_ready());
+    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
     assert!(rx.try_recv().is_err());
     a.send(1).unwrap();
     assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_ready());
@@ -225,7 +225,7 @@ fn join_incomplete() {
     let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
     let mut f = executor::spawn(ok(1).join(b).map_err(move |_r| tx.send(2).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_not_ready());
+    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
     assert!(rx.try_recv().is_err());
     drop(a);
     assert!(f.poll_future_notify(&notify_noop(), 0).is_err());
@@ -234,7 +234,7 @@ fn join_incomplete() {
     let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
     let mut f = executor::spawn(b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_not_ready());
+    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
     assert!(rx.try_recv().is_err());
     drop(a);
     assert!(f.poll_future_notify(&notify_noop(), 0).is_err());

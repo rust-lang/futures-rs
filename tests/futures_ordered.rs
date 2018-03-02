@@ -18,7 +18,7 @@ fn works_1() {
 
     let mut spawn = futures::executor::spawn(stream);
     b_tx.send(99).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
 
     a_tx.send(33).unwrap();
     c_tx.send(33).unwrap();
@@ -43,7 +43,7 @@ fn works_2() {
     a_tx.send(33).unwrap();
     b_tx.send(33).unwrap();
     assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_ready());
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
     c_tx.send(33).unwrap();
     assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_ready());
 }
@@ -75,12 +75,12 @@ fn queue_never_unblocked() {
 
     let mut spawn = futures::executor::spawn(stream);
     for _ in 0..10 {
-        assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+        assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
     }
 
     b_tx.send(Box::new(())).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
     c_tx.send(Box::new(())).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_not_ready());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
+    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
 }

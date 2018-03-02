@@ -25,8 +25,8 @@ fn smoke() {
             assert_eq!(*lock, 1);
             *lock = 2;
 
-            assert!(b.poll_lock().is_not_ready());
-            assert!(a.poll_lock().is_not_ready());
+            assert!(b.poll_lock().is_pending());
+            assert!(a.poll_lock().is_pending());
         }
 
         assert!(b.poll_lock().is_ready());

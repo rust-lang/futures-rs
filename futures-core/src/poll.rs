@@ -60,7 +60,7 @@ impl<T> Async<T> {
     }
 
     /// Returns whether this is `Async::Pending`
-    pub fn is_not_ready(&self) -> bool {
+    pub fn is_pending(&self) -> bool {
         !self.is_ready()
     }
 }
