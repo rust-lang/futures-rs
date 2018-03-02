@@ -151,6 +151,11 @@ enum SendErrorKind {
     Disconnected,
 }
 
+/// The error type returned from [`try_next`](Receiver::try_next).
+pub struct TryRecvError {
+    _inner: (),
+}
+
 impl fmt::Display for SendError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if self.is_full() {
@@ -236,6 +241,25 @@ impl<T> TrySendError<T> {
     /// Drops the message and converts into a `SendError`.
     pub fn into_send_error(self) -> SendError {
         self.err
+    }
+}
+
+impl fmt::Debug for TryRecvError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_tuple("TryRecvError")
+            .finish()
+    }
+}
+
+impl fmt::Display for TryRecvError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(self.description())
+    }
+}
+
+impl Error for TryRecvError {
+    fn description(&self) -> &str {
+        "receiver channel is empty"
     }
 }
 
@@ -770,6 +794,18 @@ impl<T> Receiver<T> {
         }
     }
 
+    /// Tries to receive the next message without notifying a context if empty.
+    ///
+    /// It is not recommended to call this function from inside of a future,
+    /// only when you've otherwise arranged to be notified when the channel is
+    /// no longer empty.
+    pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
+        match self.next_message() {
+            Async::Ready(msg) => Ok(msg),
+            Async::Pending => Err(TryRecvError { _inner: () }),
+        }
+    }
+
     fn next_message(&mut self) -> Async<Option<T>> {
         // Pop off a message
         loop {
@@ -923,6 +959,15 @@ impl<T> UnboundedReceiver<T> {
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
         self.0.close();
+    }
+
+    /// Tries to receive the next message without notifying a context if empty.
+    ///
+    /// It is not recommended to call this function from inside of a future,
+    /// only when you've otherwise arranged to be notified when the channel is
+    /// no longer empty.
+    pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
+        self.0.try_next()
     }
 }
 

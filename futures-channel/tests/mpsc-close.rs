@@ -19,7 +19,7 @@ fn smoke() {
     });
 
     // `receiver` needs to be dropped for `sender` to stop sending and therefore before the join.
-    block_on(receiver.take(3).for_each(|_| Ok(()))).unwrap();
+    drop(block_on(receiver.take(3).for_each(|_| Ok(()))).unwrap());
 
     t.join().unwrap()
 }
