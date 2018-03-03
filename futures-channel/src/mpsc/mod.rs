@@ -617,6 +617,15 @@ impl<T> Sender<T> {
         !decode_state(self.inner.state.load(SeqCst)).is_open
     }
 
+    /// Closes this channel from the sender side, preventing any new messages.
+    pub fn close_channel(&mut self) {
+        // There's no need to park this sender, its dropping,
+        // and we don't want to check for capacity, so skip
+        // that stuff from `do_send`.
+
+        let _ = self.do_send_nb(None);
+    }
+
     fn poll_unparked(&mut self, cx: Option<&mut task::Context>) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
@@ -653,6 +662,15 @@ impl<T> UnboundedSender<T> {
     /// Returns whether this channel is closed without needing a context.
     pub fn is_closed(&self) -> bool {
         self.0.is_closed()
+    }
+
+    /// Closes this channel from the sender side, preventing any new messages.
+    pub fn close_channel(&self) {
+        // There's no need to park this sender, its dropping,
+        // and we don't want to check for capacity, so skip
+        // that stuff from `do_send`.
+
+        let _ = self.0.do_send_nb(None);
     }
 
     /// Send a message on the channel.
