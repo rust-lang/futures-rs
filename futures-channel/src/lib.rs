@@ -4,7 +4,7 @@
 //! asynchronous tasks.
 
 #![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://docs.rs/futures-channel/0.2")]
+#![doc(html_root_url = "https://docs.rs/futures-channel/0.2.0-alpha")]
 #![no_std]
 
 #[cfg(feature = "std")]
