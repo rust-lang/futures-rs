@@ -2,7 +2,7 @@
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
-#![doc(html_root_url = "https://docs.rs/futures-core/0.2")]
+#![doc(html_root_url = "https://docs.rs/futures-core/0.2.0-alpha")]
 
 #[macro_use]
 #[cfg(feature = "std")]

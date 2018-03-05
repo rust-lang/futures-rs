@@ -20,7 +20,7 @@
 //! completion, but *do not block* the thread running them.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/futures/0.2")]
+#![doc(html_root_url = "https://docs.rs/futures/0.2.0-alpha")]
 
 extern crate futures_core;
 extern crate futures_channel;
