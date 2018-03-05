@@ -22,6 +22,8 @@
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/futures/0.2.0-alpha")]
 
+#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
+
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;
@@ -355,8 +357,11 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        AtomicWaker, Context, LocalMap, Waker, UnsafeWake,
+        Context, LocalMap, Waker, UnsafeWake,
     };
+
+    #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
+    pub use futures_core::task::AtomicWaker;
 
     #[cfg(feature = "std")]
     pub use futures_core::task::{LocalKey, Wake};

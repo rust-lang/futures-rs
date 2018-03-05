@@ -28,6 +28,6 @@ futures-stable = { path = "../futures-stable", version = "0.2.0-alpha", default-
 futures-util = { path = "../futures-util", version = "0.2.0-alpha", default-features = false }
 
 [features]
-nightly = ["futures-stable/nightly"]
+nightly = ["futures-core/nightly", "futures-stable/nightly"]
 std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-stable/std", "futures-util/std"]
 default = ["std"]
