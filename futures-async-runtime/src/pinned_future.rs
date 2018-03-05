@@ -1,6 +1,6 @@
-use std::marker::Unpin;
-use std::mem::Pin;
-use std::ops::{Generator, GeneratorState};
+use core::marker::Unpin;
+use core::mem::Pin;
+use core::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
 

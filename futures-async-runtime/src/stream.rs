@@ -1,5 +1,5 @@
-use std::ops::{Generator, GeneratorState};
-use std::marker::PhantomData;
+use core::ops::{Generator, GeneratorState};
+use core::marker::PhantomData;
 
 use futures_core::task;
 use futures_core::{Poll, Async, Stream};
