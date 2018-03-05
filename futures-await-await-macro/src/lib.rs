@@ -19,6 +19,8 @@ macro_rules! await {
                 };
                 ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableFuture::poll(pin, ctx))
             };
+            // Allow for #[feature(never_type)] and Future<Error = !>
+            #[allow(unreachable_code, unreachable_patterns)]
             match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)
@@ -43,6 +45,8 @@ macro_rules! await_item {
     ($e:expr) => ({
         loop {
             let poll = ::futures::__rt::in_ctx(|ctx| ::futures::Stream::poll_next(&mut $e, ctx));
+            // Allow for #[feature(never_type)] and Stream<Error = !>
+            #[allow(unreachable_code, unreachable_patterns)]
             match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)
