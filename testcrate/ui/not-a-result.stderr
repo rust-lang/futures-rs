@@ -58,3 +58,4 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
 
 error: aborting due to 6 previous errors
 
+If you want more information on this error, try using "rustc --explain E0277"
