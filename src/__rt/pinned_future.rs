@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::{Generator, GeneratorState};
 
-use anchor_experiment::{Pin, MovePinned};
+use anchor_experiment::{PinMut, Unpin};
 
 use super::{IsResult, Mu, Reset, CTX};
 
@@ -18,7 +18,7 @@ impl<F, T> MyStableFuture<T> for F
 
 struct GenStableFuture<T>(T);
 
-impl<T> !MovePinned for GenStableFuture<T> { }
+impl<T> !Unpin for GenStableFuture<T> { }
 
 impl<T> StableFuture for GenStableFuture<T>
     where T: Generator<Yield = Async<Mu>>,
@@ -27,11 +27,11 @@ impl<T> StableFuture for GenStableFuture<T>
     type Item = <T::Return as IsResult>::Ok;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset(cell.get(), cell);
             cell.set(unsafe { mem::transmute(ctx) });
-            let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
+            let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
             match this.0.resume() {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),

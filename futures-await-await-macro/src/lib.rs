@@ -14,14 +14,10 @@ macro_rules! await {
         let mut future = $e;
         loop {
             let poll = unsafe {
-                let pin = ::futures::__rt::anchor_experiment::Pin::new_unchecked(&mut future);
-                let ctx = ::futures::__rt::get_ctx();
-                let ctx = if ctx == ::futures::__rt::std::ptr::null_mut() {
-                    panic!("Cannot use `await!` outside of an `async` function.")
-                } else {
-                    &mut *ctx
-                };
-                ::futures::__rt::StableFuture::poll(pin, ctx)
+                let pin = ::futures::__rt::anchor_experiment::PinMut::new_unchecked(&mut future);
+                ::futures::__rt::in_ctx(|mut ctx| {
+                    ::futures::__rt::StableFuture::poll(pin, ctx.ctx())
+                })
             };
             match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
@@ -46,8 +42,8 @@ macro_rules! await {
 macro_rules! await_item {
     ($e:expr) => ({
         loop {
-            let ctx = ::futures::__rt::get_ctx();
-            match ::futures::Stream::poll_next(&mut $e, unsafe { &mut *ctx }) {
+            let poll = ::futures::__rt::in_ctx(|mut ctx| ::futures::Stream::poll_next(&mut $e, ctx.ctx()));
+            match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)
                 }

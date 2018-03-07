@@ -1,9 +1,9 @@
 mod future;
 mod stream;
-mod pinned_future;
-mod pinned_stream;
+mod pinned_future; mod pinned_stream;
 
 use std::cell::Cell;
+use std::mem;
 use std::ptr;
 use futures::task;
 
@@ -43,7 +43,16 @@ pub enum Mu {}
 
 thread_local!(static CTX: Cell<*mut task::Context<'static>> = Cell::new(ptr::null_mut()));
 
-struct Reset<'a>(*mut task::Context<'static>, &'a Cell<*mut task::Context<'static>>);
+pub struct Reset<'a>(*mut task::Context<'static>, &'a Cell<*mut task::Context<'static>>);
+
+impl<'a> Reset<'a> {
+    pub fn ctx(&mut self) -> &mut task::Context {
+        if self.0 == ptr::null_mut() {
+            panic!("Cannot use `await!` outside of an `async` function.")
+        }
+        unsafe { mem::transmute(self.0) }
+    }
+}
 
 impl<'a> Drop for Reset<'a> {
     fn drop(&mut self) {
@@ -51,6 +60,9 @@ impl<'a> Drop for Reset<'a> {
     }
 }
 
-pub fn get_ctx() -> *mut task::Context<'static> {
-    CTX.with(|cell| cell.get())
+pub fn in_ctx<F: FnOnce(Reset) -> T, T>(f: F) -> T {
+    CTX.with(|cell| {
+        let r = Reset(cell.get(), cell);
+        f(r)
+    })
 }
