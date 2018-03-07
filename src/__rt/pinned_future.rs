@@ -2,8 +2,9 @@ use std::ops::{Generator, GeneratorState};
 
 use anchor_experiment::{PinMut, Unpin};
 
-use super::{IsResult, Mu, Reset, CTX};
+use super::{IsResult, Reset, CTX};
 
+use futures::Never;
 use stable::StableFuture;
 use task;
 use prelude::{Poll, Async};
@@ -20,7 +21,7 @@ struct GenStableFuture<T>(T);
 impl<T> !Unpin for GenStableFuture<T> { }
 
 impl<T> StableFuture for GenStableFuture<T>
-    where T: Generator<Yield = Async<Mu>>,
+    where T: Generator<Yield = Async<Never>>,
           T::Return: IsResult,
 {
     type Item = <T::Return as IsResult>::Ok;
@@ -43,7 +44,7 @@ impl<T> StableFuture for GenStableFuture<T>
 }
 
 pub fn gen_pinned<'a, T>(gen: T) -> impl MyStableFuture<T::Return> + 'a
-    where T: Generator<Yield = Async<Mu>> + 'a,
+    where T: Generator<Yield = Async<Never>> + 'a,
           T::Return: IsResult,
 {
     GenStableFuture(gen)

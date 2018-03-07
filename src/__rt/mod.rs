@@ -37,10 +37,6 @@ impl<T, E> IsResult for Result<T, E> {
 
 pub fn diverge<T>() -> T { loop {} }
 
-/// Uninhabited type to allow `await!` to work across both `async` and
-/// `async_stream`.
-pub enum Mu {}
-
 type StaticContext = *mut task::Context<'static>;
 
 thread_local!(static CTX: Cell<StaticContext> = Cell::new(ptr::null_mut()));

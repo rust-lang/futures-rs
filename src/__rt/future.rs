@@ -1,7 +1,8 @@
 use std::ops::{Generator, GeneratorState};
 
-use super::{IsResult, Mu, Reset, CTX};
+use super::{IsResult, Reset, CTX};
 
+use futures::Never;
 use futures::task;
 use futures::prelude::{Poll, Async, Future};
 
@@ -19,14 +20,14 @@ impl<F, T> MyFuture<T> for F
 struct GenFuture<T>(T);
 
 pub fn gen_move<T>(gen: T) -> impl MyFuture<T::Return>
-    where T: Generator<Yield = Async<Mu>>,
+    where T: Generator<Yield = Async<Never>>,
           T::Return: IsResult,
 {
     GenFuture(gen)
 }
 
 impl<T> Future for GenFuture<T>
-    where T: Generator<Yield = Async<Mu>>,
+    where T: Generator<Yield = Async<Never>>,
           T::Return: IsResult,
 {
     type Item = <T::Return as IsResult>::Ok;
