@@ -31,8 +31,8 @@ impl<'a> Context<'a> {
     ///
     /// The waker can subsequently be used to wake up the task when some
     /// event of interest has happened.
-    pub fn waker(&self) -> Waker {
-        self.waker.clone()
+    pub fn waker(&self) -> &Waker {
+        self.waker
     }
 
     /// Produce a context like the current one, but using the given waker

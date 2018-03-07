@@ -99,7 +99,7 @@ impl<F> Shared<F> where F: Future {
 
     fn set_waiter(&mut self, cx: &mut task::Context) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.insert(self.waiter, cx.waker());
+        waiters.insert(self.waiter, cx.waker().clone());
     }
 
     unsafe fn clone_result(&self) -> Result<SharedItem<F::Item>, SharedError<F::Error>> {

@@ -44,7 +44,7 @@ fn task_init(b: &mut Bencher) {
                     return Ok(Async::Pending);
                 }
 
-                let t = cx.waker();
+                let t = cx.waker().clone();
                 t.wake();
                 self.task = Some(t);
 
