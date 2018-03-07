@@ -13,8 +13,10 @@ macro_rules! await {
     ($e:expr) => ({
         let mut future = $e;
         loop {
-            let poll = unsafe {
-                let pin = ::futures::__rt::anchor_experiment::PinMut::new_unchecked(&mut future);
+            let poll = {
+                let pin = unsafe {
+                    ::futures::__rt::anchor_experiment::PinMut::new_unchecked(&mut future)
+                };
                 ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableFuture::poll(pin, ctx))
             };
             match poll {
