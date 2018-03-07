@@ -62,7 +62,6 @@ unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
 // future is notified, it will only insert itself into the linked list if it
 // isn't currently inserted.
 
-#[allow(missing_debug_implementations)]
 struct Inner<T> {
     // The task using `FuturesUnordered`.
     parent: AtomicWaker,
@@ -534,6 +533,7 @@ impl<'a, T> Clone for NodeToHandle<'a, T> {
     }
 }
 
+#[doc(hidden)]
 impl<'a, T> From<NodeToHandle<'a, T>> for Waker {
     fn from(handle: NodeToHandle<'a, T>) -> Waker {
         unsafe {
