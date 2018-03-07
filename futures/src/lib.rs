@@ -1,4 +1,4 @@
-//! Abstractions for asynchronous programming
+//! Abstractions for asynchronous programming.
 //!
 //! This crate provides a number of core abstractions for writing asynchronous code:
 //!
@@ -51,7 +51,7 @@ macro_rules! try_ready {
     })
 }
 
-/// A macro to create a `static` of type `LocalKey`
+/// A macro to create a `static` of type `LocalKey`.
 ///
 /// This macro is intentionally similar to the `thread_local!`, and creates a
 /// `static` which has a `get_mut` method to access the data on a task.
@@ -79,7 +79,7 @@ pub use futures_core::{Async, Poll, Never};
 
 #[cfg(feature = "std")]
 pub mod channel {
-    //! Cross-task communciation.
+    //! Cross-task communication.
     //!
     //! Like threads, concurrent tasks sometimes need to communicate with each
     //! other. This module contains two basic abstractions for doing so:
