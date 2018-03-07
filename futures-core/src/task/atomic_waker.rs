@@ -29,7 +29,7 @@ use task::Waker;
 /// the result of the underlying computation.
 pub struct AtomicWaker {
     state: AtomicUsize,
-    task: UnsafeCell<Option<Waker>>,
+    waker: UnsafeCell<Option<Waker>>,
 }
 
 /// Initial state, the `AtomicWaker` is currently not being used.
@@ -68,7 +68,7 @@ impl AtomicWaker {
 
         AtomicWaker {
             state: AtomicUsize::new(WAITING),
-            task: UnsafeCell::new(None),
+            waker: UnsafeCell::new(None),
         }
     }
 
@@ -87,18 +87,18 @@ impl AtomicWaker {
     /// idea. Concurrent calls to `register` will attempt to register different
     /// tasks to be notified. One of the callers will win and have its task set,
     /// but there is no guarantee as to which caller will succeed.
-    pub fn register(&self, task: Waker) {
+    pub fn register(&self, waker: &Waker) {
         match self.state.compare_and_swap(WAITING, LOCKED_WRITE, Acquire) {
             WAITING => {
                 unsafe {
-                    // Locked acquired, update the task cell
-                    *self.task.get() = Some(task);
+                    // Locked acquired, update the waker cell
+                    *self.waker.get() = Some(waker.clone());
 
                     // Release the lock. If the state transitioned to
                     // `LOCKED_NOTIFIED`, this means that an notify has been
                     // signaled, so notify the task.
                     if LOCKED_WRITE_NOTIFIED == self.state.swap(WAITING, Release) {
-                        (*self.task.get()).as_ref().unwrap().wake();
+                        (*self.waker.get()).as_ref().unwrap().wake();
                     }
                 }
             }
@@ -116,7 +116,7 @@ impl AtomicWaker {
                 // Currently in a read locked state, this implies that `notify`
                 // is currently being called on the old task handle. So, we call
                 // notify on the new task handle
-                task.wake();
+                waker.wake();
             }
         }
     }
@@ -153,8 +153,8 @@ impl AtomicWaker {
                 if actual == curr {
                     // Notify the task
                     unsafe {
-                        if let Some(ref task) = *self.task.get() {
-                            task.wake();
+                        if let Some(ref waker) = *self.waker.get() {
+                            waker.wake();
                         }
                     }
 

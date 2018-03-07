@@ -608,7 +608,7 @@ impl<T> Sender<T> {
     fn park(&mut self, cx: Option<&mut task::Context>) {
         // TODO: clean up internal state if the task::current will fail
 
-        let task = cx.map(|cx| cx.waker());
+        let task = cx.map(|cx| cx.waker().clone());
 
         {
             let mut sender = self.sender_task.lock().unwrap();
@@ -680,7 +680,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = cx.map(|cx| cx.waker());
+            task.task = cx.map(|cx| cx.waker().clone());
 
             Async::Pending
         } else {
@@ -905,7 +905,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(cx.waker());
+        recv_task.task = Some(cx.waker().clone());
         TryPark::Parked
     }
 

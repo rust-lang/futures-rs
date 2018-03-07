@@ -95,7 +95,8 @@ impl<T> BiLock<T> {
                 }
             }
 
-            let me = Box::new(cx.waker());
+            // type ascription for safety's sake!
+            let me: Box<Waker> = Box::new(cx.waker().clone());
             let me = Box::into_raw(me) as usize;
 
             match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {

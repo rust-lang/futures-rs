@@ -179,7 +179,7 @@ impl<T> Inner<T> {
         // may have been dropped. The first thing it does is set the flag, and
         // if it fails to acquire the lock it assumes that we'll see the flag
         // later on. So... we then try to see the flag later on!
-        let handle = cx.waker();
+        let handle = cx.waker().clone();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Ok(Async::Ready(())),
@@ -250,7 +250,7 @@ impl<T> Inner<T> {
         if self.complete.load(SeqCst) {
             done = true;
         } else {
-            let task = cx.waker();
+            let task = cx.waker().clone();
             match self.rx_task.try_lock() {
                 Some(mut slot) => *slot = Some(task),
                 None => done = true,

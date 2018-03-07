@@ -93,7 +93,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
                 Ok(Async::Ready(()))
             } else {
                 self.rem -= 1;
-                self.tx.send(cx.waker()).unwrap();
+                self.tx.send(cx.waker().clone()).unwrap();
                 Ok(Async::Pending)
             }
         }
