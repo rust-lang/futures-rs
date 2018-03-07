@@ -1,6 +1,5 @@
 use std::ops::{Generator, GeneratorState};
 use std::marker::PhantomData;
-use std::mem;
 
 use anchor_experiment::{PinMut, Unpin};
 use futures::task;
@@ -41,8 +40,7 @@ impl<U, T> StableStream for GenStableStream<U, T>
 
     fn poll_next(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
-            let _r = Reset(cell.get(), cell);
-            cell.set(unsafe { mem::transmute(ctx) });
+            let _r = Reset::new(ctx, cell);
             let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
             if this.done { return Ok(Async::Ready(None)) }
             match this.gen.resume() {

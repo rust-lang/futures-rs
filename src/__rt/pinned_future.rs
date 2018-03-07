@@ -1,4 +1,3 @@
-use std::mem;
 use std::ops::{Generator, GeneratorState};
 
 use anchor_experiment::{PinMut, Unpin};
@@ -29,8 +28,7 @@ impl<T> StableFuture for GenStableFuture<T>
 
     fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
-            let _r = Reset(cell.get(), cell);
-            cell.set(unsafe { mem::transmute(ctx) });
+            let _r = Reset::new(ctx, cell);
             let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
             match this.0.resume() {
                 GeneratorState::Yielded(Async::Pending)

@@ -1,4 +1,3 @@
-use std::mem;
 use std::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Mu, Reset, CTX};
@@ -35,8 +34,7 @@ impl<T> Future for GenFuture<T>
 
     fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
-            let _r = Reset(cell.get(), cell);
-            cell.set(unsafe { mem::transmute(ctx) });
+            let _r = Reset::new(ctx, cell);
             match self.0.resume() {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),

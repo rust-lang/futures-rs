@@ -1,6 +1,5 @@
 use std::ops::{Generator, GeneratorState};
 use std::marker::PhantomData;
-use std::mem;
 
 use futures::task;
 use futures::prelude::{Poll, Async, Stream};
@@ -37,8 +36,7 @@ impl<U, T> Stream for GenStream<U, T>
 
     fn poll_next(&mut self, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
-            let _r = Reset(cell.get(), cell);
-            cell.set(unsafe { mem::transmute(ctx) });
+            let _r = Reset::new(ctx, cell);
             if self.done { return Ok(Async::Ready(None)) }
             match self.gen.resume() {
                 GeneratorState::Yielded(Async::Ready(e)) => {

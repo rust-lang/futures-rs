@@ -15,9 +15,7 @@ macro_rules! await {
         loop {
             let poll = unsafe {
                 let pin = ::futures::__rt::anchor_experiment::PinMut::new_unchecked(&mut future);
-                ::futures::__rt::in_ctx(|mut ctx| {
-                    ::futures::__rt::StableFuture::poll(pin, ctx.ctx())
-                })
+                ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableFuture::poll(pin, ctx))
             };
             match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
@@ -42,7 +40,7 @@ macro_rules! await {
 macro_rules! await_item {
     ($e:expr) => ({
         loop {
-            let poll = ::futures::__rt::in_ctx(|mut ctx| ::futures::Stream::poll_next(&mut $e, ctx.ctx()));
+            let poll = ::futures::__rt::in_ctx(|ctx| ::futures::Stream::poll_next(&mut $e, ctx));
             match poll {
                 ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
                     break ::futures::__rt::std::result::Result::Ok(e)

@@ -522,9 +522,7 @@ impl Fold for ExpandAsyncFor {
             loop {
                 let #pat = {
                     extern crate futures_await;
-                    let r = futures_await::__rt::in_ctx(|mut ctx| {
-                        futures_await::__rt::Stream::poll_next(&mut __stream, ctx.ctx())
-                    });
+                    let r = futures_await::__rt::in_ctx(|ctx| futures_await::__rt::Stream::poll_next(&mut __stream, ctx));
                     match r? {
                         futures_await::__rt::Async::Ready(e) => {
                             match e {
