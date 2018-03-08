@@ -1,6 +1,6 @@
 use std::ops::{Generator, GeneratorState};
 
-use anchor_experiment::{PinMut, Unpin};
+use pin_api::{PinMut, Unpin};
 
 use super::{IsResult, Reset, CTX};
 

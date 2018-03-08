@@ -15,7 +15,7 @@ macro_rules! await {
         loop {
             let poll = {
                 let pin = unsafe {
-                    ::futures::__rt::anchor_experiment::PinMut::new_unchecked(&mut future)
+                    ::futures::__rt::pin_api::PinMut::new_unchecked(&mut future)
                 };
                 ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableFuture::poll(pin, ctx))
             };

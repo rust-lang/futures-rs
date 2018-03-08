@@ -240,10 +240,10 @@ where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
     let (boxed, send) = match &attribute.to_string() as &str {
-        "( anchored )" => (true, false),
-        "( anchored_send )" => (true, true),
+        "( pinned )" => (true, false),
+        "( pinned_send )" => (true, true),
         "" => (false, false),
-        _ => panic!("the #[async] attribute currently only takes `anchored` as an arg"),
+        _ => panic!("the #[async] attribute currently only takes `pinned` `pinned_send` as an arg"),
     };
 
     async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
@@ -281,7 +281,7 @@ pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream 
         "( boxed )" => (true, false),
         "( boxed_send )" => (true, true),
         "" => (false, false),
-        _ => panic!("the #[async_move] attribute currently only takes `boxed` as an arg"),
+        _ => panic!("the #[async_move] attribute currently only takes `boxed` or `boxed_send`, as an arg"),
     };
 
     async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_move }, |output, lifetimes| {
@@ -330,9 +330,9 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
     for arg in args.0 {
         match arg {
             AsyncStreamArg(term, None) => {
-                if term == "anchored" {
+                if term == "pinned" {
                     if boxed {
-                        panic!("duplicate 'anchored' argument to #[async_stream]");
+                        panic!("duplicate 'pinned' argument to #[async_stream]");
                     }
                     boxed = true;
                 } else {
