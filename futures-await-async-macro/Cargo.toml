@@ -1,6 +1,6 @@
 [package]
 name = "futures-await-async-macro"
-version = "0.1.1"
+version = "0.2.0-alpha"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/alexcrichton/futures-await"
@@ -17,6 +17,6 @@ quote = "0.4"
 proc-macro2 = { version = "0.2", features = ["nightly"] }
 
 [dependencies.syn]
-version = "0.12"
-features = ["full", "fold", "parsing", "printing"]
+version = "0.12.13"
+features = ["full", "fold", "parsing", "printing", "extra-traits"]
 default-features = false

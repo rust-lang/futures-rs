@@ -4,22 +4,22 @@ extern crate futures_await as futures;
 
 use futures::prelude::*;
 
-#[async]
+#[async_move]
 fn foo() -> u32 {
     3
 }
 
-#[async(boxed)]
+#[async_move(boxed)]
 fn bar() -> u32 {
     3
 }
 
-#[async_stream(item = u32)]
+#[async_stream_move(item = u32)]
 fn foos() -> u32 {
     3
 }
 
-#[async_stream(boxed, item = u32)]
+#[async_stream_move(boxed, item = u32)]
 fn bars() -> u32 {
     3
 }

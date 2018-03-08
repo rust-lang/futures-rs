@@ -16,16 +16,19 @@
 #![feature(generator_trait)]
 #![feature(use_extern_macros)]
 #![feature(on_unimplemented)]
+#![feature(arbitrary_self_types)]
+#![feature(optin_builtin_traits)]
 
 extern crate futures_await_async_macro as async_macro;
 extern crate futures_await_await_macro as await_macro;
 extern crate futures;
+pub extern crate futures_stable as stable;
 
 pub use futures::*;
 
 pub mod prelude {
     pub use futures::prelude::*;
-    pub use async_macro::{async, async_stream, async_block, async_stream_block};
+    pub use async_macro::{async, async_move, async_stream, async_stream_move, async_block, async_stream_block};
     pub use await_macro::{await, stream_yield, await_item};
 }
 
@@ -39,117 +42,4 @@ pub mod prelude {
 /// any time without notice. Do not use this module in your code if you wish
 /// your code to be stable.
 #[doc(hidden)]
-pub mod __rt {
-    pub extern crate std;
-    pub use std::ops::Generator;
-
-    use futures::Poll;
-    use futures::{Future, Async, Stream};
-    use std::ops::GeneratorState;
-    use std::marker::PhantomData;
-
-    pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> {}
-
-    pub trait MyStream<T, U: IsResult<Ok=()>>: Stream<Item=T, Error=U::Err> {}
-
-    impl<F, T> MyFuture<T> for F
-        where F: Future<Item = T::Ok, Error = T::Err > + ?Sized,
-              T: IsResult
-    {}
-
-    impl<F, T, U> MyStream<T, U> for F
-        where F: Stream<Item = T, Error = U::Err> + ?Sized,
-              U: IsResult<Ok=()>
-    {}
-
-    #[rustc_on_unimplemented = "async functions must return a `Result` or \
-                                a typedef of `Result`"]
-    pub trait IsResult {
-        type Ok;
-        type Err;
-
-        fn into_result(self) -> Result<Self::Ok, Self::Err>;
-    }
-    impl<T, E> IsResult for Result<T, E> {
-        type Ok = T;
-        type Err = E;
-
-        fn into_result(self) -> Result<Self::Ok, Self::Err> { self }
-    }
-
-    pub fn diverge<T>() -> T { loop {} }
-
-    /// Small shim to translate from a generator to a future.
-    ///
-    /// This is the translation layer from the generator/coroutine protocol to
-    /// the futures protocol.
-    struct GenFuture<T>(T);
-
-    /// Small shim to translate from a generator to a stream.
-    struct GenStream<U, T> {
-        gen: T,
-        done: bool,
-        phantom: PhantomData<U>,
-    }
-
-    /// Uninhabited type to allow `await!` to work across both `async` and
-    /// `async_stream`.
-    pub enum Mu {}
-
-    pub fn gen<T>(gen: T) -> impl MyFuture<T::Return>
-        where T: Generator<Yield = Async<Mu>>,
-              T::Return: IsResult,
-    {
-        GenFuture(gen)
-    }
-
-    pub fn gen_stream<T, U>(gen: T) -> impl MyStream<U, T::Return>
-        where T: Generator<Yield = Async<U>>,
-              T::Return: IsResult<Ok = ()>,
-    {
-        GenStream { gen, done: false, phantom: PhantomData }
-    }
-
-    impl<T> Future for GenFuture<T>
-        where T: Generator<Yield = Async<Mu>>,
-              T::Return: IsResult,
-    {
-        type Item = <T::Return as IsResult>::Ok;
-        type Error = <T::Return as IsResult>::Err;
-
-        fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-            match self.0.resume() {
-                GeneratorState::Yielded(Async::NotReady)
-                    => Ok(Async::NotReady),
-                GeneratorState::Yielded(Async::Ready(mu))
-                    => match mu {},
-                GeneratorState::Complete(e)
-                    => e.into_result().map(Async::Ready),
-            }
-        }
-    }
-
-    impl<U, T> Stream for GenStream<U, T>
-        where T: Generator<Yield = Async<U>>,
-              T::Return: IsResult<Ok = ()>,
-    {
-        type Item = U;
-        type Error = <T::Return as IsResult>::Err;
-
-        fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-            if self.done { return Ok(Async::Ready(None)) }
-            match self.gen.resume() {
-                GeneratorState::Yielded(Async::Ready(e)) => {
-                    Ok(Async::Ready(Some(e)))
-                }
-                GeneratorState::Yielded(Async::NotReady) => {
-                    Ok(Async::NotReady)
-                }
-                GeneratorState::Complete(e) => {
-                    self.done = true;
-                    e.into_result().map(|()| Async::Ready(None))
-                }
-            }
-        }
-    }
-}
+pub mod __rt;

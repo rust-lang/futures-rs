@@ -1,89 +1,91 @@
 //! A bunch of ways to use async/await syntax.
 //!
-//! This is mostly a test for this repository itself, not necessarily serving
+//! This is mostly a test f r this repository itself, not necessarily serving
 //! much more purpose than that.
 
 #![feature(proc_macro, conservative_impl_trait, generators)]
 
 extern crate futures_await as futures;
-extern crate futures_cpupool;
+
+use futures::executor::{self, Executor};
 
 use std::io;
 
+use futures::Never;
+use futures::future::poll_fn;
 use futures::prelude::*;
-use futures_cpupool::CpuPool;
 
-#[async]
+#[async_move]
 fn foo() -> Result<i32, i32> {
     Ok(1)
 }
 
-#[async]
+#[async_move]
 extern fn _foo1() -> Result<i32, i32> {
     Ok(1)
 }
 
-#[async]
+#[async_move]
 unsafe fn _foo2() -> io::Result<i32> {
     Ok(1)
 }
 
-#[async]
+#[async_move]
 unsafe extern fn _foo3() -> io::Result<i32> {
     Ok(1)
 }
 
-#[async]
+#[async_move]
 pub fn _foo4() -> io::Result<i32> {
     Ok(1)
 }
 
-#[async]
-fn _foo5<T: Clone + 'static>(t: T) -> Result<T, i32> {
+#[async_move]
+fn _foo5<T: Clone>(t: T) -> Result<T, i32> {
     Ok(t.clone())
 }
 
-#[async]
+#[async_move]
 fn _foo6(ref a: i32) -> Result<i32, i32> {
     Err(*a)
 }
 
-#[async]
+#[async_move]
 fn _foo7<T>(t: T) -> Result<T, i32>
-    where T: Clone + 'static,
+    where T: Clone,
 {
     Ok(t.clone())
 }
 
-#[async(boxed)]
+#[async_move(boxed)]
 fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
     return Ok(a + b)
 }
 
-#[async(boxed_send)]
-fn _foo9() -> Result<(), ()> {
+#[async_move(boxed_send)]
+fn _foo9() -> Result<(), Never> {
     Ok(())
 }
 
-#[async]
+#[async_move]
 fn _bar() -> Result<i32, i32> {
     await!(foo())
 }
 
-#[async]
+#[async_move]
 fn _bar2() -> Result<i32, i32> {
     let a = await!(foo())?;
     let b = await!(foo())?;
     Ok(a + b)
 }
 
-#[async]
+#[async_move]
 fn _bar3() -> Result<i32, i32> {
     let (a, b) = await!(foo().join(foo()))?;
     Ok(a + b)
 }
 
-#[async]
+#[async_move]
 fn _bar4() -> Result<i32, i32> {
     let mut cnt = 0;
     #[async]
@@ -93,21 +95,21 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
-#[async_stream(item = u64)]
+#[async_stream_move(item = u64)]
 fn _stream1() -> Result<(), i32> {
     stream_yield!(0);
     stream_yield!(1);
     Ok(())
 }
 
-#[async_stream(item = T)]
-fn _stream2<T: Clone + 'static>(t: T) -> Result<(), i32> {
+#[async_stream_move(item = T)]
+fn _stream2<T: Clone>(t: T) -> Result<(), i32> {
     stream_yield!(t.clone());
     stream_yield!(t.clone());
     Ok(())
 }
 
-#[async_stream(item = i32)]
+#[async_stream_move(item = i32)]
 fn _stream3() -> Result<(), i32> {
     let mut cnt = 0;
     #[async]
@@ -118,7 +120,7 @@ fn _stream3() -> Result<(), i32> {
     Err(cnt)
 }
 
-#[async_stream(boxed, item = u64)]
+#[async_stream_move(boxed, item = u64)]
 fn _stream4() -> Result<(), i32> {
     stream_yield!(0);
     stream_yield!(1);
@@ -127,14 +129,14 @@ fn _stream4() -> Result<(), i32> {
 
 mod foo { pub struct Foo(pub i32); }
 
-#[async_stream(boxed, item = foo::Foo)]
+#[async_stream_move(boxed, item = foo::Foo)]
 pub fn stream5() -> Result<(), i32> {
     stream_yield!(foo::Foo(0));
     stream_yield!(foo::Foo(1));
     Ok(())
 }
 
-#[async_stream(boxed, item = i32)]
+#[async_stream_move(boxed, item = i32)]
 pub fn _stream6() -> Result<(), i32> {
     #[async]
     for foo::Foo(i) in stream5() {
@@ -143,53 +145,41 @@ pub fn _stream6() -> Result<(), i32> {
     Ok(())
 }
 
-#[async_stream(item = ())]
+#[async_stream_move(item = ())]
 pub fn _stream7() -> Result<(), i32> {
     stream_yield!(());
     Ok(())
 }
 
-#[async_stream(item = [u32; 4])]
+#[async_stream_move(item = [u32; 4])]
 pub fn _stream8() -> Result<(), i32> {
     stream_yield!([1, 2, 3, 4]);
     Ok(())
 }
 
-// struct A(i32);
-//
-// impl A {
-//     #[async]
-//     fn a_foo(self) -> Result<i32, i32> {
-//         Ok(self.0)
-//     }
-//
-//     #[async]
-//     fn _a_foo2(self: Box<Self>) -> Result<i32, i32> {
-//         Ok(self.0)
-//     }
-// }
+struct A(i32);
 
-// trait B {
-//     #[async]
-//     fn b(self) -> Result<i32, i32>;
-// }
-//
-// impl B for A {
-//     #[async]
-//     fn b(self) -> Result<i32, i32> {
-//         Ok(self.0)
-//     }
-// }
+impl A {
+    #[async_move]
+    fn a_foo(self) -> Result<i32, i32> {
+        Ok(self.0)
+    }
 
-#[async_stream(item = u64)]
+    #[async_move]
+    fn _a_foo2(self: Box<Self>) -> Result<i32, i32> {
+        Ok(self.0)
+    }
+}
+
+#[async_stream_move(item = u64)]
 fn await_item_stream() -> Result<(), i32> {
     stream_yield!(0);
     stream_yield!(1);
     Ok(())
 }
 
-#[async]
-fn test_await_item() -> Result<(), ()> {
+#[async_move]
+fn test_await_item() -> Result<(), Never> {
     let mut stream = await_item_stream();
 
     assert_eq!(await_item!(stream), Ok(Some(0)));
@@ -201,18 +191,19 @@ fn test_await_item() -> Result<(), ()> {
 
 #[test]
 fn main() {
-    assert_eq!(foo().wait(), Ok(1));
-    assert_eq!(_bar().wait(), Ok(1));
-    assert_eq!(_bar2().wait(), Ok(2));
-    assert_eq!(_bar3().wait(), Ok(2));
-    assert_eq!(_bar4().wait(), Ok(10));
-    assert_eq!(_foo6(8).wait(), Err(8));
-    // assert_eq!(A(11).a_foo().wait(), Ok(11));
-    assert_eq!(loop_in_loop().wait(), Ok(true));
-    assert_eq!(test_await_item().wait(), Ok(()));
+    assert_eq!(executor::block_on(foo()), Ok(1));
+    assert_eq!(executor::block_on(foo()), Ok(1));
+    assert_eq!(executor::block_on(_bar()), Ok(1));
+    assert_eq!(executor::block_on(_bar2()), Ok(2));
+    assert_eq!(executor::block_on(_bar3()), Ok(2));
+    assert_eq!(executor::block_on(_bar4()), Ok(10));
+    assert_eq!(executor::block_on(_foo6(8)), Err(8));
+    assert_eq!(executor::block_on(A(11).a_foo()), Ok(11));
+    assert_eq!(executor::block_on(loop_in_loop()), Ok(true));
+    assert_eq!(executor::block_on(test_await_item()), Ok(()));
 }
 
-#[async]
+#[async_move]
 fn loop_in_loop() -> Result<bool, i32> {
     let mut cnt = 0;
     let vec = vec![1, 2, 3, 4];
@@ -228,7 +219,7 @@ fn loop_in_loop() -> Result<bool, i32> {
     Ok(cnt == sum)
 }
 
-#[async_stream(item = i32)]
+#[async_stream_move(item = i32)]
 fn poll_stream_after_error_stream() -> Result<(), ()> {
     stream_yield!(5);
     Err(())
@@ -237,13 +228,13 @@ fn poll_stream_after_error_stream() -> Result<(), ()> {
 #[test]
 fn poll_stream_after_error() {
     let mut s = poll_stream_after_error_stream();
-    assert_eq!(s.poll(), Ok(Async::Ready(Some(5))));
-    assert_eq!(s.poll(), Err(()));
-    assert_eq!(s.poll(), Ok(Async::Ready(None)));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll_next(ctx))), Ok(Some(5)));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll_next(ctx))), Err(()));
+    assert_eq!(executor::block_on(poll_fn(|ctx| s.poll_next(ctx))), Ok(None));
 }
 
 #[test]
 fn run_boxed_future_in_cpu_pool() {
-    let pool = CpuPool::new_num_cpus();
-    pool.spawn(_foo9()).wait().unwrap();
+    let mut pool = executor::ThreadPool::new();
+    pool.spawn(_foo9()).unwrap();
 }

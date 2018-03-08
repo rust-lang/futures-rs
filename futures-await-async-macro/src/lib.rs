@@ -10,7 +10,7 @@
 //! lifting, this is just a very small shim around creating a closure/future out
 //! of a generator.
 
-#![feature(proc_macro)]
+#![feature(proc_macro, match_default_bindings)]
 #![recursion_limit = "128"]
 
 extern crate proc_macro2;
@@ -27,17 +27,20 @@ use syn::*;
 use syn::punctuated::Punctuated;
 use syn::fold::Fold;
 
+mod elision;
+
 macro_rules! quote_cs {
     ($($t:tt)*) => (quote_spanned!(Span::call_site() => $($t)*))
 }
 
 fn async_inner<F>(
     boxed: bool,
+    pinned: bool,
     function: TokenStream,
     gen_function: Tokens,
     return_ty: F,
 ) -> TokenStream
-where F: FnOnce(&Type) -> proc_macro2::TokenStream
+where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
 {
     // Parse our item, expecting a function. This function may be an actual
     // top-level function or it could be a method (typically dictated by the
@@ -60,7 +63,7 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
         inputs,
         output,
         variadic,
-        generics,
+        mut generics,
         fn_token,
         ..
     } = { *decl };
@@ -86,7 +89,7 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
     // into roughly:
     //
     //      fn foo(__arg_0: u32) -> impl Future<...> {
-    //          gen(move || {
+    //          gen_move(move || {
     //              let ref a = __arg0;
     //
     //              // ...
@@ -153,6 +156,7 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
         }
     }
 
+
     // This is the point where we handle
     //
     //      #[async]
@@ -162,7 +166,12 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
     // Basically just take all those expression and expand them.
     let block = ExpandAsyncFor.fold_block(*block);
 
-    let return_ty = return_ty(&output);
+
+    let inputs_no_patterns = elision::unelide_lifetimes(&mut generics.params, inputs_no_patterns);
+    let lifetimes: Vec<_> = generics.lifetimes().map(|l| &l.lifetime).collect();
+
+    let return_ty = return_ty(&output, &lifetimes);
+
 
     let block_inner = quote_cs! {
         #( let #patterns = #temp_bindings; )*
@@ -182,7 +191,7 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
         #[allow(unreachable_code)]
         {
             return __e;
-            loop { yield ::futures::Async::NotReady }
+            loop { yield ::futures::__rt::Async::Pending }
         }
     };
     let mut gen_body = Tokens::new();
@@ -195,8 +204,14 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
     // sure if more errors will highlight this function call...
     let output_span = first_last(&output);
     let gen_function = respan(gen_function.into(), &output_span);
-    let body_inner = quote_cs! {
-        #gen_function (move || -> #output #gen_body)
+    let body_inner = if pinned {
+        quote_cs! {
+            #gen_function (#[allow(unused_unsafe)] unsafe { static move || -> #output #gen_body })
+        }
+    } else {
+        quote_cs! {
+            #gen_function (move || -> #output #gen_body)
+        }
     };
     let body_inner = if boxed {
         let body = quote_cs! { ::futures::__rt::std::boxed::Box::new(#body_inner) };
@@ -224,42 +239,79 @@ where F: FnOnce(&Type) -> proc_macro2::TokenStream
 
 #[proc_macro_attribute]
 pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
-    // Handle arguments to the #[async] attribute, if any
     let (boxed, send) = match &attribute.to_string() as &str {
-        "( boxed )" => (true, false),
-        "( boxed_send )" => (true, true),
+        "( pinned )" => (true, false),
+        "( pinned_send )" => (true, true),
         "" => (false, false),
-        _ => panic!("the #[async] attribute currently only takes `boxed` as an arg"),
+        _ => panic!("the #[async] attribute currently only takes `pinned` `pinned_send` as an arg"),
     };
 
-    async_inner(boxed, function, quote_cs! { ::futures::__rt::gen }, |output| {
+    async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
         // TODO: can we lift the restriction that `futures` must be at the root of
         //       the crate?
         let output_span = first_last(&output);
         let return_ty = if boxed && !send {
             quote_cs! {
-                ::futures::__rt::std::boxed::Box<::futures::Future<
+                ::futures::__rt::PinBox<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
             }
         } else if boxed && send {
             quote_cs! {
-                ::futures::__rt::std::boxed::Box<::futures::Future<
+                ::futures::__rt::PinBox<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 > + Send>
             }
         } else {
+            quote_cs! {
+                impl ::futures::__rt::MyStableFuture<!> + #( #lifetimes + )*
+            }
+        };
+        let return_ty = respan(return_ty.into(), &output_span);
+        replace_bang(return_ty, &output)
+    })
+}
+
+#[proc_macro_attribute]
+pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async_move] attribute, if any
+    let (boxed, send) = match &attribute.to_string() as &str {
+        "( boxed )" => (true, false),
+        "( boxed_send )" => (true, true),
+        "" => (false, false),
+        _ => panic!("the #[async_move] attribute currently only takes `boxed` or `boxed_send`, as an arg"),
+    };
+
+    async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_move }, |output, lifetimes| {
+        // TODO: can we lift the restriction that `futures` must be at the root of
+        //       the crate?
+        let output_span = first_last(&output);
+        let return_ty = if boxed && !send {
+            quote_cs! {
+                ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
+                    Item = <! as ::futures::__rt::IsResult>::Ok,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                > + ::futures::__rt::pin_api::Unpin + #(#lifetimes +)*>
+            }
+        } else if boxed && send {
+            quote_cs! {
+                ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
+                    Item = <! as ::futures::__rt::IsResult>::Ok,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                > + ::futures::__rt::pin_api::Unpin + Send + #(#lifetimes +)*>
+            }
+        } else {
             // Dunno why this is buggy, hits weird typecheck errors in tests
             //
             // quote_cs! {
-            //     impl ::futures::Future<
+            //     impl ::futures::__rt::Future<
             //         Item = <#output as ::futures::__rt::MyTry>::MyOk,
             //         Error = <#output as ::futures::__rt::MyTry>::MyError,
             //     >
             // }
-            quote_cs! { impl ::futures::__rt::MyFuture<!> + 'static }
+            quote_cs! { impl ::futures::__rt::MyFuture<!> + #(#lifetimes +)* }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bang(return_ty, &output)
@@ -278,9 +330,9 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
     for arg in args.0 {
         match arg {
             AsyncStreamArg(term, None) => {
-                if term == "boxed" {
+                if term == "pinned" {
                     if boxed {
-                        panic!("duplicate 'boxed' argument to #[async_stream]");
+                        panic!("duplicate 'pinned' argument to #[async_stream]");
                     }
                     boxed = true;
                 } else {
@@ -303,17 +355,71 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
     let boxed = boxed;
     let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
 
-    async_inner(boxed, function, quote_cs! { ::futures::__rt::gen_stream }, |output| {
+    async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, lifetimes| {
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {
-                ::futures::__rt::std::boxed::Box<::futures::Stream<
+                ::futures::__rt::PinBox<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                >>
+                > + #(#lifetimes +)*>
             }
         } else {
-            quote_cs! { impl ::futures::__rt::MyStream<!, !> + 'static }
+            quote_cs! { impl ::futures::__rt::MyStableStream<!, !> + #(#lifetimes +)* }
+        };
+        let return_ty = respan(return_ty.into(), &output_span);
+        replace_bangs(return_ty, &[&item_ty, &output])
+    })
+}
+
+#[proc_macro_attribute]
+pub fn async_stream_move(attribute: TokenStream, function: TokenStream) -> TokenStream {
+    // Handle arguments to the #[async_stream_move] attribute, if any
+    let args = syn::parse::<AsyncStreamArgs>(attribute)
+        .expect("failed to parse attribute arguments");
+
+    let mut boxed = false;
+    let mut item_ty = None;
+
+    for arg in args.0 {
+        match arg {
+            AsyncStreamArg(term, None) => {
+                if term == "boxed" {
+                    if boxed {
+                        panic!("duplicate 'boxed' argument to #[async_stream_move]");
+                    }
+                    boxed = true;
+                } else {
+                    panic!("unexpected #[async_stream_move] argument '{}'", term);
+                }
+            }
+            AsyncStreamArg(term, Some(ty)) => {
+                if term == "item" {
+                    if item_ty.is_some() {
+                        panic!("duplicate 'item' argument to #[async_stream_move]");
+                    }
+                    item_ty = Some(ty);
+                } else {
+                    panic!("unexpected #[async_stream_move] argument '{}'", quote_cs!(#term = #ty));
+                }
+            }
+        }
+    }
+
+    let boxed = boxed;
+    let item_ty = item_ty.expect("#[async_stream_move] requires item type to be specified");
+
+    async_inner(boxed, false, function, quote_cs! { ::futures::__rt::gen_stream }, |output, lifetimes| {
+        let output_span = first_last(&output);
+        let return_ty = if boxed {
+            quote_cs! {
+                ::futures::__rt::std::boxed::Box<::futures::__rt::Stream<
+                    Item = !,
+                    Error = <! as ::futures::__rt::IsResult>::Err,
+                > + ::futures::__rt::pin_api::Unpin + #(#lifetimes +)*>
+            }
+        } else {
+            quote_cs! { impl ::futures::__rt::MyStream<!, !> + #(#lifetimes +)* }
         };
         let return_ty = respan(return_ty.into(), &output_span);
         replace_bangs(return_ty, &[&item_ty, &output])
@@ -331,7 +437,7 @@ pub fn async_block(input: TokenStream) -> TokenStream {
     let expr = ExpandAsyncFor.fold_expr(expr);
 
     let mut tokens = quote_cs! {
-        ::futures::__rt::gen
+        ::futures::__rt::gen_move
     };
 
     // Use some manual token construction here instead of `quote_cs!` to ensure
@@ -342,7 +448,7 @@ pub fn async_block(input: TokenStream) -> TokenStream {
         syn::token::OrOr([span, span]).to_tokens(tokens);
         syn::token::Brace(span).surround(tokens, |tokens| {
             (quote_cs! {
-                if false { yield ::futures::Async::NotReady }
+                if false { yield ::futures::__rt::Async::Pending }
             }).to_tokens(tokens);
             expr.to_tokens(tokens);
         });
@@ -373,7 +479,7 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
         syn::token::OrOr([span, span]).to_tokens(tokens);
         syn::token::Brace(span).surround(tokens, |tokens| {
             (quote_cs! {
-                if false { yield ::futures::Async::NotReady }
+                if false { yield ::futures::__rt::Async::Pending }
             }).to_tokens(tokens);
             expr.to_tokens(tokens);
         });
@@ -415,17 +521,21 @@ impl Fold for ExpandAsyncFor {
             #label
             loop {
                 let #pat = {
-                    extern crate futures_await;
-                    let r = futures_await::Stream::poll(&mut __stream)?;
-                    match r {
-                        futures_await::Async::Ready(e) => {
+                    let r = {
+                        let pin = unsafe {
+                            ::futures::__rt::pin_api::PinMut::new_unchecked(&mut __stream)
+                        };
+                        ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableStream::poll_next(pin, ctx))
+                    };
+                    match r? {
+                        ::futures::__rt::Async::Ready(e) => {
                             match e {
-                                futures_await::__rt::std::option::Option::Some(e) => e,
-                                futures_await::__rt::std::option::Option::None => break,
+                                ::futures::__rt::std::option::Option::Some(e) => e,
+                                ::futures::__rt::std::option::Option::None => break,
                             }
                         }
-                        futures_await::Async::NotReady => {
-                            yield futures_await::Async::NotReady;
+                        ::futures::__rt::Async::Pending => {
+                            yield ::futures::__rt::Async::Pending;
                             continue
                         }
                     }

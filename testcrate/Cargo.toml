@@ -10,7 +10,7 @@ path = "lib.rs"
 futures-await = { path = ".." }
 
 [dev-dependencies]
-compiletest_rs = "0.3"
+compiletest_rs = "0.3.7"
 
 [[test]]
 name = "ui"

@@ -43,7 +43,7 @@ fn main() {
     core.run(server).unwrap();
 }
 
-#[async]
+#[async_move]
 fn handle_client(socket: TcpStream) -> io::Result<u64> {
     let (reader, mut writer) = socket.split();
     let input = BufReader::new(reader);
