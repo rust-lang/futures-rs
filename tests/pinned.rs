@@ -29,9 +29,20 @@ fn _stream1() -> Result<(), i32> {
     Ok(())
 }
 
+#[async]
+pub fn uses_async_for() -> Result<Vec<u64>, i32> {
+    let mut v = vec![];
+    #[async]
+    for i in _stream1() {
+        v.push(i);
+    }
+    Ok(v)
+}
+
 #[test]
 fn main() {
     assert_eq!(block_on_stable(foo()), Ok(1));
     assert_eq!(block_on_stable(bar(&1)), Ok(1));
     assert_eq!(block_on_stable(baz(17)), Ok(17));
+    assert_eq!(block_on_stable(uses_async_for()), Ok(vec![0, 1]));
 }
