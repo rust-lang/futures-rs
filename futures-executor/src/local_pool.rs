@@ -102,7 +102,7 @@ impl LocalPool {
         run_executor(|waker| self.poll_pool(waker, exec))
     }
 
-    /// Runs all the tasks in the pull until the given future completes.
+    /// Runs all the tasks in the pool until the given future completes.
     ///
     /// The given executor, `exec`, is used as the default executor for any
     /// *newly*-spawned tasks. You can route these additional tasks back into
