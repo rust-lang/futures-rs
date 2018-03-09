@@ -32,6 +32,7 @@ extern crate futures_channel;
 extern crate futures_executor;
 extern crate futures_io;
 extern crate futures_sink;
+extern crate futures_stable;
 extern crate futures_util;
 
 pub use futures_core::future::{Future, IntoFuture};
@@ -364,4 +365,12 @@ pub mod task {
 
     #[cfg(feature = "std")]
     pub use futures_core::task::{LocalKey, Wake};
+}
+
+#[cfg(feature = "nightly")]
+pub mod stable {
+    pub use futures_stable::{StableFuture, StableStream};
+
+    #[cfg(feature = "std")]
+    pub use futures_stable::{StableExecutor, block_on_stable};
 }

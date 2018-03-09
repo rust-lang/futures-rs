@@ -24,8 +24,10 @@ futures-channel = { path = "../futures-channel", version = "0.2.0", default-feat
 futures-executor = { path = "../futures-executor", version = "0.2.0", default-features = false }
 futures-io = { path = "../futures-io", version = "0.2.0", default-features = false }
 futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false }
+futures-stable = { path = "../futures-stable", version = "0.2.0", default-features = false }
 futures-util = { path = "../futures-util", version = "0.2.0", default-features = false }
 
 [features]
-std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-util/std"]
+nightly = ["futures-stable/nightly"]
+std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-stable/std", "futures-util/std"]
 default = ["std"]

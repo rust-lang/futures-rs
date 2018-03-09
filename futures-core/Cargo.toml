@@ -10,6 +10,10 @@ description = """
 The core traits and types in for the `futures` library.
 """
 
+[dependencies]
+pin-api = { version = "0.1.2", default-features = false }
+
 [features]
 default = ["std"]
-std = []
+std = ["pin-api/std"]
+nightly = ["pin-api/nightly"]
