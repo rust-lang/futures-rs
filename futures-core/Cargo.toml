@@ -11,7 +11,7 @@ The core traits and types in for the `futures` library.
 """
 
 [dependencies]
-pin-api = { version = "0.1.2", default-features = false }
+pin-api = { version = "0.1.3", default-features = false }
 
 [features]
 default = ["std"]
