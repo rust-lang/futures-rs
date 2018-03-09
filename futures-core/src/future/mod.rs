@@ -142,6 +142,15 @@ if_std! {
         }
     }
 
+    #[cfg(feature = "nightly")]
+    impl<F: ?Sized + Future> Future for ::pin_api::PinBox<F> {
+        type Item = F::Item;
+        type Error = F::Error;
+
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+            unsafe { ::pin_api::PinMut::get_mut(&mut self.as_pin_mut()).poll(cx) }
+        }
+    }
 
     impl<F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
         type Item = F::Item;
