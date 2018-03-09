@@ -77,3 +77,25 @@ impl<S: Stream> Stream for SelectAll<S> {
         }
     }
 }
+
+/// Convert a list of streams into a `Stream` of results from the streams.
+///
+/// This essentially takes a list of streams (e.g. a vector, an iterator, etc.)
+/// and bundles them together into a single stream.
+/// The stream will yield items as they become available on the underlying
+/// streams internally, in the order they become available.
+///
+/// Note that the returned set can also be used to dynamically push more
+/// futures into the set as they become available.
+pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
+    where I: IntoIterator,
+          I::Item: Stream
+{
+    let mut set = SelectAll::new();
+
+    for stream in streams {
+        set.push(stream);
+    }
+
+    return set
+}
