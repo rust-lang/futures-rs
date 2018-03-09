@@ -17,4 +17,4 @@ nightly = ["pin-api/nightly"]
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }
-pin-api = { version = "0.1.2", default-features = false }
+pin-api = { version = "0.1.3", default-features = false }
