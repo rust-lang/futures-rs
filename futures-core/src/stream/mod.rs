@@ -80,6 +80,16 @@ if_std! {
         }
     }
 
+    #[cfg(feature = "nightly")]
+    impl<S: ?Sized + Stream> Stream for ::pin_api::PinBox<S> {
+        type Item = S::Item;
+        type Error = S::Error;
+
+        fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            unsafe { ::pin_api::PinMut::get_mut(&mut self.as_pin_mut()).poll_next(cx) }
+        }
+    }
+
     impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
         type Error = S::Error;

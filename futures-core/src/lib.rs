@@ -10,6 +10,9 @@ extern crate std;
 #[cfg(feature = "either")]
 extern crate either;
 
+#[cfg(feature = "nightly")]
+extern crate pin_api;
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]

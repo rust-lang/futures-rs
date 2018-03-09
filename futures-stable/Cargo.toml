@@ -1,0 +1,26 @@
+[package]
+name = "futures-stable"
+description = "futures which support internal references"
+version = "0.2.0-alpha"
+authors = ["boats <boats@mozilla.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+
+[dependencies.pin-api]
+version = "0.1.2"
+default-features = false
+
+[dependencies.futures-core]
+path = "../futures-core"
+version = "0.2.0-alpha"
+default-features = false
+
+[dependencies.futures-executor]
+path = "../futures-executor"
+version = "0.2.0-alpha"
+default-features = false
+
+[features]
+nightly = ["pin-api/nightly"]
+std = ["pin-api/std", "futures-core/std", "futures-executor/std"]
+default = ["std", "nightly"]
