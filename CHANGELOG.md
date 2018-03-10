@@ -234,7 +234,7 @@ Notable deprecations in the 0.1.4 release that will be deleted in an eventual
 * The `failed` constructor is now `err`.
 * The `done` constructor is now `result`.
 
-As always, please report bugs to https://github.com/alexcrichton/futures-rs and
+As always, please report bugs to https://github.com/rust-lang-nursery/futures-rs and
 we always love feedback! If you've got situations we don't cover, combinators
 you'd like to see, or slow code, please let us know!
 
