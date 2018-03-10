@@ -3,8 +3,8 @@ name = "futures-channel"
 version = "0.2.0-alpha"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
-repository = "https://github.com/alexcrichton/futures-rs"
-homepage = "https://github.com/alexcrichton/futures-rs"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+homepage = "https://github.com/rust-lang-nursery/futures-rs"
 documentation = "https://docs.rs/futures-core"
 description = """
 Channels for asynchronous communication using futures-rs.
