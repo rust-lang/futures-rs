@@ -232,6 +232,7 @@ pub unsafe trait UnsafeWake {
 /// If you're implementing an executor, the recommended way to create a `Waker`
 /// is via `Waker::from` applied to an `Arc<T>` value where `T: Wake`. The
 /// unsafe `new` constructor should be used only in niche, `no_std` settings.
+#[derive(PartialEq, Eq)]
 pub struct Waker {
     inner: *mut UnsafeWake,
 }
