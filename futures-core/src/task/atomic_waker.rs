@@ -3,7 +3,7 @@
 use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::{Acquire, Release};
+use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
 
 use task::Waker;
 
@@ -97,8 +97,32 @@ impl AtomicWaker {
                     // Release the lock. If the state transitioned to
                     // `LOCKED_NOTIFIED`, this means that an notify has been
                     // signaled, so notify the task.
-                    if LOCKED_WRITE_NOTIFIED == self.state.swap(WAITING, Release) {
-                        (*self.waker.get()).as_ref().unwrap().wake();
+                    //
+                    // Start by assuming that the state is LOCKED_WRITE as this
+                    // is what we jut set it to.
+                    let mut curr = LOCKED_WRITE;
+
+                    loop {
+                        let res = self.state.compare_exchange(
+                            curr, WAITING, AcqRel, Acquire);
+
+                        match res {
+                            Ok(_) => return,
+                            Err(actual) => {
+                                // Update `curr` for the next iteration of the
+                                // loop
+                                curr = actual;
+                            }
+                        }
+
+                        // Since we aren't using the weak variant of the atomic
+                        // operation, the only possible option for `curr` is
+                        // `LOCKED_WRITE_NOTIFIED`.
+                        assert_eq!(curr, LOCKED_WRITE_NOTIFIED);
+
+                        if let Some(waker) = (*self.waker.get()).take() {
+                            waker.wake();
+                        }
                     }
                 }
             }
