@@ -17,12 +17,12 @@ use task::Waker;
 /// a new logical task.
 ///
 /// Consumers should call `register` before checking the result of a computation
-/// and producers should call `notify` after producing the computation (this
+/// and producers should call `wake` after producing the computation (this
 /// differs from the usual `thread::park` pattern). It is also permitted for
-/// `notify` to be called **before** `register`. This results in a no-op.
+/// `wake` to be called **before** `register`. This results in a no-op.
 ///
 /// A single `AtomicWaker` may be reused for any number of calls to `register` or
-/// `notify`.
+/// `wake`.
 ///
 /// `AtomicWaker` does not provide any memory ordering guarantees, as such the
 /// user should use caution and use other synchronization primitives to guard
@@ -46,14 +46,14 @@ const WAITING: usize = 2;
 /// obtained to update the task cell.
 const LOCKED_WRITE: usize = 0;
 
-/// At least one call to `notify` happened concurrently to `register` updating
+/// At least one call to `wake` happened concurrently to `register` updating
 /// the task cell. This state is detected when `register` exits the mutation
 /// code and signals to `register` that it is responsible for notifying its own
 /// task.
 const LOCKED_WRITE_NOTIFIED: usize = 1;
 
 
-/// The `notify` function has locked access to the task cell for notification.
+/// The `wake` function has locked access to the task cell for notification.
 ///
 /// The constant is left here mostly for documentation reasons.
 #[allow(dead_code)]
@@ -72,15 +72,15 @@ impl AtomicWaker {
         }
     }
 
-    /// Registers the waker to be notified on calls to `notify`.
+    /// Registers the waker to be notified on calls to `wake`.
     ///
     /// The new task will take place of any previous tasks that were registered
-    /// by previous calls to `register`. Any calls to `notify` that happen after
+    /// by previous calls to `register`. Any calls to `wake` that happen after
     /// a call to `register` (as defined by the memory ordering rules), will
     /// notify the `register` caller's task.
     ///
     /// It is safe to call `register` with multiple other threads concurrently
-    /// calling `notify`. This will result in the `register` caller's current
+    /// calling `wake`. This will result in the `register` caller's current
     /// task being notified once.
     ///
     /// This function is safe to call concurrently, but this is generally a bad
@@ -113,9 +113,9 @@ impl AtomicWaker {
                 debug_assert!(state != LOCKED_WRITE, "unexpected state LOCKED_WRITE");
                 debug_assert!(state != LOCKED_WRITE_NOTIFIED, "unexpected state LOCKED_WRITE_NOTIFIED");
 
-                // Currently in a read locked state, this implies that `notify`
+                // Currently in a read locked state, this implies that `wake`
                 // is currently being called on the old task handle. So, we call
-                // notify on the new task handle
+                // `wake` on the new task handle
                 waker.wake();
             }
         }
