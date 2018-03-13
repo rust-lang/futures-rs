@@ -1,4 +1,4 @@
-use std::io::{self, ErrorKind};
+use std::io;
 use std::mem;
 use std::vec::Vec;
 
@@ -77,7 +77,6 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context
             }
             Ok(Async::Ready(n)) => g.len += n,
             Ok(Async::Pending) => return Ok(Async::Pending),
-            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
             Err(e) => {
                 ret = Err(e);
                 break;
