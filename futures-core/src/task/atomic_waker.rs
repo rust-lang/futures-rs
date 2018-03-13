@@ -177,7 +177,7 @@ impl AtomicWaker {
                 if actual == curr {
                     // Notify the task
                     unsafe {
-                        if let Some(ref waker) = *self.waker.get() {
+                        if let Some(waker) = (*self.waker.get()).take() {
                             waker.wake();
                         }
                     }
