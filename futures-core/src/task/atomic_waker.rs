@@ -110,6 +110,8 @@ impl AtomicWaker {
     ///     type Error = Never;
     ///
     ///     fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
+    ///         // Register **before** checkin `set` to avoid a race condition
+    ///         // that would result in lost notifications.
     ///         self.waker.register(cx.waker());
     ///
     ///         if self.set.load(SeqCst) {
