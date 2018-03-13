@@ -35,6 +35,7 @@ pub struct LocalPool {
 
 /// A handle to a [`LocalPool`](LocalPool) that implements
 /// [`Executor`](::futures_core::executor::Executor).
+#[derive(Clone)]
 pub struct LocalExecutor {
     incoming: Weak<Incoming>,
 }
