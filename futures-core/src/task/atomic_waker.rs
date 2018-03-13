@@ -77,7 +77,9 @@ impl AtomicWaker {
     /// The new task will take place of any previous tasks that were registered
     /// by previous calls to `register`. Any calls to `wake` that happen after
     /// a call to `register` (as defined by the memory ordering rules), will
-    /// notify the `register` caller's task.
+    /// notify the `register` caller's task and deregister the waker from future
+    /// notifications. Because of this, callers should ensure `register` gets
+    /// invoked with a new `Waker` **each** time they require a wakeup.
     ///
     /// It is safe to call `register` with multiple other threads concurrently
     /// calling `wake`. This will result in the `register` caller's current
@@ -87,6 +89,37 @@ impl AtomicWaker {
     /// idea. Concurrent calls to `register` will attempt to register different
     /// tasks to be notified. One of the callers will win and have its task set,
     /// but there is no guarantee as to which caller will succeed.
+    ///
+    /// # Examples
+    ///
+    /// Here is how `register` is used when implementing a flag.
+    ///
+    /// ```
+    /// # use futures_core::{Future, Poll, Never};
+    /// # use futures_core::Async::*;
+    /// # use futures_core::task::{self, AtomicWaker};
+    /// # use std::sync::atomic::AtomicBool;
+    /// # use std::sync::atomic::Ordering::SeqCst;
+    /// struct Flag {
+    ///     waker: AtomicWaker,
+    ///     set: AtomicBool,
+    /// }
+    ///
+    /// impl Future for Flag {
+    ///     type Item = ();
+    ///     type Error = Never;
+    ///
+    ///     fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
+    ///         self.waker.register(cx.waker());
+    ///
+    ///         if self.set.load(SeqCst) {
+    ///             Ok(Ready(()))
+    ///         } else {
+    ///             Ok(Pending)
+    ///         }
+    ///     }
+    /// }
+    /// ```
     pub fn register(&self, waker: &Waker) {
         match self.state.compare_and_swap(WAITING, LOCKED_WRITE, Acquire) {
             WAITING => {
