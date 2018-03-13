@@ -13,9 +13,6 @@ if_not_std! {
     type Exec<'a> = ();
 }
 
-mod atomic_waker;
-pub use self::atomic_waker::AtomicWaker;
-
 /// Information about the currently-running task.
 ///
 /// Contexts are always tied to the stack, since they are set up specifically
@@ -58,6 +55,9 @@ impl<'a> Context<'a> {
 }
 
 if_std! {
+    mod atomic_waker;
+    pub use self::atomic_waker::AtomicWaker;
+
     use std::boxed::Box;
     use Future;
 

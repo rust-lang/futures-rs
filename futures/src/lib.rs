@@ -353,10 +353,8 @@ pub mod task {
     //! The remaining types and traits in the module are used for implementing
     //! executors or dealing with synchronization issues around task wakeup.
 
-    pub use futures_core::task::{
-        AtomicWaker, Context, LocalMap, Waker, UnsafeWake,
-    };
+    pub use futures_core::task::{Context, LocalMap, Waker, UnsafeWake};
 
     #[cfg(feature = "std")]
-    pub use futures_core::task::{LocalKey, Wake};
+    pub use futures_core::task::{AtomicWaker, LocalKey, Wake};
 }
