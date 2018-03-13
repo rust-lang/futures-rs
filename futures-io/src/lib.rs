@@ -107,6 +107,13 @@ if_std! {
         /// `Ok(Async::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Async::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
             -> Poll<usize, Error>;
 
@@ -126,6 +133,12 @@ if_std! {
         /// buffer in `vec`. Objects which support vectored IO should override
         /// this method.
         ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Async::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
             -> Poll<usize, Error>
         {
@@ -154,6 +167,13 @@ if_std! {
         /// `Ok(Async::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Async::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
             -> Poll<usize, Error>;
 
@@ -173,6 +193,13 @@ if_std! {
         /// By default, this method delegates to using `poll_write` on the first
         /// buffer in `vec`. Objects which support vectored IO should override
         /// this method.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Async::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
             -> Poll<usize, Error>
         {
@@ -193,6 +220,13 @@ if_std! {
         /// `Ok(Async::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object can make
         /// progress towards flushing.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Async::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
 
         /// Attempt to close the object.
@@ -203,6 +237,13 @@ if_std! {
         /// `Ok(Async::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object can make
         /// progress towards closing.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Async::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
     }
 
