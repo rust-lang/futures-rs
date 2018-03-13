@@ -832,7 +832,9 @@ impl<T> Receiver<T> {
     /// no longer empty.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
-            Async::Ready(msg) => Ok(msg),
+            Async::Ready(msg) => {
+                Ok(msg)
+            },
             Async::Pending => Err(TryRecvError { _inner: () }),
         }
     }
@@ -842,6 +844,13 @@ impl<T> Receiver<T> {
         loop {
             match unsafe { self.inner.message_queue.pop() } {
                 PopResult::Data(msg) => {
+                    // If there are any parked task handles in the parked queue, pop
+                    // one and unpark it.
+                    self.unpark_one();
+
+                    // Decrement number of messages
+                    self.dec_num_messages();
+
                     return Async::Ready(msg);
                 }
                 PopResult::Empty => {
@@ -959,14 +968,6 @@ impl<T> Stream for Receiver<T> {
                     }
                 }
             };
-
-            // If there are any parked task handles in the parked queue, pop
-            // one and unpark it.
-            self.unpark_one();
-
-            // Decrement number of messages
-            self.dec_num_messages();
-
             // Return the message
             return Ok(Async::Ready(msg));
         }
