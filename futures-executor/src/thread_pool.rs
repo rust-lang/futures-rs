@@ -19,6 +19,9 @@ use unpark_mutex::UnparkMutex;
 ///
 /// The thread pool multiplexes any number of tasks onto a fixed number of
 /// worker threads.
+///
+/// This type is a clonable handle to the threadpool itself.
+/// Cloning it will only create a new reference, not a new threadpool.
 pub struct ThreadPool {
     state: Arc<PoolState>,
 }
