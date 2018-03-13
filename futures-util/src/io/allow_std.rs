@@ -17,6 +17,24 @@ use std::vec::Vec;
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct AllowStdIo<T>(T);
 
+macro_rules! try_with_interrupt {
+    ($e:expr) => {
+        loop {
+            match $e {
+                Ok(e) => {
+                    break e;
+                }
+                Err(ref e) if e.kind() == ::std::io::ErrorKind::Interrupted => {
+                    continue;
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+    }
+}
+
 impl<T> AllowStdIo<T> {
     /// Creates a new `AllowStdIo` from an existing IO object.
     pub fn new(io: T) -> Self {
@@ -58,11 +76,11 @@ impl<T> AsyncWrite for AllowStdIo<T> where T: io::Write {
     fn poll_write(&mut self, _: &mut task::Context, buf: &[u8])
         -> Poll<usize, io::Error>
     {
-        Ok(Async::Ready(io::Write::write(&mut self.0, buf)?))
+        Ok(Async::Ready(try_with_interrupt!(io::Write::write(&mut self.0, buf))))
     }
 
     fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), io::Error> {
-        Ok(Async::Ready(io::Write::flush(self)?))
+        Ok(Async::Ready(try_with_interrupt!(io::Write::flush(self))))
     }
 
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), io::Error> {
@@ -91,6 +109,6 @@ impl<T> AsyncRead for AllowStdIo<T> where T: io::Read {
     fn poll_read(&mut self, _: &mut task::Context, buf: &mut [u8])
         -> Poll<usize, io::Error>
     {
-        Ok(Async::Ready(io::Read::read(&mut self.0, buf)?))
+        Ok(Async::Ready(try_with_interrupt!(io::Read::read(&mut self.0, buf))))
     }
 }
