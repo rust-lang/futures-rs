@@ -542,3 +542,17 @@ fn try_send_fail() {
     let item = block_on(rx.into_future()).ok().unwrap().0;
     assert_eq!(item, None);
 }
+
+#[test]
+fn try_send_recv() {
+    let (mut tx, mut rx) = mpsc::channel(1);
+    tx.try_send("hello").unwrap();
+    tx.try_send("hello").unwrap();
+    tx.try_send("hello").unwrap_err(); // should be full
+    rx.try_next().unwrap();
+    rx.try_next().unwrap();
+    rx.try_next().unwrap_err(); // should be empty
+    tx.try_send("hello").unwrap();
+    rx.try_next().unwrap();
+    rx.try_next().unwrap_err(); // should be empty
+}
