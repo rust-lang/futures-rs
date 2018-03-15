@@ -21,6 +21,5 @@ members = ["testcrate"]
 [dependencies]
 futures-await-async-macro = { path = "futures-await-async-macro", version = "0.2.0-alpha" }
 futures-await-await-macro = { path = "futures-await-await-macro", version = "0.2.0-alpha" }
-futures = "0.2.0-alpha"
-futures-stable = "0.2.0-alpha"
+futures = { git = "https://github.com/rust-lang-nursery/futures-rs.git", features = ["nightly"] }
 pin-api = "0.1.1"

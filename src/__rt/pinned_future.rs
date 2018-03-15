@@ -5,7 +5,7 @@ use __rt::pin_api::{PinMut, Unpin};
 use super::{IsResult, Reset, CTX};
 
 use futures::Never;
-use stable::StableFuture;
+use futures::stable::StableFuture;
 use task;
 use prelude::{Poll, Async};
 

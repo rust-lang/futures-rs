@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use __rt::pin_api::{PinMut, Unpin};
 use futures::task;
 use futures::prelude::{Poll, Async};
-use stable::StableStream;
+use futures::stable::StableStream;
 
 use super::{CTX, Reset, IsResult};
 
