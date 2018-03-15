@@ -20,14 +20,14 @@ if_nightly! {
     extern crate futures_core;
     extern crate futures_executor;
 
-    use pin_api::PinMut;
+    use pin_api::mem::Pin;
     use futures_core::{Future, Stream, Poll, task};
 
     if_std! {
         mod executor;
         mod unsafe_pin;
 
-        use pin_api::PinBox;
+        use pin_api::boxed::PinBox;
 
         pub use executor::{StableExecutor, block_on_stable};
         use unsafe_pin::UnsafePin;
@@ -37,7 +37,7 @@ if_nightly! {
         type Item;
         type Error;
 
-        fn poll(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
+        fn poll(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
 
         #[cfg(feature = "std")]
         fn pin<'a>(self) -> PinBox<Future<Item = Self::Item, Error = Self::Error> + Send + 'a>
@@ -58,8 +58,8 @@ if_nightly! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-            F::poll(unsafe { PinMut::get_mut(&mut self) }, ctx)
+        fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+            F::poll(unsafe { Pin::get_mut(&mut self) }, ctx)
         }
     }
 
@@ -67,7 +67,7 @@ if_nightly! {
         type Item;
         type Error;
 
-        fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
+        fn poll_next(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 
         #[cfg(feature = "std")]
         fn pin<'a>(self) -> PinBox<Stream<Item = Self::Item, Error = Self::Error> + Send + 'a>
@@ -88,8 +88,8 @@ if_nightly! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll_next(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            S::poll_next(unsafe { PinMut::get_mut(&mut self) }, ctx)
+        fn poll_next(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            S::poll_next(unsafe { Pin::get_mut(&mut self) }, ctx)
         }
     }
 }
