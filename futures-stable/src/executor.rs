@@ -1,7 +1,7 @@
 use futures_core::{Future, Never};
 use futures_core::executor::{Executor, SpawnError};
 use futures_executor::{ThreadPool, LocalPool, LocalExecutor};
-use pin_api::PinBox;
+use pin_api::boxed::PinBox;
 
 use StableFuture;
 use UnsafePin;
