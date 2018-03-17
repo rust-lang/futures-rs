@@ -1,7 +1,7 @@
+use std::mem::Pin;
 use std::ops::{Generator, GeneratorState};
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Unpin};
 
-use __rt::pin_api::{PinMut, Unpin};
 use futures::task;
 use futures::prelude::{Poll, Async};
 use futures::stable::StableStream;
@@ -38,10 +38,10 @@ impl<U, T> StableStream for GenStableStream<U, T>
     type Item = U;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll_next(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
+            let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
             if this.done { return Ok(Async::Ready(None)) }
             match this.gen.resume() {
                 GeneratorState::Yielded(Async::Ready(e)) => {

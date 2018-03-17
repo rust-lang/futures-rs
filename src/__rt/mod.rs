@@ -16,7 +16,6 @@ pub use futures::prelude::{Async, Future, Stream};
 pub use futures::stable::{StableFuture, StableStream};
 
 pub extern crate std;
-pub extern crate pin_api;
 
 pub use std::ops::Generator;
 

@@ -1,6 +1,6 @@
+use std::marker::Unpin;
+use std::mem::Pin;
 use std::ops::{Generator, GeneratorState};
-
-use __rt::pin_api::{PinMut, Unpin};
 
 use super::{IsResult, Reset, CTX};
 
@@ -27,10 +27,10 @@ impl<T> StableFuture for GenStableFuture<T>
     type Item = <T::Return as IsResult>::Ok;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
+            let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
             match this.0.resume() {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),
