@@ -86,7 +86,7 @@ if_std! {
         type Error = S::Error;
 
         fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            unsafe { ::pin_api::mem::Pin::get_mut(&mut self.as_pin_mut()).poll_next(cx) }
+            unsafe { ::pin_api::mem::Pin::get_mut(&mut self.as_pin()).poll_next(cx) }
         }
     }
 
