@@ -12,13 +12,13 @@ pub trait StableExecutor: Executor {
 
 impl StableExecutor for ThreadPool {
     fn spawn_pinned(&mut self, f: PinBox<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
-        unsafe { self.spawn(f.into_box_unchecked()) }
+        unsafe { self.spawn(PinBox::unpin(f)) }
     }
 }
 
 impl StableExecutor for LocalExecutor {
     fn spawn_pinned(&mut self, f: PinBox<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
-        unsafe { self.spawn(f.into_box_unchecked()) }
+        unsafe { self.spawn(PinBox::unpin(f)) }
     }
 }
 
