@@ -538,7 +538,7 @@ impl<'a, T> From<NodeToHandle<'a, T>> for Waker {
     fn from(handle: NodeToHandle<'a, T>) -> Waker {
         unsafe {
             let ptr = handle.0.clone();
-            let ptr = mem::transmute::<Arc<Node<T>>, *mut ArcNode<T>>(ptr);
+            let ptr = mem::transmute::<Arc<Node<T>>, *const ArcNode<T>>(ptr);
             Waker::new(hide_lt(ptr))
         }
     }
@@ -573,8 +573,8 @@ unsafe impl<T> UnsafeWake for ArcNode<T> {
     }
 }
 
-unsafe fn hide_lt<T>(p: *mut ArcNode<T>) -> *mut UnsafeWake {
-    mem::transmute(p as *mut UnsafeWake)
+unsafe fn hide_lt<T>(p: *const ArcNode<T>) -> *const UnsafeWake {
+    mem::transmute(p as *const UnsafeWake)
 }
 
 impl<T> Node<T> {

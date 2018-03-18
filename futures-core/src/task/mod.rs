@@ -232,7 +232,7 @@ pub unsafe trait UnsafeWake {
 /// is via `Waker::from` applied to an `Arc<T>` value where `T: Wake`. The
 /// unsafe `new` constructor should be used only in niche, `no_std` settings.
 pub struct Waker {
-    inner: *mut UnsafeWake,
+    inner: *const UnsafeWake,
 }
 
 unsafe impl Send for Waker {}
@@ -249,7 +249,7 @@ impl Waker {
     /// use the `Waker::from` function instead which works with the safe
     /// `Arc` type and the safe `Wake` trait.
     #[inline]
-    pub unsafe fn new(inner: *mut UnsafeWake) -> Waker {
+    pub unsafe fn new(inner: *const UnsafeWake) -> Waker {
         Waker { inner: inner }
     }
 
@@ -369,7 +369,7 @@ if_std! {
     {
         fn from(rc: Arc<T>) -> Waker {
             unsafe {
-                let ptr = mem::transmute::<Arc<T>, *mut ArcWrapped<T>>(rc);
+                let ptr = mem::transmute::<Arc<T>, *const ArcWrapped<T>>(rc);
                 Waker::new(ptr)
             }
         }
