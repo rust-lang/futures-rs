@@ -37,16 +37,16 @@ enum _Lazy<R, F> {
 /// use futures::future::{self, FutureResult};
 ///
 /// # fn main() {
-/// let a = future::lazy(|| future::ok::<u32, u32>(1));
+/// let a = future::lazy(|_| future::ok::<u32, u32>(1));
 ///
-/// let b = future::lazy(|| -> FutureResult<u32, u32> {
+/// let b = future::lazy(|_| -> FutureResult<u32, u32> {
 ///     panic!("oh no!")
 /// });
 /// drop(b); // closure is never run
 /// # }
 /// ```
 pub fn lazy<R, F>(f: F) -> Lazy<R, F>
-    where F: FnOnce() -> R,
+    where F: FnOnce(&mut task::Context) -> R,
           R: IntoFuture
 {
     Lazy {
@@ -55,17 +55,17 @@ pub fn lazy<R, F>(f: F) -> Lazy<R, F>
 }
 
 impl<R, F> Lazy<R, F>
-    where F: FnOnce() -> R,
+    where F: FnOnce(&mut task::Context) -> R,
           R: IntoFuture,
 {
-    fn get(&mut self) -> &mut R::Future {
+    fn get(&mut self, cx: &mut task::Context) -> &mut R::Future {
         match self.inner {
             _Lazy::First(_) => {}
             _Lazy::Second(ref mut f) => return f,
             _Lazy::Moved => panic!(), // can only happen if `f()` panics
         }
         match mem::replace(&mut self.inner, _Lazy::Moved) {
-            _Lazy::First(f) => self.inner = _Lazy::Second(f().into_future()),
+            _Lazy::First(f) => self.inner = _Lazy::Second(f(cx).into_future()),
             _ => panic!(), // we already found First
         }
         match self.inner {
@@ -76,13 +76,13 @@ impl<R, F> Lazy<R, F>
 }
 
 impl<R, F> Future for Lazy<R, F>
-    where F: FnOnce() -> R,
+    where F: FnOnce(&mut task::Context) -> R,
           R: IntoFuture,
 {
     type Item = R::Item;
     type Error = R::Error;
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<R::Item, R::Error> {
-        self.get().poll(cx)
+        self.get(cx).poll(cx)
     }
 }

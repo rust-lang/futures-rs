@@ -40,7 +40,7 @@ fn run_until_single_future() {
     {
         let mut pool = LocalPool::new();
         let mut exec = pool.executor();
-        let fut = lazy(|| {
+        let fut = lazy(|_| {
             cnt += 1;
             DONE
         });
@@ -55,7 +55,7 @@ fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
     exec.spawn_local(Box::new(pending())).unwrap();
-    pool.run_until(lazy(|| DONE), &mut exec).unwrap();
+    pool.run_until(lazy(|_| DONE), &mut exec).unwrap();
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
-    exec.spawn_local(Box::new(lazy(move || {
+    exec.spawn_local(Box::new(lazy(move |_| {
         tx.send(()).unwrap();
         DONE
     }))).unwrap();
@@ -79,8 +79,8 @@ fn run_executes_spawned() {
     let mut exec = pool.executor();
     let mut exec2 = pool.executor();
 
-    exec.spawn_local(Box::new(lazy(move || {
-        exec2.spawn_local(Box::new(lazy(move || {
+    exec.spawn_local(Box::new(lazy(move |_| {
+        exec2.spawn_local(Box::new(lazy(move |_| {
             cnt2.set(cnt2.get() + 1);
             DONE
         }))).unwrap();
@@ -103,7 +103,7 @@ fn run_spawn_many() {
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
-        exec.spawn_local(Box::new(lazy(move || {
+        exec.spawn_local(Box::new(lazy(move |_| {
             cnt.set(cnt.get() + 1);
             DONE
         }))).unwrap();
@@ -120,7 +120,7 @@ fn nesting_run() {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
 
-    exec.spawn(Box::new(lazy(|| {
+    exec.spawn(Box::new(lazy(|_| {
         let mut pool = LocalPool::new();
         let mut exec = pool.executor();
         pool.run(&mut exec);

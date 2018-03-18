@@ -741,7 +741,7 @@ pub trait FutureExt: Future {
     /// let mut future = future::ok::<i32, u32>(2);
     /// assert!(block_on(future.catch_unwind()).is_ok());
     ///
-    /// let mut future = future::lazy(|| -> FutureResult<i32, u32> {
+    /// let mut future = future::lazy(|_| -> FutureResult<i32, u32> {
     ///     panic!();
     ///     future::ok::<i32, u32>(2)
     /// });
