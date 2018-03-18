@@ -109,7 +109,7 @@ impl<S: Sink> Future for StartSendFut<S> {
 fn mpsc_blocking_start_send() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(0);
 
-    futures::future::lazy(|| {
+    futures::future::lazy(|_| {
         assert_eq!(tx.start_send(0).unwrap(), AsyncSink::Ready);
 
         let flag = Flag::new();

@@ -119,7 +119,7 @@ pub mod executor {
     //! ```
     //! use futures::executor::ThreadPool;
     //! # use futures::future::{Future, lazy};
-    //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|| Ok(())));
+    //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|_| Ok(())));
     //!
     //! // assumping `my_app: Future`
     //! ThreadPool::new().run(my_app);

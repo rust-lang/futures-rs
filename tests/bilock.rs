@@ -14,7 +14,7 @@ use support::*;
 
 #[test]
 fn smoke() {
-    let future = future::lazy(|| {
+    let future = future::lazy(|_| {
         let (a, b) = BiLock::new(1);
 
         {
