@@ -210,7 +210,7 @@ impl<T> FuturesUnordered<T> {
 
     /// Insert a new node into the internal linked list.
     fn link(&mut self, node: Arc<Node<T>>) -> *const Node<T> {
-        let ptr = arc2ptr(node);
+        let ptr = Arc::into_raw(node);
         unsafe {
             *(*ptr).next_all.get() = self.head_all;
             if !self.head_all.is_null() {
@@ -226,7 +226,7 @@ impl<T> FuturesUnordered<T> {
     /// Remove the node from the linked list tracking all nodes currently
     /// managed by `FuturesUnordered`.
     unsafe fn unlink(&mut self, node: *const Node<T>) -> Arc<Node<T>> {
-        let node = ptr2arc(node);
+        let node = Arc::from_raw(node);
         let next = *node.next_all.get();
         let prev = *node.prev_all.get();
         *node.next_all.get() = ptr::null_mut();
@@ -286,7 +286,7 @@ impl<T> Stream for FuturesUnordered<T>
                     // `release_node` for more information, but we're basically
                     // just taking ownership of our reference count here.
                     None => {
-                        let node = ptr2arc(node);
+                        let node = Arc::from_raw(node);
                         assert!((*node.next_all.get()).is_null());
                         assert!((*node.prev_all.get()).is_null());
                         continue
@@ -517,7 +517,7 @@ impl<T> Drop for Inner<T> {
                 match self.dequeue() {
                     Dequeue::Empty => break,
                     Dequeue::Inconsistent => abort("inconsistent in drop"),
-                    Dequeue::Data(ptr) => drop(ptr2arc(ptr)),
+                    Dequeue::Data(ptr) => drop(Arc::from_raw(ptr)),
                 }
             }
         }
@@ -622,20 +622,6 @@ impl<T> Drop for Node<T> {
             }
         }
     }
-}
-
-fn arc2ptr<T>(ptr: Arc<T>) -> *const T {
-    let addr = &*ptr as *const T;
-    mem::forget(ptr);
-    addr
-}
-
-unsafe fn ptr2arc<T>(ptr: *const T) -> Arc<T> {
-    let anchor = mem::transmute::<usize, Arc<T>>(0x10);
-    let addr = &*anchor as *const T;
-    mem::forget(anchor);
-    let offset = addr as isize - 0x10;
-    mem::transmute::<isize, Arc<T>>(ptr as isize - offset)
 }
 
 fn abort(s: &str) -> ! {
