@@ -24,8 +24,10 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    /// Create a new task context without the ability to `spawn`. Useful for
-    /// `no_std` contexts.
+    /// Create a new task context without the ability to `spawn`.
+    ///
+    /// This constructor should *only* be used for `no_std` contexts, where the
+    /// standard `Executor` trait is not available.
     pub fn without_spawn(map: &'a mut LocalMap, waker: &'a Waker) -> Context<'a> {
         Context { waker, map, executor: None }
     }
@@ -91,25 +93,32 @@ if_std! {
             Context { waker, map, executor: Some(executor) }
         }
 
-        /// Get the default executor associated with this task.
+        /// Get the default executor associated with this task, if any
         ///
         /// This method is useful primarily if you want to explicitly handle
         /// spawn failures.
-        pub fn executor(&mut self) -> &mut Executor {
-            *self.executor.as_mut().unwrap()
+        pub fn executor(&mut self) -> Option<&mut Executor> {
+            match self.executor {
+                Some(ref mut e) => Some(*e),
+                None => None
+            }
         }
 
         /// Spawn a future onto the default executor.
         ///
         /// # Panics
         ///
-        /// This method will panic if the default executor is unable to spawn.
+        /// This method will panic if the default executor is unable to spawn
+        /// or does not exist.
+        ///
         /// To handle executor errors, use [executor()](self::Context::executor)
         /// instead.
         pub fn spawn<F>(&mut self, f: F)
             where F: Future<Item = (), Error = Never> + 'static + Send
         {
-            self.executor().spawn(Box::new(f)).unwrap()
+            self.executor()
+                .expect("No default executor found")
+                .spawn(Box::new(f)).unwrap()
         }
     }
 }
