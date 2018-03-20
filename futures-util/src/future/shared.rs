@@ -162,7 +162,7 @@ impl<F> Future for Shared<F>
             let res = unsafe {
                 let (ref mut f, ref mut data) = *(*self.inner.future.get()).as_mut().unwrap();
                 let waker = Waker::from(self.inner.notifier.clone());
-                let mut cx = task::Context::new(data, &waker, cx.executor());
+                let mut cx = task::Context::new(data, &waker, cx.executor().unwrap());
                 f.poll(&mut cx)
             };
             match res {

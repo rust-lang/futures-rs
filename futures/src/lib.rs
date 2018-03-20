@@ -163,7 +163,7 @@ pub mod executor {
 
     pub use futures_executor::{
         Enter, EnterError, LocalExecutor, LocalPool, Spawn, SpawnWithHandle, ThreadPool,
-        ThreadPoolBuilder, block_on, enter, spawn, spawn_with_handle
+        ThreadPoolBuilder, JoinHandle, block_on, enter, spawn, spawn_with_handle
     };
     pub use futures_core::executor::{SpawnError, Executor};
 }
@@ -184,7 +184,7 @@ pub mod future {
     //! immediate defined value.
 
     pub use futures_core::future::{
-        FutureOption, FutureResult, Future, FutureFrom, IntoFuture, err, ok, result
+        FutureOption, FutureResult, Future, IntoFuture, err, ok, result
     };
     pub use futures_util::future::{
         AndThen, Empty, Flatten, FlattenStream, ErrInto, Fuse,

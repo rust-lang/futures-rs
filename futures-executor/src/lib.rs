@@ -34,5 +34,5 @@ if_std! {
     pub use enter::{enter, Enter, EnterError};
 
     mod spawn;
-    pub use spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle};
+    pub use spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle, JoinHandle};
 }
