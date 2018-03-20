@@ -3,7 +3,7 @@ use futures_core::task;
 
 /// A combinator used to temporarily convert a stream into a future.
 ///
-/// This future is returned by the `Stream::into_future` method.
+/// This future is returned by the `Stream::next` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct StreamFuture<S> {

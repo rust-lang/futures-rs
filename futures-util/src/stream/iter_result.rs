@@ -25,13 +25,13 @@ pub struct IterResult<I> {
 ///
 /// # fn main() {
 /// let mut stream = stream::iter_result(vec![Ok(17), Err(false), Ok(19)]);
-/// let (item, stream) = block_on(stream.into_future()).unwrap();
+/// let (item, stream) = block_on(stream.next()).unwrap();
 /// assert_eq!(Some(17), item);
-/// let (err, stream) = block_on(stream.into_future()).unwrap_err();
+/// let (err, stream) = block_on(stream.next()).unwrap_err();
 /// assert_eq!(false, err);
-/// let (item, stream) = block_on(stream.into_future()).unwrap();
+/// let (item, stream) = block_on(stream.next()).unwrap();
 /// assert_eq!(Some(19), item);
-/// let (item, _) = block_on(stream.into_future()).unwrap();
+/// let (item, _) = block_on(stream.next()).unwrap();
 /// assert_eq!(None, item);
 /// # }
 /// ```

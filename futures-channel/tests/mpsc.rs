@@ -68,11 +68,11 @@ fn send_shared_recv() {
     let tx2 = tx1.clone();
 
     block_on(tx1.send(1)).unwrap();
-    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    let (item, rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(item, Some(1));
 
     block_on(tx2.send(2)).unwrap();
-    let item = block_on(rx.into_future()).ok().unwrap().0;
+    let item = block_on(rx.next()).ok().unwrap().0;
     assert_eq!(item, Some(2));
 }
 
@@ -100,11 +100,11 @@ fn send_recv_threads_no_capacity() {
         block_on(a.send(2).join(b.send(()))).unwrap();
     });
 
-    let readyrx = block_on(readyrx.into_future()).ok().unwrap().1;
-    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    let readyrx = block_on(readyrx.next()).ok().unwrap().1;
+    let (item, rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(item, Some(1));
-    drop(block_on(readyrx.into_future()).ok().unwrap());
-    let item = block_on(rx.into_future()).ok().unwrap().0;
+    drop(block_on(readyrx.next()).ok().unwrap());
+    let item = block_on(rx.next()).ok().unwrap().0;
     assert_eq!(item, Some(2));
 
     t.join().unwrap();
@@ -297,7 +297,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                 };
                 if i % 5 == 0 {
                     let rx = rx.unwrap();
-                    let (item, rest) = block_on(rx.into_future()).ok().unwrap();
+                    let (item, rest) = block_on(rx.next()).ok().unwrap();
 
                     if item.is_none() {
                         break;
@@ -386,13 +386,13 @@ fn stress_close_receiver_iter() {
     });
 
     // Read one message to make sure thread effectively started
-    let (item, mut rx) = block_on(rx.into_future()).ok().unwrap();
+    let (item, mut rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(Some(1), item);
 
     rx.close();
 
     for i in 2.. {
-        let (item, r) = block_on(rx.into_future()).ok().unwrap();
+        let (item, r) = block_on(rx.next()).ok().unwrap();
         rx = r;
         match item {
             Some(r) => assert!(i == r),
@@ -512,11 +512,11 @@ fn try_send_2() {
     });
 
     drop(block_on(readyrx));
-    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    let (item, rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(item, Some("hello"));
-    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    let (item, rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(item, Some("goodbye"));
-    let item = block_on(rx.into_future()).ok().unwrap().0;
+    let item = block_on(rx.next()).ok().unwrap().0;
     assert_eq!(item, None);
 
     th.join().unwrap();
@@ -531,15 +531,15 @@ fn try_send_fail() {
     // This should fail
     assert!(tx.try_send("fail").is_err());
 
-    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    let (item, rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(item, Some("hello"));
 
     tx.try_send("goodbye").unwrap();
     drop(tx);
 
-    let (item, rx) = block_on(rx.into_future()).ok().unwrap();
+    let (item, rx) = block_on(rx.next()).ok().unwrap();
     assert_eq!(item, Some("goodbye"));
-    let item = block_on(rx.into_future()).ok().unwrap().0;
+    let item = block_on(rx.next()).ok().unwrap().0;
     assert_eq!(item, None);
 }
 

@@ -113,7 +113,7 @@ pub trait StreamExt: Stream {
     ///
     /// The returned future can be used to compose streams and futures together by
     /// placing everything into the "world of futures".
-    fn into_future(self) -> StreamFuture<Self>
+    fn next(self) -> StreamFuture<Self>
         where Self: Sized
     {
         future::new(self)
