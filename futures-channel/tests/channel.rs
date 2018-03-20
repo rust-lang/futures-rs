@@ -18,7 +18,8 @@ fn sequence() {
     let t = thread::spawn(move || {
         block_on(send(amt, tx)).unwrap()
     });
-    let mut list = block_on(rx.collect()).unwrap().into_iter();
+    let list: Vec<_> = block_on(rx.collect()).unwrap();
+    let mut list = list.into_iter();
     for i in (1..amt + 1).rev() {
         assert_eq!(list.next(), Some(i));
     }
