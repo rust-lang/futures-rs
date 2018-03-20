@@ -86,7 +86,7 @@ if_std! {
     mod collect;
     mod select_all;
     mod split;
-    pub mod futures_unordered;
+    mod futures_unordered;
     mod futures_ordered;
     pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
