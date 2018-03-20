@@ -1,7 +1,7 @@
 [package]
 name = "futures-stable"
 description = "futures which support internal references"
-version = "0.2.0-alpha"
+version = "0.2.0-beta"
 authors = ["boats <boats@mozilla.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
@@ -12,12 +12,12 @@ default-features = false
 
 [dependencies.futures-core]
 path = "../futures-core"
-version = "0.2.0-alpha"
+version = "0.2.0-beta"
 default-features = false
 
 [dependencies.futures-executor]
 path = "../futures-executor"
-version = "0.2.0-alpha"
+version = "0.2.0-beta"
 default-features = false
 
 [features]
