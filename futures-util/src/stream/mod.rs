@@ -78,6 +78,7 @@ pub use self::recover::Recover;
 
 if_std! {
     use std;
+    use std::iter::Extend;
 
     mod buffered;
     mod buffer_unordered;
@@ -419,7 +420,7 @@ pub trait StreamExt: Stream {
     /// # }
     /// ```
     #[cfg(feature = "std")]
-    fn collect(self) -> Collect<Self>
+    fn collect<C: Default + Extend<Self::Item>>(self) -> Collect<Self, C>
         where Self: Sized
     {
         collect::new(self)
@@ -732,7 +733,7 @@ pub trait StreamExt: Stream {
     /// // collect all the results
     /// let stream = stream_panicking.catch_unwind().then(|r| Ok::<_, ()>(r));
     ///
-    /// let results = block_on(stream.collect()).unwrap();
+    /// let results: Vec<_> = block_on(stream.collect()).unwrap();
     /// match results[0] {
     ///     Ok(Ok(10)) => {}
     ///     _ => panic!("unexpected result!"),
@@ -821,7 +822,7 @@ pub trait StreamExt: Stream {
     /// let stream = stream1.chain(stream2)
     ///     .then(|result| Ok::<_, ()>(result));
     ///
-    /// let result = block_on(stream.collect()).unwrap();
+    /// let result: Vec<_> = block_on(stream.collect()).unwrap();
     /// assert_eq!(result, vec![
     ///     Ok(10),
     ///     Err(false),

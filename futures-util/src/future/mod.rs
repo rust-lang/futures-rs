@@ -556,12 +556,14 @@ pub trait FutureExt: Future {
     ///
     /// # fn main() {
     /// let future = future::ok::<_, bool>(17);
-    /// let mut stream = future.into_stream().collect();
-    /// assert_eq!(Ok(vec![17]), block_on(stream));
+    /// let stream = future.into_stream();
+    /// let collected: Vec<_> = block_on(stream.collect()).unwrap();
+    /// assert_eq!(collected, vec![17]);
     ///
     /// let future = future::err::<bool, _>(19);
-    /// let mut stream = future.into_stream().collect();
-    /// assert_eq!(Err(19), block_on(stream));
+    /// let stream = future.into_stream();
+    /// let collected: Result<Vec<_>, _> = block_on(stream.collect());
+    /// assert_eq!(collected, Err(19));
     /// # }
     /// ```
     fn into_stream(self) -> IntoStream<Self>
@@ -651,7 +653,7 @@ pub trait FutureExt: Future {
     /// let future_of_a_stream = future::ok::<_, bool>(stream::iter_ok(stream_items));
     ///
     /// let stream = future_of_a_stream.flatten_stream();
-    /// let list = block_on(stream.collect()).unwrap();
+    /// let list: Vec<_> = block_on(stream.collect()).unwrap();
     /// assert_eq!(list, vec![17, 18, 19]);
     /// # }
     /// ```

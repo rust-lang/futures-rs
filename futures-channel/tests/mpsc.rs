@@ -23,7 +23,8 @@ fn send_recv() {
     let (tx, rx) = mpsc::channel::<i32>(16);
 
     block_on(tx.send(1)).unwrap();
-    assert_eq!(block_on(rx.collect()).unwrap(), vec![1]);
+    let v: Vec<_> = block_on(rx.collect()).unwrap();
+    assert_eq!(v, vec![1]);
 }
 
 #[test]
@@ -84,7 +85,8 @@ fn send_recv_threads() {
         block_on(tx.send(1)).unwrap();
     });
 
-    assert_eq!(block_on(rx.take(1).collect()).unwrap(), vec![1]);
+    let v: Vec<_> = block_on(rx.take(1).collect()).unwrap();
+    assert_eq!(v, vec![1]);
 
     t.join().unwrap();
 }
@@ -218,7 +220,7 @@ fn stress_shared_unbounded() {
     let (tx, rx) = mpsc::unbounded::<i32>();
 
     let t = thread::spawn(move|| {
-        let result = block_on(rx.collect()).unwrap();
+        let result: Vec<_> = block_on(rx.collect()).unwrap();
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
             assert_eq!(item, 1);
@@ -247,7 +249,7 @@ fn stress_shared_bounded_hard() {
     let (tx, rx) = mpsc::channel::<i32>(0);
 
     let t = thread::spawn(move|| {
-        let result = block_on(rx.collect()).unwrap();
+        let result: Vec<_> = block_on(rx.collect()).unwrap();
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
             assert_eq!(item, 1);
@@ -367,7 +369,8 @@ fn stress_drop_sender() {
     }
 
     for _ in 0..10000 {
-        assert_eq!(block_on(list().collect()).unwrap(), vec![1, 2, 3]);
+        let v: Vec<_> = block_on(list().collect()).unwrap();
+        assert_eq!(v, vec![1, 2, 3]);
     }
 }
 
@@ -456,7 +459,7 @@ fn stress_poll_ready() {
         }
         drop(tx);
 
-        let result = block_on(rx.collect()).unwrap();
+        let result: Vec<_> = block_on(rx.collect()).unwrap();
         assert_eq!(result.len() as u32, AMT * NTHREADS);
 
         for thread in threads {
@@ -485,7 +488,7 @@ fn try_send_1() {
         }
     });
 
-    let result = block_on(rx.collect()).unwrap();
+    let result: Vec<_> = block_on(rx.collect()).unwrap();
     for (i, j) in result.into_iter().enumerate() {
         assert_eq!(i, j);
     }

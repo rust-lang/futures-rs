@@ -10,36 +10,36 @@ use futures_core::task;
 /// This future is created by the `Stream::collect` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Collect<S> where S: Stream {
+pub struct Collect<S, C> where S: Stream {
     stream: S,
-    items: Vec<S::Item>,
+    items: C,
 }
 
-pub fn new<S>(s: S) -> Collect<S>
-    where S: Stream,
+pub fn new<S, C>(s: S) -> Collect<S, C>
+    where S: Stream, C: Default
 {
     Collect {
         stream: s,
-        items: Vec::new(),
+        items: Default::default(),
     }
 }
 
-impl<S: Stream> Collect<S> {
-    fn finish(&mut self) -> Vec<S::Item> {
-        mem::replace(&mut self.items, Vec::new())
+impl<S: Stream, C: Default> Collect<S, C> {
+    fn finish(&mut self) -> C {
+        mem::replace(&mut self.items, Default::default())
     }
 }
 
-impl<S> Future for Collect<S>
-    where S: Stream,
+impl<S, C> Future for Collect<S, C>
+    where S: Stream, C: Default + Extend<S:: Item>
 {
-    type Item = Vec<S::Item>;
+    type Item = C;
     type Error = S::Error;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Vec<S::Item>, S::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> Poll<C, S::Error> {
         loop {
             match self.stream.poll_next(cx) {
-                Ok(Async::Ready(Some(e))) => self.items.push(e),
+                Ok(Async::Ready(Some(e))) => self.items.extend(Some(e)),
                 Ok(Async::Ready(None)) => return Ok(Async::Ready(self.finish())),
                 Ok(Async::Pending) => return Ok(Async::Pending),
                 Err(e) => {

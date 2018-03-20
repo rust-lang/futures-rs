@@ -19,10 +19,12 @@ pub struct Once<T, E>(Option<Result<T, E>>);
 ///
 /// # fn main() {
 /// let mut stream = stream::once::<(), _>(Err(17));
-/// assert_eq!(Err(17), block_on(stream.collect()));
+/// let collected: Result<Vec<_>, _> = block_on(stream.collect());
+/// assert_eq!(collected, Err(17));
 ///
 /// let mut stream = stream::once::<_, ()>(Ok(92));
-/// assert_eq!(Ok(vec![92]), block_on(stream.collect()));
+/// let collected: Result<Vec<_>, _> = block_on(stream.collect());
+/// assert_eq!(collected, Ok(vec![92]));
 /// # }
 /// ```
 pub fn once<T, E>(item: Result<T, E>) -> Once<T, E> {
