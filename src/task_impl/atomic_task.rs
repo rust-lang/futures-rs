@@ -90,38 +90,38 @@ impl AtomicTask {
                     let mut curr = REGISTERING;
 
                     // If a task has to be notified, it will be set here.
-                    let mut notify = None;
+                    let mut notify: Option<Task> = None;
 
                     loop {
                         let res = self.state.compare_exchange(
-                            curr, WAITING, AcqRel, Acquire);
+                            curr, WAITING, Release, Acquire);
 
                         match res {
                             Ok(_) => {
-                                // The atomic exchange was successful, now break
-                                // out of the loop os that task stored in
-                                // `notify` can be notified (if set).
-                                break;
+                                // The atomic exchange was successful, now
+                                // notify the task (if set) and return.
+                                if let Some(task) = notify {
+                                    task.notify();
+                                }
+
+                                return;
                             }
                             Err(actual) => {
+                                // This branch can only be reached if a
+                                // concurrent thread called `notify`. In this
+                                // case, `actual` **must** be `REGISTERING |
+                                // `NOTIFYING`.
+                                debug_assert_eq!(curr, REGISTERING | NOTIFYING);
+
+                                // Take the task to notify once the atomic operation has
+                                // completed.
+                                notify = (*self.task.get()).take();
+
                                 // Update `curr` for the next iteration of the
                                 // loop
                                 curr = actual;
                             }
                         }
-
-                        // Since we aren't using the weak variant of the atomic
-                        // operation, the only possible option for `curr` is to
-                        // also include the `NOTIFYING` bit.
-                        debug_assert_eq!(curr, curr | NOTIFYING);
-
-                        // Take the task to notify once the atomic operation has
-                        // completed.
-                        notify = (*self.task.get()).take();
-                    }
-
-                    if let Some(task) = notify {
-                        task.notify();
                     }
                 }
             }
@@ -131,8 +131,17 @@ impl AtomicTask {
                 // So, we call notify on the new task handle
                 task.notify();
             }
-            _ => {
-                // TODO: Assert valid state
+            state => {
+                // In this case, a concurrent thread is holding the
+                // "registering" lock. This probably indicates a bug in the
+                // caller's code as racing to call `register` doesn't make much
+                // sense.
+                //
+                // We just want to maintain memory safety. It is ok to drop the
+                // call to `register`.
+                debug_assert!(
+                    state == REGISTERING ||
+                    state == REGISTERING | NOTIFYING);
             }
         }
     }
@@ -156,13 +165,18 @@ impl AtomicTask {
                     task.notify();
                 }
             }
-            _ => {
+            state => {
                 // There is a concurrent thread currently updating the
                 // associated task.
                 //
-                // Nothing more to do as the `NOTIFYING` bit has been set
+                // Nothing more to do as the `NOTIFYING` bit has been set. It
+                // doesn't matter if there are concurrent registering threads or
+                // not.
                 //
-                // TODO: Validate the state
+                debug_assert!(
+                    state == REGISTERING ||
+                    state == REGISTERING | NOTIFYING ||
+                    state == NOTIFYING);
             }
         }
     }
