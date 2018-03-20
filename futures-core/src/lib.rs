@@ -2,7 +2,7 @@
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
-#![doc(html_root_url = "https://docs.rs/futures-core/0.2.0-alpha")]
+#![doc(html_root_url = "https://docs.rs/futures-core/0.2.0-beta")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 

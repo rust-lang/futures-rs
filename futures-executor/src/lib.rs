@@ -2,7 +2,7 @@
 
 #![no_std]
 #![deny(missing_docs)]
-#![doc(html_root_url = "https://docs.rs/futures-executor/0.2.0-alpha")]
+#![doc(html_root_url = "https://docs.rs/futures-executor/0.2.0-beta")]
 
 #[cfg(feature = "std")]
 #[macro_use]
