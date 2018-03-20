@@ -29,6 +29,102 @@ pub struct AtomicTask {
     task: UnsafeCell<Option<Task>>,
 }
 
+// `AtomicTask` is a multi-consumer, single-producer transfer cell. The cell
+// stores a `Task` value produced by calls to `register` and many threads can
+// race to take the task (to notify it) by calling `notify.
+//
+// If a new `Task` instance is produced by calling `register` before an existing
+// one is consumed, then the existing one is overwritten.
+//
+// While `AtomicTask` is single-producer, the implementation ensures memory
+// safety. In the event of concurrent calls to `register`, there will be a
+// single winner whose task will get stored in the cell. The losers will not
+// have their tasks notified. As such, callers should ensure to add
+// synchronization to calls to `register`.
+//
+// The implementation uses a single `AtomicUsize` value to coordinate access to
+// the `Task` cell. There are two bits that are operated on independently. These
+// are represented by `REGISTERING` and `NOTIFYING`.
+//
+// The `REGISTERING` bit is set when a producer enters the critical section. The
+// `NOTIFYING` bit is set when a consumer enters the critical section. Neither
+// bit being set is represented by `WAITING`.
+//
+// A thread obtains an exclusive lock on the task cell by transitioning the
+// state from `WAITING` to `REGISTERING` or `NOTIFYING`, depending on the
+// operation the thread wishes to perform. When this transition is made, it is
+// guaranteed that no other thread will access the task cell.
+//
+// # Registering
+//
+// On a call to `register`, an attempt to transition the state from WAITING to
+// REGISTERING is made. On success, the caller obtains a lock on the task cell.
+//
+// If the lock is obtained, then the thread sets the task cell to the task
+// provided as an argument. Then it attempts to transition the state back from
+// `REGISTERING` -> `WAITING`.
+//
+// If this transition is successful, then the registering process is complete
+// and the next call to `notify` will observe the task.
+//
+// If the transition fails, then there was a concurrent call to `notify` that
+// was unable to access the task cell (due to the registering thread holding the
+// lock). To handle this, the registering thread removes the task it just set
+// from the cell and calls `notify` on it. This call to notify represents the
+// attempt to notify by the other thread (that set the `NOTIFYING` bit). The
+// state is then transitioned from `REGISTERING | NOTIFYING` back to `WAITING`.
+// This transition must succeed because, at this point, the state cannot be
+// transitioned by another thread.
+//
+// # Notifying
+//
+// On a call to `notify`, an attempt to transition the state from `WAITING` to
+// `NOTIFYING` is made. On success, the caller obtains a lock on the task cell.
+//
+// If the lock is obtained, then the thread takes ownership of the current value
+// in teh task cell, and calls `notify` on it. The state is then transitioned
+// back to `WAITING`. This transition must succeed as, at this point, the state
+// cannot be transitioned by another thread.
+//
+// If the thread is unable to obtain the lock, the `NOTIFYING` bit is still.
+// This is because it has either been set by the current thread but the previous
+// value included the `REGISTERING` bit **or** a concurrent thread is in the
+// `NOTIFYING` critical section. Either way, no action must be taken.
+//
+// If the current thread is the only concurrent call to `notify` and another
+// thread is in the `register` critical section, when the other thread **exits**
+// the `register` critical section, it will observe the `NOTIFYING` bit and
+// handle the notify itself.
+//
+// If another thread is in the `notify` critical section, then it will handle
+// notifying the task.
+//
+// # A potential race (is safely handled).
+//
+// Imagine the following situation:
+//
+// * Thread A obtains the `notify` lock and notifies a task.
+//
+// * Before thread A releases the `notify` lock, the notified task is scheduled.
+//
+// * Thread B attempts to notify the task. In theory this should result in the
+//   task being notified, but it cannot because thread A still holds the notify
+//   lock.
+//
+// This case is handled by requiring users of `AtomicTask` to call `register`
+// **before** attempting to observe the application state change that resulted
+// in the task being notified. The notifiers also change the application state
+// before calling notify.
+//
+// Because of this, the task will do one of two things.
+//
+// 1) Observe the application state change that Thread B is notifying on. In
+//    this case, it is OK for Thread B's notification to be lost.
+//
+// 2) Call register before attempting to observe the application state. Since
+//    Thread A still holds the `notify` lock, the call to `register` will result
+//    in the task notifying itself and get scheduled again.
+
 /// Idle state
 const WAITING: usize = 0;
 
@@ -111,7 +207,7 @@ impl AtomicTask {
                                 // concurrent thread called `notify`. In this
                                 // case, `actual` **must** be `REGISTERING |
                                 // `NOTIFYING`.
-                                debug_assert_eq!(curr, REGISTERING | NOTIFYING);
+                                debug_assert_eq!(actual, REGISTERING | NOTIFYING);
 
                                 // Take the task to notify once the atomic operation has
                                 // completed.
