@@ -183,18 +183,3 @@ impl<F> IntoFuture for F where F: Future {
     type Error = <Self as Future>::Error;
     fn into_future(self) -> Self { self }
 }
-
-/// Asynchronous conversion from a type `T`.
-///
-/// This trait is analogous to `std::convert::From`, adapted to asynchronous
-/// computation.
-pub trait FutureFrom<T>: Sized {
-    /// The future for the conversion.
-    type Future: Future<Item=Self, Error=Self::Error>;
-
-    /// Possible errors during conversion.
-    type Error;
-
-    /// Consume the given value, beginning the conversion.
-    fn future_from(T) -> Self::Future;
-}
