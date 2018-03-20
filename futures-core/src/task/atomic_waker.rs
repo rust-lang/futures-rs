@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
@@ -32,35 +30,112 @@ pub struct AtomicWaker {
     waker: UnsafeCell<Option<Waker>>,
 }
 
-/// Initial state, the `AtomicWaker` is currently not being used.
-///
-/// The value `2` is picked specifically because it between the write lock &
-/// read lock values. Since the read lock is represented by an incrementing
-/// counter, this enables an atomic fetch_sub operation to be used for releasing
-/// a lock.
-const WAITING: usize = 2;
+// `AtomicWaker` is a multi-consumer, single-producer transfer cell. The cell
+// stores a `Waker` value produced by calls to `register` and many threads can
+// race to take the waker (to wake it) by calling `wake`.
+//
+// If a new `Waker` instance is produced by calling `register` before an
+// existing one is consumed, then the existing one is overwritten.
+//
+// While `AtomicWaker` is single-producer, the implementation ensures memory
+// safety. In the event of concurrent calls to `register`, there will be a
+// single winner whose waker will get stored in the cell. The losers will not
+// have their tasks woken. As such, callers should ensure to add synchronization
+// to calls to `register`.
+//
+// The implementation uses a single `AtomicUsize` value to coordinate access to
+// the `Waker` cell. There are two bits that are operated on independently.
+// These are represented by `REGISTERING` and `WAKING`.
+//
+// The `REGISTERING` bit is set when a producer enters the critical section. The
+// `WAKING` bit is set when a consumer enters the critical section. Neither bit
+// being set is represented by `WAITING`.
+//
+// A thread obtains an exclusive lock on the waker cell by transitioning the
+// state from `WAITING` to `REGISTERING` or `WAKING`, depending on the operation
+// the thread wishes to perform. When this transition is made, it is guaranteed
+// that no other thread will access the waker cell.
+//
+// # Registering
+//
+// On a call to `register`, an attempt to transition the state from WAITING to
+// REGISTERING is made. On success, the caller obtains a lock on the waker cell.
+//
+// If the lock is obtained, then the thread sets the waker cell to the waker
+// provided as an argument. Then it attempts to transition the state back from
+// `REGISTERING` -> `WAITING`.
+//
+// If this transition is successful, then the registering process is complete
+// and the next call to `wake` will observe the waker.
+//
+// If the transition fails, then there was a concurrent call to `wake` that was
+// unable to access the waker cell (due to the registering thread holding the
+// lock). To handle this, the registering thread removes the waker it just set
+// from the cell and calls `wake` on it. This call to wake represents the
+// attempt to wake by the other thread (that set the `WAKING` bit). The state is
+// then transitioned from `REGISTERING | WAKING` back to `WAITING`.  This
+// transition must succeed because, at this point, the state cannot be
+// transitioned by another thread.
+//
+// # Waking
+//
+// On a call to `wake`, an attempt to transition the state from `WAITING` to
+// `WAKING` is made. On success, the caller obtains a lock on the waker cell.
+//
+// If the lock is obtained, then the thread takes ownership of the current value
+// in the waker cell, and calls `wake` on it. The state is then transitioned
+// back to `WAITING`. This transition must succeed as, at this point, the state
+// cannot be transitioned by another thread.
+//
+// If the thread is unable to obtain the lock, the `WAKING` bit is still.  This
+// is because it has either been set by the current thread but the previous
+// value included the `REGISTERING` bit **or** a concurrent thread is in the
+// `WAKING` critical section. Either way, no action must be taken.
+//
+// If the current thread is the only concurrent call to `wake` and another
+// thread is in the `register` critical section, when the other thread **exits**
+// the `register` critical section, it will observe the `WAKING` bit and handle
+// the wake itself.
+//
+// If another thread is in the `wake` critical section, then it will handle
+// waking the task.
+//
+// # A potential race (is safely handled).
+//
+// Imagine the following situation:
+//
+// * Thread A obtains the `wake` lock and wakes a task.
+//
+// * Before thread A releases the `wake` lock, the woken task is scheduled.
+//
+// * Thread B attempts to wake the task. In theory this should result in the
+//   task being woken, but it cannot because thread A still holds the wake lock.
+//
+// This case is handled by requiring users of `AtomicWaker` to call `register`
+// **before** attempting to observe the application state change that resulted
+// in the task being awoken. The wakers also change the application state before
+// calling wake.
+//
+// Because of this, the waker will do one of two things.
+//
+// 1) Observe the application state change that Thread B is woken for. In this
+//    case, it is OK for Thread B's wake to be lost.
+//
+// 2) Call register before attempting to observe the application state. Since
+//    Thread A still holds the `wake` lock, the call to `register` will result
+//    in the task waking itself and get scheduled again.
 
-/// The `register` function has determined that the task is no longer current.
-/// This implies that `AtomicWaker::register` is being called from a different
-/// task than is represented by the currently stored task. The write lock is
-/// obtained to update the task cell.
-const LOCKED_WRITE: usize = 0;
+/// Idle state
+const WAITING: usize = 0;
 
-/// At least one call to `wake` happened concurrently to `register` updating
-/// the task cell. This state is detected when `register` exits the mutation
-/// code and signals to `register` that it is responsible for notifying its own
-/// task.
-const LOCKED_WRITE_NOTIFIED: usize = 1;
+/// A new waker value is being registered with the `AtomicWaker` cell.
+const REGISTERING: usize = 0b01;
 
-
-/// The `wake` function has locked access to the task cell for notification.
-///
-/// The constant is left here mostly for documentation reasons.
-#[allow(dead_code)]
-const LOCKED_READ: usize = 3;
+/// The waker currently registered with the `AtomicWaker` cell is being woken.
+const WAKING: usize = 0b10;
 
 impl AtomicWaker {
-    /// Create an `AtomicWaker` with no initial `Waker`
+    /// Create an `AtomicWaker`.
     pub fn new() -> AtomicWaker {
         // Make sure that task is Sync
         trait AssertSync: Sync {}
@@ -123,59 +198,74 @@ impl AtomicWaker {
     /// }
     /// ```
     pub fn register(&self, waker: &Waker) {
-        match self.state.compare_and_swap(WAITING, LOCKED_WRITE, Acquire) {
+        match self.state.compare_and_swap(WAITING, REGISTERING, Acquire) {
             WAITING => {
                 unsafe {
                     // Locked acquired, update the waker cell
                     *self.waker.get() = Some(waker.clone());
 
-                    // Release the lock. If the state transitioned to
-                    // `LOCKED_NOTIFIED`, this means that an notify has been
-                    // signaled, so notify the task.
+                    // Release the lock. If the state transitioned to include
+                    // the `WAKING` bit, this means that a wake has been
+                    // called concurrently, so we have to remove the waker and
+                    // wake it.`
                     //
-                    // Start by assuming that the state is LOCKED_WRITE as this
+                    // Start by assuming that the state is `REGISTERING` as this
                     // is what we jut set it to.
-                    let mut curr = LOCKED_WRITE;
+                    let mut curr = REGISTERING;
+
+                    // If a task has to be woken, the waker will be set here.
+                    let mut wake_now: Option<Waker> = None;
 
                     loop {
                         let res = self.state.compare_exchange(
                             curr, WAITING, AcqRel, Acquire);
 
                         match res {
-                            Ok(_) => return,
+                            Ok(_) => {
+                                // The atomic exchange was successful, now
+                                // wake the task (if set) and return.
+                                if let Some(waker) = wake_now {
+                                    waker.wake();
+                                }
+
+                                return;
+                            }
                             Err(actual) => {
+                                // This branch can only be reached if a
+                                // concurrent thread called `wake`. In this
+                                // case, `actual` **must** be `REGISTERING |
+                                // `WAKING`.
+                                debug_assert_eq!(actual, REGISTERING | WAKING);
+
+                                // Take the waker to wake once the atomic operation has
+                                // completed.
+                                wake_now = (*self.waker.get()).take();
+
                                 // Update `curr` for the next iteration of the
                                 // loop
                                 curr = actual;
                             }
                         }
-
-                        // Since we aren't using the weak variant of the atomic
-                        // operation, the only possible option for `curr` is
-                        // `LOCKED_WRITE_NOTIFIED`.
-                        assert_eq!(curr, LOCKED_WRITE_NOTIFIED);
-
-                        if let Some(waker) = (*self.waker.get()).take() {
-                            waker.wake();
-                        }
                     }
                 }
             }
-            LOCKED_WRITE | LOCKED_WRITE_NOTIFIED => {
-                // A thread is concurrently calling `register`. This shouldn't
-                // happen as it doesn't really make much sense, but it isn't
-                // unsafe per se. Since two threads are concurrently trying to
-                // update the task, it's undefined which one "wins" (no ordering
-                // guarantees), so we can just do nothing.
+            WAKING => {
+                // Currently in the process of waking the task, i.e.,
+                // `wake` is currently being called on the old task handle.
+                // So, we call wake on the new waker
+                waker.wake();
             }
             state => {
-                debug_assert!(state != LOCKED_WRITE, "unexpected state LOCKED_WRITE");
-                debug_assert!(state != LOCKED_WRITE_NOTIFIED, "unexpected state LOCKED_WRITE_NOTIFIED");
-
-                // Currently in a read locked state, this implies that `wake`
-                // is currently being called on the old task handle. So, we call
-                // `wake` on the new task handle
-                waker.wake();
+                // In this case, a concurrent thread is holding the
+                // "registering" lock. This probably indicates a bug in the
+                // caller's code as racing to call `register` doesn't make much
+                // sense.
+                //
+                // We just want to maintain memory safety. It is ok to drop the
+                // call to `register`.
+                debug_assert!(
+                    state == REGISTERING ||
+                    state == REGISTERING | WAKING);
             }
         }
     }
@@ -184,49 +274,33 @@ impl AtomicWaker {
     ///
     /// If `register` has not been called yet, then this does nothing.
     pub fn wake(&self) {
-        let mut curr = WAITING;
+        // AcqRel ordering is used in order to acquire the value of the `task`
+        // cell as well as to establish a `release` ordering with whatever
+        // memory the `AtomicWaker` is associated with.
+        match self.state.fetch_or(WAKING, AcqRel) {
+            WAITING => {
+                // The waking lock has been acquired.
+                let waker = unsafe { (*self.waker.get()).take() };
 
-        loop {
-            if curr == LOCKED_WRITE {
-                // Transition the state to LOCKED_NOTIFIED
-                let actual = self.state.compare_and_swap(LOCKED_WRITE, LOCKED_WRITE_NOTIFIED, Release);
+                // Release the lock
+                self.state.fetch_and(!WAKING, Release);
 
-                if curr == actual {
-                    // Success, return
-                    return;
+                if let Some(waker) = waker {
+                    waker.wake();
                 }
-
-                // update current state variable and try again
-                curr = actual;
-
-            } else if curr == LOCKED_WRITE_NOTIFIED {
-                // Currently in `LOCKED_WRITE_NOTIFIED` state, nothing else to do.
-                return;
-
-            } else {
-                // Currently in a LOCKED_READ state, so attempt to increment the
-                // lock count.
-                let actual = self.state.compare_and_swap(curr, curr + 1, Acquire);
-
-                // Locked acquired
-                if actual == curr {
-                    // Notify the task
-                    unsafe {
-                        if let Some(waker) = (*self.waker.get()).take() {
-                            waker.wake();
-                        }
-                    }
-
-                    // Release the lock
-                    self.state.fetch_sub(1, Release);
-
-                    // Done
-                    return;
-                }
-
-                // update current state variable and try again
-                curr = actual;
-
+            }
+            state => {
+                // There is a concurrent thread currently updating the
+                // associated task.
+                //
+                // Nothing more to do as the `WAKING` bit has been set. It
+                // doesn't matter if there are concurrent registering threads or
+                // not.
+                //
+                debug_assert!(
+                    state == REGISTERING ||
+                    state == REGISTERING | WAKING ||
+                    state == WAKING);
             }
         }
     }
