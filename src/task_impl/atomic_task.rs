@@ -190,7 +190,7 @@ impl AtomicTask {
 
                     loop {
                         let res = self.state.compare_exchange(
-                            curr, WAITING, Release, Acquire);
+                            curr, WAITING, AcqRel, Acquire);
 
                         match res {
                             Ok(_) => {
