@@ -22,13 +22,6 @@ macro_rules! if_std {
     )*)
 }
 
-macro_rules! if_not_std {
-    ($($i:item)*) => ($(
-        #[cfg(not(feature = "std"))]
-        $i
-    )*)
-}
-
 #[macro_use]
 mod poll;
 pub use poll::{Async, Poll};

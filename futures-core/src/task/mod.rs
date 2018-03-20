@@ -1,16 +1,11 @@
 //! Task notification.
 
 use core::fmt;
+use executor::Executor;
 
 if_std! {
     use core::marker::PhantomData;
     use never::Never;
-    use executor::Executor;
-    type Exec<'a> = &'a mut Executor;
-}
-
-if_not_std! {
-    type Exec<'a> = ();
 }
 
 #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
@@ -25,16 +20,33 @@ pub use self::atomic_waker::AtomicWaker;
 pub struct Context<'a> {
     waker: &'a Waker,
     map: &'a mut LocalMap,
-    executor: Exec<'a>,
+    executor: Option<&'a mut Executor>,
 }
 
 impl<'a> Context<'a> {
+    /// Create a new task context without the ability to `spawn`. Useful for
+    /// `no_std` contexts.
+    pub fn without_spawn(map: &'a mut LocalMap, waker: &'a Waker) -> Context<'a> {
+        Context { waker, map, executor: None }
+    }
+
     /// Get the [`Waker`](::task::Waker) associated with the current task.
     ///
     /// The waker can subsequently be used to wake up the task when some
     /// event of interest has happened.
     pub fn waker(&self) -> &Waker {
         self.waker
+    }
+
+    fn with_parts<'b, F, R>(&'b mut self, f: F) -> R
+        where F: FnOnce(&'b Waker, &'b mut LocalMap, Option<&'b mut Executor>) -> R
+    {
+        // reborrow the executor
+        let executor: Option<&'b mut Executor> = match self.executor {
+            None => None,
+            Some(ref mut e) => Some(&mut **e),
+        };
+        f(self.waker, self.map, executor)
     }
 
     /// Produce a context like the current one, but using the given waker
@@ -44,7 +56,9 @@ impl<'a> Context<'a> {
     /// schedulers" within a task, where you want to provide some customized
     /// wakeup logic.
     pub fn with_waker<'b>(&'b mut self, waker: &'b Waker) -> Context<'b> {
-        Context { map: self.map, executor: self.executor, waker }
+        self.with_parts(|_, map, executor| {
+            Context { map, executor, waker }
+        })
     }
 
     /// Produce a context like the current one, but using the given task locals
@@ -55,7 +69,9 @@ impl<'a> Context<'a> {
     pub fn with_locals<'b>(&'b mut self, map: &'b mut LocalMap)
         -> Context<'b>
     {
-        Context { map, waker: self.waker, executor: self.executor }
+        self.with_parts(move |waker, _, executor| {
+            Context { map, executor, waker }
+        })
     }
 }
 
@@ -66,13 +82,13 @@ if_std! {
     impl<'a> Context<'a> {
         /// Create a new task context.
         ///
-        /// Task contexts are always equipped with:
+        /// Task contexts are equipped with:
         ///
         /// - Task-local data
         /// - A means of waking the task
         /// - A means of spawning new tasks, i.e. an [executor]()
         pub fn new(map: &'a mut LocalMap, waker: &'a Waker, executor: &'a mut Executor) -> Context<'a> {
-            Context { waker, map, executor }
+            Context { waker, map, executor: Some(executor) }
         }
 
         /// Get the default executor associated with this task.
@@ -80,7 +96,7 @@ if_std! {
         /// This method is useful primarily if you want to explicitly handle
         /// spawn failures.
         pub fn executor(&mut self) -> &mut Executor {
-            self.executor
+            *self.executor.as_mut().unwrap()
         }
 
         /// Spawn a future onto the default executor.
@@ -93,21 +109,7 @@ if_std! {
         pub fn spawn<F>(&mut self, f: F)
             where F: Future<Item = (), Error = Never> + 'static + Send
         {
-            self.executor.spawn(Box::new(f)).unwrap()
-        }
-    }
-}
-
-if_not_std! {
-    impl<'a> Context<'a> {
-        /// Create a new task context.
-        ///
-        /// In no_std mode, task contexts are always equipped with:
-        ///
-        /// - Task-local data
-        /// - A means of waking the task
-        pub fn new(map: &'a mut LocalMap, waker: &'a Waker) -> Context<'a> {
-            Context { waker, map, executor: () }
+            self.executor().spawn(Box::new(f)).unwrap()
         }
     }
 }

@@ -57,3 +57,6 @@ if_std! {
         }
     }
 }
+
+#[cfg(not(feature = "std"))]
+pub(crate) trait Executor {}
