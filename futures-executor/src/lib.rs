@@ -21,10 +21,13 @@ if_std! {
     extern crate futures_channel;
     extern crate num_cpus;
 
+    mod blocking;
+    pub use blocking::block_on;
+
     mod thread;
 
     mod local_pool;
-    pub use local_pool::{block_on, LocalPool, LocalExecutor};
+    pub use local_pool::{LocalPool, LocalExecutor};
 
     mod unpark_mutex;
     mod thread_pool;

@@ -186,27 +186,6 @@ impl LocalPool {
     }
 }
 
-/// Run a future to completion on the current thread.
-///
-/// This function will block the caller until the given future has completed.
-/// Any tasks spawned onto the default executor will *also* be run on the
-/// current thread, **but they may not complete before the function
-/// returns**. Instead, once the starting future has completed, these other
-/// tasks are simply dropped.
-///
-/// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
-/// spawned tasks.
-pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
-    let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
-
-    // run our main future to completion
-    let res = pool.run_until(f, &mut exec);
-    // run any remainingspawned tasks to completion
-    pool.run(&mut exec);
-
-    res
-}
 
 impl Executor for LocalExecutor {
     fn spawn(&mut self, f: Box<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
