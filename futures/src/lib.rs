@@ -310,7 +310,7 @@ pub mod stream {
     //! - The [`Stream` trait](::Stream), for objects that can asynchronously
     //! produce a sequence of values.
     //!
-    //! - The [`StreamExt`](::future::StreamExt) trait, which provides adapters
+    //! - The [`StreamExt`](::StreamExt) trait, which provides adapters
     //! for chaining and composing streams.
     //!
     //! - Top-level stream contructors like [`iter_ok`](::stream::iter_ok) which
