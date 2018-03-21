@@ -156,9 +156,8 @@ pub mod executor {
     //!
     //! There is also a convenience function,
     //! [`block_on`](::executor::block_on), for simply running a future to
-    //! completion on the current thread. However, any tasks spawned by the
-    //! future will *also* be run on the current thread (via `LocalPool`), and
-    //! will be dropped when the primary future completes.
+    //! completion on the current thread, while routing any spawned tasks
+    //! to a global thread pool.
     // TODO: add docs (or link to apr) for implementing an executor
 
     pub use futures_executor::{

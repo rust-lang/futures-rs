@@ -188,7 +188,9 @@ impl LocalPool {
 }
 
 lazy_static! {
-    static ref GLOBAL_POOL: ThreadPool = ThreadPool::new();
+    static ref GLOBAL_POOL: ThreadPool = ThreadPool::builder()
+        .name_prefix("block_on-")
+        .create() ;
 }
 
 /// Run a future to completion on the current thread.
