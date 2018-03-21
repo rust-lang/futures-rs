@@ -11,6 +11,7 @@ use futures_util::stream::FuturesUnordered;
 
 use thread::ThreadNotify;
 use enter;
+use ThreadPool;
 
 struct Task {
     fut: Box<Future<Item = (), Error = Never>>,
@@ -186,26 +187,22 @@ impl LocalPool {
     }
 }
 
+lazy_static! {
+    static ref GLOBAL_POOL: ThreadPool = ThreadPool::builder()
+        .name_prefix("block_on-")
+        .create() ;
+}
+
 /// Run a future to completion on the current thread.
 ///
 /// This function will block the caller until the given future has completed.
-/// Any tasks spawned onto the default executor will *also* be run on the
-/// current thread, **but they may not complete before the function
-/// returns**. Instead, once the starting future has completed, these other
-/// tasks are simply dropped.
+/// The default executor for the future is a global `ThreadPool`.
 ///
 /// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
 /// spawned tasks.
 pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
-
-    // run our main future to completion
-    let res = pool.run_until(f, &mut exec);
-    // run any remainingspawned tasks to completion
-    pool.run(&mut exec);
-
-    res
+    pool.run_until(f, &mut GLOBAL_POOL.clone())
 }
 
 impl Executor for LocalExecutor {

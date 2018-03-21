@@ -8,6 +8,9 @@
 #[macro_use]
 extern crate std;
 
+#[macro_use]
+extern crate lazy_static;
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
