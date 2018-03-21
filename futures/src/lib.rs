@@ -330,7 +330,7 @@ pub mod stream {
 
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
-        futures_unordered, BufferUnordered, Buffered, CatchUnwind, Chunks, Collect,
+        futures_unordered, select_all, BufferUnordered, Buffered, CatchUnwind, Chunks, Collect,
         FuturesUnordered, FuturesOrdered, ReuniteError, SelectAll, SplitSink, SplitStream,
         futures_ordered,
     };
