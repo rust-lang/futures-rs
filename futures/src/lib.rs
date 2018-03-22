@@ -399,6 +399,7 @@ pub mod stable {
 #[cfg(feature = "nightly")]
 #[doc(hidden)]
 pub mod __rt {
+    #[cfg(feature = "std")]
     pub extern crate std;
     pub use futures_async_runtime::*;
 }

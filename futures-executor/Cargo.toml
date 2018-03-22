@@ -11,7 +11,7 @@ Executors for asynchronous tasks based on the futures-rs library.
 """
 
 [features]
-std = ["num_cpus", "futures-core/std", "futures-util/std", "futures-channel/std"]
+std = ["num_cpus", "futures-core/std", "futures-util/std", "futures-channel/std", "lazy_static"]
 default = ["std"]
 
 [dependencies]
@@ -19,7 +19,7 @@ futures-core = { path = "../futures-core", version = "0.2.0-beta", default-featu
 futures-util = { path = "../futures-util", version = "0.2.0-beta", default-features = false}
 futures-channel = { path = "../futures-channel", version = "0.2.0-beta", default-features = false}
 num_cpus = { version = "1.0", optional = true }
-lazy_static = "1.0"
+lazy_static = { version = "1.0", optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", version = "0.2.0-beta" }
