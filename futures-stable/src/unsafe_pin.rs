@@ -1,4 +1,4 @@
-use pin_api::mem::Pin;
+use core::mem::Pin;
 use futures_core::{Future, Stream, Poll, task};
 
 use {StableFuture, StableStream};

@@ -12,9 +12,8 @@ The core traits and types in for the `futures` library.
 
 [features]
 default = ["std"]
-std = ["either/use_std", "pin-api/std"]
-nightly = ["pin-api/nightly"]
+std = ["either/use_std"]
+nightly = []
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }
-pin-api = { version = "0.2.1", default-features = false }

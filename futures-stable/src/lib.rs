@@ -1,5 +1,6 @@
 #![no_std]
 #![cfg_attr(feature = "nightly", feature(arbitrary_self_types))]
+#![cfg_attr(feature = "nightly", feature(pin))]
 
 macro_rules! if_nightly {
     ($($i:item)*) => ($(
@@ -16,18 +17,19 @@ if_nightly! {
         )*)
     }
 
-    extern crate pin_api;
     extern crate futures_core;
     extern crate futures_executor;
 
-    use pin_api::mem::Pin;
+    use core::mem::Pin;
     use futures_core::{Future, Stream, Poll, task};
 
     if_std! {
+        extern crate std;
+
         mod executor;
         mod unsafe_pin;
 
-        use pin_api::boxed::PinBox;
+        use std::boxed::PinBox;
 
         pub use executor::{StableExecutor, block_on_stable};
         use unsafe_pin::UnsafePin;

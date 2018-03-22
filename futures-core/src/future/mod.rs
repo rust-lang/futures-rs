@@ -142,12 +142,12 @@ if_std! {
     }
 
     #[cfg(feature = "nightly")]
-    impl<F: ?Sized + Future> Future for ::pin_api::boxed::PinBox<F> {
+    impl<F: ?Sized + Future> Future for ::std::boxed::PinBox<F> {
         type Item = F::Item;
         type Error = F::Error;
 
         fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-            unsafe { ::pin_api::mem::Pin::get_mut(&mut self.as_pin()).poll(cx) }
+            unsafe { ::core::mem::Pin::get_mut(&mut self.as_pin()).poll(cx) }
         }
     }
 
