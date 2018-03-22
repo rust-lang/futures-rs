@@ -6,10 +6,6 @@ authors = ["boats <boats@mozilla.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 
-[dependencies.pin-api]
-version = "0.2.1"
-default-features = false
-
 [dependencies.futures-core]
 path = "../futures-core"
 version = "0.2.0-beta"
@@ -21,6 +17,6 @@ version = "0.2.0-beta"
 default-features = false
 
 [features]
-nightly = ["pin-api/nightly"]
-std = ["pin-api/std", "futures-core/std", "futures-executor/std"]
+nightly = []
+std = ["futures-core/std", "futures-executor/std"]
 default = ["std"]

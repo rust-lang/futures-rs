@@ -5,15 +5,13 @@
 #![doc(html_root_url = "https://docs.rs/futures-core/0.2.0-beta")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
+#![cfg_attr(feature = "nightly", feature(pin))]
 
 #[macro_use]
 #[cfg(feature = "std")]
 extern crate std;
 #[cfg(feature = "either")]
 extern crate either;
-
-#[cfg(feature = "nightly")]
-extern crate pin_api;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
