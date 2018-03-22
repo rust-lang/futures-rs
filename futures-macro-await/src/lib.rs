@@ -1,3 +1,5 @@
+#![no_std]
+
 //! An internal helper crate to workaround limitations in the
 //! `use_extern_macros` feature with re-exported Macros 1.0 macros.
 //!

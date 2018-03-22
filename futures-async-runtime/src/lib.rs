@@ -1,17 +1,22 @@
+#![no_std]
 #![cfg_attr(feature = "nightly", feature(generator_trait))]
 #![cfg_attr(feature = "nightly", feature(on_unimplemented))]
 #![cfg_attr(feature = "nightly", feature(arbitrary_self_types))]
 #![cfg_attr(feature = "nightly", feature(optin_builtin_traits))]
 #![cfg_attr(feature = "nightly", feature(pin))]
 
-macro_rules! if_nightly {
+macro_rules! if_nightly_and_std {
     ($($i:item)*) => ($(
-        #[cfg(feature = "nightly")]
+        #[cfg(all(feature = "nightly", feature = "std"))]
         $i
     )*)
 }
 
-if_nightly! {
+#[cfg(all(feature = "nightly", feature = "std"))]
+#[macro_use]
+extern crate std;
+
+if_nightly_and_std! {
     extern crate futures_core;
     extern crate futures_stable;
 
