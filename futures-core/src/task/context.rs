@@ -110,6 +110,19 @@ if_std! {
                 .expect("No default executor found")
                 .spawn(Box::new(f)).unwrap()
         }
+
+        /// Produce a context like the current one, but using the given executor
+        /// instead.
+        ///
+        /// This advanced method is primarily used when building "internal
+        /// schedulers" within a task.
+        pub fn with_executor<'b>(&'b mut self, executor: &'b mut Executor)
+                            -> Context<'b>
+        {
+            self.with_parts(move |waker, map, _| {
+                Context { map, executor: Some(executor), waker }
+            })
+        }
     }
 }
 

@@ -61,11 +61,13 @@ if_std! {
     mod select_all;
     mod select_ok;
     mod shared;
+    mod with_executor;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
     pub use self::shared::{Shared, SharedItem, SharedError};
+    pub use self::with_executor::WithExecutor;
 }
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -874,6 +876,33 @@ pub trait FutureExt: Future {
               F: FnOnce(Self::Error) -> Self::Item
     {
         recover::new(self, f)
+    }
+
+    /// Assigns the provided `Executor` to be used when spawning tasks
+    /// from within the future.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate futures;
+    /// # extern crate futures_executor;
+    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures_executor::{block_on, spawn, ThreadPool};
+    ///
+    /// # fn main() {
+    /// let pool = ThreadPool::new();
+    /// let future = future::ok::<(), _>(());
+    /// let spawn_future = spawn(future).with_executor(pool);
+    /// assert_eq!(block_on(spawn_future), Ok(()));
+    /// # }
+    /// ```
+    #[cfg(feature = "std")]
+    fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
+        where Self: Sized,
+              E: ::futures_core::executor::Executor
+    {
+        with_executor::new(self, executor)
     }
 }
 
