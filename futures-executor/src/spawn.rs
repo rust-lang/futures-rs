@@ -51,6 +51,48 @@ pub struct SpawnWithHandle<F>(Option<F>);
 /// onto the default executor. On completion, that future will yield a
 /// [`JoinHandle`](::JoinHandle) that can itself be used as a future
 /// representing the completion of the spawned task.
+///
+/// # Examples
+///
+/// ```
+/// # extern crate futures;
+/// #
+/// use futures::prelude::*;
+/// use futures::future;
+/// use futures::executor::{block_on, spawn_with_handle};
+///
+/// # fn main() {
+/// # fn inner() -> Result<(), Never> {
+/// # Ok({
+/// let future = future::ok::<u32, Never>(1);
+/// let join_handle = block_on(spawn_with_handle(future))?;
+/// let result = block_on(join_handle);
+/// assert_eq!(result, Ok(1));
+/// # })
+/// # }
+/// # inner().unwrap();
+/// # }
+/// ```
+///
+/// ```
+/// # extern crate futures;
+/// #
+/// use futures::prelude::*;
+/// use futures::future;
+/// use futures::executor::{block_on, spawn_with_handle};
+///
+/// # fn main() {
+/// # fn inner() -> Result<(), Never> {
+/// # Ok({
+/// let future = future::err::<Never, &str>("boom");
+/// let join_handle = block_on(spawn_with_handle(future))?;
+/// let result = block_on(join_handle);
+/// assert_eq!(result, Err("boom"));
+/// # })
+/// # }
+/// # inner().unwrap();
+/// # }
+/// ```
 pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
     where F: Future + 'static + Send, F::Item: Send, F::Error: Send
 {
@@ -58,7 +100,7 @@ pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
 }
 
 impl<F> Future for SpawnWithHandle<F>
-    where F: Future<Item = (), Error = Never> + Send + 'static,
+    where F: Future + Send + 'static,
           F::Item: Send,
           F::Error: Send,
 {
