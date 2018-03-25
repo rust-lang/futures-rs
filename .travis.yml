@@ -4,6 +4,7 @@ sudo: false
 
 script:
   - cargo test
+  - cargo clean
   - cargo test --manifest-path testcrate/Cargo.toml
 
 notifications:
