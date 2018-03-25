@@ -6,3 +6,5 @@ error: custom attribute panicked
   |
   = help: message: #[async_stream] requires item type to be specified
 
+error: aborting due to previous error
+

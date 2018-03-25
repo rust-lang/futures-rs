@@ -206,7 +206,7 @@ where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = if pinned {
         quote_cs! {
-            #gen_function (#[allow(unused_unsafe)] unsafe { static move || -> #output #gen_body })
+            #gen_function (static move || -> #output #gen_body)
         }
     } else {
         quote_cs! {
@@ -252,14 +252,14 @@ pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         let output_span = first_last(&output);
         let return_ty = if boxed && !send {
             quote_cs! {
-                ::futures::__rt::PinBox<::futures::__rt::Future<
+                ::futures::__rt::boxed::PinBox<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 >>
             }
         } else if boxed && send {
             quote_cs! {
-                ::futures::__rt::PinBox<::futures::__rt::Future<
+                ::futures::__rt::boxed::PinBox<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 > + Send>
@@ -293,14 +293,14 @@ pub fn async_move(attribute: TokenStream, function: TokenStream) -> TokenStream 
                 ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                > + ::futures::__rt::pin_api::Unpin + #(#lifetimes +)*>
+                > + ::futures::__rt::std::marker::Unpin + #(#lifetimes +)*>
             }
         } else if boxed && send {
             quote_cs! {
                 ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
                     Item = <! as ::futures::__rt::IsResult>::Ok,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                > + ::futures::__rt::pin_api::Unpin + Send + #(#lifetimes +)*>
+                > + ::futures::__rt::std::marker::Unpin + Send + #(#lifetimes +)*>
             }
         } else {
             // Dunno why this is buggy, hits weird typecheck errors in tests
@@ -359,7 +359,7 @@ pub fn async_stream(attribute: TokenStream, function: TokenStream) -> TokenStrea
         let output_span = first_last(&output);
         let return_ty = if boxed {
             quote_cs! {
-                ::futures::__rt::PinBox<::futures::__rt::Stream<
+                ::futures::__rt::boxed::PinBox<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
                 > + #(#lifetimes +)*>
@@ -416,7 +416,7 @@ pub fn async_stream_move(attribute: TokenStream, function: TokenStream) -> Token
                 ::futures::__rt::std::boxed::Box<::futures::__rt::Stream<
                     Item = !,
                     Error = <! as ::futures::__rt::IsResult>::Err,
-                > + ::futures::__rt::pin_api::Unpin + #(#lifetimes +)*>
+                > + ::futures::__rt::std::marker::Unpin + #(#lifetimes +)*>
             }
         } else {
             quote_cs! { impl ::futures::__rt::MyStream<!, !> + #(#lifetimes +)* }
@@ -523,7 +523,7 @@ impl Fold for ExpandAsyncFor {
                 let #pat = {
                     let r = {
                         let pin = unsafe {
-                            ::futures::__rt::pin_api::PinMut::new_unchecked(&mut __stream)
+                            ::futures::__rt::std::mem::Pin::new_unchecked(&mut __stream)
                         };
                         ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableStream::poll_next(pin, ctx))
                     };

@@ -36,7 +36,10 @@ impl<T> Future for GenFuture<T>
     fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            match self.0.resume() {
+            // Because we are controlling the creation of our underlying
+            // generator, we know that this is definitely a movable generator
+            // so calling resume is always safe.
+            match unsafe { self.0.resume() } {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),
                 GeneratorState::Yielded(Async::Ready(mu))

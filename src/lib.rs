@@ -18,11 +18,11 @@
 #![feature(on_unimplemented)]
 #![feature(arbitrary_self_types)]
 #![feature(optin_builtin_traits)]
+#![feature(pin)]
 
 extern crate futures_await_async_macro as async_macro;
 extern crate futures_await_await_macro as await_macro;
 extern crate futures;
-pub extern crate futures_stable as stable;
 
 pub use futures::*;
 

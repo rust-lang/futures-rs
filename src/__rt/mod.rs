@@ -13,10 +13,9 @@ pub use self::pinned_future::*;
 pub use self::pinned_stream::*;
 
 pub use futures::prelude::{Async, Future, Stream};
-pub use stable::{StableFuture, StableStream};
+pub use futures::stable::{StableFuture, StableStream};
 
 pub extern crate std;
-pub extern crate pin_api;
 
 pub use std::ops::Generator;
 
