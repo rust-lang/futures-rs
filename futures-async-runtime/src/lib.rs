@@ -23,6 +23,13 @@ macro_rules! if_std {
 #[macro_use]
 extern crate std;
 
+macro_rules! if_not_std {
+    ($($i:item)*) => ($(
+        #[cfg(not(feature = "std"))]
+        $i
+    )*)
+}
+
 if_nightly! {
     extern crate futures_core;
     extern crate futures_stable;
@@ -68,6 +75,21 @@ if_nightly! {
 
     if_std! {
         thread_local!(static CTX: Cell<StaticContext> = Cell::new(ptr::null_mut()));
+    }
+
+    if_not_std! {
+        struct NonLocalKey<T>(T);
+
+        impl<T: 'static> NonLocalKey<T> {
+            pub fn with<F, R>(&'static self, f: F) -> R where F: FnOnce(&T) -> R {
+                f(&self.0)
+            }
+        }
+
+        // Very definitely not safe...
+        unsafe impl<T: 'static> Sync for NonLocalKey<T> {}
+
+        static CTX: NonLocalKey<Cell<StaticContext>> = NonLocalKey(Cell::new(ptr::null_mut()));
     }
 
     struct Reset<'a>(StaticContext, &'a Cell<StaticContext>);
