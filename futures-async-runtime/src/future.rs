@@ -2,9 +2,9 @@ use std::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
 
-use futures::Never;
-use futures::task;
-use futures::prelude::{Poll, Async, Future};
+use futures_core::Never;
+use futures_core::task;
+use futures_core::{Poll, Async, Future};
 
 pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> {}
 

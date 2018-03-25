@@ -1,8 +1,8 @@
 use std::ops::{Generator, GeneratorState};
 use std::marker::PhantomData;
 
-use futures::task;
-use futures::prelude::{Poll, Async, Stream};
+use futures_core::task;
+use futures_core::{Poll, Async, Stream};
 
 use super::{CTX, Reset, IsResult};
 

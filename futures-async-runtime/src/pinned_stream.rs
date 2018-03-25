@@ -2,9 +2,8 @@ use std::mem::Pin;
 use std::ops::{Generator, GeneratorState};
 use std::marker::{PhantomData, Unpin};
 
-use futures::task;
-use futures::prelude::{Poll, Async};
-use futures::stable::StableStream;
+use futures_core::{Poll, Async, task};
+use futures_stable::StableStream;
 
 use super::{CTX, Reset, IsResult};
 

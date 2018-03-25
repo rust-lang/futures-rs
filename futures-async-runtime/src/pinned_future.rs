@@ -4,10 +4,8 @@ use std::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
 
-use futures::Never;
-use futures::stable::StableFuture;
-use task;
-use prelude::{Poll, Async};
+use futures_core::{Async, Poll, Never, task};
+use futures_stable::StableFuture;
 
 pub trait MyStableFuture<T: IsResult>: StableFuture<Item=T::Ok, Error = T::Err> {}
 

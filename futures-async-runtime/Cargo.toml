@@ -1,0 +1,27 @@
+[package]
+name = "futures-async-runtime"
+version = "0.2.0-beta"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+keywords = ["async"]
+categories = ["asynchronous", "rust-patterns"]
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+homepage = "https://github.com/rust-lang-nursery/futures-rs"
+documentation = "https://docs.rs/futures-rs"
+description = """
+Runtime for the async/await macros in the `futures` crate.
+"""
+
+[dependencies.futures-core]
+version = "0.2.0-beta"
+path = "../futures-core"
+
+[dependencies.futures-stable]
+version = "0.2.0-beta"
+path = "../futures-stable"
+
+[features]
+nightly = ["futures-core/nightly", "futures-stable/nightly"]
+std = ["futures-core/std", "futures-stable/nightly"]
+default = ["std"]
