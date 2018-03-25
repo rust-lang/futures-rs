@@ -31,6 +31,7 @@ mod or_else;
 mod select;
 mod then;
 mod inspect;
+mod inspect_err;
 mod recover;
 
 // impl details
@@ -49,6 +50,7 @@ pub use self::or_else::OrElse;
 pub use self::select::Select;
 pub use self::then::Then;
 pub use self::inspect::Inspect;
+pub use self::inspect_err::InspectErr;
 pub use self::recover::Recover;
 
 pub use either::Either;
@@ -690,7 +692,7 @@ pub trait FutureExt: Future {
     ///
     /// When using futures, you'll often chain several of them together.
     /// While working on such code, you might want to check out what's happening at
-    /// various parts in the pipeline. To do that, insert a call to inspect().
+    /// various parts in the pipeline. To do that, insert a call to `inspect`.
     ///
     /// # Examples
     ///
@@ -712,6 +714,34 @@ pub trait FutureExt: Future {
               Self: Sized,
     {
         assert_future::<Self::Item, Self::Error, _>(inspect::new(self, f))
+    }
+
+    /// Do something with the error of a future, passing it on.
+    ///
+    /// When using futures, you'll often chain several of them together.
+    /// While working on such code, you might want to check out what's happening
+    /// to the errors at various parts in the pipeline. To do that, insert a
+    /// call to `inspect_err`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # extern crate futures;
+    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::executor::block_on;
+    ///
+    /// # fn main() {
+    /// let future = future::err::<u32, u32>(1);
+    /// let new_future = future.inspect_err(|&x| println!("about to error: {}", x));
+    /// assert_eq!(block_on(new_future), Err(1));
+    /// # }
+    /// ```
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+        where F: FnOnce(&Self::Error) -> (),
+              Self: Sized,
+    {
+        assert_future::<Self::Item, Self::Error, _>(inspect_err::new(self, f))
     }
 
     /// Catches unwinding panics while polling the future.
