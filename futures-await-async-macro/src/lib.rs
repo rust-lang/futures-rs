@@ -206,7 +206,7 @@ where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
     let gen_function = respan(gen_function.into(), &output_span);
     let body_inner = if pinned {
         quote_cs! {
-            #gen_function (#[allow(unused_unsafe)] unsafe { static move || -> #output #gen_body })
+            #gen_function (static move || -> #output #gen_body)
         }
     } else {
         quote_cs! {

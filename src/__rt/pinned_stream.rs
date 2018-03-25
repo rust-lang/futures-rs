@@ -43,7 +43,9 @@ impl<U, T> StableStream for GenStableStream<U, T>
             let _r = Reset::new(ctx, cell);
             let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
             if this.done { return Ok(Async::Ready(None)) }
-            match this.gen.resume() {
+            // This is an immovable generator, but since we're only accessing
+            // it via a Pin this is safe.
+            match unsafe { this.gen.resume() } {
                 GeneratorState::Yielded(Async::Ready(e)) => {
                     Ok(Async::Ready(Some(e)))
                 }

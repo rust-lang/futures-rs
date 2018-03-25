@@ -38,7 +38,10 @@ impl<U, T> Stream for GenStream<U, T>
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
             if self.done { return Ok(Async::Ready(None)) }
-            match self.gen.resume() {
+            // Because we are controlling the creation of our underlying
+            // generator, we know that this is definitely a movable generator
+            // so calling resume is always safe.
+            match unsafe { self.gen.resume() } {
                 GeneratorState::Yielded(Async::Ready(e)) => {
                     Ok(Async::Ready(Some(e)))
                 }

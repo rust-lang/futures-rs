@@ -31,7 +31,9 @@ impl<T> StableFuture for GenStableFuture<T>
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
             let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
-            match this.0.resume() {
+            // This is an immovable generator, but since we're only accessing
+            // it via a Pin this is safe.
+            match unsafe { this.0.resume() } {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),
                 GeneratorState::Yielded(Async::Ready(mu))
