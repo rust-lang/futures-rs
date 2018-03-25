@@ -1,0 +1,10 @@
+error: custom attribute panicked
+ --> $DIR/missing-item.rs:8:1
+  |
+8 | #[async_stream]
+  | ^^^^^^^^^^^^^^^
+  |
+  = help: message: #[async_stream] requires item type to be specified
+
+error: aborting due to previous error
+

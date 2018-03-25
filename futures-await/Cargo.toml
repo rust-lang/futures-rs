@@ -1,0 +1,24 @@
+[package]
+name = "futures-await"
+version = "0.2.0-alpha"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+keywords = ["async"]
+categories = ["asynchronous", "rust-patterns"]
+repository = "https://github.com/alexcrichton/futures-await"
+homepage = "https://github.com/alexcrichton/futures-await"
+documentation = "https://docs.rs/futures-await"
+description = """
+Async/await syntax for Rust through a procedural macro. This crate defines the
+`#[async]` macro for functions, the `await!` macro for function bodies, and
+intends to be used with the `futures` crate on crates.io as well.
+"""
+
+[workspace]
+members = ["testcrate"]
+
+[dependencies]
+futures-await-async-macro = { path = "futures-await-async-macro", version = "0.2.0-alpha" }
+futures-await-await-macro = { path = "futures-await-await-macro", version = "0.2.0-alpha" }
+futures = { git = "https://github.com/rust-lang-nursery/futures-rs.git", features = ["nightly"] }
