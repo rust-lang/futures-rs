@@ -356,8 +356,8 @@ fn select2() {
 
 #[test]
 fn option() {
-    assert_eq!(Ok(Some(())), Some(ok::<(), ()>(())).into_future().wait());
-    assert_eq!(Ok(None), None::<FutureResult<(), ()>>.into_future().wait());
+    assert_eq!(Ok(Some(())), Some(ok::<(), ()>(())).wait());
+    assert_eq!(Ok(None), <Option<FutureResult<(), ()>> as Future>::wait(None));
 }
 
 #[test]
