@@ -456,6 +456,35 @@ if_nightly! {
         let expr = ExpandAsyncFor.fold_expr(expr);
 
         let mut tokens = quote_cs! {
+            ::futures::__rt::gen_pinned
+        };
+
+        // Use some manual token construction here instead of `quote_cs!` to ensure
+        // that we get the `call_site` span instead of the default span.
+        let span = Span::call_site();
+        syn::token::Paren(span).surround(&mut tokens, |tokens| {
+            syn::token::Static(span).to_tokens(tokens);
+            syn::token::Move(span).to_tokens(tokens);
+            syn::token::OrOr([span, span]).to_tokens(tokens);
+            syn::token::Brace(span).surround(tokens, |tokens| {
+                (quote_cs! {
+                    if false { yield ::futures::__rt::Async::Pending }
+                }).to_tokens(tokens);
+                expr.to_tokens(tokens);
+            });
+        });
+
+        tokens.into()
+    }
+
+    #[proc_macro]
+    pub fn async_block_unpin(input: TokenStream) -> TokenStream {
+        let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
+        let expr = syn::parse(input)
+            .expect("failed to parse tokens as an expression");
+        let expr = ExpandAsyncFor.fold_expr(expr);
+
+        let mut tokens = quote_cs! {
             ::futures::__rt::gen_move
         };
 
@@ -478,6 +507,35 @@ if_nightly! {
 
     #[proc_macro]
     pub fn async_stream_block(input: TokenStream) -> TokenStream {
+        let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
+        let expr = syn::parse(input)
+            .expect("failed to parse tokens as an expression");
+        let expr = ExpandAsyncFor.fold_expr(expr);
+
+        let mut tokens = quote_cs! {
+            ::futures::__rt::gen_stream_pinned
+        };
+
+        // Use some manual token construction here instead of `quote_cs!` to ensure
+        // that we get the `call_site` span instead of the default span.
+        let span = Span::call_site();
+        syn::token::Paren(span).surround(&mut tokens, |tokens| {
+            syn::token::Static(span).to_tokens(tokens);
+            syn::token::Move(span).to_tokens(tokens);
+            syn::token::OrOr([span, span]).to_tokens(tokens);
+            syn::token::Brace(span).surround(tokens, |tokens| {
+                (quote_cs! {
+                    if false { yield ::futures::__rt::Async::Pending }
+                }).to_tokens(tokens);
+                expr.to_tokens(tokens);
+            });
+        });
+
+        tokens.into()
+    }
+
+    #[proc_macro]
+    pub fn async_stream_block_unpin(input: TokenStream) -> TokenStream {
         let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
         let expr = syn::parse(input)
             .expect("failed to parse tokens as an expression");
