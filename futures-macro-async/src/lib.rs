@@ -352,13 +352,14 @@ if_nightly! {
         let expr = ExpandAsyncFor.fold_expr(expr);
 
         let mut tokens = quote_cs! {
-            ::futures::__rt::gen_move
+            ::futures::__rt::gen_pinned
         };
 
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
         syn::token::Paren(span).surround(&mut tokens, |tokens| {
+            syn::token::Static(span).to_tokens(tokens);
             syn::token::Move(span).to_tokens(tokens);
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
@@ -380,13 +381,14 @@ if_nightly! {
         let expr = ExpandAsyncFor.fold_expr(expr);
 
         let mut tokens = quote_cs! {
-            ::futures::__rt::gen_stream
+            ::futures::__rt::gen_stream_pinned
         };
 
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
         syn::token::Paren(span).surround(&mut tokens, |tokens| {
+            syn::token::Static(span).to_tokens(tokens);
             syn::token::Move(span).to_tokens(tokens);
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {

@@ -302,7 +302,7 @@ pub mod prelude {
         async,
         async_stream,
         async_block,
-        async_stream_block
+        async_stream_block,
     };
 
     #[cfg(feature = "nightly")]
