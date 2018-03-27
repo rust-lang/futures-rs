@@ -1,9 +1,5 @@
 extern crate compiletest_rs as compiletest;
 
-#[cfg(not(feature = "nightly"))]
-fn run_mode(_mode: &'static str) { }
-
-#[cfg(feature = "nightly")]
 fn run_mode(mode: &'static str) {
     use std::env;
     use std::path::PathBuf;

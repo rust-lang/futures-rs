@@ -36,7 +36,7 @@ matrix:
       script: cargo test --all
     - rust: nightly
       script:
-        - cargo test --manifest-path futures/testcrate/Cargo.toml --features nightly
+        - cargo test --manifest-path futures/testcrate/Cargo.toml
 
 script:
   - cargo test --all
