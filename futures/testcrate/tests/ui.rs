@@ -1,9 +1,13 @@
 extern crate compiletest_rs as compiletest;
 
-use std::env;
-use std::path::PathBuf;
+#[cfg(not(feature = "nightly"))]
+fn run_mode(_mode: &'static str) { }
 
+#[cfg(feature = "nightly")]
 fn run_mode(mode: &'static str) {
+    use std::env;
+    use std::path::PathBuf;
+
     let mut config = compiletest::Config::default();
     config.mode = mode.parse().expect("invalid mode");
     let mut me = env::current_exe().unwrap();

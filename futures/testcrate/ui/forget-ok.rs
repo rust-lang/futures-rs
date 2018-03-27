@@ -1,6 +1,6 @@
 #![feature(proc_macro, conservative_impl_trait, generators, pin)]
 
-extern crate futures_await as futures;
+extern crate futures;
 
 use futures::prelude::*;
 

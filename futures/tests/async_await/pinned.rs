@@ -1,7 +1,3 @@
-#![feature(proc_macro, conservative_impl_trait, generators, underscore_lifetimes, pin)]
-
-extern crate futures_await as futures;
-
 use futures::stable::block_on_stable;
 use futures::prelude::*;
 

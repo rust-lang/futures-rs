@@ -11,4 +11,5 @@ members = [
   "futures-sink",
   "futures-stable",
   "futures-util",
+  "futures/testcrate",
 ]

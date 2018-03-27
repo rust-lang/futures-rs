@@ -23,5 +23,5 @@ path = "../futures-stable"
 
 [features]
 nightly = ["futures-core/nightly", "futures-stable/nightly"]
-std = ["futures-core/std", "futures-stable/nightly"]
+std = ["futures-core/std", "futures-stable/std"]
 default = ["std"]

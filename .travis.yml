@@ -28,9 +28,15 @@ matrix:
       script:
         - cargo build --manifest-path futures-core/Cargo.toml --features nightly
         - cargo build --manifest-path futures-stable/Cargo.toml --features nightly
+        - cargo build --manifest-path futures-async-runtime/Cargo.toml --features nightly
+        - cargo build --manifest-path futures-macro-async/Cargo.toml --features nightly
         - cargo build --manifest-path futures/Cargo.toml --features nightly
+        - cargo test --manifest-path futures/Cargo.toml --features nightly --test async_await_tests
     - rust: 1.20.0
       script: cargo test --all
+    - rust: nightly
+      script:
+        - cargo test --manifest-path futures/testcrate/Cargo.toml --features nightly
 
 script:
   - cargo test --all

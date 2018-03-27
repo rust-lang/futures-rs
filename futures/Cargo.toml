@@ -31,6 +31,6 @@ futures-macro-async = { path = "../futures-macro-async", version = "0.2.0-beta",
 futures-macro-await = { path = "../futures-macro-await", version = "0.2.0-beta", optional = true }
 
 [features]
-nightly = ["futures-core/nightly", "futures-stable/nightly", "futures-async-runtime/nightly", "futures-macro-async", "futures-macro-await"]
+nightly = ["futures-core/nightly", "futures-stable/nightly", "futures-async-runtime/nightly", "futures-macro-async", "futures-macro-await", "futures-macro-async/nightly"]
 std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-stable/std", "futures-util/std", "futures-async-runtime/std"]
 default = ["std"]
