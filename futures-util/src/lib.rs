@@ -5,8 +5,12 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
+#[cfg(test)]
+extern crate futures_channel;
 #[macro_use]
 extern crate futures_core;
+#[cfg(test)]
+extern crate futures_executor;
 extern crate futures_io;
 extern crate futures_sink;
 extern crate either;
