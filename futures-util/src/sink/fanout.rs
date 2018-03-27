@@ -74,3 +74,32 @@ impl<A, B> Sink for Fanout<A, B>
         Ok(if ready {Async::Ready(())} else {Async::Pending})
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "std")]
+mod tests {
+    use future::FutureExt;
+    use futures_channel::mpsc;
+    use futures_executor::block_on;
+    use sink::SinkExt;
+    use std::iter::Iterator;
+    use std::vec::Vec;
+    use stream::{self, StreamExt};
+
+    #[test]
+    fn it_works() {
+        let src = stream::iter_ok::<_, ()>(0..10);
+        let (sender0, receiver0) = mpsc::channel(1);
+        let (sender1, receiver1) = mpsc::channel(2);
+        let senders = sender0.fanout(sender1).sink_map_err(|_| ());
+        let fwd = src.forward(senders).map(|_| ());
+        let list0 = receiver0.collect::<Vec<_>>().map_err(|_| ());
+        let list1 = receiver1.collect::<Vec<_>>().map_err(|_| ());
+        let lists = fwd.join(list0.join(list1)).map(|(_, lists)| lists);
+        let lists = block_on(lists);
+        let lists = lists.as_ref()
+            .map(|&(ref list0, ref list1)| (&**list0, &**list1));
+        let expected = (0..10).collect::<Vec<_>>();
+        assert_eq!(lists, Ok((&*expected, &*expected)));
+    }
+}
