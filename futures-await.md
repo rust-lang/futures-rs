@@ -135,7 +135,7 @@ futures-await = "0.1"
 and then...
 
 ```rust
-#![feature(proc_macro, conservative_impl_trait, generators)]
+#![feature(proc_macro, generators)]
 
 extern crate futures_await as futures;
 
