@@ -1,0 +1,25 @@
+[package]
+name = "futures-macro-async"
+version = "0.2.0-beta"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+description = """
+Definition of the `#[async]` macro for the `futures-rs` crate as well as a
+few other assorted macros.
+"""
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "0.4"
+proc-macro2 = "0.2"
+
+[dependencies.syn]
+version = "0.12.13"
+features = ["full", "fold", "parsing", "printing", "extra-traits"]
+default-features = false
+
+[features]
+nightly = ["proc-macro2/nightly"]

@@ -1,0 +1,14 @@
+error[E0507]: cannot move out of captured outer variable in an `FnMut` closure
+  --> $DIR/move-captured-variable.rs:12:9
+   |
+10 |       let a = String::new();
+   |           - captured outer variable
+11 |       foo(|| {
+12 | /         async_block! {
+13 | |             Ok::<String, i32>(a)
+14 | |         };
+   | |__________^ cannot move out of captured outer variable in an `FnMut` closure
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0507`.

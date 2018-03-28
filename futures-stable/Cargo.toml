@@ -17,6 +17,6 @@ version = "0.2.0-beta"
 default-features = false
 
 [features]
-nightly = []
+nightly = ["futures-core/nightly"]
 std = ["futures-core/std", "futures-executor/std"]
 default = ["std"]

@@ -1,0 +1,90 @@
+error[E0308]: mismatched types
+  --> $DIR/bad-return-type.rs:14:8
+   |
+14 |     Ok(val)
+   |        ^^^
+   |        |
+   |        expected enum `std::option::Option`, found integral variable
+   |        help: try using a variant of the expected type: `Some(val)`
+   |
+   = note: expected type `std::option::Option<i32>`
+              found type `{integer}`
+
+error[E0308]: mismatched types
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   |     |
+   |     expected enum `std::option::Option`, found integral variable
+   |     help: try using a variant of the expected type: `Some(e)`
+   |
+   = note: expected type `std::option::Option<_>`
+              found type `{integer}`
+   = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error[E0907]: type inside generator must be known in this context
+  --> $DIR/bad-return-type.rs:19:9
+   |
+19 |     let val = Some(42);
+   |         ^^^
+   |
+note: the type is part of the generator because of this `yield`
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error[E0907]: type inside generator must be known in this context
+  --> $DIR/bad-return-type.rs:24:9
+   |
+24 |     let val = val.unwrap();
+   |         ^^^
+   |
+note: the type is part of the generator because of this `yield`
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error[E0907]: type inside generator must be known in this context
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   |
+note: the type is part of the generator because of this `yield`
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error[E0907]: type inside generator must be known in this context
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   |
+note: the type is part of the generator because of this `yield`
+  --> $DIR/bad-return-type.rs:25:5
+   |
+25 |     stream_yield!(val);
+   |     ^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in a macro outside of the current crate (in Nightly builds, run with -Z external-macro-backtrace for more info)
+
+error[E0308]: mismatched types
+  --> $DIR/bad-return-type.rs:32:19
+   |
+32 |         return Ok(3);
+   |                   ^ expected tuple, found integral variable
+   |
+   = note: expected type `(i32, i32)`
+              found type `{integer}`
+
+error: aborting due to 7 previous errors
+
+Some errors occurred: E0308, E0907.
+For more information about an error, try `rustc --explain E0308`.
