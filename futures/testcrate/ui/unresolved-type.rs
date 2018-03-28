@@ -1,4 +1,4 @@
-#![feature(proc_macro, conservative_impl_trait, generators, pin)]
+#![feature(proc_macro, generators, pin)]
 
 extern crate futures;
 
