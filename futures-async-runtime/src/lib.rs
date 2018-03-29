@@ -1,4 +1,3 @@
-#![cfg_attr(feature = "nightly", feature(conservative_impl_trait))]
 #![cfg_attr(feature = "nightly", feature(generator_trait))]
 #![cfg_attr(feature = "nightly", feature(on_unimplemented))]
 #![cfg_attr(feature = "nightly", feature(arbitrary_self_types))]

@@ -9,7 +9,7 @@
 //! Currently this crate depends on `syn` and `quote` to do all the heavy
 //! lifting, this is just a very small shim around creating a closure/future out
 //! of a generator.
-#![cfg_attr(feature = "nightly", feature(proc_macro, match_default_bindings))]
+#![cfg_attr(feature = "nightly", feature(proc_macro))]
 #![recursion_limit = "128"]
 
 
