@@ -103,7 +103,7 @@ if_std! {
 /// You can find more information/tutorials about streams [online at
 /// https://tokio.rs][online]
 ///
-/// [online]: https://tokio.rs/docs/getting-started/streams-and-sinks/
+/// [online]: https://tokio.rs/docs/going-deeper/futures-mechanics/
 pub trait Sink {
     /// The type of value that the sink accepts.
     type SinkItem;
