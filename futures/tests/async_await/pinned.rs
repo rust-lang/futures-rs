@@ -1,4 +1,5 @@
-use futures::stable::{block_on_stable, StableFuture};
+use futures::stable::block_on_stable;
+use futures::executor::{block_on, ThreadPool};
 use futures::prelude::*;
 
 #[async]
@@ -36,6 +37,31 @@ fn qux2(x: i32) -> Result<i32, i32> {
     await!(baz2(x).pin())
 }
 
+#[async(pinned)]
+fn boxed(x: i32) -> Result<i32, i32> {
+    Ok(x)
+}
+
+#[async(pinned)]
+fn boxed_borrow(x: &i32) -> Result<i32, i32> {
+    Ok(*x)
+}
+
+#[async(pinned_send)]
+fn boxed_send(x: i32) -> Result<i32, i32> {
+    Ok(x)
+}
+
+#[async(pinned_send)]
+fn boxed_send_borrow(x: &i32) -> Result<i32, i32> {
+    Ok(*x)
+}
+
+#[async(pinned_send)]
+fn spawnable() -> Result<(), Never> {
+    Ok(())
+}
+
 #[async_stream(item = u64)]
 fn _stream1() -> Result<(), i32> {
     fn integer() -> u64 { 1 }
@@ -62,5 +88,13 @@ fn main() {
     assert_eq!(block_on_stable(baz(17)), Ok(17));
     assert_eq!(block_on_stable(qux(17)), Ok(17));
     assert_eq!(block_on_stable(qux2(17)), Ok(17));
+    assert_eq!(block_on(boxed(17)), Ok(17));
+    assert_eq!(block_on(boxed_send(17)), Ok(17));
     assert_eq!(block_on_stable(uses_async_for()), Ok(vec![0, 1]));
+}
+
+#[test]
+fn run_pinned_future_in_thread_pool() {
+    let mut pool = ThreadPool::new();
+    pool.spawn_pinned(spawnable()).unwrap();
 }

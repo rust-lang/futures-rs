@@ -268,6 +268,15 @@ pub mod prelude {
     #[cfg(feature = "std")]
     pub use futures_core::executor::Executor;
 
+    #[cfg(feature = "nightly")]
+    pub use futures_stable::{
+        StableFuture,
+        StableStream
+    };
+
+    #[cfg(all(feature = "nightly", feature = "std"))]
+    pub use futures_stable::StableExecutor;
+
     pub use futures_sink::Sink;
 
     #[cfg(feature = "std")]
