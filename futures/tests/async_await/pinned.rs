@@ -71,6 +71,15 @@ fn _stream1() -> Result<(), i32> {
     Ok(())
 }
 
+#[async_stream(pinned, item = u64)]
+fn _stream_boxed() -> Result<(), i32> {
+    fn integer() -> u64 { 1 }
+    let x = &integer();
+    stream_yield!(0);
+    stream_yield!(*x);
+    Ok(())
+}
+
 #[async]
 pub fn uses_async_for() -> Result<Vec<u64>, i32> {
     let mut v = vec![];
