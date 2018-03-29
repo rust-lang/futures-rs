@@ -12,7 +12,6 @@
 //!
 //! See the crates's README for more information about usage.
 
-#![feature(conservative_impl_trait)]
 #![feature(generator_trait)]
 #![feature(use_extern_macros)]
 #![feature(on_unimplemented)]
