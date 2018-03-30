@@ -33,14 +33,13 @@
 #[macro_export]
 macro_rules! await {
     ($e:expr) => ({
-        let mut future = $e;
+        let mut future = ::futures::__rt::pinned($e);
+        let mut pin = future.as_pin();
         loop {
-            let poll = {
-                let pin = unsafe {
-                    ::futures::__rt::std::mem::Pin::new_unchecked(&mut future)
-                };
-                ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableFuture::poll(pin, ctx))
-            };
+            let poll = ::futures::__rt::in_ctx(|ctx| {
+                let pin = ::futures::__rt::std::mem::Pin::borrow(&mut pin);
+                ::futures::__rt::StableFuture::poll(pin, ctx)
+            });
             // Allow for #[feature(never_type)] and Future<Error = !>
             #[allow(unreachable_code, unreachable_patterns)]
             match poll {
