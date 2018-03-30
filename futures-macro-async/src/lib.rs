@@ -191,7 +191,15 @@ if_nightly! {
         });
         syn::token::Semi([block.brace_token.0]).to_tokens(&mut result);
 
+        let await = if pinned {
+            await()
+        } else {
+            await_move()
+        };
+
         let gen_body_inner = quote_cs! {
+            #await
+
             let __e: #output = #result
 
             // Ensure that this closure is a generator, even if it doesn't
@@ -630,5 +638,63 @@ if_nightly! {
             option!(parens!(call!(Punctuated::<AsyncStreamArg, syn::token::Comma>::parse_separated_nonempty))),
             |p| AsyncStreamArgs(p.map(|d| d.1.into_iter().collect()).unwrap_or_default())
         ));
+    }
+
+    fn await() -> Tokens {
+        quote_cs! {
+            #[allow(unused_macros)]
+            macro_rules! __await {
+                ($e:expr) => ({
+                    let mut future = ::futures::__rt::pinned($e);
+                    let mut pin = future.as_pin();
+                    loop {
+                        let poll = ::futures::__rt::in_ctx(|ctx| {
+                            let pin = ::futures::__rt::std::mem::Pin::borrow(&mut pin);
+                            ::futures::__rt::StableFuture::poll(pin, ctx)
+                        });
+                        // Allow for #[feature(never_type)] and Future<Error = !>
+                        #[allow(unreachable_code, unreachable_patterns)]
+                        match poll {
+                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
+                                break ::futures::__rt::std::result::Result::Ok(e)
+                            }
+                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
+                            ::futures::__rt::std::result::Result::Err(e) => {
+                                break ::futures::__rt::std::result::Result::Err(e)
+                            }
+                        }
+                        yield ::futures::__rt::Async::Pending
+                    }
+                })
+            }
+        }
+    }
+
+    fn await_move() -> Tokens {
+        quote_cs! {
+            #[allow(unused_macros)]
+            macro_rules! __await {
+                ($e:expr) => ({
+                    let mut future = $e;
+                    loop {
+                        let poll = ::futures::__rt::in_ctx(|ctx| {
+                            ::futures::__rt::Future::poll(&mut future, ctx)
+                        });
+                        // Allow for #[feature(never_type)] and Future<Error = !>
+                        #[allow(unreachable_code, unreachable_patterns)]
+                        match poll {
+                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
+                                break ::futures::__rt::std::result::Result::Ok(e)
+                            }
+                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
+                            ::futures::__rt::std::result::Result::Err(e) => {
+                                break ::futures::__rt::std::result::Result::Err(e)
+                            }
+                        }
+                        yield ::futures::__rt::Async::Pending
+                    }
+                })
+            }
+        }
     }
 }
