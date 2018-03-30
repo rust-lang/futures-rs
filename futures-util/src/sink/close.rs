@@ -3,7 +3,7 @@ use futures_core::task;
 use futures_sink::Sink;
 
 /// Future for the `close` combinator, which polls the sink until all data has
-/// been closeed.
+/// been closed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Close<S> {
@@ -19,19 +19,19 @@ pub fn close<S: Sink>(sink: S) -> Close<S> {
 
 impl<S: Sink> Close<S> {
     /// Get a shared reference to the inner sink.
-    /// Returns `None` if the sink has already been closeed.
+    /// Returns `None` if the sink has already been closed.
     pub fn get_ref(&self) -> Option<&S> {
         self.sink.as_ref()
     }
 
     /// Get a mutable reference to the inner sink.
-    /// Returns `None` if the sink has already been closeed.
+    /// Returns `None` if the sink has already been closed.
     pub fn get_mut(&mut self) -> Option<&mut S> {
         self.sink.as_mut()
     }
 
     /// Consume the `Close` and return the inner sink.
-    /// Returns `None` if the sink has already been closeed.
+    /// Returns `None` if the sink has already been closed.
     pub fn into_inner(self) -> Option<S> {
         self.sink
     }
