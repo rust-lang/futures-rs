@@ -35,26 +35,9 @@
 #[macro_export]
 macro_rules! await {
     ($e:expr) => ({
-        let mut future = ::futures::__rt::pinned($e);
-        let mut pin = future.as_pin();
-        loop {
-            let poll = ::futures::__rt::in_ctx(|ctx| {
-                let pin = ::futures::__rt::std::mem::Pin::borrow(&mut pin);
-                ::futures::__rt::StableFuture::poll(pin, ctx)
-            });
-            // Allow for #[feature(never_type)] and Future<Error = !>
-            #[allow(unreachable_code, unreachable_patterns)]
-            match poll {
-                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
-                    break ::futures::__rt::std::result::Result::Ok(e)
-                }
-                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
-                ::futures::__rt::std::result::Result::Err(e) => {
-                    break ::futures::__rt::std::result::Result::Err(e)
-                }
-            }
-            yield ::futures::__rt::Async::Pending
-        }
+        // This macro is just here for documetation purposes, see
+        // futures-macro-async/src/lib.rs for the implementation.
+        __await!($e)
     })
 }
 
