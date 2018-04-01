@@ -297,22 +297,20 @@ pub mod prelude {
         AsyncWriteExt,
     };
 
-     #[cfg(feature = "nightly")]
-     pub use futures_macro_async::{
-         async,
-         async_move,
-         async_stream,
-         async_stream_move,
-         async_block,
-         async_stream_block
-     };
- 
-     #[cfg(feature = "nightly")]
-     pub use futures_macro_await::{
-         await,
-         stream_yield,
-         await_item
-     };
+    #[cfg(feature = "nightly")]
+    pub use futures_macro_async::{
+        async,
+        async_stream,
+        async_block,
+        async_stream_block
+    };
+
+    #[cfg(feature = "nightly")]
+    pub use futures_macro_await::{
+        await,
+        stream_yield,
+        await_item
+    };
 }
 
 pub mod sink {
