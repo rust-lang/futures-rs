@@ -397,6 +397,7 @@ pub mod stable {
 }
 
 #[cfg(feature = "nightly")]
+#[doc(hidden)]
 pub mod __rt {
     pub extern crate std;
     pub use futures_async_runtime::*;
