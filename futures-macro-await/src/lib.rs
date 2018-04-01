@@ -1,12 +1,34 @@
-/// Ye Olde Await Macro
-///
-/// Basically a translation of polling to yielding. This crate's macro is
-/// reexported in the `futures_await` crate, you should not use this crate
-/// specifically. If I knew how to define this macro in the `futures_await`
-/// crate I would. Ideally this crate would not exist.
+//! An internal helper crate to workaround limitations in the
+//! `use_extern_macros` feature with re-exported Macros 1.0 macros.
+//!
+//! All macros defined here should be imported via [`futures::prelude`] instead.
 
-// TODO: how to define this in the `futures_await` crate but have it still
-// importable via `futurses_await::prelude::await`?
+/// Await a sub-future inside an `#[async]` function.
+///
+/// You should pass an object implementing [`Future`] or [`StableFuture`] to
+/// this macro, it will implicitly `yield` while that future returns
+/// [`Async::Pending`] and evaluate to a [`Result`] containing the result of
+/// that future once complete.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "nightly", doc = "```")]
+#[cfg_attr(not(feature = "nightly"), doc = "```ignore")]
+/// #![feature(proc_macro, generators, pin)]
+/// extern crate futures;
+///
+/// use futures::prelude::*;
+/// use futures::future;
+/// use futures::stable::block_on_stable;
+///
+/// #[async]
+/// fn probably_one() -> Result<u32, u32> {
+///     let one = await!(future::ok::<u32, u32>(1))?;
+///     Ok(one)
+/// }
+///
+/// assert_eq!(Ok(1), block_on_stable(probably_one()));
+/// ```
 
 #[macro_export]
 macro_rules! await {
@@ -35,10 +57,39 @@ macro_rules! await {
     })
 }
 
+/// Await an item from a stream inside an `#[async]` function.
 ///
-/// Await an item from the stream
-/// Basically it does same as `await` macro, but for streams
+/// You should pass an object implementing [`Stream`] to this macro, it will
+/// implicitly `yield` while that stream returns [`Async::Pending`] and evaluate
+/// to a [`Result`] containing the next item or error from that stream.
 ///
+/// If you want to iterate over all items in a `Stream` you should instead see
+/// the documentation on `#[async] for` in the main `#[async]` documentation.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "nightly", doc = "```")]
+#[cfg_attr(not(feature = "nightly"), doc = "```ignore")]
+/// #![feature(proc_macro, generators, pin)]
+/// extern crate futures;
+///
+/// use futures::prelude::*;
+/// use futures::stream;
+/// use futures::stable::block_on_stable;
+///
+/// #[async]
+/// fn eventually_ten() -> Result<u32, u32> {
+///     let mut stream = stream::repeat::<u32, u32>(5);
+///     if let Some(first) = await_item!(stream)? {
+///         if let Some(second) = await_item!(stream)? {
+///             return Ok(first + second);
+///         }
+///     }
+///     Err(0)
+/// }
+///
+/// assert_eq!(Ok(10), block_on_stable(eventually_ten()));
+/// ```
 
 #[macro_export]
 macro_rules! await_item {
@@ -61,6 +112,28 @@ macro_rules! await_item {
         }
     })
 }
+
+/// Yield an item from an `#[async_stream]` function.
+///
+/// # Examples
+///
+#[cfg_attr(feature = "nightly", doc = "```")]
+#[cfg_attr(not(feature = "nightly"), doc = "```ignore")]
+/// #![feature(proc_macro, generators, pin)]
+/// extern crate futures;
+///
+/// use futures::prelude::*;
+/// use futures::stream;
+/// use futures::executor::block_on;
+///
+/// #[async_stream_move(item = u32)]
+/// fn one_five() -> Result<(), u32> {
+///     stream_yield!(5);
+///     Ok(())
+/// }
+///
+/// assert_eq!(Ok(vec![5]), block_on(one_five().collect()));
+/// ```
 
 // TODO: This macro needs to use an extra temporary variable because of
 // rust-lang/rust#44197, once that's fixed this should just use $e directly
