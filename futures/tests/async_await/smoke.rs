@@ -12,77 +12,77 @@ use futures::Never;
 use futures::future::poll_fn;
 use futures::prelude::*;
 
-#[async_move]
+#[async(unpin)]
 fn foo() -> Result<i32, i32> {
     Ok(1)
 }
 
-#[async_move]
+#[async(unpin)]
 extern fn _foo1() -> Result<i32, i32> {
     Ok(1)
 }
 
-#[async_move]
+#[async(unpin)]
 unsafe fn _foo2() -> io::Result<i32> {
     Ok(1)
 }
 
-#[async_move]
+#[async(unpin)]
 unsafe extern fn _foo3() -> io::Result<i32> {
     Ok(1)
 }
 
-#[async_move]
+#[async(unpin)]
 pub fn _foo4() -> io::Result<i32> {
     Ok(1)
 }
 
-#[async_move]
+#[async(unpin)]
 fn _foo5<T: Clone>(t: T) -> Result<T, i32> {
     Ok(t.clone())
 }
 
-#[async_move]
+#[async(unpin)]
 fn _foo6(ref a: i32) -> Result<i32, i32> {
     Err(*a)
 }
 
-#[async_move]
+#[async(unpin)]
 fn _foo7<T>(t: T) -> Result<T, i32>
     where T: Clone,
 {
     Ok(t.clone())
 }
 
-#[async_move(boxed)]
+#[async(unpin, boxed)]
 fn _foo8(a: i32, b: i32) -> Result<i32, i32> {
     return Ok(a + b)
 }
 
-#[async_move(boxed_send)]
+#[async(unpin, boxed, send)]
 fn _foo9() -> Result<(), Never> {
     Ok(())
 }
 
-#[async_move]
+#[async(unpin)]
 fn _bar() -> Result<i32, i32> {
     await!(foo())
 }
 
-#[async_move]
+#[async(unpin)]
 fn _bar2() -> Result<i32, i32> {
     let a = await!(foo())?;
     let b = await!(foo())?;
     Ok(a + b)
 }
 
-#[async_move]
+#[async(unpin)]
 fn _bar3() -> Result<i32, i32> {
     let (a, b) = await!(foo().join(foo()))?;
     Ok(a + b)
 }
 
-#[async_move]
+#[async(unpin)]
 fn _bar4() -> Result<i32, i32> {
     let mut cnt = 0;
     #[async]
@@ -92,21 +92,21 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
-#[async_stream_move(item = u64)]
+#[async_stream(unpin, item = u64)]
 fn _stream1() -> Result<(), i32> {
     stream_yield!(0);
     stream_yield!(1);
     Ok(())
 }
 
-#[async_stream_move(item = T)]
+#[async_stream(unpin, item = T)]
 fn _stream2<T: Clone>(t: T) -> Result<(), i32> {
     stream_yield!(t.clone());
     stream_yield!(t.clone());
     Ok(())
 }
 
-#[async_stream_move(item = i32)]
+#[async_stream(unpin, item = i32)]
 fn _stream3() -> Result<(), i32> {
     let mut cnt = 0;
     #[async]
@@ -117,7 +117,7 @@ fn _stream3() -> Result<(), i32> {
     Err(cnt)
 }
 
-#[async_stream_move(boxed, item = u64)]
+#[async_stream(unpin, boxed, item = u64)]
 fn _stream4() -> Result<(), i32> {
     stream_yield!(0);
     stream_yield!(1);
@@ -128,14 +128,14 @@ fn _stream4() -> Result<(), i32> {
 mod foo { pub struct Foo(pub i32); }
 
 #[allow(dead_code)]
-#[async_stream_move(boxed, item = foo::Foo)]
+#[async_stream(unpin, boxed, item = foo::Foo)]
 pub fn stream5() -> Result<(), i32> {
     stream_yield!(foo::Foo(0));
     stream_yield!(foo::Foo(1));
     Ok(())
 }
 
-#[async_stream_move(boxed, item = i32)]
+#[async_stream(unpin, boxed, item = i32)]
 pub fn _stream6() -> Result<(), i32> {
     #[async]
     for foo::Foo(i) in stream5() {
@@ -144,13 +144,13 @@ pub fn _stream6() -> Result<(), i32> {
     Ok(())
 }
 
-#[async_stream_move(item = ())]
+#[async_stream(unpin, item = ())]
 pub fn _stream7() -> Result<(), i32> {
     stream_yield!(());
     Ok(())
 }
 
-#[async_stream_move(item = [u32; 4])]
+#[async_stream(unpin, item = [u32; 4])]
 pub fn _stream8() -> Result<(), i32> {
     stream_yield!([1, 2, 3, 4]);
     Ok(())
@@ -159,25 +159,25 @@ pub fn _stream8() -> Result<(), i32> {
 struct A(i32);
 
 impl A {
-    #[async_move]
+    #[async(unpin)]
     fn a_foo(self) -> Result<i32, i32> {
         Ok(self.0)
     }
 
-    #[async_move]
+    #[async(unpin)]
     fn _a_foo2(self: Box<Self>) -> Result<i32, i32> {
         Ok(self.0)
     }
 }
 
-#[async_stream_move(item = u64)]
+#[async_stream(unpin, item = u64)]
 fn await_item_stream() -> Result<(), i32> {
     stream_yield!(0);
     stream_yield!(1);
     Ok(())
 }
 
-#[async_move]
+#[async(unpin)]
 fn test_await_item() -> Result<(), Never> {
     let mut stream = await_item_stream();
 
@@ -202,7 +202,7 @@ fn main() {
     assert_eq!(executor::block_on(test_await_item()), Ok(()));
 }
 
-#[async_move]
+#[async(unpin)]
 fn loop_in_loop() -> Result<bool, i32> {
     let mut cnt = 0;
     let vec = vec![1, 2, 3, 4];
@@ -218,7 +218,7 @@ fn loop_in_loop() -> Result<bool, i32> {
     Ok(cnt == sum)
 }
 
-#[async_stream_move(item = i32)]
+#[async_stream(unpin, item = i32)]
 fn poll_stream_after_error_stream() -> Result<(), ()> {
     stream_yield!(5);
     Err(())

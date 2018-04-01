@@ -13,7 +13,7 @@ fn new_types(x: Ref<'_, i32>) -> Result<i32, i32> {
     Ok(*x.0)
 }
 
-#[async_move]
+#[async(unpin)]
 fn references_move(x: &i32) -> Result<i32, i32> {
     Ok(*x)
 }

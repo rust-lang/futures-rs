@@ -50,4 +50,3 @@ impl<T> Future for GenFuture<T>
         })
     }
 }
-
