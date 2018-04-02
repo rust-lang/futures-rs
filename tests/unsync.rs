@@ -139,7 +139,7 @@ fn mpsc_send_unpark() {
 #[test]
 fn spawn_sends_items() {
     let core = Core::new();
-    let stream = unfold(0, |i| Ok::<_,u8>(Some((i, i + 1))));
+    let stream = unfold(0, |i| Some(Ok::<_,u8>((i, i + 1))));
     let rx = mpsc::spawn(stream, &core, 1);
     assert_eq!(core.run(rx.take(4).collect()).unwrap(),
                [0, 1, 2, 3]);

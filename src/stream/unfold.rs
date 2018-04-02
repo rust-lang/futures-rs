@@ -13,7 +13,7 @@ use stream::Stream;
 /// for the returned `Future` to complete with `(a, b)`. It will then yield the
 /// value `a`, and use `b` as the next internal state.
 ///
-/// If the future returns `None` instead of `Some`, then the `unfold()`
+/// If the closure returns `None` instead of `Some(Future)`, then the `unfold()`
 /// will stop producing items and return `Ok(Async::Ready(None))` in future
 /// calls to `poll()`.
 ///
@@ -33,23 +33,22 @@ use stream::Stream;
 /// use futures::future::{self, Future};
 ///
 /// let mut stream = stream::unfold(0, |state| {
-///     future::ok::<_, u32>(
-///         if state <= 2 {
-///             let next_state = state + 1;
-///             let yielded = state  * 2;
-///             Some((yielded, next_state))
-///         } else {
-///             None
-///         }
-///     )
+///     if state <= 2 {
+///         let next_state = state + 1;
+///         let yielded = state  * 2;
+///         let fut = future::ok::<_, u32>((yielded, next_state));
+///         Some(fut)
+///     } else {
+///         None
+///     }
 /// });
 ///
 /// let result = stream.collect().wait();
 /// assert_eq!(result, Ok(vec![0, 2, 4]));
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: IntoFuture<Item = Option<(It, T)>>,
+    where F: FnMut(T) -> Option<Fut>,
+          Fut: IntoFuture<Item = (It, T)>,
 {
     Unfold {
         f: f,
@@ -68,8 +67,8 @@ pub struct Unfold<T, F, Fut> where Fut: IntoFuture {
 }
 
 impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: IntoFuture<Item = Option<(It, T)>>,
+    where F: FnMut(T) -> Option<Fut>,
+          Fut: IntoFuture<Item = (It, T)>,
 {
     type Item = It;
     type Error = Fut::Error;
@@ -80,17 +79,16 @@ impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
                 // State::Empty may happen if the future returned an error
                 State::Empty => { return Ok(Async::Ready(None)); }
                 State::Ready(state) => {
-                    let fut = (self.f)(state);
-                    self.state = State::Processing(fut.into_future());
+                    match (self.f)(state) {
+                        Some(fut) => { self.state = State::Processing(fut.into_future()); }
+                        None => { return Ok(Async::Ready(None)); }
+                    }
                 }
                 State::Processing(mut fut) => {
                     match fut.poll()? {
-                        Async::Ready(Some((item, next_state))) => {
+                        Async:: Ready((item, next_state)) => {
                             self.state = State::Ready(next_state);
                             return Ok(Async::Ready(Some(item)));
-                        }
-                        Async::Ready(None) => {
-                            return Ok(Async::Ready(None));
                         }
                         Async::NotReady => {
                             self.state = State::Processing(fut);
