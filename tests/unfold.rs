@@ -3,7 +3,6 @@ extern crate futures;
 mod support;
 
 use futures::stream;
-use futures::future::{ok, Either};
 
 use support::*;
 
@@ -11,10 +10,10 @@ use support::*;
 fn unfold1() {
     let mut stream = stream::unfold(0, |state| {
         if state <= 2 {
-            let res = ok::<_, ()>(Some((state * 2, state + 1)));
-            Either::A(delay_future(res))
+            let res: Result<_,()> = Ok((state * 2, state + 1));
+            Some(delay_future(res))
         } else {
-            Either::B(ok(None))
+            None
         }
     });
     // Creates the future with the closure
@@ -38,9 +37,9 @@ fn unfold1() {
 fn unfold_err1() {
     let mut stream = stream::unfold(0, |state| {
         if state <= 2 {
-            Ok(Some((state * 2, state + 1)))
+            Some(Ok((state * 2, state + 1)))
         } else {
-            Err(-1)
+            Some(Err(-1))
         }
     });
     sassert_next(&mut stream, 0);
