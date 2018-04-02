@@ -254,23 +254,31 @@ if_nightly! {
             _ => panic!("the #[async] attribute currently only takes `pinned` `pinned_send` as an arg"),
         };
 
-        async_inner(boxed, true, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
+        let gen_function = if boxed && !send {
+            quote_cs! { ::futures::__rt::gen_pinbox_local }
+        } else if boxed && send {
+            quote_cs! { ::futures::__rt::gen_pinbox }
+        } else {
+            quote_cs! { ::futures::__rt::gen_pinned }
+        };
+
+        async_inner(false, true, function, gen_function, |output, lifetimes| {
             // TODO: can we lift the restriction that `futures` must be at the root of
             //       the crate?
             let output_span = first_last(&output);
             let return_ty = if boxed && !send {
                 quote_cs! {
-                    ::futures::__rt::boxed::PinBox<::futures::__rt::Future<
+                    ::futures::__rt::std::boxed::PinBox<::futures::__rt::Future<
                         Item = <! as ::futures::__rt::IsResult>::Ok,
                         Error = <! as ::futures::__rt::IsResult>::Err,
-                    >>
+                    > + #( #lifetimes + )*>
                 }
             } else if boxed && send {
                 quote_cs! {
-                    ::futures::__rt::boxed::PinBox<::futures::__rt::Future<
+                    ::futures::__rt::std::boxed::PinBox<::futures::__rt::Future<
                         Item = <! as ::futures::__rt::IsResult>::Ok,
                         Error = <! as ::futures::__rt::IsResult>::Err,
-                    > + Send>
+                    > + Send + #( #lifetimes + )*>
                 }
             } else {
                 quote_cs! {
@@ -367,7 +375,7 @@ if_nightly! {
             let output_span = first_last(&output);
             let return_ty = if boxed {
                 quote_cs! {
-                    ::futures::__rt::boxed::PinBox<::futures::__rt::Stream<
+                    ::futures::__rt::std::boxed::PinBox<::futures::__rt::Stream<
                         Item = !,
                         Error = <! as ::futures::__rt::IsResult>::Err,
                     > + #(#lifetimes +)*>
