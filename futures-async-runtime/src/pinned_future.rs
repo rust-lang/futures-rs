@@ -1,10 +1,11 @@
+use std::boxed::PinBox;
 use std::marker::Unpin;
 use std::mem::Pin;
 use std::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
 
-use futures_core::{Async, Poll, Never, task};
+use futures_core::{Async, Future, Poll, Never, task};
 use futures_stable::StableFuture;
 
 pub trait MyStableFuture<T: IsResult>: StableFuture<Item=T::Ok, Error = T::Err> {}
@@ -48,4 +49,24 @@ pub fn gen_pinned<'a, T>(gen: T) -> impl MyStableFuture<T::Return> + 'a
           T::Return: IsResult,
 {
     GenStableFuture(gen)
+}
+
+pub fn gen_pinbox<'a, T>(
+    gen: T,
+) -> PinBox<
+    Future<Item = <T::Return as IsResult>::Ok, Error = <T::Return as IsResult>::Err> + Send + 'a,
+>
+    where T: Generator<Yield = Async<Never>> + Send + 'a,
+          T::Return: IsResult,
+{
+    GenStableFuture(gen).pin()
+}
+
+pub fn gen_pinbox_local<'a, T>(
+    gen: T,
+) -> PinBox<Future<Item = <T::Return as IsResult>::Ok, Error = <T::Return as IsResult>::Err> + 'a>
+    where T: Generator<Yield = Async<Never>> + 'a,
+          T::Return: IsResult,
+{
+    GenStableFuture(gen).pin_local()
 }
