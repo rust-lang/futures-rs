@@ -62,13 +62,29 @@ fn spawnable() -> Result<(), Never> {
     Ok(())
 }
 
+fn baz_block(x: i32) -> impl StableFuture<Item = i32, Error = i32> {
+    async_block! {
+        await!(bar(&x))
+    }
+}
+
 #[async_stream(item = u64)]
-fn _stream1() -> Result<(), i32> {
+fn stream1() -> Result<(), i32> {
     fn integer() -> u64 { 1 }
     let x = &integer();
     stream_yield!(0);
     stream_yield!(*x);
     Ok(())
+}
+
+fn stream1_block() -> impl StableStream<Item = u64, Error = i32> {
+    async_stream_block! {
+        #[async]
+        for item in stream1() {
+            stream_yield!(item)
+        }
+        Ok(())
+    }
 }
 
 #[async_stream(pinned, item = u64)]
@@ -84,7 +100,17 @@ fn _stream_boxed() -> Result<(), i32> {
 pub fn uses_async_for() -> Result<Vec<u64>, i32> {
     let mut v = vec![];
     #[async]
-    for i in _stream1() {
+    for i in stream1() {
+        v.push(i);
+    }
+    Ok(v)
+}
+
+#[async]
+pub fn uses_async_for_block() -> Result<Vec<u64>, i32> {
+    let mut v = vec![];
+    #[async]
+    for i in stream1_block() {
         v.push(i);
     }
     Ok(v)
@@ -101,7 +127,10 @@ fn main() {
     assert_eq!(block_on(boxed_send(17)), Ok(17));
     assert_eq!(block_on(boxed_borrow(&17)), Ok(17));
     assert_eq!(block_on(boxed_send_borrow(&17)), Ok(17));
+    assert_eq!(block_on_stable(baz_block(18)), Ok(18));
+>>>>>>> c21935ec... Add test cases for async_block variants
     assert_eq!(block_on_stable(uses_async_for()), Ok(vec![0, 1]));
+    assert_eq!(block_on_stable(uses_async_for_block()), Ok(vec![0, 1]));
 }
 
 #[test]
