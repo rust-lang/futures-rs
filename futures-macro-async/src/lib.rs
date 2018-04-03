@@ -645,11 +645,17 @@ if_nightly! {
             #[allow(unused_macros)]
             macro_rules! __await {
                 ($e:expr) => ({
-                    let mut future = ::futures::__rt::pinned($e);
-                    let mut pin = future.as_pin();
+                    let mut future = $e;
+                    let future = &mut future;
+                    // The above borrow is necessary to force a borrow across a
+                    // yield point, proving that we're currently in an immovable
+                    // generator, making the below `Pin::new_unchecked` call
+                    // safe.
                     loop {
                         let poll = ::futures::__rt::in_ctx(|ctx| {
-                            let pin = ::futures::__rt::std::mem::Pin::borrow(&mut pin);
+                            let pin = unsafe {
+                                ::futures::__rt::std::mem::Pin::new_unchecked(future)
+                            };
                             ::futures::__rt::StableFuture::poll(pin, ctx)
                         });
                         // Allow for #[feature(never_type)] and Future<Error = !>

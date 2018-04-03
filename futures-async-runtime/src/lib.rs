@@ -27,9 +27,7 @@ if_nightly_and_std! {
 
     use std::cell::Cell;
     use std::mem;
-    use std::mem::Pin;
     use std::ptr;
-    use std::marker::PhantomData;
     use futures_core::task;
 
     pub use self::future::*;
@@ -92,20 +90,5 @@ if_nightly_and_std! {
             }
             f(unsafe { &mut *r.0 })
         })
-    }
-
-    pub struct PinTemporary<'a, T: 'a> {
-        data: T,
-        _marker: PhantomData<&'a &'a mut ()>,
-    }
-
-    pub fn pinned<'a, T: 'a>(data: T) -> PinTemporary<'a, T> {
-        PinTemporary { data, _marker: PhantomData }
-    }
-
-    impl<'a, T> PinTemporary<'a, T> {
-        pub fn as_pin(&'a mut self) -> Pin<'a, T> {
-            unsafe { Pin::new_unchecked(&mut self.data) }
-        }
     }
 }
