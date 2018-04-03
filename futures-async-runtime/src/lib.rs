@@ -5,9 +5,16 @@
 #![cfg_attr(feature = "nightly", feature(optin_builtin_traits))]
 #![cfg_attr(feature = "nightly", feature(pin))]
 
-macro_rules! if_nightly_and_std {
+macro_rules! if_nightly {
     ($($i:item)*) => ($(
-        #[cfg(all(feature = "nightly", feature = "std"))]
+        #[cfg(feature = "nightly")]
+        $i
+    )*)
+}
+
+macro_rules! if_std {
+    ($($i:item)*) => ($(
+        #[cfg(feature = "std")]
         $i
     )*)
 }
@@ -16,7 +23,14 @@ macro_rules! if_nightly_and_std {
 #[macro_use]
 extern crate std;
 
-if_nightly_and_std! {
+macro_rules! if_not_std {
+    ($($i:item)*) => ($(
+        #[cfg(not(feature = "std"))]
+        $i
+    )*)
+}
+
+if_nightly! {
     extern crate futures_core;
     extern crate futures_stable;
 
@@ -25,9 +39,9 @@ if_nightly_and_std! {
     mod pinned_future;
     mod pinned_stream;
 
-    use std::cell::Cell;
-    use std::mem;
-    use std::ptr;
+    use core::cell::Cell;
+    use core::mem;
+    use core::ptr;
     use futures_core::task;
 
     pub use self::future::*;
@@ -38,7 +52,7 @@ if_nightly_and_std! {
     pub use futures_core::{Async, Future, Stream};
     pub use futures_stable::{StableFuture, StableStream};
 
-    pub use std::ops::Generator;
+    pub use core::ops::Generator;
 
 #[rustc_on_unimplemented = "async functions must return a `Result` or \
                                 a typedef of `Result`"]
@@ -59,7 +73,24 @@ if_nightly_and_std! {
 
     type StaticContext = *mut task::Context<'static>;
 
-    thread_local!(static CTX: Cell<StaticContext> = Cell::new(ptr::null_mut()));
+    if_std! {
+        thread_local!(static CTX: Cell<StaticContext> = Cell::new(ptr::null_mut()));
+    }
+
+    if_not_std! {
+        struct NonLocalKey<T>(T);
+
+        impl<T: 'static> NonLocalKey<T> {
+            pub fn with<F, R>(&'static self, f: F) -> R where F: FnOnce(&T) -> R {
+                f(&self.0)
+            }
+        }
+
+        // Very definitely not safe...
+        unsafe impl<T: 'static> Sync for NonLocalKey<T> {}
+
+        static CTX: NonLocalKey<Cell<StaticContext>> = NonLocalKey(Cell::new(ptr::null_mut()));
+    }
 
     struct Reset<'a>(StaticContext, &'a Cell<StaticContext>);
 

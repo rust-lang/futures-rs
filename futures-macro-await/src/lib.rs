@@ -39,19 +39,19 @@ macro_rules! await {
         loop {
             let poll = {
                 let pin = unsafe {
-                    ::futures::__rt::std::mem::Pin::new_unchecked(&mut future)
+                    ::futures::__rt::core::mem::Pin::new_unchecked(&mut future)
                 };
                 ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableFuture::poll(pin, ctx))
             };
             // Allow for #[feature(never_type)] and Future<Error = !>
             #[allow(unreachable_code, unreachable_patterns)]
             match poll {
-                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
-                    break ::futures::__rt::std::result::Result::Ok(e)
+                ::futures::__rt::core::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
+                    break ::futures::__rt::core::result::Result::Ok(e)
                 }
-                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
-                ::futures::__rt::std::result::Result::Err(e) => {
-                    break ::futures::__rt::std::result::Result::Err(e)
+                ::futures::__rt::core::result::Result::Ok(::futures::__rt::Async::Pending) => {}
+                ::futures::__rt::core::result::Result::Err(e) => {
+                    break ::futures::__rt::core::result::Result::Err(e)
                 }
             }
             yield ::futures::__rt::Async::Pending
@@ -101,12 +101,12 @@ macro_rules! await_item {
             // Allow for #[feature(never_type)] and Stream<Error = !>
             #[allow(unreachable_code, unreachable_patterns)]
             match poll {
-                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
-                    break ::futures::__rt::std::result::Result::Ok(e)
+                ::futures::__rt::core::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
+                    break ::futures::__rt::core::result::Result::Ok(e)
                 }
-                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
-                ::futures::__rt::std::result::Result::Err(e) => {
-                    break ::futures::__rt::std::result::Result::Err(e)
+                ::futures::__rt::core::result::Result::Ok(::futures::__rt::Async::Pending) => {}
+                ::futures::__rt::core::result::Result::Err(e) => {
+                    break ::futures::__rt::core::result::Result::Err(e)
                 }
             }
 

@@ -1,4 +1,4 @@
-use std::ops::{Generator, GeneratorState};
+use core::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
 
