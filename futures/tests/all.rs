@@ -4,16 +4,18 @@ use std::sync::mpsc::{channel, TryRecvError};
 
 use futures::future::*;
 use futures::future;
-use futures::executor;
-use futures::sync::oneshot::{self, Canceled};
+use futures::executor::block_on;
+use futures::channel::oneshot::{self, Canceled};
 
 mod support;
 use support::*;
 
-fn unselect<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
+fn unselect<T, E, A, B>(r: Result<Either<(T, B), (T, A)>, Either<(E, B), (E, A)>>) -> Result<T, E> {
     match r {
-        Ok((t, _)) => Ok(t),
-        Err((e, _)) => Err(e),
+        Ok(Either::Left((t, _))) |
+        Ok(Either::Right((t, _))) => Ok(t),
+        Err(Either::Left((e, _))) |
+        Err(Either::Right((e, _))) => Err(e),
     }
 }
 
@@ -124,9 +126,9 @@ fn smoke_oneshot() {
         b
     });
 
-    let (c, p) = oneshot::channel::<i32>();
+    let (c, mut p) = oneshot::channel::<i32>();
     drop(c);
-    let res = executor::spawn(p).poll_future_notify(&notify_panic(), 0);
+    let res = panic_waker_cx(|cx| p.poll(cx));
     assert!(res.is_err());
     let (c, p) = oneshot::channel::<i32>();
     drop(c);
@@ -144,29 +146,31 @@ fn select_cancels() {
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let f = b.select(d).then(unselect);
+    let mut f = b.select(d).then(unselect);
     // assert!(f.poll(&mut Task::new()).is_pending());
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.send(1).unwrap();
-    let res = executor::spawn(f).poll_future_notify(&notify_panic(), 0);
-    assert!(res.ok().unwrap().is_ready());
-    assert_eq!(brx.recv().unwrap(), 1);
-    drop(c);
-    assert!(drx.recv().is_err());
+    noop_waker_cx(|cx| {
+        let res = f.poll(cx);
+        assert!(res.ok().unwrap().is_ready());
+        assert_eq!(brx.recv().unwrap(), 1);
+        drop(c);
+        assert!(drx.recv().is_err());
 
-    let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
-    let ((btx, _brx), (dtx, drx)) = (channel(), channel());
-    let b = b.map(move |b| { btx.send(b).unwrap(); b });
-    let d = d.map(move |d| { dtx.send(d).unwrap(); d });
+        let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
+        let ((btx, _brx), (dtx, drx)) = (channel(), channel());
+        let b = b.map(move |b| { btx.send(b).unwrap(); b });
+        let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let mut f = executor::spawn(b.select(d).then(unselect));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
-    a.send(1).unwrap();
-    assert!(f.poll_future_notify(&notify_panic(), 0).ok().unwrap().is_ready());
-    drop((c, f));
-    assert!(drx.recv().is_err());
+        let mut f = b.select(d).then(unselect);
+        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(f.poll(cx).ok().unwrap().is_pending());
+        a.send(1).unwrap();
+        assert!(f.poll(cx).ok().unwrap().is_ready());
+        drop((c, f));
+        assert!(drx.recv().is_err());
+    })
 }
 
 #[test]
@@ -176,9 +180,9 @@ fn join_cancels() {
     let b = b.map(move |b| { btx.send(b).unwrap(); b });
     let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
-    let f = b.join(d);
+    let mut f = b.join(d);
     drop(a);
-    let res = executor::spawn(f).poll_future_notify(&notify_panic(), 0);
+    let res = panic_waker_cx(|cx| f.poll(cx));
     assert!(res.is_err());
     drop(c);
     assert!(drx.recv().is_err());
@@ -206,39 +210,41 @@ fn join_cancels() {
 fn join_incomplete() {
     let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
-    let mut f = executor::spawn(ok(1).join(b).map(move |r| tx.send(r).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
-    assert!(rx.try_recv().is_err());
-    a.send(2).unwrap();
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_ready());
-    assert_eq!(rx.recv().unwrap(), (1, 2));
+    noop_waker_cx(|cx| {
+        let mut f = ok(1).join(b).map(move |r| tx.send(r).unwrap());
+        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(rx.try_recv().is_err());
+        a.send(2).unwrap();
+        assert!(f.poll(cx).ok().unwrap().is_ready());
+        assert_eq!(rx.recv().unwrap(), (1, 2));
 
-    let (a, b) = oneshot::channel::<i32>();
-    let (tx, rx) = channel();
-    let mut f = executor::spawn(b.join(Ok(2)).map(move |r| tx.send(r).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
-    assert!(rx.try_recv().is_err());
-    a.send(1).unwrap();
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_ready());
-    assert_eq!(rx.recv().unwrap(), (1, 2));
+        let (a, b) = oneshot::channel::<i32>();
+        let (tx, rx) = channel();
+        let mut f = b.join(Ok(2)).map(move |r| tx.send(r).unwrap());
+        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(rx.try_recv().is_err());
+        a.send(1).unwrap();
+        assert!(f.poll(cx).ok().unwrap().is_ready());
+        assert_eq!(rx.recv().unwrap(), (1, 2));
 
-    let (a, b) = oneshot::channel::<i32>();
-    let (tx, rx) = channel();
-    let mut f = executor::spawn(ok(1).join(b).map_err(move |_r| tx.send(2).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
-    assert!(rx.try_recv().is_err());
-    drop(a);
-    assert!(f.poll_future_notify(&notify_noop(), 0).is_err());
-    assert_eq!(rx.recv().unwrap(), 2);
+        let (a, b) = oneshot::channel::<i32>();
+        let (tx, rx) = channel();
+        let mut f = ok(1).join(b).map_err(move |_r| tx.send(2).unwrap());
+        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(rx.try_recv().is_err());
+        drop(a);
+        assert!(f.poll(cx).is_err());
+        assert_eq!(rx.recv().unwrap(), 2);
 
-    let (a, b) = oneshot::channel::<i32>();
-    let (tx, rx) = channel();
-    let mut f = executor::spawn(b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap()));
-    assert!(f.poll_future_notify(&notify_noop(), 0).ok().unwrap().is_pending());
-    assert!(rx.try_recv().is_err());
-    drop(a);
-    assert!(f.poll_future_notify(&notify_noop(), 0).is_err());
-    assert_eq!(rx.recv().unwrap(), 1);
+        let (a, b) = oneshot::channel::<i32>();
+        let (tx, rx) = channel();
+        let mut f = b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap());
+        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(rx.try_recv().is_err());
+        drop(a);
+        assert!(f.poll(cx).is_err());
+        assert_eq!(rx.recv().unwrap(), 1);
+    })
 }
 
 #[test]
@@ -264,22 +270,18 @@ fn join_all_iter_lifetime() {
 
 #[test]
 fn select2() {
-    fn d<T, U, E>(r: Result<(T, U), (E, U)>) -> Result<T, E> {
-        match r {
-            Ok((t, _u)) => Ok(t),
-            Err((e, _u)) => Err(e),
-        }
-    }
-
-    assert_done(|| f_ok(2).select(empty()).then(d), Ok(2));
-    assert_done(|| empty().select(f_ok(2)).then(d), Ok(2));
-    assert_done(|| f_err(2).select(empty()).then(d), Err(2));
-    assert_done(|| empty().select(f_err(2)).then(d), Err(2));
+    assert_done(|| f_ok(2).select(empty()).then(unselect), Ok(2));
+    assert_done(|| empty().select(f_ok(2)).then(unselect), Ok(2));
+    assert_done(|| f_err(2).select(empty()).then(unselect), Err(2));
+    assert_done(|| empty().select(f_err(2)).then(unselect), Err(2));
 
     assert_done(|| {
         f_ok(1).select(f_ok(2))
                .map_err(|_| 0)
-               .and_then(|(a, b)| b.map(move |b| a + b))
+               .and_then(|either_tup| {
+                   let (a, b) = either_tup.into_inner();
+                   b.map(move |b| a + b)
+               })
     }, Ok(3));
 
     // Finish one half of a select and then fail the second, ensuring that we
@@ -290,7 +292,7 @@ fn select2() {
         let (tx, rx) = channel();
         f.map(move |r| tx.send(r).unwrap()).forget();
         a.send(1).unwrap();
-        let (val, next) = rx.recv().unwrap();
+        let (val, next) = rx.recv().unwrap().into_inner();
         assert_eq!(val, 1);
         let (tx, rx) = channel();
         next.map_err(move |_r| tx.send(2).unwrap()).forget();
@@ -304,7 +306,7 @@ fn select2() {
         let ((a, b), (c, d)) = (oneshot::channel::<i32>(), oneshot::channel::<i32>());
         let f = b.select(d);
         let (tx, rx) = channel();
-        f.map_err(move |r| tx.send((1, r.1)).unwrap()).forget();
+        f.map_err(move |r| tx.send((1, r.into_inner().1)).unwrap()).forget();
         drop(c);
         let (val, next) = rx.recv().unwrap();
         assert_eq!(val, 1);
@@ -333,8 +335,9 @@ fn select2() {
         let ((btx, brx), (dtx, drx)) = (channel(), channel());
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
-        let f = b.select(d);
-        drop(executor::spawn(f).poll_future_notify(&support::notify_noop(), 0));
+        let mut f = b.select(d);
+        let _res = noop_waker_cx(|cx| f.poll(cx));
+        drop(f);
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());
     }
@@ -356,7 +359,7 @@ fn select2() {
     // Cancel on early drop
     {
         let (tx, rx) = channel();
-        let f = f_ok(1).select(empty().map(move |()| {
+        let f = f_ok(1).select(empty::<_, ()>().map(move |()| {
             tx.send(()).unwrap();
             1
         }));
@@ -367,20 +370,6 @@ fn select2() {
 
 #[test]
 fn option() {
-    assert_eq!(Ok(Some(())), Some(ok::<(), ()>(())).wait());
-    assert_eq!(Ok(None), <Option<FutureResult<(), ()>> as Future>::wait(None));
-}
-
-#[test]
-fn spawn_does_unsize() {
-    #[derive(Clone, Copy)]
-    struct EmptyNotify;
-    impl executor::Notify for EmptyNotify {
-        fn notify(&self, _: usize) { panic!("Cannot notify"); }
-    }
-    static EMPTY: &'static EmptyNotify = &EmptyNotify;
-
-    let spawn: executor::Spawn<FutureResult<(), ()>> = executor::spawn(future::ok(()));
-    let mut spawn_box: Box<executor::Spawn<Future<Item = (), Error = ()>>> = Box::new(spawn);
-    spawn_box.poll_future_notify(&EMPTY, 0).unwrap();
+    assert_eq!(Ok(Some(())), block_on(Some(ok::<(), ()>(())).into_future()));
+    assert_eq!(Ok::<_, ()>(None::<()>), block_on(None::<FutureResult<(), ()>>.into_future()));
 }

@@ -166,8 +166,12 @@ pub mod executor {
     // TODO: add docs (or link to apr) for implementing an executor
 
     pub use futures_executor::{
-        Enter, EnterError, LocalExecutor, LocalPool, Spawn, SpawnWithHandle, ThreadPool,
-        ThreadPoolBuilder, JoinHandle, block_on, enter, spawn, spawn_with_handle
+        BlockingStream,
+        Enter, EnterError,
+        LocalExecutor, LocalPool,
+        Spawn, SpawnWithHandle,
+        ThreadPool, ThreadPoolBuilder, JoinHandle,
+        block_on, block_on_stream, enter, spawn, spawn_with_handle
     };
     pub use futures_core::executor::{SpawnError, Executor};
 }
@@ -316,7 +320,7 @@ pub mod sink {
 
     pub use futures_util::sink::{
         Close, Fanout, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
-        WithFlatMap, SinkExt, close, flush,
+        WithFlatMap, SinkExt,
     };
 
     #[cfg(feature = "std")]

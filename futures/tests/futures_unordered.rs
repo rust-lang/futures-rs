@@ -2,7 +2,8 @@ extern crate futures;
 
 use std::any::Any;
 
-use futures::sync::oneshot;
+use futures::channel::oneshot;
+use futures::executor::{block_on, block_on_stream};
 use futures::stream::futures_unordered;
 use futures::prelude::*;
 
@@ -14,17 +15,16 @@ fn works_1() {
     let (b_tx, b_rx) = oneshot::channel::<u32>();
     let (c_tx, c_rx) = oneshot::channel::<u32>();
 
-    let stream = futures_unordered(vec![a_rx, b_rx, c_rx]);
+    let mut stream = block_on_stream(futures_unordered(vec![a_rx, b_rx, c_rx]));
 
-    let mut spawn = futures::executor::spawn(stream);
     b_tx.send(99).unwrap();
-    assert_eq!(Some(Ok(99)), spawn.wait_stream());
+    assert_eq!(Some(Ok(99)), stream.next());
 
     a_tx.send(33).unwrap();
     c_tx.send(33).unwrap();
-    assert_eq!(Some(Ok(33)), spawn.wait_stream());
-    assert_eq!(Some(Ok(33)), spawn.wait_stream());
-    assert_eq!(None, spawn.wait_stream());
+    assert_eq!(Some(Ok(33)), stream.next());
+    assert_eq!(Some(Ok(33)), stream.next());
+    assert_eq!(None, stream.next());
 }
 
 #[test]
@@ -33,17 +33,18 @@ fn works_2() {
     let (b_tx, b_rx) = oneshot::channel::<u32>();
     let (c_tx, c_rx) = oneshot::channel::<u32>();
 
-    let stream = futures_unordered(vec![
+    let mut stream = futures_unordered(vec![
         Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
         Box::new(b_rx.join(c_rx).map(|(a, b)| a + b)),
     ]);
 
-    let mut spawn = futures::executor::spawn(stream);
     a_tx.send(33).unwrap();
     b_tx.send(33).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_ready());
-    c_tx.send(33).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_ready());
+    support::noop_waker_cx(|cx| {
+        assert!(stream.poll_next(cx).unwrap().is_ready());
+        c_tx.send(33).unwrap();
+        assert!(stream.poll_next(cx).unwrap().is_ready());
+    })
 }
 
 #[test]
@@ -57,7 +58,7 @@ fn from_iterator() {
         ok::<u32, ()>(3)
     ].into_iter().collect::<FuturesUnordered<_>>();
     assert_eq!(stream.len(), 3);
-    assert_eq!(stream.collect().wait(), Ok(vec![1,2,3]));
+    assert_eq!(block_on(stream.collect()), Ok(vec![1,2,3]));
 }
 
 #[test]
@@ -66,22 +67,23 @@ fn finished_future_ok() {
     let (b_tx, b_rx) = oneshot::channel::<Box<Any+Send>>();
     let (c_tx, c_rx) = oneshot::channel::<Box<Any+Send>>();
 
-    let stream = futures_unordered(vec![
+    let mut stream = futures_unordered(vec![
         Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
         Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))),
     ]);
 
-    let mut spawn = futures::executor::spawn(stream);
-    for _ in 0..10 {
-        assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
-    }
+    support::noop_waker_cx(|cx| {
+        for _ in 0..10 {
+            assert!(stream.poll_next(cx).unwrap().is_pending());
+        }
 
-    b_tx.send(Box::new(())).unwrap();
-    let next = spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap();
-    assert!(next.is_ready());
-    c_tx.send(Box::new(())).unwrap();
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
-    assert!(spawn.poll_stream_notify(&support::notify_noop(), 0).unwrap().is_pending());
+        b_tx.send(Box::new(())).unwrap();
+        let next = stream.poll_next(cx).unwrap();
+        assert!(next.is_ready());
+        c_tx.send(Box::new(())).unwrap();
+        assert!(stream.poll_next(cx).unwrap().is_pending());
+        assert!(stream.poll_next(cx).unwrap().is_pending());
+    })
 }
 
 #[test]
@@ -96,15 +98,16 @@ fn iter_mut_cancel() {
         rx.close();
     }
 
+    let mut stream = block_on_stream(stream);
+
     assert!(a_tx.is_canceled());
     assert!(b_tx.is_canceled());
     assert!(c_tx.is_canceled());
 
-    let mut spawn = futures::executor::spawn(stream);
-    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
-    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
-    assert_eq!(Some(Err(futures::sync::oneshot::Canceled)), spawn.wait_stream());
-    assert_eq!(None, spawn.wait_stream());
+    assert_eq!(Some(Err(futures::channel::oneshot::Canceled)), stream.next());
+    assert_eq!(Some(Err(futures::channel::oneshot::Canceled)), stream.next());
+    assert_eq!(Some(Err(futures::channel::oneshot::Canceled)), stream.next());
+    assert_eq!(None, stream.next());
 }
 
 #[test]
