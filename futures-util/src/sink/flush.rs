@@ -16,7 +16,7 @@ pub struct Flush<S> {
 /// The sink itself is returned after flushing is complete; this adapter is
 /// intended to be used when you want to stop sending to the sink until
 /// all current requests are processed.
-pub fn flush<S: Sink>(sink: S) -> Flush<S> {
+pub fn new<S: Sink>(sink: S) -> Flush<S> {
     Flush { sink: Some(sink) }
 }
 
