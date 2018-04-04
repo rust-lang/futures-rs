@@ -27,7 +27,7 @@ if_std! {
     mod thread;
 
     mod local_pool;
-    pub use local_pool::{block_on, LocalPool, LocalExecutor};
+    pub use local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
 
     mod unpark_mutex;
     mod thread_pool;

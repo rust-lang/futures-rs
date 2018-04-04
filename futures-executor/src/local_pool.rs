@@ -8,6 +8,7 @@ use futures_core::task::{Context, Waker, LocalMap};
 use futures_core::executor::{Executor, SpawnError};
 use futures_core::never::Never;
 use futures_util::stream::FuturesUnordered;
+use futures_util::stream::StreamExt;
 
 use thread::ThreadNotify;
 use enter;
@@ -203,6 +204,41 @@ lazy_static! {
 pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
     let mut pool = LocalPool::new();
     pool.run_until(f, &mut GLOBAL_POOL.clone())
+}
+
+/// Turn a stream into a blocking iterator.
+///
+/// Whne `next` is called on the resulting `BlockingStream`, the caller
+/// will be blocked until the next element of the `Stream` becomes available.
+/// The default executor for the future is a global `ThreadPool`.
+pub fn block_on_stream<S: Stream>(s: S) -> BlockingStream<S> {
+    BlockingStream { stream: Some(s) }
+}
+
+/// An iterator which blocks on values from a stream until they become available.
+pub struct BlockingStream<S: Stream> { stream: Option<S> }
+
+impl<S: Stream> BlockingStream<S> {
+    /// Convert this `BlockingStream` into the inner `Stream` type.
+    pub fn into_inner(self) -> S {
+        self.stream.expect("BlockingStream shouldn't be empty")
+    }
+}
+
+impl<S: Stream> Iterator for BlockingStream<S> {
+    type Item = Result<S::Item, S::Error>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let s = self.stream.take().expect("BlockingStream shouldn't be empty");
+        let (item, s) =
+            match LocalPool::new().run_until(s.next(), &mut GLOBAL_POOL.clone()) {
+                Ok((Some(item), s)) => (Some(Ok(item)), s),
+                Ok((None, s)) => (None, s),
+                Err((e, s)) => (Some(Err(e)), s),
+            };
+
+        self.stream = Some(s);
+        item
+    }
 }
 
 impl Executor for LocalExecutor {
