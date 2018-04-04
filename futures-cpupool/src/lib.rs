@@ -19,7 +19,7 @@
 //! # fn main() {
 //!
 //! // Create a worker thread pool with four threads
-//! let pool = CpuPool::new(4);
+//! let pool = CpuPool::new(4).unwrap();
 //!
 //! // Execute some work on the thread pool, optionally closing over data.
 //! let a = pool.spawn(long_running_future(2));
@@ -40,6 +40,7 @@
 extern crate futures;
 extern crate num_cpus;
 
+use std::io;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -147,16 +148,24 @@ impl CpuPool {
     ///
     /// ```rust
     /// # use futures_cpupool::{Builder, CpuPool};
+    /// # use std::io;
     /// #
-    /// # fn new(size: usize) -> CpuPool {
+    /// # fn new(size: usize) -> io::Result<CpuPool> {
     /// Builder::new().pool_size(size).create()
     /// # }
     /// ```
     ///
+    /// # Errors
+    ///
+    /// This method yields an [`io::Result`] to capture any failure to
+    /// create the thread at the OS level.
+    ///
+    /// [`io::Result`]: https://doc.rust-lang.org/stable/std/io/type.Result.html
+    ///
     /// # Panics
     ///
     /// Panics if `size == 0`.
-    pub fn new(size: usize) -> CpuPool {
+    pub fn new(size: usize) -> io::Result<CpuPool> {
         Builder::new().pool_size(size).create()
     }
 
@@ -167,12 +176,20 @@ impl CpuPool {
     ///
     /// ```rust
     /// # use futures_cpupool::{Builder, CpuPool};
+    /// # use std::io;
     /// #
-    /// # fn new_num_cpus() -> CpuPool {
+    /// # fn new_num_cpus() -> io::Result<CpuPool> {
     /// Builder::new().create()
     /// # }
     /// ```
-    pub fn new_num_cpus() -> CpuPool {
+    ///
+    /// # Errors
+    ///
+    /// This method yields an [`io::Result`] to capture any failure to
+    /// create the thread at the OS level.
+    ///
+    /// [`io::Result`]: https://doc.rust-lang.org/stable/std/io/type.Result.html
+    pub fn new_num_cpus() -> io::Result<CpuPool> {
         Builder::new().create()
     }
 
@@ -398,10 +415,17 @@ impl Builder {
 
     /// Create CpuPool with configured parameters
     ///
+    /// # Errors
+    ///
+    /// This method yields an [`io::Result`] to capture any failure to
+    /// create the thread at the OS level.
+    ///
+    /// [`io::Result`]: https://doc.rust-lang.org/stable/std/io/type.Result.html
+    ///
     /// # Panics
     ///
     /// Panics if `pool_size == 0`.
-    pub fn create(&mut self) -> CpuPool {
+    pub fn create(&mut self) -> io::Result<CpuPool> {
         let (tx, rx) = mpsc::channel();
         let pool = CpuPool {
             inner: Arc::new(Inner {
@@ -424,9 +448,9 @@ impl Builder {
             if self.stack_size > 0 {
                 thread_builder = thread_builder.stack_size(self.stack_size);
             }
-            thread_builder.spawn(move || inner.work(after_start, before_stop)).unwrap();
+            thread_builder.spawn(move || inner.work(after_start, before_stop))?;
         }
-        return pool
+        Ok(pool)
     }
 }
 
