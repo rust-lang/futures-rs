@@ -21,9 +21,9 @@ if_std! {
     pub use self::buffer::Buffer;
 }
 
-pub use self::close::{Close, close};
+pub use self::close::Close;
 pub use self::fanout::Fanout;
-pub use self::flush::{Flush, flush};
+pub use self::flush::Flush;
 pub use self::err_into::SinkErrInto;
 pub use self::map_err::SinkMapErr;
 pub use self::send::Send;
@@ -153,6 +153,15 @@ pub trait SinkExt: Sink {
         buffer::new(self, amt)
     }
 
+    /// Close the sink.
+    ///
+    /// The sink itself is returned after closeing is complete.
+    fn close(self) -> Close<Self>
+        where Self: Sized
+    {
+        close::new(self)
+    }
+
     /// Fanout items to multiple sinks.
     ///
     /// This adapter clones each incoming item and forwards it to both this as well as
@@ -163,6 +172,17 @@ pub trait SinkExt: Sink {
               S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
     {
         fanout::new(self, other)
+    }
+
+    /// Flush the sync, processing all pending items.
+    ///
+    /// The sink itself is returned after flushing is complete; this adapter is
+    /// intended to be used when you want to stop sending to the sink until
+    /// all current requests are processed.
+    fn flush(self) -> Flush<Self>
+        where Self: Sized
+    {
+        flush::new(self)
     }
 
     /// A future that completes after the given item has been fully processed

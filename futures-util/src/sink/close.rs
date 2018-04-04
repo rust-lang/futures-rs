@@ -13,7 +13,7 @@ pub struct Close<S> {
 /// A future that completes when the sink has finished closing.
 ///
 /// The sink itself is returned after closeing is complete.
-pub fn close<S: Sink>(sink: S) -> Close<S> {
+pub fn new<S: Sink>(sink: S) -> Close<S> {
     Close { sink: Some(sink) }
 }
 

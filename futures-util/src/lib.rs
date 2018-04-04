@@ -50,8 +50,10 @@ macro_rules! delegate_sink {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", test))]
 pub mod lock;
+#[cfg(all(feature = "std", not(test)))]
+mod lock;
 
 pub mod future;
 pub use future::FutureExt;
