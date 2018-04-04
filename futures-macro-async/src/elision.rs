@@ -1,4 +1,4 @@
-use proc_macro2::{Term, Span};
+use proc_macro2::Span;
 use syn::*;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -34,7 +34,7 @@ impl<'a> UnelideLifetimes<'a> {
     // Constitute a new lifetime
     fn new_lifetime(&mut self) -> Lifetime {
         let lifetime_name = format!("{}{}", self.lifetime_name, self.count);
-        let lifetime = Lifetime::new(Term::intern(&lifetime_name), Span::call_site());
+        let lifetime = Lifetime::new(&lifetime_name, Span::call_site());
 
         let idx = self.lifetime_index + self.count as usize;
         self.generics.insert(idx, GenericParam::Lifetime(LifetimeDef::new(lifetime.clone())));

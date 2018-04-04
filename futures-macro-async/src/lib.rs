@@ -573,8 +573,8 @@ if_nightly! {
         let mut spans = Tokens::new();
         tokens.to_tokens(&mut spans);
         let good_tokens = proc_macro2::TokenStream::from(spans).into_iter().collect::<Vec<_>>();
-        let first_span = good_tokens.first().map(|t| t.span).unwrap_or(Span::def_site());
-        let last_span = good_tokens.last().map(|t| t.span).unwrap_or(first_span);
+        let first_span = good_tokens.first().map(|t| t.span()).unwrap_or(Span::call_site());
+        let last_span = good_tokens.last().map(|t| t.span()).unwrap_or(first_span);
         (first_span, last_span)
     }
 
@@ -582,10 +582,10 @@ if_nightly! {
               &(first_span, last_span): &(Span, Span)) -> proc_macro2::TokenStream {
         let mut new_tokens = input.into_iter().collect::<Vec<_>>();
         if let Some(token) = new_tokens.first_mut() {
-            token.span = first_span;
+            token.set_span(first_span);
         }
         for token in new_tokens.iter_mut().skip(1) {
-            token.span = last_span;
+            token.set_span(last_span);
         }
         new_tokens.into_iter().collect()
     }
@@ -595,8 +595,8 @@ if_nightly! {
     {
         let mut new_tokens = Tokens::new();
         for token in input.into_iter() {
-            match token.kind {
-                proc_macro2::TokenNode::Op('!', _) => tokens.to_tokens(&mut new_tokens),
+            match token {
+                proc_macro2::TokenTree::Op(op) if op.op() == '!' => tokens.to_tokens(&mut new_tokens),
                 _ => token.to_tokens(&mut new_tokens),
             }
         }
@@ -609,8 +609,8 @@ if_nightly! {
         let mut replacements = replacements.iter().cycle();
         let mut new_tokens = Tokens::new();
         for token in input.into_iter() {
-            match token.kind {
-                proc_macro2::TokenNode::Op('!', _) => {
+            match token {
+                proc_macro2::TokenTree::Op(op) if op.op() == '!' => {
                     replacements.next().unwrap().to_tokens(&mut new_tokens);
                 }
                 _ => token.to_tokens(&mut new_tokens),
