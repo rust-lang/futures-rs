@@ -2,11 +2,11 @@
 extern crate futures;
 
 use futures::prelude::*;
-use futures::executor;
+use futures::executor::{block_on, block_on_stream};
 use futures::future::{err, ok};
 use futures::stream::{empty, iter_ok, poll_fn, Peekable};
-use futures::sync::oneshot;
-use futures::sync::mpsc;
+use futures::channel::oneshot;
+use futures::channel::mpsc;
 
 mod support;
 use support::*;
@@ -29,7 +29,7 @@ impl<I, T, E> Stream for Iter<I>
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<T>, E> {
+    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Ok(Async::Ready(Some(e))),
             Some(Err(e)) => Err(e),
@@ -63,7 +63,7 @@ fn map() {
 
 #[test]
 fn map_err() {
-    assert_done(|| err_list().map_err(|a| a + 1).collect(), Err(4));
+    assert_done(|| err_list().map_err(|a| a + 1).collect::<Vec<_>>(), Err(4));
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -77,7 +77,7 @@ impl From<u32> for FromErrTest {
 
 #[test]
 fn from_err() {
-    assert_done(|| err_list().from_err().collect(), Err(FromErrTest(3)));
+    assert_done(|| err_list().err_into().collect::<Vec<_>>(), Err(FromErrTest(3)));
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn filter_map() {
 #[test]
 fn and_then() {
     assert_done(|| list().and_then(|a| Ok(a + 1)).collect(), Ok(vec![2, 3, 4]));
-    assert_done(|| list().and_then(|a| err::<i32, u32>(a as u32)).collect(),
+    assert_done(|| list().and_then(|a| err::<i32, u32>(a as u32)).collect::<Vec<_>>(),
                 Err(1));
 }
 
@@ -136,9 +136,9 @@ fn skip() {
 
 #[test]
 fn skip_passes_errors_through() {
-    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Ok(5)])
-        .skip(1)
-        .wait();
+    let mut s = block_on_stream(
+        iter(vec![Err(1), Err(2), Ok(3), Ok(4), Ok(5)]).skip(1)
+    );
     assert_eq!(s.next(), Some(Err(1)));
     assert_eq!(s.next(), Some(Err(2)));
     assert_eq!(s.next(), Some(Ok(4)));
@@ -164,15 +164,13 @@ fn take_while() {
 
 #[test]
 fn take_passes_errors_through() {
-    let mut s = iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)])
-        .take(1)
-        .wait();
+    let mut s = block_on_stream(iter(vec![Err(1), Err(2), Ok(3), Ok(4), Err(4)]).take(1));
     assert_eq!(s.next(), Some(Err(1)));
     assert_eq!(s.next(), Some(Err(2)));
     assert_eq!(s.next(), Some(Ok(3)));
     assert_eq!(s.next(), None);
 
-    let mut s = iter(vec![Ok(1), Err(2)]).take(1).wait();
+    let mut s = block_on_stream(iter(vec![Ok(1), Err(2)]).take(1));
     assert_eq!(s.next(), Some(Ok(1)));
     assert_eq!(s.next(), None);
 }
@@ -184,7 +182,7 @@ fn peekable() {
 
 #[test]
 fn fuse() {
-    let mut stream = list().fuse().wait();
+    let mut stream = block_on_stream(list().fuse());
     assert_eq!(stream.next(), Some(Ok(1)));
     assert_eq!(stream.next(), Some(Ok(2)));
     assert_eq!(stream.next(), Some(Ok(3)));
@@ -199,8 +197,8 @@ fn buffered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
-      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
+    tx.send(Box::new(b.recover(|_| panic!())) as Box<Future<Item=_, Error=_> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.map_err(|_| panic!()))))
       .forget();
 
     let mut rx = rx.buffered(2);
@@ -208,7 +206,7 @@ fn buffered() {
     c.send(3).unwrap();
     sassert_empty(&mut rx);
     a.send(5).unwrap();
-    let mut rx = rx.wait();
+    let mut rx = block_on_stream(rx);
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
@@ -217,8 +215,8 @@ fn buffered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
-      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
+    tx.send(Box::new(b.recover(|_| panic!())) as Box<Future<Item=_, Error=_> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.map_err(|_| panic!()))))
       .forget();
 
     let mut rx = rx.buffered(1);
@@ -226,7 +224,7 @@ fn buffered() {
     c.send(3).unwrap();
     sassert_empty(&mut rx);
     a.send(5).unwrap();
-    let mut rx = rx.wait();
+    let mut rx = block_on_stream(rx);
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
@@ -238,13 +236,13 @@ fn unordered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
-      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
+    tx.send(Box::new(b.recover(|_| panic!())) as Box<Future<Item = _, Error = _> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.recover(|_| panic!()))))
       .forget();
 
     let mut rx = rx.buffer_unordered(2);
     sassert_empty(&mut rx);
-    let mut rx = rx.wait();
+    let mut rx = block_on_stream(rx);
     c.send(3).unwrap();
     assert_eq!(rx.next(), Some(Ok(3)));
     a.send(5).unwrap();
@@ -255,8 +253,8 @@ fn unordered() {
     let (a, b) = oneshot::channel::<u32>();
     let (c, d) = oneshot::channel::<u32>();
 
-    tx.send(Box::new(b.map_err(|_| ())) as Box<Future<Item = _, Error = _> + Send>)
-      .and_then(|tx| tx.send(Box::new(d.map_err(|_| ()))))
+    tx.send(Box::new(b.recover(|_| panic!())) as Box<Future<Item = _, Error = _> + Send>)
+      .and_then(|tx| tx.send(Box::new(d.recover(|_| panic!()))))
       .forget();
 
     // We don't even get to see `c` until `a` completes.
@@ -265,7 +263,7 @@ fn unordered() {
     c.send(3).unwrap();
     sassert_empty(&mut rx);
     a.send(5).unwrap();
-    let mut rx = rx.wait();
+    let mut rx = block_on_stream(rx);
     assert_eq!(rx.next(), Some(Ok(5)));
     assert_eq!(rx.next(), Some(Ok(3)));
     assert_eq!(rx.next(), None);
@@ -279,7 +277,7 @@ fn zip() {
                 Ok(vec![(1, 1), (2, 2)]));
     assert_done(|| list().take(2).zip(list()).collect(),
                 Ok(vec![(1, 1), (2, 2)]));
-    assert_done(|| err_list().zip(list()).collect(), Err(3));
+    assert_done(|| err_list().zip(list()).collect::<Vec<_>>(), Err(3));
     assert_done(|| list().zip(list().map(|x| x + 1)).collect(),
                 Ok(vec![(1, 2), (2, 3), (3, 4)]));
 }
@@ -294,25 +292,25 @@ fn peek() {
         type Item = ();
         type Error = u32;
 
-        fn poll(&mut self) -> Poll<(), u32> {
+        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), u32> {
             {
-                let res = try_ready!(self.inner.peek());
+                let res = try_ready!(self.inner.peek(cx));
                 assert_eq!(res, Some(&1));
             }
-            assert_eq!(self.inner.peek().unwrap(), Some(&1).into());
-            assert_eq!(self.inner.poll().unwrap(), Some(1).into());
-            Ok(().into())
+            assert_eq!(self.inner.peek(cx).unwrap(), Some(&1).into());
+            assert_eq!(self.inner.poll_next(cx).unwrap(), Some(1).into());
+            Ok(Async::Ready(()))
         }
     }
 
-    Peek {
+    block_on(Peek {
         inner: list().peekable(),
-    }.wait().unwrap()
+    }).unwrap()
 }
 
 #[test]
 fn wait() {
-    assert_eq!(list().wait().collect::<Result<Vec<_>, _>>(),
+    assert_eq!(block_on_stream(list()).collect::<Result<Vec<_>, _>>(),
                Ok(vec![1, 2, 3]));
 }
 
@@ -321,10 +319,10 @@ fn chunks() {
     assert_done(|| list().chunks(3).collect(), Ok(vec![vec![1, 2, 3]]));
     assert_done(|| list().chunks(1).collect(), Ok(vec![vec![1], vec![2], vec![3]]));
     assert_done(|| list().chunks(2).collect(), Ok(vec![vec![1, 2], vec![3]]));
-    let mut list = executor::spawn(err_list().chunks(3));
-    let i = list.wait_stream().unwrap().unwrap();
+    let mut list = block_on_stream(err_list().chunks(3));
+    let i = list.next().unwrap().unwrap();
     assert_eq!(i, vec![1, 2]);
-    let i = list.wait_stream().unwrap().unwrap_err();
+    let i = list.next().unwrap().unwrap_err();
     assert_eq!(i, 3);
 }
 
@@ -352,14 +350,14 @@ fn select() {
 #[test]
 fn forward() {
     let v = Vec::new();
-    let v = iter_ok::<_, ()>(vec![0, 1]).forward(v).wait().unwrap().1;
+    let v = block_on(iter_ok::<_, Never>(vec![0, 1]).forward(v)).unwrap().1;
     assert_eq!(v, vec![0, 1]);
 
-    let v = iter_ok::<_, ()>(vec![2, 3]).forward(v).wait().unwrap().1;
+    let v = block_on(iter_ok::<_, Never>(vec![2, 3]).forward(v)).unwrap().1;
     assert_eq!(v, vec![0, 1, 2, 3]);
 
-    assert_done(move || iter_ok(vec![4, 5]).forward(v).map(|(_, s)| s),
-                Ok::<_, ()>(vec![0, 1, 2, 3, 4, 5]));
+    assert_done(move || iter_ok::<_, Never>(vec![4, 5]).forward(v).map(|(_, s)| s),
+                Ok(vec![0, 1, 2, 3, 4, 5]));
 }
 
 #[test]
@@ -388,7 +386,7 @@ fn concat2() {
 fn stream_poll_fn() {
     let mut counter = 5usize;
 
-    let read_stream = poll_fn(move || -> Poll<Option<usize>, std::io::Error> {
+    let read_stream = poll_fn(move |_| -> Poll<Option<usize>, std::io::Error> {
         if counter == 0 {
             return Ok(Async::Ready(None));
         }
@@ -396,7 +394,7 @@ fn stream_poll_fn() {
         Ok(Async::Ready(Some(counter)))
     });
 
-    assert_eq!(read_stream.wait().count(), 5);
+    assert_eq!(block_on_stream(read_stream).count(), 5);
 }
 
 #[test]
@@ -409,6 +407,6 @@ fn inspect() {
 #[test]
 fn inspect_err() {
     let mut seen = vec![];
-    assert_done(|| err_list().inspect_err(|&a| seen.push(a)).collect(), Err(3));
+    assert_done(|| err_list().inspect_err(|&a| seen.push(a)).collect::<Vec<_>>(), Err(3));
     assert_eq!(seen, [3]);
 }

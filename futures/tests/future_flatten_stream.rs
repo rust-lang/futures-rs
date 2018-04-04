@@ -3,6 +3,7 @@ extern crate futures;
 
 use core::marker;
 
+use futures::executor::block_on_stream;
 use futures::prelude::*;
 use futures::future::{ok, err};
 use futures::stream;
@@ -14,7 +15,7 @@ fn successful_future() {
 
     let stream = future_of_a_stream.flatten_stream();
 
-    let mut iter = stream.wait();
+    let mut iter = block_on_stream(stream);
     assert_eq!(Ok(17), iter.next().unwrap());
     assert_eq!(Ok(19), iter.next().unwrap());
     assert_eq!(None, iter.next());
@@ -28,7 +29,7 @@ impl<T, E> Stream for PanickingStream<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         panic!()
     }
 }
@@ -37,7 +38,7 @@ impl<T, E> Stream for PanickingStream<T, E> {
 fn failed_future() {
     let future_of_a_stream = err::<PanickingStream<bool, u32>, _>(10);
     let stream = future_of_a_stream.flatten_stream();
-    let mut iter = stream.wait();
+    let mut iter = block_on_stream(stream);
     assert_eq!(Err(10), iter.next().unwrap());
     assert_eq!(None, iter.next());
 }

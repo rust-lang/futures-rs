@@ -3,9 +3,11 @@ extern crate futures;
 use std::sync::mpsc as std_mpsc;
 use std::thread;
 
-use futures::prelude::*;
-use futures::sync::oneshot;
-use futures::sync::mpsc;
+use futures::SinkExt;
+use futures::executor::{block_on, block_on_stream};
+use futures::stream::StreamExt;
+use futures::channel::oneshot;
+use futures::channel::mpsc;
 
 #[test]
 fn works() {
@@ -18,20 +20,20 @@ fn works() {
     let t1 = thread::spawn(move || {
         for _ in 0..N+1 {
             let (mytx, myrx) = oneshot::channel();
-            tx = tx.send(myrx).wait().unwrap();
+            tx = block_on(tx.send(myrx)).unwrap();
             tx3.send(mytx).unwrap();
         }
         rx2.recv().unwrap();
         for _ in 0..N {
             let (mytx, myrx) = oneshot::channel();
-            tx = tx.send(myrx).wait().unwrap();
+            tx = block_on(tx.send(myrx)).unwrap();
             tx3.send(mytx).unwrap();
         }
     });
 
     let (tx4, rx4) = std_mpsc::channel();
     let t2 = thread::spawn(move || {
-        for item in rx.map_err(|_| panic!()).buffer_unordered(N).wait() {
+        for item in block_on_stream(rx.map_err(|_| panic!()).buffer_unordered(N)) {
             tx4.send(item.unwrap()).unwrap();
         }
     });
