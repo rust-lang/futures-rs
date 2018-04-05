@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use futures::future::Future;
-use futures_cpupool::{Builder, CpuPool};
+use futures_cpupool::{CpuPool, Builder};
 
 fn done<T: Send + 'static>(t: T) -> Box<Future<Item = T, Error = ()> + Send> {
     Box::new(futures::future::ok(t))
@@ -14,7 +14,7 @@ fn done<T: Send + 'static>(t: T) -> Box<Future<Item = T, Error = ()> + Send> {
 
 #[test]
 fn join() {
-    let pool = CpuPool::new(2).unwrap();
+    let pool = CpuPool::new(2);
     let a = pool.spawn(done(1));
     let b = pool.spawn(done(2));
     let res = a.join(b).map(|(a, b)| a + b).wait();
@@ -24,7 +24,7 @@ fn join() {
 
 #[test]
 fn select() {
-    let pool = CpuPool::new(2).unwrap();
+    let pool = CpuPool::new(2);
     let a = pool.spawn(done(1));
     let b = pool.spawn(done(2));
     let (item1, next) = a.select(b).wait().ok().unwrap();
@@ -48,7 +48,7 @@ fn threads_go_away() {
 
     thread_local!(static FOO: A = A);
 
-    let pool = CpuPool::new(2).unwrap();
+    let pool = CpuPool::new(2);
     let _handle = pool.spawn_fn(|| {
         FOO.with(|_| ());
         Ok::<(), ()>(())
@@ -57,7 +57,7 @@ fn threads_go_away() {
 
     for _ in 0..100 {
         if CNT.load(Ordering::SeqCst) == 1 {
-            return;
+            return
         }
         thread::sleep(Duration::from_millis(10));
     }
@@ -81,9 +81,10 @@ fn lifecycle_test() {
         .pool_size(4)
         .after_start(after_start)
         .before_stop(before_stop)
-        .create()
-        .unwrap();
-    let _handle = pool.spawn_fn(|| Ok::<(), ()>(()));
+        .create();
+    let _handle = pool.spawn_fn(|| {
+        Ok::<(), ()>(())
+    });
     drop(pool);
 
     for _ in 0..100 {
@@ -98,7 +99,9 @@ fn lifecycle_test() {
 
 #[test]
 fn thread_name() {
-    let pool = Builder::new().name_prefix("my-pool-").create().unwrap();
+    let pool = Builder::new()
+        .name_prefix("my-pool-")
+        .create();
     let future = pool.spawn_fn(|| {
         assert!(thread::current().name().unwrap().starts_with("my-pool-"));
         Ok::<(), ()>(())
