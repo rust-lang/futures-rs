@@ -4,6 +4,8 @@ extern crate futures;
 extern crate futures_util;
 extern crate test;
 
+#[cfg(feature = "bench")]
+mod bench {
 use futures::prelude::*;
 use futures::task::{self, Wake, Waker};
 use futures::executor::LocalPool;
@@ -127,4 +129,5 @@ fn lock_unlock(b: &mut Bencher) {
         }
         (x, y)
     })
+}
 }
