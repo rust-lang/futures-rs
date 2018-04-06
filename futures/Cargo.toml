@@ -31,12 +31,12 @@ futures-util = { path = "../futures-util", version = "0.2.0", default-features =
 # futures-macro-await = { path = "../futures-macro-await", version = "0.2.0", optional = true }
 
 [features]
-nightly = ["futures-core/nightly"]
+nightly = ["futures-core/nightly", "futures-stable/nightly"]
 std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-stable/std", "futures-util/std"]
 default = ["std"]
 
 # TODO(cramertj) reenable on nightly
-# "futures-stable/nightly", "futures-async-runtime/nightly", "futures-macro-async", "futures-macro-await", "futures-macro-async/nightly"
+# , "futures-async-runtime/nightly", "futures-macro-async", "futures-macro-await", "futures-macro-async/nightly"
 
 # TODO(cramertj) reenable on std
 # "futures-async-runtime/std"
