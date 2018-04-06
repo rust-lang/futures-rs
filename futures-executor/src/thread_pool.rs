@@ -1,5 +1,6 @@
 use std::prelude::v1::*;
 
+use std::io;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
@@ -73,7 +74,7 @@ impl ThreadPool {
     /// See documentation for the methods in
     /// [`ThreadPoolBuilder`](::ThreadPoolBuilder) for details on the default
     /// configuration.
-    pub fn new() -> ThreadPool {
+    pub fn new() -> Result<ThreadPool, io::Error> {
         ThreadPoolBuilder::new().create()
     }
 
@@ -233,7 +234,7 @@ impl ThreadPoolBuilder {
     /// # Panics
     ///
     /// Panics if `pool_size == 0`.
-    pub fn create(&mut self) -> ThreadPool {
+    pub fn create(&mut self) -> Result<ThreadPool, io::Error> {
         let (tx, rx) = mpsc::channel();
         let pool = ThreadPool {
             state: Arc::new(PoolState {
@@ -256,9 +257,9 @@ impl ThreadPoolBuilder {
             if self.stack_size > 0 {
                 thread_builder = thread_builder.stack_size(self.stack_size);
             }
-            thread_builder.spawn(move || state.work(counter, after_start, before_stop)).unwrap();
+            thread_builder.spawn(move || state.work(counter, after_start, before_stop))?;
         }
-        return pool
+        Ok(pool)
     }
 }
 
@@ -344,7 +345,7 @@ mod tests {
         let (tx, rx) = mpsc::sync_channel(2);
         let _cpu_pool = ThreadPoolBuilder::new()
             .pool_size(2)
-            .after_start(move |_| tx.send(1).unwrap()).create();
+            .after_start(move |_| tx.send(1).unwrap()).create().unwrap();
 
         // After ThreadPoolBuilder is deconstructed, the tx should be droped
         // so that we can use rx as an iterator.

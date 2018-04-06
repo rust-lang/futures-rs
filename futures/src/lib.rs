@@ -127,7 +127,7 @@ pub mod executor {
     //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|_| Ok(())));
     //!
     //! // assumping `my_app: Future`
-    //! ThreadPool::new().run(my_app);
+    //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
     //! ```
     //!
     //! The call to [`run`](::executor::ThreadPool::run) will block the current

@@ -891,7 +891,7 @@ pub trait FutureExt: Future {
     /// use futures_executor::{block_on, spawn, ThreadPool};
     ///
     /// # fn main() {
-    /// let pool = ThreadPool::new();
+    /// let pool = ThreadPool::new().expect("unable to create threadpool");
     /// let future = future::ok::<(), _>(());
     /// let spawn_future = spawn(future).with_executor(pool);
     /// assert_eq!(block_on(spawn_future), Ok(()));
