@@ -269,6 +269,14 @@ fn join_all_iter_lifetime() {
 }
 
 #[test]
+fn join_all_from_iter() {
+    assert_done(
+        || vec![f_ok(1), f_ok(2)].into_iter().collect::<JoinAll<_>>(),
+        Ok(vec![1, 2]),
+    )
+}
+
+#[test]
 fn select2() {
     assert_done(|| f_ok(2).select(empty()).then(unselect), Ok(2));
     assert_done(|| empty().select(f_ok(2)).then(unselect), Ok(2));
