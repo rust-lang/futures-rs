@@ -120,7 +120,7 @@ if_std! {
 /// required methods, and a host of default methods for working in a
 /// higher-level way. The `Sink::send_all` combinator is of particular
 /// importance: you can use it to send an entire stream to a sink, which is
-/// the simplest way to ultimately consume a sink.
+/// the simplest way to ultimately consume a stream.
 pub trait Sink {
     /// The type of value that the sink accepts.
     type SinkItem;
