@@ -20,7 +20,7 @@
 //! completion, but *do not block* the thread running them.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/futures/0.2.0-beta")]
+#![doc(html_root_url = "https://docs.rs/futures/0.2.0")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
@@ -127,7 +127,7 @@ pub mod executor {
     //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|_| Ok(())));
     //!
     //! // assumping `my_app: Future`
-    //! ThreadPool::new().run(my_app);
+    //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
     //! ```
     //!
     //! The call to [`run`](::executor::ThreadPool::run) will block the current
@@ -297,22 +297,22 @@ pub mod prelude {
         AsyncWriteExt,
     };
 
-    #[cfg(feature = "nightly")]
-    pub use futures_macro_async::{
-        async,
-        async_move,
-        async_stream,
-        async_stream_move,
-        async_block,
-        async_stream_block
-    };
-
-    #[cfg(feature = "nightly")]
-    pub use futures_macro_await::{
-        await,
-        stream_yield,
-        await_item
-    };
+     #[cfg(feature = "nightly")]
+     pub use futures_macro_async::{
+         async,
+         async_move,
+         async_stream,
+         async_stream_move,
+         async_block,
+         async_stream_block
+     };
+ 
+     #[cfg(feature = "nightly")]
+     pub use futures_macro_await::{
+         await,
+         stream_yield,
+         await_item
+     };
 }
 
 pub mod sink {

@@ -191,7 +191,8 @@ impl LocalPool {
 lazy_static! {
     static ref GLOBAL_POOL: ThreadPool = ThreadPool::builder()
         .name_prefix("block_on-")
-        .create() ;
+        .create()
+        .expect("Unable to create global thread-pool");
 }
 
 /// Run a future to completion on the current thread.

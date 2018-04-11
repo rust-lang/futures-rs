@@ -87,11 +87,10 @@ if_std! {
         ///
         /// This method is useful primarily if you want to explicitly handle
         /// spawn failures.
-        pub fn executor(&mut self) -> Option<&mut Executor> {
-            match self.executor {
-                Some(ref mut e) => Some(*e),
-                None => None
-            }
+        pub fn executor(&mut self) -> &mut Executor {
+            self.executor
+                .as_mut().map(|x| &mut **x)
+                .expect("No default executor found: std-using futures contexts must provide an executor")
         }
 
         /// Spawn a future onto the default executor.
@@ -107,7 +106,6 @@ if_std! {
             where F: Future<Item = (), Error = Never> + 'static + Send
         {
             self.executor()
-                .expect("No default executor found")
                 .spawn(Box::new(f)).unwrap()
         }
 

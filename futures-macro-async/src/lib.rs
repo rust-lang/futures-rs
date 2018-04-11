@@ -29,7 +29,7 @@ if_nightly! {
     extern crate syn;
 
     use proc_macro2::Span;
-    use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
+    use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
     use quote::{Tokens, ToTokens};
     use syn::*;
     use syn::punctuated::Punctuated;
@@ -450,10 +450,7 @@ if_nightly! {
 
     #[proc_macro]
     pub fn async_block(input: TokenStream) -> TokenStream {
-        let input = TokenStream::from(TokenTree {
-            kind: TokenNode::Group(Delimiter::Brace, input),
-            span: proc_macro::Span::def_site(),
-        });
+        let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
         let expr = syn::parse(input)
             .expect("failed to parse tokens as an expression");
         let expr = ExpandAsyncFor.fold_expr(expr);
@@ -481,10 +478,7 @@ if_nightly! {
 
     #[proc_macro]
     pub fn async_stream_block(input: TokenStream) -> TokenStream {
-        let input = TokenStream::from(TokenTree {
-            kind: TokenNode::Group(Delimiter::Brace, input),
-            span: proc_macro::Span::def_site(),
-        });
+        let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
         let expr = syn::parse(input)
             .expect("failed to parse tokens as an expression");
         let expr = ExpandAsyncFor.fold_expr(expr);
@@ -579,8 +573,8 @@ if_nightly! {
         let mut spans = Tokens::new();
         tokens.to_tokens(&mut spans);
         let good_tokens = proc_macro2::TokenStream::from(spans).into_iter().collect::<Vec<_>>();
-        let first_span = good_tokens.first().map(|t| t.span).unwrap_or(Span::def_site());
-        let last_span = good_tokens.last().map(|t| t.span).unwrap_or(first_span);
+        let first_span = good_tokens.first().map(|t| t.span()).unwrap_or(Span::call_site());
+        let last_span = good_tokens.last().map(|t| t.span()).unwrap_or(first_span);
         (first_span, last_span)
     }
 
@@ -588,10 +582,10 @@ if_nightly! {
               &(first_span, last_span): &(Span, Span)) -> proc_macro2::TokenStream {
         let mut new_tokens = input.into_iter().collect::<Vec<_>>();
         if let Some(token) = new_tokens.first_mut() {
-            token.span = first_span;
+            token.set_span(first_span);
         }
         for token in new_tokens.iter_mut().skip(1) {
-            token.span = last_span;
+            token.set_span(last_span);
         }
         new_tokens.into_iter().collect()
     }
@@ -601,8 +595,8 @@ if_nightly! {
     {
         let mut new_tokens = Tokens::new();
         for token in input.into_iter() {
-            match token.kind {
-                proc_macro2::TokenNode::Op('!', _) => tokens.to_tokens(&mut new_tokens),
+            match token {
+                proc_macro2::TokenTree::Op(op) if op.op() == '!' => tokens.to_tokens(&mut new_tokens),
                 _ => token.to_tokens(&mut new_tokens),
             }
         }
@@ -615,8 +609,8 @@ if_nightly! {
         let mut replacements = replacements.iter().cycle();
         let mut new_tokens = Tokens::new();
         for token in input.into_iter() {
-            match token.kind {
-                proc_macro2::TokenNode::Op('!', _) => {
+            match token {
+                proc_macro2::TokenTree::Op(op) if op.op() == '!' => {
                     replacements.next().unwrap().to_tokens(&mut new_tokens);
                 }
                 _ => token.to_tokens(&mut new_tokens),

@@ -1,6 +1,6 @@
 [package]
 name = "futures-macro-async"
-version = "0.2.0-beta"
+version = "0.2.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
@@ -13,12 +13,12 @@ few other assorted macros.
 proc-macro = true
 
 [dependencies]
-quote = "0.4"
-proc-macro2 = "0.2"
+quote = "0.5"
+proc-macro2 = "0.3"
 
 [dependencies.syn]
-version = "0.12.13"
-features = ["full", "fold", "parsing", "printing", "extra-traits"]
+version = "0.13"
+features = ["full", "fold", "parsing", "printing", "extra-traits", "proc-macro"]
 default-features = false
 
 [features]
