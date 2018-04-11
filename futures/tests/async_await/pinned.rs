@@ -104,6 +104,6 @@ fn main() {
 
 #[test]
 fn run_pinned_future_in_thread_pool() {
-    let mut pool = ThreadPool::new();
+    let mut pool = ThreadPool::new().unwrap();
     pool.spawn_pinned(spawnable()).unwrap();
 }
