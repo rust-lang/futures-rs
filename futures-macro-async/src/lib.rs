@@ -29,7 +29,7 @@ if_nightly! {
     extern crate syn;
 
     use proc_macro2::Span;
-    use proc_macro::{TokenStream, TokenTree, Delimiter, TokenNode};
+    use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
     use quote::{Tokens, ToTokens};
     use syn::*;
     use syn::punctuated::Punctuated;
@@ -444,10 +444,7 @@ if_nightly! {
 
     #[proc_macro]
     pub fn async_block(input: TokenStream) -> TokenStream {
-        let input = TokenStream::from(TokenTree {
-            kind: TokenNode::Group(Delimiter::Brace, input),
-            span: proc_macro::Span::def_site(),
-        });
+        let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
         let expr = syn::parse(input)
             .expect("failed to parse tokens as an expression");
         let expr = ExpandAsyncFor.fold_expr(expr);
@@ -475,10 +472,7 @@ if_nightly! {
 
     #[proc_macro]
     pub fn async_stream_block(input: TokenStream) -> TokenStream {
-        let input = TokenStream::from(TokenTree {
-            kind: TokenNode::Group(Delimiter::Brace, input),
-            span: proc_macro::Span::def_site(),
-        });
+        let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));
         let expr = syn::parse(input)
             .expect("failed to parse tokens as an expression");
         let expr = ExpandAsyncFor.fold_expr(expr);
