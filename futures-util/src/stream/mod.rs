@@ -881,9 +881,6 @@ pub trait StreamExt: Stream {
     /// stream will be polled in a round-robin fashion, and whenever a stream is
     /// ready to yield an item that item is yielded.
     ///
-    /// The `select` function is similar to `merge` except that it requires both
-    /// streams to have the same item and error types.
-    ///
     /// Error are passed through from either stream.
     fn select<S>(self, other: S) -> Select<Self, S>
         where S: Stream<Item = Self::Item, Error = Self::Error>,
