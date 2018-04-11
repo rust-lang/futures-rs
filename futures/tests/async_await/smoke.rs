@@ -234,6 +234,6 @@ fn poll_stream_after_error() {
 
 #[test]
 fn run_boxed_future_in_cpu_pool() {
-    let mut pool = executor::ThreadPool::new();
+    let mut pool = executor::ThreadPool::new().unwrap();
     pool.spawn(_foo9()).unwrap();
 }
