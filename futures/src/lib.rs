@@ -25,7 +25,7 @@
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
-// extern crate futures_async_runtime;
+extern crate futures_async_runtime;
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;
@@ -34,9 +34,8 @@ extern crate futures_sink;
 extern crate futures_stable;
 extern crate futures_util;
 
-// TODO(cramertj) reenable
-// #[cfg(feature = "nightly")] extern crate futures_macro_async;
-// #[cfg(feature = "nightly")] extern crate futures_macro_await;
+#[cfg(feature = "nightly")] extern crate futures_macro_async;
+#[cfg(feature = "nightly")] extern crate futures_macro_await;
 
 pub use futures_core::future::{Future, IntoFuture};
 pub use futures_util::future::FutureExt;
@@ -289,23 +288,22 @@ pub mod prelude {
         AsyncWriteExt,
     };
 
-// TODO(cramertj) reenable
-//     #[cfg(feature = "nightly")]
-//     pub use futures_macro_async::{
-//         async,
-//         async_move,
-//         async_stream,
-//         async_stream_move,
-//         async_block,
-//         async_stream_block
-//     };
-// 
-//     #[cfg(feature = "nightly")]
-//     pub use futures_macro_await::{
-//         await,
-//         stream_yield,
-//         await_item
-//     };
+     #[cfg(feature = "nightly")]
+     pub use futures_macro_async::{
+         async,
+         async_move,
+         async_stream,
+         async_stream_move,
+         async_block,
+         async_stream_block
+     };
+ 
+     #[cfg(feature = "nightly")]
+     pub use futures_macro_await::{
+         await,
+         stream_yield,
+         await_item
+     };
 }
 
 pub mod sink {
@@ -402,11 +400,10 @@ pub mod stable {
     pub use futures_stable::{StableExecutor, block_on_stable};
 }
 
-// TODO(cramertj) reenable
-// #[cfg(feature = "nightly")]
-// #[doc(hidden)]
-// pub mod __rt {
-//     #[cfg(feature = "std")]
-//     pub extern crate std;
-//     pub use futures_async_runtime::*;
-// }
+#[cfg(feature = "nightly")]
+#[doc(hidden)]
+pub mod __rt {
+    #[cfg(feature = "std")]
+    pub extern crate std;
+    pub use futures_async_runtime::*;
+}

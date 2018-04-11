@@ -19,7 +19,7 @@ travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
-# futures-async-runtime = { path = "../futures-async-runtime", version = "0.2.0", default-features = false }
+futures-async-runtime = { path = "../futures-async-runtime", version = "0.2.0", default-features = false }
 futures-core = { path = "../futures-core", version = "0.2.0", default-features = false }
 futures-channel = { path = "../futures-channel", version = "0.2.0", default-features = false }
 futures-executor = { path = "../futures-executor", version = "0.2.0", default-features = false }
@@ -27,16 +27,10 @@ futures-io = { path = "../futures-io", version = "0.2.0", default-features = fal
 futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false }
 futures-stable = { path = "../futures-stable", version = "0.2.0", default-features = false }
 futures-util = { path = "../futures-util", version = "0.2.0", default-features = false }
-# futures-macro-async = { path = "../futures-macro-async", version = "0.2.0", optional = true }
-# futures-macro-await = { path = "../futures-macro-await", version = "0.2.0", optional = true }
+futures-macro-async = { path = "../futures-macro-async", version = "0.2.0", optional = true }
+futures-macro-await = { path = "../futures-macro-await", version = "0.2.0", optional = true }
 
 [features]
-nightly = ["futures-core/nightly", "futures-stable/nightly"]
-std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-stable/std", "futures-util/std"]
+nightly = ["futures-core/nightly", "futures-stable/nightly", "futures-async-runtime/nightly", "futures-macro-async", "futures-macro-await", "futures-macro-async/nightly"]
+std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-stable/std", "futures-util/std", "futures-async-runtime/std"]
 default = ["std"]
-
-# TODO(cramertj) reenable on nightly
-# , "futures-async-runtime/nightly", "futures-macro-async", "futures-macro-await", "futures-macro-async/nightly"
-
-# TODO(cramertj) reenable on std
-# "futures-async-runtime/std"
