@@ -8,7 +8,7 @@ use std::thread;
 
 use futures::prelude::*;
 use futures::future::{ok, err};
-use futures::sync::oneshot;
+use futures::channel::oneshot;
 
 #[test]
 fn and_then1() {
@@ -244,7 +244,7 @@ fn select1() {
     p1.select(p2).map(move |v| tx.send(v).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     c1.send(1).unwrap();
-    let (v, p2) = rx.recv().unwrap();
+    let (v, p2) = rx.recv().unwrap().into_inner();
     assert_eq!(v, 1);
     assert!(rx.recv().is_err());
 
@@ -260,7 +260,7 @@ fn select2() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.select(p2).map_err(move |v| tx.send((1, v.1)).unwrap()).forget();
+    p1.select(p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     drop(c1);
     let (v, p2) = rx.recv().unwrap();
@@ -279,7 +279,7 @@ fn select3() {
     let (c1, p1) = oneshot::channel::<i32>();
     let (c2, p2) = oneshot::channel::<i32>();
     let (tx, rx) = mpsc::channel();
-    p1.select(p2).map_err(move |v| tx.send((1, v.1)).unwrap()).forget();
+    p1.select(p2).map_err(move |v| tx.send((1, v.into_inner().1)).unwrap()).forget();
     assert!(rx.try_recv().is_err());
     drop(c1);
     let (v, p2) = rx.recv().unwrap();

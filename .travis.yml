@@ -7,7 +7,7 @@ matrix:
     - rust: stable
     - rust: beta
     - rust: nightly
-      script: cargo bench --all
+      script: cargo bench --all && cd futures-util && cargo bench --features=bench
     - rust: nightly
       before_script:
         - pip install ghp-import --user && export PATH=$HOME/.local/bin:$PATH

@@ -3,17 +3,20 @@ extern crate futures;
 use std::panic::{self, AssertUnwindSafe};
 
 use futures::prelude::*;
+use futures::executor::{block_on, block_on_stream};
 use futures::Async::*;
 use futures::future;
 use futures::stream::FuturesUnordered;
-use futures::sync::oneshot;
+use futures::channel::oneshot;
+
+mod support;
 
 trait AssertSendSync: Send + Sync {}
 impl AssertSendSync for FuturesUnordered<()> {}
 
 #[test]
 fn basic_usage() {
-    future::lazy(move |_| {
+    block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
@@ -23,27 +26,27 @@ fn basic_usage() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!queue.poll().unwrap().is_ready());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         tx2.send("hello").unwrap();
 
-        assert_eq!(Ready(Some("hello")), queue.poll().unwrap());
-        assert!(!queue.poll().unwrap().is_ready());
+        assert_eq!(Ready(Some("hello")), queue.poll_next(cx).unwrap());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         tx1.send("world").unwrap();
         tx3.send("world2").unwrap();
 
-        assert_eq!(Ready(Some("world")), queue.poll().unwrap());
-        assert_eq!(Ready(Some("world2")), queue.poll().unwrap());
-        assert_eq!(Ready(None), queue.poll().unwrap());
+        assert_eq!(Ready(Some("world")), queue.poll_next(cx).unwrap());
+        assert_eq!(Ready(Some("world2")), queue.poll_next(cx).unwrap());
+        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).unwrap();
 }
 
 #[test]
 fn resolving_errors() {
-    future::lazy(move |_| {
+    block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
@@ -53,27 +56,27 @@ fn resolving_errors() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!queue.poll().unwrap().is_ready());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         drop(tx2);
 
-        assert!(queue.poll().is_err());
-        assert!(!queue.poll().unwrap().is_ready());
+        assert!(queue.poll_next(cx).is_err());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         drop(tx1);
         tx3.send("world2").unwrap();
 
-        assert!(queue.poll().is_err());
-        assert_eq!(Ready(Some("world2")), queue.poll().unwrap());
-        assert_eq!(Ready(None), queue.poll().unwrap());
+        assert!(queue.poll_next(cx).is_err());
+        assert_eq!(Ready(Some("world2")), queue.poll_next(cx).unwrap());
+        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).unwrap();
 }
 
 #[test]
 fn dropping_ready_queue() {
-    future::lazy(move |_| {
+    block_on(future::lazy(move |_| {
         let mut queue = FuturesUnordered::new();
         let (mut tx1, rx1) = oneshot::channel::<()>();
         let (mut tx2, rx2) = oneshot::channel::<()>();
@@ -83,18 +86,20 @@ fn dropping_ready_queue() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!tx1.poll_cancel().unwrap().is_ready());
-        assert!(!tx2.poll_cancel().unwrap().is_ready());
-        assert!(!tx3.poll_cancel().unwrap().is_ready());
+        support::noop_waker_cx(|cx| {
+            assert!(!tx1.poll_cancel(cx).unwrap().is_ready());
+            assert!(!tx2.poll_cancel(cx).unwrap().is_ready());
+            assert!(!tx3.poll_cancel(cx).unwrap().is_ready());
 
-        drop(queue);
+            drop(queue);
 
-        assert!(tx1.poll_cancel().unwrap().is_ready());
-        assert!(tx2.poll_cancel().unwrap().is_ready());
-        assert!(tx3.poll_cancel().unwrap().is_ready());
+            assert!(tx1.poll_cancel(cx).unwrap().is_ready());
+            assert!(tx2.poll_cancel(cx).unwrap().is_ready());
+            assert!(tx3.poll_cancel(cx).unwrap().is_ready());
+        });
 
-        Ok::<_, ()>(())
-    }).wait().unwrap();
+        Ok::<_, ()>(()).into_future()
+    })).unwrap();
 }
 
 #[test]
@@ -126,7 +131,7 @@ fn stress() {
 
             barrier.wait();
 
-            let mut sync = queue.wait();
+            let mut sync = block_on_stream(queue);
 
             let mut rx: Vec<_> = (&mut sync)
                 .take(n)
@@ -148,17 +153,17 @@ fn stress() {
 
 #[test]
 fn panicking_future_dropped() {
-    future::lazy(move |_| {
+    block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
-        queue.push(future::poll_fn(|| -> Poll<i32, i32> {
+        queue.push(future::poll_fn(|_| -> Poll<i32, i32> {
             panic!()
         }));
 
-        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll()));
+        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next(cx)));
         assert!(r.is_err());
         assert!(queue.is_empty());
-        assert_eq!(Ready(None), queue.poll().unwrap());
+        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
 
         Ok::<_, ()>(())
-    }).wait().unwrap();
+    })).unwrap();
 }

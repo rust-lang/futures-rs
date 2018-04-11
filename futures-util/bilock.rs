@@ -1,5 +1,4 @@
 extern crate futures;
-extern crate futures;
 
 use std::thread;
 

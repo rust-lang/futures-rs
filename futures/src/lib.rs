@@ -20,12 +20,12 @@
 //! completion, but *do not block* the thread running them.
 
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/futures/0.2.0-beta")]
+#![doc(html_root_url = "https://docs.rs/futures/0.2.0")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
-extern crate futures_async_runtime;
+// extern crate futures_async_runtime;
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;
@@ -34,8 +34,9 @@ extern crate futures_sink;
 extern crate futures_stable;
 extern crate futures_util;
 
-#[cfg(feature = "nightly")] extern crate futures_macro_async;
-#[cfg(feature = "nightly")] extern crate futures_macro_await;
+// TODO(cramertj) reenable
+// #[cfg(feature = "nightly")] extern crate futures_macro_async;
+// #[cfg(feature = "nightly")] extern crate futures_macro_await;
 
 pub use futures_core::future::{Future, IntoFuture};
 pub use futures_util::future::FutureExt;
@@ -127,7 +128,7 @@ pub mod executor {
     //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|_| Ok(())));
     //!
     //! // assumping `my_app: Future`
-    //! ThreadPool::new().run(my_app);
+    //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
     //! ```
     //!
     //! The call to [`run`](::executor::ThreadPool::run) will block the current
@@ -166,8 +167,12 @@ pub mod executor {
     // TODO: add docs (or link to apr) for implementing an executor
 
     pub use futures_executor::{
-        Enter, EnterError, LocalExecutor, LocalPool, Spawn, SpawnWithHandle, ThreadPool,
-        ThreadPoolBuilder, JoinHandle, block_on, enter, spawn, spawn_with_handle
+        BlockingStream,
+        Enter, EnterError,
+        LocalExecutor, LocalPool,
+        Spawn, SpawnWithHandle,
+        ThreadPool, ThreadPoolBuilder, JoinHandle,
+        block_on, block_on_stream, enter, spawn, spawn_with_handle
     };
     pub use futures_core::executor::{SpawnError, Executor};
 }
@@ -284,22 +289,23 @@ pub mod prelude {
         AsyncWriteExt,
     };
 
-    #[cfg(feature = "nightly")]
-    pub use futures_macro_async::{
-        async,
-        async_move,
-        async_stream,
-        async_stream_move,
-        async_block,
-        async_stream_block
-    };
-
-    #[cfg(feature = "nightly")]
-    pub use futures_macro_await::{
-        await,
-        stream_yield,
-        await_item
-    };
+// TODO(cramertj) reenable
+//     #[cfg(feature = "nightly")]
+//     pub use futures_macro_async::{
+//         async,
+//         async_move,
+//         async_stream,
+//         async_stream_move,
+//         async_block,
+//         async_stream_block
+//     };
+// 
+//     #[cfg(feature = "nightly")]
+//     pub use futures_macro_await::{
+//         await,
+//         stream_yield,
+//         await_item
+//     };
 }
 
 pub mod sink {
@@ -316,7 +322,7 @@ pub mod sink {
 
     pub use futures_util::sink::{
         Close, Fanout, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
-        WithFlatMap, SinkExt, close, flush,
+        WithFlatMap, SinkExt,
     };
 
     #[cfg(feature = "std")]
@@ -331,7 +337,7 @@ pub mod stream {
     //! - The [`Stream` trait](::Stream), for objects that can asynchronously
     //! produce a sequence of values.
     //!
-    //! - The [`StreamExt`](::future::StreamExt) trait, which provides adapters
+    //! - The [`StreamExt`](::StreamExt) trait, which provides adapters
     //! for chaining and composing streams.
     //!
     //! - Top-level stream contructors like [`iter_ok`](::stream::iter_ok) which
@@ -396,10 +402,11 @@ pub mod stable {
     pub use futures_stable::{StableExecutor, block_on_stable};
 }
 
-#[cfg(feature = "nightly")]
-#[doc(hidden)]
-pub mod __rt {
-    #[cfg(feature = "std")]
-    pub extern crate std;
-    pub use futures_async_runtime::*;
-}
+// TODO(cramertj) reenable
+// #[cfg(feature = "nightly")]
+// #[doc(hidden)]
+// pub mod __rt {
+//     #[cfg(feature = "std")]
+//     pub extern crate std;
+//     pub use futures_async_runtime::*;
+// }

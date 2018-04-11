@@ -1,4 +1,5 @@
 //! Futures-powered synchronization primitives.
+#![allow(unused)]
 
 use std::any::Any;
 use std::boxed::Box;
