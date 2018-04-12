@@ -99,6 +99,8 @@ fn main() {
     assert_eq!(block_on_stable(qux2(17)), Ok(17));
     assert_eq!(block_on(boxed(17)), Ok(17));
     assert_eq!(block_on(boxed_send(17)), Ok(17));
+    assert_eq!(block_on(boxed_borrow(&17)), Ok(17));
+    assert_eq!(block_on(boxed_send_borrow(&17)), Ok(17));
     assert_eq!(block_on_stable(uses_async_for()), Ok(vec![0, 1]));
 }
 
