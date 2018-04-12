@@ -459,6 +459,8 @@ if_nightly! {
             ::futures::__rt::gen_pinned
         };
 
+        let await = await();
+
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
@@ -468,6 +470,7 @@ if_nightly! {
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
                 (quote_cs! {
+                    #await
                     if false { yield ::futures::__rt::Async::Pending }
                 }).to_tokens(tokens);
                 expr.to_tokens(tokens);
@@ -488,6 +491,8 @@ if_nightly! {
             ::futures::__rt::gen_move
         };
 
+        let await = await_move();
+
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
@@ -496,6 +501,7 @@ if_nightly! {
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
                 (quote_cs! {
+                    #await
                     if false { yield ::futures::__rt::Async::Pending }
                 }).to_tokens(tokens);
                 expr.to_tokens(tokens);
@@ -516,6 +522,8 @@ if_nightly! {
             ::futures::__rt::gen_stream_pinned
         };
 
+        let await = await();
+
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
@@ -525,6 +533,7 @@ if_nightly! {
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
                 (quote_cs! {
+                    #await
                     if false { yield ::futures::__rt::Async::Pending }
                 }).to_tokens(tokens);
                 expr.to_tokens(tokens);
@@ -545,6 +554,8 @@ if_nightly! {
             ::futures::__rt::gen_stream
         };
 
+        let await = await_move();
+
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
@@ -553,6 +564,7 @@ if_nightly! {
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
                 (quote_cs! {
+                    #await
                     if false { yield ::futures::__rt::Async::Pending }
                 }).to_tokens(tokens);
                 expr.to_tokens(tokens);
