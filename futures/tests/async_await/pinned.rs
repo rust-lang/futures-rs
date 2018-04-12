@@ -37,27 +37,27 @@ fn qux2(x: i32) -> Result<i32, i32> {
     await!(baz2(x).pin())
 }
 
-#[async(pinned)]
+#[async(boxed)]
 fn boxed(x: i32) -> Result<i32, i32> {
     Ok(x)
 }
 
-#[async(pinned)]
+#[async(boxed)]
 fn boxed_borrow(x: &i32) -> Result<i32, i32> {
     Ok(*x)
 }
 
-#[async(pinned_send)]
+#[async(boxed_send)]
 fn boxed_send(x: i32) -> Result<i32, i32> {
     Ok(x)
 }
 
-#[async(pinned_send)]
+#[async(boxed_send)]
 fn boxed_send_borrow(x: &i32) -> Result<i32, i32> {
     Ok(*x)
 }
 
-#[async(pinned_send)]
+#[async(boxed_send)]
 fn spawnable() -> Result<(), Never> {
     Ok(())
 }
@@ -71,7 +71,7 @@ fn _stream1() -> Result<(), i32> {
     Ok(())
 }
 
-#[async_stream(pinned, item = u64)]
+#[async_stream(boxed, item = u64)]
 fn _stream_boxed() -> Result<(), i32> {
     fn integer() -> u64 { 1 }
     let x = &integer();
