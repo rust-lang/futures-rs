@@ -1,7 +1,6 @@
 extern crate futures;
 
 use futures::executor::block_on;
-use futures::prelude::*;
 use futures::future::{ok, select_all, err};
 
 #[test]
