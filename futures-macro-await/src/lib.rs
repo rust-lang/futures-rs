@@ -110,7 +110,7 @@ macro_rules! await_item {
 /// use futures::stream;
 /// use futures::executor::block_on;
 ///
-/// #[async_stream_move(item = u32)]
+/// #[async_stream(unpin, item = u32)]
 /// fn one_five() -> Result<(), u32> {
 ///     stream_yield!(5);
 ///     Ok(())
