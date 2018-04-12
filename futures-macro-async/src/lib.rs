@@ -264,10 +264,10 @@ if_nightly! {
     #[proc_macro_attribute]
     pub fn async(attribute: TokenStream, function: TokenStream) -> TokenStream {
         let attribute = match &attribute.to_string() as &str {
-            "( pinned )" => Attribute::PinnedBoxed,
-            "( pinned_send )" => Attribute::PinnedBoxedSend,
+            "( boxed )" => Attribute::PinnedBoxed,
+            "( boxed_send )" => Attribute::PinnedBoxedSend,
             "" => Attribute::Pinned,
-            _ => panic!("the #[async] attribute currently only takes `pinned` `pinned_send` as an arg"),
+            _ => panic!("the #[async] attribute currently only takes `boxed` `boxed_send` as an arg"),
         };
 
         async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
@@ -352,9 +352,9 @@ if_nightly! {
         for arg in args.0 {
             match arg {
                 AsyncStreamArg(term, None) => {
-                    if term == "pinned" {
+                    if term == "boxed" {
                         if boxed {
-                            panic!("duplicate 'pinned' argument to #[async_stream]");
+                            panic!("duplicate 'boxed' argument to #[async_stream]");
                         }
                         boxed = true;
                     } else {
