@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::rc::Rc;
 use std::cell::{Cell, RefCell};
 use std::sync::atomic::{Ordering, AtomicBool};
+use std::collections::VecDeque;
 
 use futures::prelude::*;
 use futures::future::ok;
@@ -24,6 +25,17 @@ fn vec_sink() {
     v.start_send(1).unwrap();
     assert_eq!(v, vec![0, 1]);
     assert_done(move || v.flush(), Ok(vec![0, 1]));
+}
+
+#[test]
+fn vecdeque_sink() {
+    let mut deque = VecDeque::new();
+    deque.start_send(2).unwrap();
+    deque.start_send(3).unwrap();
+
+    assert_eq!(deque.pop_front(), Some(2));
+    assert_eq!(deque.pop_front(), Some(3));
+    assert_eq!(deque.pop_front(), None);
 }
 
 #[test]
@@ -395,7 +407,7 @@ fn fanout_backpressure() {
     let sink = left_send.fanout(right_send);
 
     let sink = block_on(StartSendFut::new(sink, 0)).unwrap();
- 
+
     flag_cx(|flag, cx| {
         let mut task = sink.send(2);
         assert!(!flag.get());

@@ -51,6 +51,28 @@ if_std! {
         }
     }
 
+    impl<T> Sink for ::std::collections::VecDeque<T> {
+        type SinkItem = T;
+        type SinkError = Never;
+
+        fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+            Ok(Async::Ready(()))
+        }
+
+        fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+            self.push_back(item);
+            Ok(())
+        }
+
+        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+            Ok(Async::Ready(()))
+        }
+
+        fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+            Ok(Async::Ready(()))
+        }
+    }
+
     impl<S: ?Sized + Sink> Sink for ::std::boxed::Box<S> {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
@@ -133,7 +155,7 @@ pub trait Sink {
     /// send**.
     ///
     /// Implementations of `poll_ready` and `start_send` will usually involve
-    /// flushing behind the scenes in order to make room for new messages. 
+    /// flushing behind the scenes in order to make room for new messages.
     /// It is only necessary to call `poll_flush` if you need to guarantee that
     /// *all* of the items placed into the `Sink` have been sent.
     ///

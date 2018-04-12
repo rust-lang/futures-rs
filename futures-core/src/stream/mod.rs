@@ -71,6 +71,9 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
 }
 
 if_std! {
+    use Async;
+    use never::Never;
+
     impl<S: ?Sized + Stream> Stream for ::std::boxed::Box<S> {
         type Item = S::Item;
         type Error = S::Error;
@@ -96,6 +99,15 @@ if_std! {
 
         fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
             self.0.poll_next(cx)
+        }
+    }
+
+    impl<T> Stream for ::std::collections::VecDeque<T> {
+        type Item = T;
+        type Error = Never;
+
+        fn poll_next(&mut self, _cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            Ok(Async::Ready(self.pop_front()))
         }
     }
 }
