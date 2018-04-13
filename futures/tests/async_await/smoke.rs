@@ -92,6 +92,17 @@ fn _bar4() -> Result<i32, i32> {
     Ok(cnt)
 }
 
+fn bar4_block() -> impl Future<Item = i32, Error = i32> {
+    async_block_unpin! {
+        let mut cnt = 0;
+        #[async]
+        for x in futures::stream::iter_ok::<_, i32>(vec![1, 2, 3, 4]) {
+            cnt += x;
+        }
+        Ok(cnt)
+    }
+}
+
 #[async_stream_move(item = u64)]
 fn _stream1() -> Result<(), i32> {
     stream_yield!(0);
@@ -156,6 +167,13 @@ pub fn _stream8() -> Result<(), i32> {
     Ok(())
 }
 
+pub fn stream8_block() -> impl Stream<Item = [u32; 4], Error = i32> {
+    async_stream_block_unpin! {
+        stream_yield!([1, 2, 3, 4]);
+        Ok(())
+    }
+}
+
 struct A(i32);
 
 impl A {
@@ -196,10 +214,14 @@ fn main() {
     assert_eq!(executor::block_on(_bar2()), Ok(2));
     assert_eq!(executor::block_on(_bar3()), Ok(2));
     assert_eq!(executor::block_on(_bar4()), Ok(10));
+    assert_eq!(executor::block_on(bar4_block()), Ok(10));
     assert_eq!(executor::block_on(_foo6(8)), Err(8));
     assert_eq!(executor::block_on(A(11).a_foo()), Ok(11));
     assert_eq!(executor::block_on(loop_in_loop()), Ok(true));
     assert_eq!(executor::block_on(test_await_item()), Ok(()));
+    assert_eq!(
+        executor::block_on_stream(stream8_block()).collect::<Result<Vec<_>, _>>(),
+        Ok(vec![[1, 2, 3, 4]]));
 }
 
 #[async_move]
