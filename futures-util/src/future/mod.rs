@@ -6,6 +6,7 @@
 use core::result;
 
 use futures_core::{Future, IntoFuture, Stream};
+use futures_sink::Sink;
 
 // Primitive futures
 mod empty;
@@ -20,6 +21,7 @@ pub use self::loop_fn::{loop_fn, Loop, LoopFn};
 // combinators
 mod and_then;
 mod flatten;
+mod flatten_sink;
 mod flatten_stream;
 mod fuse;
 mod into_stream;
@@ -39,6 +41,7 @@ mod chain;
 
 pub use self::and_then::AndThen;
 pub use self::flatten::Flatten;
+pub use self::flatten_sink::FlattenSink;
 pub use self::flatten_stream::FlattenStream;
 pub use self::fuse::Fuse;
 pub use self::into_stream::IntoStream;
@@ -630,6 +633,22 @@ pub trait FutureExt: Future {
         assert_future::<<<Self as Future>::Item as IntoFuture>::Item,
                         <<Self as Future>::Item as IntoFuture>::Error,
                         _>(f)
+    }
+
+    /// Flatten the execution of this future when the successful result of this
+    /// future is a sink.
+    ///
+    /// This can be useful when sink initialization is deferred, and it is
+    /// convenient to work with that sink as if sink was available at the
+    /// call site.
+    ///
+    /// Note that this function consumes this future and returns a wrapped
+    /// version of it.
+    fn flatten_sink(self) -> FlattenSink<Self>
+        where <Self as Future>::Item: Sink<SinkError=Self::Error>,
+              Self: Sized
+    {
+        flatten_sink::new(self)
     }
 
     /// Flatten the execution of this future when the successful result of this
