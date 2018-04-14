@@ -331,8 +331,8 @@ impl<T> Sender<T> {
     ///
     /// # Return values
     ///
-    /// If `Ok(Ready)` is returnd then the associated `Receiver` has been dropped,
-    /// which means any work required for sending should be cancelled.
+    /// If `Ok(Ready)` is returned then the associated `Receiver` has been
+    /// dropped, which means any work required for sending should be canceled.
     ///
     /// If `Ok(Pending)` is returned then the associated `Receiver` is still
     /// alive and may be able to receive a message if sent. The current task,
