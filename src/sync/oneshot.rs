@@ -228,6 +228,23 @@ impl<T> Inner<T> {
         }
     }
 
+    fn try_recv(&self) -> Result<Option<T>, Canceled> {
+        // If we're complete, either `::close_rx` or `::drop_tx` was called.
+        // We can assume a successful send if data is present.
+        if self.complete.load(SeqCst) {
+            if let Some(mut slot) = self.data.try_lock() {
+                if let Some(data) = slot.take() {
+                    return Ok(Some(data.into()));
+                }
+            }
+            // Should there be a different error value or a panic in the case
+            // where `self.data.try_lock() == None`?
+            Err(Canceled)
+        } else {
+            Ok(None)
+        }
+    }
+
     fn recv(&self) -> Poll<T, Canceled> {
         let mut done = false;
 
@@ -346,6 +363,9 @@ impl<T> Sender<T> {
     /// within the context of a task. In other words, this should only ever be
     /// called from inside another future.
     ///
+    /// If `Ok(Ready)` is returned then the associated `Receiver` has been
+    /// dropped, which means any work required for sending should be canceled.
+    ///
     /// If you're calling this function from a context that does not have a
     /// task, then you can use the `is_canceled` API instead.
     pub fn poll_cancel(&mut self) -> Poll<(), ()> {
@@ -402,6 +422,21 @@ impl<T> Receiver<T> {
     /// `Canceled` is returned from `poll` then no message was sent.
     pub fn close(&mut self) {
         self.inner.close_rx()
+    }
+
+    /// Attempts to receive a message outside of the context of a task.
+    ///
+    /// Useful when a [`Context`](Context) is not available such as within a
+    /// `Drop` impl.
+    ///
+    /// Does not schedule a task wakeup or have any other side effects.
+    ///
+    /// A return value of `None` must be considered immediately stale (out of
+    /// date) unless [`::close`](Receiver::close) has been called first.
+    ///
+    /// Returns an error if the sender was dropped.
+    pub fn try_recv(&mut self) -> Result<Option<T>, Canceled> {
+        self.inner.try_recv()
     }
 }
 
