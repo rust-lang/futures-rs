@@ -331,8 +331,8 @@ impl<T> Sender<T> {
     ///
     /// # Return values
     ///
-    /// If `Ok(Ready)` is returnd then the associated `Receiver` has been dropped,
-    /// which means any work required for sending should be cancelled.
+    /// If `Ok(Ready)` is returned then the associated `Receiver` has been
+    /// dropped, which means any work required for sending should be canceled.
     ///
     /// If `Ok(Pending)` is returned then the associated `Receiver` is still
     /// alive and may be able to receive a message if sent. The current task,
@@ -386,6 +386,28 @@ impl<T> Receiver<T> {
     /// previously been sent.
     pub fn close(&mut self) {
         self.inner.close_rx()
+    }
+
+    /// Determines whether or not a message has been sent and is pending
+    /// reception without setting up task wakeup notification.
+    ///
+    /// Useful when a `Context` is not available such as in a `Drop` impl.
+    ///
+    /// Note that a return value of `false` must be considered immediately
+    /// stale (out of date) unless `::close` has been called first.
+    ///
+    /// Returns an error if the sender was dropped.
+    pub fn is_complete(&self) -> Result<bool, Canceled> {
+        if self.inner.complete.load(SeqCst) {
+            if let Some(slot) = self.inner.data.try_lock() {
+                if slot.is_some() {
+                    return Ok(true);
+                }
+            }
+            Err(Canceled)
+        } else {
+            Ok(false)
+        }
     }
 }
 
