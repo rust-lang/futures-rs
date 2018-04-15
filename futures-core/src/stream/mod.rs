@@ -3,6 +3,11 @@
 use Poll;
 use task;
 
+mod iterator;
+pub use self::iterator::{from_iter, StreamIterator};
+mod sources;
+pub use self::sources::{empty, Empty, once, Once};
+
 /// A stream of values produced asynchronously.
 ///
 /// If `Future` is an asynchronous version of `Result`, then `Stream` is an
