@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
-use std::fmt;
+use core::marker::PhantomData;
+use core::fmt;
 
 use {Stream, Future, Poll, Async};
 use task;
