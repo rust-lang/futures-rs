@@ -87,7 +87,8 @@ impl<F: Future> Stream for Once<F> {
 /// # Examples
 ///
 /// ```
-/// use futures_core::{future, stream::*};
+/// use futures_core::future;
+/// use futures_core::stream::*;
 ///
 /// let a_future = future::ok::<u32, u32>(1);
 /// let a_stream = once(a_future);

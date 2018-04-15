@@ -23,7 +23,7 @@ impl<I, F> Stream for StreamIterator<I, F::Future>
             None => match self.iter.next() {
                 Some(fut) => {
                     self.last = Some(fut.into_future());
-                    self.poll_next(cx)
+                    Ok(self.last.as_mut().unwrap().poll(cx)?.map(Some))
                 }
                 None => Ok(Async::Ready(None)),
             }
@@ -36,7 +36,8 @@ impl<I, F> Stream for StreamIterator<I, F::Future>
 /// # Examples
 ///
 /// ```
-/// use futures_core::{future, stream::*};
+/// use futures_core::future;
+/// use futures_core::stream::*;
 ///
 /// let many_futures = vec![future::ok(1), future::err(2)];
 /// let stream_from_futures = from_iter(many_futures);
