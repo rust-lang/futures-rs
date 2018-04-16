@@ -193,11 +193,7 @@ if_nightly! {
         });
         syn::token::Semi([block.brace_token.0]).to_tokens(&mut result);
 
-        let await = await();
-
         let gen_body_inner = quote_cs! {
-            #await
-
             let __e: #output = #result
 
             // Ensure that this closure is a generator, even if it doesn't
@@ -355,8 +351,6 @@ if_nightly! {
             ::futures::__rt::gen_pinned
         };
 
-        let await = await();
-
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
@@ -366,7 +360,6 @@ if_nightly! {
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
                 (quote_cs! {
-                    #await
                     if false { yield ::futures::__rt::Async::Pending }
                 }).to_tokens(tokens);
                 expr.to_tokens(tokens);
@@ -387,8 +380,6 @@ if_nightly! {
             ::futures::__rt::gen_stream_pinned
         };
 
-        let await = await();
-
         // Use some manual token construction here instead of `quote_cs!` to ensure
         // that we get the `call_site` span instead of the default span.
         let span = Span::call_site();
@@ -398,7 +389,6 @@ if_nightly! {
             syn::token::OrOr([span, span]).to_tokens(tokens);
             syn::token::Brace(span).surround(tokens, |tokens| {
                 (quote_cs! {
-                    #await
                     if false { yield ::futures::__rt::Async::Pending }
                 }).to_tokens(tokens);
                 expr.to_tokens(tokens);
@@ -559,41 +549,5 @@ if_nightly! {
             option!(parens!(call!(Punctuated::<AsyncStreamArg, syn::token::Comma>::parse_separated_nonempty))),
             |p| AsyncStreamArgs(p.map(|d| d.1.into_iter().collect()).unwrap_or_default())
         ));
-    }
-
-    fn await() -> Tokens {
-        quote_cs! {
-            #[allow(unused_macros)]
-            macro_rules! __await {
-                ($e:expr) => ({
-                    let mut future = $e;
-                    let future = &mut future;
-                    // The above borrow is necessary to force a borrow across a
-                    // yield point, proving that we're currently in an immovable
-                    // generator, making the below `Pin::new_unchecked` call
-                    // safe.
-                    loop {
-                        let poll = ::futures::__rt::in_ctx(|ctx| {
-                            let pin = unsafe {
-                                ::futures::__rt::std::mem::Pin::new_unchecked(future)
-                            };
-                            ::futures::__rt::StableFuture::poll(pin, ctx)
-                        });
-                        // Allow for #[feature(never_type)] and Future<Error = !>
-                        #[allow(unreachable_code, unreachable_patterns)]
-                        match poll {
-                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
-                                break ::futures::__rt::std::result::Result::Ok(e)
-                            }
-                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
-                            ::futures::__rt::std::result::Result::Err(e) => {
-                                break ::futures::__rt::std::result::Result::Err(e)
-                            }
-                        }
-                        yield ::futures::__rt::Async::Pending
-                    }
-                })
-            }
-        }
     }
 }
