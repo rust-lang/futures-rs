@@ -193,11 +193,7 @@ if_nightly! {
         });
         syn::token::Semi([block.brace_token.0]).to_tokens(&mut result);
 
-        let await = if attribute.unpin {
-            await_move()
-        } else {
-            await()
-        };
+        let await = await();
 
         let gen_body_inner = quote_cs! {
             #await
@@ -222,34 +218,20 @@ if_nightly! {
         // sure if more errors will highlight this function call...
         let output_span = first_last(&output);
         let gen_function = respan(gen_function.into(), &output_span);
-        let body_inner = if attribute.unpin {
-            quote_cs! {
-                #gen_function (move || -> #output #gen_body)
-            }
-        } else {
-            quote_cs! {
-                #gen_function (static move || -> #output #gen_body)
-            }
+        let body_inner = quote_cs! {
+            #gen_function (static move || -> #output #gen_body)
         };
-        let body_inner = match attribute {
-            Attribute { boxed: true, unpin: true, .. } => {
-                quote_cs! { ::futures::__rt::std::boxed::Box::new(#body_inner) }
-            }
-            Attribute { boxed: true, send: true, .. } => {
-                quote_cs! { (#body_inner).pin() }
-            }
-            Attribute { boxed: true, .. } => {
-                quote_cs! { (#body_inner).pin_local() }
-            }
-            _ => {
-                body_inner
-            }
-        };
+
         let body_inner = if attribute.boxed {
-            respan(body_inner.into(), &output_span)
+            respan(if attribute.send {
+                quote_cs! { (#body_inner).pin() }
+            } else {
+                quote_cs! { (#body_inner).pin_local() }
+            }.into(), &output_span)
         } else {
             body_inner.into()
         };
+
         let mut body = Tokens::new();
         block.brace_token.surround(&mut body, |tokens| {
             body_inner.to_tokens(tokens);
@@ -277,13 +259,7 @@ if_nightly! {
 
         let attribute = Attribute::from(args.0.into_iter().map(|arg| arg.0));
 
-        let gen_function = if attribute.unpin {
-            quote_cs! { ::futures::__rt::gen_move }
-        } else {
-            quote_cs! { ::futures::__rt::gen_pinned }
-        };
-
-        async_inner(attribute, function, gen_function, |output, lifetimes| {
+        async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
             // TODO: can we lift the restriction that `futures` must be at the root of
             //       the crate?
             let output_span = first_last(&output);
@@ -305,24 +281,6 @@ if_nightly! {
                         Item = <! as ::futures::__rt::IsResult>::Ok,
                         Error = <! as ::futures::__rt::IsResult>::Err,
                     > + Send + #(#lifetimes +)*>
-                },
-                Attribute::UNPIN => quote_cs! {
-                    impl ::futures::__rt::MyFuture<!> + #(#lifetimes +)*
-                },
-                Attribute::UNPIN_SEND => quote_cs! {
-                    impl ::futures::__rt::MyFuture<!> + Send + #(#lifetimes +)*
-                },
-                Attribute::UNPIN_BOXED => quote_cs! {
-                    ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
-                        Item = <! as ::futures::__rt::IsResult>::Ok,
-                        Error = <! as ::futures::__rt::IsResult>::Err,
-                    > + ::futures::__rt::std::marker::Unpin + #(#lifetimes +)*>
-                },
-                Attribute::UNPIN_BOXED_SEND => quote_cs! {
-                    ::futures::__rt::std::boxed::Box<::futures::__rt::Future<
-                        Item = <! as ::futures::__rt::IsResult>::Ok,
-                        Error = <! as ::futures::__rt::IsResult>::Err,
-                    > + ::futures::__rt::std::marker::Unpin + Send + #(#lifetimes +)*>
                 },
             };
             let return_ty = respan(return_ty.into(), &output_span);
@@ -359,13 +317,7 @@ if_nightly! {
         let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
         let attribute = Attribute::from(args);
 
-        let gen_function = if attribute.unpin {
-            quote_cs! { ::futures::__rt::gen_stream }
-        } else {
-            quote_cs! { ::futures::__rt::gen_stream_pinned }
-        };
-
-        async_inner(attribute, function, gen_function, |output, lifetimes| {
+        async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, lifetimes| {
             let return_ty = match attribute {
                 Attribute::NONE => quote_cs! {
                     impl ::futures::__rt::MyStableStream<!, !> + #(#lifetimes +)*
@@ -384,24 +336,6 @@ if_nightly! {
                         Item = !,
                         Error = <! as ::futures::__rt::IsResult>::Err,
                     > + Send + #(#lifetimes +)*>
-                },
-                Attribute::UNPIN => quote_cs! {
-                    impl ::futures::__rt::MyStream<!, !> + #(#lifetimes +)*
-                },
-                Attribute::UNPIN_SEND => quote_cs! {
-                    impl ::futures::__rt::MyStream<!, !> + Send + #(#lifetimes +)*
-                },
-                Attribute::UNPIN_BOXED => quote_cs! {
-                    ::futures::__rt::std::boxed::Box<::futures::__rt::Stream<
-                        Item = !,
-                        Error = <! as ::futures::__rt::IsResult>::Err,
-                    > + ::futures::__rt::std::marker::Unpin + #(#lifetimes +)*>
-                },
-                Attribute::UNPIN_BOXED_SEND => quote_cs! {
-                    ::futures::__rt::std::boxed::Box<::futures::__rt::Stream<
-                        Item = !,
-                        Error = <! as ::futures::__rt::IsResult>::Err,
-                    > + ::futures::__rt::std::marker::Unpin + Send + #(#lifetimes +)*>
                 },
             };
             let output_span = first_last(&output);
@@ -636,34 +570,6 @@ if_nightly! {
                                 ::futures::__rt::std::mem::Pin::new_unchecked(future)
                             };
                             ::futures::__rt::StableFuture::poll(pin, ctx)
-                        });
-                        // Allow for #[feature(never_type)] and Future<Error = !>
-                        #[allow(unreachable_code, unreachable_patterns)]
-                        match poll {
-                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
-                                break ::futures::__rt::std::result::Result::Ok(e)
-                            }
-                            ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
-                            ::futures::__rt::std::result::Result::Err(e) => {
-                                break ::futures::__rt::std::result::Result::Err(e)
-                            }
-                        }
-                        yield ::futures::__rt::Async::Pending
-                    }
-                })
-            }
-        }
-    }
-
-    fn await_move() -> Tokens {
-        quote_cs! {
-            #[allow(unused_macros)]
-            macro_rules! __await {
-                ($e:expr) => ({
-                    let mut future = $e;
-                    loop {
-                        let poll = ::futures::__rt::in_ctx(|ctx| {
-                            ::futures::__rt::Future::poll(&mut future, ctx)
                         });
                         // Allow for #[feature(never_type)] and Future<Error = !>
                         #[allow(unreachable_code, unreachable_patterns)]

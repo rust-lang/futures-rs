@@ -110,13 +110,14 @@ macro_rules! await_item {
 /// use futures::stream;
 /// use futures::executor::block_on;
 ///
-/// #[async_stream(unpin, item = u32)]
+/// #[async_stream(item = u32)]
 /// fn one_five() -> Result<(), u32> {
+///     stream_yield!(1);
 ///     stream_yield!(5);
 ///     Ok(())
 /// }
 ///
-/// assert_eq!(Ok(vec![5]), block_on(one_five().collect()));
+/// assert_eq!(Ok(vec![1, 5]), block_on(one_five().pin().collect()));
 /// ```
 
 // TODO: This macro needs to use an extra temporary variable because of
