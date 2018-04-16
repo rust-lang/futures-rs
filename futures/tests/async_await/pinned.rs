@@ -17,26 +17,6 @@ fn baz(x: i32) -> Result<i32, i32> {
     await!(bar(&x))
 }
 
-#[async(unpin)]
-fn qux(x: i32) -> Result<i32, i32> {
-    await!(baz(x).pin())
-}
-
-// This test is to check that the internal __await macro generated in each
-// function does not leak across function boundaries. If it did then calling
-// the #[async] version of __await in the #[async_move] function should cause
-// a 'borrow may still be in use when generator yields' error, while calling
-// the #[async_move] version in the #[async] function should fail because `bar`
-// does not implement `Future`.
-#[async(unpin)]
-fn qux2(x: i32) -> Result<i32, i32> {
-    #[async]
-    fn baz2(x: i32) -> Result<i32, i32> {
-        await!(bar(&x))
-    }
-    await!(baz2(x).pin())
-}
-
 #[async(boxed)]
 fn boxed(x: i32) -> Result<i32, i32> {
     Ok(x)
@@ -95,8 +75,6 @@ fn main() {
     assert_eq!(block_on_stable(foo()), Ok(1));
     assert_eq!(block_on_stable(bar(&1)), Ok(1));
     assert_eq!(block_on_stable(baz(17)), Ok(17));
-    assert_eq!(block_on_stable(qux(17)), Ok(17));
-    assert_eq!(block_on_stable(qux2(17)), Ok(17));
     assert_eq!(block_on(boxed(17)), Ok(17));
     assert_eq!(block_on(boxed_send(17)), Ok(17));
     assert_eq!(block_on(boxed_borrow(&17)), Ok(17));
