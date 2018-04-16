@@ -35,9 +35,32 @@
 #[macro_export]
 macro_rules! await {
     ($e:expr) => ({
-        // This macro is just here for documetation purposes, see
-        // futures-macro-async/src/lib.rs for the implementation.
-        __await!($e)
+        let mut future = $e;
+        let future = &mut future;
+        // The above borrow is necessary to force a borrow across a
+        // yield point, proving that we're currently in an immovable
+        // generator, making the below `Pin::new_unchecked` call
+        // safe.
+        loop {
+            let poll = ::futures::__rt::in_ctx(|ctx| {
+                let pin = unsafe {
+                    ::futures::__rt::std::mem::Pin::new_unchecked(future)
+                };
+                ::futures::__rt::StableFuture::poll(pin, ctx)
+            });
+            // Allow for #[feature(never_type)] and Future<Error = !>
+            #[allow(unreachable_code, unreachable_patterns)]
+            match poll {
+                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Ready(e)) => {
+                    break ::futures::__rt::std::result::Result::Ok(e)
+                }
+                ::futures::__rt::std::result::Result::Ok(::futures::__rt::Async::Pending) => {}
+                ::futures::__rt::std::result::Result::Err(e) => {
+                    break ::futures::__rt::std::result::Result::Err(e)
+                }
+            }
+            yield ::futures::__rt::Async::Pending
+        }
     })
 }
 
