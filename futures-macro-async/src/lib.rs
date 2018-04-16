@@ -255,7 +255,7 @@ if_nightly! {
 
         let attribute = Attribute::from(args.0.into_iter().map(|arg| arg.0));
 
-        async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_pinned }, |output, lifetimes| {
+        async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_future }, |output, lifetimes| {
             // TODO: can we lift the restriction that `futures` must be at the root of
             //       the crate?
             let output_span = first_last(&output);
@@ -313,7 +313,7 @@ if_nightly! {
         let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
         let attribute = Attribute::from(args);
 
-        async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_stream_pinned }, |output, lifetimes| {
+        async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_stream }, |output, lifetimes| {
             let return_ty = match attribute {
                 Attribute::NONE => quote_cs! {
                     impl ::futures::__rt::MyStableStream<!, !> + #(#lifetimes +)*
@@ -348,7 +348,7 @@ if_nightly! {
         let expr = ExpandAsyncFor.fold_expr(expr);
 
         let mut tokens = quote_cs! {
-            ::futures::__rt::gen_pinned
+            ::futures::__rt::gen_future
         };
 
         // Use some manual token construction here instead of `quote_cs!` to ensure
@@ -377,7 +377,7 @@ if_nightly! {
         let expr = ExpandAsyncFor.fold_expr(expr);
 
         let mut tokens = quote_cs! {
-            ::futures::__rt::gen_stream_pinned
+            ::futures::__rt::gen_stream
         };
 
         // Use some manual token construction here instead of `quote_cs!` to ensure

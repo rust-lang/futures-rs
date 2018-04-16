@@ -1,45 +1,37 @@
+use std::marker::Unpin;
+use std::mem::Pin;
 use std::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
 
-use futures_core::Never;
-use futures_core::task;
-use futures_core::{Poll, Async, Future};
+use futures_core::{Async, Poll, Never, task};
+use futures_stable::StableFuture;
 
-pub trait MyFuture<T: IsResult>: Future<Item=T::Ok, Error = T::Err> {}
+pub trait MyStableFuture<T: IsResult>: StableFuture<Item=T::Ok, Error = T::Err> {}
 
-impl<F, T> MyFuture<T> for F
-    where F: Future<Item = T::Ok, Error = T::Err > + ?Sized,
-          T: IsResult
+impl<F, T> MyStableFuture<T> for F
+    where F: StableFuture<Item = T::Ok, Error = T::Err> + ?Sized,
+          T: IsResult,
 {}
 
-/// Small shim to translate from a generator to a future.
-///
-/// This is the translation layer from the generator/coroutine protocol to
-/// the futures protocol.
-struct GenFuture<T>(T);
+struct GenStableFuture<T>(T);
 
-pub fn gen_move<T>(gen: T) -> impl MyFuture<T::Return>
-    where T: Generator<Yield = Async<Never>>,
-          T::Return: IsResult,
-{
-    GenFuture(gen)
-}
+impl<T> !Unpin for GenStableFuture<T> { }
 
-impl<T> Future for GenFuture<T>
+impl<T> StableFuture for GenStableFuture<T>
     where T: Generator<Yield = Async<Never>>,
           T::Return: IsResult,
 {
     type Item = <T::Return as IsResult>::Ok;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll(&mut self, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            // Because we are controlling the creation of our underlying
-            // generator, we know that this is definitely a movable generator
-            // so calling resume is always safe.
-            match unsafe { self.0.resume() } {
+            let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
+            // This is an immovable generator, but since we're only accessing
+            // it via a Pin this is safe.
+            match unsafe { this.0.resume() } {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),
                 GeneratorState::Yielded(Async::Ready(mu))
@@ -49,4 +41,11 @@ impl<T> Future for GenFuture<T>
             }
         })
     }
+}
+
+pub fn gen_future<'a, T>(gen: T) -> impl MyStableFuture<T::Return> + 'a
+    where T: Generator<Yield = Async<Never>> + 'a,
+          T::Return: IsResult,
+{
+    GenStableFuture(gen)
 }
