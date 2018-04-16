@@ -246,8 +246,6 @@ impl<T> Inner<T> {
                     return Ok(Some(data.into()));
                 }
             }
-            // Should there be a different error value or a panic in the case
-            // where `self.data.try_lock() == None`?
             Err(Canceled)
         } else {
             Ok(None)
