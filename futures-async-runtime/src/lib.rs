@@ -22,8 +22,6 @@ if_nightly_and_std! {
 
     mod future;
     mod stream;
-    mod pinned_future;
-    mod pinned_stream;
 
     use std::cell::Cell;
     use std::mem;
@@ -32,8 +30,6 @@ if_nightly_and_std! {
 
     pub use self::future::*;
     pub use self::stream::*;
-    pub use self::pinned_future::*;
-    pub use self::pinned_stream::*;
 
     pub use futures_core::{Async, Future, Stream};
     pub use futures_stable::{StableFuture, StableStream};
