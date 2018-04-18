@@ -23,6 +23,48 @@ macro_rules! if_std {
 
 use futures_core::{Poll, task};
 
+#[cfg(feature = "either")]
+extern crate either;
+#[cfg(feature = "either")]
+use either::Either;
+#[cfg(feature = "either")]
+impl<A, B> Sink for Either<A, B>
+    where A: Sink,
+          B: Sink<SinkItem=<A as Sink>::SinkItem,
+                  SinkError=<A as Sink>::SinkError>
+{
+    type SinkItem = <A as Sink>::SinkItem;
+    type SinkError = <A as Sink>::SinkError;
+
+    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        match *self {
+            Either::Left(ref mut x) => x.poll_ready(cx),
+            Either::Right(ref mut x) => x.poll_ready(cx),
+        }
+    }
+
+    fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        match *self {
+            Either::Left(ref mut x) => x.start_send(item),
+            Either::Right(ref mut x) => x.start_send(item),
+        }
+    }
+
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        match *self {
+            Either::Left(ref mut x) => x.poll_flush(cx),
+            Either::Right(ref mut x) => x.poll_flush(cx),
+        }
+    }
+
+    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        match *self {
+            Either::Left(ref mut x) => x.poll_close(cx),
+            Either::Right(ref mut x) => x.poll_close(cx),
+        }
+    }
+}
+
 if_std! {
     mod channel_impls;
 
