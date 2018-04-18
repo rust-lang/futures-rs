@@ -87,6 +87,28 @@ fn fold() {
 }
 
 #[test]
+fn for_each_concurrent() {
+    let (sender, receiver) = oneshot::channel::<()>();
+    let (sender, receiver) = (&mut Some(sender), &mut Some(receiver));
+    let fut = list().for_each_concurrent(move |num| {
+        match num {
+            // The first future is added
+            1 => receiver.take().unwrap().map_err(|_| 0).left_future(),
+            // Second future is added and completes immediately
+            2 => ok::<(), _>(()).right_future(),
+            // Third future is added, which when run completes the first
+            3 => {
+                sender.take().unwrap().send(()).unwrap();
+                ok::<(), _>(()).right_future()
+            }
+            _ => panic!(),
+        }
+    }).map(|_| ());
+
+    assert_done(|| fut, Ok(()));
+}
+
+#[test]
 fn filter() {
     assert_done(|| list().filter(|a| ok(*a % 2 == 0)).collect(), Ok(vec![2]));
 }
