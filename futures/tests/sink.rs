@@ -19,6 +19,17 @@ mod support;
 use support::*;
 
 #[test]
+fn either_sink() {
+    let mut s = if true {
+        Vec::<i32>::new().left_sink()
+    } else {
+        VecDeque::<i32>::new().right_sink()
+    };
+
+    s.start_send(0).unwrap();
+}
+
+#[test]
 fn vec_sink() {
     let mut v = Vec::new();
     v.start_send(0).unwrap();

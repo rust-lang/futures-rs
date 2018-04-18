@@ -5,6 +5,7 @@
 
 use futures_core::{Stream, IntoFuture};
 use futures_sink::Sink;
+use super::future::Either;
 
 mod close;
 mod fanout;
@@ -218,5 +219,29 @@ pub trait SinkExt: Sink {
               Self: Sized
     {
         send_all::new(self, stream)
+    }
+
+    /// Wrap this sink in an `Either` sink, making it the left-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `right_sink` method to write `if`
+    /// statements that evaluate to different streams in different branches.
+    fn left_sink<B>(self) -> Either<Self, B>
+        where B: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
+              Self: Sized
+    {
+        Either::Left(self)
+    }
+
+    /// Wrap this stream in an `Either` stream, making it the right-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `left_sink` method to write `if`
+    /// statements that evaluate to different streams in different branches.
+    fn right_sink<B>(self) -> Either<B, Self>
+        where B: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
+              Self: Sized
+    {
+        Either::Right(self)
     }
 }
