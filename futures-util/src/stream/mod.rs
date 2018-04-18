@@ -85,6 +85,7 @@ if_std! {
     mod catch_unwind;
     mod chunks;
     mod collect;
+    mod for_each_concurrent;
     mod select_all;
     mod split;
     mod futures_unordered;
@@ -96,6 +97,7 @@ if_std! {
     pub use self::collect::Collect;
     pub use self::select_all::{select_all, SelectAll};
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
+    pub use self::for_each_concurrent::ForEachConcurrent;
     pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 }
@@ -584,10 +586,10 @@ pub trait StreamExt: Stream {
     /// to successfully, producing a future. That future will then be executed
     /// to completion before moving on to the next item.
     ///
-    /// The returned value is a `Future` where the `Item` type is `()` and
-    /// errors are otherwise threaded through. Any error on the stream or in the
-    /// closure will cause iteration to be halted immediately and the future
-    /// will resolve to that error.
+    /// The returned value is a `Future` where the `Item` type is the completed
+    /// stream, and errors are otherwise threaded through. Any error on the
+    /// stream or in the provided future will cause iteration to be halted
+    /// immediately and the future will resolve to that error.
     ///
     /// To process each item in the stream and produce another stream instead
     /// of a single future, use `and_then` instead.
@@ -597,6 +599,30 @@ pub trait StreamExt: Stream {
               Self: Sized
     {
         for_each::new(self, f)
+    }
+
+    /// Runs this stream to completion, executing the provided closure for each
+    /// element on the stream. This is similar to `for_each` but may begin
+    /// processing an element while previous elements are still being processed.
+    ///
+    /// When this stream successfully resolves to an item, the closure will be
+    /// called to produce a future. That future will then be added to
+    /// the set of futures to resolve.
+    ///
+    /// The returned value is a `Future` where the `Item` type is the completed
+    /// stream, and errors are otherwise threaded through. Any error on the
+    /// stream or in the provided future will cause iteration to be halted
+    /// immediately and the future will resolve to that error.
+    ///
+    /// To process each item in the stream and produce another stream instead
+    /// of a single future, use `and_then` instead.
+    #[cfg(feature = "std")]
+    fn for_each_concurrent<U, F>(self, f: F) -> ForEachConcurrent<Self, U, F>
+        where F: FnMut(Self::Item) -> U,
+              U: IntoFuture<Item=(), Error = Self::Error>,
+              Self: Sized
+    {
+        for_each_concurrent::new(self, f)
     }
 
     /// Map this stream's error to a different type using the `Into` trait.
