@@ -1,7 +1,8 @@
 //! Definition of the `Option` (optional step) combinator
 
-use {Future, IntoFuture, Poll, Async};
+use {Future, Poll};
 use task;
+use core::mem::Pin;
 
 /// A future representing a value which may or may not be present.
 ///
@@ -12,24 +13,15 @@ pub struct FutureOption<T> {
     inner: Option<T>,
 }
 
-impl<T> IntoFuture for Option<T> where T: IntoFuture {
-    type Future = FutureOption<T::Future>;
-    type Item = Option<T::Item>;
-    type Error = T::Error;
+impl<F: Future> Future for FutureOption<F> {
+    type Output = Option<F::Output>;
 
-    fn into_future(self) -> FutureOption<T::Future> {
-        FutureOption { inner: self.map(IntoFuture::into_future) }
-    }
-}
-
-impl<F, T, E> Future for FutureOption<F> where F: Future<Item=T, Error=E> {
-    type Item = Option<T>;
-    type Error = E;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<T>, E> {
-        match self.inner {
-            None => Ok(Async::Ready(None)),
-            Some(ref mut x) => x.poll(cx).map(|x| x.map(Some)),
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        unsafe {
+            match Pin::get_mut(&mut self).inner {
+                None => Poll::Ready(None),
+                Some(ref mut x) => Pin::new_unchecked(x).poll(cx).map(Some),
+            }
         }
     }
 }
