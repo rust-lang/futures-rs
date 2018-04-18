@@ -170,29 +170,29 @@ impl AtomicWaker {
     /// Here is how `register` is used when implementing a flag.
     ///
     /// ```
-    /// # use futures_core::{Future, Poll, Never};
-    /// # use futures_core::Async::*;
+    /// # #![feature(pin, arbitrary_self_types)]
+    /// # use futures_core::{Future, Poll};
     /// # use futures_core::task::{self, AtomicWaker};
     /// # use std::sync::atomic::AtomicBool;
     /// # use std::sync::atomic::Ordering::SeqCst;
+    /// # use std::mem::Pin;
     /// struct Flag {
     ///     waker: AtomicWaker,
     ///     set: AtomicBool,
     /// }
     ///
     /// impl Future for Flag {
-    ///     type Item = ();
-    ///     type Error = Never;
+    ///     type Output = ();
     ///
-    ///     fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
+    ///     fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<()> {
     ///         // Register **before** checking `set` to avoid a race condition
     ///         // that would result in lost notifications.
     ///         self.waker.register(cx.waker());
     ///
     ///         if self.set.load(SeqCst) {
-    ///             Ok(Ready(()))
+    ///             Poll::Ready(())
     ///         } else {
-    ///             Ok(Pending)
+    ///             Poll::Pending
     ///         }
     ///     }
     /// }
