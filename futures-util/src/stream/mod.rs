@@ -962,12 +962,12 @@ pub trait StreamExt: Stream {
         recover::new(self, f)
     }
 
-
     /// Wrap this stream in an `Either` stream, making it the left-hand variant
     /// of that `Either`.
     ///
     /// This can be used in combination with the `right` method to write `if`
     /// statements that evaluate to different streams in different branches.
+    #[deprecated(note = "use `left_stream` instead")]
     fn left<B>(self) -> Either<Self, B>
         where B: Stream<Item = Self::Item, Error = Self::Error>,
               Self: Sized
@@ -980,7 +980,32 @@ pub trait StreamExt: Stream {
     ///
     /// This can be used in combination with the `left` method to write `if`
     /// statements that evaluate to different streams in different branches.
+    #[deprecated(note = "use `right_stream` instead")]
     fn right<B>(self) -> Either<B, Self>
+        where B: Stream<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        Either::Right(self)
+    }
+
+    /// Wrap this stream in an `Either` stream, making it the left-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `right_stream` method to write `if`
+    /// statements that evaluate to different streams in different branches.
+    fn left_stream<B>(self) -> Either<Self, B>
+        where B: Stream<Item = Self::Item, Error = Self::Error>,
+              Self: Sized
+    {
+        Either::Left(self)
+    }
+
+    /// Wrap this stream in an `Either` stream, making it the right-hand variant
+    /// of that `Either`.
+    ///
+    /// This can be used in combination with the `left_stream` method to write `if`
+    /// statements that evaluate to different streams in different branches.
+    fn right_stream<B>(self) -> Either<B, Self>
         where B: Stream<Item = Self::Item, Error = Self::Error>,
               Self: Sized
     {
