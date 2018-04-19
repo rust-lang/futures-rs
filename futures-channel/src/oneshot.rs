@@ -1,14 +1,14 @@
 //! A channel for sending a single message between asynchronous tasks.
 
+use std::mem::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::error::Error;
 use std::fmt;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, Poll};
 use futures_core::task::{self, Waker};
-use futures_core::never::Never;
 
 use lock::Lock;
 
@@ -157,13 +157,13 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<(), Never> {
+    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
         // oneshot is gone.
         if self.complete.load(SeqCst) {
-            return Ok(Async::Ready(()))
+            return Poll::Ready(())
         }
 
         // If our other half is not gone then we need to park our current task
@@ -182,12 +182,12 @@ impl<T> Inner<T> {
         let handle = cx.waker().clone();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
-            None => return Ok(Async::Ready(())),
+            None => return Poll::Ready(()),
         }
         if self.complete.load(SeqCst) {
-            Ok(Async::Ready(()))
+            Poll::Ready(())
         } else {
-            Ok(Async::Pending)
+            Poll::Pending
         }
     }
 
@@ -252,7 +252,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, cx: &mut task::Context) -> Poll<T, Canceled> {
+    fn recv(&self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
         let mut done = false;
 
         // Check to see if some data has arrived. If it hasn't then we need to
@@ -286,12 +286,12 @@ impl<T> Inner<T> {
             // treat the send as a failure.
             if let Some(mut slot) = self.data.try_lock() {
                 if let Some(data) = slot.take() {
-                    return Ok(data.into());
+                    return Poll::Ready(Ok(data));
                 }
             }
-            Err(Canceled)
+            Poll::Ready(Err(Canceled))
         } else {
-            Ok(Async::Pending)
+            Poll::Pending
         }
     }
 
@@ -353,7 +353,7 @@ impl<T> Sender<T> {
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
-    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
+    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<()> {
         self.inner.poll_cancel(cx)
     }
 
@@ -420,10 +420,9 @@ impl<T> Receiver<T> {
 }
 
 impl<T> Future for Receiver<T> {
-    type Item = T;
-    type Error = Canceled;
+    type Output = Result<T, Canceled>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, Canceled> {
+    fn poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)
     }
 }
