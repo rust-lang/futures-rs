@@ -35,12 +35,33 @@ if_nightly! {
         use unsafe_pin::UnsafePin;
     }
 
+    /// A trait for `Future`s which can be pinned to a particular location in memory.
+    ///
+    /// These futures take `self` by `Pin<Self>`, rather than `&mut Self`.
+    /// This allows types which are not [`Unpin`](::std::marker::Unpin) to guarantee
+    /// that they won't be moved after being polled. Since they won't be moved, it's
+    /// possible for them to safely contain references to themselves.
+    ///
+    /// The most common examples of such self-referential `StableFuture`s are `#[async]`
+    /// functions and `async_block!`s.
+    ///
+    /// All types which implement `Future` also implement `StableFuture` automatically.
     pub trait StableFuture {
+        /// A successful value
         type Item;
+
+        /// An error
         type Error;
 
+        /// Attempt to resolve the future to a final value, registering the current task
+        /// for wakeup if the value is not yet available.
+        ///
+        /// This method takes `self` by `Pin`, and so calling it requires putting `Self`
+        /// in a [`PinBox`](::std::boxed::PinBox) using the `pin` method, or otherwise
+        /// guaranteeing that the location of `self` will not change after a call to `poll`.
         fn poll(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
 
+        /// Pin the future to a particular location by placing it on the heap.
         #[cfg(feature = "std")]
         fn pin<'a>(self) -> PinBox<Future<Item = Self::Item, Error = Self::Error> + Send + 'a>
             where Self: Send + Sized + 'a
@@ -48,6 +69,10 @@ if_nightly! {
             PinBox::new(unsafe { UnsafePin::new(self) })
         }
 
+        /// Pin the future to a particular location by placing it on the heap.
+        ///
+        /// This method is the same as `pin`, but doesn't require that `Self` can be
+        /// safely sent across threads. `pin` should be preferred where possible.
         #[cfg(feature = "std")]
         fn pin_local<'a>(self) -> PinBox<Future<Item = Self::Item, Error = Self::Error> + 'a>
             where Self: Sized + 'a
@@ -65,12 +90,32 @@ if_nightly! {
         }
     }
 
+    /// A trait for `Stream`s which can be pinned to a particular location in memory.
+    ///
+    /// These streams take `self` by `Pin<Self>`, rather than `&mut Self`.
+    /// This allows types which are not [`Unpin`](::std::marker::Unpin) to guarantee
+    /// that they won't be moved after being polled. Since they won't be moved, it's
+    /// possible for them to safely contain references to themselves.
+    ///
+    /// The most common examples of such self-referential `StableStream`s are
+    /// `#[async_stream(item = Foo)]` functions.
+    ///
+    /// All types which implement `Stream` also implement `StableStream` automatically.
     pub trait StableStream {
+        /// A successful value
         type Item;
+        /// An error
         type Error;
 
+        /// Attempt to resolve the stream to the next value, registering the current task
+        /// for wakeup if the value is not yet available.
+        ///
+        /// This method takes `self` by `Pin`, and so calling it requires putting `Self`
+        /// in a [`PinBox`](::std::boxed::PinBox) using the `pin` method, or otherwise
+        /// guaranteeing that the location of `self` will not change after a call to `poll`.
         fn poll_next(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 
+        /// Pin the stream to a particular location by placing it on the heap.
         #[cfg(feature = "std")]
         fn pin<'a>(self) -> PinBox<Stream<Item = Self::Item, Error = Self::Error> + Send + 'a>
             where Self: Send + Sized + 'a
@@ -78,6 +123,10 @@ if_nightly! {
             PinBox::new(unsafe { UnsafePin::new(self) })
         }
 
+        /// Pin the stream to a particular location by placing it on the heap.
+        ///
+        /// This method is the same as `pin`, but doesn't require that `Self` can be
+        /// safely sent across threads. `pin` should be preferred where possible.
         #[cfg(feature = "std")]
         fn pin_local<'a>(self) -> PinBox<Stream<Item = Self::Item, Error = Self::Error> + 'a>
             where Self: Sized + 'a
