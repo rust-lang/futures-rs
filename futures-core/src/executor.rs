@@ -16,7 +16,7 @@ pub trait Executor {
     ///
     /// The executor may be unable to spawn tasks, either because it has
     /// been shut down or is resource-constrained.
-    fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnError<TaskObj>>;
+    fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError>;
 
     /// Determine whether the executor is able to spawn new tasks.
     ///
@@ -52,10 +52,10 @@ impl SpawnErrorKind {
 
 /// The result of a failed spawn
 #[derive(Debug)]
-pub struct SpawnError<T> {
+pub struct SpawnObjError {
     /// The kind of error
     pub kind: SpawnErrorKind,
 
     /// The task for which spawning was attempted
-    pub task: T,
+    pub task: TaskObj,
 }
