@@ -401,6 +401,87 @@ pub mod task {
 
 #[cfg(feature = "nightly")]
 pub mod stable {
+    //! `async/await` futures which can be pinned to a particular location.
+    //!
+    //! This module contains:
+    //!
+    //! - The [`StableFuture`](::StableFuture) and [`StableStream`](::StableStream)
+    //! traits which allow for immovable, self-referential `Future`s and `Streams`.
+    //!
+    //! - The [`StableExecutor`](::StableExecutor) trait for `Executor`s which
+    //! take [`PinBox`](::std::boxed:PinBox)ed `Future`s.
+    //!
+    //! - A [`block_on_stable`](::block_on_stable) function for blocking on
+    //! `StableFuture`s.
+    //!
+    //! These immovable future types are most commonly used with the async/await
+    //! macros, which are included in the prelude. These macros can be used to
+    //! write asynchronous code in an ergonomic blocking style:
+    //!
+    //! ```rust
+    //! /// A simple async function which returns immediately once polled:
+    //! #[async]
+    //! fn foo() -> Result<i32, i32> {
+    //!     Ok(1)
+    //! }
+    //!
+    //! /// Async functions can `await!` the result of other async functions:
+    //! #[async]
+    //! fn bar() -> Result<i32, i32> {
+    //!     let foo_num = await!(foo())?;
+    //!     Ok(foo_num + 5)
+    //! }
+    //!
+    //! /// Async functions can also choose to return a `Box`ed `Future` type.
+    //! /// To opt into `Send`able futures, use `#[async(boxed, send)]`.
+    //! #[async(boxed)]
+    //! fn boxed(x: i32) -> Result<i32, i32> {
+    //!     Ok(
+    //!         await!(foo())? + await!(bar()) + x
+    //!     )
+    //! }
+    //!
+    //! /// Async expressions can also be written in `async_block!`s:
+    //! fn async_block() -> impl StableFuture<Item = i32, Error = i32> {
+    //!     println!("Runs before the future is returned");
+    //!     async_block! { 
+    //!         println!("Runs the first time the future is polled");
+    //!         Ok(5)
+    //!     }
+    //! }
+    //!
+    //! /// The futures that result from async functions can be pinned and used
+    //! /// with other `Future` combinators:
+    //! #[async]
+    //! fn join_two_futures() -> Result<(i32, i32), i32> {
+    //!     let joined = foo().pin().join(bar().pin());
+    //!     await!(joined)
+    //! }
+    //!
+    //! /// Streams can also be written in this style using the
+    //! /// `#[async_stream(item = ItemType)]` macro. The `stream_yield!`
+    //! /// macro is used to yield elements, and the `async_stream_block!`
+    //! /// macro can be used to write async streams inside other functions:
+    //! #[async_stream(boxed, send, item = u64)]
+    //! fn stream_boxed() -> Result<(), i32> {
+    //!     let foo_result = await!(foo())?;
+    //!     stream_yield!(foo_result as u64);
+    //!     stream_yield!(22);
+    //!     Ok(())
+    //! }
+    //!
+    //! /// Finally #[async] can be used on `for` loops to loop over the results
+    //! /// of a stream:
+    //! #[async]
+    //! fn async_for() -> Result<(), i32> {
+    //!     #[async]
+    //!     for i in stream_boxed() {
+    //!         println!("yielded {}", i);
+    //!     }
+    //!     Ok(())
+    //! }
+    //! ```
+
     pub use futures_stable::{StableFuture, StableStream};
 
     #[cfg(feature = "std")]

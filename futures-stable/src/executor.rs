@@ -7,7 +7,11 @@ use futures_executor::{ThreadPool, LocalPool, LocalExecutor};
 use StableFuture;
 use UnsafePin;
 
+/// Executors which can spawn `PinBox`ed futures.
+///
+/// These executors can be used in combination with `StableFuture`s.
 pub trait StableExecutor: Executor {
+    /// Spawn a `PinBox` future.
     fn spawn_pinned(&mut self, f: PinBox<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError>;
 }
 
@@ -23,6 +27,7 @@ impl StableExecutor for LocalExecutor {
     }
 }
 
+/// Block on the result of a `StableFuture`.
 pub fn block_on_stable<F: StableFuture>(f: F) -> Result<F::Item, F::Error> {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
