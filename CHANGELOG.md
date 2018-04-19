@@ -1,3 +1,17 @@
+# 0.2.1 - 2018-4-19
+
+* Add the `futures-stable` crate for working with immovable futures.
+* Add async/await support behind the `nightly` feature gate.
+* Add `Stream::for_each_concurrent`.
+
+# 0.2.0 - 2018-4-6
+
+* Separate out the futures crate into a number of separate crates which
+  are reexported by a single facade.
+* Add a `&mut task::Context` parameter to `poll` methods. This type includes
+  access to a wakeup callback, task-local-data, and a default executor.
+* Refactor the `Sink` trait.
+
 # 0.1.17 - 2017-10-31
 
 * Add a `close` method on `sink::Wait`
