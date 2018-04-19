@@ -74,6 +74,8 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
+use std::mem::Pin;
+use std::marker::Unpin;
 use std::fmt;
 use std::error::Error;
 use std::any::Any;
@@ -84,8 +86,7 @@ use std::thread;
 use std::usize;
 
 use futures_core::task::{self, Waker};
-use futures_core::{Async, Poll, Stream};
-use futures_core::never::Never;
+use futures_core::{Poll, Stream};
 
 use mpsc::queue::{Queue, PopResult};
 
@@ -109,6 +110,9 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
+// Safe because we treat the `T` opaquely
+unsafe impl<T> Unpin for Sender<T> {}
+
 /// The transmission end of an unbounded mpsc channel.
 ///
 /// This value is created by the [`unbounded`](unbounded) function.
@@ -126,11 +130,17 @@ pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
 
+// Safe because we treat the `T` opaquely
+unsafe impl<T> Unpin for Receiver<T> {}
+
 /// The receiving end of an unbounded mpsc channel.
 ///
 /// This value is created by the [`unbounded`](unbounded) function.
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
+
+// Safe because we treat the `T` opaquely
+unsafe impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -511,14 +521,14 @@ impl<T> Sender<T> {
         Ok(())
     }
 
-    fn poll_ready_nb(&self) -> Poll<(), SendError> {
+    fn poll_ready_nb(&self) -> Poll<Result<(), SendError>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if state.is_open {
-            Ok(Async::Ready(()))
+            Poll::Ready(Ok(()))
         } else {
-            Err(SendError {
+            Poll::Ready(Err(SendError {
                 kind: SendErrorKind::Full,
-            })
+            }))
         }
     }
 
@@ -637,15 +647,15 @@ impl<T> Sender<T> {
     /// - `Ok(Async::Pending)` if the channel may not have
     /// capacity, in which case the current task is queued to be notified once capacity is available;
     /// - `Err(SendError)` if the receiver has been dropped.
-    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), SendError> {
+    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<Result<(), SendError>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
-            return Err(SendError {
+            return Poll::Ready(Err(SendError {
                 kind: SendErrorKind::Disconnected,
-            });
+            }));
         }
 
-        Ok(self.poll_unparked(Some(cx)))
+        self.poll_unparked(Some(cx)).map(Ok)
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -662,7 +672,7 @@ impl<T> Sender<T> {
         let _ = self.do_send_nb(None);
     }
 
-    fn poll_unparked(&mut self, cx: Option<&mut task::Context>) -> Async<()> {
+    fn poll_unparked(&mut self, cx: Option<&mut task::Context>) -> Poll<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -671,7 +681,7 @@ impl<T> Sender<T> {
 
             if !task.is_parked {
                 self.maybe_parked = false;
-                return Async::Ready(())
+                return Poll::Ready(())
             }
 
             // At this point, an unpark request is pending, so there will be an
@@ -682,16 +692,16 @@ impl<T> Sender<T> {
             // task
             task.task = cx.map(|cx| cx.waker().clone());
 
-            Async::Pending
+            Poll::Pending
         } else {
-            Async::Ready(())
+            Poll::Ready(())
         }
     }
 }
 
 impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
-    pub fn poll_ready(&self, _: &mut task::Context) -> Poll<(), SendError> {
+    pub fn poll_ready(&self, _: &mut task::Context) -> Poll<Result<(), SendError>> {
         self.0.poll_ready_nb()
     }
 
@@ -832,14 +842,14 @@ impl<T> Receiver<T> {
     /// no longer empty.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
-            Async::Ready(msg) => {
+            Poll::Ready(msg) => {
                 Ok(msg)
             },
-            Async::Pending => Err(TryRecvError { _inner: () }),
+            Poll::Pending => Err(TryRecvError { _inner: () }),
         }
     }
 
-    fn next_message(&mut self) -> Async<Option<T>> {
+    fn next_message(&mut self) -> Poll<Option<T>> {
         // Pop off a message
         loop {
             match unsafe { self.inner.message_queue.pop() } {
@@ -851,11 +861,11 @@ impl<T> Receiver<T> {
                     // Decrement number of messages
                     self.dec_num_messages();
 
-                    return Async::Ready(msg);
+                    return Poll::Ready(msg);
                 }
                 PopResult::Empty => {
                     // The queue is empty, return Pending
-                    return Async::Pending;
+                    return Poll::Pending;
                 }
                 PopResult::Inconsistent => {
                     // Inconsistent means that there will be a message to pop
@@ -937,14 +947,13 @@ impl<T> Receiver<T> {
 
 impl<T> Stream for Receiver<T> {
     type Item = T;
-    type Error = Never;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
-                Async::Ready(msg) => msg,
-                Async::Pending => {
+                Poll::Ready(msg) => msg,
+                Poll::Pending => {
                     // There are no messages to read, in this case, attempt to
                     // park. The act of parking will verify that the channel is
                     // still empty after the park operation has completed.
@@ -952,12 +961,12 @@ impl<T> Stream for Receiver<T> {
                         TryPark::Parked => {
                             // The task was parked, and the channel is still
                             // empty, return Pending.
-                            return Ok(Async::Pending);
+                            return Poll::Pending;
                         }
                         TryPark::Closed => {
                             // The channel is closed, there will be no further
                             // messages.
-                            return Ok(Async::Ready(None));
+                            return Poll::Ready(None);
                         }
                         TryPark::NotEmpty => {
                             // A message has been sent while attempting to
@@ -969,7 +978,7 @@ impl<T> Stream for Receiver<T> {
                 }
             };
             // Return the message
-            return Ok(Async::Ready(msg));
+            return Poll::Ready(msg);
         }
     }
 }
@@ -1005,10 +1014,9 @@ impl<T> UnboundedReceiver<T> {
 
 impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
-    type Error = Never;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        self.0.poll_next(cx)
+    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+        Pin::new(&mut self.0).poll_next(cx)
     }
 }
 

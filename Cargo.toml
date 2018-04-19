@@ -3,7 +3,7 @@ members = [
 #  "futures",
 #  "futures-async-runtime",
   "futures-core",
-#  "futures-channel",
+  "futures-channel",
 #  "futures-executor",
 #  "futures-io",
 #  "futures-macro-async",

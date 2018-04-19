@@ -3,6 +3,8 @@
 //! This crate provides channels that can be used to communicate between
 //! asynchronous tasks.
 
+#![feature(pin, arbitrary_self_types)]
+
 #![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures-channel/0.2.0")]
 #![no_std]
