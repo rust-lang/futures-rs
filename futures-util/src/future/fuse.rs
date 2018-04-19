@@ -1,4 +1,6 @@
-use futures_core::{Future, Poll, Async};
+use core::mem::Pin;
+
+use futures_core::{Future, Poll};
 use futures_core::task;
 
 /// A future which "fuses" a future once it's been resolved.
@@ -21,18 +23,23 @@ pub fn new<A: Future>(f: A) -> Fuse<A> {
 }
 
 impl<A: Future> Future for Fuse<A> {
-    type Item = A::Item;
-    type Error = A::Error;
+    type Output = A::Output;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<A::Item, A::Error> {
-        let res = self.future.as_mut().map(|f| f.poll(cx));
-        match res.unwrap_or(Ok(Async::Pending)) {
-            res @ Ok(Async::Ready(_)) |
-            res @ Err(_) => {
-                self.future = None;
-                res
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+        // safety: we use this &mut only for matching, not for movement
+        let v = match unsafe { Pin::get_mut(&mut self) }.future {
+            Some(ref mut fut) => {
+                // safety: this re-pinned future will never move before being dropped
+                match unsafe { Pin::new_unchecked(fut) }.poll(cx) {
+                    Poll::Pending => return Poll::Pending,
+                    Poll::Ready(v) => v
+                }
             }
-            Ok(Async::Pending) => Ok(Async::Pending)
-        }
+            None => return Poll::Pending,
+        };
+
+        // safety: we use this &mut only for a replacement, which drops the future in place
+        unsafe { Pin::get_mut(&mut self) }.future = None;
+        Poll::Ready(v)
     }
 }

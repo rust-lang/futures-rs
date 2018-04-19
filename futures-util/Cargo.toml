@@ -1,6 +1,6 @@
 [package]
 name = "futures-util"
-version = "0.2.0"
+version = "0.3.0-alpha"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
@@ -11,18 +11,20 @@ Common utilities and extension traits for the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std"]
-default = ["std", "futures-core/either", "futures-sink/either"]
+# std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std"]
+std = ["futures-core/std", "either/use_std"]
+# default = ["std", "futures-core/either", "futures-sink/either"]
+default = ["std", "futures-core/either"]
 bench = []
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.2.0", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.2.0", default-features = false }
-futures-io = { path = "../futures-io", version = "0.2.0", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false}
+futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-features = false }
+futures-channel = { path = "../futures-channel", version = "0.3.0-alpha", default-features = false }
+# futures-io = { path = "../futures-io", version = "0.2.0", default-features = false }
+# futures-sink = { path = "../futures-sink", version = "0.2.0", default-features = false}
 either = { version = "1.4", default-features = false }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.2.0" }
-futures-executor = { path = "../futures-executor", version = "0.2.0" }
-futures-channel = { path = "../futures-channel", version = "0.2.0" }
+# futures = { path = "../futures", version = "0.2.0" }
+# futures-executor = { path = "../futures-executor", version = "0.2.0" }
+# futures-channel = { path = "../futures-channel", version = "0.2.0" }

@@ -1,88 +1,56 @@
 //! Definition of the Lazy combinator, deferring execution of a function until
 //! the future is polled.
 
-use core::mem;
+use core::mem::Pin;
+use core::marker::Unpin;
 
-use futures_core::{Future, IntoFuture, Poll};
+use futures_core::{Future, Poll};
 use futures_core::task;
 
-/// A future which defers creation of the actual future until the future
-/// is `poll`ed.
+/// A future which, when polled, invokes a closure and yields its result.
 ///
 /// This is created by the `lazy` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Lazy<R: IntoFuture, F> {
-    inner: _Lazy<R::Future, F>,
+pub struct Lazy<F> {
+    f: Option<F>
 }
 
-#[derive(Debug)]
-enum _Lazy<R, F> {
-    First(F),
-    Second(R),
-    Moved,
-}
+// safe because we never generate `Pin<F>`
+unsafe impl<F> Unpin for Lazy<F> {}
 
-/// Creates a new future which will eventually be the same as the one created
-/// by the closure provided.
+/// Creates a new future from a closure.
 ///
 /// The provided closure is only run once the future is polled.
-/// Once run, however, this future is the same as the one the closure creates.
 ///
 /// # Examples
 ///
 /// ```
 /// # extern crate futures;
 /// use futures::prelude::*;
-/// use futures::future::{self, FutureResult};
+/// use futures::future;
 ///
 /// # fn main() {
-/// let a = future::lazy(|_| future::ok::<u32, u32>(1));
+/// let a = future::lazy(|_| 1);
 ///
-/// let b = future::lazy(|_| -> FutureResult<u32, u32> {
+/// let b = future::lazy(|_| -> i32 {
 ///     panic!("oh no!")
 /// });
 /// drop(b); // closure is never run
 /// # }
 /// ```
-pub fn lazy<R, F>(f: F) -> Lazy<R, F>
+pub fn lazy<F, R>(f: F) -> Lazy<F>
     where F: FnOnce(&mut task::Context) -> R,
-          R: IntoFuture
 {
-    Lazy {
-        inner: _Lazy::First(f),
-    }
+    Lazy { f: Some(f) }
 }
 
-impl<R, F> Lazy<R, F>
+impl<R, F> Future for Lazy<F>
     where F: FnOnce(&mut task::Context) -> R,
-          R: IntoFuture,
 {
-    fn get(&mut self, cx: &mut task::Context) -> &mut R::Future {
-        match self.inner {
-            _Lazy::First(_) => {}
-            _Lazy::Second(ref mut f) => return f,
-            _Lazy::Moved => panic!(), // can only happen if `f()` panics
-        }
-        match mem::replace(&mut self.inner, _Lazy::Moved) {
-            _Lazy::First(f) => self.inner = _Lazy::Second(f(cx).into_future()),
-            _ => panic!(), // we already found First
-        }
-        match self.inner {
-            _Lazy::Second(ref mut f) => f,
-            _ => panic!(), // we just stored Second
-        }
-    }
-}
+    type Output = R;
 
-impl<R, F> Future for Lazy<R, F>
-    where F: FnOnce(&mut task::Context) -> R,
-          R: IntoFuture,
-{
-    type Item = R::Item;
-    type Error = R::Error;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<R::Item, R::Error> {
-        self.get(cx).poll(cx)
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<R> {
+        Poll::Ready((self.f.take().unwrap())(cx))
     }
 }

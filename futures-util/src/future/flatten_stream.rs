@@ -1,6 +1,7 @@
 use core::fmt;
+use core::mem::Pin;
 
-use futures_core::{Async, Future, Poll, Stream};
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 /// Future for the `flatten_stream` combinator, flattening a
@@ -8,16 +9,13 @@ use futures_core::task;
 ///
 /// This is created by the `Future::flatten_stream` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct FlattenStream<F>
-    where F: Future,
-          <F as Future>::Item: Stream<Error=F::Error>,
-{
+pub struct FlattenStream<F: Future> {
     state: State<F>
 }
 
 impl<F> fmt::Debug for FlattenStream<F>
     where F: Future + fmt::Debug,
-          <F as Future>::Item: Stream<Error=F::Error> + fmt::Debug,
+          F::Output: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("FlattenStream")
@@ -26,75 +24,58 @@ impl<F> fmt::Debug for FlattenStream<F>
     }
 }
 
-pub fn new<F>(f: F) -> FlattenStream<F>
-    where F: Future,
-          <F as Future>::Item: Stream<Error=F::Error>,
-{
+pub fn new<F: Future>(f: F) -> FlattenStream<F> {
     FlattenStream {
         state: State::Future(f)
     }
 }
 
 #[derive(Debug)]
-enum State<F>
-    where F: Future,
-          <F as Future>::Item: Stream<Error=F::Error>,
-{
+enum State<F: Future> {
     // future is not yet called or called and not ready
     Future(F),
     // future resolved to Stream
-    Stream(F::Item),
-    // EOF after future resolved to error
-    Eof,
-    // after EOF after future resolved to error
-    Done,
+    Stream(F::Output),
 }
 
 impl<F> Stream for FlattenStream<F>
     where F: Future,
-          <F as Future>::Item: Stream<Error=F::Error>,
+          F::Output: Stream,
 {
-    type Item = <F::Item as Stream>::Item;
-    type Error = <F::Item as Stream>::Error;
+    type Item = <F::Output as Stream>::Item;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
-            let (next_state, ret_opt) = match self.state {
+            // safety: data is never moved via the resulting &mut reference
+            let stream = match unsafe { Pin::get_mut(&mut self) }.state {
                 State::Future(ref mut f) => {
-                    match f.poll(cx) {
-                        Ok(Async::Pending) => {
+                    // safety: the future we're re-pinning here will never be moved;
+                    // it will just be polled, then dropped in place
+                    match unsafe { Pin::new_unchecked(f) }.poll(cx) {
+                        Poll::Pending => {
                             // State is not changed, early return.
-                            return Ok(Async::Pending)
+                            return Poll::Pending
                         },
-                        Ok(Async::Ready(stream)) => {
+                        Poll::Ready(stream) => {
                             // Future resolved to stream.
                             // We do not return, but poll that
                             // stream in the next loop iteration.
-                            (State::Stream(stream), None)
-                        }
-                        Err(e) => {
-                            (State::Eof, Some(Err(e)))
+                            stream
                         }
                     }
                 }
                 State::Stream(ref mut s) => {
-                    // Just forward call to the stream,
-                    // do not track its state.
-                    return s.poll_next(cx);
-                }
-                State::Eof => {
-                    (State::Done, Some(Ok(Async::Ready(None))))
-                }
-                State::Done => {
-                    panic!("poll called after eof");
+                    // safety: the stream we're repinning here will never be moved;
+                    // it will just be polled, then dropped in place
+                    return unsafe { Pin::new_unchecked(s) }.poll_next(cx);
                 }
             };
 
-            self.state = next_state;
-            if let Some(ret) = ret_opt {
-                return ret;
+            unsafe {
+                // safety: we use the &mut only for an assignment, which causes
+                // only an in-place drop
+                Pin::get_mut(&mut self).state = State::Stream(stream);
             }
         }
     }
 }
-

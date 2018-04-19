@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 
-use futures_core::{Async, Future, Poll};
+use futures_core::{Future, Poll};
 use futures_core::task::{self, Waker};
 
 /// A type of futures-powered synchronization primitive which is a mutex between
@@ -80,11 +80,11 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, cx: &mut task::Context) -> Async<BiLockGuard<T>> {
+    pub fn poll_lock(&self, cx: &mut task::Context) -> Poll<BiLockGuard<T>> {
         loop {
             match self.inner.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
-                0 => return Async::Ready(BiLockGuard { inner: self }),
+                0 => return Poll::Ready(BiLockGuard { inner: self }),
 
                 // Oops, someone else has locked the lock
                 1 => {}
@@ -103,7 +103,7 @@ impl<T> BiLock<T> {
             match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {
                 // The lock is still locked, but we've now parked ourselves, so
                 // just report that we're scheduled to receive a notification.
-                Ok(_) => return Async::Pending,
+                Ok(_) => return Poll::Pending,
 
                 // Oops, looks like the lock was unlocked after our swap above
                 // and before the compare_exchange. Deallocate what we just
@@ -245,8 +245,7 @@ pub struct BiLockAcquire<T> {
 }
 
 impl<T> Future for BiLockAcquire<T> {
-    type Item = BiLockAcquired<T>;
-    type Error = ();
+    type Output = BiLockAcquired<T>;
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<BiLockAcquired<T>, ()> {
         match self.inner.as_ref().expect("cannot poll after Ready").poll_lock(cx) {
@@ -255,7 +254,7 @@ impl<T> Future for BiLockAcquire<T> {
             }
             Async::Pending => return Ok(Async::Pending),
         }
-        Ok(Async::Ready(BiLockAcquired { inner: self.inner.take() }))
+        Poll::Ready(BiLockAcquired { inner: self.inner.take() })
     }
 }
 

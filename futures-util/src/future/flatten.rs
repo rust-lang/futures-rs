@@ -1,6 +1,7 @@
 use core::fmt;
+use core::mem::Pin;
 
-use futures_core::{Future, IntoFuture, Poll};
+use futures_core::{Future, Poll};
 use futures_core::task;
 
 use super::chain::Chain;
@@ -11,14 +12,13 @@ use super::chain::Chain;
 ///
 /// This is created by the `Future::flatten` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct Flatten<A> where A: Future, A::Item: IntoFuture {
-    state: Chain<A, <A::Item as IntoFuture>::Future, ()>,
+pub struct Flatten<A> where A: Future, A::Output: Future {
+    state: Chain<A, A::Output, ()>,
 }
 
 impl<A> fmt::Debug for Flatten<A>
     where A: Future + fmt::Debug,
-          A::Item: IntoFuture,
-          <<A as Future>::Item as IntoFuture>::Future: fmt::Debug,
+          A::Output: Future + fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Flatten")
@@ -29,7 +29,7 @@ impl<A> fmt::Debug for Flatten<A>
 
 pub fn new<A>(future: A) -> Flatten<A>
     where A: Future,
-          A::Item: IntoFuture,
+          A::Output: Future,
 {
     Flatten {
         state: Chain::new(future, ()),
@@ -38,16 +38,11 @@ pub fn new<A>(future: A) -> Flatten<A>
 
 impl<A> Future for Flatten<A>
     where A: Future,
-          A::Item: IntoFuture,
-          <<A as Future>::Item as IntoFuture>::Error: From<<A as Future>::Error>
+          A::Output: Future,
 {
-    type Item = <<A as Future>::Item as IntoFuture>::Item;
-    type Error = <<A as Future>::Item as IntoFuture>::Error;
+    type Output = <A::Output as Future>::Output;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        self.state.poll(cx, |a, ()| {
-            let future = a?.into_future();
-            Ok(Err(future))
-        })
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        unsafe { pinned_field!(self, state) }.poll(cx, |a, ()| a)
     }
 }

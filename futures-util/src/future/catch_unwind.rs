@@ -1,8 +1,9 @@
+use std::mem::Pin;
 use std::prelude::v1::*;
 use std::any::Any;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, Poll};
 use futures_core::task;
 
 /// Future for the `catch_unwind` combinator.
@@ -11,35 +12,25 @@ use futures_core::task;
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct CatchUnwind<F> where F: Future {
-    future: Option<F>,
+    future: F,
 }
 
 pub fn new<F>(future: F) -> CatchUnwind<F>
     where F: Future + UnwindSafe,
 {
-    CatchUnwind {
-        future: Some(future),
-    }
+    CatchUnwind { future }
 }
 
 impl<F> Future for CatchUnwind<F>
     where F: Future + UnwindSafe,
 {
-    type Item = Result<F::Item, F::Error>;
-    type Error = Box<Any + Send>;
+    type Output = Result<F::Output, Box<Any + Send>>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        let mut future = self.future.take().expect("cannot poll twice");
-        let (res, future) = catch_unwind(AssertUnwindSafe(|| {
-            (future.poll(cx), future)
-        }))?;
-        match res {
-            Ok(Async::Pending) => {
-                self.future = Some(future);
-                Ok(Async::Pending)
-            }
-            Ok(Async::Ready(t)) => Ok(Async::Ready(Ok(t))),
-            Err(e) => Ok(Async::Ready(Err(e))),
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let fut = unsafe { pinned_field!(self, future) };
+        match catch_unwind(AssertUnwindSafe(|| fut.poll(cx))) {
+            Ok(res) => res.map(Ok),
+            Err(e) => Poll::Ready(Err(e))
         }
     }
 }
