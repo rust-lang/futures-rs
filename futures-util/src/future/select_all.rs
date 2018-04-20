@@ -59,7 +59,7 @@ impl<A> Future for SelectAll<A>
         }).next();
         match item {
             Some((idx, res)) => {
-                self.inner.remove(idx);
+                self.inner.swap_remove(idx);
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 match res {
                     Ok(e) => Ok(Async::Ready((e, idx, rest))),
