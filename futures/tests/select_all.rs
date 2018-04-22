@@ -11,16 +11,19 @@ fn smoke() {
         ok(3),
     ];
 
+    // This test depends on an implementation detail of `select_all` to match
+    // its behavior: it uses `swap_remove` under the hood.
+
     let (i, idx, v) = block_on(select_all(v)).ok().unwrap();
     assert_eq!(i, 1);
     assert_eq!(idx, 0);
 
-    let (i, idx, v) = block_on(select_all(v)).err().unwrap();
-    assert_eq!(i, 2);
-    assert_eq!(idx, 0);
-
     let (i, idx, v) = block_on(select_all(v)).ok().unwrap();
     assert_eq!(i, 3);
+    assert_eq!(idx, 0);
+
+    let (i, idx, v) = block_on(select_all(v)).err().unwrap();
+    assert_eq!(i, 2);
     assert_eq!(idx, 0);
 
     assert!(v.is_empty());
