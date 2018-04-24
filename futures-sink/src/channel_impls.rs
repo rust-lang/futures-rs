@@ -14,8 +14,14 @@ impl<T> Sink for Sender<T> {
         self.start_send(msg)
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-        Ok(Async::Ready(()))
+    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        match self.poll_ready(cx) {
+            Err(ref e) if e.is_disconnected() => {
+                // If the receiver disconnected, we consider the sink to be flushed.
+                Ok(Async::Ready(()))
+            }
+            x => x,
+        }
     }
 
     fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {

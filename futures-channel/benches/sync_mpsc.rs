@@ -114,7 +114,6 @@ impl Stream for TestSender {
         try_ready!(self.tx.poll_ready(cx).map_err(|_| ()));
         self.tx.start_send(self.last + 1).unwrap();
         self.last += 1;
-        assert!(self.tx.poll_flush(cx).unwrap().is_ready());
         Ok(Async::Ready(Some(self.last)))
     }
 }

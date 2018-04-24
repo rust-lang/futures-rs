@@ -12,7 +12,7 @@ use futures::future::poll_fn;
 use futures::task;
 use futures_channel::mpsc;
 use futures_channel::oneshot;
-use futures_executor::block_on;
+use futures_executor::{block_on, block_on_stream};
 
 trait AssertSend: Send {}
 impl AssertSend for mpsc::Sender<i32> {}
@@ -94,20 +94,15 @@ fn send_recv_threads() {
 #[test]
 fn send_recv_threads_no_capacity() {
     let (tx, rx) = mpsc::channel::<i32>(0);
+    let mut rx = block_on_stream(rx);
 
-    let (readytx, readyrx) = mpsc::channel::<()>(2);
     let t = thread::spawn(move|| {
-        let readytx = readytx.sink_map_err(|_| panic!());
-        let (a, b) = block_on(tx.send(1).join(readytx.send(()))).unwrap();
-        block_on(a.send(2).join(b.send(()))).unwrap();
+        let tx = block_on(tx.send(1)).unwrap();
+        block_on(tx.send(2)).unwrap();
     });
 
-    let readyrx = block_on(readyrx.next()).ok().unwrap().1;
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some(1));
-    drop(block_on(readyrx.next()).ok().unwrap());
-    let item = block_on(rx.next()).ok().unwrap().0;
-    assert_eq!(item, Some(2));
+    assert_eq!(rx.next(), Some(Ok(1)));
+    assert_eq!(rx.next(), Some(Ok(2)));
 
     t.join().unwrap();
 }
@@ -401,7 +396,8 @@ fn stress_close_receiver_iter() {
             Some(r) => assert!(i == r),
             None => {
                 let unwritten = unwritten_rx.recv().expect("unwritten_rx");
-                assert_eq!(unwritten, i);
+                assert!(unwritten <= i + 1);
+                assert!(unwritten >= i);
                 th.join().unwrap();
                 return;
             }
