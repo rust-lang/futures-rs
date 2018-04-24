@@ -413,8 +413,8 @@ fn fanout_smoke() {
 
 #[test]
 fn fanout_backpressure() {
-    let (left_send, left_recv) = mpsc::channel(0);
-    let (right_send, right_recv) = mpsc::channel(0);
+    let (left_send, left_recv) = mpsc::channel(1);
+    let (right_send, right_recv) = mpsc::channel(1);
     let sink = left_send.fanout(right_send);
 
     let sink = block_on(StartSendFut::new(sink, 0)).unwrap();
