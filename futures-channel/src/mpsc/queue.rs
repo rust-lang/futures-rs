@@ -80,7 +80,7 @@ unsafe impl<T: Send> Send for Queue<T> { }
 unsafe impl<T: Send> Sync for Queue<T> { }
 
 impl<T> Node<T> {
-    unsafe fn new(v: Option<T>) -> *mut Node<T> {
+    fn new(v: Option<T>) -> *mut Node<T> {
         Box::into_raw(Box::new(Node {
             next: AtomicPtr::new(ptr::null_mut()),
             value: v,
@@ -92,7 +92,7 @@ impl<T> Queue<T> {
     /// Creates a new queue that is safe to share among multiple producers and
     /// one consumer.
     pub fn new() -> Queue<T> {
-        let stub = unsafe { Node::new(None) };
+        let stub = Node::new(None);
         Queue {
             head: AtomicPtr::new(stub),
             tail: UnsafeCell::new(stub),
