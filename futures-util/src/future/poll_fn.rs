@@ -1,5 +1,7 @@
 //! Definition of the `PollFn` adapter combinator
 
+use core::mem::Pin;
+
 use futures_core::{Future, Poll};
 use futures_core::task;
 
@@ -34,18 +36,18 @@ pub struct PollFn<F> {
 /// # }
 /// ```
 pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T, E>
+    where F: FnMut(&mut task::Context) -> Poll<T>
 {
     PollFn { inner: f }
 }
 
-impl<T, E, F> Future for PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T, E>
+impl<T, F> Future for PollFn<F>
+    where F: FnMut(&mut task::Context) -> Poll<T>
 {
-    type Item = T;
-    type Error = E;
+    type Output = T;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, E> {
-        (self.inner)(cx)
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<T> {
+        // safe because we never expose a Pin<F>
+        (unsafe { Pin::get_mut(&mut self) }.inner)(cx)
     }
 }

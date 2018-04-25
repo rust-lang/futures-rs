@@ -1,4 +1,6 @@
-use futures_core::{Async, Poll, Future, Stream};
+use core::mem::Pin;
+
+use futures_core::{Poll, Future, Stream};
 use futures_core::task;
 
 /// A type which converts a `Future` into a `Stream`
@@ -16,21 +18,23 @@ pub fn new<F: Future>(future: F) -> IntoStream<F> {
 }
 
 impl<F: Future> Stream for IntoStream<F> {
-    type Item = F::Item;
-    type Error = F::Error;
+    type Item = F::Output;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        let ret = match self.future {
-            None => return Ok(Async::Ready(None)),
-            Some(ref mut future) => {
-                match future.poll(cx) {
-                    Ok(Async::Pending) => return Ok(Async::Pending),
-                    Err(e) => Err(e),
-                    Ok(Async::Ready(r)) => Ok(r),
+    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        // safety: we use this &mut only for matching, not for movement
+        let v = match unsafe { Pin::get_mut(&mut self) }.future {
+            Some(ref mut fut) => {
+                // safety: this re-pinned future will never move before being dropped
+                match unsafe { Pin::new_unchecked(fut) }.poll(cx) {
+                    Poll::Pending => return Poll::Pending,
+                    Poll::Ready(v) => v
                 }
             }
+            None => return Poll::Ready(None),
         };
-        self.future = None;
-        ret.map(|r| Async::Ready(Some(r)))
+
+        // safety: we use this &mut only for a replacement, which drops the future in place
+        unsafe { Pin::get_mut(&mut self) }.future = None;
+        Poll::Ready(Some(v))
     }
 }

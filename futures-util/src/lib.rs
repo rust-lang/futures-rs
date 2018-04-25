@@ -1,6 +1,8 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
+#![feature(pin, arbitrary_self_types)]
+
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
@@ -11,12 +13,14 @@ extern crate futures_channel;
 extern crate futures_core;
 #[cfg(test)]
 extern crate futures_executor;
-extern crate futures_io;
-extern crate futures_sink;
+
+// extern crate futures_io;
+// extern crate futures_sink;
+
 extern crate either;
 
-#[cfg(feature = "std")]
-use futures_core::{Async, Future, Poll, task};
+//#[cfg(feature = "std")]
+//use futures_core::{Future, Poll, task};
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -26,9 +30,10 @@ macro_rules! if_std {
 }
 
 #[cfg(feature = "std")]
-#[macro_use]
+//#[macro_use]
 extern crate std;
 
+/*
 macro_rules! delegate_sink {
     ($field:ident) => {
         fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
@@ -49,30 +54,36 @@ macro_rules! delegate_sink {
 
     }
 }
+*/
 
+/*
 #[cfg(all(feature = "std", any(test, feature = "bench")))]
 pub mod lock;
 #[cfg(all(feature = "std", not(any(test, feature = "bench"))))]
 mod lock;
+*/
 
 pub mod future;
 pub use future::FutureExt;
 
-#[cfg(feature = "std")]
-pub mod io;
-#[cfg(feature = "std")]
-pub use io::{AsyncReadExt, AsyncWriteExt};
+pub mod future_result;
+pub use future_result::FutureResult;
 
-pub mod stream;
-pub use stream::StreamExt;
+// #[cfg(feature = "std")]
+// pub mod io;
+// #[cfg(feature = "std")]
+// pub use io::{AsyncReadExt, AsyncWriteExt};
 
-pub mod sink;
-pub use sink::SinkExt;
+// pub mod stream;
+// pub use stream::StreamExt;
+
+// pub mod sink;
+// pub use sink::SinkExt;
 
 pub mod prelude {
     //! Prelude containing the extension traits, which add functionality to
     //! existing asynchronous types.
-    pub use {FutureExt, StreamExt, SinkExt};
-    #[cfg(feature = "std")]
-    pub use {AsyncReadExt, AsyncWriteExt};
+    // pub use {FutureExt, StreamExt, SinkExt};
+    // #[cfg(feature = "std")]
+    // pub use {AsyncReadExt, AsyncWriteExt};
 }

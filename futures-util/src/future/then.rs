@@ -1,4 +1,6 @@
-use futures_core::{Future, IntoFuture, Poll};
+use core::mem::Pin;
+
+use futures_core::{Future, Poll};
 use futures_core::task;
 use super::chain::Chain;
 
@@ -8,13 +10,13 @@ use super::chain::Chain;
 /// This is created by the `Future::then` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Then<A, B, F> where A: Future, B: IntoFuture {
-    state: Chain<A, B::Future, F>,
+pub struct Then<A, B, F> where A: Future, B: Future {
+    state: Chain<A, B, F>,
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
     where A: Future,
-          B: IntoFuture,
+          B: Future,
 {
     Then {
         state: Chain::new(future, f),
@@ -23,15 +25,12 @@ pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
 
 impl<A, B, F> Future for Then<A, B, F>
     where A: Future,
-          B: IntoFuture,
-          F: FnOnce(Result<A::Item, A::Error>) -> B,
+          B: Future,
+          F: FnOnce(A::Output) -> B,
 {
-    type Item = B::Item;
-    type Error = B::Error;
+    type Output = B::Output;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<B::Item, B::Error> {
-        self.state.poll(cx, |a, f| {
-            Ok(Err(f(a).into_future()))
-        })
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<B::Output> {
+        unsafe { pinned_field!(self, state) }.poll(cx, |a, f| f(a))
     }
 }
