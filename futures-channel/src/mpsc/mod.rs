@@ -74,7 +74,6 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-use std::mem::Pin;
 use std::marker::Unpin;
 use std::fmt;
 use std::error::Error;
@@ -86,7 +85,7 @@ use std::thread;
 use std::usize;
 
 use futures_core::task::{self, Waker};
-use futures_core::{Poll, Stream};
+use futures_core::{Poll, PollResult, Stream, Never};
 
 use mpsc::queue::{Queue, PopResult};
 
@@ -947,8 +946,9 @@ impl<T> Receiver<T> {
 
 impl<T> Stream for Receiver<T> {
     type Item = T;
+    type Error = Never;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(&mut self, cx: &mut task::Context) -> PollResult<Option<T>, Never> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -966,7 +966,7 @@ impl<T> Stream for Receiver<T> {
                         TryPark::Closed => {
                             // The channel is closed, there will be no further
                             // messages.
-                            return Poll::Ready(None);
+                            return Poll::Ready(Ok(None));
                         }
                         TryPark::NotEmpty => {
                             // A message has been sent while attempting to
@@ -978,7 +978,7 @@ impl<T> Stream for Receiver<T> {
                 }
             };
             // Return the message
-            return Poll::Ready(msg);
+            return Poll::Ready(Ok(msg));
         }
     }
 }
@@ -1014,9 +1014,10 @@ impl<T> UnboundedReceiver<T> {
 
 impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
+    type Error = Never;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(cx)
+    fn poll_next(&mut self, cx: &mut task::Context) -> PollResult<Option<T>, Never> {
+        self.0.poll_next(cx)
     }
 }
 
