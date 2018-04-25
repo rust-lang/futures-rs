@@ -3,7 +3,7 @@
 use core::mem::Pin;
 use core::marker::Unpin;
 
-use {Poll, task};
+use {Poll, PollResult, task};
 
 #[cfg(feature = "either")]
 mod either;
@@ -179,5 +179,32 @@ impl<F: Async> Async for Option<F> {
                 Some(ref mut x) => Pin::new_unchecked(x).poll(cx).map(Some),
             }
         }
+    }
+}
+
+/// A convenience for async `Result`s.
+pub trait AsyncResult {
+    /// The type of successful values
+    type Item;
+
+    /// The type of failures
+    type Error;
+
+    /// Poll this `AsyncResult` as if it were an `Async`.
+    ///
+    /// This method is a stopgap for a compiler limitation that prevents us from
+    /// directly inheriting from the `Async` trait; in the future it won't be
+    /// needed.
+    fn poll(self: Pin<Self>, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error>;
+}
+
+impl<F, T, E> AsyncResult for F
+    where F: Async<Output = Result<T, E>>
+{
+    type Item = T;
+    type Error = E;
+
+    fn poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+        self.poll(cx)
     }
 }

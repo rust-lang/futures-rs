@@ -47,7 +47,7 @@ pub mod future;
 pub use future::{Future, IntoFuture};
 
 mod async_trait;
-pub use async_trait::{Async, Ready, ready};
+pub use async_trait::{Async, AsyncResult, Ready, ready};
 
 pub mod stream;
 pub use stream::Stream;
