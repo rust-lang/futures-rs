@@ -41,10 +41,13 @@ macro_rules! pinned_field {
 }
 
 mod poll;
-pub use poll::Poll;
+pub use poll::{Poll, PollResult};
 
 pub mod future;
-pub use future::Future;
+pub use future::{Future, IntoFuture};
+
+mod async_trait;
+pub use async_trait::{Async, Ready, ready};
 
 pub mod stream;
 pub use stream::Stream;
@@ -52,3 +55,6 @@ pub use stream::Stream;
 pub mod task;
 
 pub mod executor;
+
+pub mod never;
+pub use never::Never;

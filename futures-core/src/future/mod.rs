@@ -1,22 +1,20 @@
 //! Futures.
 
-use core::mem::Pin;
-use core::marker::Unpin;
-
-use Poll;
-use task;
+use {PollResult, task};
 
 mod option;
 pub use self::option::FutureOption;
-
+#[path = "result.rs"]
+mod result_;
+pub use self::result_::{result, ok, err, FutureResult};
 #[cfg(feature = "either")]
 mod either;
 
-/// A future represents an asychronous computation.
+/// A future represents an asychronous computation that may fail.
 ///
-/// A future is a value that may not have finished computing yet. This kind of
-/// "asynchronous value" makes it possible for a thread to continue doing useful
-/// work while it waits for the value to become available.
+/// A future is like a `Result` value that may not have finished computing
+/// yet. This kind of "asynchronous value" makes it possible for a thread to
+/// continue doing useful work while it waits for the value to become available.
 ///
 /// The ergonomics and implementation of the `Future` trait are very similar to
 /// the `Iterator` trait in that there is just one method you need to
@@ -46,8 +44,11 @@ mod either;
 /// zero-cost: they compile away. You can find the combinators in the
 /// [future-util](https://docs.rs/futures-util) crate.
 pub trait Future {
-    /// The result of the future
-    type Output;
+    /// A successful value
+    type Item;
+
+    /// An error
+    type Error;
 
     /// Attempt to resolve the future to a final value, registering
     /// the current task for wakeup if the value is not yet available.
@@ -57,8 +58,7 @@ pub trait Future {
     /// This function returns:
     ///
     /// - `Poll::Pending` if the future is not ready yet
-    /// - `Poll::Ready(val)` with the result `val` of this future if it finished
-    /// successfully.
+    /// - `Poll::Ready(res)` with the result `res` of this future.
     ///
     /// Once a future has finished, clients should not `poll` it again.
     ///
@@ -100,9 +100,15 @@ pub trait Future {
     /// thread pool (or something similar) to ensure that `poll` can return
     /// quickly.
     ///
+    /// # Errors
+    ///
+    /// This future may have failed to finish the computation, in which case
+    /// the `Err` variant will be returned with an appropriate payload of an
+    /// error.
+    ///
     /// # Panics
     ///
-    /// Once a future has completed (returned `Ready` from `poll`),
+    /// Once a future has completed (returned `Ready` or `Err` from `poll`),
     /// then any future calls to `poll` may panic, block forever, or otherwise
     /// cause bad behavior. The `Future` trait itself provides no guarantees
     /// about the behavior of `poll` after a future has completed.
@@ -110,65 +116,67 @@ pub trait Future {
     /// Callers who may call `poll` too many times may want to consider using
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
-    fn poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output>;
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error>;
 }
 
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
-    type Output = F::Output;
+    type Item = F::Item;
+    type Error = F::Error;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        unsafe { pinned_deref!(self).poll(cx) }
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
+        (**self).poll(cx)
     }
 }
 
 if_std! {
-    use std::boxed::{Box, PinBox};
+    impl<F: ?Sized + Future> Future for ::std::boxed::Box<F> {
+        type Item = F::Item;
+        type Error = F::Error;
 
-    impl<'a, F: ?Sized + Future> Future for Box<F> {
-        type Output = F::Output;
-
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            unsafe { pinned_deref!(self).poll(cx) }
+        fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
+            (**self).poll(cx)
         }
     }
 
-    impl<'a, F: ?Sized + Future> Future for PinBox<F> {
-        type Output = F::Output;
+    #[cfg(feature = "nightly")]
+    impl<F: ?Sized + Future> Future for ::std::boxed::PinBox<F> {
+        type Item = F::Item;
+        type Error = F::Error;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            unsafe {
-                let this = PinBox::get_mut(Pin::get_mut(&mut self));
-                let re_pinned = Pin::new_unchecked(this);
-                re_pinned.poll(cx)
-            }
+        fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
+            unsafe { ::core::mem::Pin::get_mut(&mut self.as_pin()).poll(cx) }
         }
     }
 
-    impl<'a, F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
-        type Output = F::Output;
+    impl<F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
+        type Item = F::Item;
+        type Error = F::Error;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            unsafe { pinned_field!(self, 0).poll(cx) }
+        fn poll(&mut self, cx: &mut task::Context) -> PollResult<F::Item, F::Error> {
+            self.0.poll(cx)
         }
     }
 }
 
-/// A future that is immediately ready with a value
-#[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless polled"]
-pub struct ReadyFuture<T>(Option<T>);
+/// Types that can be converted into a future.
+///
+/// This trait is very similar to the `IntoIterator` trait.
+pub trait IntoFuture {
+    /// The future that this type can be converted into.
+    type Future: Future<Item=Self::Item, Error=Self::Error>;
 
-unsafe impl<T> Unpin for ReadyFuture<T> {}
+    /// The item that the future may resolve with.
+    type Item;
+    /// The error that the future may resolve with.
+    type Error;
 
-impl<T> Future for ReadyFuture<T> {
-    type Output = T;
-
-    fn poll(mut self: Pin<Self>, _cx: &mut task::Context) -> Poll<T> {
-        Poll::Ready(self.0.take().unwrap())
-    }
+    /// Consumes this object and produces a future.
+    fn into_future(self) -> Self::Future;
 }
 
-/// Create a future that is immediately ready with a value.
-pub fn ready<T>(t: T) -> ReadyFuture<T> {
-    ReadyFuture(Some(t))
+impl<F> IntoFuture for F where F: Future {
+    type Future = Self;
+    type Item = <Self as Future>::Item;
+    type Error = <Self as Future>::Error;
+    fn into_future(self) -> Self { self }
 }

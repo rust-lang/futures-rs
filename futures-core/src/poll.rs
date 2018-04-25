@@ -43,3 +43,6 @@ impl<T> From<T> for Poll<T> {
         Poll::Ready(t)
     }
 }
+
+/// Shorthand for a `Poll<Result<_, _>>` value.
+pub type PollResult<T, E> = Poll<Result<T, E>>;
