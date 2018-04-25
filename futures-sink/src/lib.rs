@@ -21,7 +21,7 @@ macro_rules! if_std {
     )*)
 }
 
-use futures_core::{Poll, task};
+use futures_core::{PollResult, task};
 
 #[cfg(feature = "either")]
 extern crate either;
@@ -36,7 +36,7 @@ impl<A, B> Sink for Either<A, B>
     type SinkItem = <A as Sink>::SinkItem;
     type SinkError = <A as Sink>::SinkError;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         match *self {
             Either::Left(ref mut x) => x.poll_ready(cx),
             Either::Right(ref mut x) => x.poll_ready(cx),
@@ -50,14 +50,14 @@ impl<A, B> Sink for Either<A, B>
         }
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         match *self {
             Either::Left(ref mut x) => x.poll_flush(cx),
             Either::Right(ref mut x) => x.poll_flush(cx),
         }
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         match *self {
             Either::Left(ref mut x) => x.poll_close(cx),
             Either::Right(ref mut x) => x.poll_close(cx),
@@ -68,15 +68,15 @@ impl<A, B> Sink for Either<A, B>
 if_std! {
     mod channel_impls;
 
-    use futures_core::Async;
+    use futures_core::Poll;
     use futures_core::never::Never;
 
     impl<T> Sink for ::std::vec::Vec<T> {
         type SinkItem = T;
         type SinkError = Never;
 
-        fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+        fn poll_ready(&mut self, _: &mut task::Context) -> PollResult<(), Self::SinkError> {
+            Poll::Ready(Ok(()))
         }
 
         fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
@@ -84,12 +84,12 @@ if_std! {
             Ok(())
         }
 
-        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+        fn poll_flush(&mut self, _: &mut task::Context) -> PollResult<(), Self::SinkError> {
+            Poll::Ready(Ok(()))
         }
 
-        fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+        fn poll_close(&mut self, _: &mut task::Context) -> PollResult<(), Self::SinkError> {
+            Poll::Ready(Ok(()))
         }
     }
 
@@ -97,8 +97,8 @@ if_std! {
         type SinkItem = T;
         type SinkError = Never;
 
-        fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+        fn poll_ready(&mut self, _: &mut task::Context) -> PollResult<(), Self::SinkError> {
+            Poll::Ready(Ok(()))
         }
 
         fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
@@ -106,12 +106,12 @@ if_std! {
             Ok(())
         }
 
-        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+        fn poll_flush(&mut self, _: &mut task::Context) -> PollResult<(), Self::SinkError> {
+            Poll::Ready(Ok(()))
         }
 
-        fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
+        fn poll_close(&mut self, _: &mut task::Context) -> PollResult<(), Self::SinkError> {
+            Poll::Ready(Ok(()))
         }
     }
 
@@ -119,7 +119,7 @@ if_std! {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
 
-        fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             (**self).poll_ready(cx)
         }
 
@@ -127,11 +127,11 @@ if_std! {
             (**self).start_send(item)
         }
 
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             (**self).poll_flush(cx)
         }
 
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             (**self).poll_close(cx)
         }
     }
@@ -182,7 +182,7 @@ pub trait Sink {
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError>;
 
     /// Begin the process of sending a value to the sink.
     /// Each call to this function must be proceeded by a successful call to
@@ -218,7 +218,7 @@ pub trait Sink {
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError>;
 
     /// Flush any remaining output and close this sink, if necessary.
     ///
@@ -231,14 +231,14 @@ pub trait Sink {
     ///
     /// If this function encounters an error, the sink should be considered to
     /// have failed permanently, and no more `Sink` methods should be called.
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError>;
 }
 
 impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         (**self).poll_ready(cx)
     }
 
@@ -246,11 +246,11 @@ impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
         (**self).start_send(item)
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         (**self).poll_flush(cx)
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         (**self).poll_close(cx)
     }
 }
