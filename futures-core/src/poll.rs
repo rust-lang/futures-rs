@@ -46,3 +46,16 @@ impl<T> From<T> for Poll<T> {
 
 /// Shorthand for a `Poll<Result<_, _>>` value.
 pub type PollResult<T, E> = Poll<Result<T, E>>;
+
+/// A macro for extracting the successful type of a `Poll<T, E>`.
+///
+/// This macro bakes in propagation of *both* errors and `Pending` signals by
+/// returning early.
+#[macro_export]
+macro_rules! try_ready {
+    ($e:expr) => (match $e {
+        $crate::Poll::Pending => return $crate::Poll::Pending,
+        $crate::Poll::Ready(Ok(t)) => t,
+        $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(From::from(e))),
+    })
+}
