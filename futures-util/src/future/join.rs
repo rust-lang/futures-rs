@@ -3,7 +3,7 @@
 use core::fmt;
 use core::mem;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, PollResult, Poll};
 use futures_core::task;
 
 macro_rules! generate {
@@ -64,12 +64,12 @@ macro_rules! generate {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+            fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
                 let mut all_done = match self.a.poll(cx) {
                     Ok(done) => done,
                     Err(e) => {
                         self.erase();
-                        return Err(e)
+                        return Poll::Ready(Err(e))
                     }
                 };
                 $(
@@ -77,15 +77,15 @@ macro_rules! generate {
                         Ok(done) => all_done && done,
                         Err(e) => {
                             self.erase();
-                            return Err(e)
+                            return Poll::Ready(Err(e))
                         }
                     };
                 )*
 
                 if all_done {
-                    Ok(Async::Ready((self.a.take(), $(self.$B.take()),*)))
+                    Poll::Ready(Ok((self.a.take(), $(self.$B.take()),*)))
                 } else {
-                    Ok(Async::Pending)
+                    Poll::Pending
                 }
             }
         }
@@ -154,16 +154,16 @@ enum MaybeDone<A: Future> {
 impl<A: Future> MaybeDone<A> {
     fn poll(&mut self, cx: &mut task::Context) -> Result<bool, A::Error> {
         let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll(cx)?,
+            MaybeDone::NotYet(ref mut a) => a.poll(cx).ok()?,
             MaybeDone::Done(_) => return Ok(true),
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };
         match res {
-            Async::Ready(res) => {
+            Poll::Ready(res) => {
                 *self = MaybeDone::Done(res);
                 Ok(true)
             }
-            Async::Pending => Ok(false),
+            Poll::Pending => Ok(false),
         }
     }
 

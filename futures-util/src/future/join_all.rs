@@ -7,7 +7,7 @@ use std::fmt;
 use std::mem;
 use std::iter::FromIterator;
 
-use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::{Future, IntoFuture, PollResult, Poll};
 use futures_core::task;
 
 #[derive(Debug)]
@@ -94,19 +94,18 @@ impl<F> Future for JoinAll<F>
     type Error = F::Error;
 
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
                     match t.poll(cx) {
-                        Ok(Async::Ready(v)) => Ok(v),
-                        Ok(Async::Pending) => {
+                        Poll::Pending => {
                             all_done = false;
                             continue
                         }
-                        Err(e) => Err(e),
+                        Poll::Ready(r) => r,
                     }
                 }
                 ElemState::Done(ref mut _v) => continue,
@@ -118,7 +117,7 @@ impl<F> Future for JoinAll<F>
                     // On completion drop all our associated resources
                     // ASAP.
                     self.elems = Vec::new();
-                    return Err(e)
+                    return Poll::Ready(Err(e))
                 }
             }
         }
@@ -131,9 +130,9 @@ impl<F> Future for JoinAll<F>
                     _ => unreachable!(),
                 }
             }).collect();
-            Ok(Async::Ready(result))
+            Poll::Ready(Ok(result))
         } else {
-            Ok(Async::Pending)
+            Poll::Pending
         }
     }
 }

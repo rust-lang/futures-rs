@@ -1,0 +1,36 @@
+use std::mem::Pin;
+use std::prelude::v1::*;
+use std::any::Any;
+use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
+
+use futures_core::{Async, Poll};
+use futures_core::task;
+
+/// Async for the `catch_unwind` combinator.
+///
+/// This is created by the `Async::catch_unwind` method.
+#[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
+pub struct CatchUnwind<F> where F: Async {
+    future: F,
+}
+
+pub fn new<F>(future: F) -> CatchUnwind<F>
+    where F: Async + UnwindSafe,
+{
+    CatchUnwind { future }
+}
+
+impl<F> Async for CatchUnwind<F>
+    where F: Async + UnwindSafe,
+{
+    type Output = Result<F::Output, Box<Any + Send>>;
+
+    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let fut = unsafe { pinned_field!(self, future) };
+        match catch_unwind(AssertUnwindSafe(|| fut.poll(cx))) {
+            Ok(res) => res.map(Ok),
+            Err(e) => Poll::Ready(Err(e))
+        }
+    }
+}

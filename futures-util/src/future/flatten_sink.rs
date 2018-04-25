@@ -1,6 +1,6 @@
 use core::fmt;
 
-use futures_core::{task, Async, Future};
+use futures_core::{task, Poll, PollResult, Future};
 use futures_sink::Sink;
 
 #[derive(Debug)]
@@ -33,12 +33,12 @@ impl<F> Sink for FlattenSink<F> where F: Future, <F as Future>::Item: Sink<SinkE
     type SinkItem = <<F as Future>::Item as Sink>::SinkItem;
     type SinkError = <<F as Future>::Item as Sink>::SinkError;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Result<Async<()>, Self::SinkError> {
+    fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         let mut resolved_stream = match self.st {
             State::Ready(ref mut s) => return s.poll_ready(cx),
-            State::Waiting(ref mut f) => match f.poll(cx)? {
-                Async::Pending => return Ok(Async::Pending),
-                Async::Ready(s) => s,
+            State::Waiting(ref mut f) => match try_poll!(f.poll(cx)) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(s) => s,
             },
             State::Closed => panic!("poll_ready called after eof"),
         };
@@ -55,21 +55,21 @@ impl<F> Sink for FlattenSink<F> where F: Future, <F as Future>::Item: Sink<SinkE
         }
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Result<Async<()>, Self::SinkError> {
+    fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         match self.st {
             State::Ready(ref mut s) => s.poll_flush(cx),
             // if sink not yet resolved, nothing written ==> everything flushed
-            State::Waiting(_) => Ok(Async::Ready(())),
+            State::Waiting(_) => Poll::Ready(Ok(())),
             State::Closed => panic!("poll_flush called after eof"),
         }
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Result<Async<()>, Self::SinkError> {
+    fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
         if let State::Ready(ref mut s) = self.st {
-            try_ready!(s.poll_close(cx));
+            try_poll!(s.poll_close(cx));
         }
         self.st = State::Closed;
-        return Ok(Async::Ready(()));
+        return Poll::Ready(Ok(()));
     }
 }
 

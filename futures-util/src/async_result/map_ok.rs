@@ -1,13 +1,13 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
-use FutureResult;
+use futures_core::AsyncResult;
 
-/// Future for the `map_ok` combinator, changing the type of a future.
+/// Async for the `map_ok` combinator, changing the type of a future.
 ///
-/// This is created by the `Future::map_ok` method.
+/// This is created by the `Async::map_ok` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct MapOk<A, F> {
@@ -22,14 +22,14 @@ pub fn new<A, F>(future: A, f: F) -> MapOk<A, F> {
     }
 }
 
-impl<U, A, F> Future for MapOk<A, F>
-    where A: FutureResult,
+impl<U, A, F> Async for MapOk<A, F>
+    where A: AsyncResult,
           F: FnOnce(A::Item) -> U,
 {
     type Output = Result<U, A::Error>;
 
     fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.poll_result(cx) {
+        match unsafe { pinned_field!(self, future) }.poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {

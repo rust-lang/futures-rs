@@ -1,22 +1,20 @@
-//! Definition of the `PollFn` adapter combinator
+//! Definition of the `PollResultFn` adapter combinator
 
-use core::mem::Pin;
-
-use futures_core::{Future, Poll};
+use futures_core::{Future, PollResult};
 use futures_core::task;
 
-/// A future which adapts a function returning `Poll`.
+/// A future which adapts a function returning `PollResult`.
 ///
 /// Created by the `poll_fn` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct PollFn<F> {
+pub struct PollResultFn<F> {
     inner: F,
 }
 
-/// Creates a new future wrapping around a function returning `Poll`.
+/// Creates a new future wrapping around a function returning `PollResult`.
 ///
-/// Polling the returned future delegates to the wrapped function.
+/// PollResulting the returned future delegates to the wrapped function.
 ///
 /// # Examples
 ///
@@ -28,26 +26,26 @@ pub struct PollFn<F> {
 /// use futures::task;
 ///
 /// # fn main() {
-/// fn read_line(cx: &mut task::Context) -> Poll<String, Never> {
+/// fn read_line(cx: &mut task::Context) -> PollResult<String, Never> {
 ///     Ok(Async::Ready("Hello, World!".into()))
 /// }
 ///
 /// let read_future = poll_fn(read_line);
 /// # }
 /// ```
-pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T>
+pub fn poll_fn<T, E, F>(f: F) -> PollResultFn<F>
+    where F: FnMut(&mut task::Context) -> PollResult<T, E>
 {
-    PollFn { inner: f }
+    PollResultFn { inner: f }
 }
 
-impl<T, F> Future for PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T>
+impl<T, E, F> Future for PollResultFn<F>
+    where F: FnMut(&mut task::Context) -> PollResult<T, E>
 {
-    type Output = T;
+    type Item = T;
+    type Error = E;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<T> {
-        // safe because we never expose a Pin<F>
-        (unsafe { Pin::get_mut(&mut self) }.inner)(cx)
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<T, E> {
+        (self.inner)(cx)
     }
 }

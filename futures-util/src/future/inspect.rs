@@ -1,6 +1,4 @@
-use core::mem::Pin;
-
-use futures_core::{Future, Poll};
+use futures_core::{Future, PollResult, Poll};
 use futures_core::task;
 
 /// Do something with the item of a future, passing it on.
@@ -15,7 +13,7 @@ pub struct Inspect<A, F> where A: Future {
 
 pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
     where A: Future,
-          F: FnOnce(&A::Output),
+          F: FnOnce(&A::Item),
 {
     Inspect {
         future: future,
@@ -25,20 +23,16 @@ pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
 
 impl<A, F> Future for Inspect<A, F>
     where A: Future,
-          F: FnOnce(&A::Output),
+          F: FnOnce(&A::Item),
 {
-    type Output = A::Output;
+    type Item = A::Item;
+    type Error = A::Error;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Output> {
-        let e = match unsafe { pinned_field!(self, future) }.poll(cx) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(e) => e,
-        };
-
-        let f = unsafe {
-            Pin::get_mut(&mut self).f.take().expect("cannot poll Inspect twice")
-        };
-        f(&e);
-        Poll::Ready(e)
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<A::Item, A::Error> {
+        let res = self.future.poll(cx);
+        if let Poll::Ready(Ok(ref e)) = res {
+            (self.f.take().expect("cannot poll Inspect twice"))(&e);
+        }
+        res
     }
 }

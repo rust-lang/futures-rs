@@ -1,7 +1,7 @@
 use core::fmt;
 
 use executor::Executor;
-use task::{TaskObj, Waker};
+use task::Waker;
 
 /// Information about the currently-running task.
 ///
@@ -70,10 +70,11 @@ impl<'a> fmt::Debug for Context<'a> {
 }
 
 if_std! {
-    use Future;
+    use task::TaskObj;
+    use Async;
 
     impl<'a> Context<'a> {
-        /// Spawn a future onto the default executor.
+        /// Spawn an async computation onto the default executor.
         ///
         /// # Panics
         ///
@@ -81,7 +82,7 @@ if_std! {
         ///
         /// To handle executor errors, use [executor()](self::Context::executor)
         /// instead.
-        pub fn spawn<F>(&mut self, f: F) where F: Future<Output = ()> + 'static + Send {
+        pub fn spawn<A>(&mut self, f: A) where A: Async<Output = ()> + 'static + Send {
             self.executor()
                 .spawn_obj(TaskObj::new(f)).unwrap()
         }

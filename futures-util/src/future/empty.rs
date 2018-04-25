@@ -1,9 +1,8 @@
 //! Definition of the Empty combinator, a future that's never ready.
 
-use core::mem::Pin;
 use core::marker;
 
-use futures_core::{Future, Poll};
+use futures_core::{Future, PollResult, Poll};
 use futures_core::task;
 
 /// A future which is never resolved.
@@ -11,22 +10,23 @@ use futures_core::task;
 /// This future can be created with the `empty` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Empty<T> {
-    _data: marker::PhantomData<T>,
+pub struct Empty<T, E> {
+    _data: marker::PhantomData<(T, E)>,
 }
 
 /// Creates a future which never resolves, representing a computation that never
 /// finishes.
 ///
 /// The returned future will forever return `Async::Pending`.
-pub fn empty<T>() -> Empty<T> {
+pub fn empty<T, E>() -> Empty<T, E> {
     Empty { _data: marker::PhantomData }
 }
 
-impl<T> Future for Empty<T> {
-    type Output = T;
+impl<T, E> Future for Empty<T, E> {
+    type Item = T;
+    type Error = E;
 
-    fn poll(self: Pin<Self>, _: &mut task::Context) -> Poll<T> {
+    fn poll(&mut self, _: &mut task::Context) -> PollResult<T, E> {
         Poll::Pending
     }
 }

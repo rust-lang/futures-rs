@@ -1,9 +1,8 @@
 //! Task notification.
 
-use core::mem::{self, Pin};
 use core::fmt;
 
-use {Future, Poll};
+use Poll;
 
 mod wake;
 pub use self::wake::{UnsafeWake, Waker};
@@ -98,9 +97,12 @@ impl Drop for TaskObj {
 }
 
 if_std! {
+    use Async;
+
+    use core::mem::{self, Pin};
     use std::boxed::Box;
 
-    unsafe impl<F: Future<Output = ()> + Send + 'static> UnsafePoll for Box<F> {
+    unsafe impl<F: Async<Output = ()> + Send + 'static> UnsafePoll for Box<F> {
         fn into_raw(self) -> *mut () {
             unsafe {
                 mem::transmute(self)
@@ -121,8 +123,8 @@ if_std! {
     }
 
     impl TaskObj {
-        /// Create a new `TaskObj` by boxing the given future.
-        pub fn new<F: Future<Output = ()> + Send + 'static>(f: F) -> TaskObj {
+        /// Create a new `TaskObj` by boxing
+        pub fn new<F: Async<Output = ()> + Send + 'static>(f: F) -> TaskObj {
             TaskObj::from_poll_task(Box::new(f))
         }
     }

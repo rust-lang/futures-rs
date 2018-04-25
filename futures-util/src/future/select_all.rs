@@ -4,7 +4,7 @@
 use std::mem;
 use std::prelude::v1::*;
 
-use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::{Future, IntoFuture, PollResult, Poll};
 use futures_core::task;
 
 /// Future for the `select_all` combinator, waiting for one of any of a list of
@@ -49,24 +49,23 @@ impl<A> Future for SelectAll<A>
     type Item = (A::Item, usize, Vec<A>);
     type Error = (A::Error, usize, Vec<A>);
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
             match f.poll(cx) {
-                Ok(Async::Pending) => None,
-                Ok(Async::Ready(e)) => Some((i, Ok(e))),
-                Err(e) => Some((i, Err(e))),
+                Poll::Pending => None,
+                Poll::Ready(r) => Some((i, r)),
             }
         }).next();
         match item {
             Some((idx, res)) => {
-                self.inner.remove(idx);
+                self.inner.swap_remove(idx);
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 match res {
-                    Ok(e) => Ok(Async::Ready((e, idx, rest))),
-                    Err(e) => Err((e, idx, rest)),
+                    Ok(e) => Poll::Ready(Ok((e, idx, rest))),
+                    Err(e) => Poll::Ready(Err((e, idx, rest))),
                 }
             }
-            None => Ok(Async::Pending),
+            None => Poll::Pending,
         }
     }
 }

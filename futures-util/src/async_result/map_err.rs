@@ -1,13 +1,13 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
-use FutureResult;
+use futures_core::AsyncResult;
 
-/// Future for the `map_err` combinator, changing the type of a future.
+/// Async for the `map_err` combinator, changing the type of a future.
 ///
-/// This is created by the `Future::map_err` method.
+/// This is created by the `Async::map_err` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct MapErr<A, F> {
@@ -22,14 +22,14 @@ pub fn new<A, F>(future: A, f: F) -> MapErr<A, F> {
     }
 }
 
-impl<U, A, F> Future for MapErr<A, F>
-    where A: FutureResult,
+impl<U, A, F> Async for MapErr<A, F>
+    where A: AsyncResult,
           F: FnOnce(A::Error) -> U,
 {
     type Output = Result<A::Item, U>;
 
     fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.poll_result(cx) {
+        match unsafe { pinned_field!(self, future) }.poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {

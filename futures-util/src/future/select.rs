@@ -1,4 +1,4 @@
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, PollResult, Poll};
 use futures_core::task;
 
 use either::Either;
@@ -23,17 +23,17 @@ impl<A, B> Future for Select<A, B> where A: Future, B: Future {
     type Item = Either<(A::Item, B), (B::Item, A)>;
     type Error = Either<(A::Error, B), (B::Error, A)>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<Self::Item, Self::Error> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
         match a.poll(cx) {
-            Err(e) => Err(Either::Left((e, b))),
-            Ok(Async::Ready(x)) => Ok(Async::Ready(Either::Left((x, b)))),
-            Ok(Async::Pending) => match b.poll(cx) {
-                Err(e) => Err(Either::Right((e, a))),
-                Ok(Async::Ready(x)) => Ok(Async::Ready(Either::Right((x, a)))),
-                Ok(Async::Pending) => {
+            Poll::Ready(Err(e)) => Poll::Ready(Err(Either::Left((e, b)))),
+            Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Left((x, b)))),
+            Poll::Pending => match b.poll(cx) {
+                Poll::Ready(Err(e)) => Poll::Ready(Err(Either::Right((e, a)))),
+                Poll::Ready(Ok(x)) => Poll::Ready(Ok(Either::Right((x, a)))),
+                Poll::Pending => {
                     self.inner = Some((a, b));
-                    Ok(Async::Pending)
+                    Poll::Pending
                 }
             }
         }

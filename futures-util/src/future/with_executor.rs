@@ -1,6 +1,4 @@
-use core::mem::Pin;
-
-use futures_core::{Future, Poll};
+use futures_core::{Future, PollResult};
 use futures_core::task;
 use futures_core::executor::Executor;
 
@@ -26,12 +24,10 @@ impl<F, E> Future for WithExecutor<F, E>
     where F: Future,
           E: Executor,
 {
-    type Output = F::Output;
+    type Item = F::Item;
+    type Error = F::Error;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
-        let this = unsafe { Pin::get_mut(&mut self) };
-        let fut = unsafe { Pin::new_unchecked(&mut this.future) };
-        let exec = &mut this.executor;
-        fut.poll(&mut cx.with_executor(exec))
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<F::Item, F::Error> {
+        self.future.poll(&mut cx.with_executor(&mut self.executor))
     }
 }

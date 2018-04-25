@@ -1,4 +1,4 @@
-//! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
+//! Combinators and utilities for working with `Async`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![feature(pin, arbitrary_self_types)]
@@ -15,12 +15,12 @@ extern crate futures_core;
 extern crate futures_executor;
 
 // extern crate futures_io;
-// extern crate futures_sink;
+extern crate futures_sink;
 
 extern crate either;
 
 //#[cfg(feature = "std")]
-//use futures_core::{Future, Poll, task};
+//use futures_core::{Async, Poll, task};
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -36,7 +36,7 @@ extern crate std;
 /*
 macro_rules! delegate_sink {
     ($field:ident) => {
-        fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             self.$field.poll_ready(cx)
         }
 
@@ -44,11 +44,11 @@ macro_rules! delegate_sink {
             self.$field.start_send(item)
         }
 
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             self.$field.poll_flush(cx)
         }
 
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             self.$field.poll_close(cx)
         }
 
@@ -61,13 +61,16 @@ macro_rules! delegate_sink {
 pub mod lock;
 #[cfg(all(feature = "std", not(any(test, feature = "bench"))))]
 mod lock;
-*/
+ */
 
 pub mod future;
 pub use future::FutureExt;
 
-pub mod future_result;
-pub use future_result::FutureResult;
+pub mod async_trait;
+pub use async_trait::AsyncExt;
+
+pub mod async_result;
+pub use async_result::AsyncResultExt;
 
 // #[cfg(feature = "std")]
 // pub mod io;
@@ -83,7 +86,7 @@ pub use future_result::FutureResult;
 pub mod prelude {
     //! Prelude containing the extension traits, which add functionality to
     //! existing asynchronous types.
-    // pub use {FutureExt, StreamExt, SinkExt};
+    // pub use {AsyncExt, StreamExt, SinkExt};
     // #[cfg(feature = "std")]
     // pub use {AsyncReadExt, AsyncWriteExt};
 }

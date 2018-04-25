@@ -1,6 +1,4 @@
-use core::mem::Pin;
-
-use futures_core::{Future, Poll};
+use futures_core::{Future, PollResult, Poll};
 use futures_core::task;
 
 /// Future for the `map` combinator, changing the type of a future.
@@ -24,19 +22,16 @@ pub fn new<A, F>(future: A, f: F) -> Map<A, F>
 
 impl<U, A, F> Future for Map<A, F>
     where A: Future,
-          F: FnOnce(A::Output) -> U,
+          F: FnOnce(A::Item) -> U,
 {
-    type Output = U;
+    type Item = U;
+    type Error = A::Error;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<U> {
-        let e = match unsafe { pinned_field!(self, future) }.poll(cx) {
+    fn poll(&mut self, cx: &mut task::Context) -> PollResult<U, A::Error> {
+        let e = match self.future.poll(cx) {
             Poll::Pending => return Poll::Pending,
-            Poll::Ready(e) => e,
+            Poll::Ready(r) => r,
         };
-
-        let f = unsafe {
-            Pin::get_mut(&mut self).f.take().expect("cannot poll Map twice")
-        };
-        Poll::Ready(f(e))
+        Poll::Ready(e.map(self.f.take().expect("cannot poll Map twice")))
     }
 }
