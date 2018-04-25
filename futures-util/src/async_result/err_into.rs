@@ -1,14 +1,14 @@
 use core::mem::Pin;
 use core::marker::PhantomData;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
-use FutureResult;
+use futures_core::AsyncResult;
 
-/// Future for the `err_into` combinator, changing the error type of a future.
+/// Async for the `err_into` combinator, changing the error type of a future.
 ///
-/// This is created by the `Future::err_into` method.
+/// This is created by the `Async::err_into` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct ErrInto<A, E> {
@@ -23,14 +23,14 @@ pub fn new<A, E>(future: A) -> ErrInto<A, E> {
     }
 }
 
-impl<A, E> Future for ErrInto<A, E>
-    where A: FutureResult,
+impl<A, E> Async for ErrInto<A, E>
+    where A: AsyncResult,
           A::Error: Into<E>,
 {
     type Output = Result<A::Item, E>;
 
     fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.poll_result(cx) {
+        match unsafe { pinned_field!(self, future) }.poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {
                 Poll::Ready(e.map_err(Into::into))

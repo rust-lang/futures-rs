@@ -26,19 +26,19 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::collections::HashMap;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Async, Poll, Async};
 use futures_core::task::{self, Wake, Waker, LocalMap};
 
 /// A future that is cloneable and can be polled in multiple threads.
-/// Use `Future::shared()` method to convert any future into a `Shared` future.
+/// Use `Async::shared()` method to convert any future into a `Shared` future.
 #[must_use = "futures do nothing unless polled"]
-pub struct Shared<F: Future> {
+pub struct Shared<F: Async> {
     inner: Arc<Inner<F>>,
     waiter: usize,
 }
 
 impl<F> fmt::Debug for Shared<F>
-    where F: Future + fmt::Debug,
+    where F: Async + fmt::Debug,
           F::Item: fmt::Debug,
           F::Error: fmt::Debug,
 {
@@ -50,7 +50,7 @@ impl<F> fmt::Debug for Shared<F>
     }
 }
 
-struct Inner<F: Future> {
+struct Inner<F: Async> {
     next_clone_id: AtomicUsize,
     future: UnsafeCell<Option<(F, LocalMap)>>,
     result: UnsafeCell<Option<Result<SharedItem<F::Item>, SharedError<F::Error>>>>,
@@ -68,7 +68,7 @@ const REPOLL: usize = 2;
 const COMPLETE: usize = 3;
 const POISONED: usize = 4;
 
-pub fn new<F: Future>(future: F) -> Shared<F> {
+pub fn new<F: Async>(future: F) -> Shared<F> {
     Shared {
         inner: Arc::new(Inner {
             next_clone_id: AtomicUsize::new(1),
@@ -83,7 +83,7 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
     }
 }
 
-impl<F> Shared<F> where F: Future {
+impl<F> Shared<F> where F: Async {
     /// If any clone of this `Shared` has completed execution, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.
@@ -117,8 +117,8 @@ impl<F> Shared<F> where F: Future {
     }
 }
 
-impl<F> Future for Shared<F>
-    where F: Future
+impl<F> Async for Shared<F>
+    where F: Async
 {
     type Item = SharedItem<F::Item>;
     type Error = SharedError<F::Error>;
@@ -204,7 +204,7 @@ impl<F> Future for Shared<F>
     }
 }
 
-impl<F> Clone for Shared<F> where F: Future {
+impl<F> Clone for Shared<F> where F: Async {
     fn clone(&self) -> Self {
         let next_clone_id = self.inner.next_clone_id.fetch_add(1, SeqCst);
 
@@ -215,7 +215,7 @@ impl<F> Clone for Shared<F> where F: Future {
     }
 }
 
-impl<F> Drop for Shared<F> where F: Future {
+impl<F> Drop for Shared<F> where F: Async {
     fn drop(&mut self) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
         waiters.remove(&self.waiter);
@@ -235,19 +235,19 @@ impl Wake for Notifier {
 }
 
 unsafe impl<F> Sync for Inner<F> 
-    where F: Future + Send,
+    where F: Async + Send,
           F::Item: Send + Sync,
           F::Error: Send + Sync
 {}
 
 unsafe impl<F> Send for Inner<F>
-    where F: Future + Send,
+    where F: Async + Send,
           F::Item: Send + Sync,
           F::Error: Send + Sync
 {}
 
 impl<F> fmt::Debug for Inner<F>
-    where F: Future + fmt::Debug,
+    where F: Async + fmt::Debug,
           F::Item: fmt::Debug,
           F::Error: fmt::Debug,
 {

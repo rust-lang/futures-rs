@@ -4,16 +4,16 @@
 use std::mem;
 use std::prelude::v1::*;
 
-use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::{Async, IntoAsync, Poll, Async};
 use futures_core::task;
 
-/// Future for the `select_all` combinator, waiting for one of any of a list of
+/// Async for the `select_all` combinator, waiting for one of any of a list of
 /// futures to complete.
 ///
 /// This is created by the `select_all` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SelectAll<A> where A: Future {
+pub struct SelectAll<A> where A: Async {
     inner: Vec<A>,
 }
 
@@ -30,9 +30,9 @@ pub type SelectAllNext<A> = A;
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.
-pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoFuture>::Future>
+pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoAsync>::Async>
     where I: IntoIterator,
-          I::Item: IntoFuture,
+          I::Item: IntoAsync,
 {
     let ret = SelectAll {
         inner: iter.into_iter()
@@ -43,8 +43,8 @@ pub fn select_all<I>(iter: I) -> SelectAll<<I::Item as IntoFuture>::Future>
     ret
 }
 
-impl<A> Future for SelectAll<A>
-    where A: Future,
+impl<A> Async for SelectAll<A>
+    where A: Async,
 {
     type Item = (A::Item, usize, Vec<A>);
     type Error = (A::Error, usize, Vec<A>);

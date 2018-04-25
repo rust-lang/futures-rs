@@ -2,7 +2,7 @@
 
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
 /// A future which adapts a function returning `Poll`.
@@ -41,7 +41,7 @@ pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
     PollFn { inner: f }
 }
 
-impl<T, F> Future for PollFn<F>
+impl<T, F> Async for PollFn<F>
     where F: FnMut(&mut task::Context) -> Poll<T>
 {
     type Output = T;

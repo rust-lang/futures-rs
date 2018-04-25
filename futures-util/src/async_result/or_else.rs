@@ -1,14 +1,14 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
-use FutureResult;
+use futures_core::AsyncResult;
 
-/// Future for the `or_else` combinator, chaining a computation onto the end of
+/// Async for the `or_else` combinator, chaining a computation onto the end of
 /// a future which fails with an error.
 ///
-/// This is created by the `Future::or_else` method.
+/// This is created by the `Async::or_else` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct OrElse<A, B, F> {
@@ -27,9 +27,9 @@ pub fn new<A, B, F>(future: A, f: F) -> OrElse<A, B, F> {
     }
 }
 
-impl<A, B, F> Future for OrElse<A, B, F>
-    where A: FutureResult,
-          B: FutureResult<Item = A::Item>,
+impl<A, B, F> Async for OrElse<A, B, F>
+    where A: AsyncResult,
+          B: AsyncResult<Item = A::Item>,
           F: FnOnce(A::Error) -> B,
 {
     type Output = Result<B::Item, B::Error>;
@@ -41,7 +41,7 @@ impl<A, B, F> Future for OrElse<A, B, F>
                 State::First(ref mut fut1, ref mut data) => {
                     // safe to create a new `Pin` because `fut1` will never move
                     // before it's dropped.
-                    match unsafe { Pin::new_unchecked(fut1) }.poll_result(cx) {
+                    match unsafe { Pin::new_unchecked(fut1) }.poll(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(Ok(v)) => return Poll::Ready(Ok(v)),
                         Poll::Ready(Err(e)) => {
@@ -53,7 +53,7 @@ impl<A, B, F> Future for OrElse<A, B, F>
                     // safe to create a new `Pin` because `fut2` will never move
                     // before it's dropped; once we're in `Chain::Second` we stay
                     // there forever.
-                    return unsafe { Pin::new_unchecked(fut2) }.poll_result(cx)
+                    return unsafe { Pin::new_unchecked(fut2) }.poll(cx)
                 }
             };
 

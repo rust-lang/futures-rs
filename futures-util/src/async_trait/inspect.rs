@@ -1,20 +1,20 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
 /// Do something with the item of a future, passing it on.
 ///
-/// This is created by the [`FutureExt::inspect`] method.
+/// This is created by the [`AsyncExt::inspect`] method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Inspect<A, F> where A: Future {
+pub struct Inspect<A, F> where A: Async {
     future: A,
     f: Option<F>,
 }
 
 pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
-    where A: Future,
+    where A: Async,
           F: FnOnce(&A::Output),
 {
     Inspect {
@@ -23,8 +23,8 @@ pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
     }
 }
 
-impl<A, F> Future for Inspect<A, F>
-    where A: Future,
+impl<A, F> Async for Inspect<A, F>
+    where A: Async,
           F: FnOnce(&A::Output),
 {
     type Output = A::Output;

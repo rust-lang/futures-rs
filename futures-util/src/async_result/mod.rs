@@ -1,11 +1,9 @@
-//! Futures
+//! Asyncs
 //!
-//! This module contains a number of functions for working with `Future`s,
-//! including the `FutureExt` trait which adds methods to `Future` types.
+//! This module contains a number of functions for working with `Async`s,
+//! including the `AsyncExt` trait which adds methods to `Async` types.
 
-use core::mem::Pin;
-
-use futures_core::{task, Future, Poll};
+use futures_core::AsyncResult;
 
 // combinators
 mod and_then;
@@ -38,33 +36,9 @@ pub use self::err_into::ErrInto;
 pub use self::or_else::OrElse;
 pub use self::recover::Recover;
 
-impl<F, T, E> FutureResult for F
-    where F: Future<Output = Result<T, E>>
-{
-    type Item = T;
-    type Error = E;
-
-    fn poll_result(self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
-        self.poll(cx)
-    }
-}
-
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
-pub trait FutureResult {
-    /// The type of successful values yielded by this future
-    type Item;
-
-    /// The type of failures yielded by this future
-    type Error;
-
-    /// Poll this `FutureResult` as if it were a `Future`.
-    ///
-    /// This method is a stopgap for a compiler limitation that prevents us from
-    /// directly inheriting from the `Future` trait; in the future it won't be
-    /// needed.
-    fn poll_result(self: Pin<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
-
+pub trait AsyncResultExt: AsyncResult {
     /// Map this future's result to a different type, returning a new future of
     /// the resulting type.
     ///
@@ -96,7 +70,7 @@ pub trait FutureResult {
     /// # }
     /// ```
     ///
-    /// Calling `map` on an errored `Future` has no effect:
+    /// Calling `map` on an errored `Async` has no effect:
     ///
     /// ```
     /// # extern crate futures;
@@ -148,7 +122,7 @@ pub trait FutureResult {
     /// # }
     /// ```
     ///
-    /// Calling `map_err` on a successful `Future` has no effect:
+    /// Calling `map_err` on a successful `Async` has no effect:
     ///
     /// ```
     /// # extern crate futures;
@@ -207,7 +181,7 @@ pub trait FutureResult {
     /// provided is yielded the successful result of this future and returns
     /// another value which can be converted into a future.
     ///
-    /// Note that because `Result` implements the `IntoFuture` trait this method
+    /// Note that because `Result` implements the `IntoAsync` trait this method
     /// can also be useful for chaining fallible and serial computations onto
     /// the end of one future.
     ///
@@ -222,7 +196,7 @@ pub trait FutureResult {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future::{self, AsyncResult};
     ///
     /// # fn main() {
     /// let future_of_1 = future::ok::<u32, u32>(1);
@@ -231,14 +205,14 @@ pub trait FutureResult {
     /// });
     ///
     /// let future_of_err_1 = future::err::<u32, u32>(1);
-    /// future_of_err_1.and_then(|_| -> FutureResult<u32, u32> {
+    /// future_of_err_1.and_then(|_| -> AsyncResult<u32, u32> {
     ///     panic!("should not be called in case of an error");
     /// });
     /// # }
     /// ```
     fn and_then<B, F>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
-              B: FutureResult<Error = Self::Error>,
+              B: AsyncResult<Error = Self::Error>,
               Self: Sized,
     {
         and_then::new(self, f)
@@ -251,7 +225,7 @@ pub trait FutureResult {
     /// future it returns. The closure may also simply return a value that can
     /// be converted into a future.
     ///
-    /// Note that because `Result` implements the `IntoFuture` trait this method
+    /// Note that because `Result` implements the `IntoAsync` trait this method
     /// can also be useful for chaining together fallback computations, where
     /// when one fails, the next is attempted.
     ///
@@ -266,7 +240,7 @@ pub trait FutureResult {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future::{self, AsyncResult};
     ///
     /// # fn main() {
     /// let future_of_err_1 = future::err::<u32, u32>(1);
@@ -275,14 +249,14 @@ pub trait FutureResult {
     /// });
     ///
     /// let future_of_1 = future::ok::<u32, u32>(1);
-    /// future_of_1.or_else(|_| -> FutureResult<u32, u32> {
+    /// future_of_1.or_else(|_| -> AsyncResult<u32, u32> {
     ///     panic!("should not be called in case of success");
     /// });
     /// # }
     /// ```
     fn or_else<B, F>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B,
-              B: FutureResult<Item = Self::Item>,
+              B: AsyncResult<Item = Self::Item>,
               Self: Sized,
     {
         or_else::new(self, f)
@@ -312,12 +286,12 @@ pub trait FutureResult {
     ///
     /// // A poor-man's join implemented on top of select
     ///
-    /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
-    ///     where A: Future<Error = E> + 'static,
-    ///           B: Future<Error = E> + 'static,
+    /// fn join<A, B, E>(a: A, b: B) -> Box<Async<Item=(A::Item, B::Item), Error=E>>
+    ///     where A: Async<Error = E> + 'static,
+    ///           B: Async<Error = E> + 'static,
     ///           E: 'static,
     /// {
-    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
+    ///     Box::new(a.select(b).then(|res| -> Box<Async<Item=_, Error=_>> {
     ///         match res {
     ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
     ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
@@ -328,8 +302,8 @@ pub trait FutureResult {
     /// }
     /// # fn main() {}
     /// ```
-    fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture, Self: Sized
+    fn select<B>(self, other: B) -> Select<Self, B::Async>
+        where B: IntoAsync, Self: Sized
     {
         select::new(self, other.into_future())
     }
@@ -365,8 +339,8 @@ pub trait FutureResult {
     /// # }
     /// ```
     ///
-    /// If one or both of the joined `Future`s is errored, the resulting
-    /// `Future` will be errored:
+    /// If one or both of the joined `Async`s is errored, the resulting
+    /// `Async` will be errored:
     ///
     /// ```
     /// # extern crate futures;
@@ -383,8 +357,8 @@ pub trait FutureResult {
     /// assert_eq!(block_on(pair), Err(2));
     /// # }
     /// ```
-    fn join<B>(self, other: B) -> Join<Self, B::Future>
-        where B: IntoFuture<Error=Self::Error>,
+    fn join<B>(self, other: B) -> Join<Self, B::Async>
+        where B: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         let f = join::new(self, other.into_future());
@@ -392,9 +366,9 @@ pub trait FutureResult {
     }
 
     /// Same as `join`, but with more futures.
-    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
+    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Async, C::Async>
+        where B: IntoAsync<Error=Self::Error>,
+              C: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         join::new3(self, b.into_future(), c.into_future())
@@ -402,10 +376,10 @@ pub trait FutureResult {
 
     /// Same as `join`, but with more futures.
     fn join4<B, C, D>(self, b: B, c: C, d: D)
-                      -> Join4<Self, B::Future, C::Future, D::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
+                      -> Join4<Self, B::Async, C::Async, D::Async>
+        where B: IntoAsync<Error=Self::Error>,
+              C: IntoAsync<Error=Self::Error>,
+              D: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         join::new4(self, b.into_future(), c.into_future(), d.into_future())
@@ -413,11 +387,11 @@ pub trait FutureResult {
 
     /// Same as `join`, but with more futures.
     fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
-                         -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              E: IntoFuture<Error=Self::Error>,
+                         -> Join5<Self, B::Async, C::Async, D::Async, E::Async>
+        where B: IntoAsync<Error=Self::Error>,
+              C: IntoAsync<Error=Self::Error>,
+              D: IntoAsync<Error=Self::Error>,
+              E: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         join::new5(self, b.into_future(), c.into_future(), d.into_future(),

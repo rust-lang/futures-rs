@@ -3,26 +3,26 @@ use std::prelude::v1::*;
 use std::any::Any;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
-/// Future for the `catch_unwind` combinator.
+/// Async for the `catch_unwind` combinator.
 ///
-/// This is created by the `Future::catch_unwind` method.
+/// This is created by the `Async::catch_unwind` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct CatchUnwind<F> where F: Future {
+pub struct CatchUnwind<F> where F: Async {
     future: F,
 }
 
 pub fn new<F>(future: F) -> CatchUnwind<F>
-    where F: Future + UnwindSafe,
+    where F: Async + UnwindSafe,
 {
     CatchUnwind { future }
 }
 
-impl<F> Future for CatchUnwind<F>
-    where F: Future + UnwindSafe,
+impl<F> Async for CatchUnwind<F>
+    where F: Async + UnwindSafe,
 {
     type Output = Result<F::Output, Box<Any + Send>>;
 

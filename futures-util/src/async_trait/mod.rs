@@ -1,9 +1,9 @@
-//! Futures
+//! Asyncs
 //!
-//! This module contains a number of functions for working with `Future`s,
-//! including the `FutureExt` trait which adds methods to `Future` types.
+//! This module contains a number of functions for working with `Async`s,
+//! including the `AsyncExt` trait which adds methods to `Async` types.
 
-use futures_core::{Future, Stream};
+use futures_core::Async;
 // use futures_sink::Sink;
 
 // Primitive futures
@@ -17,9 +17,7 @@ pub use self::poll_fn::{poll_fn, PollFn};
 // combinators
 mod flatten;
 // mod flatten_sink;
-mod flatten_stream;
 mod fuse;
-mod into_stream;
 // mod join;
 mod map;
 // mod select;
@@ -31,9 +29,7 @@ mod chain;
 
 pub use self::flatten::Flatten;
 // pub use self::flatten_sink::FlattenSink;
-pub use self::flatten_stream::FlattenStream;
 pub use self::fuse::Fuse;
-pub use self::into_stream::IntoStream;
 // pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::map::Map;
 // pub use self::select::Select;
@@ -62,11 +58,11 @@ if_std! {
     pub use self::with_executor::WithExecutor;
 }
 
-impl<T: ?Sized> FutureExt for T where T: Future {}
+impl<T: ?Sized> AsyncExt for T where T: Async {}
 
-/// An extension trait for `Future`s that provides a variety of convenient
+/// An extension trait for `Async`s that provides a variety of convenient
 /// adapters.
-pub trait FutureExt: Future {
+pub trait AsyncExt: Async {
     /// Map this future's result to a different type, returning a new future of
     /// the resulting type.
     ///
@@ -103,7 +99,7 @@ pub trait FutureExt: Future {
     /// Chain on a computation for when a future finished, passing the result of
     /// the future to the provided closure `f`.
     ///
-    /// The returned value of the closure must implement the `Future` trait
+    /// The returned value of the closure must implement the `Async` trait
     /// and can represent some more work to be done before the composed future
     /// is finished.
     ///
@@ -127,7 +123,7 @@ pub trait FutureExt: Future {
     /// ```
     fn then<B, F>(self, f: F) -> Then<Self, B, F>
         where F: FnOnce(Self::Output) -> B,
-              B: Future,
+              B: Async,
               Self: Sized,
     {
         assert_future::<B::Output, _>(then::new(self, f))
@@ -157,12 +153,12 @@ pub trait FutureExt: Future {
     ///
     /// // A poor-man's join implemented on top of select
     ///
-    /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
-    ///     where A: Future<Error = E> + 'static,
-    ///           B: Future<Error = E> + 'static,
+    /// fn join<A, B, E>(a: A, b: B) -> Box<Async<Item=(A::Item, B::Item), Error=E>>
+    ///     where A: Async<Error = E> + 'static,
+    ///           B: Async<Error = E> + 'static,
     ///           E: 'static,
     /// {
-    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
+    ///     Box::new(a.select(b).then(|res| -> Box<Async<Item=_, Error=_>> {
     ///         match res {
     ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
     ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
@@ -173,8 +169,8 @@ pub trait FutureExt: Future {
     /// }
     /// # fn main() {}
     /// ```
-    fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture, Self: Sized
+    fn select<B>(self, other: B) -> Select<Self, B::Async>
+        where B: IntoAsync, Self: Sized
     {
         select::new(self, other.into_future())
     }
@@ -210,8 +206,8 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     ///
-    /// If one or both of the joined `Future`s is errored, the resulting
-    /// `Future` will be errored:
+    /// If one or both of the joined `Async`s is errored, the resulting
+    /// `Async` will be errored:
     ///
     /// ```
     /// # extern crate futures;
@@ -228,8 +224,8 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(pair), Err(2));
     /// # }
     /// ```
-    fn join<B>(self, other: B) -> Join<Self, B::Future>
-        where B: IntoFuture<Error=Self::Error>,
+    fn join<B>(self, other: B) -> Join<Self, B::Async>
+        where B: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         let f = join::new(self, other.into_future());
@@ -237,9 +233,9 @@ pub trait FutureExt: Future {
     }
 
     /// Same as `join`, but with more futures.
-    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
+    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Async, C::Async>
+        where B: IntoAsync<Error=Self::Error>,
+              C: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         join::new3(self, b.into_future(), c.into_future())
@@ -247,10 +243,10 @@ pub trait FutureExt: Future {
 
     /// Same as `join`, but with more futures.
     fn join4<B, C, D>(self, b: B, c: C, d: D)
-                      -> Join4<Self, B::Future, C::Future, D::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
+                      -> Join4<Self, B::Async, C::Async, D::Async>
+        where B: IntoAsync<Error=Self::Error>,
+              C: IntoAsync<Error=Self::Error>,
+              D: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         join::new4(self, b.into_future(), c.into_future(), d.into_future())
@@ -258,11 +254,11 @@ pub trait FutureExt: Future {
 
     /// Same as `join`, but with more futures.
     fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
-                         -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              E: IntoFuture<Error=Self::Error>,
+                         -> Join5<Self, B::Async, C::Async, D::Async, E::Async>
+        where B: IntoAsync<Error=Self::Error>,
+              C: IntoAsync<Error=Self::Error>,
+              D: IntoAsync<Error=Self::Error>,
+              E: IntoAsync<Error=Self::Error>,
               Self: Sized,
     {
         join::new5(self, b.into_future(), c.into_future(), d.into_future(),
@@ -295,7 +291,7 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
-        where B: Future<Output = Self::Output>,
+        where B: Async<Output = Self::Output>,
               Self: Sized
     {
         Either::Left(self)
@@ -325,37 +321,10 @@ pub trait FutureExt: Future {
     /// assert_eq!(false, block_on(future));
     /// # }
     fn right_future<A>(self) -> Either<A, Self>
-        where A: Future<Output = Self::Output>,
+        where A: Async<Output = Self::Output>,
               Self: Sized,
     {
         Either::Right(self)
-    }
-
-    /// Convert this future into a single element stream.
-    ///
-    /// The returned stream contains single success if this future resolves to
-    /// success or single error if this future resolves into error.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let future = future::ready::(17);
-    /// let stream = future.into_stream();
-    /// let collected: Vec<_> = block_on(stream.collect());
-    /// assert_eq!(collected, vec![17]);
-    /// # }
-    /// ```
-    fn into_stream(self) -> IntoStream<Self>
-        where Self: Sized
-    {
-        into_stream::new(self)
     }
 
     /// Flatten the execution of this future when the successful result of this
@@ -364,7 +333,7 @@ pub trait FutureExt: Future {
     /// This can be useful when combining futures together to flatten the
     /// computation out the final result. This method can only be called
     /// when the successful result of this future itself implements the
-    /// `IntoFuture` trait and the error can be created from this future's error
+    /// `IntoAsync` trait and the error can be created from this future's error
     /// type.
     ///
     /// This method is roughly equivalent to `self.and_then(|x| x)`.
@@ -388,11 +357,11 @@ pub trait FutureExt: Future {
     /// # }
     /// ```
     fn flatten(self) -> Flatten<Self>
-        where Self::Output: Future,
+        where Self::Output: Async,
         Self: Sized
     {
         let f = flatten::new(self);
-        assert_future::<<<Self as Future>::Output as Future>::Output, _>(f)
+        assert_future::<<<Self as Async>::Output as Async>::Output, _>(f)
     }
 
     /* TODO
@@ -406,48 +375,12 @@ pub trait FutureExt: Future {
     /// Note that this function consumes this future and returns a wrapped
     /// version of it.
     fn flatten_sink(self) -> FlattenSink<Self>
-        where <Self as Future>::Item: Sink<SinkError=Self::Error>,
+        where <Self as Async>::Item: Sink<SinkError=Self::Error>,
               Self: Sized
     {
         flatten_sink::new(self)
     }
      */
-
-    /// Flatten the execution of this future when the successful result of this
-    /// future is a stream.
-    ///
-    /// This can be useful when stream initialization is deferred, and it is
-    /// convenient to work with that stream as if stream was available at the
-    /// call site.
-    ///
-    /// Note that this function consumes this future and returns a wrapped
-    /// version of it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::stream;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let stream_items = vec![17, 18, 19];
-    /// let future_of_a_stream = future::ready(stream::iter_ok(stream_items));
-    ///
-    /// let stream = future_of_a_stream.flatten_stream();
-    /// let list: Vec<_> = block_on(stream.collect());
-    /// assert_eq!(list, vec![17, 18, 19]);
-    /// # }
-    /// ```
-    fn flatten_stream(self) -> FlattenStream<Self>
-        where Self::Output: Stream,
-              Self: Sized
-    {
-        flatten_stream::new(self)
-    }
 
     /// Fuse a future such that `poll` will never again be called once it has
     /// completed.
@@ -510,8 +443,8 @@ pub trait FutureExt: Future {
     /// Note that this method requires the `UnwindSafe` bound from the standard
     /// library. This isn't always applied automatically, and the standard
     /// library provides an `AssertUnwindSafe` wrapper type to apply it
-    /// after-the fact. To assist using this method, the `Future` trait is also
-    /// implemented for `AssertUnwindSafe<F>` where `F` implements `Future`.
+    /// after-the fact. To assist using this method, the `Async` trait is also
+    /// implemented for `AssertUnwindSafe<F>` where `F` implements `Async`.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
@@ -522,14 +455,14 @@ pub trait FutureExt: Future {
     /// # extern crate futures;
     /// # extern crate futures_executor;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future::{self, AsyncResult};
     /// use futures_executor::block_on;
     ///
     /// # fn main() {
     /// let mut future = future::ready(2);
     /// assert!(block_on(future.catch_unwind()).is_ok());
     ///
-    /// let mut future = future::lazy(|_| -> ReadyFuture<i32> {
+    /// let mut future = future::lazy(|_| -> ReadyAsync<i32> {
     ///     panic!();
     ///     future::ready(2)
     /// });
@@ -635,7 +568,7 @@ pub trait FutureExt: Future {
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
 fn assert_future<A, F>(t: F) -> F
-    where F: Future<Output=A>,
+    where F: Async<Output=A>,
 {
     t
 }

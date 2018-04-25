@@ -7,11 +7,11 @@ use std::fmt;
 use std::mem;
 use std::iter::FromIterator;
 
-use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::{Async, IntoAsync, Poll, Async};
 use futures_core::task;
 
 #[derive(Debug)]
-enum ElemState<F> where F: Future {
+enum ElemState<F> where F: Async {
     Pending(F),
     Done(F::Item),
 }
@@ -22,13 +22,13 @@ enum ElemState<F> where F: Future {
 /// This future is created with the `join_all` method.
 #[must_use = "futures do nothing unless polled"]
 pub struct JoinAll<F>
-    where F: Future,
+    where F: Async,
 {
     elems: Vec<ElemState<F>>,
 }
 
 impl<F> fmt::Debug for JoinAll<F>
-    where F: Future + fmt::Debug,
+    where F: Async + fmt::Debug,
           F::Item: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -77,9 +77,9 @@ impl<F> fmt::Debug for JoinAll<F>
 /// });
 /// # }
 /// ```
-pub fn join_all<I>(i: I) -> JoinAll<<I::Item as IntoFuture>::Future>
+pub fn join_all<I>(i: I) -> JoinAll<<I::Item as IntoAsync>::Async>
     where I: IntoIterator,
-          I::Item: IntoFuture,
+          I::Item: IntoAsync,
 {
     let elems = i.into_iter().map(|f| {
         ElemState::Pending(f.into_future())
@@ -87,8 +87,8 @@ pub fn join_all<I>(i: I) -> JoinAll<<I::Item as IntoFuture>::Future>
     JoinAll { elems }
 }
 
-impl<F> Future for JoinAll<F>
-    where F: Future,
+impl<F> Async for JoinAll<F>
+    where F: Async,
 {
     type Item = Vec<F::Item>;
     type Error = F::Error;
@@ -138,7 +138,7 @@ impl<F> Future for JoinAll<F>
     }
 }
 
-impl<F: IntoFuture> FromIterator<F> for JoinAll<F::Future> {
+impl<F: IntoAsync> FromIterator<F> for JoinAll<F::Async> {
     fn from_iter<T: IntoIterator<Item=F>>(iter: T) -> Self {
         join_all(iter)
     }

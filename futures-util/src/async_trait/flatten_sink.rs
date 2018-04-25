@@ -1,26 +1,26 @@
 use core::fmt;
 
-use futures_core::{task, Async, Future};
+use futures_core::{task, Async, Async};
 use futures_sink::Sink;
 
 #[derive(Debug)]
-enum State<F> where F: Future, <F as Future>::Item: Sink {
+enum State<F> where F: Async, <F as Async>::Item: Sink {
     Waiting(F),
     Ready(F::Item),
     Closed,
 }
 
-/// Future for the `flatten_sink` combinator, flattening a
+/// Async for the `flatten_sink` combinator, flattening a
 /// future-of-a-sink to get just the result of the final sink as a sink.
 ///
-/// This is created by the `Future::flatten_sink` method.
-pub struct FlattenSink<F> where F: Future, <F as Future>::Item: Sink {
+/// This is created by the `Async::flatten_sink` method.
+pub struct FlattenSink<F> where F: Async, <F as Async>::Item: Sink {
     st: State<F>
 }
 
 impl<F> fmt::Debug for FlattenSink<F>
-    where F: Future + fmt::Debug,
-          <F as Future>::Item: Sink<SinkError=F::Error> + fmt::Debug,
+    where F: Async + fmt::Debug,
+          <F as Async>::Item: Sink<SinkError=F::Error> + fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("FlattenStream")
@@ -29,9 +29,9 @@ impl<F> fmt::Debug for FlattenSink<F>
     }
 }
 
-impl<F> Sink for FlattenSink<F> where F: Future, <F as Future>::Item: Sink<SinkError=F::Error> {
-    type SinkItem = <<F as Future>::Item as Sink>::SinkItem;
-    type SinkError = <<F as Future>::Item as Sink>::SinkError;
+impl<F> Sink for FlattenSink<F> where F: Async, <F as Async>::Item: Sink<SinkError=F::Error> {
+    type SinkItem = <<F as Async>::Item as Sink>::SinkItem;
+    type SinkError = <<F as Async>::Item as Sink>::SinkError;
 
     fn poll_ready(&mut self, cx: &mut task::Context) -> Result<Async<()>, Self::SinkError> {
         let mut resolved_stream = match self.st {
@@ -73,7 +73,7 @@ impl<F> Sink for FlattenSink<F> where F: Future, <F as Future>::Item: Sink<SinkE
     }
 }
 
-pub fn new<F>(fut: F) -> FlattenSink<F> where F: Future, <F as Future>::Item: Sink {
+pub fn new<F>(fut: F) -> FlattenSink<F> where F: Async, <F as Async>::Item: Sink {
     FlattenSink {
         st: State::Waiting(fut)
     }

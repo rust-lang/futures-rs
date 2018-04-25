@@ -1,20 +1,20 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
-/// Future for the `map` combinator, changing the type of a future.
+/// Async for the `map` combinator, changing the type of a future.
 ///
-/// This is created by the `Future::map` method.
+/// This is created by the `Async::map` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Map<A, F> where A: Future {
+pub struct Map<A, F> where A: Async {
     future: A,
     f: Option<F>,
 }
 
 pub fn new<A, F>(future: A, f: F) -> Map<A, F>
-    where A: Future,
+    where A: Async,
 {
     Map {
         future: future,
@@ -22,8 +22,8 @@ pub fn new<A, F>(future: A, f: F) -> Map<A, F>
     }
 }
 
-impl<U, A, F> Future for Map<A, F>
-    where A: Future,
+impl<U, A, F> Async for Map<A, F>
+    where A: Async,
           F: FnOnce(A::Output) -> U,
 {
     type Output = U;

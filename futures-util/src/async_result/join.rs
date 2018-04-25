@@ -3,7 +3,7 @@
 use core::fmt;
 use core::mem;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Async, Poll, Async};
 use futures_core::task;
 
 macro_rules! generate {
@@ -14,18 +14,18 @@ macro_rules! generate {
         $(#[$doc])*
         #[must_use = "futures do nothing unless polled"]
         pub struct $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
+            where A: Async,
+                  $($B: Async<Error=A::Error>),*
         {
             a: MaybeDone<A>,
             $($B: MaybeDone<$B>,)*
         }
 
         impl<A, $($B),*> fmt::Debug for $Join<A, $($B),*>
-            where A: Future + fmt::Debug,
+            where A: Async + fmt::Debug,
                   A::Item: fmt::Debug,
                   $(
-                      $B: Future<Error=A::Error> + fmt::Debug,
+                      $B: Async<Error=A::Error> + fmt::Debug,
                       $B::Item: fmt::Debug
                   ),*
         {
@@ -38,8 +38,8 @@ macro_rules! generate {
         }
 
         pub fn $new<A, $($B),*>(a: A, $($B: $B),*) -> $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
+            where A: Async,
+                  $($B: Async<Error=A::Error>),*
         {
             $Join {
                 a: MaybeDone::NotYet(a),
@@ -48,8 +48,8 @@ macro_rules! generate {
         }
 
         impl<A, $($B),*> $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
+            where A: Async,
+                  $($B: Async<Error=A::Error>),*
         {
             fn erase(&mut self) {
                 self.a = MaybeDone::Gone;
@@ -57,9 +57,9 @@ macro_rules! generate {
             }
         }
 
-        impl<A, $($B),*> Future for $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
+        impl<A, $($B),*> Async for $Join<A, $($B),*>
+            where A: Async,
+                  $($B: Async<Error=A::Error>),*
         {
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
@@ -92,22 +92,22 @@ macro_rules! generate {
 
         // Incoherent-- add to futures-core when stable.
         /*
-        impl<A, $($B),*> IntoFuture for (A, $($B),*)
-            where A: IntoFuture,
+        impl<A, $($B),*> IntoAsync for (A, $($B),*)
+            where A: IntoAsync,
         $(
-            $B: IntoFuture<Error=A::Error>
+            $B: IntoAsync<Error=A::Error>
         ),*
         {
-            type Future = $Join<A::Future, $($B::Future),*>;
+            type Async = $Join<A::Async, $($B::Async),*>;
             type Item = (A::Item, $($B::Item),*);
             type Error = A::Error;
 
-            fn into_future(self) -> Self::Future {
+            fn into_future(self) -> Self::Async {
                 match self {
                     (a, $($B),+) => {
                         $new(
-                            IntoFuture::into_future(a),
-                            $(IntoFuture::into_future($B)),+
+                            IntoAsync::into_future(a),
+                            $(IntoAsync::into_future($B)),+
                         )
                     }
                 }
@@ -119,39 +119,39 @@ macro_rules! generate {
 }
 
 generate! {
-    /// Future for the `join` combinator, waiting for two futures to
+    /// Async for the `join` combinator, waiting for two futures to
     /// complete.
     ///
-    /// This is created by the `Future::join` method.
+    /// This is created by the `Async::join` method.
     (Join, new, <A, B>),
 
-    /// Future for the `join3` combinator, waiting for three futures to
+    /// Async for the `join3` combinator, waiting for three futures to
     /// complete.
     ///
-    /// This is created by the `Future::join3` method.
+    /// This is created by the `Async::join3` method.
     (Join3, new3, <A, B, C>),
 
-    /// Future for the `join4` combinator, waiting for four futures to
+    /// Async for the `join4` combinator, waiting for four futures to
     /// complete.
     ///
-    /// This is created by the `Future::join4` method.
+    /// This is created by the `Async::join4` method.
     (Join4, new4, <A, B, C, D>),
 
-    /// Future for the `join5` combinator, waiting for five futures to
+    /// Async for the `join5` combinator, waiting for five futures to
     /// complete.
     ///
-    /// This is created by the `Future::join5` method.
+    /// This is created by the `Async::join5` method.
     (Join5, new5, <A, B, C, D, E>),
 }
 
 #[derive(Debug)]
-enum MaybeDone<A: Future> {
+enum MaybeDone<A: Async> {
     NotYet(A),
     Done(A::Item),
     Gone,
 }
 
-impl<A: Future> MaybeDone<A> {
+impl<A: Async> MaybeDone<A> {
     fn poll(&mut self, cx: &mut task::Context) -> Result<bool, A::Error> {
         let res = match *self {
             MaybeDone::NotYet(ref mut a) => a.poll(cx)?,

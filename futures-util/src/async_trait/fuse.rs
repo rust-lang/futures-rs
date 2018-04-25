@@ -1,6 +1,6 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
 /// A future which "fuses" a future once it's been resolved.
@@ -9,20 +9,20 @@ use futures_core::task;
 /// has been resolved, but `Fuse` is always defined to return `Async::Pending`
 /// from `poll` after it has resolved successfully or returned an error.
 ///
-/// This is created by the `Future::fuse` method.
+/// This is created by the `Async::fuse` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Fuse<A: Future> {
+pub struct Fuse<A: Async> {
     future: Option<A>,
 }
 
-pub fn new<A: Future>(f: A) -> Fuse<A> {
+pub fn new<A: Async>(f: A) -> Fuse<A> {
     Fuse {
         future: Some(f),
     }
 }
 
-impl<A: Future> Future for Fuse<A> {
+impl<A: Async> Async for Fuse<A> {
     type Output = A::Output;
 
     fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Output> {

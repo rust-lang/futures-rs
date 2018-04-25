@@ -4,17 +4,17 @@
 use std::mem;
 use std::prelude::v1::*;
 
-use futures_core::{Future, IntoFuture, Poll, Async};
+use futures_core::{Async, IntoAsync, Poll, Async};
 use futures_core::task;
 
-/// Future for the `select_ok` combinator, waiting for one of any of a list of
+/// Async for the `select_ok` combinator, waiting for one of any of a list of
 /// futures to successfully complete. Unlike `select_all`, this future ignores all
 /// but the last error, if there are any.
 ///
 /// This is created by the `select_ok` function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SelectOk<A> where A: Future {
+pub struct SelectOk<A> where A: Async {
     inner: Vec<A>,
 }
 
@@ -28,9 +28,9 @@ pub struct SelectOk<A> where A: Future {
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.
-pub fn select_ok<I>(iter: I) -> SelectOk<<I::Item as IntoFuture>::Future>
+pub fn select_ok<I>(iter: I) -> SelectOk<<I::Item as IntoAsync>::Async>
     where I: IntoIterator,
-          I::Item: IntoFuture,
+          I::Item: IntoAsync,
 {
     let ret = SelectOk {
         inner: iter.into_iter()
@@ -41,7 +41,7 @@ pub fn select_ok<I>(iter: I) -> SelectOk<<I::Item as IntoFuture>::Future>
     ret
 }
 
-impl<A> Future for SelectOk<A> where A: Future {
+impl<A> Async for SelectOk<A> where A: Async {
     type Item = (A::Item, Vec<A>);
     type Error = A::Error;
 

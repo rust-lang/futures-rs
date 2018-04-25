@@ -4,7 +4,7 @@
 use core::mem::Pin;
 use core::marker::Unpin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
 /// A future which, when polled, invokes a closure and yields its result.
@@ -45,7 +45,7 @@ pub fn lazy<F, R>(f: F) -> Lazy<F>
     Lazy { f: Some(f) }
 }
 
-impl<R, F> Future for Lazy<F>
+impl<R, F> Async for Lazy<F>
     where F: FnOnce(&mut task::Context) -> R,
 {
     type Output = R;

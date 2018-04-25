@@ -1,6 +1,6 @@
 use core::mem::Pin;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
 #[must_use = "futures do nothing unless polled"]
@@ -11,8 +11,8 @@ pub enum Chain<Fut1, Fut2, Data> {
 }
 
 impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
-    where Fut1: Future,
-          Fut2: Future,
+    where Fut1: Async,
+          Fut2: Async,
 {
     pub fn new(fut1: Fut1, data: Data) -> Chain<Fut1, Fut2, Data> {
         Chain::First(fut1, Some(data))

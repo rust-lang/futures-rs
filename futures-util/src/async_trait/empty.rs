@@ -3,7 +3,7 @@
 use core::mem::Pin;
 use core::marker;
 
-use futures_core::{Future, Poll};
+use futures_core::{Async, Poll};
 use futures_core::task;
 
 /// A future which is never resolved.
@@ -23,7 +23,7 @@ pub fn empty<T>() -> Empty<T> {
     Empty { _data: marker::PhantomData }
 }
 
-impl<T> Future for Empty<T> {
+impl<T> Async for Empty<T> {
     type Output = T;
 
     fn poll(self: Pin<Self>, _: &mut task::Context) -> Poll<T> {
