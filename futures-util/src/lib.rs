@@ -15,7 +15,7 @@ extern crate futures_core;
 extern crate futures_executor;
 
 // extern crate futures_io;
-// extern crate futures_sink;
+extern crate futures_sink;
 
 extern crate either;
 
@@ -36,7 +36,7 @@ extern crate std;
 /*
 macro_rules! delegate_sink {
     ($field:ident) => {
-        fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_ready(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             self.$field.poll_ready(cx)
         }
 
@@ -44,11 +44,11 @@ macro_rules! delegate_sink {
             self.$field.start_send(item)
         }
 
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_flush(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             self.$field.poll_flush(cx)
         }
 
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+        fn poll_close(&mut self, cx: &mut task::Context) -> PollResult<(), Self::SinkError> {
             self.$field.poll_close(cx)
         }
 
@@ -61,7 +61,10 @@ macro_rules! delegate_sink {
 pub mod lock;
 #[cfg(all(feature = "std", not(any(test, feature = "bench"))))]
 mod lock;
-*/
+ */
+
+pub mod future;
+pub use future::FutureExt;
 
 pub mod async_trait;
 pub use async_trait::AsyncExt;

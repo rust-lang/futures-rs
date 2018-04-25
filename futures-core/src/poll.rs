@@ -38,6 +38,17 @@ impl<T> Poll<T> {
     }
 }
 
+impl<T, E> Poll<Result<T, E>> {
+    /// Convenience for with with a `PollResult` as a `Result`
+    pub fn ok(self) -> Result<Poll<T>, E> {
+        match self {
+            Poll::Pending => Ok(Poll::Pending),
+            Poll::Ready(Ok(t)) => Ok(Poll::Ready(t)),
+            Poll::Ready(Err(e)) => Err(e),
+        }
+    }
+}
+
 impl<T> From<T> for Poll<T> {
     fn from(t: T) -> Poll<T> {
         Poll::Ready(t)
@@ -47,7 +58,7 @@ impl<T> From<T> for Poll<T> {
 /// Shorthand for a `Poll<Result<_, _>>` value.
 pub type PollResult<T, E> = Poll<Result<T, E>>;
 
-/// A macro for extracting the successful type of a `Poll<T, E>`.
+/// A macro for extracting the successful type of a `PollResult<T, E>`.
 ///
 /// This macro bakes in propagation of *both* errors and `Pending` signals by
 /// returning early.
@@ -56,6 +67,19 @@ macro_rules! try_ready {
     ($e:expr) => (match $e {
         $crate::Poll::Pending => return $crate::Poll::Pending,
         $crate::Poll::Ready(Ok(t)) => t,
+        $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(From::from(e))),
+    })
+}
+
+/// A macro for extracting the successful type of a `PollResult<T, E>`.
+///
+/// This macro bakes in propagation of errors, but not `Pending` signals, by
+/// returning early.
+#[macro_export]
+macro_rules! try_poll {
+    ($e:expr) => (match $e {
+        $crate::Poll::Pending => $crate::Poll::Pending,
+        $crate::Poll::Ready(Ok(t)) => $crate::Poll::Ready(t),
         $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(From::from(e))),
     })
 }
