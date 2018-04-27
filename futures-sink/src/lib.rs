@@ -185,7 +185,7 @@ pub trait Sink {
     fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
 
     /// Begin the process of sending a value to the sink.
-    /// Each call to this function must be proceeded by a successful call to
+    /// Each call to this function must be preceded by a successful call to
     /// `poll_ready` which returned `Ok(Async::Ready(()))`.
     ///
     /// As the name suggests, this method only *begins* the process of sending
