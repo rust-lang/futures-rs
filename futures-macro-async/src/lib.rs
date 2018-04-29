@@ -525,8 +525,8 @@ if_nightly! {
 
     impl synom::Synom for AsyncArgs {
         named!(parse -> Self, map!(
-            option!(parens!(call!(Punctuated::<AsyncArg, syn::token::Comma>::parse_separated_nonempty))),
-            |p| AsyncArgs(p.map(|d| d.1.into_iter().collect()).unwrap_or_default())
+            call!(Punctuated::<AsyncArg, syn::token::Comma>::parse_separated),
+            |p| AsyncArgs(p.into_iter().collect())
         ));
     }
 
@@ -546,8 +546,8 @@ if_nightly! {
 
     impl synom::Synom for AsyncStreamArgs {
         named!(parse -> Self, map!(
-            option!(parens!(call!(Punctuated::<AsyncStreamArg, syn::token::Comma>::parse_separated_nonempty))),
-            |p| AsyncStreamArgs(p.map(|d| d.1.into_iter().collect()).unwrap_or_default())
+            call!(Punctuated::<AsyncStreamArg, syn::token::Comma>::parse_separated),
+            |p| AsyncStreamArgs(p.into_iter().collect())
         ));
     }
 }
