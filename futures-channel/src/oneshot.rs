@@ -1,6 +1,5 @@
 //! A channel for sending a single message between asynchronous tasks.
 
-use std::mem::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
@@ -419,11 +418,13 @@ impl<T> Receiver<T> {
     }
 }
 
-impl<T> Future for Receiver<T> {
-    type Output = Result<T, Canceled>;
+unpinned! {
+    impl<T> Future for Receiver<T> {
+        type Output = Result<T, Canceled>;
 
-    fn poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
-        self.inner.recv(cx)
+        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
+            self.inner.recv(cx)
+        }
     }
 }
 
