@@ -16,6 +16,7 @@ extern crate std;
 #[cfg(feature = "either")]
 extern crate either;
 
+#[macro_use]
 extern crate parse_generics_shim;
 
 macro_rules! if_std {
@@ -43,30 +44,6 @@ macro_rules! pinned_field {
     )
 }
 
-mod poll;
-pub use poll::Poll;
-
-pub mod future;
-pub use future::Future;
-
-pub mod stream;
-pub use stream::Stream;
-
-pub mod task;
-
-pub mod executor;
-
-/// Standin for the currently-unstable `std::marker::Unpin` trait
-#[cfg(not(feature = "nightly"))]
-pub unsafe trait Unpin {}
-#[cfg(not(feature = "nightly"))]
-mod impls;
-
-#[cfg(feature = "nightly")]
-pub use core::marker::Unpin;
-#[cfg(feature = "nightly")]
-mod impls_nightly;
-
 #[allow(unused_imports)]
 use parse_generics_shim::*;
 
@@ -83,8 +60,8 @@ macro_rules! unpinned {
     });
 
     (@parse_for
-        { constr: [ $($constr:tt)* ], },
-        $trait:ident for $t:ty where $($tail:tt)*
+     { constr: [ $($constr:tt)* ], },
+     $trait:ident for $t:ty where $($tail:tt)*
     ) => (parse_where_shim! {
         { clause, preds },
         then unpinned_emit!(
@@ -96,7 +73,7 @@ macro_rules! unpinned {
     });
 
     (@parse_for
-        { constr: [ $($constr:tt)* ], },
+     { constr: [ $($constr:tt)* ], },
      $trait:ident for $t:ty { $($body:tt)* }
     ) => (unpinned_emit! {
         trait: $trait,
@@ -171,6 +148,33 @@ macro_rules! unpinned_emit {
         unsafe impl<$($constr)*> $crate::Unpin for $t {}
         impl<$($constr)*> $trait for $t $($clause)* {
             $($body)*
+
+            fn __must_impl_via_unpinned_macro() {}
         }
     )
 }
+
+
+mod poll;
+pub use poll::Poll;
+
+pub mod future;
+pub use future::Future;
+
+pub mod stream;
+pub use stream::Stream;
+
+pub mod task;
+
+pub mod executor;
+
+/// Standin for the currently-unstable `std::marker::Unpin` trait
+#[cfg(not(feature = "nightly"))]
+pub unsafe trait Unpin {}
+#[cfg(not(feature = "nightly"))]
+mod impls;
+
+#[cfg(feature = "nightly")]
+pub use core::marker::Unpin;
+#[cfg(feature = "nightly")]
+mod impls_nightly;

@@ -19,6 +19,8 @@ impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {
     {
         (*self).poll_mut(cx)
     }
+
+    fn __must_impl_via_unpinned_macro() {}
 }
 
 impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
@@ -27,6 +29,8 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
     fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         (**self).poll_next_mut(cx)
     }
+
+    fn __must_impl_via_unpinned_macro() {}
 }
 
 impl<T: Future + Unpin> Future for Option<T> {
@@ -45,6 +49,8 @@ impl<T: Future + Unpin> Future for Option<T> {
         *self = None;
         Poll::Ready(output)
     }
+
+    fn __must_impl_via_unpinned_macro() {}
 }
 
 if_std! {
@@ -56,6 +62,8 @@ if_std! {
         fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
             (**self).poll_mut(cx)
         }
+
+        fn __must_impl_via_unpinned_macro() {}
     }
 
     impl<'a, F: Future + Unpin> Future for ::std::panic::AssertUnwindSafe<F> {
@@ -64,6 +72,8 @@ if_std! {
         fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
             self.0.poll_mut(cx)
         }
+
+        fn __must_impl_via_unpinned_macro() {}
     }
 
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
@@ -72,6 +82,8 @@ if_std! {
         fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
             (**self).poll_next_mut(cx)
         }
+
+        fn __must_impl_via_unpinned_macro() {}
     }
 
     impl<S: Stream + Unpin> Stream for ::std::panic::AssertUnwindSafe<S> {
@@ -80,6 +92,8 @@ if_std! {
         fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>> {
             self.0.poll_next_mut(cx)
         }
+
+        fn __must_impl_via_unpinned_macro() {}
     }
 }
 
@@ -96,6 +110,8 @@ impl<A, B> Future for Either<A, B>
             Either::Right(ref mut b) => b.poll_mut(cx),
         }
     }
+
+    fn __must_impl_via_unpinned_macro() {}
 }
 
 #[cfg(feature = "either")]
@@ -111,4 +127,6 @@ impl<A, B> Stream for Either<A, B>
             Either::Right(ref mut b) => b.poll_next_mut(cx),
         }
     }
+
+    fn __must_impl_via_unpinned_macro() {}
 }

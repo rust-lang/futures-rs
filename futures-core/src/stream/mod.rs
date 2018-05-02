@@ -86,4 +86,8 @@ pub trait Stream {
     #[cfg(not(feature = "nightly"))]
     fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
         where Self: Unpin;
+
+    #[cfg(not(feature = "nightly"))]
+    #[doc(hidden)]
+    fn __must_impl_via_unpinned_macro();
 }

@@ -112,7 +112,6 @@ pub trait Future {
         Pin::new(self).poll(cx)
     }
 
-
     /// Attempt to resolve the future to a final value, registering
     /// the current task for wakeup if the value is not yet available.
     ///
@@ -176,6 +175,10 @@ pub trait Future {
     /// a little bit of extra cost.
     #[cfg(not(feature = "nightly"))]
     fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin;
+
+    #[cfg(not(feature = "nightly"))]
+    #[doc(hidden)]
+    fn __must_impl_via_unpinned_macro();
 }
 
 /// A convenience for futures that return `Result` values.
@@ -227,19 +230,13 @@ impl<F, T, E> TryFuture for F
 #[must_use = "futures do nothing unless polled"]
 pub struct ReadyFuture<T>(Option<T>);
 
-unsafe impl<T> Unpin for ReadyFuture<T> {}
+unpinned! {
+    impl<T> Future for ReadyFuture<T> {
+        type Output = T;
 
-impl<T> Future for ReadyFuture<T> {
-    type Output = T;
-
-    #[cfg(feature = "nightly")]
-    fn poll(mut self: Pin<Self>, _cx: &mut task::Context) -> Poll<T> {
-        Poll::Ready(self.0.take().unwrap())
-    }
-
-    #[cfg(not(feature = "nightly"))]
-    fn poll_mut(&mut self, _cx: &mut task::Context) -> Poll<T> {
-        Poll::Ready(self.0.take().unwrap())
+        fn poll_mut(&mut self, _cx: &mut task::Context) -> Poll<T> {
+            Poll::Ready(self.0.take().unwrap())
+        }
     }
 }
 
