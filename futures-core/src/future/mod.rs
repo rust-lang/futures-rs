@@ -3,9 +3,7 @@
 #[cfg(feature = "nightly")]
 use core::mem::Pin;
 
-use Unpin;
-use Poll;
-use task;
+use {Unpin, Poll, task};
 
 /// A future represents an asychronous computation.
 ///

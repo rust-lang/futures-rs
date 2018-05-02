@@ -12,8 +12,11 @@
 #[macro_use]
 #[cfg(feature = "std")]
 extern crate std;
+
 #[cfg(feature = "either")]
 extern crate either;
+
+extern crate parse_generics_shim;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -63,3 +66,111 @@ mod impls;
 pub use core::marker::Unpin;
 #[cfg(feature = "nightly")]
 mod impls_nightly;
+
+#[allow(unused_imports)]
+use parse_generics_shim::*;
+
+#[macro_export]
+macro_rules! unpinned {
+    (impl $($tail:tt)*) => (unpinned! {
+        @parse_generics $($tail)*
+    });
+
+    (@parse_generics $($toks:tt)*) => (parse_generics_shim! {
+        { constr },
+        then unpinned!(@parse_for),
+        $($toks)*
+    });
+
+    (@parse_for
+        { constr: [ $($constr:tt)* ], },
+        $trait:ident for $t:ty where $($tail:tt)*
+    ) => (parse_where_shim! {
+        { clause, preds },
+        then unpinned_emit!(
+            trait: $trait,
+            ty: $t,
+            constr: [ $($constr)* ],
+        ),
+        where $($tail)*
+    });
+
+    (@parse_for
+        { constr: [ $($constr:tt)* ], },
+     $trait:ident for $t:ty { $($body:tt)* }
+    ) => (unpinned_emit! {
+        trait: $trait,
+        ty: $t,
+        constr: [ $($constr)* ],
+        {
+            clause: [],
+            preds: [],
+        },
+        { $($body)* }
+    });
+
+}
+
+#[macro_export]
+#[cfg(feature = "nightly")]
+macro_rules! unpinned_emit {
+    (
+        trait: Future,
+        ty: $t:ty,
+        constr: [ $($constr:tt)* ],
+        {
+            clause: [ $($clause:tt)* ],
+            preds: [ $($preds:tt)* ],
+        },
+        { $($body:tt)* }
+    ) => (
+        unsafe impl<$($constr)*> $crate::Unpin for $t {}
+        impl<$($constr)*> Future for $t $($clause)* {
+            $($body)*
+
+            fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+                self.poll_mut(cx)
+            }
+        }
+    );
+
+    (
+        trait: Stream,
+        ty: $t:ty,
+        constr: [ $($constr:tt)* ],
+        {
+            clause: [ $($clause:tt)* ],
+            preds: [ $($preds:tt)* ],
+        },
+        { $($body:tt)* }
+    ) => (
+        unsafe impl<$($constr)*> $crate::Unpin for $t {}
+        impl<$($constr)*> Stream for $t $($clause)* {
+            $($body)*
+
+            fn poll_next(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+                self.poll_next_mut(cx)
+            }
+        }
+    );
+}
+
+#[macro_export]
+#[cfg(not(feature = "nightly"))]
+macro_rules! unpinned_emit {
+    (
+        trait: $trait:ident,
+        ty: $t:ty,
+        constr: [ $($constr:tt)* ],
+        {
+            clause: [ $($clause:tt)* ],
+            preds: [ $($preds:tt)* ],
+        },
+        { $($body:tt)* }
+    ) => (
+        unsafe impl<$($constr)*> $crate::Unpin for $t {}
+        impl<$($constr)*> $trait for $t $($clause)* {
+            $($body)*
+        }
+    )
+}
