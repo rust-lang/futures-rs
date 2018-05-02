@@ -64,7 +64,8 @@ macro_rules! unpinned {
      $trait:ident for $t:ty where $($tail:tt)*
     ) => (parse_where_shim! {
         { clause, preds },
-        then unpinned_emit!(
+        then unpinned!(
+            @emit
             trait: $trait,
             ty: $t,
             constr: [ $($constr)* ],
@@ -75,7 +76,8 @@ macro_rules! unpinned {
     (@parse_for
      { constr: [ $($constr:tt)* ], },
      $trait:ident for $t:ty { $($body:tt)* }
-    ) => (unpinned_emit! {
+    ) => (unpinned! {
+        @emit
         trait: $trait,
         ty: $t,
         constr: [ $($constr)* ],
@@ -86,12 +88,7 @@ macro_rules! unpinned {
         { $($body)* }
     });
 
-}
-
-#[macro_export]
-#[cfg(feature = "nightly")]
-macro_rules! unpinned_emit {
-    (
+    (@emit
         trait: Future,
         ty: $t:ty,
         constr: [ $($constr:tt)* ],
@@ -105,13 +102,11 @@ macro_rules! unpinned_emit {
         impl<$($constr)*> Future for $t $($clause)* {
             $($body)*
 
-            fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-                self.poll_mut(cx)
-            }
+                unpinned_poll!();
         }
     );
 
-    (
+    (@emit
         trait: Stream,
         ty: $t:ty,
         constr: [ $($constr:tt)* ],
@@ -125,35 +120,46 @@ macro_rules! unpinned_emit {
         impl<$($constr)*> Stream for $t $($clause)* {
             $($body)*
 
-            fn poll_next(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-                self.poll_next_mut(cx)
-            }
+                unpinned_poll_next!();
         }
     );
 }
 
 #[macro_export]
-#[cfg(not(feature = "nightly"))]
-macro_rules! unpinned_emit {
-    (
-        trait: $trait:ident,
-        ty: $t:ty,
-        constr: [ $($constr:tt)* ],
-        {
-            clause: [ $($clause:tt)* ],
-            preds: [ $($preds:tt)* ],
-        },
-        { $($body:tt)* }
-    ) => (
-        unsafe impl<$($constr)*> $crate::Unpin for $t {}
-        impl<$($constr)*> $trait for $t $($clause)* {
-            $($body)*
-
-            fn __must_impl_via_unpinned_macro() {}
+#[cfg(feature = "nightly")]
+macro_rules! unpinned_poll {
+    () => (
+        fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+            self.poll_mut(cx)
         }
     )
 }
 
+#[macro_export]
+#[cfg(not(feature = "nightly"))]
+macro_rules! unpinned_poll {
+    () => (
+        fn __must_impl_via_unpinned_macro() {}
+    )
+}
+
+#[macro_export]
+#[cfg(feature = "nightly")]
+macro_rules! unpinned_poll_next {
+    () => (
+        fn poll_next(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+            self.poll_next_mut(cx)
+        }
+    )
+}
+
+#[macro_export]
+#[cfg(not(feature = "nightly"))]
+macro_rules! unpinned_poll_next {
+    () => (
+        fn __must_impl_via_unpinned_macro() {}
+    )
+}
 
 mod poll;
 pub use poll::Poll;

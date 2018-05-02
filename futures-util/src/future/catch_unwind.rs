@@ -1,4 +1,3 @@
-use std::mem::Pin;
 use std::prelude::v1::*;
 use std::any::Any;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
@@ -6,12 +5,15 @@ use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 use futures_core::{Future, Poll};
 use futures_core::task;
 
+#[cfg(feature = "nightly")]
+use std::mem::Pin;
+
 /// Future for the `catch_unwind` combinator.
 ///
 /// This is created by the `Future::catch_unwind` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct CatchUnwind<F> where F: Future {
+pub struct CatchUnwind<F> {
     future: F,
 }
 
@@ -21,6 +23,7 @@ pub fn new<F>(future: F) -> CatchUnwind<F>
     CatchUnwind { future }
 }
 
+#[cfg(feature = "nightly")]
 impl<F> Future for CatchUnwind<F>
     where F: Future + UnwindSafe,
 {
@@ -31,6 +34,23 @@ impl<F> Future for CatchUnwind<F>
         match catch_unwind(AssertUnwindSafe(|| fut.poll(cx))) {
             Ok(res) => res.map(Ok),
             Err(e) => Poll::Ready(Err(e))
+        }
+    }
+}
+
+#[cfg(not(feature = "nightly"))]
+unpinned! {
+    impl<F> Future for CatchUnwind<F>
+        where F: Future + UnwindSafe + ::futures_core::Unpin,
+    {
+        type Output = Result<F::Output, Box<Any + Send>>;
+
+        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+            let fut = &mut self.future;
+            match catch_unwind(AssertUnwindSafe(|| fut.poll_mut(cx))) {
+                Ok(res) => res.map(Ok),
+                Err(e) => Poll::Ready(Err(e))
+            }
         }
     }
 }

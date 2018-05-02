@@ -1,7 +1,8 @@
-use core::mem::Pin;
-
 use futures_core::{Future, Poll};
 use futures_core::task;
+
+#[cfg(feature = "nightly")]
+use core::mem::Pin;
 
 /// A future which "fuses" a future once it's been resolved.
 ///
@@ -22,6 +23,7 @@ pub fn new<A: Future>(f: A) -> Fuse<A> {
     }
 }
 
+#[cfg(feature = "nightly")]
 impl<A: Future> Future for Fuse<A> {
     type Output = A::Output;
 
@@ -41,5 +43,26 @@ impl<A: Future> Future for Fuse<A> {
         // safety: we use this &mut only for a replacement, which drops the future in place
         unsafe { Pin::get_mut(&mut self) }.future = None;
         Poll::Ready(v)
+    }
+}
+
+#[cfg(not(feature = "nightly"))]
+unpinned! {
+    impl<A: Future + ::futures_core::Unpin> Future for Fuse<A> {
+        type Output = A::Output;
+
+        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
+            let v = match self.future {
+                Some(ref mut fut) => {
+                    match fut.poll_mut(cx) {
+                        Poll::Pending => return Poll::Pending,
+                        Poll::Ready(v) => v
+                    }
+                }
+                None => return Poll::Pending,
+            };
+            self.future = None;
+            Poll::Ready(v)
+        }
     }
 }

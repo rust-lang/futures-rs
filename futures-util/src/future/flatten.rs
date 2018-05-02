@@ -1,5 +1,4 @@
 use core::fmt;
-use core::mem::Pin;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -12,7 +11,7 @@ use super::chain::Chain;
 ///
 /// This is created by the `Future::flatten` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct Flatten<A> where A: Future, A::Output: Future {
+pub struct Flatten<A: Future> {
     state: Chain<A, A::Output, ()>,
 }
 
@@ -36,13 +35,31 @@ pub fn new<A>(future: A) -> Flatten<A>
     }
 }
 
+#[cfg(feature = "nightly")]
 impl<A> Future for Flatten<A>
     where A: Future,
           A::Output: Future,
 {
     type Output = <A::Output as Future>::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         unsafe { pinned_field!(self, state) }.poll(cx, |a, ()| a)
     }
 }
+
+#[cfg(not(feature = "nightly"))]
+impl<A> Future for Flatten<A>
+    where A: Future + ::futures_core::Unpin,
+          A::Output: Future + ::futures_core::Unpin,
+{
+    type Output = <A::Output as Future>::Output;
+
+    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+        self.state.poll_mut(cx, |a, ()| a)
+    }
+
+    unpinned_poll!();
+}
+
+#[cfg(not(feature = "nightly"))]
+unsafe impl<A: Future> ::futures_core::Unpin for Flatten<A> {}

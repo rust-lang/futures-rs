@@ -1,8 +1,10 @@
 use core::fmt;
-use core::mem::Pin;
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
+
+#[cfg(feature = "nightly")]
+use core::mem::Pin;
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.
@@ -38,6 +40,7 @@ enum State<F: Future> {
     Stream(F::Output),
 }
 
+#[cfg(feature = "nightly")]
 impl<F> Stream for FlattenStream<F>
     where F: Future,
           F::Output: Stream,
@@ -79,3 +82,42 @@ impl<F> Stream for FlattenStream<F>
         }
     }
 }
+
+
+#[cfg(not(feature = "nightly"))]
+impl<F> Stream for FlattenStream<F>
+    where F: Future + ::futures_core::Unpin,
+          F::Output: Stream + ::futures_core::Unpin,
+{
+    type Item = <F::Output as Stream>::Item;
+
+    fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        loop {
+            let stream = match self.state {
+                State::Future(ref mut f) => {
+                    match f.poll_mut(cx) {
+                        Poll::Pending => {
+                            // State is not changed, early return.
+                            return Poll::Pending
+                        },
+                        Poll::Ready(stream) => {
+                            // Future resolved to stream.
+                            // We do not return, but poll that
+                            // stream in the next loop iteration.
+                            stream
+                        }
+                    }
+                }
+                State::Stream(ref mut s) => {
+                    return s.poll_next_mut(cx);
+                }
+            };
+            self.state = State::Stream(stream)
+        }
+    }
+
+    unpinned_poll_next!();
+}
+
+#[cfg(not(feature = "nightly"))]
+unsafe impl<F: Future> ::futures_core::Unpin for FlattenStream<F> {}

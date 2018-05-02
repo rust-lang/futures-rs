@@ -1,6 +1,5 @@
 //! Definition of the Empty combinator, a future that's never ready.
 
-use core::mem::Pin;
 use core::marker;
 
 use futures_core::{Future, Poll};
@@ -23,10 +22,12 @@ pub fn empty<T>() -> Empty<T> {
     Empty { _data: marker::PhantomData }
 }
 
-impl<T> Future for Empty<T> {
-    type Output = T;
+unpinned! {
+    impl<T> Future for Empty<T> {
+        type Output = T;
 
-    fn poll(self: Pin<Self>, _: &mut task::Context) -> Poll<T> {
-        Poll::Pending
+        fn poll_mut(&mut self, _: &mut task::Context) -> Poll<T> {
+            Poll::Pending
+        }
     }
 }
