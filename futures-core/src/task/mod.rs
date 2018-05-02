@@ -1,6 +1,6 @@
 //! Task notification.
 
-use core::mem::{self, Pin};
+use core::mem;
 use core::fmt;
 
 use {Future, Poll};
@@ -100,6 +100,7 @@ impl Drop for TaskObj {
 if_std! {
     use std::boxed::Box;
 
+    #[cfg(feature = "nightly")]
     unsafe impl<F: Future<Output = ()> + Send + 'static> UnsafePoll for Box<F> {
         fn into_raw(self) -> *mut () {
             unsafe {
@@ -109,8 +110,29 @@ if_std! {
 
         unsafe fn poll(task: *mut (), cx: &mut Context) -> Poll<()> {
             let ptr: *mut F = mem::transmute(task);
-            let pin: Pin<F> = Pin::new_unchecked(&mut *ptr);
+            let pin: mem::Pin<F> = mem::Pin::new_unchecked(&mut *ptr);
             pin.poll(cx)
+        }
+
+        unsafe fn drop(task: *mut ()) {
+            let ptr: *mut F = mem::transmute(task);
+            let boxed = Box::from_raw(ptr);
+            drop(boxed)
+        }
+    }
+
+    #[cfg(not(feature = "nightly"))]
+    unsafe impl<F: Future<Output = ()> + Send + 'static + ::Unpin> UnsafePoll for Box<F> {
+        fn into_raw(self) -> *mut () {
+            unsafe {
+                mem::transmute(self)
+            }
+        }
+
+        unsafe fn poll(task: *mut (), cx: &mut Context) -> Poll<()> {
+            let ptr: *mut F = mem::transmute(task);
+            let fut: &mut F = &mut *ptr;
+            fut.poll_mut(cx)
         }
 
         unsafe fn drop(task: *mut ()) {
@@ -122,7 +144,14 @@ if_std! {
 
     impl TaskObj {
         /// Create a new `TaskObj` by boxing the given future.
+        #[cfg(feature = "nightly")]
         pub fn new<F: Future<Output = ()> + Send + 'static>(f: F) -> TaskObj {
+            TaskObj::from_poll_task(Box::new(f))
+        }
+
+        /// Create a new `TaskObj` by boxing the given future.
+        #[cfg(not(feature = "nightly"))]
+        pub fn new<F: Future<Output = ()> + Send + 'static + ::Unpin>(f: F) -> TaskObj {
             TaskObj::from_poll_task(Box::new(f))
         }
     }

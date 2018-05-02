@@ -1,9 +1,9 @@
 //! Asynchronous streams.
 
+#[cfg(feature = "nightly")]
 use core::mem::Pin;
 
-use Poll;
-use task;
+use {Poll, task, Unpin};
 
 /// A stream of values produced asynchronously.
 ///
@@ -45,54 +45,45 @@ pub trait Stream {
     /// calls to `poll_next` may result in a panic or other "bad behavior".  If this
     /// is difficult to guard against then the `fuse` adapter can be used to
     /// ensure that `poll_next` always returns `Ready(None)` in subsequent calls.
+    #[cfg(feature = "nightly")]
     fn poll_next(self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>>;
-}
 
-impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
-    type Item = S::Item;
-
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-        unsafe { pinned_deref!(self).poll_next(cx) }
-    }
-}
-
-if_std! {
-    use std::boxed::{Box, PinBox};
-    use std::marker::Unpin;
-
-    impl<S: ?Sized + Stream> Stream for Box<S> {
-        type Item = S::Item;
-
-        fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-            unsafe { pinned_deref!(self).poll_next(cx) }
-        }
+    /// A convenience for `poll_next` when a stream is `Unpin`.
+    #[cfg(feature = "nightly")]
+    fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
+        where Self: Unpin
+    {
+        Pin::new(self).poll_next(cx)
     }
 
-    impl<S: ?Sized + Stream> Stream for PinBox<S> {
-        type Item = S::Item;
-
-        fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-            unsafe {
-                let this = PinBox::get_mut(Pin::get_mut(&mut self));
-                let re_pinned = Pin::new_unchecked(this);
-                re_pinned.poll_next(cx)
-            }
-        }
-    }
-
-    impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
-        type Item = S::Item;
-
-        fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
-            unsafe { pinned_field!(self, 0).poll_next(cx) }
-        }
-    }
-
-    impl<T: Unpin> Stream for ::std::collections::VecDeque<T> {
-        type Item = T;
-
-        fn poll_next(mut self: Pin<Self>, _cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-            Poll::Ready(self.pop_front())
-        }
-    }
+    /// Attempt to pull out the next value of this stream, registering the
+    /// current task for wakeup if the value is not yet available, and returning
+    /// `None` if the stream is exhausted.
+    ///
+    /// # Return value
+    ///
+    /// There are several possible return values, each indicating a distinct
+    /// stream state:
+    ///
+    /// - [`Pending`](::Poll) means that this stream's next value is not ready
+    /// yet. Implementations will ensure that the current task will be notified
+    /// when the next value may be ready.
+    ///
+    /// - [`Ready(Some(val))`](::Poll) means that the stream has successfully
+    /// produced a value, `val`, and may produce further values on subsequent
+    /// `poll_next_mut` calls.
+    ///
+    /// - [`Ready(None)`](::Poll) means that the stream has terminated, and
+    /// `poll_next_mut` should not be invoked again.
+    ///
+    /// # Panics
+    ///
+    /// Once a stream is finished, i.e. `Ready(None)` has been returned, further
+    /// calls to `poll_next_mut` may result in a panic or other "bad behavior".
+    /// If this is difficult to guard against then the `fuse` adapter can be
+    /// used to ensure that `poll_next_mut` always returns `Ready(None)` in
+    /// subsequent calls.
+    #[cfg(not(feature = "nightly"))]
+    fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
+        where Self: Unpin;
 }

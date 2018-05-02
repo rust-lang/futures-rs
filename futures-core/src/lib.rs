@@ -1,6 +1,6 @@
 //! Core traits and types for asynchronous operations in Rust.
 
-#![feature(pin, arbitrary_self_types)]
+#![cfg_attr(feature = "nightly", feature(pin, arbitrary_self_types, specialization))]
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
@@ -52,3 +52,14 @@ pub use stream::Stream;
 pub mod task;
 
 pub mod executor;
+
+/// Standin for the currently-unstable `std::marker::Unpin` trait
+#[cfg(not(feature = "nightly"))]
+pub unsafe trait Unpin {}
+#[cfg(not(feature = "nightly"))]
+mod impls;
+
+#[cfg(feature = "nightly")]
+pub use core::marker::Unpin;
+#[cfg(feature = "nightly")]
+mod impls_nightly;
