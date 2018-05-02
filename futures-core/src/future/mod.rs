@@ -180,6 +180,50 @@ pub trait Future {
     fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin;
 }
 
+/// A convenience for futures that return `Result` values.
+pub trait TryFuture {
+    /// The type of successful values yielded by this future
+    type Item;
+
+    /// The type of failures yielded by this future
+    type Error;
+
+    /// Poll this `TryFuture` as if it were a `Future`.
+    ///
+    /// This method is a stopgap for a compiler limitation that prevents us from
+    /// directly inheriting from the `Future` trait; eventually it won't be
+    /// needed.
+    #[cfg(feature = "nightly")]
+    fn try_poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
+
+    /// Poll this `TryFuture` as if it were a `Future`.
+    ///
+    /// This method is a stopgap for a compiler limitation that prevents us from
+    /// directly inheriting from the `Future` trait; eventually it won't be
+    /// needed.
+    fn try_poll_mut(&mut self, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>
+        where Self: Unpin;
+}
+
+impl<F, T, E> TryFuture for F
+    where F: Future<Output = Result<T, E>>
+{
+    type Item = T;
+    type Error = E;
+
+    #[cfg(feature = "nightly")]
+    fn try_poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+        self.poll(cx)
+    }
+
+    fn try_poll_mut(&mut self, cx: &mut task::Context) -> Poll<F::Output>
+        where Self: Unpin
+    {
+        self.poll_mut(cx)
+    }
+}
+
+
 /// A future that is immediately ready with a value
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless polled"]
