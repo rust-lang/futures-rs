@@ -209,7 +209,7 @@ pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
 
 /// Turn a stream into a blocking iterator.
 ///
-/// Whne `next` is called on the resulting `BlockingStream`, the caller
+/// When `next` is called on the resulting `BlockingStream`, the caller
 /// will be blocked until the next element of the `Stream` becomes available.
 /// The default executor for the future is a global `ThreadPool`.
 pub fn block_on_stream<S: Stream>(s: S) -> BlockingStream<S> {
