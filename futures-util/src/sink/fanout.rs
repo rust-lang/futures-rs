@@ -8,6 +8,7 @@ use futures_sink::{ Sink};
 ///
 /// Backpressure from any downstream sink propagates up, which means that this sink
 /// can only process items as fast as its _slowest_ downstream sink.
+#[derive(Clone)]
 pub struct Fanout<A: Sink, B: Sink> {
     left: A,
     right: B

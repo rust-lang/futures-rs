@@ -3,7 +3,7 @@ use futures_core::task;
 use futures_sink::{Sink};
 
 /// Sink for the `Sink::sink_map_err` combinator.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct SinkMapErr<S, F> {
     sink: S,
