@@ -7,7 +7,7 @@ use futures_sink::{Sink};
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
 /// to pushing a value into the underlying sink.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct With<S, U, Fut, F>
     where S: Sink,
@@ -20,7 +20,7 @@ pub struct With<S, U, Fut, F>
     _phantom: PhantomData<fn(U)>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum State<Fut, T> {
     Empty,
     Process(Fut),

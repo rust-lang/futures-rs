@@ -6,7 +6,7 @@ use sink::{SinkExt, SinkMapErr};
 /// A sink combinator to change the error type of a sink.
 ///
 /// This is created by the `Sink::err_into` method.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SinkErrInto<S: Sink, E> {
     sink: SinkMapErr<S, fn(S::SinkError) -> E>,
