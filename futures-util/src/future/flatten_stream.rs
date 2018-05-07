@@ -95,7 +95,7 @@ impl<F> Stream for FlattenStream<F>
         loop {
             let stream = match self.state {
                 State::Future(ref mut f) => {
-                    match f.poll_mut(cx) {
+                    match f.poll_unpin(cx) {
                         Poll::Pending => {
                             // State is not changed, early return.
                             return Poll::Pending

@@ -44,7 +44,7 @@ impl<T, F> Future for PollFn<F>
 {
     type Output = T;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<T> {
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<T> {
         (self.inner)(cx)
     }
 

@@ -54,8 +54,8 @@ impl<A> Future for Flatten<A>
 {
     type Output = <A::Output as Future>::Output;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.state.poll_mut(cx, |a, ()| a)
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+        self.state.poll_unpin(cx, |a, ()| a)
     }
 
     unpinned_poll!();

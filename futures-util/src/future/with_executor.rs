@@ -46,9 +46,9 @@ unpinned! {
     {
         type Output = F::Output;
 
-        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<F::Output> {
+        fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<F::Output> {
             let exec = &mut self.executor;
-            self.future.poll_mut(&mut cx.with_executor(exec))
+            self.future.poll_unpin(&mut cx.with_executor(exec))
         }
     }
 }

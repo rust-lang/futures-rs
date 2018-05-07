@@ -51,10 +51,10 @@ unpinned! {
     impl<A: Future + ::futures_core::Unpin> Future for Fuse<A> {
         type Output = A::Output;
 
-        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
+        fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
             let v = match self.future {
                 Some(ref mut fut) => {
-                    match fut.poll_mut(cx) {
+                    match fut.poll_unpin(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(v) => v
                     }

@@ -37,8 +37,8 @@ impl<A, B, F> Future for Then<A, B, F>
 {
     type Output = B::Output;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<B::Output> {
-        self.state.poll_mut(cx, |a, f| f(a))
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<B::Output> {
+        self.state.poll_unpin(cx, |a, f| f(a))
     }
 
     unpinned_poll!();

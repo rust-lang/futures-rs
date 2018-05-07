@@ -132,7 +132,7 @@ if_std! {
         unsafe fn poll(task: *mut (), cx: &mut Context) -> Poll<()> {
             let ptr: *mut F = mem::transmute(task);
             let fut: &mut F = &mut *ptr;
-            fut.poll_mut(cx)
+            fut.poll_unpin(cx)
         }
 
         unsafe fn drop(task: *mut ()) {

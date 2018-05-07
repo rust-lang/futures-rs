@@ -130,7 +130,7 @@ macro_rules! unpinned {
 macro_rules! unpinned_poll {
     () => (
         fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            self.poll_mut(cx)
+            self.poll_unpin(cx)
         }
     )
 }

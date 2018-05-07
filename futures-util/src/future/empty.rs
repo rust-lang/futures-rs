@@ -26,7 +26,7 @@ unpinned! {
     impl<T> Future for Empty<T> {
         type Output = T;
 
-        fn poll_mut(&mut self, _: &mut task::Context) -> Poll<T> {
+        fn poll_unpin(&mut self, _: &mut task::Context) -> Poll<T> {
             Poll::Pending
         }
     }

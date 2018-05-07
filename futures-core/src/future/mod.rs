@@ -108,7 +108,7 @@ pub trait Future {
 
     /// A convenience for calling `poll` when a future implements `Unpin`.
     #[cfg(feature = "nightly")]
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin {
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin {
         Pin::new(self).poll(cx)
     }
 
@@ -174,7 +174,7 @@ pub trait Future {
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
     #[cfg(not(feature = "nightly"))]
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin;
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin;
 
     #[cfg(not(feature = "nightly"))]
     #[doc(hidden)]
@@ -202,7 +202,7 @@ pub trait TryFuture {
     /// This method is a stopgap for a compiler limitation that prevents us from
     /// directly inheriting from the `Future` trait; eventually it won't be
     /// needed.
-    fn try_poll_mut(&mut self, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>
+    fn try_poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>
         where Self: Unpin;
 }
 
@@ -217,10 +217,10 @@ impl<F, T, E> TryFuture for F
         self.poll(cx)
     }
 
-    fn try_poll_mut(&mut self, cx: &mut task::Context) -> Poll<F::Output>
+    fn try_poll_unpin(&mut self, cx: &mut task::Context) -> Poll<F::Output>
         where Self: Unpin
     {
-        self.poll_mut(cx)
+        self.poll_unpin(cx)
     }
 }
 
@@ -234,7 +234,7 @@ unpinned! {
     impl<T> Future for ReadyFuture<T> {
         type Output = T;
 
-        fn poll_mut(&mut self, _cx: &mut task::Context) -> Poll<T> {
+        fn poll_unpin(&mut self, _cx: &mut task::Context) -> Poll<T> {
             Poll::Ready(self.0.take().unwrap())
         }
     }

@@ -49,8 +49,8 @@ impl<U, A, F> Future for Map<A, F>
 {
     type Output = U;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<U> {
-        let e = match self.future.poll_mut(cx) {
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<U> {
+        let e = match self.future.poll_unpin(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };

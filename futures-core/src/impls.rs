@@ -14,10 +14,10 @@ unsafe impl<T: Unpin, U: Unpin> Unpin for Either<T, U> {}
 impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {
     type Output = F::Output;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
         where &'a mut F: Unpin
     {
-        (*self).poll_mut(cx)
+        (*self).poll_unpin(cx)
     }
 
     fn __must_impl_via_unpinned_macro() {}
@@ -36,10 +36,10 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
 impl<T: Future + Unpin> Future for Option<T> {
     type Output = Option<T::Output>;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
         let output = match *self {
             Some(ref mut fut) => {
-                match fut.poll_mut(cx) {
+                match fut.poll_unpin(cx) {
                     Poll::Ready(x) => Some(x),
                     Poll::Pending => return Poll::Pending,
                 }
@@ -59,8 +59,8 @@ if_std! {
     impl<'a, F: ?Sized + Future + Unpin> Future for Box<F> {
         type Output = F::Output;
 
-        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
-            (**self).poll_mut(cx)
+        fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+            (**self).poll_unpin(cx)
         }
 
         fn __must_impl_via_unpinned_macro() {}
@@ -69,8 +69,8 @@ if_std! {
     impl<'a, F: Future + Unpin> Future for ::std::panic::AssertUnwindSafe<F> {
         type Output = F::Output;
 
-        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
-            self.0.poll_mut(cx)
+        fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+            self.0.poll_unpin(cx)
         }
 
         fn __must_impl_via_unpinned_macro() {}
@@ -104,10 +104,10 @@ impl<A, B> Future for Either<A, B>
 {
     type Output = A::Output;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
         match *self {
-            Either::Left(ref mut a) => a.poll_mut(cx),
-            Either::Right(ref mut b) => b.poll_mut(cx),
+            Either::Left(ref mut a) => a.poll_unpin(cx),
+            Either::Right(ref mut b) => b.poll_unpin(cx),
         }
     }
 

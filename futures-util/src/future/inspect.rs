@@ -48,8 +48,8 @@ impl<A, F> Future for Inspect<A, F>
 {
     type Output = A::Output;
 
-    fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
-        let e = match self.future.poll_mut(cx) {
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<A::Output> {
+        let e = match self.future.poll_unpin(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };

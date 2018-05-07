@@ -62,7 +62,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
     where Fut1: Future + ::futures_core::Unpin,
           Fut2: Future + ::futures_core::Unpin,
 {
-    pub fn poll_mut<F>(&mut self, cx: &mut task::Context, f: F) -> Poll<Fut2::Output>
+    pub fn poll_unpin<F>(&mut self, cx: &mut task::Context, f: F) -> Poll<Fut2::Output>
         where F: FnOnce(Fut1::Output, Data) -> Fut2,
     {
         let mut f = Some(f);
@@ -70,7 +70,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
         loop {
             let fut2 = match *self {
                 Chain::First(ref mut fut1, ref mut data) => {
-                    match fut1.poll_mut(cx) {
+                    match fut1.poll_unpin(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(t) => {
                             (f.take().unwrap())(t, data.take().unwrap())
@@ -78,7 +78,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
                     }
                 }
                 Chain::Second(ref mut fut2) => {
-                    return fut2.poll_mut(cx)
+                    return fut2.poll_unpin(cx)
                 }
             };
 

@@ -45,9 +45,9 @@ unpinned! {
     {
         type Output = Result<F::Output, Box<Any + Send>>;
 
-        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> {
             let fut = &mut self.future;
-            match catch_unwind(AssertUnwindSafe(|| fut.poll_mut(cx))) {
+            match catch_unwind(AssertUnwindSafe(|| fut.poll_unpin(cx))) {
                 Ok(res) => res.map(Ok),
                 Err(e) => Poll::Ready(Err(e))
             }

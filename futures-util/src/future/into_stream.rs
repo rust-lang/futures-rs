@@ -49,7 +49,7 @@ unpinned! {
         fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
             let v = match self.future {
                 Some(ref mut fut) => {
-                    match fut.poll_mut(cx) {
+                    match fut.poll_unpin(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(v) => v
                     }

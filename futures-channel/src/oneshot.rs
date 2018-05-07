@@ -422,7 +422,7 @@ unpinned! {
     impl<T> Future for Receiver<T> {
         type Output = Result<T, Canceled>;
 
-        fn poll_mut(&mut self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
+        fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
             self.inner.recv(cx)
         }
     }
