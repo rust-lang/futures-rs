@@ -3,7 +3,7 @@
 //!
 //! Similarly to the `std`, channel creation provides [`Receiver`](Receiver) and
 //! [`Sender`](Sender) handles. [`Receiver`](Receiver) implements
-//! [`Stream`](futures_core::Stream) and allows a task to read values out of the
+//! [`Stream`] and allows a task to read values out of the
 //! channel. If there is no message to read from the channel, the current task
 //! will be awoken when a new value is sent. [`Sender`](Sender) implements the
 //! `Sink` trait and allows a task to send messages into
@@ -333,7 +333,7 @@ impl SenderWaker {
 /// `buffer` "first come, first serve" slots available to all senders.
 ///
 /// The [`Receiver`](Receiver) returned implements the
-/// [`Stream`](futures_core::Stream) trait, while [`Sender`](Sender) implements
+/// [`Stream`] trait, while [`Sender`](Sender) implements
 /// `Sink`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer
