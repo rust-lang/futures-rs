@@ -39,12 +39,12 @@ macro_rules! await {
         let future = &mut future;
         // The above borrow is necessary to force a borrow across a
         // yield point, proving that we're currently in an immovable
-        // generator, making the below `Pin::new_unchecked` call
+        // generator, making the below `PinMut::new_unchecked` call
         // safe.
         loop {
             let poll = ::futures::__rt::in_ctx(|ctx| {
                 let pin = unsafe {
-                    ::futures::__rt::std::mem::Pin::new_unchecked(future)
+                    ::futures::__rt::std::mem::PinMut::new_unchecked(future)
                 };
                 ::futures::__rt::StableFuture::poll(pin, ctx)
             });
