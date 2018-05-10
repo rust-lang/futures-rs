@@ -126,7 +126,7 @@ pub mod executor {
     //! # use futures::future::{Future, lazy};
     //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|_| Ok(())));
     //!
-    //! // assumping `my_app: Future`
+    //! // assuming `my_app: Future`
     //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
     //! ```
     //!
@@ -138,7 +138,7 @@ pub mod executor {
     //!
     //! There are two ways to spawn a task:
     //!
-    //! - Spawn onto a "default" execuctor by calling the top-level
+    //! - Spawn onto a "default" executor by calling the top-level
     //! [`spawn`](::executor::spawn) function or [pulling the executor from the
     //! task context](::task::Context::executor).
     //!
