@@ -1,22 +1,41 @@
 use {task, Future, Stream, Poll};
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 #[cfg(feature = "either")]
 use either::Either;
 
-impl<'a, F: ?Sized + Future> Future for &'a mut F {
+impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {
     type Output = F::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        unsafe { pinned_deref!(self).poll(cx) }
+        F::poll(PinMut::new(&mut **self), cx)
     }
 }
 
-impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
+impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
     type Item = S::Item;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-        unsafe { pinned_deref!(self).poll_next(cx) }
+        S::poll_next(PinMut::new(&mut **self), cx)
+    }
+}
+
+impl<'a, F: ?Sized + Future> Future for PinMut<'a, F> {
+    type Output = F::Output;
+
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let inner: PinMut<F> = (*self).reborrow();
+        F::poll(inner, cx)
+    }
+}
+
+impl<'a, S: ?Sized + Stream> Stream for PinMut<'a, S> {
+    type Item = S::Item;
+
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        let inner: PinMut<S> = (*self).reborrow();
+        S::poll_next(inner, cx)
     }
 }
 
