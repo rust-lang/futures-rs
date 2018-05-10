@@ -110,7 +110,7 @@ if_std! {
 
         unsafe fn poll(task: *mut (), cx: &mut Context) -> Poll<()> {
             let ptr: *mut F = mem::transmute(task);
-            let pin: mem::Pin<F> = mem::Pin::new_unchecked(&mut *ptr);
+            let pin: mem::PinMut<F> = mem::PinMut::new_unchecked(&mut *ptr);
             pin.poll(cx)
         }
 

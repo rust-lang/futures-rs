@@ -6,7 +6,7 @@ use futures_core::{Future, Poll};
 use futures_core::task;
 
 #[cfg(feature = "nightly")]
-use std::mem::Pin;
+use std::mem::PinMut;
 
 /// Future for the `catch_unwind` combinator.
 ///
@@ -29,7 +29,7 @@ impl<F> Future for CatchUnwind<F>
 {
     type Output = Result<F::Output, Box<Any + Send>>;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let fut = unsafe { pinned_field!(self, future) };
         match catch_unwind(AssertUnwindSafe(|| fut.poll(cx))) {
             Ok(res) => res.map(Ok),

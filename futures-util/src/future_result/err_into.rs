@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 use core::marker::PhantomData;
 
 use futures_core::{Future, Poll};
@@ -29,7 +29,7 @@ impl<A, E> Future for ErrInto<A, E>
 {
     type Output = Result<A::Item, E>;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match unsafe { pinned_field!(self, future) }.poll_result(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {

@@ -29,8 +29,9 @@ macro_rules! if_std {
 #[macro_export]
 macro_rules! pinned_deref {
     ($e:expr) => (
-        ::core::mem::Pin::new_unchecked(
-            &mut **::core::mem::Pin::get_mut(&mut $e)
+        ::core::mem::PinMut::new_unchecked(
+            &mut **::core::mem::PinMut::get_mut(
+                ::core::mem::PinMut::reborrow(&mut $e))
         )
     )
 }
@@ -38,8 +39,9 @@ macro_rules! pinned_deref {
 #[macro_export]
 macro_rules! pinned_field {
     ($e:expr, $f:tt) => (
-        ::core::mem::Pin::new_unchecked(
-            &mut ::core::mem::Pin::get_mut(&mut $e).$f
+        ::core::mem::PinMut::new_unchecked(
+            &mut ::core::mem::PinMut::get_mut(
+                ::core::mem::PinMut::reborrow(&mut $e)).$f
         )
     )
 }
@@ -129,7 +131,7 @@ macro_rules! unpinned {
 #[cfg(feature = "nightly")]
 macro_rules! unpinned_poll {
     () => (
-        fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: ::core::mem::PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             self.poll_unpin(cx)
         }
     )
@@ -147,7 +149,7 @@ macro_rules! unpinned_poll {
 #[cfg(feature = "nightly")]
 macro_rules! unpinned_poll_next {
     () => (
-        fn poll_next(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: ::core::mem::PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
             self.poll_next_mut(cx)
         }
     )

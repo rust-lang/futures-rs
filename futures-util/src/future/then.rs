@@ -24,7 +24,7 @@ impl<A, B, F> Future for Then<A, B, F>
 {
     type Output = B::Output;
 
-    fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<B::Output> {
+    fn poll(mut self: ::core::mem::PinMut<Self>, cx: &mut task::Context) -> Poll<B::Output> {
         unsafe { pinned_field!(self, state) }.poll(cx, |a, f| f(a))
     }
 }

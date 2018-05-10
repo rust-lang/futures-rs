@@ -42,7 +42,7 @@ impl<A> Future for Flatten<A>
 {
     type Output = <A::Output as Future>::Output;
 
-    fn poll(mut self: ::core::mem::Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: ::core::mem::PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         unsafe { pinned_field!(self, state) }.poll(cx, |a, ()| a)
     }
 }

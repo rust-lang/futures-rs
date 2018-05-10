@@ -2,7 +2,7 @@ use futures_core::{Future, Poll};
 use futures_core::task;
 
 #[cfg(feature = "nightly")]
-use core::mem::Pin;
+use core::mem::PinMut;
 
 /// Do something with the item of a future, passing it on.
 ///
@@ -27,14 +27,14 @@ impl<A, F> Future for Inspect<A, F>
 {
     type Output = A::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
         let e = match unsafe { pinned_field!(self, future) }.poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };
 
         let f = unsafe {
-            Pin::get_mut(&mut self).f.take().expect("cannot poll Inspect twice")
+            PinMut::get_mut(self).f.take().expect("cannot poll Inspect twice")
         };
         f(&e);
         Poll::Ready(e)

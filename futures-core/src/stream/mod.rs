@@ -1,7 +1,7 @@
 //! Asynchronous streams.
 
 #[cfg(feature = "nightly")]
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use {Poll, task, Unpin};
 
@@ -46,14 +46,14 @@ pub trait Stream {
     /// is difficult to guard against then the `fuse` adapter can be used to
     /// ensure that `poll_next` always returns `Ready(None)` in subsequent calls.
     #[cfg(feature = "nightly")]
-    fn poll_next(self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>>;
+    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>>;
 
     /// A convenience for `poll_next` when a stream is `Unpin`.
     #[cfg(feature = "nightly")]
     fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
         where Self: Unpin
     {
-        Pin::new(self).poll_next(cx)
+        PinMut::new(self).poll_next(cx)
     }
 
     /// Attempt to pull out the next value of this stream, registering the

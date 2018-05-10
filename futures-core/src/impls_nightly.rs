@@ -1,5 +1,5 @@
 use {task, Future, Stream, Poll};
-use core::mem::Pin;
+use core::mem::PinMut;
 
 #[cfg(feature = "either")]
 use either::Either;
@@ -7,7 +7,7 @@ use either::Either;
 impl<'a, F: ?Sized + Future> Future for &'a mut F {
     type Output = F::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         unsafe { pinned_deref!(self).poll(cx) }
     }
 }
@@ -15,7 +15,7 @@ impl<'a, F: ?Sized + Future> Future for &'a mut F {
 impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
     type Item = S::Item;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         unsafe { pinned_deref!(self).poll_next(cx) }
     }
 }
@@ -23,17 +23,17 @@ impl<'a, S: ?Sized + Stream> Stream for &'a mut S {
 impl<T: Future> Future for Option<T> {
     type Output = Option<T::Output>;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        let output = match *unsafe { Pin::get_mut(&mut self) } {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let output = match *unsafe { PinMut::get_mut(self.reborrow()) } {
             Some(ref mut fut) => {
-                match unsafe { Pin::new_unchecked(fut) }.poll(cx) {
+                match unsafe { PinMut::new_unchecked(fut) }.poll(cx) {
                     Poll::Ready(x) => Some(x),
                     Poll::Pending => return Poll::Pending,
                 }
             }
             None => None
         };
-        unsafe { *Pin::get_mut(&mut self) = None };
+        unsafe { *PinMut::get_mut(self) = None };
         Poll::Ready(output)
     }
 }
@@ -44,7 +44,7 @@ if_std! {
     impl<'a, F: ?Sized + Future> Future for Box<F> {
         type Output = F::Output;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             unsafe { pinned_deref!(self).poll(cx) }
         }
     }
@@ -52,19 +52,15 @@ if_std! {
     impl<'a, F: ?Sized + Future> Future for PinBox<F> {
         type Output = F::Output;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            unsafe {
-                let this = PinBox::get_mut(Pin::get_mut(&mut self));
-                let re_pinned = Pin::new_unchecked(this);
-                re_pinned.poll(cx)
-            }
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+            self.as_pin_mut().poll(cx)
         }
     }
 
     impl<'a, F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
         type Output = F::Output;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             unsafe { pinned_field!(self, 0).poll(cx) }
         }
     }
@@ -73,7 +69,7 @@ if_std! {
     impl<S: ?Sized + Stream> Stream for Box<S> {
         type Item = S::Item;
 
-        fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
             unsafe { pinned_deref!(self).poll_next(cx) }
         }
     }
@@ -81,19 +77,15 @@ if_std! {
     impl<S: ?Sized + Stream> Stream for PinBox<S> {
         type Item = S::Item;
 
-        fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-            unsafe {
-                let this = PinBox::get_mut(Pin::get_mut(&mut self));
-                let re_pinned = Pin::new_unchecked(this);
-                re_pinned.poll_next(cx)
-            }
+        fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+            self.as_pin_mut().poll_next(cx)
         }
     }
 
     impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 
-        fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
             unsafe { pinned_field!(self, 0).poll_next(cx) }
         }
     }
@@ -106,11 +98,11 @@ impl<A, B> Future for Either<A, B>
 {
     type Output = A::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
         unsafe {
-            match *(Pin::get_mut(&mut self)) {
-                Either::Left(ref mut a) => Pin::new_unchecked(a).poll(cx),
-                Either::Right(ref mut b) => Pin::new_unchecked(b).poll(cx),
+            match *(PinMut::get_mut(self)) {
+                Either::Left(ref mut a) => PinMut::new_unchecked(a).poll(cx),
+                Either::Right(ref mut b) => PinMut::new_unchecked(b).poll(cx),
             }
         }
     }
@@ -123,11 +115,11 @@ impl<A, B> Stream for Either<A, B>
 {
     type Item = A::Item;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<A::Item>> {
+    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<A::Item>> {
         unsafe {
-            match *(Pin::get_mut(&mut self)) {
-                Either::Left(ref mut a) => Pin::new_unchecked(a).poll_next(cx),
-                Either::Right(ref mut b) => Pin::new_unchecked(b).poll_next(cx),
+            match *(PinMut::get_mut(self)) {
+                Either::Left(ref mut a) => PinMut::new_unchecked(a).poll_next(cx),
+                Either::Right(ref mut b) => PinMut::new_unchecked(b).poll_next(cx),
             }
         }
     }

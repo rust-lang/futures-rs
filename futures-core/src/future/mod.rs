@@ -1,7 +1,7 @@
 //! Futures.
 
 #[cfg(feature = "nightly")]
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use {Unpin, Poll, task};
 
@@ -104,12 +104,12 @@ pub trait Future {
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
     #[cfg(feature = "nightly")]
-    fn poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output>;
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output>;
 
     /// A convenience for calling `poll` when a future implements `Unpin`.
     #[cfg(feature = "nightly")]
     fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output> where Self: Unpin {
-        Pin::new(self).poll(cx)
+        PinMut::new(self).poll(cx)
     }
 
     /// Attempt to resolve the future to a final value, registering
@@ -195,7 +195,7 @@ pub trait TryFuture {
     /// directly inheriting from the `Future` trait; eventually it won't be
     /// needed.
     #[cfg(feature = "nightly")]
-    fn try_poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
+    fn try_poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
 
     /// Poll this `TryFuture` as if it were a `Future`.
     ///
@@ -213,7 +213,7 @@ impl<F, T, E> TryFuture for F
     type Error = E;
 
     #[cfg(feature = "nightly")]
-    fn try_poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+    fn try_poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
         self.poll(cx)
     }
 

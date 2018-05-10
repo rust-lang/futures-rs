@@ -4,7 +4,7 @@ use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 #[cfg(feature = "nightly")]
-use core::mem::Pin;
+use core::mem::PinMut;
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.
@@ -47,14 +47,14 @@ impl<F> Stream for FlattenStream<F>
 {
     type Item = <F::Output as Stream>::Item;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
             // safety: data is never moved via the resulting &mut reference
-            let stream = match unsafe { Pin::get_mut(&mut self) }.state {
+            let stream = match unsafe { PinMut::get_mut(self.reborrow()) }.state {
                 State::Future(ref mut f) => {
                     // safety: the future we're re-pinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    match unsafe { Pin::new_unchecked(f) }.poll(cx) {
+                    match unsafe { PinMut::new_unchecked(f) }.poll(cx) {
                         Poll::Pending => {
                             // State is not changed, early return.
                             return Poll::Pending
@@ -70,14 +70,14 @@ impl<F> Stream for FlattenStream<F>
                 State::Stream(ref mut s) => {
                     // safety: the stream we're repinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    return unsafe { Pin::new_unchecked(s) }.poll_next(cx);
+                    return unsafe { PinMut::new_unchecked(s) }.poll_next(cx);
                 }
             };
 
             unsafe {
                 // safety: we use the &mut only for an assignment, which causes
                 // only an in-place drop
-                Pin::get_mut(&mut self).state = State::Stream(stream);
+                PinMut::get_mut(self.reborrow()).state = State::Stream(stream);
             }
         }
     }

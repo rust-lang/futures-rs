@@ -2,7 +2,7 @@ use futures_core::{Future, Poll};
 use futures_core::task;
 
 #[cfg(feature = "nightly")]
-use core::mem::Pin;
+use core::mem::PinMut;
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -29,14 +29,14 @@ impl<U, A, F> Future for Map<A, F>
 {
     type Output = U;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<U> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<U> {
         let e = match unsafe { pinned_field!(self, future) }.poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };
 
         let f = unsafe {
-            Pin::get_mut(&mut self).f.take().expect("cannot poll Map twice")
+            PinMut::get_mut(self).f.take().expect("cannot poll Map twice")
         };
         Poll::Ready(f(e))
     }

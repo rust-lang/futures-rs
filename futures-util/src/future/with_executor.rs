@@ -3,7 +3,7 @@ use futures_core::task;
 use futures_core::executor::Executor;
 
 #[cfg(feature = "nightly")]
-use core::mem::Pin;
+use core::mem::PinMut;
 
 /// Future for the `with_executor` combinator, assigning an executor
 /// to be used when spawning other futures.
@@ -30,9 +30,9 @@ impl<F, E> Future for WithExecutor<F, E>
 {
     type Output = F::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
-        let this = unsafe { Pin::get_mut(&mut self) };
-        let fut = unsafe { Pin::new_unchecked(&mut this.future) };
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+        let this = unsafe { PinMut::get_mut(self) };
+        let fut = unsafe { PinMut::new_unchecked(&mut this.future) };
         let exec = &mut this.executor;
         fut.poll(&mut cx.with_executor(exec))
     }
