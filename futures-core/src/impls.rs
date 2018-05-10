@@ -66,6 +66,7 @@ if_std! {
         fn __must_impl_via_unpinned_macro() {}
     }
 
+    unsafe impl<T: Unpin> Unpin for ::std::panic::AssertUnwindSafe<T> {}
     impl<'a, F: Future + Unpin> Future for ::std::panic::AssertUnwindSafe<F> {
         type Output = F::Output;
 

@@ -103,9 +103,7 @@ if_std! {
     #[cfg(feature = "nightly")]
     unsafe impl<F: Future<Output = ()> + Send + 'static> UnsafePoll for Box<F> {
         fn into_raw(self) -> *mut () {
-            unsafe {
-                mem::transmute(self)
-            }
+            Box::into_raw(self) as *mut ()
         }
 
         unsafe fn poll(task: *mut (), cx: &mut Context) -> Poll<()> {
@@ -115,9 +113,7 @@ if_std! {
         }
 
         unsafe fn drop(task: *mut ()) {
-            let ptr: *mut F = mem::transmute(task);
-            let boxed = Box::from_raw(ptr);
-            drop(boxed)
+            drop(Box::from_raw(task as *mut F))
         }
     }
 
