@@ -1,4 +1,4 @@
-use std::mem::Pin;
+use std::mem::PinMut;
 use std::ops::{Generator, GeneratorState};
 use std::marker::{PhantomData, Unpin};
 
@@ -37,13 +37,13 @@ impl<U, T> StableStream for GenStableStream<U, T>
     type Item = U;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll_next(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
+            let this: &mut Self = unsafe { PinMut::get_mut(self) };
             if this.done { return Ok(Async::Ready(None)) }
             // This is an immovable generator, but since we're only accessing
-            // it via a Pin this is safe.
+            // it via a PinMut this is safe.
             match unsafe { this.gen.resume() } {
                 GeneratorState::Yielded(Async::Ready(e)) => {
                     Ok(Async::Ready(Some(e)))

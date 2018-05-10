@@ -20,7 +20,7 @@ if_nightly! {
     extern crate futures_core;
     extern crate futures_executor;
 
-    use core::mem::Pin;
+    use core::mem::PinMut;
     use futures_core::{Future, Stream, Poll, task};
 
     if_std! {
@@ -37,7 +37,7 @@ if_nightly! {
 
     /// A trait for `Future`s which can be pinned to a particular location in memory.
     ///
-    /// These futures take `self` by `Pin<Self>`, rather than `&mut Self`.
+    /// These futures take `self` by `PinMut<Self>`, rather than `&mut Self`.
     /// This allows types which are not [`Unpin`](::std::marker::Unpin) to guarantee
     /// that they won't be moved after being polled. Since they won't be moved, it's
     /// possible for them to safely contain references to themselves.
@@ -56,10 +56,10 @@ if_nightly! {
         /// Attempt to resolve the future to a final value, registering the current task
         /// for wakeup if the value is not yet available.
         ///
-        /// This method takes `self` by `Pin`, and so calling it requires putting `Self`
+        /// This method takes `self` by `PinMut`, and so calling it requires putting `Self`
         /// in a [`PinBox`](::std::boxed::PinBox) using the `pin` method, or otherwise
         /// guaranteeing that the location of `self` will not change after a call to `poll`.
-        fn poll(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
+        fn poll(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
 
         /// Pin the future to a particular location by placing it on the heap.
         #[cfg(feature = "std")]
@@ -85,14 +85,14 @@ if_nightly! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-            F::poll(unsafe { Pin::get_mut(&mut self) }, ctx)
+        fn poll(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+            F::poll(unsafe { PinMut::get_mut(self) }, ctx)
         }
     }
 
     /// A trait for `Stream`s which can be pinned to a particular location in memory.
     ///
-    /// These streams take `self` by `Pin<Self>`, rather than `&mut Self`.
+    /// These streams take `self` by `PinMut<Self>`, rather than `&mut Self`.
     /// This allows types which are not [`Unpin`](::std::marker::Unpin) to guarantee
     /// that they won't be moved after being polled. Since they won't be moved, it's
     /// possible for them to safely contain references to themselves.
@@ -110,10 +110,10 @@ if_nightly! {
         /// Attempt to resolve the stream to the next value, registering the current task
         /// for wakeup if the value is not yet available.
         ///
-        /// This method takes `self` by `Pin`, and so calling it requires putting `Self`
+        /// This method takes `self` by `PinMut`, and so calling it requires putting `Self`
         /// in a [`PinBox`](::std::boxed::PinBox) using the `pin` method, or otherwise
         /// guaranteeing that the location of `self` will not change after a call to `poll`.
-        fn poll_next(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
+        fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 
         /// Pin the stream to a particular location by placing it on the heap.
         #[cfg(feature = "std")]
@@ -139,8 +139,8 @@ if_nightly! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll_next(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            S::poll_next(unsafe { Pin::get_mut(&mut self) }, ctx)
+        fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            S::poll_next(unsafe { PinMut::get_mut(self) }, ctx)
         }
     }
 }

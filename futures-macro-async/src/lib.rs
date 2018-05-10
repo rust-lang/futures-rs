@@ -433,7 +433,7 @@ if_nightly! {
                     let #pat = {
                         let r = {
                             let pin = unsafe {
-                                ::futures::__rt::std::mem::Pin::new_unchecked(&mut __stream)
+                                ::futures::__rt::std::mem::PinMut::new_unchecked(&mut __stream)
                             };
                             ::futures::__rt::in_ctx(|ctx| ::futures::__rt::StableStream::poll_next(pin, ctx))
                         };
