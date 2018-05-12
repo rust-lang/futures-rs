@@ -74,8 +74,6 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-use std::mem::Pin;
-use std::marker::Unpin;
 use std::fmt;
 use std::error::Error;
 use std::any::Any;
@@ -110,9 +108,6 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
-// Safe because we treat the `T` opaquely
-unsafe impl<T> Unpin for Sender<T> {}
-
 /// The transmission end of an unbounded mpsc channel.
 ///
 /// This value is created by the [`unbounded`](unbounded) function.
@@ -130,17 +125,11 @@ pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
 
-// Safe because we treat the `T` opaquely
-unsafe impl<T> Unpin for Receiver<T> {}
-
 /// The receiving end of an unbounded mpsc channel.
 ///
 /// This value is created by the [`unbounded`](unbounded) function.
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
-
-// Safe because we treat the `T` opaquely
-unsafe impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -945,40 +934,42 @@ impl<T> Receiver<T> {
     }
 }
 
-impl<T> Stream for Receiver<T> {
-    type Item = T;
+unpinned! {
+    impl<T> Stream for Receiver<T> {
+        type Item = T;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
-        loop {
-            // Try to read a message off of the message queue.
-            let msg = match self.next_message() {
-                Poll::Ready(msg) => msg,
-                Poll::Pending => {
-                    // There are no messages to read, in this case, attempt to
-                    // park. The act of parking will verify that the channel is
-                    // still empty after the park operation has completed.
-                    match self.try_park(cx) {
-                        TryPark::Parked => {
-                            // The task was parked, and the channel is still
-                            // empty, return Pending.
-                            return Poll::Pending;
-                        }
-                        TryPark::Closed => {
-                            // The channel is closed, there will be no further
-                            // messages.
-                            return Poll::Ready(None);
-                        }
-                        TryPark::NotEmpty => {
-                            // A message has been sent while attempting to
-                            // park. Loop again, the next iteration is
-                            // guaranteed to get the message.
-                            continue;
+        fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<T>> {
+            loop {
+                // Try to read a message off of the message queue.
+                let msg = match self.next_message() {
+                    Poll::Ready(msg) => msg,
+                    Poll::Pending => {
+                        // There are no messages to read, in this case, attempt to
+                        // park. The act of parking will verify that the channel is
+                        // still empty after the park operation has completed.
+                        match self.try_park(cx) {
+                            TryPark::Parked => {
+                                // The task was parked, and the channel is still
+                                // empty, return Pending.
+                                return Poll::Pending;
+                            }
+                            TryPark::Closed => {
+                                // The channel is closed, there will be no further
+                                // messages.
+                                return Poll::Ready(None);
+                            }
+                            TryPark::NotEmpty => {
+                                // A message has been sent while attempting to
+                                // park. Loop again, the next iteration is
+                                // guaranteed to get the message.
+                                continue;
+                            }
                         }
                     }
-                }
-            };
-            // Return the message
-            return Poll::Ready(msg);
+                };
+                // Return the message
+                return Poll::Ready(msg);
+            }
         }
     }
 }
@@ -1012,11 +1003,13 @@ impl<T> UnboundedReceiver<T> {
     }
 }
 
-impl<T> Stream for UnboundedReceiver<T> {
-    type Item = T;
+unpinned! {
+    impl<T> Stream for UnboundedReceiver<T> {
+        type Item = T;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(cx)
+        fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<T>> {
+            self.0.poll_next_mut(cx)
+        }
     }
 }
 

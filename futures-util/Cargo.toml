@@ -13,6 +13,7 @@ Common utilities and extension traits for the futures-rs library.
 [features]
 # std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std"]
 std = ["futures-core/std", "either/use_std"]
+nightly = ["futures-core/nightly"]
 # default = ["std", "futures-core/either", "futures-sink/either"]
 default = ["std", "futures-core/either"]
 bench = []

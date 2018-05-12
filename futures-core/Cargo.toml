@@ -17,3 +17,4 @@ nightly = []
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }
+parse-generics-shim = "0.1.0"

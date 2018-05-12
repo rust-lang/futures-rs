@@ -634,8 +634,14 @@ pub trait FutureExt: Future {
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
+#[cfg(feature = "nightly")]
 fn assert_future<A, F>(t: F) -> F
     where F: Future<Output=A>,
 {
+    t
+}
+
+#[cfg(not(feature = "nightly"))]
+fn assert_future<A, F>(t: F) -> F {
     t
 }

@@ -1,5 +1,5 @@
 use std::marker::Unpin;
-use std::mem::Pin;
+use std::mem::PinMut;
 use std::ops::{Generator, GeneratorState};
 
 use super::{IsResult, Reset, CTX};
@@ -25,12 +25,12 @@ impl<T> StableFuture for GenStableFuture<T>
     type Item = <T::Return as IsResult>::Ok;
     type Error = <T::Return as IsResult>::Err;
 
-    fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            let this: &mut Self = unsafe { Pin::get_mut(&mut self) };
+            let this: &mut Self = unsafe { PinMut::get_mut(&mut self) };
             // This is an immovable generator, but since we're only accessing
-            // it via a Pin this is safe.
+            // it via a PinMut this is safe.
             match unsafe { this.0.resume() } {
                 GeneratorState::Yielded(Async::Pending)
                     => Ok(Async::Pending),

@@ -1,8 +1,10 @@
 use core::fmt;
-use core::mem::Pin;
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
+
+#[cfg(feature = "nightly")]
+use core::mem::PinMut;
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.
@@ -38,20 +40,21 @@ enum State<F: Future> {
     Stream(F::Output),
 }
 
+#[cfg(feature = "nightly")]
 impl<F> Stream for FlattenStream<F>
     where F: Future,
           F::Output: Stream,
 {
     type Item = <F::Output as Stream>::Item;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
             // safety: data is never moved via the resulting &mut reference
-            let stream = match unsafe { Pin::get_mut(&mut self) }.state {
+            let stream = match unsafe { PinMut::get_mut(self.reborrow()) }.state {
                 State::Future(ref mut f) => {
                     // safety: the future we're re-pinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    match unsafe { Pin::new_unchecked(f) }.poll(cx) {
+                    match unsafe { PinMut::new_unchecked(f) }.poll(cx) {
                         Poll::Pending => {
                             // State is not changed, early return.
                             return Poll::Pending
@@ -67,15 +70,54 @@ impl<F> Stream for FlattenStream<F>
                 State::Stream(ref mut s) => {
                     // safety: the stream we're repinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    return unsafe { Pin::new_unchecked(s) }.poll_next(cx);
+                    return unsafe { PinMut::new_unchecked(s) }.poll_next(cx);
                 }
             };
 
             unsafe {
                 // safety: we use the &mut only for an assignment, which causes
                 // only an in-place drop
-                Pin::get_mut(&mut self).state = State::Stream(stream);
+                PinMut::get_mut(self.reborrow()).state = State::Stream(stream);
             }
         }
     }
 }
+
+
+#[cfg(not(feature = "nightly"))]
+impl<F> Stream for FlattenStream<F>
+    where F: Future + ::futures_core::Unpin,
+          F::Output: Stream + ::futures_core::Unpin,
+{
+    type Item = <F::Output as Stream>::Item;
+
+    fn poll_next_mut(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        loop {
+            let stream = match self.state {
+                State::Future(ref mut f) => {
+                    match f.poll_unpin(cx) {
+                        Poll::Pending => {
+                            // State is not changed, early return.
+                            return Poll::Pending
+                        },
+                        Poll::Ready(stream) => {
+                            // Future resolved to stream.
+                            // We do not return, but poll that
+                            // stream in the next loop iteration.
+                            stream
+                        }
+                    }
+                }
+                State::Stream(ref mut s) => {
+                    return s.poll_next_mut(cx);
+                }
+            };
+            self.state = State::Stream(stream)
+        }
+    }
+
+    unpinned_poll_next!();
+}
+
+#[cfg(not(feature = "nightly"))]
+unsafe impl<F: Future> ::futures_core::Unpin for FlattenStream<F> {}

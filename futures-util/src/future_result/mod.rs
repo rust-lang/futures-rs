@@ -3,7 +3,7 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{task, Future, Poll};
 
@@ -44,7 +44,7 @@ impl<F, T, E> FutureResult for F
     type Item = T;
     type Error = E;
 
-    fn poll_result(self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+    fn poll_result(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
         self.poll(cx)
     }
 }
@@ -63,7 +63,7 @@ pub trait FutureResult {
     /// This method is a stopgap for a compiler limitation that prevents us from
     /// directly inheriting from the `Future` trait; in the future it won't be
     /// needed.
-    fn poll_result(self: Pin<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
+    fn poll_result(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
 
     /// Map this future's result to a different type, returning a new future of
     /// the resulting type.

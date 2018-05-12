@@ -175,7 +175,7 @@ impl AtomicWaker {
     /// # use futures_core::task::{self, AtomicWaker};
     /// # use std::sync::atomic::AtomicBool;
     /// # use std::sync::atomic::Ordering::SeqCst;
-    /// # use std::mem::Pin;
+    /// # use std::mem::PinMut;
     /// struct Flag {
     ///     waker: AtomicWaker,
     ///     set: AtomicBool,
@@ -184,7 +184,7 @@ impl AtomicWaker {
     /// impl Future for Flag {
     ///     type Output = ();
     ///
-    ///     fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<()> {
+    ///     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
     ///         // Register **before** checking `set` to avoid a race condition
     ///         // that would result in lost notifications.
     ///         self.waker.register(cx.waker());

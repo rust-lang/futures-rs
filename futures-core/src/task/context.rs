@@ -81,7 +81,26 @@ if_std! {
         ///
         /// To handle executor errors, use [executor()](self::Context::executor)
         /// instead.
-        pub fn spawn<F>(&mut self, f: F) where F: Future<Output = ()> + 'static + Send {
+        #[cfg(not(feature = "nightly"))]
+        pub fn spawn<F>(&mut self, f: F)
+            where F: Future<Output = ()> + 'static + Send + ::Unpin
+        {
+            self.executor()
+                .spawn_obj(TaskObj::new(f)).unwrap()
+        }
+
+        /// Spawn a future onto the default executor.
+        ///
+        /// # Panics
+        ///
+        /// This method will panic if the default executor is unable to spawn.
+        ///
+        /// To handle executor errors, use [executor()](self::Context::executor)
+        /// instead.
+        #[cfg(feature = "nightly")]
+        pub fn spawn<F>(&mut self, f: F)
+            where F: Future<Output = ()> + 'static + Send
+        {
             self.executor()
                 .spawn_obj(TaskObj::new(f)).unwrap()
         }

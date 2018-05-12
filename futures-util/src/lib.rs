@@ -1,7 +1,7 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(pin, arbitrary_self_types)]
+#![cfg_attr(feature = "nightly", feature(pin, arbitrary_self_types))]
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
@@ -66,8 +66,10 @@ mod lock;
 pub mod future;
 pub use future::FutureExt;
 
+/*
 pub mod future_result;
 pub use future_result::FutureResult;
+*/
 
 // #[cfg(feature = "std")]
 // pub mod io;

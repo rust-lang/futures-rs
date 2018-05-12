@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -24,11 +24,11 @@ impl<A, F> Future for Recover<A, F>
 {
     type Output = A::Item;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Item> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Item> {
         unsafe { pinned_field!(self, inner) }.poll_result(cx)
             .map(|res| res.unwrap_or_else(|e| {
                 let f = unsafe {
-                    Pin::get_mut(&mut self).f.take()
+                    PinMut::get_mut(&mut self).f.take()
                         .expect("Polled future::Recover after completion")
                 };
                 f(e)
