@@ -8,6 +8,8 @@
 #![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2.0")]
 
+#![feature(pin, arbitrary_self_types)]
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
@@ -20,7 +22,10 @@ if_std! {
     extern crate iovec;
     extern crate std;
 
-    use futures_core::{Async, Poll, task};
+    use std::marker::Unpin;
+    use std::mem::PinMut;
+
+    use futures_core::{Poll, task};
     use std::boxed::Box;
     use std::io as StdIo;
     use std::ptr;
@@ -101,10 +106,10 @@ if_std! {
 
         /// Attempt to read from the `AsyncRead` into `buf`.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
         ///
         /// If no data is available for reading, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -112,10 +117,18 @@ if_std! {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
-            -> Poll<usize, Error>;
+        fn poll_read(self: PinMut<Self>, cx: &mut task::Context, buf: &mut [u8])
+            -> Poll<Result<usize>>;
+
+        /// A convenience function for calling `poll_read` on `Unpin` types.
+        fn poll_read_unpin(&mut self, cx: &mut task::Context, buf: &mut [u8])
+            -> Poll<Result<usize>>
+        where Self: Unpin
+        {
+            PinMut::new(self).poll_read(cx, buf)
+        }
 
         /// Attempt to read from the `AsyncRead` into `vec` using vectored
         /// IO operations.
@@ -123,10 +136,10 @@ if_std! {
         /// This method is similar to `poll_read`, but allows data to be read
         /// into multiple buffers using a single operation.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
         ///
         /// If no data is available for reading, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
@@ -137,17 +150,25 @@ if_std! {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
-            -> Poll<usize, Error>
+        fn poll_vectored_read(self: PinMut<Self>, cx: &mut task::Context, vec: &mut [&mut IoVec])
+            -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
                 self.poll_read(cx, first_iovec)
             } else {
                 // `vec` is empty.
-                return Ok(Async::Ready(0));
+                return Poll::Ready(Ok(0));
             }
+        }
+
+        /// A convenience function for calling `poll_vectored_read` on `Unpin` types.
+        fn poll_vectored_read_unpin(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
+            -> Poll<Result<usize>>
+        where Self: Unpin
+        {
+            PinMut::new(self).poll_vectored_read(cx, vec)
         }
     }
 
@@ -161,10 +182,10 @@ if_std! {
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_written))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
         ///
         /// If the object is not ready for writing, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -172,10 +193,18 @@ if_std! {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
-            -> Poll<usize, Error>;
+        fn poll_write(self: PinMut<Self>, cx: &mut task::Context, buf: &[u8])
+            -> Poll<Result<usize>>;
+
+        /// A convenience function for calling `poll_write` on `Unpin` types.
+        fn poll_write_unpin(&mut self, cx: &mut task::Context, buf: &[u8])
+            -> Poll<Result<usize>>
+        where Self: Unpin
+        {
+            PinMut::new(self).poll_write(cx, buf)
+        }
 
         /// Attempt to write bytes from `vec` into the object using vectored
         /// IO operations.
@@ -183,10 +212,10 @@ if_std! {
         /// This method is similar to `poll_write`, but allows data from multiple buffers to be written
         /// using a single operation.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_written))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
         ///
         /// If the object is not ready for writing, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -198,26 +227,34 @@ if_std! {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
-            -> Poll<usize, Error>
+        fn poll_vectored_write(self: PinMut<Self>, cx: &mut task::Context, vec: &[&IoVec])
+            -> Poll<Result<usize>>
         {
             if let Some(ref first_iovec) = vec.get(0) {
                 self.poll_write(cx, &*first_iovec)
             } else {
                 // `vec` is empty.
-                return Ok(Async::Ready(0));
+                Poll::Ready(Ok(0))
             }
+        }
+
+        /// A convenience function for calling `poll_vectored_write` on `Unpin` types.
+        fn poll_vectored_write_unpin(&mut self, cx: &mut task::Context, vec: &[&IoVec])
+            -> Poll<Result<usize>>
+        where Self: Unpin
+        {
+            PinMut::new(self).poll_vectored_write(cx, vec)
         }
 
         /// Attempt to flush the object, ensuring that any buffered data reach
         /// their destination.
         ///
-        /// On success, returns `Ok(Async::Ready(()))`.
+        /// On success, returns `Ok(Poll::Ready(()))`.
         ///
         /// If flushing cannot immediately complete, this method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object can make
         /// progress towards flushing.
         ///
@@ -225,16 +262,24 @@ if_std! {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
+        fn poll_flush(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>>;
+
+        /// A convenience function for calling `poll_flush` on `Unpin` types.
+        fn poll_flush_unpin(&mut self, cx: &mut task::Context)
+            -> Poll<Result<()>>
+        where Self: Unpin
+        {
+            PinMut::new(self).poll_flush(cx)
+        }
 
         /// Attempt to close the object.
         ///
-        /// On success, returns `Ok(Async::Ready(()))`.
+        /// On success, returns `Ok(Poll::Ready(()))`.
         ///
         /// If closing cannot immediately complete, this function returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `cx.waker()`) to receive a notification when the object can make
         /// progress towards closing.
         ///
@@ -242,9 +287,17 @@ if_std! {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
+        fn poll_close(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>>;
+
+        /// A convenience function for calling `poll_close` on `Unpin` types.
+        fn poll_close_unpin(&mut self, cx: &mut task::Context)
+            -> Poll<Result<()>>
+        where Self: Unpin
+        {
+            PinMut::new(self).poll_close(cx)
+        }
     }
 
     macro_rules! deref_async_read {
@@ -253,26 +306,44 @@ if_std! {
                 (**self).initializer()
             }
 
-            fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
-                -> Poll<usize, Error>
+            fn poll_read(mut self: PinMut<Self>, cx: &mut task::Context, buf: &mut [u8])
+                -> Poll<Result<usize>>
             {
-                (**self).poll_read(cx, buf)
+                (**self).poll_read_unpin(cx, buf)
             }
 
-            fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
-                -> Poll<usize, Error>
+            fn poll_vectored_read(mut self: PinMut<Self>, cx: &mut task::Context, vec: &mut [&mut IoVec])
+                -> Poll<Result<usize>>
             {
-                (**self).poll_vectored_read(cx, vec)
+                (**self).poll_vectored_read_unpin(cx, vec)
             }
         }
     }
 
-    impl<T: ?Sized + AsyncRead> AsyncRead for Box<T> {
+    impl<T: ?Sized + AsyncRead + Unpin> AsyncRead for Box<T> {
         deref_async_read!();
     }
 
-    impl<'a, T: ?Sized + AsyncRead> AsyncRead for &'a mut T {
+    impl<'a, T: ?Sized + AsyncRead + Unpin> AsyncRead for &'a mut T {
         deref_async_read!();
+    }
+
+    impl<'a, T: ?Sized + AsyncRead> AsyncRead for PinMut<'a, T> {
+        unsafe fn initializer(&self) -> Initializer {
+            (**self).initializer()
+        }
+
+        fn poll_read(mut self: PinMut<Self>, cx: &mut task::Context, buf: &mut [u8])
+            -> Poll<Result<usize>>
+        {
+            T::poll_read((*self).reborrow(), cx, buf)
+        }
+
+        fn poll_vectored_read(mut self: PinMut<Self>, cx: &mut task::Context, vec: &mut [&mut IoVec])
+            -> Poll<Result<usize>>
+        {
+            T::poll_vectored_read((*self).reborrow(), cx, vec)
+        }
     }
 
     /// `unsafe` because the `StdIo::Read` type must not access the buffer
@@ -283,10 +354,10 @@ if_std! {
                 Initializer::nop()
             }
 
-            fn poll_read(&mut self, _: &mut task::Context, buf: &mut [u8])
-                -> Poll<usize, Error>
+            fn poll_read(mut self: PinMut<Self>, _: &mut task::Context, buf: &mut [u8])
+                -> Poll<Result<usize>>
             {
-                Ok(Async::Ready(StdIo::Read::read(self, buf)?))
+                Poll::Ready(StdIo::Read::read(&mut *self, buf))
             }
         }
     }
@@ -299,55 +370,77 @@ if_std! {
         unsafe_delegate_async_read_to_stdio!();
     }
 
-    impl<T: AsRef<[u8]>> AsyncRead for StdIo::Cursor<T> {
+    impl<T: AsRef<[u8]> + Unpin> AsyncRead for StdIo::Cursor<T> {
         unsafe_delegate_async_read_to_stdio!();
     }
 
     macro_rules! deref_async_write {
         () => {
-            fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
-                -> Poll<usize, Error>
+            fn poll_write(mut self: PinMut<Self>, cx: &mut task::Context, buf: &[u8])
+                -> Poll<Result<usize>>
             {
-                (**self).poll_write(cx, buf)
+                (**self).poll_write_unpin(cx, buf)
             }
 
-            fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
-                -> Poll<usize, Error>
+            fn poll_vectored_write(mut self: PinMut<Self>, cx: &mut task::Context, vec: &[&IoVec])
+                -> Poll<Result<usize>>
             {
-                (**self).poll_vectored_write(cx, vec)
+                (**self).poll_vectored_write_unpin(cx, vec)
             }
 
-            fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
-                (**self).poll_flush(cx)
+            fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>> {
+                (**self).poll_flush_unpin(cx)
             }
 
-            fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
-                (**self).poll_close(cx)
+            fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>> {
+                (**self).poll_close_unpin(cx)
             }
         }
     }
 
-    impl<T: ?Sized + AsyncWrite> AsyncWrite for Box<T> {
+    impl<T: ?Sized + AsyncWrite + Unpin> AsyncWrite for Box<T> {
         deref_async_write!();
     }
 
-    impl<'a, T: ?Sized + AsyncWrite> AsyncWrite for &'a mut T {
+    impl<'a, T: ?Sized + AsyncWrite + Unpin> AsyncWrite for &'a mut T {
         deref_async_write!();
+    }
+
+    impl<'a, T: ?Sized + AsyncWrite> AsyncWrite for PinMut<'a, T> {
+        fn poll_write(mut self: PinMut<Self>, cx: &mut task::Context, buf: &[u8])
+            -> Poll<Result<usize>>
+        {
+            T::poll_write((*self).reborrow(), cx, buf)
+        }
+
+        fn poll_vectored_write(mut self: PinMut<Self>, cx: &mut task::Context, vec: &[&IoVec])
+            -> Poll<Result<usize>>
+        {
+            T::poll_vectored_write((*self).reborrow(), cx, vec)
+        }
+
+        fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>> {
+            T::poll_flush((*self).reborrow(), cx)
+        }
+
+        fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>> {
+            T::poll_close((*self).reborrow(), cx)
+        }
     }
 
     macro_rules! delegate_async_write_to_stdio {
         () => {
-            fn poll_write(&mut self, _: &mut task::Context, buf: &[u8])
-                -> Poll<usize, Error>
+            fn poll_write(mut self: PinMut<Self>, _: &mut task::Context, buf: &[u8])
+                -> Poll<Result<usize>>
             {
-                Ok(Async::Ready(StdIo::Write::write(self, buf)?))
+                Poll::Ready(StdIo::Write::write(&mut *self, buf))
             }
 
-            fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Error> {
-                Ok(Async::Ready(StdIo::Write::flush(self)?))
+            fn poll_flush(mut self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<()>> {
+                Poll::Ready(StdIo::Write::flush(&mut *self))
             }
 
-            fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
+            fn poll_close(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<()>> {
                 self.poll_flush(cx)
             }
         }
