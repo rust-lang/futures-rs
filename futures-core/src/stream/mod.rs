@@ -46,6 +46,13 @@ pub trait Stream {
     /// is difficult to guard against then the `fuse` adapter can be used to
     /// ensure that `poll_next` always returns `Ready(None)` in subsequent calls.
     fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>>;
+
+    /// A convenience for calling `Stream::poll_next` on `Unpin` stream types.
+    fn poll_next_unpin(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
+        where Self: Unpin
+    {
+        PinMut::new(self).poll_next(cx)
+    }
 }
 
 impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {

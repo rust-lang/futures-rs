@@ -111,6 +111,13 @@ pub trait Future {
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
     fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output>;
+
+    /// A convenience for calling `Future::poll` on `Unpin` future types.
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
+        where Self: Unpin
+    {
+        PinMut::new(self).poll(cx)
+    }
 }
 
 impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {
