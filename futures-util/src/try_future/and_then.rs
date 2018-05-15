@@ -1,9 +1,7 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
+use futures_core::{Future, Poll, TryFuture};
 use futures_core::task;
-
-use FutureResult;
 
 /// Future for the `and_then` combinator, chaining a computation onto the end of
 /// another future which completes successfully.
@@ -28,8 +26,8 @@ pub fn new<A, B, F>(future: A, f: F) -> AndThen<A, B, F> {
 }
 
 impl<A, B, F> Future for AndThen<A, B, F>
-    where A: FutureResult,
-          B: FutureResult<Error = A::Error>,
+    where A: TryFuture,
+          B: TryFuture<Error = A::Error>,
           F: FnOnce(A::Item) -> B,
 {
     type Output = Result<B::Item, B::Error>;
@@ -41,7 +39,7 @@ impl<A, B, F> Future for AndThen<A, B, F>
                 State::First(fut1, data) => {
                     // safe to create a new `PinMut` because `fut1` will never move
                     // before it's dropped.
-                    match unsafe { PinMut::new_unchecked(fut1) }.poll_result(cx) {
+                    match unsafe { PinMut::new_unchecked(fut1) }.try_poll(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
                         Poll::Ready(Ok(v)) => {
@@ -53,7 +51,7 @@ impl<A, B, F> Future for AndThen<A, B, F>
                     // safe to create a new `PinMut` because `fut2` will never move
                     // before it's dropped; once we're in `Chain::Second` we stay
                     // there forever.
-                    return unsafe { PinMut::new_unchecked(fut2) }.poll_result(cx)
+                    return unsafe { PinMut::new_unchecked(fut2) }.try_poll(cx)
                 }
             };
 

@@ -1,9 +1,7 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
+use futures_core::{Future, Poll, TryFuture};
 use futures_core::task;
-
-use FutureResult;
 
 /// Future for the `recover` combinator, handling errors by converting them into
 /// an `Item`, compatible with any error type of the caller's choosing.
@@ -19,13 +17,13 @@ pub fn new<A, F>(future: A, f: F) -> Recover<A, F> {
 }
 
 impl<A, F> Future for Recover<A, F>
-    where A: FutureResult,
+    where A: TryFuture,
           F: FnOnce(A::Error) -> A::Item,
 {
     type Output = A::Item;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Item> {
-        unsafe { pinned_field!(self.reborrow(), inner) }.poll_result(cx)
+        unsafe { pinned_field!(self.reborrow(), inner) }.try_poll(cx)
             .map(|res| res.unwrap_or_else(|e| {
                 let f = unsafe {
                     PinMut::get_mut(self).f.take()

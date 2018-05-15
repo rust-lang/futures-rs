@@ -44,7 +44,7 @@ mod poll;
 pub use poll::Poll;
 
 pub mod future;
-pub use future::Future;
+pub use future::{Future, TryFuture};
 
 pub mod stream;
 pub use stream::Stream;
