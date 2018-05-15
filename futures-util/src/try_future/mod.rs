@@ -3,9 +3,7 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-use core::mem::PinMut;
-
-use futures_core::{task, Future, Poll};
+use futures_core::TryFuture;
 
 // combinators
 mod and_then;
@@ -38,33 +36,10 @@ pub use self::err_into::ErrInto;
 pub use self::or_else::OrElse;
 pub use self::recover::Recover;
 
-impl<F, T, E> FutureResult for F
-    where F: Future<Output = Result<T, E>>
-{
-    type Item = T;
-    type Error = E;
+impl<F: TryFuture> TryFutureExt for F {}
 
-    fn poll_result(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
-        self.poll(cx)
-    }
-}
-
-/// A convenience for futures that return `Result` values that includes
-/// a variety of adapters tailored to such futures.
-pub trait FutureResult {
-    /// The type of successful values yielded by this future
-    type Item;
-
-    /// The type of failures yielded by this future
-    type Error;
-
-    /// Poll this `FutureResult` as if it were a `Future`.
-    ///
-    /// This method is a stopgap for a compiler limitation that prevents us from
-    /// directly inheriting from the `Future` trait; in the future it won't be
-    /// needed.
-    fn poll_result(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<Self::Item, Self::Error>>;
-
+/// Adapters specific to `Result`-returning futures
+pub trait TryFutureExt: TryFuture {
     /// Map this future's result to a different type, returning a new future of
     /// the resulting type.
     ///
@@ -222,7 +197,7 @@ pub trait FutureResult {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future::{self, TryFuture};
     ///
     /// # fn main() {
     /// let future_of_1 = future::ok::<u32, u32>(1);
@@ -231,14 +206,14 @@ pub trait FutureResult {
     /// });
     ///
     /// let future_of_err_1 = future::err::<u32, u32>(1);
-    /// future_of_err_1.and_then(|_| -> FutureResult<u32, u32> {
+    /// future_of_err_1.and_then(|_| -> TryFuture<u32, u32> {
     ///     panic!("should not be called in case of an error");
     /// });
     /// # }
     /// ```
     fn and_then<B, F>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
-              B: FutureResult<Error = Self::Error>,
+              B: TryFuture<Error = Self::Error>,
               Self: Sized,
     {
         and_then::new(self, f)
@@ -266,7 +241,7 @@ pub trait FutureResult {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future::{self, TryFuture};
     ///
     /// # fn main() {
     /// let future_of_err_1 = future::err::<u32, u32>(1);
@@ -275,14 +250,14 @@ pub trait FutureResult {
     /// });
     ///
     /// let future_of_1 = future::ok::<u32, u32>(1);
-    /// future_of_1.or_else(|_| -> FutureResult<u32, u32> {
+    /// future_of_1.or_else(|_| -> TryFuture<u32, u32> {
     ///     panic!("should not be called in case of success");
     /// });
     /// # }
     /// ```
     fn or_else<B, F>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B,
-              B: FutureResult<Item = Self::Item>,
+              B: TryFuture<Item = Self::Item>,
               Self: Sized,
     {
         or_else::new(self, f)

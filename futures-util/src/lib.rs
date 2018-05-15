@@ -66,8 +66,8 @@ mod lock;
 pub mod future;
 pub use future::FutureExt;
 
-pub mod future_result;
-pub use future_result::FutureResult;
+pub mod try_future;
+pub use try_future::TryFutureExt;
 
 // #[cfg(feature = "std")]
 // pub mod io;

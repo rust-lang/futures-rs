@@ -1,9 +1,7 @@
 use core::mem::PinMut;
 
-use futures_core::{Future, Poll};
+use futures_core::{Future, Poll, TryFuture};
 use futures_core::task;
-
-use FutureResult;
 
 /// Future for the `map_ok` combinator, changing the type of a future.
 ///
@@ -23,13 +21,13 @@ pub fn new<A, F>(future: A, f: F) -> MapOk<A, F> {
 }
 
 impl<U, A, F> Future for MapOk<A, F>
-    where A: FutureResult,
+    where A: TryFuture,
           F: FnOnce(A::Item) -> U,
 {
     type Output = Result<U, A::Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.poll_result(cx) {
+        match unsafe { pinned_field!(self, future) }.try_poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {
