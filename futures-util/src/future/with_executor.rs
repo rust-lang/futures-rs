@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -28,9 +28,9 @@ impl<F, E> Future for WithExecutor<F, E>
 {
     type Output = F::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<F::Output> {
-        let this = unsafe { Pin::get_mut(&mut self) };
-        let fut = unsafe { Pin::new_unchecked(&mut this.future) };
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+        let this = unsafe { PinMut::get_mut(self) };
+        let fut = unsafe { PinMut::new_unchecked(&mut this.future) };
         let exec = &mut this.executor;
         fut.poll(&mut cx.with_executor(exec))
     }

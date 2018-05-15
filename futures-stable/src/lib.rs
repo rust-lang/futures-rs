@@ -20,7 +20,7 @@ if_nightly! {
     extern crate futures_core;
     extern crate futures_executor;
 
-    use core::mem::Pin;
+    use core::mem::PinMut;
     use futures_core::{Future, Stream, Poll, task};
 
     if_std! {
@@ -32,27 +32,27 @@ if_nightly! {
         use std::boxed::PinBox;
 
         pub use executor::{StableExecutor, block_on_stable};
-        use unsafe_pin::UnsafePin;
+        use unsafe_pin::UnsafePinMut;
     }
 
     pub trait StableFuture {
         type Item;
         type Error;
 
-        fn poll(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
+        fn poll(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error>;
 
         #[cfg(feature = "std")]
         fn pin<'a>(self) -> PinBox<Future<Item = Self::Item, Error = Self::Error> + Send + 'a>
             where Self: Send + Sized + 'a
         {
-            PinBox::new(unsafe { UnsafePin::new(self) })
+            PinBox::new(unsafe { UnsafePinMut::new(self) })
         }
 
         #[cfg(feature = "std")]
         fn pin_local<'a>(self) -> PinBox<Future<Item = Self::Item, Error = Self::Error> + 'a>
             where Self: Sized + 'a
         {
-            PinBox::new(unsafe { UnsafePin::new(self) })
+            PinBox::new(unsafe { UnsafePinMut::new(self) })
         }
     }
 
@@ -60,8 +60,8 @@ if_nightly! {
         type Item = F::Item;
         type Error = F::Error;
 
-        fn poll(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-            F::poll(unsafe { Pin::get_mut(&mut self) }, ctx)
+        fn poll(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+            F::poll(unsafe { PinMut::get_mut(&mut self) }, ctx)
         }
     }
 
@@ -69,20 +69,20 @@ if_nightly! {
         type Item;
         type Error;
 
-        fn poll_next(self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
+        fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error>;
 
         #[cfg(feature = "std")]
         fn pin<'a>(self) -> PinBox<Stream<Item = Self::Item, Error = Self::Error> + Send + 'a>
             where Self: Send + Sized + 'a
         {
-            PinBox::new(unsafe { UnsafePin::new(self) })
+            PinBox::new(unsafe { UnsafePinMut::new(self) })
         }
 
         #[cfg(feature = "std")]
         fn pin_local<'a>(self) -> PinBox<Stream<Item = Self::Item, Error = Self::Error> + 'a>
             where Self: Sized + 'a
         {
-            PinBox::new(unsafe { UnsafePin::new(self) })
+            PinBox::new(unsafe { UnsafePinMut::new(self) })
         }
     }
 
@@ -90,8 +90,8 @@ if_nightly! {
         type Item = S::Item;
         type Error = S::Error;
 
-        fn poll_next(mut self: Pin<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            S::poll_next(unsafe { Pin::get_mut(&mut self) }, ctx)
+        fn poll_next(mut self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+            S::poll_next(unsafe { PinMut::get_mut(&mut self) }, ctx)
         }
     }
 }

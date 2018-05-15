@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -28,12 +28,12 @@ impl<U, A, F> Future for MapErr<A, F>
 {
     type Output = Result<A::Item, U>;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match unsafe { pinned_field!(self, future) }.poll_result(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {
-                    Pin::get_mut(&mut self).f.take().expect("cannot poll MapErr twice")
+                    PinMut::get_mut(self).f.take().expect("cannot poll MapErr twice")
                 };
                 Poll::Ready(e.map_err(f))
             }

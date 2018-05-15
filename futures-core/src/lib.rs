@@ -25,8 +25,8 @@ macro_rules! if_std {
 #[macro_export]
 macro_rules! pinned_deref {
     ($e:expr) => (
-        ::core::mem::Pin::new_unchecked(
-            &mut **::core::mem::Pin::get_mut(&mut $e)
+        ::core::mem::PinMut::new_unchecked(
+            &mut **::core::mem::PinMut::get_mut($e.reborrow())
         )
     )
 }
@@ -34,8 +34,8 @@ macro_rules! pinned_deref {
 #[macro_export]
 macro_rules! pinned_field {
     ($e:expr, $f:tt) => (
-        ::core::mem::Pin::new_unchecked(
-            &mut ::core::mem::Pin::get_mut(&mut $e).$f
+        ::core::mem::PinMut::new_unchecked(
+            &mut ::core::mem::PinMut::get_mut($e.reborrow()).$f
         )
     )
 }

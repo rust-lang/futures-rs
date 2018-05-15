@@ -1,6 +1,7 @@
 //! Definition of the `PollFn` adapter combinator
 
-use core::mem::Pin;
+use core::marker::Unpin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -42,12 +43,11 @@ pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
 }
 
 impl<T, F> Future for PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T>
+    where F: FnMut(&mut task::Context) -> Poll<T> + Unpin
 {
     type Output = T;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<T> {
-        // safe because we never expose a Pin<F>
-        (unsafe { Pin::get_mut(&mut self) }.inner)(cx)
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
+        (&mut self.inner)(cx)
     }
 }

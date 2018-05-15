@@ -1,7 +1,7 @@
 //! Definition of the Lazy combinator, deferring execution of a function until
 //! the future is polled.
 
-use core::mem::Pin;
+use core::mem::PinMut;
 use core::marker::Unpin;
 
 use futures_core::{Future, Poll};
@@ -16,7 +16,7 @@ pub struct Lazy<F> {
     f: Option<F>
 }
 
-// safe because we never generate `Pin<F>`
+// safe because we never generate `PinMut<F>`
 unsafe impl<F> Unpin for Lazy<F> {}
 
 /// Creates a new future from a closure.
@@ -50,7 +50,7 @@ impl<R, F> Future for Lazy<F>
 {
     type Output = R;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<R> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<R> {
         Poll::Ready((self.f.take().unwrap())(cx))
     }
 }

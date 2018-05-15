@@ -74,7 +74,7 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-use std::mem::Pin;
+use std::mem::PinMut;
 use std::marker::Unpin;
 use std::fmt;
 use std::error::Error;
@@ -129,9 +129,6 @@ impl AssertKinds for UnboundedSender<u32> {}
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
-
-// Safe because we treat the `T` opaquely
-unsafe impl<T> Unpin for Receiver<T> {}
 
 /// The receiving end of an unbounded mpsc channel.
 ///
@@ -945,10 +942,13 @@ impl<T> Receiver<T> {
     }
 }
 
+// The receiver does not ever take a PinMut to the inner T
+unsafe impl<T> Unpin for Receiver<T> {}
+
 impl<T> Stream for Receiver<T> {
     type Item = T;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -1015,8 +1015,8 @@ impl<T> UnboundedReceiver<T> {
 impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
 
-    fn poll_next(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(cx)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+        PinMut::new(&mut self.0).poll_next(cx)
     }
 }
 

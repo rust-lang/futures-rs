@@ -1,6 +1,6 @@
 //! Futures.
 
-use core::mem::Pin;
+use core::mem::PinMut;
 use core::marker::Unpin;
 
 use Poll;
@@ -110,14 +110,29 @@ pub trait Future {
     /// Callers who may call `poll` too many times may want to consider using
     /// the `fuse` adaptor which defines the behavior of `poll`, but comes with
     /// a little bit of extra cost.
-    fn poll(self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output>;
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output>;
+
+    /// A convenience for calling `Future::poll` on `Unpin` future types.
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
+        where Self: Unpin
+    {
+        PinMut::new(self).poll(cx)
+    }
 }
 
-impl<'a, F: ?Sized + Future> Future for &'a mut F {
+impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {
     type Output = F::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        unsafe { pinned_deref!(self).poll(cx) }
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        F::poll(PinMut::new(&mut **self), cx)
+    }
+}
+
+impl<'a, F: ?Sized + Future> Future for PinMut<'a, F> {
+    type Output = F::Output;
+
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        F::poll((*self).reborrow(), cx)
     }
 }
 
@@ -127,7 +142,7 @@ if_std! {
     impl<'a, F: ?Sized + Future> Future for Box<F> {
         type Output = F::Output;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             unsafe { pinned_deref!(self).poll(cx) }
         }
     }
@@ -135,19 +150,15 @@ if_std! {
     impl<'a, F: ?Sized + Future> Future for PinBox<F> {
         type Output = F::Output;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            unsafe {
-                let this = PinBox::get_mut(Pin::get_mut(&mut self));
-                let re_pinned = Pin::new_unchecked(this);
-                re_pinned.poll(cx)
-            }
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+            self.as_pin_mut().poll(cx)
         }
     }
 
     impl<'a, F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
         type Output = F::Output;
 
-        fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             unsafe { pinned_field!(self, 0).poll(cx) }
         }
     }
@@ -163,7 +174,7 @@ unsafe impl<T> Unpin for ReadyFuture<T> {}
 impl<T> Future for ReadyFuture<T> {
     type Output = T;
 
-    fn poll(mut self: Pin<Self>, _cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: PinMut<Self>, _cx: &mut task::Context) -> Poll<T> {
         Poll::Ready(self.0.take().unwrap())
     }
 }
