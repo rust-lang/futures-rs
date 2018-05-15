@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -30,7 +30,7 @@ impl<A, B, F> Future for Then<A, B, F>
 {
     type Output = B::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<B::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<B::Output> {
         unsafe { pinned_field!(self, state) }.poll(cx, |a, f| f(a))
     }
 }

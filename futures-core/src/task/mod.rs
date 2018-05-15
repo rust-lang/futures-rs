@@ -1,6 +1,6 @@
 //! Task notification.
 
-use core::mem::{self, Pin};
+use core::mem::{self, PinMut};
 use core::fmt;
 
 use {Future, Poll};
@@ -109,7 +109,7 @@ if_std! {
 
         unsafe fn poll(task: *mut (), cx: &mut Context) -> Poll<()> {
             let ptr: *mut F = mem::transmute(task);
-            let pin: Pin<F> = Pin::new_unchecked(&mut *ptr);
+            let pin: PinMut<F> = PinMut::new_unchecked(&mut *ptr);
             pin.poll(cx)
         }
 

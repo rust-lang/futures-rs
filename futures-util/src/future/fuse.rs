@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -25,12 +25,12 @@ pub fn new<A: Future>(f: A) -> Fuse<A> {
 impl<A: Future> Future for Fuse<A> {
     type Output = A::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
         // safety: we use this &mut only for matching, not for movement
-        let v = match unsafe { Pin::get_mut(&mut self) }.future {
-            Some(ref mut fut) => {
+        let v = match &mut unsafe { PinMut::get_mut(self.reborrow()) }.future {
+            Some(fut) => {
                 // safety: this re-pinned future will never move before being dropped
-                match unsafe { Pin::new_unchecked(fut) }.poll(cx) {
+                match unsafe { PinMut::new_unchecked(fut) }.poll(cx) {
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(v) => v
                 }
@@ -39,7 +39,7 @@ impl<A: Future> Future for Fuse<A> {
         };
 
         // safety: we use this &mut only for a replacement, which drops the future in place
-        unsafe { Pin::get_mut(&mut self) }.future = None;
+        unsafe { PinMut::get_mut(self) }.future = None;
         Poll::Ready(v)
     }
 }

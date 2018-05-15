@@ -1,4 +1,4 @@
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -34,14 +34,14 @@ impl<A, B, F> Future for OrElse<A, B, F>
 {
     type Output = Result<B::Item, B::Error>;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         loop {
             // safe to `get_mut` here because we don't move out
-            let fut2 = match unsafe { Pin::get_mut(&mut self) }.state {
+            let fut2 = match unsafe { PinMut::get_mut(self.reborrow()) }.state {
                 State::First(ref mut fut1, ref mut data) => {
-                    // safe to create a new `Pin` because `fut1` will never move
+                    // safe to create a new `PinMut` because `fut1` will never move
                     // before it's dropped.
-                    match unsafe { Pin::new_unchecked(fut1) }.poll_result(cx) {
+                    match unsafe { PinMut::new_unchecked(fut1) }.poll_result(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(Ok(v)) => return Poll::Ready(Ok(v)),
                         Poll::Ready(Err(e)) => {
@@ -50,17 +50,17 @@ impl<A, B, F> Future for OrElse<A, B, F>
                     }
                 }
                 State::Second(ref mut fut2) => {
-                    // safe to create a new `Pin` because `fut2` will never move
+                    // safe to create a new `PinMut` because `fut2` will never move
                     // before it's dropped; once we're in `Chain::Second` we stay
                     // there forever.
-                    return unsafe { Pin::new_unchecked(fut2) }.poll_result(cx)
+                    return unsafe { PinMut::new_unchecked(fut2) }.poll_result(cx)
                 }
             };
 
             // safe because we're using the `&mut` to do an assignment, not for moving out
             unsafe {
                 // note: it's safe to move the `fut2` here because we haven't yet polled it
-                Pin::get_mut(&mut self).state = State::Second(fut2);
+                PinMut::get_mut(self.reborrow()).state = State::Second(fut2);
             }
         }
     }

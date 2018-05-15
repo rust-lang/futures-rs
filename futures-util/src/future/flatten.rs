@@ -1,5 +1,5 @@
 use core::fmt;
-use core::mem::Pin;
+use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
 use futures_core::task;
@@ -42,7 +42,7 @@ impl<A> Future for Flatten<A>
 {
     type Output = <A::Output as Future>::Output;
 
-    fn poll(mut self: Pin<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         unsafe { pinned_field!(self, state) }.poll(cx, |a, ()| a)
     }
 }
