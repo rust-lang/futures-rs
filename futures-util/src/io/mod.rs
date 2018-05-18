@@ -47,12 +47,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// EOF and all bytes have been written to and flushed from the `writer`
     /// provided.
     ///
-    /// On success the number of bytes is returned and this `AsyncRead` and `writer` are
-    /// consumed. On error the error is returned and the I/O objects are consumed as
-    /// well.
-    fn copy_into<W>(self, writer: W) -> CopyInto<Self, W>
+    /// On success the number of bytes is returned.
+    fn copy_into<'a, W>(&'a mut self, writer: &'a mut W) -> CopyInto<'a, Self, W>
         where W: AsyncWrite,
-              Self: Sized,
     {
         copy_into::copy_into(self, writer)
     }
@@ -60,41 +57,27 @@ pub trait AsyncReadExt: AsyncRead {
     /// Tries to read some bytes directly into the given `buf` in asynchronous
     /// manner, returning a future type.
     ///
-    /// The returned future will resolve to both the I/O stream and the buffer
-    /// as well as the number of bytes read once the read operation is completed.
-    fn read<T>(self, buf: T) -> Read<Self, T>
-        where T: AsMut<[u8]>,
-              Self: Sized,
+    /// The returned future will resolve to the number of bytes read once the read
+    /// operation is completed.
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self>
     {
         read::read(self, buf)
     }
 
-
     /// Creates a future which will read exactly enough bytes to fill `buf`,
     /// returning an error if EOF is hit sooner.
     ///
-    /// The returned future will resolve to both the I/O stream as well as the
-    /// buffer once the read operation is completed.
+    /// The returned future will resolve once the read operation is completed.
     ///
     /// In the case of an error the buffer and the object will be discarded, with
-    /// the error yielded. In the case of success the object will be destroyed and
-    /// the buffer will be returned, with all data read from the stream appended to
-    /// the buffer.
-    fn read_exact<T>(self, buf: T) -> ReadExact<Self, T>
-        where T: AsMut<[u8]>,
-              Self: Sized,
+    /// the error yielded.
+    fn read_exact<'a>(&'a mut self, buf: &'a mut [u8]) -> ReadExact<'a, Self>
     {
         read_exact::read_exact(self, buf)
     }
 
     /// Creates a future which will read all the bytes from this `AsyncRead`.
-    ///
-    /// In the case of an error the buffer and the object will be discarded, with
-    /// the error yielded. In the case of success the object will be destroyed and
-    /// the buffer will be returned, with all data read from the stream appended to
-    /// the buffer.
-    fn read_to_end(self, buf: Vec<u8>) -> ReadToEnd<Self>
-        where Self: Sized,
+    fn read_to_end<'a>(&'a mut self, buf: &'a mut Vec<u8>) -> ReadToEnd<'a, Self>
     {
         read_to_end::read_to_end(self, buf)
     }
@@ -114,42 +97,25 @@ impl<T: AsyncRead + ?Sized> AsyncReadExt for T {}
 
 /// An extension trait which adds utility methods to `AsyncWrite` types.
 pub trait AsyncWriteExt: AsyncWrite {
-    /// Creates a future which will entirely flush this `AsyncWrite` and then return `self`.
-    ///
-    /// This function will consume `self` if an error occurs.
-    fn flush(self) -> Flush<Self>
-        where Self: Sized,
+    /// Creates a future which will entirely flush this `AsyncWrite`.
+    fn flush<'a>(&'a mut self) -> Flush<'a, Self>
     {
         flush::flush(self)
     }
 
-    /// Creates a future which will entirely close this `AsyncWrite` and then return `self`.
-    ///
-    /// This function will consume the object provided if an error occurs.
-    fn close(self) -> Close<Self>
-        where Self: Sized,
+    /// Creates a future which will entirely close this `AsyncWrite`.
+    fn close<'a>(&'a mut self) -> Close<'a, Self>
     {
         close::close(self)
     }
 
-    /// Write a `Buf` into this value, returning how many bytes were written.
+    /// Write data into this object.
+    ///
     /// Creates a future that will write the entire contents of the buffer `buf` into
     /// this `AsyncWrite`.
     ///
     /// The returned future will not complete until all the data has been written.
-    /// The future will resolve to a tuple of `self` and `buf`
-    /// (so the buffer can be reused as needed).
-    ///
-    /// Any error which happens during writing will cause both the stream and the
-    /// buffer to be destroyed.
-    ///
-    /// The `buf` parameter here only requires the `AsRef<[u8]>` trait, which should
-    /// be broadly applicable to accepting data which can be converted to a slice.
-    /// The `Window` struct is also available in this crate to provide a different
-    /// window into a slice if necessary.
-    fn write_all<T>(self, buf: T) -> WriteAll<Self, T>
-        where T: AsRef<[u8]>,
-              Self: Sized,
+    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self>
     {
         write_all::write_all(self, buf)
     }

@@ -1,5 +1,6 @@
 use std::io;
-use std::mem;
+use std::marker::Unpin;
+use std::mem::{self, PinMut};
 
 use {Poll, Future, task};
 
@@ -12,62 +13,46 @@ use io::AsyncRead;
 ///
 /// [`read_exact`]: fn.read_exact.html
 #[derive(Debug)]
-pub struct ReadExact<A, T> {
-    state: State<A, T>,
+pub struct ReadExact<'a, A: ?Sized + 'a> {
+    a: &'a mut A,
+    buf: &'a mut [u8],
 }
 
-#[derive(Debug)]
-enum State<A, T> {
-    Reading {
-        a: A,
-        buf: T,
-        pos: usize,
-    },
-    Empty,
-}
+unsafe impl<'a, A: ?Sized> Unpin for ReadExact<'a, A> {}
 
-pub fn read_exact<A, T>(a: A, buf: T) -> ReadExact<A, T>
-    where A: AsyncRead,
-          T: AsMut<[u8]>,
+pub fn read_exact<'a, A>(a: &'a mut A, buf: &'a mut [u8]) -> ReadExact<'a, A>
+    where A: AsyncRead + ?Sized,
 {
-    ReadExact {
-        state: State::Reading {
-            a,
-            buf,
-            pos: 0,
-        },
-    }
+    ReadExact { a, buf }
 }
 
 fn eof() -> io::Error {
     io::Error::new(io::ErrorKind::UnexpectedEof, "early eof")
 }
 
-impl<A, T> Future for ReadExact<A, T>
-    where A: AsyncRead,
-          T: AsMut<[u8]>,
+impl<'a, A> Future for ReadExact<'a, A>
+    where A: AsyncRead + ?Sized,
 {
-    type Item = (A, T);
-    type Error = io::Error;
+    type Output = io::Result<()>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(A, T), io::Error> {
-        match self.state {
-            State::Reading { ref mut a, ref mut buf, ref mut pos } => {
-                let buf = buf.as_mut();
-                while *pos < buf.len() {
-                    let n = try_ready!(a.poll_read(cx, &mut buf[*pos..]));
-                    *pos += n;
-                    if n == 0 {
-                        return Err(eof())
-                    }
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let this = &mut *self;
+        while this.buf.len() > 0 {
+            let n = {
+                match this.a.poll_read(cx, this.buf) {
+                    Poll::Ready(Ok(n)) => n,
+                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                    Poll::Pending => return Poll::Pending,
                 }
+            };
+            {
+                let (rest, _) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);
+                this.buf = rest;
             }
-            State::Empty => panic!("poll a ReadExact after it's done"),
+            if n == 0 {
+                return Poll::Ready(Err(eof()))
+            }
         }
-
-        match mem::replace(&mut self.state, State::Empty) {
-            State::Reading { a, buf, .. } => Ok((a, buf).into()),
-            State::Empty => panic!(),
-        }
+        Poll::Ready(Ok(()))
     }
 }
