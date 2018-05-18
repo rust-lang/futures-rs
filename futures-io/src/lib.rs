@@ -20,7 +20,7 @@ if_std! {
     extern crate iovec;
     extern crate std;
 
-    use futures_core::{Async, Poll, task};
+    use futures_core::{Poll, task};
     use std::boxed::Box;
     use std::io as StdIo;
     use std::ptr;
@@ -115,7 +115,7 @@ if_std! {
         /// `Async::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
-            -> Poll<usize, Error>;
+            -> Poll<Result<usize>>;
 
         /// Attempt to read from the `AsyncRead` into `vec` using vectored
         /// IO operations.
@@ -140,13 +140,13 @@ if_std! {
         /// `Async::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
-            -> Poll<usize, Error>
+            -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
                 self.poll_read(cx, first_iovec)
             } else {
                 // `vec` is empty.
-                return Ok(Async::Ready(0));
+                Poll::Ready(Ok(0))
             }
         }
     }
@@ -175,7 +175,7 @@ if_std! {
         /// `Async::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
-            -> Poll<usize, Error>;
+            -> Poll<Result<usize>>;
 
         /// Attempt to write bytes from `vec` into the object using vectored
         /// IO operations.
@@ -201,13 +201,13 @@ if_std! {
         /// `Async::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
-            -> Poll<usize, Error>
+            -> Poll<Result<usize>>
         {
             if let Some(ref first_iovec) = vec.get(0) {
                 self.poll_write(cx, &*first_iovec)
             } else {
                 // `vec` is empty.
-                return Ok(Async::Ready(0));
+                Poll::Ready(Ok(0))
             }
         }
 
@@ -227,7 +227,7 @@ if_std! {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Async::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
+        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<Result<()>>;
 
         /// Attempt to close the object.
         ///
@@ -244,7 +244,7 @@ if_std! {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Async::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error>;
+        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<Result<()>>;
     }
 
     macro_rules! deref_async_read {
@@ -254,13 +254,13 @@ if_std! {
             }
 
             fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
-                -> Poll<usize, Error>
+                -> Poll<Result<usize>>
             {
                 (**self).poll_read(cx, buf)
             }
 
             fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
-                -> Poll<usize, Error>
+                -> Poll<Result<usize>>
             {
                 (**self).poll_vectored_read(cx, vec)
             }
@@ -284,9 +284,9 @@ if_std! {
             }
 
             fn poll_read(&mut self, _: &mut task::Context, buf: &mut [u8])
-                -> Poll<usize, Error>
+                -> Poll<Result<usize>>
             {
-                Ok(Async::Ready(StdIo::Read::read(self, buf)?))
+                Poll::Ready(StdIo::Read::read(self, buf))
             }
         }
     }
@@ -306,22 +306,22 @@ if_std! {
     macro_rules! deref_async_write {
         () => {
             fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
-                -> Poll<usize, Error>
+                -> Poll<Result<usize>>
             {
                 (**self).poll_write(cx, buf)
             }
 
             fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
-                -> Poll<usize, Error>
+                -> Poll<Result<usize>>
             {
                 (**self).poll_vectored_write(cx, vec)
             }
 
-            fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
+            fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<Result<()>> {
                 (**self).poll_flush(cx)
             }
 
-            fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
+            fn poll_close(&mut self, cx: &mut task::Context) -> Poll<Result<()>> {
                 (**self).poll_close(cx)
             }
         }
@@ -338,16 +338,16 @@ if_std! {
     macro_rules! delegate_async_write_to_stdio {
         () => {
             fn poll_write(&mut self, _: &mut task::Context, buf: &[u8])
-                -> Poll<usize, Error>
+                -> Poll<Result<usize>>
             {
-                Ok(Async::Ready(StdIo::Write::write(self, buf)?))
+                Poll::Ready(StdIo::Write::write(self, buf))
             }
 
-            fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Error> {
-                Ok(Async::Ready(StdIo::Write::flush(self)?))
+            fn poll_flush(&mut self, _: &mut task::Context) -> Poll<Result<()>> {
+                Poll::Ready(StdIo::Write::flush(self))
             }
 
-            fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Error> {
+            fn poll_close(&mut self, cx: &mut task::Context) -> Poll<Result<()>> {
                 self.poll_flush(cx)
             }
         }

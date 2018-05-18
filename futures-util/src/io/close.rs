@@ -1,38 +1,36 @@
 use std::io;
+use std::marker::Unpin;
+use std::mem::PinMut;
 
-use {Poll, Future, Async, task};
+use {Poll, Future, task};
 
 use futures_io::AsyncWrite;
 
 /// A future used to fully close an I/O object.
 ///
-/// Resolves to the underlying I/O object once the close operation is
-/// complete.
-///
 /// Created by the [`close`] function.
 ///
 /// [`close`]: fn.close.html
 #[derive(Debug)]
-pub struct Close<A> {
-    a: Option<A>,
+pub struct Close<'a, A: ?Sized + 'a> {
+    a: &'a mut A,
 }
 
-pub fn close<A>(a: A) -> Close<A>
+// PinMut is never projected to fields
+unsafe impl<'a, A: ?Sized> Unpin for Close<'a, A> {}
+
+pub fn close<'a, A: ?Sized>(a: &'a mut A) -> Close<'a, A>
     where A: AsyncWrite,
 {
-    Close {
-        a: Some(a),
-    }
+    Close { a }
 }
 
-impl<A> Future for Close<A>
-    where A: AsyncWrite,
+impl<'a, A> Future for Close<'a, A>
+    where A: AsyncWrite + ?Sized,
 {
-    type Item = A;
-    type Error = io::Error;
+    type Output = io::Result<()>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<A, io::Error> {
-        try_ready!(self.a.as_mut().unwrap().poll_close(cx));
-        Ok(Async::Ready(self.a.take().unwrap()))
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        self.a.poll_close(cx)
     }
 }

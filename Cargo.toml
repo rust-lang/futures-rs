@@ -5,7 +5,7 @@ members = [
   "futures-core",
   "futures-channel",
 #  "futures-executor",
-#  "futures-io",
+  "futures-io",
 #  "futures-macro-async",
 #  "futures-macro-await",
 #  "futures-sink",

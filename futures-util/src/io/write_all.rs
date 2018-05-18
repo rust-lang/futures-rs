@@ -1,5 +1,6 @@
 use std::io;
-use std::mem;
+use std::marker::Unpin;
+use std::mem::{self, PinMut};
 
 use {Poll, Future, task};
 
@@ -11,62 +12,46 @@ use futures_io::AsyncWrite;
 ///
 /// [`write_all`]: fn.write_all.html
 #[derive(Debug)]
-pub struct WriteAll<A, T> {
-    state: State<A, T>,
+pub struct WriteAll<'a, A: ?Sized + 'a> {
+    a: &'a mut A,
+    buf: &'a [u8],
 }
 
-#[derive(Debug)]
-enum State<A, T> {
-    Writing {
-        a: A,
-        buf: T,
-        pos: usize,
-    },
-    Empty,
-}
+// Pinning is never projected to fields
+unsafe impl<'a, A: ?Sized> Unpin for WriteAll<'a, A> {}
 
-pub fn write_all<A, T>(a: A, buf: T) -> WriteAll<A, T>
-    where A: AsyncWrite,
-          T: AsRef<[u8]>,
+pub fn write_all<'a, A>(a: &'a mut A, buf: &'a [u8]) -> WriteAll<'a, A>
+    where A: AsyncWrite + ?Sized,
 {
-    WriteAll {
-        state: State::Writing {
-            a: a,
-            buf: buf,
-            pos: 0,
-        },
-    }
+    WriteAll { a, buf }
 }
 
 fn zero_write() -> io::Error {
     io::Error::new(io::ErrorKind::WriteZero, "zero-length write")
 }
 
-impl<A, T> Future for WriteAll<A, T>
-    where A: AsyncWrite,
-          T: AsRef<[u8]>,
+impl<'a, A> Future for WriteAll<'a, A>
+    where A: AsyncWrite + ?Sized,
 {
-    type Item = (A, T);
-    type Error = io::Error;
+    type Output = io::Result<()>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(A, T), io::Error> {
-        match self.state {
-            State::Writing { ref mut a, ref buf, ref mut pos } => {
-                let buf = buf.as_ref();
-                while *pos < buf.len() {
-                    let n = try_ready!(a.poll_write(cx, &buf[*pos..]));
-                    *pos += n;
-                    if n == 0 {
-                        return Err(zero_write())
-                    }
-                }
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<io::Result<()>> {
+        let this = &mut *self;
+        while this.buf.len() > 0 {
+            let n = match this.a.poll_write(cx, this.buf) {
+                Poll::Ready(Ok(n)) => n,
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Pending => return Poll::Pending,
+            };
+            {
+                let (rest, _) = mem::replace(&mut this.buf, &[]).split_at(n);
+                this.buf = rest;
             }
-            State::Empty => panic!("poll a WriteAll after it's done"),
+            if n == 0 {
+                return Poll::Ready(Err(zero_write()))
+            }
         }
 
-        match mem::replace(&mut self.state, State::Empty) {
-            State::Writing { a, buf, .. } => Ok((a, buf).into()),
-            State::Empty => panic!(),
-        }
+        Poll::Ready(Ok(()))
     }
 }

@@ -1,8 +1,9 @@
 use std::io;
-use std::mem;
+use std::marker::Unpin;
+use std::mem::PinMut;
 use std::vec::Vec;
 
-use {Async, Poll, Future, task};
+use {Poll, Future, task};
 
 use io::AsyncRead;
 
@@ -13,28 +14,18 @@ use io::AsyncRead;
 ///
 /// [`read_to_end`]: fn.read_to_end.html
 #[derive(Debug)]
-pub struct ReadToEnd<A> {
-    state: State<A>,
+pub struct ReadToEnd<'a, A: ?Sized + 'a> {
+    a: &'a mut A,
+    buf: &'a mut Vec<u8>,
 }
 
-#[derive(Debug)]
-enum State<A> {
-    Reading {
-        a: A,
-        buf: Vec<u8>,
-    },
-    Empty,
-}
+// We never project pinning to fields
+unsafe impl<'a, A: ?Sized> Unpin for ReadToEnd<'a, A> {}
 
-pub fn read_to_end<A>(a: A, buf: Vec<u8>) -> ReadToEnd<A>
-    where A: AsyncRead,
+pub fn read_to_end<'a, A>(a: &'a mut A, buf: &'a mut Vec<u8>) -> ReadToEnd<'a, A>
+    where A: AsyncRead + ?Sized,
 {
-    ReadToEnd {
-        state: State::Reading {
-            a,
-            buf,
-        }
-    }
+    ReadToEnd { a, buf }
 }
 
 struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
@@ -55,9 +46,8 @@ impl<'a> Drop for Guard<'a> {
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
 fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context, buf: &mut Vec<u8>)
-    -> Poll<usize, io::Error>
+    -> Poll<io::Result<()>>
 {
-    let start_len = buf.len();
     let mut g = Guard { len: buf.len(), buf: buf };
     let ret;
     loop {
@@ -71,14 +61,14 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context
         }
 
         match r.poll_read(cx, &mut g.buf[g.len..]) {
-            Ok(Async::Ready(0)) => {
-                ret = Ok(Async::Ready(g.len - start_len));
+            Poll::Ready(Ok(0)) => {
+                ret = Poll::Ready(Ok(()));
                 break;
             }
-            Ok(Async::Ready(n)) => g.len += n,
-            Ok(Async::Pending) => return Ok(Async::Pending),
-            Err(e) => {
-                ret = Err(e);
+            Poll::Ready(Ok(n)) => g.len += n,
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(Err(e)) => {
+                ret = Poll::Ready(Err(e));
                 break;
             }
         }
@@ -87,26 +77,13 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context
     ret
 }
 
-impl<A> Future for ReadToEnd<A>
-    where A: AsyncRead,
+impl<'a, A> Future for ReadToEnd<'a, A>
+    where A: AsyncRead + ?Sized,
 {
-    type Item = (A, Vec<u8>);
-    type Error = io::Error;
+    type Output = io::Result<()>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(A, Vec<u8>), io::Error> {
-        match self.state {
-            State::Reading { ref mut a, ref mut buf } => {
-                // If we get `Ok`, then we know the stream hit EOF and we're done. If we
-                // hit "would block" then all the read data so far is in our buffer, and
-                // otherwise we propagate errors
-                try_ready!(read_to_end_internal(a, cx, buf));
-            },
-            State::Empty => panic!("poll ReadToEnd after it's done"),
-        }
-
-        match mem::replace(&mut self.state, State::Empty) {
-            State::Reading { a, buf } => Ok((a, buf).into()),
-            State::Empty => unreachable!(),
-        }
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let this = &mut *self;
+        read_to_end_internal(this.a, cx, this.buf)
     }
 }

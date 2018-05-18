@@ -1,6 +1,8 @@
 use std::io;
+use std::marker::Unpin;
+use std::mem::PinMut;
 
-use {Poll, Future, Async, task};
+use {Poll, Future, task};
 
 use futures_io::AsyncWrite;
 
@@ -12,27 +14,25 @@ use futures_io::AsyncWrite;
 ///
 /// [`flush`]: fn.flush.html
 #[derive(Debug)]
-pub struct Flush<A> {
-    a: Option<A>,
+pub struct Flush<'a, A: ?Sized + 'a> {
+    a: &'a mut A,
 }
 
-pub fn flush<A>(a: A) -> Flush<A>
-    where A: AsyncWrite,
+// Pinning is never projected to fields
+unsafe impl<'a, A: ?Sized> Unpin for Flush<'a, A> {}
+
+pub fn flush<'a, A>(a: &'a mut A) -> Flush<'a, A>
+    where A: AsyncWrite + ?Sized,
 {
-    Flush {
-        a: Some(a),
+    Flush { a }
+}
+
+impl<'a, A> Future for Flush<'a, A>
+    where A: AsyncWrite + ?Sized,
+{
+    type Output = io::Result<()>;
+
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        self.a.poll_flush(cx)
     }
 }
-
-impl<A> Future for Flush<A>
-    where A: AsyncWrite,
-{
-    type Item = A;
-    type Error = io::Error;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<A, io::Error> {
-        try_ready!(self.a.as_mut().unwrap().poll_flush(cx));
-        Ok(Async::Ready(self.a.take().unwrap()))
-    }
-}
-

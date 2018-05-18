@@ -14,13 +14,13 @@ extern crate futures_core;
 #[cfg(test)]
 extern crate futures_executor;
 
-// extern crate futures_io;
+extern crate futures_io;
 // extern crate futures_sink;
 
 extern crate either;
 
-//#[cfg(feature = "std")]
-//use futures_core::{Future, Poll, task};
+#[cfg(feature = "std")]
+use futures_core::{Future, Poll, task};
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -56,12 +56,10 @@ macro_rules! delegate_sink {
 }
 */
 
-/*
 #[cfg(all(feature = "std", any(test, feature = "bench")))]
 pub mod lock;
 #[cfg(all(feature = "std", not(any(test, feature = "bench"))))]
 mod lock;
-*/
 
 pub mod future;
 pub use future::FutureExt;
@@ -69,10 +67,10 @@ pub use future::FutureExt;
 pub mod try_future;
 pub use try_future::TryFutureExt;
 
-// #[cfg(feature = "std")]
-// pub mod io;
-// #[cfg(feature = "std")]
-// pub use io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(feature = "std")]
+pub mod io;
+#[cfg(feature = "std")]
+pub use io::{AsyncReadExt, AsyncWriteExt};
 
 // pub mod stream;
 // pub use stream::StreamExt;
