@@ -1,9 +1,8 @@
-use std::mem;
+use std::mem::{self, PinMut};
 use std::prelude::v1::*;
 
-use futures_core::{Async, Poll, Stream};
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 use stream::Fuse;
 
@@ -18,7 +17,6 @@ pub struct Chunks<S>
     where S: Stream
 {
     items: Vec<S::Item>,
-    err: Option<S::Error>,
     stream: Fuse<S>
 }
 
@@ -29,11 +27,11 @@ pub fn new<S>(s: S, capacity: usize) -> Chunks<S>
 
     Chunks {
         items: Vec::with_capacity(capacity),
-        err: None,
         stream: super::fuse::new(s),
     }
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Chunks<S>
     where S: Sink + Stream
@@ -43,12 +41,12 @@ impl<S> Sink for Chunks<S>
 
     delegate_sink!(stream);
 }
-
+*/
 
 impl<S> Chunks<S> where S: Stream {
-    fn take(&mut self) -> Vec<S::Item> {
-        let cap = self.items.capacity();
-        mem::replace(&mut self.items, Vec::with_capacity(cap))
+    fn take(mut self: PinMut<Self>) -> Vec<S::Item> {
+        let cap = self.items().capacity();
+        mem::replace(self.items(), Vec::with_capacity(cap))
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -73,54 +71,41 @@ impl<S> Chunks<S> where S: Stream {
     pub fn into_inner(self) -> S {
         self.stream.into_inner()
     }
+
+    unsafe_unpinned!(items ->  Vec<S::Item>);
+    unsafe_pinned!(stream -> Fuse<S>);
 }
 
 impl<S> Stream for Chunks<S>
     where S: Stream
 {
     type Item = Vec<<S as Stream>::Item>;
-    type Error = <S as Stream>::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        if let Some(err) = self.err.take() {
-            return Err(err)
-        }
-
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {
-            match self.stream.poll_next(cx) {
-                Ok(Async::Pending) => return Ok(Async::Pending),
-
+            match try_ready!(self.stream().poll_next(cx)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.
-                Ok(Async::Ready(Some(item))) => {
-                    self.items.push(item);
-                    if self.items.len() >= cap {
-                        return Ok(Some(self.take()).into())
+                Some(item) => {
+                    self.items().push(item);
+                    if self.items().len() >= cap {
+                        return Poll::Ready(Some(self.take()))
                     }
                 }
 
                 // Since the underlying stream ran out of values, return what we
                 // have buffered, if we have anything.
-                Ok(Async::Ready(None)) => {
-                    return if self.items.len() > 0 {
-                        let full_buf = mem::replace(&mut self.items, Vec::new());
-                        Ok(Some(full_buf).into())
+                None => {
+                    let last = if self.items().len() > 0 {
+                        let full_buf = mem::replace(self.items(), Vec::new());
+                        Some(full_buf)
                     } else {
-                        Ok(Async::Ready(None))
-                    }
-                }
+                        None
+                    };
 
-                // If we've got buffered items be sure to return them first,
-                // we'll defer our error for later.
-                Err(e) => {
-                    if self.items.len() == 0 {
-                        return Err(e)
-                    } else {
-                        self.err = Some(e);
-                        return Ok(Some(self.take()).into())
-                    }
+                    return Poll::Ready(last);
                 }
             }
         }

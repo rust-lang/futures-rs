@@ -1,6 +1,8 @@
-use core::mem;
+use core::mem::PinMut;
 
-use futures_core::{Future, Poll, IntoFuture, Async, Stream};
+use {PinMutExt, OptionExt};
+
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 /// A future used to collect all the results of a stream into one generic type.
@@ -8,71 +10,56 @@ use futures_core::task;
 /// This future is returned by the `Stream::fold` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Fold<S, Fut, T, F> where Fut: IntoFuture {
+pub struct Fold<S, Fut, T, F> {
     stream: S,
     f: F,
-    state: State<T, Fut::Future>,
-}
-
-#[derive(Debug)]
-enum State<T, F> where F: Future {
-    /// Placeholder state when doing work
-    Empty,
-
-    /// Ready to process the next stream item; current accumulator is the `T`
-    Ready(T),
-
-    /// Working on a future the process the previous stream item
-    Processing(F),
+    accum: Option<T>,
+    fut: Option<Fut>,
 }
 
 pub fn new<S, Fut, T, F>(s: S, f: F, t: T) -> Fold<S, Fut, T, F>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
-          Fut: IntoFuture<Item = T, Error = S::Error>,
+          Fut: Future<Output = T>,
 {
     Fold {
         stream: s,
         f: f,
-        state: State::Ready(t),
+        accum: Some(t),
+        fut: None,
     }
+}
+
+impl<S, Fut, T, F> Fold<S, Fut, T, F> {
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(f -> F);
+    unsafe_unpinned!(accum -> Option<T>);
+    unsafe_pinned!(fut -> Option<Fut>);
 }
 
 impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
-          Fut: IntoFuture<Item = T, Error = S::Error>,
+          Fut: Future<Output = T>,
 {
-    type Item = T;
-    type Error = S::Error;
+    type Output = T;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<T, S::Error> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
         loop {
-            match mem::replace(&mut self.state, State::Empty) {
-                State::Empty => panic!("cannot poll Fold twice"),
-                State::Ready(state) => {
-                    match self.stream.poll_next(cx)? {
-                        Async::Ready(Some(e)) => {
-                            let future = (self.f)(state, e);
-                            let future = future.into_future();
-                            self.state = State::Processing(future);
-                        }
-                        Async::Ready(None) => return Ok(Async::Ready(state)),
-                        Async::Pending => {
-                            self.state = State::Ready(state);
-                            return Ok(Async::Pending)
-                        }
-                    }
+            if self.accum().is_some() {
+                let item = try_ready!(self.stream().poll_next(cx));
+                let accum = self.accum().take().unwrap();
+
+                if let Some(e) = item {
+                    let fut = (self.f())(accum, e);
+                    self.fut().assign(Some(fut));
+                } else {
+                    return Poll::Ready(accum)
                 }
-                State::Processing(mut fut) => {
-                    match fut.poll(cx)? {
-                        Async::Ready(state) => self.state = State::Ready(state),
-                        Async::Pending => {
-                            self.state = State::Processing(fut);
-                            return Ok(Async::Pending)
-                        }
-                    }
-                }
+            } else {
+                let accum = try_ready!(self.fut().as_pin_mut().unwrap().poll(cx));
+                *self.accum() = Some(accum);
+                self.fut().assign(None);
             }
         }
     }

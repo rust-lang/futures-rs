@@ -1,6 +1,7 @@
-use futures_core::{Async, Poll, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 /// A stream combinator which will change the type of a stream from one
 /// type to another.
@@ -46,8 +47,12 @@ impl<S, F> Map<S, F> {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(f -> F);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, F> Sink for Map<S, F>
     where S: Sink
@@ -57,16 +62,16 @@ impl<S, F> Sink for Map<S, F>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S, F, U> Stream for Map<S, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
 {
     type Item = U;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<U>, S::Error> {
-        let option = try_ready!(self.stream.poll_next(cx));
-        Ok(Async::Ready(option.map(&mut self.f)))
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U>> {
+        let option = try_ready!(self.stream().poll_next(cx));
+        Poll::Ready(option.map(self.f()))
     }
 }

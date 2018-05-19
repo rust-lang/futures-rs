@@ -1,6 +1,9 @@
-use futures_core::{Async, Poll, IntoFuture, Future, Stream};
+use core::mem::PinMut;
+
+use {PinMutExt, OptionExt};
+
+use futures_core::{Poll, Future, Stream};
 use futures_core::task;
-use futures_sink::{ Sink};
 
 /// A stream combinator which takes elements from a stream while a predicate
 /// holds.
@@ -8,27 +11,29 @@ use futures_sink::{ Sink};
 /// This structure is produced by the `Stream::take_while` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TakeWhile<S, R, P> where S: Stream, R: IntoFuture {
+pub struct TakeWhile<S, R, P> where S: Stream {
     stream: S,
     pred: P,
-    pending: Option<(R::Future, S::Item)>,
+    pending_fut: Option<R>,
+    pending_item: Option<S::Item>,
     done_taking: bool,
 }
 
 pub fn new<S, R, P>(s: S, p: P) -> TakeWhile<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
-          R: IntoFuture<Item=bool, Error=S::Error>,
+          R: Future<Output = bool>,
 {
     TakeWhile {
         stream: s,
         pred: p,
-        pending: None,
+        pending_fut: None,
+        pending_item: None,
         done_taking: false,
     }
 }
 
-impl<S, R, P> TakeWhile<S, R, P> where S: Stream, R: IntoFuture {
+impl<S, R, P> TakeWhile<S, R, P> where S: Stream {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -51,8 +56,15 @@ impl<S, R, P> TakeWhile<S, R, P> where S: Stream, R: IntoFuture {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(pred -> P);
+    unsafe_pinned!(pending_fut -> Option<R>);
+    unsafe_unpinned!(pending_item -> Option<S::Item>);
+    unsafe_unpinned!(done_taking -> bool);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, R, P> Sink for TakeWhile<S, R, P>
     where S: Sink + Stream, R: IntoFuture
@@ -62,43 +74,39 @@ impl<S, R, P> Sink for TakeWhile<S, R, P>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S, R, P> Stream for TakeWhile<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
-          R: IntoFuture<Item=bool, Error=S::Error>,
+          R: Future<Output = bool>,
 {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        if self.done_taking {
-            return Ok(Async::Ready(None));
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        if *self.done_taking() {
+            return Poll::Ready(None);
         }
 
-        if self.pending.is_none() {
-            let item = match try_ready!(self.stream.poll_next(cx)) {
+        if self.pending_item().is_none() {
+            let item = match try_ready!(self.stream().poll_next(cx)) {
                 Some(e) => e,
-                None => return Ok(Async::Ready(None)),
+                None => return Poll::Ready(None),
             };
-            self.pending = Some(((self.pred)(&item).into_future(), item));
+            let fut = (self.pred())(&item);
+            self.pending_fut().assign(Some(fut));
+            *self.pending_item() = Some(item);
         }
 
-        assert!(self.pending.is_some());
-        match self.pending.as_mut().unwrap().0.poll(cx) {
-            Ok(Async::Ready(true)) => {
-                let (_, item) = self.pending.take().unwrap();
-                Ok(Async::Ready(Some(item)))
-            },
-            Ok(Async::Ready(false)) => {
-                self.done_taking = true;
-                Ok(Async::Ready(None))
-            }
-            Ok(Async::Pending) => Ok(Async::Pending),
-            Err(e) => {
-                self.pending = None;
-                Err(e)
-            }
+        let take = try_ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
+        self.pending_fut().assign(None);
+        let item = self.pending_item().take().unwrap();
+
+        if take {
+            Poll::Ready(Some(item))
+        } else {
+            *self.done_taking() = true;
+            Poll::Ready(None)
         }
     }
 }

@@ -1,8 +1,8 @@
 use std::prelude::v1::*;
 
-use std::mem;
+use std::mem::{self, PinMut};
 
-use futures_core::{Future, Poll, Async, Stream};
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 /// A future which collects all of the values of a stream into a vector.
@@ -25,27 +25,24 @@ pub fn new<S, C>(s: S) -> Collect<S, C>
 }
 
 impl<S: Stream, C: Default> Collect<S, C> {
-    fn finish(&mut self) -> C {
-        mem::replace(&mut self.items, Default::default())
+    fn finish(mut self: PinMut<Self>) -> C {
+        mem::replace(self.items(), Default::default())
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(items -> C);
 }
 
 impl<S, C> Future for Collect<S, C>
     where S: Stream, C: Default + Extend<S:: Item>
 {
-    type Item = C;
-    type Error = S::Error;
+    type Output = C;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<C, S::Error> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<C> {
         loop {
-            match self.stream.poll_next(cx) {
-                Ok(Async::Ready(Some(e))) => self.items.extend(Some(e)),
-                Ok(Async::Ready(None)) => return Ok(Async::Ready(self.finish())),
-                Ok(Async::Pending) => return Ok(Async::Pending),
-                Err(e) => {
-                    self.finish();
-                    return Err(e)
-                }
+            match try_ready!(self.stream().poll_next(cx)) {
+                Some(e) => self.items().extend(Some(e)),
+                None => return Poll::Ready(self.finish()),
             }
         }
     }

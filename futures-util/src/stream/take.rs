@@ -1,6 +1,7 @@
-use futures_core::{Async, Poll, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{ Sink};
 
 /// A stream combinator which returns a maximum number of elements.
 ///
@@ -44,8 +45,12 @@ impl<S> Take<S> {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(remaining -> u64);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Take<S>
     where S: Sink + Stream
@@ -55,23 +60,23 @@ impl<S> Sink for Take<S>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S> Stream for Take<S>
     where S: Stream,
 {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        if self.remaining == 0 {
-            Ok(Async::Ready(None))
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        if *self.remaining() == 0 {
+            Poll::Ready(None)
         } else {
-            let next = try_ready!(self.stream.poll_next(cx));
+            let next = try_ready!(self.stream().poll_next(cx));
             match next {
-                Some(_) => self.remaining -= 1,
-                None => self.remaining = 0,
+                Some(_) => *self.remaining() -= 1,
+                None => *self.remaining() = 0,
             }
-            Ok(Async::Ready(next))
+            Poll::Ready(next)
         }
     }
 }

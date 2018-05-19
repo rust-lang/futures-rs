@@ -72,11 +72,14 @@ pub mod io;
 #[cfg(feature = "std")]
 pub use io::{AsyncReadExt, AsyncWriteExt};
 
-// pub mod stream;
-// pub use stream::StreamExt;
+pub mod stream;
+pub use stream::StreamExt;
 
 // pub mod sink;
 // pub use sink::SinkExt;
+
+mod pin_mut;
+pub use pin_mut::{PinMutExt, OptionExt};
 
 pub mod prelude {
     //! Prelude containing the extension traits, which add functionality to

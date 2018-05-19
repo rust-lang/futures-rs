@@ -40,6 +40,28 @@ macro_rules! pinned_field {
     )
 }
 
+#[macro_export]
+macro_rules! unsafe_pinned {
+    ($f:tt -> $t:ty) => (
+        fn $f<'a>(self: &'a mut PinMut<Self>) -> PinMut<'a, $t> {
+            unsafe {
+                pinned_field!(self, $f)
+            }
+        }
+    )
+}
+
+#[macro_export]
+macro_rules! unsafe_unpinned {
+    ($f:tt -> $t:ty) => (
+        fn $f<'a>(self: &'a mut PinMut<Self>) -> &'a mut $t {
+            unsafe {
+                &mut ::core::mem::PinMut::get_mut(self.reborrow()).$f
+            }
+        }
+    )
+}
+
 mod poll;
 pub use poll::Poll;
 

@@ -1,18 +1,9 @@
-use core::mem;
+use core::mem::PinMut;
 
-use futures_core::{Stream, Async, Poll};
+use {PinMutExt, OptionExt};
+
+use futures_core::{Stream, Poll};
 use futures_core::task;
-
-/// State of chain stream.
-#[derive(Debug)]
-enum State<S1, S2> {
-    /// Emitting elements of first stream
-    First(S1, S2),
-    /// Emitting elements of second stream
-    Second(S2),
-    /// Temporary value to replace first with second
-    Temp,
-}
 
 /// An adapter for chaining the output of two streams.
 ///
@@ -21,36 +12,37 @@ enum State<S1, S2> {
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Chain<S1, S2> {
-    state: State<S1, S2>
+    first: Option<S1>,
+    second: S2,
 }
 
 pub fn new<S1, S2>(s1: S1, s2: S2) -> Chain<S1, S2>
-    where S1: Stream, S2: Stream<Item=S1::Item, Error=S1::Error>,
+    where S1: Stream, S2: Stream<Item=S1::Item>,
 {
-    Chain { state: State::First(s1, s2) }
+    Chain {
+        first: Some(s1),
+        second: s2,
+    }
+}
+
+// All interactions with `PinMut<Chain<..>>` happen through these methods
+impl<S1, S2> Chain<S1, S2> {
+    unsafe_pinned!(first -> Option<S1>);
+    unsafe_pinned!(second -> S2);
 }
 
 impl<S1, S2> Stream for Chain<S1, S2>
-    where S1: Stream, S2: Stream<Item=S1::Item, Error=S1::Error>,
+    where S1: Stream, S2: Stream<Item=S1::Item>,
 {
     type Item = S1::Item;
-    type Error = S1::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        loop {
-            match self.state {
-                State::First(ref mut s1, ref _s2) => match s1.poll_next(cx) {
-                    Ok(Async::Ready(None)) => (), // roll
-                    x => return x,
-                },
-                State::Second(ref mut s2) => return s2.poll_next(cx),
-                State::Temp => unreachable!(),
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        if let Some(first) = self.first().as_pin_mut() {
+            if let Some(item) = try_ready!(first.poll_next(cx)) {
+                return Poll::Ready(Some(item))
             }
-
-            self.state = match mem::replace(&mut self.state, State::Temp) {
-                State::First(_s1, s2) => State::Second(s2),
-                _ => unreachable!(),
-            };
         }
+        self.first().assign(None);
+        self.second().poll_next(cx)
     }
 }

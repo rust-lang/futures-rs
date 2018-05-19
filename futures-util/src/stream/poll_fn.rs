@@ -1,5 +1,8 @@
 //! Definition of the `PollFn` combinator
 
+use core::mem::PinMut;
+use core::marker::Unpin;
+
 use futures_core::{Stream, Poll};
 use futures_core::task;
 
@@ -11,6 +14,8 @@ use futures_core::task;
 pub struct PollFn<F> {
     inner: F,
 }
+
+unsafe impl<F> Unpin for PollFn<F> {}
 
 /// Creates a new stream wrapping around a function returning `Poll`.
 ///
@@ -33,21 +38,20 @@ pub struct PollFn<F> {
 /// });
 /// # }
 /// ```
-pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
+pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&mut task::Context) -> Poll<Option<T>, E>,
+    F: FnMut(&mut task::Context) -> Poll<Option<T>>,
 {
     PollFn { inner: f }
 }
 
-impl<T, E, F> Stream for PollFn<F>
+impl<T, F> Stream for PollFn<F>
 where
-    F: FnMut(&mut task::Context) -> Poll<Option<T>, E>,
+    F: FnMut(&mut task::Context) -> Poll<Option<T>>,
 {
     type Item = T;
-    type Error = E;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T>, E> {
-        (self.inner)(cx)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+        (&mut self.inner)(cx)
     }
 }

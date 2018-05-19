@@ -1,6 +1,7 @@
-use core::marker;
+use core::mem::PinMut;
+use core::marker::Unpin;
 
-use futures_core::{Async, Poll, Stream};
+use futures_core::{Poll, Stream};
 use futures_core::task;
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
@@ -8,10 +9,11 @@ use futures_core::task;
 /// This stream will never block and is always ready.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct IterOk<I, E> {
+pub struct Iter<I> {
     iter: I,
-    _marker: marker::PhantomData<fn() -> E>,
 }
+
+unsafe impl<I> Unpin for Iter<I> {}
 
 /// Converts an `Iterator` into a `Stream` which is always ready
 /// to yield the next value.
@@ -31,22 +33,20 @@ pub struct IterOk<I, E> {
 /// assert_eq!(Ok(vec![17, 19]), block_on(stream.collect()));
 /// # }
 /// ```
-pub fn iter_ok<I, E>(i: I) -> IterOk<I::IntoIter, E>
+pub fn iter<I>(i: I) -> Iter<I::IntoIter>
     where I: IntoIterator,
 {
-    IterOk {
+    Iter {
         iter: i.into_iter(),
-        _marker: marker::PhantomData,
     }
 }
 
-impl<I, E> Stream for IterOk<I, E>
+impl<I> Stream for Iter<I>
     where I: Iterator,
 {
     type Item = I::Item;
-    type Error = E;
 
-    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<I::Item>, E> {
-        Ok(Async::Ready(self.iter.next()))
+    fn poll_next(mut self: PinMut<Self>, _: &mut task::Context) -> Poll<Option<I::Item>> {
+        Poll::Ready(self.iter.next())
     }
 }

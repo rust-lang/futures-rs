@@ -1,6 +1,7 @@
-use futures_core::{Poll, Async, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 /// A stream which "fuse"s a stream once it's terminated.
 ///
@@ -14,6 +15,7 @@ pub struct Fuse<S> {
     done: bool,
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Fuse<S>
     where S: Sink
@@ -23,26 +25,10 @@ impl<S> Sink for Fuse<S>
 
     delegate_sink!(stream);
 }
+*/
 
 pub fn new<S: Stream>(s: S) -> Fuse<S> {
     Fuse { stream: s, done: false }
-}
-
-impl<S: Stream> Stream for Fuse<S> {
-    type Item = S::Item;
-    type Error = S::Error;
-
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        if self.done {
-            Ok(Async::Ready(None))
-        } else {
-            let r = self.stream.poll_next(cx);
-            if let Ok(Async::Ready(None)) = r {
-                self.done = true;
-            }
-            r
-        }
-    }
 }
 
 impl<S> Fuse<S> {
@@ -76,5 +62,24 @@ impl<S> Fuse<S> {
     /// care should be taken to avoid losing resources when this is called.
     pub fn into_inner(self) -> S {
         self.stream
+    }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(done -> bool);
+}
+
+impl<S: Stream> Stream for Fuse<S> {
+    type Item = S::Item;
+
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        if *self.done() {
+            Poll::Ready(None)
+        } else {
+            let r = self.stream().poll_next(cx);
+            if let Poll::Ready(None) = r {
+                *self.done() = true;
+            }
+            r
+        }
     }
 }

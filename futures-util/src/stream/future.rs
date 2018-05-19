@@ -1,4 +1,7 @@
-use futures_core::{Future, Poll, Async, Stream};
+use core::mem::PinMut;
+use core::marker::Unpin;
+
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 /// A combinator used to temporarily convert a stream into a future.
@@ -54,23 +57,15 @@ impl<S> StreamFuture<S> {
     }
 }
 
-impl<S: Stream> Future for StreamFuture<S> {
-    type Item = (Option<S::Item>, S);
-    type Error = (S::Error, S);
+impl<S: Stream + Unpin> Future for StreamFuture<S> {
+    type Output = (Option<S::Item>, S);
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            match s.poll_next(cx) {
-                Ok(Async::Pending) => return Ok(Async::Pending),
-                Ok(Async::Ready(e)) => Ok(e),
-                Err(e) => Err(e),
-            }
+            try_ready!(PinMut::new(s).poll_next(cx))
         };
         let stream = self.stream.take().unwrap();
-        match item {
-            Ok(e) => Ok(Async::Ready((e, stream))),
-            Err(e) => Err((e, stream)),
-        }
+        Poll::Ready((item, stream))
     }
 }

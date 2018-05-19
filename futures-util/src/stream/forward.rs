@@ -1,6 +1,7 @@
-use futures_core::{Async, Future, Poll, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 use stream::{StreamExt, Fuse};
 

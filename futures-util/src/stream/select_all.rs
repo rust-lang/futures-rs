@@ -1,8 +1,9 @@
 //! An unbounded set of streams
 
 use std::fmt::{self, Debug};
+use std::mem::PinMut;
 
-use futures_core::{Async, Poll, Stream};
+use futures_core::{Poll, Stream};
 use futures_core::task;
 
 use stream::{StreamExt, StreamFuture, FuturesUnordered};
