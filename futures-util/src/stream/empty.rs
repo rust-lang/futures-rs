@@ -1,6 +1,7 @@
-use core::marker;
+use core::mem::PinMut;
+use core::marker::PhantomData;
 
-use futures_core::{Stream, Poll, Async};
+use futures_core::{Stream, Poll};
 use futures_core::task;
 
 /// A stream which contains no elements.
@@ -8,22 +9,23 @@ use futures_core::task;
 /// This stream can be created with the `stream::empty` function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Empty<T, E> {
-    _data: marker::PhantomData<(T, E)>,
+pub struct Empty<T> {
+    _phantom: PhantomData<T>
 }
 
 /// Creates a stream which contains no elements.
 ///
 /// The returned stream will always return `Ready(None)` when polled.
-pub fn empty<T, E>() -> Empty<T, E> {
-    Empty { _data: marker::PhantomData }
+pub fn empty<T>() -> Empty<T> {
+    Empty {
+        _phantom: PhantomData
+    }
 }
 
-impl<T, E> Stream for Empty<T, E> {
+impl<T> Stream for Empty<T> {
     type Item = T;
-    type Error = E;
 
-    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        Ok(Async::Ready(None))
+    fn poll_next(self: PinMut<Self>, _: &mut task::Context) -> Poll<Option<Self::Item>> {
+        Poll::Ready(None)
     }
 }

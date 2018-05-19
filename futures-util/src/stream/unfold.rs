@@ -1,6 +1,8 @@
-use core::mem;
+use core::mem::PinMut;
 
-use futures_core::{Future, IntoFuture, Async, Poll, Stream};
+use {PinMutExt, OptionExt};
+
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
@@ -55,11 +57,12 @@ use futures_core::task;
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,
-          Fut: IntoFuture<Item = Option<(It, T)>>,
+          Fut: Future<Output = Option<(It, T)>>,
 {
     Unfold {
         f: f,
-        state: State::Ready(init),
+        state: Some(init),
+        fut: None,
     }
 }
 
@@ -68,54 +71,40 @@ pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
 /// This stream is returned by the `futures::stream::unfold` method
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Unfold<T, F, Fut> where Fut: IntoFuture {
+pub struct Unfold<T, F, Fut> {
     f: F,
-    state: State<T, Fut::Future>,
+    state: Option<T>,
+    fut: Option<Fut>,
 }
 
-impl <T, F, Fut, It> Stream for Unfold<T, F, Fut>
+impl<T, F, Fut> Unfold<T, F, Fut> {
+    unsafe_unpinned!(f -> F);
+    unsafe_unpinned!(state -> Option<T>);
+    unsafe_pinned!(fut -> Option<Fut>);
+}
+
+impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,
-          Fut: IntoFuture<Item = Option<(It, T)>>,
+          Fut: Future<Output = Option<(It, T)>>,
 {
     type Item = It;
-    type Error = Fut::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<It>, Fut::Error> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<It>> {
         loop {
-            match mem::replace(&mut self.state, State::Empty) {
-                // State::Empty may happen if the future returned an error
-                State::Empty => { return Ok(Async::Ready(None)); }
-                State::Ready(state) => {
-                    self.state = State::Processing((self.f)(state).into_future());
-                }
-                State::Processing(mut fut) => {
-                    match fut.poll(cx)? {
-                        Async:: Ready(Some((item, next_state))) => {
-                            self.state = State::Ready(next_state);
-                            return Ok(Async::Ready(Some(item)));
-                        }
-                        Async:: Ready(None) => {
-                            return Ok(Async::Ready(None))
-                        }
-                        Async::Pending => {
-                            self.state = State::Processing(fut);
-                            return Ok(Async::Pending);
-                        }
-                    }
-                }
+            if let Some(state) = self.state().take() {
+                let fut = (self.f())(state);
+                self.fut().assign(Some(fut));
+            }
+
+            let step = try_ready!(self.fut().as_pin_mut().unwrap().poll(cx));
+            self.fut().assign(None);
+
+            if let Some((item, next_state)) = step {
+                *self.state() = Some(next_state);
+                return Poll::Ready(Some(item))
+            } else {
+                return Poll::Ready(None)
             }
         }
     }
-}
-
-#[derive(Debug)]
-enum State<T, F> where F: Future {
-    /// Placeholder state when doing work, or when the returned Future generated an error
-    Empty,
-
-    /// Ready to generate new future; current internal state is the `T`
-    Ready(T),
-
-    /// Working on a future generated previously
-    Processing(F),
 }

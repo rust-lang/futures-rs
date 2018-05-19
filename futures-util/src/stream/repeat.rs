@@ -1,6 +1,6 @@
-use core::marker;
+use core::mem::PinMut;
 
-use futures_core::{Stream, Async, Poll};
+use futures_core::{Stream, Poll};
 use futures_core::task;
 
 /// Stream that produces the same element repeatedly.
@@ -8,16 +8,15 @@ use futures_core::task;
 /// This structure is created by the `stream::repeat` function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Repeat<T, E>
+pub struct Repeat<T>
     where T: Clone
 {
     item: T,
-    error: marker::PhantomData<E>,
 }
 
 /// Create a stream which produces the same item repeatedly.
 ///
-/// Stream never produces an error or EOF. Note that you likely want to avoid
+/// The stream never terminates. Note that you likely want to avoid
 /// usage of `collect` or such on the returned stream as it will exhaust
 /// available memory as it tries to just fill up all RAM.
 ///
@@ -33,22 +32,20 @@ pub struct Repeat<T, E>
 /// assert_eq!(Ok(vec![10, 10, 10]), block_on(stream.take(3).collect()));
 /// # }
 /// ```
-pub fn repeat<T, E>(item: T) -> Repeat<T, E>
+pub fn repeat<T>(item: T) -> Repeat<T>
     where T: Clone
 {
     Repeat {
         item: item,
-        error: marker::PhantomData,
     }
 }
 
-impl<T, E> Stream for Repeat<T, E>
+impl<T> Stream for Repeat<T>
     where T: Clone
 {
     type Item = T;
-    type Error = E;
 
-    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        Ok(Async::Ready(Some(self.item.clone())))
+    fn poll_next(self: PinMut<Self>, _: &mut task::Context) -> Poll<Option<Self::Item>> {
+        Poll::Ready(Some(self.item.clone()))
     }
 }

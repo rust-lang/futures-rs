@@ -1,6 +1,9 @@
-use futures_core::{Async, IntoFuture, Future, Poll, Stream};
+use core::mem::PinMut;
+
+use {PinMutExt, OptionExt};
+
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
-use futures_sink::{ Sink};
 
 /// A stream combinator which chains a computation onto each item produced by a
 /// stream.
@@ -8,18 +11,15 @@ use futures_sink::{ Sink};
 /// This structure is produced by the `Stream::then` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Then<S, U, F>
-    where U: IntoFuture,
-{
+pub struct Then<S, U, F> {
     stream: S,
-    future: Option<U::Future>,
+    future: Option<U>,
     f: F,
 }
 
 pub fn new<S, U, F>(s: S, f: F) -> Then<S, U, F>
     where S: Stream,
-          F: FnMut(Result<S::Item, S::Error>) -> U,
-          U: IntoFuture,
+          F: FnMut(S::Item) -> U,
 {
     Then {
         stream: s,
@@ -28,6 +28,7 @@ pub fn new<S, U, F>(s: S, f: F) -> Then<S, U, F>
     }
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, U, F> Sink for Then<S, U, F>
     where S: Sink, U: IntoFuture,
@@ -37,36 +38,33 @@ impl<S, U, F> Sink for Then<S, U, F>
 
     delegate_sink!(stream);
 }
+ */
+
+impl<S, U, F> Then<S, U, F> {
+    unsafe_pinned!(stream -> S);
+    unsafe_pinned!(future -> Option<U>);
+    unsafe_unpinned!(f -> F);
+}
 
 impl<S, U, F> Stream for Then<S, U, F>
     where S: Stream,
-          F: FnMut(Result<S::Item, S::Error>) -> U,
-          U: IntoFuture,
+          F: FnMut(S::Item) -> U,
+          U: Future,
 {
-    type Item = U::Item;
-    type Error = U::Error;
+    type Item = U::Output;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<U::Item>, U::Error> {
-        if self.future.is_none() {
-            let item = match self.stream.poll_next(cx) {
-                Ok(Async::Pending) => return Ok(Async::Pending),
-                Ok(Async::Ready(None)) => return Ok(Async::Ready(None)),
-                Ok(Async::Ready(Some(e))) => Ok(e),
-                Err(e) => Err(e),
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U::Output>> {
+        if self.future().as_pin_mut().is_none() {
+            let item = match try_ready!(self.stream().poll_next(cx)) {
+                None => return Poll::Ready(None),
+                Some(e) => e,
             };
-            self.future = Some((self.f)(item).into_future());
+            let fut = (self.f())(item);
+            self.future().assign(Some(fut));
         }
-        assert!(self.future.is_some());
-        match self.future.as_mut().unwrap().poll(cx) {
-            Ok(Async::Ready(e)) => {
-                self.future = None;
-                Ok(Async::Ready(Some(e)))
-            }
-            Err(e) => {
-                self.future = None;
-                Err(e)
-            }
-            Ok(Async::Pending) => Ok(Async::Pending)
-        }
+
+        let e = try_ready!(self.future().as_pin_mut().unwrap().poll(cx));
+        self.future().assign(None);
+        Poll::Ready(Some(e))
     }
 }

@@ -1,6 +1,7 @@
-use futures_core::{Poll, Async, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{ Sink};
 
 /// A stream combinator which skips a number of elements before continuing.
 ///
@@ -44,8 +45,12 @@ impl<S> Skip<S> {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(remaining -> u64);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Skip<S>
     where S: Sink
@@ -55,21 +60,21 @@ impl<S> Sink for Skip<S>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S> Stream for Skip<S>
     where S: Stream,
 {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        while self.remaining > 0 {
-            match try_ready!(self.stream.poll_next(cx)) {
-                Some(_) => self.remaining -= 1,
-                None => return Ok(Async::Ready(None)),
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        while *self.remaining() > 0 {
+            match try_ready!(self.stream().poll_next(cx)) {
+                Some(_) => *self.remaining() -= 1,
+                None => return Poll::Ready(None),
             }
         }
 
-        self.stream.poll_next(cx)
+        self.stream().poll_next(cx)
     }
 }

@@ -1,10 +1,10 @@
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
+use std::mem::PinMut;
 
-use futures_core::{Stream, Poll, Async};
+use futures_core::{Stream, Poll};
 use futures_core::task;
-use futures_sink::{ Sink};
 
 use lock::BiLock;
 

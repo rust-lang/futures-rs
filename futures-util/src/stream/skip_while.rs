@@ -1,6 +1,9 @@
-use futures_core::{Async, Poll, IntoFuture, Future, Stream};
+use core::mem::PinMut;
+
+use {PinMutExt, OptionExt};
+
+use futures_core::{Poll, Future, Stream};
 use futures_core::task;
-use futures_sink::{ Sink};
 
 /// A stream combinator which skips elements of a stream while a predicate
 /// holds.
@@ -8,27 +11,29 @@ use futures_sink::{ Sink};
 /// This structure is produced by the `Stream::skip_while` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct SkipWhile<S, R, P> where S: Stream, R: IntoFuture {
+pub struct SkipWhile<S, R, P> where S: Stream {
     stream: S,
     pred: P,
-    pending: Option<(R::Future, S::Item)>,
+    pending_fut: Option<R>,
+    pending_item: Option<S::Item>,
     done_skipping: bool,
 }
 
 pub fn new<S, R, P>(s: S, p: P) -> SkipWhile<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
-          R: IntoFuture<Item=bool, Error=S::Error>,
+          R: Future<Output = bool>,
 {
     SkipWhile {
         stream: s,
         pred: p,
-        pending: None,
+        pending_fut: None,
+        pending_item: None,
         done_skipping: false,
     }
 }
 
-impl<S, R, P> SkipWhile<S, R, P> where S: Stream, R: IntoFuture {
+impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> &S {
@@ -51,8 +56,15 @@ impl<S, R, P> SkipWhile<S, R, P> where S: Stream, R: IntoFuture {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(pred -> P);
+    unsafe_pinned!(pending_fut -> Option<R>);
+    unsafe_unpinned!(pending_item -> Option<S::Item>);
+    unsafe_unpinned!(done_skipping -> bool);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, R, P> Sink for SkipWhile<S, R, P>
     where S: Sink + Stream, R: IntoFuture
@@ -62,41 +74,38 @@ impl<S, R, P> Sink for SkipWhile<S, R, P>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S, R, P> Stream for SkipWhile<S, R, P>
     where S: Stream,
           P: FnMut(&S::Item) -> R,
-          R: IntoFuture<Item=bool, Error=S::Error>,
+          R: Future<Output = bool>,
 {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        if self.done_skipping {
-            return self.stream.poll_next(cx);
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        if *self.done_skipping() {
+            return self.stream().poll_next(cx);
         }
 
         loop {
-            if self.pending.is_none() {
-                let item = match try_ready!(self.stream.poll_next(cx)) {
+            if self.pending_item().is_none() {
+                let item = match try_ready!(self.stream().poll_next(cx)) {
                     Some(e) => e,
-                    None => return Ok(Async::Ready(None)),
+                    None => return Poll::Ready(None),
                 };
-                self.pending = Some(((self.pred)(&item).into_future(), item));
+                let fut = (self.pred())(&item);
+                self.pending_fut().assign(Some(fut));
+                *self.pending_item() = Some(item);
             }
 
-            match self.pending.as_mut().unwrap().0.poll(cx) {
-                Ok(Async::Ready(true)) => self.pending = None,
-                Ok(Async::Ready(false)) => {
-                    let (_, item) = self.pending.take().unwrap();
-                    self.done_skipping = true;
-                    return Ok(Async::Ready(Some(item)))
-                }
-                Ok(Async::Pending) => return Ok(Async::Pending),
-                Err(e) => {
-                    self.pending = None;
-                    return Err(e)
-                }
+            let skipped = try_ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
+            let item = self.pending_item().take().unwrap();
+            self.pending_fut().assign(None);
+
+            if !skipped {
+                *self.done_skipping() = true;
+                return Poll::Ready(Some(item))
             }
         }
     }

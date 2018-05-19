@@ -1,6 +1,7 @@
-use futures_core::{Async, Poll, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 use stream::{StreamExt, Fuse};
 
@@ -16,7 +17,6 @@ pub struct Peekable<S: Stream> {
     peeked: Option<S::Item>,
 }
 
-
 pub fn new<S: Stream>(stream: S) -> Peekable<S> {
     Peekable {
         stream: stream.fuse(),
@@ -24,6 +24,7 @@ pub fn new<S: Stream>(stream: S) -> Peekable<S> {
     }
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Peekable<S>
     where S: Sink + Stream
@@ -33,18 +34,7 @@ impl<S> Sink for Peekable<S>
 
     delegate_sink!(stream);
 }
-
-impl<S: Stream> Stream for Peekable<S> {
-    type Item = S::Item;
-    type Error = S::Error;
-
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        if let Some(item) = self.peeked.take() {
-            return Ok(Async::Ready(Some(item)))
-        }
-        self.stream.poll_next(cx)
-    }
-}
+*/
 
 
 impl<S: Stream> Peekable<S> {
@@ -52,16 +42,30 @@ impl<S: Stream> Peekable<S> {
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn peek(&mut self, cx: &mut task::Context) -> Poll<Option<&S::Item>, S::Error> {
-        if self.peeked.is_some() {
-            return Ok(Async::Ready(self.peeked.as_ref()))
+    pub fn peek<'a>(self: &'a mut PinMut<Self>, cx: &mut task::Context) -> Poll<Option<&'a S::Item>> {
+        if self.peeked().is_some() {
+            return Poll::Ready(self.peeked().as_ref())
         }
-        match try_ready!(self.poll_next(cx)) {
-            None => Ok(Async::Ready(None)),
+        match try_ready!(self.stream().poll_next(cx)) {
+            None => Poll::Ready(None),
             Some(item) => {
-                self.peeked = Some(item);
-                Ok(Async::Ready(self.peeked.as_ref()))
+                *self.peeked() = Some(item);
+                Poll::Ready(self.peeked().as_ref())
             }
         }
+    }
+
+    unsafe_pinned!(stream -> Fuse<S>);
+    unsafe_unpinned!(peeked -> Option<S::Item>);
+}
+
+impl<S: Stream> Stream for Peekable<S> {
+    type Item = S::Item;
+
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        if let Some(item) = self.peeked().take() {
+            return Poll::Ready(Some(item))
+        }
+        self.stream().poll_next(cx)
     }
 }

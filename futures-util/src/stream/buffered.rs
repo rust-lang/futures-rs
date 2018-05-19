@@ -1,8 +1,8 @@
+use core::mem::PinMut;
 use std::fmt;
 
-use futures_core::{Async, IntoFuture, Poll, Stream};
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 use stream::{Fuse, FuturesOrdered};
 
@@ -13,12 +13,9 @@ use stream::{Fuse, FuturesOrdered};
 /// results in the order that they were pulled out of the original stream. This
 /// is created by the `Stream::buffered` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Buffered<S>
-    where S: Stream,
-          S::Item: IntoFuture,
-{
+pub struct Buffered<S: Stream> {
     stream: Fuse<S>,
-    queue: FuturesOrdered<<S::Item as IntoFuture>::Future>,
+    queue: FuturesOrdered<S::Item>,
     max: usize,
 }
 
@@ -84,7 +81,7 @@ impl<S> Sink for Buffered<S>
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
-    
+
     delegate_sink!(stream);
 }
 

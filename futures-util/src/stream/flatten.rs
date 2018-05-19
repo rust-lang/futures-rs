@@ -1,6 +1,9 @@
-use futures_core::{Poll, Async, Stream};
+use core::mem::PinMut;
+
+use {PinMutExt, OptionExt};
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.
@@ -17,7 +20,7 @@ pub struct Flatten<S>
 
 pub fn new<S>(s: S) -> Flatten<S>
     where S: Stream,
-          S::Item: Stream<Error = S::Error>,
+          S::Item: Stream,
 {
     Flatten {
         stream: s,
@@ -48,8 +51,12 @@ impl<S: Stream> Flatten<S> {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_pinned!(next -> Option<S::Item>);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Flatten<S>
     where S: Sink + Stream
@@ -59,27 +66,27 @@ impl<S> Sink for Flatten<S>
 
     delegate_sink!(stream);
 }
+ */
 
 impl<S> Stream for Flatten<S>
     where S: Stream,
           S::Item: Stream,
-          <S::Item as Stream>::Error: From<S::Error>,
 {
     type Item = <S::Item as Stream>::Item;
-    type Error = <S::Item as Stream>::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
-            if self.next.is_none() {
-                match try_ready!(self.stream.poll_next(cx)) {
-                    Some(e) => self.next = Some(e),
-                    None => return Ok(Async::Ready(None)),
+            if self.next().as_pin_mut().is_none() {
+                match try_ready!(self.stream().poll_next(cx)) {
+                    Some(e) => self.next().assign(Some(e)),
+                    None => return Poll::Ready(None),
                 }
             }
-            assert!(self.next.is_some());
-            match self.next.as_mut().unwrap().poll_next(cx) {
-                Ok(Async::Ready(None)) => self.next = None,
-                other => return other,
+            let item = try_ready!(self.next().as_pin_mut().unwrap().poll_next(cx));
+            if item.is_some() {
+                return Poll::Ready(item);
+            } else {
+                self.next().assign(None);
             }
         }
     }

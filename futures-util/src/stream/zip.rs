@@ -1,4 +1,6 @@
-use futures_core::{Async, Poll, Stream};
+use core::mem::PinMut;
+
+use futures_core::{Poll, Stream};
 use futures_core::task;
 
 use stream::{StreamExt, Fuse};
@@ -18,7 +20,7 @@ pub struct Zip<S1: Stream, S2: Stream> {
 }
 
 pub fn new<S1, S2>(stream1: S1, stream2: S2) -> Zip<S1, S2>
-    where S1: Stream, S2: Stream<Error = S1::Error>
+    where S1: Stream, S2: Stream
 {
     Zip {
         stream1: stream1.fuse(),
@@ -28,34 +30,40 @@ pub fn new<S1, S2>(stream1: S1, stream2: S2) -> Zip<S1, S2>
     }
 }
 
+impl<S1: Stream, S2: Stream> Zip<S1, S2> {
+    unsafe_pinned!(stream1 -> Fuse<S1>);
+    unsafe_pinned!(stream2 -> Fuse<S2>);
+    unsafe_unpinned!(queued1 -> Option<S1::Item>);
+    unsafe_unpinned!(queued2 -> Option<S2::Item>);
+}
+
 impl<S1, S2> Stream for Zip<S1, S2>
-    where S1: Stream, S2: Stream<Error = S1::Error>
+    where S1: Stream, S2: Stream
 {
     type Item = (S1::Item, S2::Item);
-    type Error = S1::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        if self.queued1.is_none() {
-            match self.stream1.poll_next(cx)? {
-                Async::Ready(Some(item1)) => self.queued1 = Some(item1),
-                Async::Ready(None) | Async::Pending => {}
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        if self.queued1().is_none() {
+            match self.stream1().poll_next(cx) {
+                Poll::Ready(Some(item1)) => *self.queued1() = Some(item1),
+                Poll::Ready(None) | Poll::Pending => {}
             }
         }
-        if self.queued2.is_none() {
-            match self.stream2.poll_next(cx)? {
-                Async::Ready(Some(item2)) => self.queued2 = Some(item2),
-                Async::Ready(None) | Async::Pending => {}
+        if self.queued2().is_none() {
+            match self.stream2().poll_next(cx) {
+                Poll::Ready(Some(item2)) => *self.queued2() = Some(item2),
+                Poll::Ready(None) | Poll::Pending => {}
             }
         }
 
-        if self.queued1.is_some() && self.queued2.is_some() {
-            let pair = (self.queued1.take().unwrap(),
-                        self.queued2.take().unwrap());
-            Ok(Async::Ready(Some(pair)))
-        } else if self.stream1.is_done() || self.stream2.is_done() {
-            Ok(Async::Ready(None))
+        if self.queued1().is_some() && self.queued2().is_some() {
+            let pair = (self.queued1().take().unwrap(),
+                        self.queued2().take().unwrap());
+            Poll::Ready(Some(pair))
+        } else if self.stream1().is_done() || self.stream2().is_done() {
+            Poll::Ready(None)
         } else {
-            Ok(Async::Pending)
+            Poll::Pending
         }
     }
 }

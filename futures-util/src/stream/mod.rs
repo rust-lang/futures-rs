@@ -3,19 +3,16 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
-use futures_core::{IntoFuture, Stream};
-use futures_sink::Sink;
+use futures_core::{Future, Stream};
+// use futures_sink::Sink;
 use super::future::Either;
 
-mod iter_ok;
-pub use self::iter_ok::{iter_ok, IterOk};
-mod iter_result;
-pub use self::iter_result::{iter_result, IterResult};
+mod iter;
+pub use self::iter::{iter, Iter};
 
 mod repeat;
 pub use self::repeat::{repeat, Repeat};
 
-mod and_then;
 mod chain;
 mod concat;
 mod empty;
@@ -24,15 +21,11 @@ mod filter_map;
 mod flatten;
 mod fold;
 mod for_each;
-mod err_into;
 mod fuse;
 mod future;
 mod inspect;
-mod inspect_err;
 mod map;
-mod map_err;
 mod once;
-mod or_else;
 mod peek;
 mod poll_fn;
 mod select;
@@ -43,9 +36,7 @@ mod take_while;
 mod then;
 mod unfold;
 mod zip;
-mod forward;
-mod recover;
-pub use self::and_then::AndThen;
+// mod forward;
 pub use self::chain::Chain;
 pub use self::concat::Concat;
 pub use self::empty::{Empty, empty};
@@ -54,15 +45,11 @@ pub use self::filter_map::FilterMap;
 pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
-pub use self::err_into::ErrInto;
 pub use self::fuse::Fuse;
 pub use self::future::StreamFuture;
 pub use self::inspect::Inspect;
-pub use self::inspect_err::InspectErr;
 pub use self::map::Map;
-pub use self::map_err::MapErr;
 pub use self::once::{Once, once};
-pub use self::or_else::OrElse;
 pub use self::peek::Peekable;
 pub use self::poll_fn::{poll_fn, PollFn};
 pub use self::select::Select;
@@ -73,31 +60,30 @@ pub use self::take_while::TakeWhile;
 pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
-pub use self::forward::Forward;
-pub use self::recover::Recover;
+// pub use self::forward::Forward;
 
 if_std! {
     use std;
     use std::iter::Extend;
 
-    mod buffered;
-    mod buffer_unordered;
+    //mod buffered;
+    //mod buffer_unordered;
     mod catch_unwind;
     mod chunks;
     mod collect;
-    mod select_all;
-    mod split;
-    mod futures_unordered;
-    mod futures_ordered;
-    pub use self::buffered::Buffered;
-    pub use self::buffer_unordered::BufferUnordered;
+    //mod select_all;
+    //mod split;
+    //mod futures_unordered;
+    //mod futures_ordered;
+    //pub use self::buffered::Buffered;
+    //pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
-    pub use self::select_all::{select_all, SelectAll};
-    pub use self::split::{SplitStream, SplitSink, ReuniteError};
-    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
-    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
+    //pub use self::select_all::{select_all, SelectAll};
+    //pub use self::split::{SplitStream, SplitSink, ReuniteError};
+    //pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    //pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 }
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
@@ -150,36 +136,6 @@ pub trait StreamExt: Stream {
         map::new(self, f)
     }
 
-    /// Converts a stream of error type `T` to a stream of error type `U`.
-    ///
-    /// The provided closure is executed over all errors of this stream as
-    /// they are made available, and the callback will be executed inline with
-    /// calls to `poll`.
-    ///
-    /// Note that this function consumes the receiving stream and returns a
-    /// wrapped version of it, similar to the existing `map_err` methods in the
-    /// standard library.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_channel;
-    /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
-    ///
-    /// # fn main() {
-    /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let rx = rx.map_err(|_| 3);
-    /// # }
-    /// ```
-    fn map_err<U, F>(self, f: F) -> MapErr<Self, F>
-        where F: FnMut(Self::Error) -> U,
-              Self: Sized
-    {
-        map_err::new(self, f)
-    }
-
     /// Filters the values produced by this stream according to the provided
     /// predicate.
     ///
@@ -188,8 +144,6 @@ pub trait StreamExt: Stream {
     /// to `true`, then the stream will yield the value, but if the predicate
     /// returns a `Future` which resolves to `false`, then the  value will be
     /// discarded and the next value will be produced.
-    ///
-    /// All errors are passed through without filtering in this combinator.
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `filter` methods in the
@@ -210,7 +164,7 @@ pub trait StreamExt: Stream {
     /// ```
     fn filter<R, P>(self, pred: P) -> Filter<Self, R, P>
         where P: FnMut(&Self::Item) -> R,
-              R: IntoFuture<Item=bool, Error=Self::Error>,
+              R: Future<Output = bool>,
               Self: Sized,
     {
         filter::new(self, pred)
@@ -223,8 +177,6 @@ pub trait StreamExt: Stream {
     /// be run on them. If the predicate returns `Some(e)` then the stream will
     /// yield the value `e`, but if the predicate returns `None` then the next
     /// value will be produced.
-    ///
-    /// All errors are passed through without filtering in this combinator.
     ///
     /// Note that this function consumes the receiving stream and returns a
     /// wrapped version of it, similar to the existing `filter_map` methods in the
@@ -253,7 +205,7 @@ pub trait StreamExt: Stream {
     /// ```
     fn filter_map<R, B, F>(self, f: F) -> FilterMap<Self, R, F>
         where F: FnMut(Self::Item) -> R,
-              R: IntoFuture<Item=Option<B>, Error=Self::Error>,
+              R: Future<Output = Option<B>>,
               Self: Sized,
     {
         filter_map::new(self, f)
@@ -296,89 +248,11 @@ pub trait StreamExt: Stream {
     /// # }
     /// ```
     fn then<U, F>(self, f: F) -> Then<Self, U, F>
-        where F: FnMut(Result<Self::Item, Self::Error>) -> U,
-              U: IntoFuture,
+        where F: FnMut(Self::Item) -> U,
+              U: Future,
               Self: Sized
     {
         then::new(self, f)
-    }
-
-    /// Chain on a computation for when a value is ready, passing the successful
-    /// results to the provided closure `f`.
-    ///
-    /// This function can be used to run a unit of work when the next successful
-    /// value on a stream is ready. The closure provided will be yielded a value
-    /// when ready, and the returned future will then be run to completion to
-    /// produce the next value on this stream.
-    ///
-    /// Any errors produced by this stream will not be passed to the closure,
-    /// and will be passed through.
-    ///
-    /// The returned value of the closure must implement the `IntoFuture` trait
-    /// and can represent some more work to be done before the composed stream
-    /// is finished. Note that the `Result` type implements the `IntoFuture`
-    /// trait so it is possible to simply alter the `Result` yielded to the
-    /// closure and return it.
-    ///
-    /// Note that this function consumes the receiving stream and returns a
-    /// wrapped version of it.
-    ///
-    /// To process the entire stream and return a single future representing
-    /// success or error, use `for_each` instead.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_channel;
-    /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
-    ///
-    /// # fn main() {
-    /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    ///
-    /// let rx = rx.and_then(|result| {
-    ///     if result % 2 == 0 {
-    ///         Ok(Some(result))
-    ///     } else {
-    ///         Ok(None)
-    ///     }
-    /// });
-    /// # }
-    /// ```
-    fn and_then<U, F>(self, f: F) -> AndThen<Self, U, F>
-        where F: FnMut(Self::Item) -> U,
-              U: IntoFuture<Error = Self::Error>,
-              Self: Sized
-    {
-        and_then::new(self, f)
-    }
-
-    /// Chain on a computation for when an error happens, passing the
-    /// erroneous result to the provided closure `f`.
-    ///
-    /// This function can be used to run a unit of work and attempt to recover from
-    /// an error if one happens. The closure provided will be yielded an error
-    /// when one appears, and the returned future will then be run to completion
-    /// to produce the next value on this stream.
-    ///
-    /// Any successful values produced by this stream will not be passed to the
-    /// closure, and will be passed through.
-    ///
-    /// The returned value of the closure must implement the `IntoFuture` trait
-    /// and can represent some more work to be done before the composed stream
-    /// is finished. Note that the `Result` type implements the `IntoFuture`
-    /// trait so it is possible to simply alter the `Result` yielded to the
-    /// closure and return it.
-    ///
-    /// Note that this function consumes the receiving stream and returns a
-    /// wrapped version of it.
-    fn or_else<U, F>(self, f: F) -> OrElse<Self, U, F>
-        where F: FnMut(Self::Error) -> U,
-              U: IntoFuture<Item = Self::Item>,
-              Self: Sized
-    {
-        or_else::new(self, f)
     }
 
     /// Collect all of the values of this stream into a vector, returning a
@@ -388,8 +262,7 @@ pub trait StreamExt: Stream {
     /// collect them into a `Vec<Self::Item>`. If an error happens then all
     /// collected elements will be dropped and the error will be returned.
     ///
-    /// The returned future will be resolved whenever an error happens or when
-    /// the stream returns `Ok(None)`.
+    /// The returned future will be resolved when the stream terminates.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
@@ -430,9 +303,8 @@ pub trait StreamExt: Stream {
     /// destination, returning a future representing the end result.
     ///
     /// This combinator will extend the first item with the contents
-    /// of all the successful results of the stream. If the stream is
-    /// empty, the default value will be returned. If an error occurs,
-    /// all the results will be dropped and the error will be returned.
+    /// of all the subsequent results of the stream. If the stream is
+    /// empty, the default value will be returned.
     ///
     /// # Examples
     ///
@@ -469,14 +341,11 @@ pub trait StreamExt: Stream {
     /// Execute an accumulating computation over a stream, collecting all the
     /// values into one final result.
     ///
-    /// This combinator will collect all successful results of this stream
+    /// This combinator will accumulate all values returned by this stream
     /// according to the closure provided. The initial state is also provided to
     /// this method and then is returned again by each execution of the closure.
     /// Once the entire stream has been exhausted the returned future will
     /// resolve to this value.
-    ///
-    /// If an error happens then collected state will be dropped and the error
-    /// will be returned.
     ///
     /// # Examples
     ///
@@ -496,18 +365,13 @@ pub trait StreamExt: Stream {
     /// ```
     fn fold<T, Fut, F>(self, init: T, f: F) -> Fold<Self, Fut, T, F>
         where F: FnMut(T, Self::Item) -> Fut,
-              Fut: IntoFuture<Item = T, Error = Self::Error>,
+              Fut: Future<Output = T>,
               Self: Sized
     {
         fold::new(self, f, init)
     }
 
     /// Flattens a stream of streams into just one continuous stream.
-    ///
-    /// If this stream's elements are themselves streams then this combinator
-    /// will flatten out the entire stream to one long chain of elements. Any
-    /// errors are passed through without looking at them, but otherwise each
-    /// individual stream will get exhausted before moving on to the next.
     ///
     /// ```
     /// # extern crate futures;
@@ -542,7 +406,7 @@ pub trait StreamExt: Stream {
     /// # }
     /// ```
     fn flatten(self) -> Flatten<Self>
-        where Self::Item: Stream<Error = Self::Error>,
+        where Self::Item: Stream,
               Self: Sized
     {
         flatten::new(self)
@@ -557,7 +421,7 @@ pub trait StreamExt: Stream {
     /// stream.
     fn skip_while<R, P>(self, pred: P) -> SkipWhile<Self, R, P>
         where P: FnMut(&Self::Item) -> R,
-              R: IntoFuture<Item=bool, Error=Self::Error>,
+              R: Future<Output = bool>,
               Self: Sized
     {
         skip_while::new(self, pred)
@@ -571,7 +435,7 @@ pub trait StreamExt: Stream {
     /// returns false it will always return that the stream is done.
     fn take_while<R, P>(self, pred: P) -> TakeWhile<Self, R, P>
         where P: FnMut(&Self::Item) -> R,
-              R: IntoFuture<Item=bool, Error=Self::Error>,
+              R: Future<Output = bool>,
               Self: Sized
     {
         take_while::new(self, pred)
@@ -580,52 +444,27 @@ pub trait StreamExt: Stream {
     /// Runs this stream to completion, executing the provided closure for each
     /// element on the stream.
     ///
-    /// The closure provided will be called for each item this stream resolves
-    /// to successfully, producing a future. That future will then be executed
-    /// to completion before moving on to the next item.
+    /// The closure provided will be called for each item this stream produces,
+    /// yielding a future. That future will then be executed to completion
+    /// before moving on to the next item.
     ///
-    /// The returned value is a `Future` where the `Item` type is `()` and
-    /// errors are otherwise threaded through. Any error on the stream or in the
-    /// closure will cause iteration to be halted immediately and the future
-    /// will resolve to that error.
+    /// The returned value is a `Future` where the `Output` type is `()`; it is
+    /// executed entirely for its side effects.
     ///
     /// To process each item in the stream and produce another stream instead
-    /// of a single future, use `and_then` instead.
+    /// of a single future, use `then` instead.
     fn for_each<U, F>(self, f: F) -> ForEach<Self, U, F>
         where F: FnMut(Self::Item) -> U,
-              U: IntoFuture<Item=(), Error = Self::Error>,
+              U: Future<Output = ()>,
               Self: Sized
     {
         for_each::new(self, f)
-    }
-
-    /// Map this stream's error to a different type using the `Into` trait.
-    ///
-    /// This function does for streams what `try!` does for `Result`,
-    /// by letting the compiler infer the type of the resulting error.
-    /// Just as `map_err` above, this is useful for example to ensure
-    /// that streams have the same error type when used with
-    /// combinators.
-    ///
-    /// Note that this function consumes the receiving stream and returns a
-    /// wrapped version of it.
-    fn err_into<E>(self) -> ErrInto<Self, E>
-        where Self: Sized,
-              Self::Error: Into<E>,
-    {
-        err_into::new(self)
     }
 
     /// Creates a new stream of at most `amt` items of the underlying stream.
     ///
     /// Once `amt` items have been yielded from this stream then it will always
     /// return that the stream is done.
-    ///
-    /// # Errors
-    ///
-    /// Any errors yielded from underlying stream, before the desired amount of
-    /// items is reached, are passed through and do not affect the total number
-    /// of items taken.
     fn take(self, amt: u64) -> Take<Self>
         where Self: Sized
     {
@@ -636,29 +475,24 @@ pub trait StreamExt: Stream {
     ///
     /// Once `amt` items have been skipped from this stream then it will always
     /// return the remaining items on this stream.
-    ///
-    /// # Errors
-    ///
-    /// All errors yielded from underlying stream are passed through and do not
-    /// affect the total number of items skipped.
     fn skip(self, amt: u64) -> Skip<Self>
         where Self: Sized
     {
         skip::new(self, amt)
     }
 
-    /// Fuse a stream such that `poll` will never again be called once it has
+    /// Fuse a stream such that `poll_next` will never again be called once it has
     /// finished.
     ///
-    /// Currently once a stream has returned `None` from `poll` any further
+    /// Currently once a stream has returned `None` from `poll_next` any further
     /// calls could exhibit bad behavior such as block forever, panic, never
-    /// return, etc. If it is known that `poll` may be called after stream has
+    /// return, etc. If it is known that `poll_next` may be called after stream has
     /// already finished, then this method can be used to ensure that it has
     /// defined semantics.
     ///
     /// Once a stream has been `fuse`d and it finishes, then it will forever
-    /// return `None` from `poll`. This, unlike for the traits `poll` method,
-    /// is guaranteed.
+    /// return `None` from `poll_nexzt`. This, unlike for the trait's `poll_next`
+    /// method, is guaranteed.
     ///
     /// Also note that as soon as this stream returns `None` it will be dropped
     /// to reclaim resources associated with it.
@@ -749,6 +583,7 @@ pub trait StreamExt: Stream {
         catch_unwind::new(self)
     }
 
+    /* TODO
     /// An adaptor for creating a buffered list of pending futures.
     ///
     /// If this stream's item can be converted into a future, then this adaptor
@@ -757,14 +592,13 @@ pub trait StreamExt: Stream {
     /// buffered at any point in time, and less than `amt` may also be buffered
     /// depending on the state of each future.
     ///
-    /// The returned stream will be a stream of each future's result, with
-    /// errors passed through whenever they occur.
+    /// The returned stream will be a stream of each future's result.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
     fn buffered(self, amt: usize) -> Buffered<Self>
-        where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
+        where Self::Item: Future,
               Self: Sized
     {
         buffered::new(self, amt)
@@ -778,26 +612,26 @@ pub trait StreamExt: Stream {
     /// any point in time, and less than `amt` may also be buffered depending on
     /// the state of each future.
     ///
-    /// The returned stream will be a stream of each future's result, with
-    /// errors passed through whenever they occur.
+    /// The returned stream will be a stream of each future's result.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
     fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
-        where Self::Item: IntoFuture<Error = <Self as Stream>::Error>,
+        where Self::Item: Future,
               Self: Sized
     {
         buffer_unordered::new(self, amt)
     }
+*/
 
     /// An adapter for zipping two streams together.
     ///
     /// The zipped stream waits for both streams to produce an item, and then
-    /// returns that pair. If an error happens, then that error will be returned
-    /// immediately. If either stream ends then the zipped stream will also end.
+    /// returns that pair. If either stream ends then the zipped stream will
+    /// also end.
     fn zip<S>(self, other: S) -> Zip<Self, S>
-        where S: Stream<Error = Self::Error>,
+        where S: Stream,
               Self: Sized,
     {
         zip::new(self, other)
@@ -832,7 +666,7 @@ pub trait StreamExt: Stream {
     /// # }
     /// ```
     fn chain<S>(self, other: S) -> Chain<Self, S>
-        where S: Stream<Item = Self::Item, Error = Self::Error>,
+        where S: Stream<Item = Self::Item>,
               Self: Sized
     {
         chain::new(self, other)
@@ -859,8 +693,6 @@ pub trait StreamExt: Stream {
     /// from the underlying stream then the currently buffered items will be
     /// yielded.
     ///
-    /// Errors are passed through the stream unbuffered.
-    ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
@@ -880,15 +712,14 @@ pub trait StreamExt: Stream {
     /// This combinator will attempt to pull items from both streams. Each
     /// stream will be polled in a round-robin fashion, and whenever a stream is
     /// ready to yield an item that item is yielded.
-    ///
-    /// Error are passed through from either stream.
     fn select<S>(self, other: S) -> Select<Self, S>
-        where S: Stream<Item = Self::Item, Error = Self::Error>,
+        where S: Stream<Item = Self::Item>,
               Self: Sized,
     {
         select::new(self, other)
     }
 
+    /* TODO
     /// A future that completes after the given stream has been fully processed
     /// into the sink, including flushing.
     ///
@@ -925,6 +756,7 @@ pub trait StreamExt: Stream {
     {
         split::split(self)
     }
+*/
 
     /// Do something with each item of this stream, afterwards passing it on.
     ///
@@ -938,63 +770,13 @@ pub trait StreamExt: Stream {
         inspect::new(self, f)
     }
 
-    /// Do something with the error of this stream, afterwards passing it on.
-    ///
-    /// This is similar to the `Stream::inspect` method where it allows
-    /// easily inspecting the error as it passes through the stream, for
-    /// example to debug what's going on.
-    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
-        where F: FnMut(&Self::Error),
-              Self: Sized,
-    {
-        inspect_err::new(self, f)
-    }
-
-    /// Handle errors generated by this stream by converting them into
-    /// `Option<Self::Item>`, such that a `None` value terminates the stream.
-    ///
-    /// Because it can never produce an error, the returned `Recover` stream can
-    /// conform to any specific `Error` type, including `Never`.
-    fn recover<E, F>(self, f: F) -> Recover<Self, E, F>
-        where F: FnMut(Self::Error) -> Option<Self::Item>,
-              Self: Sized,
-    {
-        recover::new(self, f)
-    }
-
-    /// Wrap this stream in an `Either` stream, making it the left-hand variant
-    /// of that `Either`.
-    ///
-    /// This can be used in combination with the `right` method to write `if`
-    /// statements that evaluate to different streams in different branches.
-    #[deprecated(note = "use `left_stream` instead")]
-    fn left<B>(self) -> Either<Self, B>
-        where B: Stream<Item = Self::Item, Error = Self::Error>,
-              Self: Sized
-    {
-        Either::Left(self)
-    }
-
-    /// Wrap this stream in an `Either` stream, making it the right-hand variant
-    /// of that `Either`.
-    ///
-    /// This can be used in combination with the `left` method to write `if`
-    /// statements that evaluate to different streams in different branches.
-    #[deprecated(note = "use `right_stream` instead")]
-    fn right<B>(self) -> Either<B, Self>
-        where B: Stream<Item = Self::Item, Error = Self::Error>,
-              Self: Sized
-    {
-        Either::Right(self)
-    }
-
     /// Wrap this stream in an `Either` stream, making it the left-hand variant
     /// of that `Either`.
     ///
     /// This can be used in combination with the `right_stream` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn left_stream<B>(self) -> Either<Self, B>
-        where B: Stream<Item = Self::Item, Error = Self::Error>,
+        where B: Stream<Item = Self::Item>,
               Self: Sized
     {
         Either::Left(self)
@@ -1006,7 +788,7 @@ pub trait StreamExt: Stream {
     /// This can be used in combination with the `left_stream` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn right_stream<B>(self) -> Either<B, Self>
-        where B: Stream<Item = Self::Item, Error = Self::Error>,
+        where B: Stream<Item = Self::Item>,
               Self: Sized
     {
         Either::Right(self)

@@ -1,6 +1,7 @@
-use futures_core::{Stream, Poll, Async};
+use core::mem::PinMut;
+
+use futures_core::{Stream, Poll};
 use futures_core::task;
-use futures_sink::{Sink};
 
 /// Do something with the items of a stream, passing it on.
 ///
@@ -45,8 +46,12 @@ impl<S: Stream, F> Inspect<S, F> {
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(inspect -> F);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, F> Sink for Inspect<S, F>
     where S: Sink + Stream
@@ -56,21 +61,19 @@ impl<S, F> Sink for Inspect<S, F>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S, F> Stream for Inspect<S, F>
     where S: Stream,
           F: FnMut(&S::Item),
 {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        match try_ready!(self.stream.poll_next(cx)) {
-            Some(e) => {
-                (self.inspect)(&e);
-                Ok(Async::Ready(Some(e)))
-            }
-            None => Ok(Async::Ready(None)),
-        }
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        let item = try_ready!(self.stream().poll_next(cx));
+        Poll::Ready(item.map(|e| {
+            (self.inspect())(&e);
+            e
+        }))
     }
 }

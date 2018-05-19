@@ -1,6 +1,9 @@
-use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use core::mem::PinMut;
+
+use {PinMutExt, OptionExt};
+
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
-use futures_sink::{Sink};
 
 /// A combinator used to filter the results of a stream and simultaneously map
 /// them to a different type.
@@ -11,17 +14,17 @@ use futures_sink::{Sink};
 pub struct FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
-          R: IntoFuture<Error=S::Error>,
+          R: Future,
 {
     stream: S,
     f: F,
-    pending: Option<R::Future>,
+    pending: Option<R>,
 }
 
 pub fn new<S, R, F>(s: S, f: F) -> FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
-          R: IntoFuture<Error=S::Error>,
+          R: Future,
 {
     FilterMap {
         stream: s,
@@ -33,7 +36,7 @@ pub fn new<S, R, F>(s: S, f: F) -> FilterMap<S, R, F>
 impl<S, R, F> FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
-          R: IntoFuture<Error=S::Error>,
+          R: Future,
 {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
@@ -57,8 +60,13 @@ impl<S, R, F> FilterMap<S, R, F>
     pub fn into_inner(self) -> S {
         self.stream
     }
+
+    unsafe_pinned!(stream -> S);
+    unsafe_unpinned!(f -> F);
+    unsafe_pinned!(pending -> Option<R>);
 }
 
+/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, R, F> Sink for FilterMap<S, R, F>
     where S: Stream + Sink,
@@ -70,37 +78,30 @@ impl<S, R, F> Sink for FilterMap<S, R, F>
 
     delegate_sink!(stream);
 }
+*/
 
 impl<S, R, F, B> Stream for FilterMap<S, R, F>
     where S: Stream,
           F: FnMut(S::Item) -> R,
-          R: IntoFuture<Item=Option<B>, Error=S::Error>,
+          R: Future<Output = Option<B>>,
 {
     type Item = B;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<B>, S::Error> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<B>> {
         loop {
-            if self.pending.is_none() {
-                let item = match try_ready!(self.stream.poll_next(cx)) {
+            if self.pending().as_pin_mut().is_none() {
+                let item = match try_ready!(self.stream().poll_next(cx)) {
                     Some(e) => e,
-                    None => return Ok(Async::Ready(None)),
+                    None => return Poll::Ready(None),
                 };
-                let fut = ((self.f)(item)).into_future();
-                self.pending = Some(fut);
+                let fut = (self.f())(item);
+                self.pending().assign(Some(fut));
             }
 
-            match self.pending.as_mut().unwrap().poll(cx) {
-                x @ Ok(Async::Ready(Some(_))) => {
-                    self.pending = None;
-                    return x
-                }
-                Ok(Async::Ready(None)) => self.pending = None,
-                Ok(Async::Pending) => return Ok(Async::Pending),
-                Err(e) => {
-                    self.pending = None;
-                    return Err(e)
-                }
+            let item = try_ready!(self.pending().as_pin_mut().unwrap().poll(cx));
+            self.pending().assign(None);
+            if item.is_some() {
+                return Poll::Ready(item);
             }
         }
     }

@@ -1,4 +1,8 @@
-use futures_core::{Poll, Async, Stream, IntoFuture, Future};
+use core::mem::PinMut;
+
+use {PinMutExt, OptionExt};
+
+use futures_core::{Poll, Stream, Future};
 use futures_core::task;
 
 /// A stream which emits single element and then EOF.
@@ -6,7 +10,9 @@ use futures_core::task;
 /// This stream will never block and is always ready.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Once<F>(Option<F>);
+pub struct Once<F> {
+    fut: Option<F>
+}
 
 /// Creates a stream of single element
 ///
@@ -27,25 +33,24 @@ pub struct Once<F>(Option<F>);
 /// assert_eq!(collected, Ok(vec![92]));
 /// # }
 /// ```
-pub fn once<F: IntoFuture>(item: F) -> Once<F::Future> {
-    Once(Some(item.into_future()))
+pub fn once<F: Future>(item: F) -> Once<F> {
+    Once { fut: Some(item) }
+}
+
+impl<F> Once<F> {
+    unsafe_pinned!(fut -> Option<F>);
 }
 
 impl<F: Future> Stream for Once<F> {
-    type Item = F::Item;
-    type Error = F::Error;
+    type Item = F::Output;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<F::Item>, F::Error> {
-        if let Some(mut f) = self.0.take() {
-            match f.poll(cx)? {
-                Async::Ready(x) => Ok(Async::Ready(Some(x))),
-                Async::Pending => {
-                    self.0 = Some(f);
-                    Ok(Async::Pending)
-                }
-            }
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<F::Output>> {
+        let val = if let Some(f) = self.fut().as_pin_mut() {
+            try_ready!(f.poll(cx))
         } else {
-            Ok(Async::Ready(None))
-        }
+            return Poll::Ready(None)
+        };
+        self.fut().assign(None);
+        Poll::Ready(Some(val))
     }
 }
