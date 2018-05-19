@@ -3,9 +3,10 @@
 //! This module contains a number of functions for working with `Sink`s,
 //! including the `SinkExt` trait which adds methods to `Sink` types.
 
-use futures_core::{Stream, IntoFuture};
+use futures_core::{Future, Stream};
 use futures_sink::Sink;
 use super::future::Either;
+use core::mem::PinMut;
 
 mod close;
 mod fanout;
@@ -15,7 +16,7 @@ mod map_err;
 mod send;
 mod send_all;
 mod with;
-mod with_flat_map;
+// mod with_flat_map;
 
 if_std! {
     mod buffer;
@@ -30,7 +31,7 @@ pub use self::map_err::SinkMapErr;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
 pub use self::with::With;
-pub use self::with_flat_map::WithFlatMap;
+// pub use self::with_flat_map::WithFlatMap;
 
 impl<T: ?Sized> SinkExt for T where T: Sink {}
 
@@ -48,10 +49,10 @@ pub trait SinkExt: Sink {
     ///
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
-    fn with<U, Fut, F>(self, f: F) -> With<Self, U, Fut, F>
+    fn with<U, Fut, F, E>(self, f: F) -> With<Self, U, Fut, F>
         where F: FnMut(U) -> Fut,
-              Fut: IntoFuture<Item = Self::SinkItem>,
-              Fut::Error: From<Self::SinkError>,
+              Fut: Future<Output = Result<Self::SinkItem, E>>,
+              E: From<Self::SinkError>,
               Self: Sized
     {
         with::new(self, f)
@@ -94,6 +95,7 @@ pub trait SinkExt: Sink {
     /// assert_eq!(block_on(rx.collect()), Ok(vec![42, 42, 42, 42, 42]));
     /// # }
     /// ```
+    /*
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
         where F: FnMut(U) -> St,
               St: Stream<Item = Self::SinkItem, Error=Self::SinkError>,
@@ -101,6 +103,7 @@ pub trait SinkExt: Sink {
         {
             with_flat_map::new(self, f)
         }
+    */
 
     /*
     fn with_map<U, F>(self, f: F) -> WithMap<Self, U, F>
@@ -155,10 +158,7 @@ pub trait SinkExt: Sink {
     }
 
     /// Close the sink.
-    ///
-    /// The sink itself is returned after closeing is complete.
-    fn close(self) -> Close<Self>
-        where Self: Sized
+    fn close<'a>(self: PinMut<'a, Self>) -> Close<'a, Self>
     {
         close::new(self)
     }
@@ -177,11 +177,9 @@ pub trait SinkExt: Sink {
 
     /// Flush the sync, processing all pending items.
     ///
-    /// The sink itself is returned after flushing is complete; this adapter is
-    /// intended to be used when you want to stop sending to the sink until
-    /// all current requests are processed.
-    fn flush(self) -> Flush<Self>
-        where Self: Sized
+    /// This adapter is intended to be used when you want to stop sending to the sink
+    /// until all current requests are processed.
+    fn flush<'a>(self: PinMut<'a, Self>) -> Flush<'a, Self>
     {
         flush::new(self)
     }
@@ -192,10 +190,7 @@ pub trait SinkExt: Sink {
     /// Note that, **because of the flushing requirement, it is usually better
     /// to batch together items to send via `send_all`, rather than flushing
     /// between each item.**
-    ///
-    /// On completion, the sink is returned.
-    fn send(self, item: Self::SinkItem) -> Send<Self>
-        where Self: Sized
+    fn send<'a>(self: PinMut<'a, Self>, item: Self::SinkItem) -> Send<'a, Self>
     {
         send::new(self, item)
     }
@@ -211,12 +206,9 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    ///
-    /// On completion, the pair `(sink, source)` is returned.
-    fn send_all<S>(self, stream: S) -> SendAll<Self, S>
-        where S: Stream<Item = Self::SinkItem>,
-              Self::SinkError: From<S::Error>,
-              Self: Sized
+    fn send_all<'a, S, E>(self: PinMut<'a, Self>, stream: PinMut<'a, S>) -> SendAll<'a, Self, S>
+        where S: Stream<Item = Result<Self::SinkItem, E>>,
+              Self::SinkError: From<E>,
     {
         send_all::new(self, stream)
     }

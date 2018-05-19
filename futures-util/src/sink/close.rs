@@ -1,53 +1,28 @@
-use futures_core::{Poll, Async, Future};
+use futures_core::{Poll, Future};
 use futures_core::task;
 use futures_sink::Sink;
+
+use core::mem::PinMut;
 
 /// Future for the `close` combinator, which polls the sink until all data has
 /// been closed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Close<S> {
-    sink: Option<S>,
+pub struct Close<'a, S: 'a + ?Sized> {
+    sink: PinMut<'a, S>,
 }
 
 /// A future that completes when the sink has finished closing.
 ///
 /// The sink itself is returned after closeing is complete.
-pub fn new<S: Sink>(sink: S) -> Close<S> {
-    Close { sink: Some(sink) }
+pub fn new<'a, S: Sink + ?Sized>(sink: PinMut<'a, S>) -> Close<'a, S> {
+    Close { sink }
 }
 
-impl<S: Sink> Close<S> {
-    /// Get a shared reference to the inner sink.
-    /// Returns `None` if the sink has already been closed.
-    pub fn get_ref(&self) -> Option<&S> {
-        self.sink.as_ref()
-    }
+impl<'a, S: Sink + ?Sized> Future for Close<'a, S> {
+    type Output = Result<(), S::SinkError>;
 
-    /// Get a mutable reference to the inner sink.
-    /// Returns `None` if the sink has already been closed.
-    pub fn get_mut(&mut self) -> Option<&mut S> {
-        self.sink.as_mut()
-    }
-
-    /// Consume the `Close` and return the inner sink.
-    /// Returns `None` if the sink has already been closed.
-    pub fn into_inner(self) -> Option<S> {
-        self.sink
-    }
-}
-
-impl<S: Sink> Future for Close<S> {
-    type Item = S;
-    type Error = S::SinkError;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
-        let mut sink = self.sink.take().expect("Attempted to poll Close after it completed");
-        if sink.poll_close(cx)?.is_ready() {
-            Ok(Async::Ready(sink))
-        } else {
-            self.sink = Some(sink);
-            Ok(Async::Pending)
-        }
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        self.sink.reborrow().poll_close(cx)
     }
 }

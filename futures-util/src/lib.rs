@@ -15,7 +15,7 @@ extern crate futures_core;
 extern crate futures_executor;
 
 extern crate futures_io;
-// extern crate futures_sink;
+extern crate futures_sink;
 
 extern crate either;
 
@@ -33,28 +33,26 @@ macro_rules! if_std {
 //#[macro_use]
 extern crate std;
 
-/*
 macro_rules! delegate_sink {
     ($field:ident) => {
-        fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            self.$field.poll_ready(cx)
+        fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            self.$field().poll_ready(cx)
         }
 
-        fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-            self.$field.start_send(item)
+        fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+            self.$field().start_send(item)
         }
 
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            self.$field.poll_flush(cx)
+        fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            self.$field().poll_flush(cx)
         }
 
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            self.$field.poll_close(cx)
+        fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            self.$field().poll_close(cx)
         }
 
     }
 }
-*/
 
 #[cfg(all(feature = "std", any(test, feature = "bench")))]
 pub mod lock;
@@ -75,8 +73,8 @@ pub use io::{AsyncReadExt, AsyncWriteExt};
 pub mod stream;
 pub use stream::StreamExt;
 
-// pub mod sink;
-// pub use sink::SinkExt;
+pub mod sink;
+pub use sink::SinkExt;
 
 pub mod prelude {
     //! Prelude containing the extension traits, which add functionality to

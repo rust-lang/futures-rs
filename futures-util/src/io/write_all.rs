@@ -38,11 +38,7 @@ impl<'a, A> Future for WriteAll<'a, A>
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while this.buf.len() > 0 {
-            let n = match this.a.poll_write(cx, this.buf) {
-                Poll::Ready(Ok(n)) => n,
-                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                Poll::Pending => return Poll::Pending,
-            };
+            let n = try_ready!(this.a.poll_write(cx, this.buf));
             {
                 let (rest, _) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;

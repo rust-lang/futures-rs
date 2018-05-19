@@ -8,7 +8,7 @@ members = [
   "futures-io",
 #  "futures-macro-async",
 #  "futures-macro-await",
-#  "futures-sink",
+  "futures-sink",
 #  "futures-stable",
   "futures-util",
 ]
