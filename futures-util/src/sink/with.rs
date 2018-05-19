@@ -1,7 +1,8 @@
-use core::mem;
+use core::marker::Unpin;
+use core::mem::{self, PinMut};
 use core::marker::PhantomData;
 
-use futures_core::{IntoFuture, Future, Poll, Async, Stream};
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 use futures_sink::{Sink};
 
@@ -12,13 +13,29 @@ use futures_sink::{Sink};
 pub struct With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
-          Fut: IntoFuture,
+          Fut: Future,
 {
     sink: S,
     f: F,
-    state: State<Fut::Future, S::SinkItem>,
+    state: State<Fut, S::SinkItem>,
     _phantom: PhantomData<fn(U)>,
 }
+
+impl<S, U, Fut, F> With<S, U, Fut, F>
+where S: Sink,
+      F: FnMut(U) -> Fut,
+      Fut: Future,
+{
+    unsafe_pinned!(sink -> S);
+    unsafe_unpinned!(f -> F);
+    unsafe_pinned!(state -> State<Fut, S::SinkItem>);
+}
+
+impl<S, U, Fut, F> Unpin for With<S, U, Fut, F>
+where S: Sink + Unpin,
+      F: FnMut(U) -> Fut,
+      Fut: Future + Unpin,
+{}
 
 #[derive(Debug)]
 enum State<Fut, T> {
@@ -28,20 +45,22 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
-    fn is_empty(&self) -> bool {
-        if let State::Empty = *self {
-            true
-        } else {
-            false
+    fn as_pin_mut<'a>(self: PinMut<'a, Self>) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
+        unsafe {
+            match PinMut::get_mut(self) {
+                State::Empty => State::Empty,
+                State::Process(fut) => State::Process(PinMut::new_unchecked(fut)),
+                State::Buffered(x) => State::Buffered(PinMut::new_unchecked(x)),
+            }
         }
     }
 }
 
-pub fn new<S, U, Fut, F>(sink: S, f: F) -> With<S, U, Fut, F>
+pub fn new<S, U, Fut, F, E>(sink: S, f: F) -> With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
-          Fut: IntoFuture<Item = S::SinkItem>,
-          Fut::Error: From<S::SinkError>,
+          Fut: Future<Output = Result<S::SinkItem, E>>,
+          E: From<S::SinkError>,
 {
     With {
         state: State::Empty,
@@ -55,21 +74,20 @@ pub fn new<S, U, Fut, F>(sink: S, f: F) -> With<S, U, Fut, F>
 impl<S, U, Fut, F> Stream for With<S, U, Fut, F>
     where S: Stream + Sink,
           F: FnMut(U) -> Fut,
-          Fut: IntoFuture
+          Fut: Future
 {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll_next(cx)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        self.sink().poll_next(cx)
     }
 }
 
-impl<S, U, Fut, F> With<S, U, Fut, F>
+impl<S, U, Fut, F, E> With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
-          Fut: IntoFuture<Item = S::SinkItem>,
-          Fut::Error: From<S::SinkError>,
+          Fut: Future<Output = Result<S::SinkItem, E>>,
+          E: From<S::SinkError>,
 {
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &S {
@@ -89,66 +107,51 @@ impl<S, U, Fut, F> With<S, U, Fut, F>
         self.sink
     }
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Fut::Error> {
-        loop {
-            match mem::replace(&mut self.state, State::Empty) {
-                State::Empty => break,
-                State::Process(mut fut) => {
-                    match fut.poll(cx)? {
-                        Async::Ready(item) => {
-                            self.state = State::Buffered(item);
-                        }
-                        Async::Pending => {
-                            self.state = State::Process(fut);
-                            break
-                        }
-                    }
-                }
-                State::Buffered(item) => {
-                    match self.sink.poll_ready(cx)? {
-                        Async::Ready(()) => self.sink.start_send(item)?,
-                        Async::Pending => {
-                            self.state = State::Buffered(item);
-                            break
-                        }
-                    }
-                }
-            }
+    fn poll(self: &mut PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), E>> {
+        let buffered = match self.state().as_pin_mut() {
+            State::Empty => return Poll::Ready(Ok(())),
+            State::Process(mut fut) => Some(try_ready!(fut.poll(cx))),
+            State::Buffered(_) => None,
+        };
+        if let Some(buffered) = buffered {
+            PinMut::set(self.state(), State::Buffered(buffered));
         }
-
-        if self.state.is_empty() {
-            Ok(Async::Ready(()))
+        if let State::Buffered(item) = unsafe { mem::replace(PinMut::get_mut(self.state()), State::Empty) } {
+            Poll::Ready(self.sink().start_send(item).map_err(Into::into))
         } else {
-            Ok(Async::Pending)
+            unreachable!()
         }
     }
 }
 
-impl<S, U, Fut, F> Sink for With<S, U, Fut, F>
+impl<S, U, Fut, F, E> Sink for With<S, U, Fut, F>
     where S: Sink,
           F: FnMut(U) -> Fut,
-          Fut: IntoFuture<Item = S::SinkItem>,
-          Fut::Error: From<S::SinkError>,
+          Fut: Future<Output = Result<S::SinkItem, E>>,
+          E: From<S::SinkError>,
 {
     type SinkItem = U;
-    type SinkError = Fut::Error;
+    type SinkError = E;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         self.poll(cx)
     }
 
-    fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-        self.state = State::Process((self.f)(item).into_future());
+    fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        let item = (self.f())(item);
+        PinMut::set(self.state(), State::Process(item));
         Ok(())
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        ready!(self.poll(cx));
-        self.sink.poll_flush(cx).map_err(Into::into)
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        try_ready!(self.poll(cx));
+        try_ready!(self.sink().poll_flush(cx));
+        Poll::Ready(Ok(()))
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        ready!(self.poll(cx));
-        self.sink.poll_close(cx).map_err(Into::into)
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        try_ready!(self.poll(cx));
+        try_ready!(self.sink().poll_close(cx));
+        Poll::Ready(Ok(()))
     }
 }

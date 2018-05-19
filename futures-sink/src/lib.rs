@@ -7,6 +7,8 @@
 #![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures-sink/0.2.0")]
 
+#![feature(pin, arbitrary_self_types)]
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -22,120 +24,8 @@ macro_rules! if_std {
 }
 
 use futures_core::{Poll, task};
-
-#[cfg(feature = "either")]
-extern crate either;
-#[cfg(feature = "either")]
-use either::Either;
-#[cfg(feature = "either")]
-impl<A, B> Sink for Either<A, B>
-    where A: Sink,
-          B: Sink<SinkItem=<A as Sink>::SinkItem,
-                  SinkError=<A as Sink>::SinkError>
-{
-    type SinkItem = <A as Sink>::SinkItem;
-    type SinkError = <A as Sink>::SinkError;
-
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        match *self {
-            Either::Left(ref mut x) => x.poll_ready(cx),
-            Either::Right(ref mut x) => x.poll_ready(cx),
-        }
-    }
-
-    fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-        match *self {
-            Either::Left(ref mut x) => x.start_send(item),
-            Either::Right(ref mut x) => x.start_send(item),
-        }
-    }
-
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        match *self {
-            Either::Left(ref mut x) => x.poll_flush(cx),
-            Either::Right(ref mut x) => x.poll_flush(cx),
-        }
-    }
-
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        match *self {
-            Either::Left(ref mut x) => x.poll_close(cx),
-            Either::Right(ref mut x) => x.poll_close(cx),
-        }
-    }
-}
-
-if_std! {
-    mod channel_impls;
-
-    use futures_core::Async;
-    use futures_core::never::Never;
-
-    impl<T> Sink for ::std::vec::Vec<T> {
-        type SinkItem = T;
-        type SinkError = Never;
-
-        fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
-        }
-
-        fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-            self.push(item);
-            Ok(())
-        }
-
-        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
-        }
-
-        fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
-        }
-    }
-
-    impl<T> Sink for ::std::collections::VecDeque<T> {
-        type SinkItem = T;
-        type SinkError = Never;
-
-        fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
-        }
-
-        fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-            self.push_back(item);
-            Ok(())
-        }
-
-        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
-        }
-
-        fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
-            Ok(Async::Ready(()))
-        }
-    }
-
-    impl<S: ?Sized + Sink> Sink for ::std::boxed::Box<S> {
-        type SinkItem = S::SinkItem;
-        type SinkError = S::SinkError;
-
-        fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            (**self).poll_ready(cx)
-        }
-
-        fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-            (**self).start_send(item)
-        }
-
-        fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            (**self).poll_flush(cx)
-        }
-
-        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-            (**self).poll_close(cx)
-        }
-    }
-}
+use std::marker::Unpin;
+use std::mem::PinMut;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -172,21 +62,21 @@ pub trait Sink {
 
     /// Attempts to prepare the `Sink` to receive a value.
     ///
-    /// This method must be called and return `Ok(Async::Ready(()))` prior to
+    /// This method must be called and return `Ok(Poll::Ready(()))` prior to
     /// each call to `start_send`.
     ///
-    /// This method returns `Async::Ready` once the underlying sink is ready to
+    /// This method returns `Poll::Ready` once the underlying sink is ready to
     /// receive data. If this method returns `Async::Pending`, the current task
     /// is registered to be notified (via `cx.waker()`) when `poll_ready`
     /// should be called again.
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn poll_ready(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>>;
 
     /// Begin the process of sending a value to the sink.
     /// Each call to this function must be proceeded by a successful call to
-    /// `poll_ready` which returned `Ok(Async::Ready(()))`.
+    /// `poll_ready` which returned `Ok(Poll::Ready(()))`.
     ///
     /// As the name suggests, this method only *begins* the process of sending
     /// the item. If the sink employs buffering, the item isn't fully processed
@@ -203,12 +93,12 @@ pub trait Sink {
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn start_send(&mut self, item: Self::SinkItem)
+    fn start_send(self: PinMut<Self>, item: Self::SinkItem)
                   -> Result<(), Self::SinkError>;
 
     /// Flush any remaining output from this sink.
     ///
-    /// Returns `Ok(Async::Ready(()))` when no buffered items remain. If this
+    /// Returns `Ok(Poll::Ready(()))` when no buffered items remain. If this
     /// value is returned then it is guaranteed that all previous values sent
     /// via `start_send` have been flushed.
     ///
@@ -218,11 +108,11 @@ pub trait Sink {
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn poll_flush(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>>;
 
     /// Flush any remaining output and close this sink, if necessary.
     ///
-    /// Returns `Ok(Async::Ready(()))` when no buffered items remain and the sink
+    /// Returns `Ok(Poll::Ready(()))` when no buffered items remain and the sink
     /// has been successfully closed.
     ///
     /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
@@ -231,26 +121,173 @@ pub trait Sink {
     ///
     /// If this function encounters an error, the sink should be considered to
     /// have failed permanently, and no more `Sink` methods should be called.
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError>;
+    fn poll_close(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>>;
 }
 
-impl<'a, S: ?Sized + Sink> Sink for &'a mut S {
+impl<'a, S: ?Sized + Sink + Unpin> Sink for &'a mut S {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        (**self).poll_ready(cx)
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        PinMut::new(&mut **self).poll_ready(cx)
     }
 
-    fn start_send(&mut self, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-        (**self).start_send(item)
+    fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        PinMut::new(&mut **self).start_send(item)
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        (**self).poll_flush(cx)
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        PinMut::new(&mut **self).poll_flush(cx)
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        (**self).poll_close(cx)
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        PinMut::new(&mut **self).poll_close(cx)
+    }
+}
+
+impl<'a, S: ?Sized + Sink> Sink for PinMut<'a, S> {
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        S::poll_ready((*self).reborrow(), cx)
+    }
+
+    fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        S::start_send((*self).reborrow(), item)
+    }
+
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        S::poll_flush((*self).reborrow(), cx)
+    }
+
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        S::poll_close((*self).reborrow(), cx)
+    }
+}
+
+if_std! {
+    mod channel_impls;
+
+    /// The error type for `Vec` and `VecDequeue` when used as `Sink`s.
+    /// Values of this type can never be created.
+    #[derive(Copy, Clone, Debug)]
+    pub enum VecSinkError {}
+
+    impl<T> Sink for ::std::vec::Vec<T> {
+        type SinkItem = T;
+        type SinkError = VecSinkError;
+
+        fn poll_ready(self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn start_send(self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+            // TODO: impl<T> Unpin for Vec<T> {}
+            unsafe { PinMut::get_mut(self) }.push(item);
+            Ok(())
+        }
+
+        fn poll_flush(self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    impl<T> Sink for ::std::collections::VecDeque<T> {
+        type SinkItem = T;
+        type SinkError = VecSinkError;
+
+        fn poll_ready(self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn start_send(self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+            // TODO: impl<T> Unpin for Vec<T> {}
+            unsafe { PinMut::get_mut(self) }.push_back(item);
+            Ok(())
+        }
+
+        fn poll_flush(self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(self: PinMut<Self>, _: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    impl<S: ?Sized + Sink + Unpin> Sink for ::std::boxed::Box<S> {
+        type SinkItem = S::SinkItem;
+        type SinkError = S::SinkError;
+
+        fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            PinMut::new(&mut **self).poll_ready(cx)
+        }
+
+        fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+            PinMut::new(&mut **self).start_send(item)
+        }
+
+        fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            PinMut::new(&mut **self).poll_flush(cx)
+        }
+
+        fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+            PinMut::new(&mut **self).poll_close(cx)
+        }
+    }
+}
+
+#[cfg(feature = "either")]
+extern crate either;
+#[cfg(feature = "either")]
+use either::Either;
+#[cfg(feature = "either")]
+impl<A, B> Sink for Either<A, B>
+    where A: Sink,
+          B: Sink<SinkItem=<A as Sink>::SinkItem,
+                  SinkError=<A as Sink>::SinkError>
+{
+    type SinkItem = <A as Sink>::SinkItem;
+    type SinkError = <A as Sink>::SinkError;
+
+    fn poll_ready(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        unsafe {
+            match PinMut::get_mut(self) {
+                Either::Left(x) => PinMut::new_unchecked(x).poll_ready(cx),
+                Either::Right(x) => PinMut::new_unchecked(x).poll_ready(cx),
+            }
+        }
+    }
+
+    fn start_send(self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        unsafe {
+            match PinMut::get_mut(self) {
+                Either::Left(x) => PinMut::new_unchecked(x).start_send(item),
+                Either::Right(x) => PinMut::new_unchecked(x).start_send(item),
+            }
+        }
+    }
+
+    fn poll_flush(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        unsafe {
+            match PinMut::get_mut(self) {
+                Either::Left(x) => PinMut::new_unchecked(x).poll_flush(cx),
+                Either::Right(x) => PinMut::new_unchecked(x).poll_flush(cx),
+            }
+        }
+    }
+
+    fn poll_close(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        unsafe {
+            match PinMut::get_mut(self) {
+                Either::Left(x) => PinMut::new_unchecked(x).poll_close(cx),
+                Either::Right(x) => PinMut::new_unchecked(x).poll_close(cx),
+            }
+        }
     }
 }

@@ -3,6 +3,8 @@ use futures_core::task;
 use futures_sink::{Sink};
 use sink::{SinkExt, SinkMapErr};
 
+use std::mem::PinMut;
+
 /// A sink combinator to change the error type of a sink.
 ///
 /// This is created by the `Sink::err_into` method.
@@ -22,6 +24,8 @@ pub fn new<S, E>(sink: S) -> SinkErrInto<S, E>
 }
 
 impl<S: Sink, E> SinkErrInto<S, E> {
+    unsafe_pinned!(sink -> SinkMapErr<S, fn(S::SinkError) -> E>);
+
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &S {
         self.sink.get_ref()
@@ -53,9 +57,8 @@ impl<S, E> Sink for SinkErrInto<S, E>
 
 impl<S: Sink + Stream, E> Stream for SinkErrInto<S, E> {
     type Item = S::Item;
-    type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll_next(cx)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        self.sink().poll_next(cx)
     }
 }

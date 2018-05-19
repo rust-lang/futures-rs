@@ -53,11 +53,7 @@ impl<'a, R, W> Future for CopyInto<'a, R, W>
             // If our buffer is empty, then we need to read some data to
             // continue.
             if this.pos == this.cap && !this.read_done {
-                let n = match this.reader.poll_read(cx, &mut this.buf) {
-                    Poll::Ready(Ok(n)) => n,
-                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                    Poll::Pending => return Poll::Pending,
-                };
+                let n = try_ready!(this.reader.poll_read(cx, &mut this.buf));
                 if n == 0 {
                     this.read_done = true;
                 } else {
@@ -68,11 +64,7 @@ impl<'a, R, W> Future for CopyInto<'a, R, W>
 
             // If our buffer has some data, let's write it out!
             while this.pos < this.cap {
-                let i = match this.writer.poll_write(cx, &this.buf[this.pos..this.cap]) {
-                    Poll::Ready(Ok(n)) => n,
-                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                    Poll::Pending => return Poll::Pending,
-                };
+                let i = try_ready!(this.writer.poll_write(cx, &this.buf[this.pos..this.cap]));
                 if i == 0 {
                     return Poll::Ready(Err(
                         io::Error::new(
@@ -87,11 +79,7 @@ impl<'a, R, W> Future for CopyInto<'a, R, W>
             // data and finish the transfer.
             // done with the entire transfer.
             if this.pos == this.cap && this.read_done {
-                match this.writer.poll_flush(cx) {
-                    Poll::Ready(Ok(())) => {},
-                    Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
-                    Poll::Pending => return Poll::Pending,
-                };
+                try_ready!(this.writer.poll_flush(cx));
                 return Poll::Ready(Ok(this.amt));
             }
         }

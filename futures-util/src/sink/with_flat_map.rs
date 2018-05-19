@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use futures_core::{Poll, Async, Stream};
+use futures_core::{Poll, Stream};
 use futures_core::task;
 use futures_sink::Sink;
 
@@ -93,7 +93,6 @@ where
     St: Stream<Item = S::SinkItem, Error=S::SinkError>,
 {
     type Item = S::Item;
-    type Error = S::Error;
     fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
         self.sink.poll_next(cx)
     }

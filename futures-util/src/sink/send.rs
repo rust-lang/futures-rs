@@ -1,69 +1,52 @@
-use futures_core::{Poll, Async, Future};
+use futures_core::{Poll, Future};
 use futures_core::task;
 use futures_sink::{Sink};
+
+use core::marker::Unpin;
+use core::mem::PinMut;
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
 /// then waits until the sink has fully flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Send<S: Sink> {
-    sink: Option<S>,
+pub struct Send<'a, S: Sink + 'a + ?Sized> {
+    sink: PinMut<'a, S>,
     item: Option<S::SinkItem>,
 }
 
-pub fn new<S: Sink>(sink: S, item: S::SinkItem) -> Send<S> {
+// Pinning is never projected to children
+impl<'a, S: Sink + ?Sized> Unpin for Send<'a, S> {}
+
+pub fn new<'a, S: Sink + ?Sized>(sink: PinMut<'a, S>, item: S::SinkItem) -> Send<'a, S> {
     Send {
-        sink: Some(sink),
+        sink,
         item: Some(item),
     }
 }
 
-impl<S: Sink> Send<S> {
-    /// Get a shared reference to the inner sink.
-    ///
-    /// Returns `None` if the future has completed already.
-    pub fn get_ref(&self) -> Option<&S> {
-        self.sink.as_ref()
-    }
+impl<'a, S: Sink + ?Sized> Future for Send<'a, S> {
+    type Output = Result<(), S::SinkError>;
 
-    /// Get a mutable reference to the inner sink.
-    ///
-    /// Returns `None` if the future has completed already.
-    pub fn get_mut(&mut self) -> Option<&mut S> {
-        self.sink.as_mut()
-    }
-
-    fn sink_mut(&mut self) -> &mut S {
-        self.sink.as_mut().take().expect("Attempted to poll Send after completion")
-    }
-
-    fn take_sink(&mut self) -> S {
-        self.sink.take().expect("Attempted to poll Send after completion")
-    }
-}
-
-impl<S: Sink> Future for Send<S> {
-    type Item = S;
-    type Error = S::SinkError;
-
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         if let Some(item) = self.item.take() {
-            match self.sink_mut().poll_ready(cx)? {
-                Async::Ready(()) => {
-                    self.sink_mut().start_send(item)?;
+            match self.sink.reborrow().poll_ready(cx) {
+                Poll::Ready(Ok(())) => {
+                    if let Err(e) = self.sink.reborrow().start_send(item) {
+                        return Poll::Ready(Err(e));
+                    }
                 }
-                Async::Pending => {
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Pending => {
                     self.item = Some(item);
-                    return Ok(Async::Pending);
+                    return Poll::Pending;
                 }
             }
         }
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        ready!(self.sink_mut().poll_flush(cx));
+        try_ready!(self.sink.reborrow().poll_flush(cx));
 
-        // now everything's emptied, so return the sink for further use
-        Ok(Async::Ready(self.take_sink()))
+        Poll::Ready(Ok(()))
     }
 }
