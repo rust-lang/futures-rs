@@ -6,7 +6,7 @@ thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
 
 /// Represents an executor context.
 ///
-/// For more details, see [`enter` documentation](::enter())
+/// For more details, see [`enter`'s documentation](enter())
 pub struct Enter {
     _a: ()
 }
@@ -22,7 +22,7 @@ pub struct EnterError {
 /// executor.
 ///
 /// Executor implementations should call this function before beginning to
-/// execute a tasks, and drop the returned [`Enter`](Enter) value after
+/// execute tasks and drop the returned [`Enter`](Enter) value after
 /// completing task execution:
 ///
 /// ```rust
