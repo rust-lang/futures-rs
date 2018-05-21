@@ -28,9 +28,9 @@ if_nightly! {
     #[macro_use]
     extern crate syn;
 
-    use proc_macro2::Span;
+    use proc_macro2::{Ident, Span};
     use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
-    use quote::{Tokens, ToTokens};
+    use quote::ToTokens;
     use syn::*;
     use syn::punctuated::Punctuated;
     use syn::fold::Fold;
@@ -47,7 +47,7 @@ if_nightly! {
     fn async_inner<F>(
         attribute: Attribute,
         function: TokenStream,
-        gen_function: Tokens,
+        gen_function: proc_macro2::TokenStream,
         return_ty: F,
     ) -> TokenStream
     where F: FnOnce(&Type, &[&Lifetime]) -> proc_macro2::TokenStream
@@ -144,7 +144,7 @@ if_nightly! {
                 // `ref a: B` (or some similar pattern)
                 FnArg::Captured(ArgCaptured { pat, ty, colon_token }) => {
                     patterns.push(pat);
-                    let ident = Ident::from(format!("__arg_{}", i));
+                    let ident = Ident::new(&format!("__arg_{}", i), Span::call_site());
                     temp_bindings.push(ident.clone());
                     let pat = PatIdent {
                         by_ref: None,
@@ -187,7 +187,7 @@ if_nightly! {
             #( let #patterns = #temp_bindings; )*
             #block
         };
-        let mut result = Tokens::new();
+        let mut result = proc_macro2::TokenStream::empty();
         block.brace_token.surround(&mut result, |tokens| {
             block_inner.to_tokens(tokens);
         });
@@ -204,7 +204,7 @@ if_nightly! {
                 loop { yield ::futures::__rt::Async::Pending }
             }
         };
-        let mut gen_body = Tokens::new();
+        let mut gen_body = proc_macro2::TokenStream::empty();
         block.brace_token.surround(&mut gen_body, |tokens| {
             gen_body_inner.to_tokens(tokens);
         });
@@ -228,7 +228,7 @@ if_nightly! {
             body_inner.into()
         };
 
-        let mut body = Tokens::new();
+        let mut body = proc_macro2::TokenStream::empty();
         block.brace_token.surround(&mut body, |tokens| {
             body_inner.to_tokens(tokens);
         });
@@ -253,7 +253,7 @@ if_nightly! {
         let args = syn::parse::<AsyncArgs>(attribute)
             .expect(&format!("failed to parse attribute arguments: {}", attr));
 
-        let attribute = Attribute::from(args.0.into_iter().map(|arg| arg.0));
+        let attribute = Attribute::from(args.0.into_iter().map(|arg| arg.0.to_string()));
 
         async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_future }, |output, lifetimes| {
             // TODO: can we lift the restriction that `futures` must be at the root of
@@ -296,8 +296,8 @@ if_nightly! {
 
         let mut item_ty = None;
 
-        for (term, ty) in valued_args {
-            match term.as_ref() {
+        for (ident, ty) in valued_args {
+            match ident.to_string().as_str() {
                 "item" => {
                     if item_ty.is_some() {
                         panic!("duplicate 'item' argument");
@@ -305,13 +305,13 @@ if_nightly! {
                     item_ty = Some(ty);
                 }
                 _ => {
-                    panic!("unexpected macro argument '{}'", quote_cs!(#term = #ty));
+                    panic!("unexpected macro argument '{}'", quote_cs!(#ident = #ty));
                 }
             }
         }
 
         let item_ty = item_ty.expect("#[async_stream] requires item type to be specified");
-        let attribute = Attribute::from(args);
+        let attribute = Attribute::from(args.map(|arg| arg.to_string()));
 
         async_inner(attribute, function, quote_cs! { ::futures::__rt::gen_stream }, |output, lifetimes| {
             let return_ty = match attribute {
@@ -464,7 +464,7 @@ if_nightly! {
     }
 
     fn first_last(tokens: &ToTokens) -> (Span, Span) {
-        let mut spans = Tokens::new();
+        let mut spans = proc_macro2::TokenStream::empty();
         tokens.to_tokens(&mut spans);
         let good_tokens = proc_macro2::TokenStream::from(spans).into_iter().collect::<Vec<_>>();
         let first_span = good_tokens.first().map(|t| t.span()).unwrap_or(Span::call_site());
@@ -487,10 +487,12 @@ if_nightly! {
     fn replace_bang(input: proc_macro2::TokenStream, tokens: &ToTokens)
         -> proc_macro2::TokenStream
     {
-        let mut new_tokens = Tokens::new();
+        let mut new_tokens = proc_macro2::TokenStream::empty();
         for token in input.into_iter() {
             match token {
-                proc_macro2::TokenTree::Op(op) if op.op() == '!' => tokens.to_tokens(&mut new_tokens),
+                proc_macro2::TokenTree::Punct(ref punct) if punct.as_char() == '!' => {
+                    tokens.to_tokens(&mut new_tokens)
+                },
                 _ => token.to_tokens(&mut new_tokens),
             }
         }
@@ -501,10 +503,10 @@ if_nightly! {
         -> proc_macro2::TokenStream
     {
         let mut replacements = replacements.iter().cycle();
-        let mut new_tokens = Tokens::new();
+        let mut new_tokens = proc_macro2::TokenStream::empty();
         for token in input.into_iter() {
             match token {
-                proc_macro2::TokenTree::Op(op) if op.op() == '!' => {
+                proc_macro2::TokenTree::Punct(ref punct) if punct.as_char() == '!' => {
                     replacements.next().unwrap().to_tokens(&mut new_tokens);
                 }
                 _ => token.to_tokens(&mut new_tokens),
