@@ -13,11 +13,11 @@ few other assorted macros.
 proc-macro = true
 
 [dependencies]
-quote = "0.5"
-proc-macro2 = "0.3"
+quote = "0.6"
+proc-macro2 = "0.4.1"
 
 [dependencies.syn]
-version = "0.13"
+version = "0.14"
 features = ["full", "fold", "parsing", "printing", "extra-traits", "proc-macro"]
 default-features = false
 
