@@ -9,9 +9,11 @@ use futures_core::{Future, Stream};
 // Primitive futures
 mod empty;
 mod lazy;
+mod pinned;
 mod poll_fn;
 pub use self::empty::{empty, Empty};
 pub use self::lazy::{lazy, Lazy};
+pub use self::pinned::{pinned, PinnedFut};
 pub use self::poll_fn::{poll_fn, PollFn};
 
 // combinators
