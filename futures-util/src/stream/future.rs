@@ -63,7 +63,7 @@ impl<S: Stream + Unpin> Future for StreamFuture<S> {
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            try_ready!(PinMut::new(s).poll_next(cx))
+            ready!(PinMut::new(s).poll_next(cx))
         };
         let stream = self.stream.take().unwrap();
         Poll::Ready((item, stream))

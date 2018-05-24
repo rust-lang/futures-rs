@@ -1,4 +1,5 @@
 use std::mem::{self, PinMut};
+use std::marker::Unpin;
 use std::prelude::v1::*;
 
 use futures_core::{Poll, Stream};
@@ -76,6 +77,8 @@ impl<S> Chunks<S> where S: Stream {
     unsafe_pinned!(stream -> Fuse<S>);
 }
 
+unsafe impl<S: Unpin + Stream> Unpin for Chunks<S> {}
+
 impl<S> Stream for Chunks<S>
     where S: Stream
 {
@@ -84,7 +87,7 @@ impl<S> Stream for Chunks<S>
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {
-            match try_ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(cx)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.

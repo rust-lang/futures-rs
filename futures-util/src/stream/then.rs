@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -46,6 +47,8 @@ impl<S, U, F> Then<S, U, F> {
     unsafe_unpinned!(f -> F);
 }
 
+unsafe impl<S: Unpin, U: Unpin, F> Unpin for Then<S, U, F> {}
+
 impl<S, U, F> Stream for Then<S, U, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
@@ -55,7 +58,7 @@ impl<S, U, F> Stream for Then<S, U, F>
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U::Output>> {
         if self.future().as_pin_mut().is_none() {
-            let item = match try_ready!(self.stream().poll_next(cx)) {
+            let item = match ready!(self.stream().poll_next(cx)) {
                 None => return Poll::Ready(None),
                 Some(e) => e,
             };
@@ -63,7 +66,7 @@ impl<S, U, F> Stream for Then<S, U, F>
             self.future().assign(Some(fut));
         }
 
-        let e = try_ready!(self.future().as_pin_mut().unwrap().poll(cx));
+        let e = ready!(self.future().as_pin_mut().unwrap().poll(cx));
         self.future().assign(None);
         Poll::Ready(Some(e))
     }

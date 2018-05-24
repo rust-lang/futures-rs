@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -66,6 +67,12 @@ impl<S, R, F> FilterMap<S, R, F>
     unsafe_pinned!(pending -> Option<R>);
 }
 
+unsafe impl<S, R, F> Unpin for FilterMap<S, R, F>
+    where S: Stream + Unpin,
+          F: FnMut(S::Item) -> R,
+          R: Future + Unpin,
+{}
+
 /* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, R, F> Sink for FilterMap<S, R, F>
@@ -90,7 +97,7 @@ impl<S, R, F, B> Stream for FilterMap<S, R, F>
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<B>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
-                let item = match try_ready!(self.stream().poll_next(cx)) {
+                let item = match ready!(self.stream().poll_next(cx)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
@@ -98,7 +105,7 @@ impl<S, R, F, B> Stream for FilterMap<S, R, F>
                 self.pending().assign(Some(fut));
             }
 
-            let item = try_ready!(self.pending().as_pin_mut().unwrap().poll(cx));
+            let item = ready!(self.pending().as_pin_mut().unwrap().poll(cx));
             self.pending().assign(None);
             if item.is_some() {
                 return Poll::Ready(item);

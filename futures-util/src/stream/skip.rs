@@ -69,7 +69,7 @@ impl<S> Stream for Skip<S>
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         while *self.remaining() > 0 {
-            match try_ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(cx)) {
                 Some(_) => *self.remaining() -= 1,
                 None => return Poll::Ready(None),
             }

@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -83,6 +84,8 @@ impl<T, F, Fut> Unfold<T, F, Fut> {
     unsafe_pinned!(fut -> Option<Fut>);
 }
 
+unsafe impl<T, F, Fut: Unpin> Unpin for Unfold<T, F, Fut> {}
+
 impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,
           Fut: Future<Output = Option<(It, T)>>,
@@ -96,7 +99,7 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
                 self.fut().assign(Some(fut));
             }
 
-            let step = try_ready!(self.fut().as_pin_mut().unwrap().poll(cx));
+            let step = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
             self.fut().assign(None);
 
             if let Some((item, next_state)) = step {

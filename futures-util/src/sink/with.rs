@@ -143,12 +143,12 @@ impl<S, U, Fut, F> Sink for With<S, U, Fut, F>
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        try_ready!(self.poll(cx));
+        ready!(self.poll(cx));
         self.sink.poll_flush(cx).map_err(Into::into)
     }
 
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        try_ready!(self.poll(cx));
+        ready!(self.poll(cx));
         self.sink.poll_close(cx).map_err(Into::into)
     }
 }

@@ -38,7 +38,7 @@ impl<S1, S2> Stream for Chain<S1, S2>
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.first().as_pin_mut() {
-            if let Some(item) = try_ready!(first.poll_next(cx)) {
+            if let Some(item) = ready!(first.poll_next(cx)) {
                 return Poll::Ready(Some(item))
             }
         }

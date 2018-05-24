@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use futures_core::{Stream, Poll};
 use futures_core::task;
@@ -8,9 +9,7 @@ use futures_core::task;
 /// This structure is created by the `stream::repeat` function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Repeat<T>
-    where T: Clone
-{
+pub struct Repeat<T> {
     item: T,
 }
 
@@ -39,6 +38,8 @@ pub fn repeat<T>(item: T) -> Repeat<T>
         item: item,
     }
 }
+
+unsafe impl<T> Unpin for Repeat<T> {}
 
 impl<T> Stream for Repeat<T>
     where T: Clone

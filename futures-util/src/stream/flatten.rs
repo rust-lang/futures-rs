@@ -77,12 +77,12 @@ impl<S> Stream for Flatten<S>
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
             if self.next().as_pin_mut().is_none() {
-                match try_ready!(self.stream().poll_next(cx)) {
+                match ready!(self.stream().poll_next(cx)) {
                     Some(e) => self.next().assign(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
-            let item = try_ready!(self.next().as_pin_mut().unwrap().poll_next(cx));
+            let item = ready!(self.next().as_pin_mut().unwrap().poll_next(cx));
             if item.is_some() {
                 return Poll::Ready(item);
             } else {

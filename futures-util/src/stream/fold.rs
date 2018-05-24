@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -37,6 +38,8 @@ impl<S, Fut, T, F> Fold<S, Fut, T, F> {
     unsafe_pinned!(fut -> Option<Fut>);
 }
 
+unsafe impl<S: Unpin, Fut: Unpin, T, F> Unpin for Fold<S, Fut, T, F> {}
+
 impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
     where S: Stream,
           F: FnMut(T, S::Item) -> Fut,
@@ -46,20 +49,22 @@ impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
         loop {
-            if self.accum().is_some() {
-                let item = try_ready!(self.stream().poll_next(cx));
-                let accum = self.accum().take().unwrap();
-
-                if let Some(e) = item {
-                    let fut = (self.f())(accum, e);
-                    self.fut().assign(Some(fut));
-                } else {
-                    return Poll::Ready(accum)
-                }
-            } else {
-                let accum = try_ready!(self.fut().as_pin_mut().unwrap().poll(cx));
+            // we're currently processing a future to produce a new accum value
+            if self.accum().is_none() {
+                let accum = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
                 *self.accum() = Some(accum);
                 self.fut().assign(None);
+            }
+
+            let item = ready!(self.stream().poll_next(cx));
+            let accum = self.accum().take()
+                .expect("Fold polled after completion");
+
+            if let Some(e) = item {
+                let fut = (self.f())(accum, e);
+                self.fut().assign(Some(fut));
+            } else {
+                return Poll::Ready(accum)
             }
         }
     }

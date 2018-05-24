@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -64,6 +65,8 @@ impl<S, R, P> TakeWhile<S, R, P> where S: Stream {
     unsafe_unpinned!(done_taking -> bool);
 }
 
+unsafe impl<S: Unpin + Stream, R: Unpin, P> Unpin for TakeWhile<S, R, P> {}
+
 /* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, R, P> Sink for TakeWhile<S, R, P>
@@ -89,7 +92,7 @@ impl<S, R, P> Stream for TakeWhile<S, R, P>
         }
 
         if self.pending_item().is_none() {
-            let item = match try_ready!(self.stream().poll_next(cx)) {
+            let item = match ready!(self.stream().poll_next(cx)) {
                 Some(e) => e,
                 None => return Poll::Ready(None),
             };
@@ -98,7 +101,7 @@ impl<S, R, P> Stream for TakeWhile<S, R, P>
             *self.pending_item() = Some(item);
         }
 
-        let take = try_ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
+        let take = ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
         self.pending_fut().assign(None);
         let item = self.pending_item().take().unwrap();
 

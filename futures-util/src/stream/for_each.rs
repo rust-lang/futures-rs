@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -35,6 +36,8 @@ impl<S, U, F> ForEach<S, U, F> {
     unsafe_pinned!(fut -> Option<U>);
 }
 
+unsafe impl<S, U, F> Unpin for ForEach<S, U, F> {}
+
 impl<S, U, F> Future for ForEach<S, U, F>
     where S: Stream,
           F: FnMut(S::Item) -> U,
@@ -45,11 +48,11 @@ impl<S, U, F> Future for ForEach<S, U, F>
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
         loop {
             if let Some(fut) = self.fut().as_pin_mut() {
-                try_ready!(fut.poll(cx));
+                ready!(fut.poll(cx));
             }
             self.fut().assign(None);
 
-            match try_ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(cx)) {
                 Some(e) => {
                     let fut = (self.f())(e);
                     self.fut().assign(Some(fut));

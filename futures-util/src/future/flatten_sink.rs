@@ -66,7 +66,7 @@ impl<F> Sink for FlattenSink<F> where F: Future, <F as Future>::Item: Sink<SinkE
 
     fn poll_close(&mut self, cx: &mut task::Context) -> Result<Async<()>, Self::SinkError> {
         if let State::Ready(ref mut s) = self.st {
-            try_ready!(s.poll_close(cx));
+            ready!(s.poll_close(cx));
         }
         self.st = State::Closed;
         return Ok(Async::Ready(()));
