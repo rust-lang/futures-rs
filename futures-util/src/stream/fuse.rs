@@ -28,7 +28,10 @@ impl<S> Sink for Fuse<S>
 */
 
 pub fn new<S: Stream>(s: S) -> Fuse<S> {
-    Fuse { stream: s, done: false }
+    Fuse {
+        stream: s,
+        done: false,
+    }
 }
 
 impl<S> Fuse<S> {
@@ -73,13 +76,13 @@ impl<S: Stream> Stream for Fuse<S> {
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         if *self.done() {
-            Poll::Ready(None)
-        } else {
-            let r = self.stream().poll_next(cx);
-            if let Poll::Ready(None) = r {
-                *self.done() = true;
-            }
-            r
+            return Poll::Ready(None);
         }
+
+        let item = ready!(self.stream().poll_next(cx));
+        if item.is_none() {
+            *self.done() = true;
+        }
+        Poll::Ready(item)
     }
 }

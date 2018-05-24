@@ -43,7 +43,7 @@ impl<T> Future for OrderWrapper<T>
     type Error = T::Error;
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        let result = try_ready!(self.item.poll(cx));
+        let result = ready!(self.item.poll(cx));
         Ok(Async::Ready(OrderWrapper {
             item: result,
             index: self.index

@@ -46,7 +46,7 @@ impl<A> Stream for Lines<A>
     type Error = io::Error;
 
     fn poll(&mut self, cx: &mut task::Context) -> Poll<Option<String>, io::Error> {
-        let n = try_ready!(self.io.read_line(&mut self.line));
+        let n = ready!(self.io.read_line(&mut self.line));
         if n == 0 && self.line.len() == 0 {
             return Ok(None.into())
         }

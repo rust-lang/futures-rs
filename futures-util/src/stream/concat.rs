@@ -1,6 +1,7 @@
 use core::mem::PinMut;
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::default::Default;
+use core::marker::Unpin;
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
@@ -40,6 +41,8 @@ impl<S: Stream> Concat<S> {
     unsafe_pinned!(stream -> S);
     unsafe_unpinned!(accum -> Option<S::Item>);
 }
+
+unsafe impl<S: Stream + Unpin> Unpin for Concat<S> {}
 
 impl<S> Future for Concat<S>
     where S: Stream,

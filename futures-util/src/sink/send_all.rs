@@ -75,18 +75,18 @@ impl<T, U> Future for SendAll<T, U>
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered.take() {
-            try_ready!(self.try_start_send(cx, item))
+            ready!(self.try_start_send(cx, item))
         }
 
         loop {
             match self.stream_mut().poll_next(cx)? {
-                Async::Ready(Some(item)) => try_ready!(self.try_start_send(cx, item)),
+                Async::Ready(Some(item)) => ready!(self.try_start_send(cx, item)),
                 Async::Ready(None) => {
-                    try_ready!(self.sink_mut().poll_flush(cx));
+                    ready!(self.sink_mut().poll_flush(cx));
                     return Ok(Async::Ready(self.take_result()))
                 }
                 Async::Pending => {
-                    try_ready!(self.sink_mut().poll_flush(cx));
+                    ready!(self.sink_mut().poll_flush(cx));
                     return Ok(Async::Pending)
                 }
             }

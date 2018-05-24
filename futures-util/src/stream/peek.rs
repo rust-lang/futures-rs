@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use futures_core::{Poll, Stream};
 use futures_core::task;
@@ -36,6 +37,7 @@ impl<S> Sink for Peekable<S>
 }
 */
 
+unsafe impl<S: Unpin + Stream> Unpin for Peekable<S> {}
 
 impl<S: Stream> Peekable<S> {
     /// Peek retrieves a reference to the next item in the stream.
@@ -46,7 +48,7 @@ impl<S: Stream> Peekable<S> {
         if self.peeked().is_some() {
             return Poll::Ready(self.peeked().as_ref())
         }
-        match try_ready!(self.stream().poll_next(cx)) {
+        match ready!(self.stream().poll_next(cx)) {
             None => Poll::Ready(None),
             Some(item) => {
                 *self.peeked() = Some(item);

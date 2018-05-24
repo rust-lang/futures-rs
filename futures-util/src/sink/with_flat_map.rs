@@ -71,7 +71,7 @@ where
             }
         }
         if let Some(mut stream) = self.stream.take() {
-            while let Some(x) = try_ready!(stream.poll_next(cx)) {
+            while let Some(x) = ready!(stream.poll_next(cx)) {
                 match self.sink.poll_ready(cx)? {
                     Async::Ready(()) => self.sink.start_send(x)?,
                     Async::Pending => {

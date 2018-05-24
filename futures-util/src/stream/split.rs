@@ -69,7 +69,7 @@ impl<S: Sink> Sink for SplitSink<S> {
             if self.slot.is_none() {
                 return Ok(Async::Ready(()));
             }
-            try_ready!(self.poll_flush(cx));
+            ready!(self.poll_flush(cx));
         }
     }
 
@@ -82,7 +82,7 @@ impl<S: Sink> Sink for SplitSink<S> {
         match self.lock.poll_lock(cx) {
             Async::Ready(mut inner) => {
                 if self.slot.is_some() {
-                    try_ready!(inner.poll_ready(cx));
+                    ready!(inner.poll_ready(cx));
                     inner.start_send(self.slot.take().unwrap())?;
                 }
                 inner.poll_flush(cx)
@@ -95,7 +95,7 @@ impl<S: Sink> Sink for SplitSink<S> {
         match self.lock.poll_lock(cx) {
             Async::Ready(mut inner) => {
                 if self.slot.is_some() {
-                    try_ready!(inner.poll_ready(cx));
+                    ready!(inner.poll_ready(cx));
                     inner.start_send(self.slot.take().unwrap())?;
                 }
                 inner.poll_close(cx)

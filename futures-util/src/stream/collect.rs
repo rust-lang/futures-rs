@@ -1,5 +1,5 @@
 use std::prelude::v1::*;
-
+use std::marker::Unpin;
 use std::mem::{self, PinMut};
 
 use futures_core::{Future, Poll, Stream};
@@ -33,6 +33,8 @@ impl<S: Stream, C: Default> Collect<S, C> {
     unsafe_unpinned!(items -> C);
 }
 
+unsafe impl<S: Unpin + Stream, C> Unpin for Collect<S, C> {}
+
 impl<S, C> Future for Collect<S, C>
     where S: Stream, C: Default + Extend<S:: Item>
 {
@@ -40,7 +42,7 @@ impl<S, C> Future for Collect<S, C>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<C> {
         loop {
-            match try_ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(cx)) {
                 Some(e) => self.items().extend(Some(e)),
                 None => return Poll::Ready(self.finish()),
             }

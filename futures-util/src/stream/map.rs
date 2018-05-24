@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use futures_core::{Poll, Stream};
 use futures_core::task;
@@ -52,6 +53,8 @@ impl<S, F> Map<S, F> {
     unsafe_unpinned!(f -> F);
 }
 
+unsafe impl<S: Unpin, F> Unpin for Map<S, F> {}
+
 /* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, F> Sink for Map<S, F>
@@ -71,7 +74,7 @@ impl<S, F, U> Stream for Map<S, F>
     type Item = U;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U>> {
-        let option = try_ready!(self.stream().poll_next(cx));
+        let option = ready!(self.stream().poll_next(cx));
         Poll::Ready(option.map(self.f()))
     }
 }

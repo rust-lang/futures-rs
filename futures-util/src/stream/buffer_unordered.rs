@@ -96,7 +96,7 @@ impl<S> Stream for BufferUnordered<S>
         }
 
         // Try polling a new future
-        if let Some(val) = try_ready!(self.queue.poll_next(cx)) {
+        if let Some(val) = ready!(self.queue.poll_next(cx)) {
             return Ok(Async::Ready(Some(val)));
         }
 

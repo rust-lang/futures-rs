@@ -62,7 +62,7 @@ impl<A> Future for ReadUntil<A>
                 // and just return it, as we are finished.
                 // If we hit "would block" then all the read data so far
                 // is in our buffer, and otherwise we propagate errors.
-                try_ready!(a.read_until(byte, buf));
+                ready!(a.read_until(byte, buf));
             },
             State::Empty => panic!("poll ReadUntil after it's done"),
         }

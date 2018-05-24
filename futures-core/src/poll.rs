@@ -2,7 +2,7 @@
 ///
 /// This macro bakes in propagation of `Pending` signals by returning early.
 #[macro_export]
-macro_rules! try_ready {
+macro_rules! ready {
     ($e:expr) => (match $e {
         $crate::Poll::Ready(t) => t,
         $crate::Poll::Pending => return $crate::Poll::Pending,

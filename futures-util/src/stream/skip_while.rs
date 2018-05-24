@@ -1,4 +1,5 @@
 use core::mem::PinMut;
+use core::marker::Unpin;
 
 use {PinMutExt, OptionExt};
 
@@ -64,6 +65,8 @@ impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
     unsafe_unpinned!(done_skipping -> bool);
 }
 
+unsafe impl<S: Unpin + Stream, R: Unpin, P> Unpin for SkipWhile<S, R, P> {}
+
 /* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S, R, P> Sink for SkipWhile<S, R, P>
@@ -90,7 +93,7 @@ impl<S, R, P> Stream for SkipWhile<S, R, P>
 
         loop {
             if self.pending_item().is_none() {
-                let item = match try_ready!(self.stream().poll_next(cx)) {
+                let item = match ready!(self.stream().poll_next(cx)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
@@ -99,7 +102,7 @@ impl<S, R, P> Stream for SkipWhile<S, R, P>
                 *self.pending_item() = Some(item);
             }
 
-            let skipped = try_ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
+            let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
             let item = self.pending_item().take().unwrap();
             self.pending_fut().assign(None);
 

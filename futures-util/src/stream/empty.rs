@@ -1,5 +1,5 @@
 use core::mem::PinMut;
-use core::marker::PhantomData;
+use core::marker::{Unpin, PhantomData};
 
 use futures_core::{Stream, Poll};
 use futures_core::task;
@@ -21,6 +21,8 @@ pub fn empty<T>() -> Empty<T> {
         _phantom: PhantomData
     }
 }
+
+unsafe impl<T> Unpin for Empty<T> {}
 
 impl<T> Stream for Empty<T> {
     type Item = T;

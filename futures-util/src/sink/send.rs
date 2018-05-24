@@ -61,7 +61,7 @@ impl<S: Sink> Future for Send<S> {
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        try_ready!(self.sink_mut().poll_flush(cx));
+        ready!(self.sink_mut().poll_flush(cx));
 
         // now everything's emptied, so return the sink for further use
         Ok(Async::Ready(self.take_sink()))

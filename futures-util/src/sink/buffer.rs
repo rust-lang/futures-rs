@@ -44,11 +44,11 @@ impl<S: Sink> Buffer<S> {
     }
 
     fn try_empty_buffer(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        try_ready!(self.sink.poll_ready(cx));
+        ready!(self.sink.poll_ready(cx));
         while let Some(item) = self.buf.pop_front() {
             self.sink.start_send(item)?;
             if self.buf.len() != 0 {
-                try_ready!(self.sink.poll_ready(cx));
+                ready!(self.sink.poll_ready(cx));
             }
         }
         Ok(Async::Ready(()))
@@ -93,13 +93,13 @@ impl<S: Sink> Sink for Buffer<S> {
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        try_ready!(self.try_empty_buffer(cx));
+        ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf.is_empty());
         self.sink.poll_flush(cx)
     }
 
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        try_ready!(self.try_empty_buffer(cx));
+        ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf.is_empty());
         self.sink.poll_close(cx)
     }
