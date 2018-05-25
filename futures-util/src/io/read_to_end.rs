@@ -20,7 +20,7 @@ pub struct ReadToEnd<'a, A: ?Sized + 'a> {
 }
 
 // We never project pinning to fields
-unsafe impl<'a, A: ?Sized> Unpin for ReadToEnd<'a, A> {}
+impl<'a, A: ?Sized> Unpin for ReadToEnd<'a, A> {}
 
 pub fn read_to_end<'a, A>(a: &'a mut A, buf: &'a mut Vec<u8>) -> ReadToEnd<'a, A>
     where A: AsyncRead + ?Sized,

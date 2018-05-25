@@ -17,7 +17,7 @@ pub struct Read<'a, R: ?Sized + 'a> {
 }
 
 // Pinning is never projected to fields
-unsafe impl<'a, R: ?Sized> Unpin for Read<'a, R> {}
+impl<'a, R: ?Sized> Unpin for Read<'a, R> {}
 
 pub fn read<'a, R>(rd: &'a mut R, buf: &'a mut [u8]) -> Read<'a, R>
     where R: AsyncRead + ?Sized,

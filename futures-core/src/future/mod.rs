@@ -139,11 +139,11 @@ impl<'a, F: ?Sized + Future> Future for PinMut<'a, F> {
 if_std! {
     use std::boxed::{Box, PinBox};
 
-    impl<'a, F: ?Sized + Future> Future for Box<F> {
+    impl<'a, F: ?Sized + Future + Unpin> Future for Box<F> {
         type Output = F::Output;
 
         fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-            unsafe { pinned_deref!(self).poll(cx) }
+            (**self).poll_unpin(cx)
         }
     }
 
@@ -197,7 +197,7 @@ impl<F, T, E> TryFuture for F
 #[must_use = "futures do nothing unless polled"]
 pub struct ReadyFuture<T>(Option<T>);
 
-unsafe impl<T> Unpin for ReadyFuture<T> {}
+impl<T> Unpin for ReadyFuture<T> {}
 
 impl<T> Future for ReadyFuture<T> {
     type Output = T;

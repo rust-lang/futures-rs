@@ -18,7 +18,7 @@ pub struct ReadExact<'a, A: ?Sized + 'a> {
     buf: &'a mut [u8],
 }
 
-unsafe impl<'a, A: ?Sized> Unpin for ReadExact<'a, A> {}
+impl<'a, A: ?Sized> Unpin for ReadExact<'a, A> {}
 
 pub fn read_exact<'a, A>(a: &'a mut A, buf: &'a mut [u8]) -> ReadExact<'a, A>
     where A: AsyncRead + ?Sized,

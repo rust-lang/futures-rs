@@ -19,7 +19,7 @@ pub struct Flush<'a, A: ?Sized + 'a> {
 }
 
 // Pinning is never projected to fields
-unsafe impl<'a, A: ?Sized> Unpin for Flush<'a, A> {}
+impl<'a, A: ?Sized> Unpin for Flush<'a, A> {}
 
 pub fn flush<'a, A>(a: &'a mut A) -> Flush<'a, A>
     where A: AsyncWrite + ?Sized,

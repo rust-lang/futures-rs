@@ -23,7 +23,7 @@ pub struct Receiver<T> {
 }
 
 // The receiver does not ever take a PinMut to the inner T
-unsafe impl<T> Unpin for Receiver<T> {}
+impl<T> Unpin for Receiver<T> {}
 
 /// A means of transmitting a single value to another task.
 ///

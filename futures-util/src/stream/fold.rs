@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
@@ -38,7 +38,7 @@ impl<S, Fut, T, F> Fold<S, Fut, T, F> {
     unsafe_pinned!(fut -> Option<Fut>);
 }
 
-unsafe impl<S: Unpin, Fut: Unpin, T, F> Unpin for Fold<S, Fut, T, F> {}
+impl<S: Unpin, Fut: Unpin, T, F> Unpin for Fold<S, Fut, T, F> {}
 
 impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
     where S: Stream,
@@ -53,7 +53,7 @@ impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
             if self.accum().is_none() {
                 let accum = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
                 *self.accum() = Some(accum);
-                self.fut().assign(None);
+                PinMut::set(self.fut(), None);
             }
 
             let item = ready!(self.stream().poll_next(cx));
@@ -62,7 +62,7 @@ impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
 
             if let Some(e) = item {
                 let fut = (self.f())(accum, e);
-                self.fut().assign(Some(fut));
+                PinMut::set(self.fut(), Some(fut));
             } else {
                 return Poll::Ready(accum)
             }

@@ -37,7 +37,7 @@ impl<S> Sink for Peekable<S>
 }
 */
 
-unsafe impl<S: Unpin + Stream> Unpin for Peekable<S> {}
+impl<S: Unpin + Stream> Unpin for Peekable<S> {}
 
 impl<S: Stream> Peekable<S> {
     /// Peek retrieves a reference to the next item in the stream.

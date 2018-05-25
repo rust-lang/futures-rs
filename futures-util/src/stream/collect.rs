@@ -33,7 +33,7 @@ impl<S: Stream, C: Default> Collect<S, C> {
     unsafe_unpinned!(items -> C);
 }
 
-unsafe impl<S: Unpin + Stream, C> Unpin for Collect<S, C> {}
+impl<S: Unpin + Stream, C> Unpin for Collect<S, C> {}
 
 impl<S, C> Future for Collect<S, C>
     where S: Stream, C: Default + Extend<S:: Item>

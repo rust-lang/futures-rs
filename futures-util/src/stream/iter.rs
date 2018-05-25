@@ -13,7 +13,7 @@ pub struct Iter<I> {
     iter: I,
 }
 
-unsafe impl<I> Unpin for Iter<I> {}
+impl<I> Unpin for Iter<I> {}
 
 /// Converts an `Iterator` into a `Stream` which is always ready
 /// to yield the next value.

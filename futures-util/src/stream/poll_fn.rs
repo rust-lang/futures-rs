@@ -15,7 +15,7 @@ pub struct PollFn<F> {
     inner: F,
 }
 
-unsafe impl<F> Unpin for PollFn<F> {}
+impl<F> Unpin for PollFn<F> {}
 
 /// Creates a new stream wrapping around a function returning `Poll`.
 ///

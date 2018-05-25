@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
@@ -47,7 +47,7 @@ impl<S, U, F> Then<S, U, F> {
     unsafe_unpinned!(f -> F);
 }
 
-unsafe impl<S: Unpin, U: Unpin, F> Unpin for Then<S, U, F> {}
+impl<S: Unpin, U: Unpin, F> Unpin for Then<S, U, F> {}
 
 impl<S, U, F> Stream for Then<S, U, F>
     where S: Stream,
@@ -63,11 +63,11 @@ impl<S, U, F> Stream for Then<S, U, F>
                 Some(e) => e,
             };
             let fut = (self.f())(item);
-            self.future().assign(Some(fut));
+            PinMut::set(self.future(), Some(fut));
         }
 
         let e = ready!(self.future().as_pin_mut().unwrap().poll(cx));
-        self.future().assign(None);
+        PinMut::set(self.future(), None);
         Poll::Ready(Some(e))
     }
 }

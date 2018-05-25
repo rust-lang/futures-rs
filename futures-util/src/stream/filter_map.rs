@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
@@ -67,7 +67,7 @@ impl<S, R, F> FilterMap<S, R, F>
     unsafe_pinned!(pending -> Option<R>);
 }
 
-unsafe impl<S, R, F> Unpin for FilterMap<S, R, F>
+impl<S, R, F> Unpin for FilterMap<S, R, F>
     where S: Stream + Unpin,
           F: FnMut(S::Item) -> R,
           R: Future + Unpin,
@@ -102,11 +102,11 @@ impl<S, R, F, B> Stream for FilterMap<S, R, F>
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(item);
-                self.pending().assign(Some(fut));
+                PinMut::set(self.pending(), Some(fut));
             }
 
             let item = ready!(self.pending().as_pin_mut().unwrap().poll(cx));
-            self.pending().assign(None);
+            PinMut::set(self.pending(), None);
             if item.is_some() {
                 return Poll::Ready(item);
             }

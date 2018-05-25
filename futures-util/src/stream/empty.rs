@@ -22,7 +22,7 @@ pub fn empty<T>() -> Empty<T> {
     }
 }
 
-unsafe impl<T> Unpin for Empty<T> {}
+impl<T> Unpin for Empty<T> {}
 
 impl<T> Stream for Empty<T> {
     type Item = T;

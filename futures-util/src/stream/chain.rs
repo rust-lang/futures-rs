@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Stream, Poll};
 use futures_core::task;
@@ -42,7 +42,7 @@ impl<S1, S2> Stream for Chain<S1, S2>
                 return Poll::Ready(Some(item))
             }
         }
-        self.first().assign(None);
+        PinMut::set(self.first(), None);
         self.second().poll_next(cx)
     }
 }

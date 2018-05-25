@@ -234,13 +234,13 @@ impl Wake for Notifier {
     }
 }
 
-unsafe impl<F> Sync for Inner<F> 
+impl<F> Sync for Inner<F> 
     where F: Future + Send,
           F::Item: Send + Sync,
           F::Error: Send + Sync
 {}
 
-unsafe impl<F> Send for Inner<F>
+impl<F> Send for Inner<F>
     where F: Future + Send,
           F::Item: Send + Sync,
           F::Error: Send + Sync

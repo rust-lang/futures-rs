@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Poll, Stream};
 use futures_core::task;
@@ -78,7 +78,7 @@ impl<S> Stream for Flatten<S>
         loop {
             if self.next().as_pin_mut().is_none() {
                 match ready!(self.stream().poll_next(cx)) {
-                    Some(e) => self.next().assign(Some(e)),
+                    Some(e) => PinMut::set(self.next(), Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
@@ -86,7 +86,7 @@ impl<S> Stream for Flatten<S>
             if item.is_some() {
                 return Poll::Ready(item);
             } else {
-                self.next().assign(None);
+                PinMut::set(self.next(), None);
             }
         }
     }

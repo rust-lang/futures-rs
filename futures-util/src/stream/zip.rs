@@ -38,7 +38,7 @@ impl<S1: Stream, S2: Stream> Zip<S1, S2> {
     unsafe_unpinned!(queued2 -> Option<S2::Item>);
 }
 
-unsafe impl<S1: Unpin + Stream, S2: Unpin + Stream> Unpin for Zip<S1, S2> {}
+impl<S1: Unpin + Stream, S2: Unpin + Stream> Unpin for Zip<S1, S2> {}
 
 impl<S1, S2> Stream for Zip<S1, S2>
     where S1: Stream, S2: Stream

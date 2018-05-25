@@ -110,8 +110,8 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
-// Safe because we treat the `T` opaquely
-unsafe impl<T> Unpin for Sender<T> {}
+// We never project PinMut<Sender> to `PinMut<T>`
+impl<T> Unpin for Sender<T> {}
 
 /// The transmission end of an unbounded mpsc channel.
 ///
@@ -136,8 +136,8 @@ pub struct Receiver<T> {
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-// Safe because we treat the `T` opaquely
-unsafe impl<T> Unpin for UnboundedReceiver<T> {}
+// `PinMut<UnboundedReceiver<T>>` is never projected to `PinMut<T>`
+impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -943,7 +943,7 @@ impl<T> Receiver<T> {
 }
 
 // The receiver does not ever take a PinMut to the inner T
-unsafe impl<T> Unpin for Receiver<T> {}
+impl<T> Unpin for Receiver<T> {}
 
 impl<T> Stream for Receiver<T> {
     type Item = T;

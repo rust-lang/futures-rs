@@ -1,3 +1,4 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
@@ -23,6 +24,13 @@ pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
     }
 }
 
+impl<A: Future, F> Inspect<A, F> {
+    unsafe_pinned!(future -> A);
+    unsafe_unpinned!(f -> Option<F>);
+}
+
+impl<A: Future + Unpin, F> Unpin for Inspect<A, F> {}
+
 impl<A, F> Future for Inspect<A, F>
     where A: Future,
           F: FnOnce(&A::Output),
@@ -30,14 +38,12 @@ impl<A, F> Future for Inspect<A, F>
     type Output = A::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
-        let e = match unsafe { pinned_field!(self, future) }.poll(cx) {
+        let e = match self.future().poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };
 
-        let f = unsafe {
-            PinMut::get_mut(self).f.take().expect("cannot poll Inspect twice")
-        };
+        let f = self.f().take().expect("cannot poll Inspect twice");
         f(&e);
         Poll::Ready(e)
     }

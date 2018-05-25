@@ -21,14 +21,17 @@ pub fn new<F>(future: F) -> CatchUnwind<F>
     CatchUnwind { future }
 }
 
+impl<F> CatchUnwind<F> where F: Future {
+    unsafe_pinned!(future -> F);
+}
+
 impl<F> Future for CatchUnwind<F>
     where F: Future + UnwindSafe,
 {
     type Output = Result<F::Output, Box<Any + Send>>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        let fut = unsafe { pinned_field!(self, future) };
-        match catch_unwind(AssertUnwindSafe(|| fut.poll(cx))) {
+        match catch_unwind(AssertUnwindSafe(|| self.future().poll(cx))) {
             Ok(res) => res.map(Ok),
             Err(e) => Poll::Ready(Err(e))
         }
