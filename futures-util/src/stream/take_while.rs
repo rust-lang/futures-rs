@@ -92,6 +92,7 @@ impl<S, R, P> Stream for TakeWhile<S, R, P>
             },
             Ok(Async::Ready(false)) => {
                 self.done_taking = true;
+                self.pending = None;
                 Ok(Async::Ready(None))
             }
             Ok(Async::Pending) => Ok(Async::Pending),
