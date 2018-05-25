@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
@@ -36,7 +36,7 @@ impl<S, U, F> ForEach<S, U, F> {
     unsafe_pinned!(fut -> Option<U>);
 }
 
-unsafe impl<S, U, F> Unpin for ForEach<S, U, F> {}
+impl<S, U, F> Unpin for ForEach<S, U, F> {}
 
 impl<S, U, F> Future for ForEach<S, U, F>
     where S: Stream,
@@ -50,12 +50,12 @@ impl<S, U, F> Future for ForEach<S, U, F>
             if let Some(fut) = self.fut().as_pin_mut() {
                 ready!(fut.poll(cx));
             }
-            self.fut().assign(None);
+            PinMut::set(self.fut(), None);
 
             match ready!(self.stream().poll_next(cx)) {
                 Some(e) => {
                     let fut = (self.f())(e);
-                    self.fut().assign(Some(fut));
+                    PinMut::set(self.fut(), Some(fut));
                 }
                 None => {
                     return Poll::Ready(());

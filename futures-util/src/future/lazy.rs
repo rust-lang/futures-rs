@@ -17,7 +17,7 @@ pub struct Lazy<F> {
 }
 
 // safe because we never generate `PinMut<F>`
-unsafe impl<F> Unpin for Lazy<F> {}
+impl<F> Unpin for Lazy<F> {}
 
 /// Creates a new future from a closure.
 ///

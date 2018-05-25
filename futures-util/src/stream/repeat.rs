@@ -39,7 +39,7 @@ pub fn repeat<T>(item: T) -> Repeat<T>
     }
 }
 
-unsafe impl<T> Unpin for Repeat<T> {}
+impl<T> Unpin for Repeat<T> {}
 
 impl<T> Stream for Repeat<T>
     where T: Clone

@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Poll, Stream, Future};
 use futures_core::task;
@@ -50,7 +50,7 @@ impl<F: Future> Stream for Once<F> {
         } else {
             return Poll::Ready(None)
         };
-        self.fut().assign(None);
+        PinMut::set(self.fut(), None);
         Poll::Ready(Some(val))
     }
 }

@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
 
-use {PinMutExt, OptionExt};
+
 
 use futures_core::{Poll, Future, Stream};
 use futures_core::task;
@@ -65,7 +65,7 @@ impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
     unsafe_unpinned!(done_skipping -> bool);
 }
 
-unsafe impl<S: Unpin + Stream, R: Unpin, P> Unpin for SkipWhile<S, R, P> {}
+impl<S: Unpin + Stream, R: Unpin, P> Unpin for SkipWhile<S, R, P> {}
 
 /* TODO
 // Forwarding impl of Sink from the underlying stream
@@ -98,13 +98,13 @@ impl<S, R, P> Stream for SkipWhile<S, R, P>
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.pred())(&item);
-                self.pending_fut().assign(Some(fut));
+                PinMut::set(self.pending_fut(), Some(fut));
                 *self.pending_item() = Some(item);
             }
 
             let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
             let item = self.pending_item().take().unwrap();
-            self.pending_fut().assign(None);
+            PinMut::set(self.pending_fut(), None);
 
             if !skipped {
                 *self.done_skipping() = true;

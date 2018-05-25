@@ -17,7 +17,7 @@ pub struct Close<'a, A: ?Sized + 'a> {
 }
 
 // PinMut is never projected to fields
-unsafe impl<'a, A: ?Sized> Unpin for Close<'a, A> {}
+impl<'a, A: ?Sized> Unpin for Close<'a, A> {}
 
 pub fn close<'a, A: ?Sized>(a: &'a mut A) -> Close<'a, A>
     where A: AsyncWrite,

@@ -246,7 +246,7 @@ pub struct BiLockAcquire<'a, T: 'a> {
 }
 
 // Pinning is never projected to fields
-unsafe impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
+impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
 
 impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;

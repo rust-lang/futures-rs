@@ -36,8 +36,8 @@ pub struct FuturesUnordered<F> {
     head_all: *const Node<F>,
 }
 
-unsafe impl<T: Send> Send for FuturesUnordered<T> {}
-unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
+impl<T: Send> Send for FuturesUnordered<T> {}
+impl<T: Sync> Sync for FuturesUnordered<T> {}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
@@ -548,10 +548,10 @@ struct ArcNode<T>(PhantomData<T>);
 
 // We should never touch `T` on any thread other than the one owning
 // `FuturesUnordered`, so this should be a safe operation.
-unsafe impl<T> Send for ArcNode<T> {}
-unsafe impl<T> Sync for ArcNode<T> {}
+impl<T> Send for ArcNode<T> {}
+impl<T> Sync for ArcNode<T> {}
 
-unsafe impl<T> UnsafeWake for ArcNode<T> {
+impl<T> UnsafeWake for ArcNode<T> {
     unsafe fn clone_raw(&self) -> Waker {
         let me: *const ArcNode<T> = self;
         let me: *const *const ArcNode<T> = &me;

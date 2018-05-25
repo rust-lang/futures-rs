@@ -52,7 +52,7 @@ impl<S: Stream, F> Inspect<S, F> {
     unsafe_unpinned!(inspect -> F);
 }
 
-unsafe impl<S: Stream + Unpin, F> Unpin for Inspect<S, F> {}
+impl<S: Stream + Unpin, F> Unpin for Inspect<S, F> {}
 
 /* TODO
 // Forwarding impl of Sink from the underlying stream

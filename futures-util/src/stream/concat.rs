@@ -42,7 +42,7 @@ impl<S: Stream> Concat<S> {
     unsafe_unpinned!(accum -> Option<S::Item>);
 }
 
-unsafe impl<S: Stream + Unpin> Unpin for Concat<S> {}
+impl<S: Stream + Unpin> Unpin for Concat<S> {}
 
 impl<S> Future for Concat<S>
     where S: Stream,

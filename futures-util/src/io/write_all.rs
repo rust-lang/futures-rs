@@ -18,7 +18,7 @@ pub struct WriteAll<'a, A: ?Sized + 'a> {
 }
 
 // Pinning is never projected to fields
-unsafe impl<'a, A: ?Sized> Unpin for WriteAll<'a, A> {}
+impl<'a, A: ?Sized> Unpin for WriteAll<'a, A> {}
 
 pub fn write_all<'a, A>(a: &'a mut A, buf: &'a [u8]) -> WriteAll<'a, A>
     where A: AsyncWrite + ?Sized,

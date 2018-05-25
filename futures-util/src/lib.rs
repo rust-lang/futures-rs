@@ -78,9 +78,6 @@ pub use stream::StreamExt;
 // pub mod sink;
 // pub use sink::SinkExt;
 
-mod pin_mut;
-pub use pin_mut::{PinMutExt, OptionExt};
-
 pub mod prelude {
     //! Prelude containing the extension traits, which add functionality to
     //! existing asynchronous types.

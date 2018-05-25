@@ -77,7 +77,7 @@ impl<S> Chunks<S> where S: Stream {
     unsafe_pinned!(stream -> Fuse<S>);
 }
 
-unsafe impl<S: Unpin + Stream> Unpin for Chunks<S> {}
+impl<S: Unpin + Stream> Unpin for Chunks<S> {}
 
 impl<S> Stream for Chunks<S>
     where S: Stream

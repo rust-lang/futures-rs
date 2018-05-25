@@ -75,11 +75,11 @@ if_std! {
     use std::boxed::{Box, PinBox};
     use std::marker::Unpin;
 
-    impl<S: ?Sized + Stream> Stream for Box<S> {
+    impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
         type Item = S::Item;
 
         fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-            unsafe { pinned_deref!(self).poll_next(cx) }
+            (**self).poll_next_unpin(cx)
         }
     }
 

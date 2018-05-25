@@ -53,7 +53,7 @@ impl<S, F> Map<S, F> {
     unsafe_unpinned!(f -> F);
 }
 
-unsafe impl<S: Unpin, F> Unpin for Map<S, F> {}
+impl<S: Unpin, F> Unpin for Map<S, F> {}
 
 /* TODO
 // Forwarding impl of Sink from the underlying stream

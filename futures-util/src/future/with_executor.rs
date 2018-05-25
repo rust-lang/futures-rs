@@ -1,3 +1,4 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
@@ -21,6 +22,8 @@ pub fn new<F, E>(future: F, executor: E) -> WithExecutor<F, E>
 {
     WithExecutor { executor, future }
 }
+
+impl<F: Future + Unpin, E: Executor> Unpin for WithExecutor<F, E> {}
 
 impl<F, E> Future for WithExecutor<F, E>
     where F: Future,
