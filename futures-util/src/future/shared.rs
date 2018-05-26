@@ -234,7 +234,7 @@ impl Wake for Notifier {
     }
 }
 
-unsafe impl<F> Sync for Inner<F> 
+unsafe impl<F> Sync for Inner<F>
     where F: Future + Send,
           F::Item: Send + Sync,
           F::Error: Send + Sync
@@ -265,6 +265,7 @@ pub struct SharedItem<T> {
 }
 
 impl<T> SharedItem<T> {
+    /// Expose the inner Arc<T>
     pub fn into_inner(self) -> Arc<T> {
         self.item
     }
@@ -286,6 +287,7 @@ pub struct SharedError<E> {
 }
 
 impl<E> SharedError<E> {
+    /// Expose the inner Arc<E>
     pub fn into_inner(self) -> Arc<E> {
         self.error
     }
