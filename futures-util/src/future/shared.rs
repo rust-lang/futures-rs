@@ -264,6 +264,12 @@ pub struct SharedItem<T> {
     item: Arc<T>,
 }
 
+impl<T> SharedItem<T> {
+    pub fn into_inner(self) -> Arc<T> {
+        self.item
+    }
+}
+
 impl<T> ops::Deref for SharedItem<T> {
     type Target = T;
 
@@ -277,6 +283,12 @@ impl<T> ops::Deref for SharedItem<T> {
 #[derive(Clone, Debug)]
 pub struct SharedError<E> {
     error: Arc<E>,
+}
+
+impl<E> SharedError<E> {
+    pub fn into_inner(self) -> Arc<E> {
+        self.error
+    }
 }
 
 impl<E> ops::Deref for SharedError<E> {
