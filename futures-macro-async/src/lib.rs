@@ -187,7 +187,7 @@ if_nightly! {
             #( let #patterns = #temp_bindings; )*
             #block
         };
-        let mut result = proc_macro2::TokenStream::empty();
+        let mut result = proc_macro2::TokenStream::new();
         block.brace_token.surround(&mut result, |tokens| {
             block_inner.to_tokens(tokens);
         });
@@ -204,7 +204,7 @@ if_nightly! {
                 loop { yield ::futures::__rt::Async::Pending }
             }
         };
-        let mut gen_body = proc_macro2::TokenStream::empty();
+        let mut gen_body = proc_macro2::TokenStream::new();
         block.brace_token.surround(&mut gen_body, |tokens| {
             gen_body_inner.to_tokens(tokens);
         });
@@ -228,7 +228,7 @@ if_nightly! {
             body_inner.into()
         };
 
-        let mut body = proc_macro2::TokenStream::empty();
+        let mut body = proc_macro2::TokenStream::new();
         block.brace_token.surround(&mut body, |tokens| {
             body_inner.to_tokens(tokens);
         });
@@ -464,7 +464,7 @@ if_nightly! {
     }
 
     fn first_last(tokens: &ToTokens) -> (Span, Span) {
-        let mut spans = proc_macro2::TokenStream::empty();
+        let mut spans = proc_macro2::TokenStream::new();
         tokens.to_tokens(&mut spans);
         let good_tokens = proc_macro2::TokenStream::from(spans).into_iter().collect::<Vec<_>>();
         let first_span = good_tokens.first().map(|t| t.span()).unwrap_or(Span::call_site());
@@ -487,7 +487,7 @@ if_nightly! {
     fn replace_bang(input: proc_macro2::TokenStream, tokens: &ToTokens)
         -> proc_macro2::TokenStream
     {
-        let mut new_tokens = proc_macro2::TokenStream::empty();
+        let mut new_tokens = proc_macro2::TokenStream::new();
         for token in input.into_iter() {
             match token {
                 proc_macro2::TokenTree::Punct(ref punct) if punct.as_char() == '!' => {
@@ -503,7 +503,7 @@ if_nightly! {
         -> proc_macro2::TokenStream
     {
         let mut replacements = replacements.iter().cycle();
-        let mut new_tokens = proc_macro2::TokenStream::empty();
+        let mut new_tokens = proc_macro2::TokenStream::new();
         for token in input.into_iter() {
             match token {
                 proc_macro2::TokenTree::Punct(ref punct) if punct.as_char() == '!' => {
