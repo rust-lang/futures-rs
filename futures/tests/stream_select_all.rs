@@ -28,11 +28,13 @@ fn works_1() {
     assert_eq!(Some(Ok(33)), stream.next());
     assert_eq!(Some(Ok(99)), stream.next());
 
+    mem::drop(b_tx);
+
     c_tx.unbounded_send(42).unwrap();
     assert_eq!(Some(Ok(42)), stream.next());
     a_tx.unbounded_send(43).unwrap();
     assert_eq!(Some(Ok(43)), stream.next());
 
-    mem::drop((a_tx, b_tx, c_tx));
+    mem::drop((a_tx, c_tx));
     assert_eq!(None, stream.next());
 }
