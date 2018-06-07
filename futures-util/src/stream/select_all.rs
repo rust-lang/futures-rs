@@ -67,13 +67,16 @@ impl<S: Stream> Stream for SelectAll<S> {
     type Error = S::Error;
 
     fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.inner.poll_next(cx).map_err(|(err, _)| err)? {
-            Async::Pending => Ok(Async::Pending),
-            Async::Ready(Some((Some(item), remaining))) => {
-                self.push(remaining);
-                Ok(Async::Ready(Some(item)))
+        loop {
+            match self.inner.poll_next(cx).map_err(|(err, _)| err)? {
+                Async::Pending => return Ok(Async::Pending),
+                Async::Ready(Some((Some(item), remaining))) => {
+                    self.push(remaining);
+                    return Ok(Async::Ready(Some(item)));
+                }
+                Async::Ready(Some((None, _))) => {}
+                Async::Ready(None) => return Ok(Async::Ready(None)),
             }
-            Async::Ready(_) => Ok(Async::Ready(None)),
         }
     }
 }
