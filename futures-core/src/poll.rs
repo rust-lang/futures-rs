@@ -1,3 +1,6 @@
+
+pub use core::task::Poll;
+
 /// A macro for extracting the successful type of a `Poll<Result<T, E>>`.
 ///
 /// This macro bakes in propagation of `Pending` and `Err` signals by returning early.
@@ -39,24 +42,21 @@ macro_rules! ready {
     })
 }
 
-/// Indicates whether a value is available, or if the current task has been
-/// scheduled for later wake-up instead.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Poll<T> {
-    /// Represents that a value is immediately ready.
-    Ready(T),
-
-    /// Represents that a value is not ready yet.
-    ///
-    /// When a function returns `Pending`, the function *must* also
-    /// ensure that the current task is scheduled to be awoken when
-    /// progress can be made.
-    Pending,
+pub trait PollExt<T> {
+    /// Change the ready value of this `Poll` with the closure provided
+    fn map<U, F>(self, f: F) -> Poll<U>
+        where F: FnOnce(T) -> U;
+    /// Returns whether this is `Poll::Ready`
+    fn is_ready(&self) -> bool;
+    /// Returns whether this is `Poll::Pending`
+    fn is_pending(&self) -> bool {
+        !self.is_ready()
+    }
 }
 
-impl<T> Poll<T> {
-    /// Change the ready value of this `Poll` with the closure provided
-    pub fn map<U, F>(self, f: F) -> Poll<U>
+impl<T> PollExt<T> for Poll<T> {
+
+    fn map<U, F>(self, f: F) -> Poll<U>
         where F: FnOnce(T) -> U
     {
         match self {
@@ -65,23 +65,26 @@ impl<T> Poll<T> {
         }
     }
 
-    /// Returns whether this is `Poll::Ready`
-    pub fn is_ready(&self) -> bool {
+    fn is_ready(&self) -> bool {
         match *self {
             Poll::Ready(_) => true,
             Poll::Pending => false,
         }
     }
-
-    /// Returns whether this is `Poll::Pending`
-    pub fn is_pending(&self) -> bool {
-        !self.is_ready()
-    }
 }
 
-impl<T, E> Poll<Result<T, E>> {
+pub trait PollResultExt<T, E> {
     /// Change the success value of this `Poll` with the closure provided
-    pub fn map_ok<U, F>(self, f: F) -> Poll<Result<U, E>>
+    fn map_ok<U, F>(self, f: F) -> Poll<Result<U, E>>
+        where F: FnOnce(T) -> U;
+    /// Change the error value of this `Poll` with the closure provided
+    fn map_err<U, F>(self, f: F) -> Poll<Result<T, U>>
+        where F: FnOnce(E) -> U;
+}
+
+impl<T, E> PollResultExt<T, E> for Poll<Result<T, E>> {
+    
+    fn map_ok<U, F>(self, f: F) -> Poll<Result<U, E>>
         where F: FnOnce(T) -> U
     {
         match self {
@@ -91,8 +94,7 @@ impl<T, E> Poll<Result<T, E>> {
         }
     }
 
-    /// Change the error value of this `Poll` with the closure provided
-    pub fn map_err<U, F>(self, f: F) -> Poll<Result<T, U>>
+    fn map_err<U, F>(self, f: F) -> Poll<Result<T, U>>
         where F: FnOnce(E) -> U
     {
         match self {
@@ -103,8 +105,4 @@ impl<T, E> Poll<Result<T, E>> {
     }
 }
 
-impl<T> From<T> for Poll<T> {
-    fn from(t: T) -> Poll<T> {
-        Poll::Ready(t)
-    }
-}
+
