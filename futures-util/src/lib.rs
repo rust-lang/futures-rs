@@ -1,7 +1,7 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(pin, arbitrary_self_types)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
