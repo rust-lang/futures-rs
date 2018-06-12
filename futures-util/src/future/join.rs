@@ -159,8 +159,8 @@ impl<A: Future> MaybeDone<A> {
             MaybeDone::Gone => panic!("cannot poll Join twice"),
         };
         match res {
-            Async::Ready(res) => {
-                *self = MaybeDone::Done(res);
+            Async::Ready(output) => {
+                *self = MaybeDone::Done(output);
                 Ok(true)
             }
             Async::Pending => Ok(false),

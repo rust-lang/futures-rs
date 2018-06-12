@@ -141,7 +141,7 @@ impl LocalPool {
 
                 // if our main task is done, so are we
                 match f.poll_unpin(&mut main_cx) {
-                    Poll::Ready(res) => return Poll::Ready(res),
+                    Poll::Ready(output) => return Poll::Ready(output),
                     _ => {}
                 }
             }
