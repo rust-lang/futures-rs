@@ -64,7 +64,7 @@ impl fmt::Debug for ThreadPoolBuilder {
 }
 
 enum Message {
-    Run(Task),
+    Run(TaskContainer),
     Close,
 }
 
@@ -102,16 +102,16 @@ impl ThreadPool {
 }
 
 impl Executor for ThreadPool {
-    fn spawn_obj(&mut self, f: TaskObj) -> Result<(), SpawnObjError> {
-        let task = Task {
-            spawn: f,
+    fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
+        let task_container = TaskContainer {
+            task,
             wake_handle: Arc::new(WakeHandle {
                 exec: self.clone(),
                 mutex: UnparkMutex::new(),
             }),
             exec: self.clone(),
         };
-        self.state.send(Message::Run(task));
+        self.state.send(Message::Run(task_container));
         Ok(())
     }
 }
@@ -264,22 +264,22 @@ impl ThreadPoolBuilder {
 
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
-struct Task {
-    spawn: TaskObj,
+struct TaskContainer {
+    task: TaskObj,
     exec: ThreadPool,
     wake_handle: Arc<WakeHandle>,
 }
 
 struct WakeHandle {
-    mutex: UnparkMutex<Task>,
+    mutex: UnparkMutex<TaskContainer>,
     exec: ThreadPool,
 }
 
-impl Task {
+impl TaskContainer {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
     pub fn run(self) {
-        let Task { mut spawn, wake_handle, mut exec } = self;
+        let TaskContainer { mut task, wake_handle, mut exec } = self;
         let waker = Waker::from(wake_handle.clone());
 
         // SAFETY: the ownership of this `Task` object is evidence that
@@ -290,21 +290,21 @@ impl Task {
             loop {
                 let res = {
                     let mut cx = task::Context::new(&waker, &mut exec);
-                    spawn.poll_task(&mut cx)
+                    task.poll_task(&mut cx)
                 };
                 match res {
                     Poll::Pending => {}
                     Poll::Ready(()) => return wake_handle.mutex.complete(),
                 }
-                let task = Task {
-                    spawn,
+                let task_container = TaskContainer {
+                    task,
                     wake_handle: wake_handle.clone(),
                     exec: exec
                 };
-                match wake_handle.mutex.wait(task) {
+                match wake_handle.mutex.wait(task_container) {
                     Ok(()) => return,            // we've waited
                     Err(r) => { // someone's notified us
-                        spawn = r.spawn;
+                        task = r.task;
                         exec = r.exec;
                     }
                 }
@@ -313,7 +313,7 @@ impl Task {
     }
 }
 
-impl fmt::Debug for Task {
+impl fmt::Debug for TaskContainer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Task")
             .field("contents", &"...")
