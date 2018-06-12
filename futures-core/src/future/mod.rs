@@ -14,6 +14,7 @@ mod either;
 
 pub use core::future::Future;
 
+/// Will probably merge with futures_util::FutureExt
 pub trait CoreFutureExt: Future {
     /// A convenience for calling `Future::poll` on `Unpin` future types.
     fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
@@ -22,6 +23,8 @@ pub trait CoreFutureExt: Future {
         PinMut::new(self).poll(cx)
     }
 }
+
+impl<T: ?Sized> CoreFutureExt for T where T: Future {}
  
 // should be in std
 // impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {

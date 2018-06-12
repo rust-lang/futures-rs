@@ -1,8 +1,6 @@
 //! Task notification.
 
-use core::mem::{self, PinMut};
-
-use {Future, Poll};
+use Future;
 
 pub use core::task::{UnsafeWake, Waker};
 #[cfg(feature = "std")]
@@ -18,8 +16,9 @@ pub use self::atomic_waker::AtomicWaker;
 pub use core::task::{TaskObj, UnsafePoll};
 
 if_std! {
-    use std::boxed::Box;
+    use std::boxed::PinBox;
 
+    /// Extension trait for `TaskObj`, adding methods that require allocation.
     pub trait TaskObjExt {
         /// Create a new `TaskObj` by boxing the given future.
         fn new<F: Future<Output = ()> + Send + 'static>(f: F) -> TaskObj;
@@ -28,10 +27,11 @@ if_std! {
     impl TaskObjExt for TaskObj {
         /// Create a new `TaskObj` by boxing the given future.
         fn new<F: Future<Output = ()> + Send + 'static>(f: F) -> TaskObj {
-            TaskObj::from_poll_task(Box::new(f))
+            TaskObj::from_poll_task(PinBox::new(f))
         }
     }
 
+    /// Extension trait for `Context`, adding methods that require allocation.
     pub trait ContextExt {
         /// Spawn a future onto the default executor.
         ///
