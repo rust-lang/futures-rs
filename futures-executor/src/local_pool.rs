@@ -15,8 +15,8 @@ use thread::ThreadNotify;
 use enter;
 use ThreadPool;
 
-struct Task {
-    fut: TaskObj,
+struct TaskContainer {
+    task: TaskObj,
 }
 
 /// A single-threaded task pool.
@@ -31,7 +31,7 @@ struct Task {
 /// single-threaded, it supports a special form of task spawning for non-`Send`
 /// futures, via [`spawn_local`](LocalExecutor::spawn_local).
 pub struct LocalPool {
-    pool: FuturesUnordered<Task>,
+    pool: FuturesUnordered<TaskContainer>,
     incoming: Rc<Incoming>,
 }
 
@@ -42,7 +42,7 @@ pub struct LocalExecutor {
     incoming: Weak<Incoming>,
 }
 
-type Incoming = RefCell<Vec<Task>>;
+type Incoming = RefCell<Vec<TaskContainer>>;
 
 // Set up and run a basic single-threaded executor loop, invocing `f` on each
 // turn.
@@ -236,7 +236,7 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 impl Executor for LocalExecutor {
     fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
-            incoming.borrow_mut().push(Task { fut: task });
+            incoming.borrow_mut().push(TaskContainer { task });
             Ok(())
         } else {
             Err(SpawnObjError{ task, kind: SpawnErrorKind::shutdown() })
@@ -266,10 +266,10 @@ impl LocalExecutor {
     */
 }
 
-impl Future for Task {
+impl Future for TaskContainer {
     type Output = ();
 
     fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
-        self.fut.poll_task(cx)
+        self.task.poll_task(cx)
     }
 }
