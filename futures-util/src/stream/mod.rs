@@ -73,7 +73,7 @@ if_std! {
     mod collect;
     //mod select_all;
     //mod split;
-    //mod futures_unordered;
+    mod futures_unordered;
     //mod futures_ordered;
     //pub use self::buffered::Buffered;
     //pub use self::buffer_unordered::BufferUnordered;
@@ -82,7 +82,7 @@ if_std! {
     pub use self::collect::Collect;
     //pub use self::select_all::{select_all, SelectAll};
     //pub use self::split::{SplitStream, SplitSink, ReuniteError};
-    //pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
     //pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 }
 

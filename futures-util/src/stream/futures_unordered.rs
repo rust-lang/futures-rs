@@ -5,13 +5,15 @@ use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::mem;
+use std::mem::PinMut;
+use std::marker::Unpin;
 use std::ptr;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use futures_core::{Stream, Future, Poll, Async, IntoFuture};
+use futures_core::{Stream, Future, Poll};
 use futures_core::task::{self, AtomicWaker, UnsafeWake, Waker};
 
 /// A set of `Future`s which may complete in any order.
@@ -36,8 +38,9 @@ pub struct FuturesUnordered<F> {
     head_all: *const Node<F>,
 }
 
-impl<T: Send> Send for FuturesUnordered<T> {}
-impl<T: Sync> Sync for FuturesUnordered<T> {}
+unsafe impl<T: Send> Send for FuturesUnordered<T> {}
+unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
+impl<T: Unpin> Unpin for FuturesUnordered<T> {}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
@@ -99,12 +102,12 @@ enum Dequeue<T> {
 }
 
 impl<T> FuturesUnordered<T>
-    where T: Future,
+    where T: Future + Unpin
 {
     /// Constructs a new, empty `FuturesUnordered`
     ///
     /// The returned `FuturesUnordered` does not contain any futures and, in this
-    /// state, `FuturesUnordered::poll_next` will return `Ok(Async::Ready(None))`.
+    /// state, `FuturesUnordered::poll_next` will return `Poll::Ready(None)`.
     pub fn new() -> FuturesUnordered<T> {
         let stub = Arc::new(Node {
             future: UnsafeCell::new(None),
@@ -247,12 +250,11 @@ impl<T> FuturesUnordered<T> {
 }
 
 impl<T> Stream for FuturesUnordered<T>
-    where T: Future
+    where T: Future + Unpin
 {
-    type Item = T::Item;
-    type Error = T::Error;
+    type Item = T::Output;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<T::Item>, T::Error> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         // Ensure `parent` is correctly set.
         self.inner.parent.register(cx.waker());
 
@@ -260,9 +262,9 @@ impl<T> Stream for FuturesUnordered<T>
             let node = match unsafe { self.inner.dequeue() } {
                 Dequeue::Empty => {
                     if self.is_empty() {
-                        return Ok(Async::Ready(None));
+                        return Poll::Ready(None);
                     } else {
-                        return Ok(Async::Pending)
+                        return Poll::Pending;
                     }
                 }
                 Dequeue::Inconsistent => {
@@ -270,7 +272,7 @@ impl<T> Stream for FuturesUnordered<T>
                     // spinning a few times... but for now, just yield using the
                     // task system.
                     cx.waker().wake();
-                    return Ok(Async::Pending);
+                    return Poll::Pending;
                 }
                 Dequeue::Data(node) => node,
             };
@@ -328,7 +330,7 @@ impl<T> Stream for FuturesUnordered<T>
                 }
                 let mut bomb = Bomb {
                     node: Some(self.unlink(node)),
-                    queue: self,
+                    queue: &mut *self,
                 };
 
                 // Poll the underlying future with the appropriate `notify`
@@ -346,18 +348,17 @@ impl<T> Stream for FuturesUnordered<T>
                     let notify = NodeToHandle(bomb.node.as_ref().unwrap());
                     let waker = Waker::from(notify);
                     let mut cx = cx.with_waker(&waker);
-                    future.poll(&mut cx)
+                    future.poll_unpin(&mut cx)
                 };
 
                 let ret = match res {
-                    Ok(Async::Pending) => {
+                    Poll::Pending => {
                         let node = bomb.node.take().unwrap();
                         *node.future.get() = Some(future);
                         bomb.queue.link(node);
                         continue
                     }
-                    Ok(Async::Ready(e)) => Ok(Async::Ready(Some(e))),
-                    Err(e) => Err(e),
+                    Poll::Ready(result) => Poll::Ready(Some(result)),
                 };
                 return ret
             }
@@ -401,7 +402,7 @@ impl<T> Drop for FuturesUnordered<T> {
     }
 }
 
-impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
+impl<F: Future + Unpin> FromIterator<F> for FuturesUnordered<F> {
     fn from_iter<T>(iter: T) -> Self
     where
         T: IntoIterator<Item = F>,
@@ -548,10 +549,10 @@ struct ArcNode<T>(PhantomData<T>);
 
 // We should never touch `T` on any thread other than the one owning
 // `FuturesUnordered`, so this should be a safe operation.
-impl<T> Send for ArcNode<T> {}
-impl<T> Sync for ArcNode<T> {}
+unsafe impl<T> Send for ArcNode<T> {}
+unsafe impl<T> Sync for ArcNode<T> {}
 
-impl<T> UnsafeWake for ArcNode<T> {
+unsafe impl<T> UnsafeWake for ArcNode<T> {
     unsafe fn clone_raw(&self) -> Waker {
         let me: *const ArcNode<T> = self;
         let me: *const *const ArcNode<T> = &me;
@@ -647,10 +648,10 @@ fn abort(s: &str) -> ! {
 ///
 /// Note that the returned set can also be used to dynamically push more
 /// futures into the set as they become available.
-pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<<I::Item as IntoFuture>::Future>
+pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<I::Item>
 where
     I: IntoIterator,
-    I::Item: IntoFuture,
+    I::Item: Future + Unpin,
 {
-    futures.into_iter().map(|f| f.into_future()).collect()
+    futures.into_iter().collect()
 }

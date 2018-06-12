@@ -9,7 +9,7 @@ use super::future::Either;
 use core::mem::PinMut;
 
 mod close;
-mod fanout;
+// mod fanout;
 mod flush;
 mod err_into;
 mod map_err;
@@ -24,7 +24,7 @@ if_std! {
 }
 
 pub use self::close::Close;
-pub use self::fanout::Fanout;
+// pub use self::fanout::Fanout;
 pub use self::flush::Flush;
 pub use self::err_into::SinkErrInto;
 pub use self::map_err::SinkMapErr;
@@ -167,13 +167,13 @@ pub trait SinkExt: Sink {
     ///
     /// This adapter clones each incoming item and forwards it to both this as well as
     /// the other sink at the same time.
-    fn fanout<S>(self, other: S) -> Fanout<Self, S>
+    /*fn fanout<S>(self, other: S) -> Fanout<Self, S>
         where Self: Sized,
               Self::SinkItem: Clone,
               S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
     {
         fanout::new(self, other)
-    }
+    }*/
 
     /// Flush the sync, processing all pending items.
     ///
