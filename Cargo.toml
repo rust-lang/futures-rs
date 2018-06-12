@@ -1,10 +1,10 @@
 [workspace]
 members = [
-#  "futures",
+  "futures",
 #  "futures-async-runtime",
   "futures-core",
   "futures-channel",
-#  "futures-executor",
+  "futures-executor",
   "futures-io",
 #  "futures-macro-async",
 #  "futures-macro-await",

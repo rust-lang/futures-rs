@@ -1,5 +1,7 @@
 //! Built-in executors and related tools.
 
+#![feature(pin, arbitrary_self_types)]
+
 #![no_std]
 #![deny(missing_docs)]
 #![doc(html_root_url = "https://docs.rs/futures-executor/0.2.0")]

@@ -37,4 +37,10 @@ if_std! {
                 .spawn_obj(TaskObj::new(PinBox::new(f))).unwrap()
         }
     }
+
+    impl<F: Future<Output = ()> + Send + 'static> From<Box<F>> for TaskObj {
+        fn from(boxed: Box<F>) -> Self {
+            TaskObj::from_poll_task(boxed) // ToDo: This is now wrong! Should be PinBox. Will be replaced with correct version from core soon!
+        }
+    }
 }

@@ -97,7 +97,7 @@ struct Inner<T> {
 /// # let t =
 ///     thread::spawn(|| {
 ///         let future = c.map(|i| {
-///             println!("got: {}", i);
+///             println!("got: {:?}", i);
 ///         });
 ///         // ...
 /// # return future;

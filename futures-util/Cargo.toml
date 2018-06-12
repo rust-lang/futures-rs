@@ -23,6 +23,6 @@ futures-sink = { path = "../futures-sink", version = "0.3.0-alpha", default-feat
 either = { version = "1.4", default-features = false }
 
 [dev-dependencies]
-# futures = { path = "../futures", version = "0.2.0" }
+futures = { path = "../futures", version = "0.3.0-alpha" }
 # futures-executor = { path = "../futures-executor", version = "0.2.0" }
 # futures-channel = { path = "../futures-channel", version = "0.2.0" }

@@ -2,11 +2,12 @@ use std::prelude::v1::*;
 
 use std::cell::{RefCell};
 use std::rc::{Rc, Weak};
+use std::mem::PinMut;
+use std::marker::Unpin;
 
-use futures_core::{Future, Poll, Async, Stream};
-use futures_core::task::{Context, Waker, LocalMap};
-use futures_core::executor::{Executor, SpawnError};
-use futures_core::never::Never;
+use futures_core::{Future, Poll, Stream};
+use futures_core::task::{Context, Waker, TaskObj};
+use futures_core::executor::{Executor, SpawnObjError, SpawnErrorKind};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 
@@ -15,8 +16,7 @@ use enter;
 use ThreadPool;
 
 struct Task {
-    fut: Box<Future<Item = (), Error = Never>>,
-    map: LocalMap,
+    fut: TaskObj,
 }
 
 /// A single-threaded task pool.
@@ -46,7 +46,7 @@ type Incoming = RefCell<Vec<Task>>;
 
 // Set up and run a basic single-threaded executor loop, invocing `f` on each
 // turn.
-fn run_executor<T, F: FnMut(&Waker) -> Async<T>>(mut f: F) -> T {
+fn run_executor<T, F: FnMut(&Waker) -> Poll<T>>(mut f: F) -> T {
     let _enter = enter()
         .expect("cannot execute `LocalPool` executor from within \
                  another executor");
@@ -54,7 +54,7 @@ fn run_executor<T, F: FnMut(&Waker) -> Async<T>>(mut f: F) -> T {
     ThreadNotify::with_current(|thread| {
         let waker = &Waker::from(thread.clone());
         loop {
-            if let Async::Ready(t) = f(waker) {
+            if let Poll::Ready(t) = f(waker) {
                 return t;
             }
             thread.park();
@@ -101,7 +101,7 @@ impl LocalPool {
     ///
     /// The function will block the calling thread until *all* tasks in the pool
     /// are complete, including any spawned while running existing tasks.
-    pub fn run(&mut self, exec: &mut Executor) {
+    pub fn run<Exec>(&mut self, exec: &mut Exec) where Exec: Executor + Sized {
         run_executor(|waker| self.poll_pool(waker, exec))
     }
 
@@ -132,35 +132,31 @@ impl LocalPool {
     /// be inert after the call completes, but can continue with further use of
     /// `run` or `run_until`. While the function is running, however, all tasks
     /// in the pool will try to make progress.
-    pub fn run_until<F>(&mut self, mut f: F, exec: &mut Executor) -> Result<F::Item, F::Error>
-        where F: Future
+    pub fn run_until<F, Exec>(&mut self, mut f: F, exec: &mut Exec) -> F::Output
+        where F: Future + Unpin, Exec: Executor + Sized
     {
-        // persistent state for the "main task"
-        let mut main_map = LocalMap::new();
-
         run_executor(|waker| {
             {
-                let mut main_cx = Context::new(&mut main_map, waker, exec);
+                let mut main_cx = Context::new(waker, exec);
 
                 // if our main task is done, so are we
-                match f.poll(&mut main_cx) {
-                    Ok(Async::Ready(v)) => return Async::Ready(Ok(v)),
-                    Err(err) => return Async::Ready(Err(err)),
+                match f.poll_unpin(&mut main_cx) {
+                    Poll::Ready(res) => return Poll::Ready(res),
                     _ => {}
                 }
             }
 
             self.poll_pool(waker, exec);
-            Async::Pending
+            Poll::Pending
         })
     }
 
     // Make maximal progress on the entire pool of spawned task, returning `Ready`
     // if the pool is empty and `Pending` if no further progress can be made.
-    fn poll_pool(&mut self, waker: &Waker, exec: &mut Executor) -> Async<()> {
+    fn poll_pool<Exec>(&mut self, waker: &Waker, exec: &mut Exec) -> Poll<()>
+        where Exec: Executor + Sized {
         // state for the FuturesUnordered, which will never be used
-        let mut pool_map = LocalMap::new();
-        let mut pool_cx = Context::new(&mut pool_map, waker, exec);
+        let mut pool_cx = Context::new(waker, exec);
 
         loop {
             // empty the incoming queue of newly-spawned tasks
@@ -171,18 +167,17 @@ impl LocalPool {
                 }
             }
 
-            if let Ok(ret) = self.pool.poll_next(&mut pool_cx) {
-                // we queued up some new tasks; add them and poll again
-                if !self.incoming.borrow().is_empty() {
-                    continue;
-                }
+            let ret = self.pool.poll_next_unpin(&mut pool_cx);
+            // we queued up some new tasks; add them and poll again
+            if !self.incoming.borrow().is_empty() {
+                continue;
+            }
 
-                // no queued tasks; we may be done
-                match ret {
-                    Async::Pending => return Async::Pending,
-                    Async::Ready(None) => return Async::Ready(()),
-                    _ => {}
-                }
+            // no queued tasks; we may be done
+            match ret {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(None) => return Poll::Ready(()),
+                _ => {}
             }
         }
     }
@@ -202,7 +197,7 @@ lazy_static! {
 ///
 /// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
 /// spawned tasks.
-pub fn block_on<F: Future>(f: F) -> Result<F::Item, F::Error> {
+pub fn block_on<F: Future + Unpin>(f: F) -> F::Output {
     let mut pool = LocalPool::new();
     pool.run_until(f, &mut GLOBAL_POOL.clone())
 }
@@ -226,16 +221,12 @@ impl<S: Stream> BlockingStream<S> {
     }
 }
 
-impl<S: Stream> Iterator for BlockingStream<S> {
-    type Item = Result<S::Item, S::Error>;
+impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
+    type Item = S::Item;
     fn next(&mut self) -> Option<Self::Item> {
         let s = self.stream.take().expect("BlockingStream shouldn't be empty");
         let (item, s) =
-            match LocalPool::new().run_until(s.next(), &mut GLOBAL_POOL.clone()) {
-                Ok((Some(item), s)) => (Some(Ok(item)), s),
-                Ok((None, s)) => (None, s),
-                Err((e, s)) => (Some(Err(e)), s),
-            };
+          LocalPool::new().run_until(s.next(), &mut GLOBAL_POOL.clone());
 
         self.stream = Some(s);
         item
@@ -243,31 +234,28 @@ impl<S: Stream> Iterator for BlockingStream<S> {
 }
 
 impl Executor for LocalExecutor {
-    fn spawn(&mut self, f: Box<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
-        self.spawn_task(Task {
-            fut: f,
-            map: LocalMap::new(),
-        })
+    fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
+        if let Some(incoming) = self.incoming.upgrade() {
+            incoming.borrow_mut().push(Task { fut: task });
+            Ok(())
+        } else {
+            Err(SpawnObjError{ task, kind: SpawnErrorKind::shutdown() })
+        }
     }
 
-    fn status(&self) -> Result<(), SpawnError> {
+    fn status(&self) -> Result<(), SpawnErrorKind> {
         if self.incoming.upgrade().is_some() {
             Ok(())
         } else {
-            Err(SpawnError::shutdown())
+            Err(SpawnErrorKind::shutdown())
         }
     }
 }
 
 impl LocalExecutor {
-    fn spawn_task(&self, task: Task) -> Result<(), SpawnError> {
-        let incoming = self.incoming.upgrade().ok_or(SpawnError::shutdown())?;
-        incoming.borrow_mut().push(task);
-        Ok(())
-    }
-
+    /*
     /// Spawn a non-`Send` future onto the associated [`LocalPool`](LocalPool).
-    pub fn spawn_local<F>(&mut self, f: F) -> Result<(), SpawnError>
+    pub fn spawn_local<F>(&mut self, f: F) -> Result<(), SpawnObjError>
         where F: Future<Item = (), Error = Never> + 'static
     {
         self.spawn_task(Task {
@@ -275,13 +263,13 @@ impl LocalExecutor {
             map: LocalMap::new(),
         })
     }
+    */
 }
 
 impl Future for Task {
-    type Item = ();
-    type Error = Never;
+    type Output = ();
 
-    fn poll(&mut self, cx: &mut Context) -> Poll<(), Never> {
-        self.fut.poll(&mut cx.with_locals(&mut self.map))
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
+        self.fut.poll_task(cx)
     }
 }

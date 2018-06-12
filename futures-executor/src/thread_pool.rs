@@ -6,11 +6,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
 use std::fmt;
+use std::marker::Unpin;
 
 use futures_core::*;
-use futures_core::task::{self, Wake, Waker, LocalMap};
-use futures_core::executor::{Executor, SpawnError};
-use futures_core::never::Never;
+use futures_core::task::{self, Wake, Waker, TaskObj};
+use futures_core::executor::{Executor, SpawnObjError};
 
 use enter;
 use num_cpus;
@@ -96,16 +96,15 @@ impl ThreadPool {
     ///
     /// Note that the function will return when the provided future completes,
     /// even if some of the tasks it spawned are still running.
-    pub fn run<F: Future>(&mut self, f: F) -> Result<F::Item, F::Error> {
+    pub fn run<F: Future + Unpin>(&mut self, f: F) -> F::Output {
         ::LocalPool::new().run_until(f, self)
     }
 }
 
 impl Executor for ThreadPool {
-    fn spawn(&mut self, f: Box<Future<Item = (), Error = Never> + Send>) -> Result<(), SpawnError> {
+    fn spawn_obj(&mut self, f: TaskObj) -> Result<(), SpawnObjError> {
         let task = Task {
             spawn: f,
-            map: LocalMap::new(),
             wake_handle: Arc::new(WakeHandle {
                 exec: self.clone(),
                 mutex: UnparkMutex::new(),
@@ -266,8 +265,7 @@ impl ThreadPoolBuilder {
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 struct Task {
-    spawn: Box<Future<Item = (), Error = Never> + Send>,
-    map: LocalMap,
+    spawn: TaskObj,
     exec: ThreadPool,
     wake_handle: Arc<WakeHandle>,
 }
@@ -281,7 +279,7 @@ impl Task {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
     pub fn run(self) {
-        let Task { mut spawn, wake_handle, mut map, mut exec } = self;
+        let Task { mut spawn, wake_handle, mut exec } = self;
         let waker = Waker::from(wake_handle.clone());
 
         // SAFETY: the ownership of this `Task` object is evidence that
@@ -291,17 +289,15 @@ impl Task {
 
             loop {
                 let res = {
-                    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
-                    spawn.poll(&mut cx)
+                    let mut cx = task::Context::new(&waker, &mut exec);
+                    spawn.poll_task(&mut cx)
                 };
                 match res {
-                    Ok(Async::Pending) => {}
-                    Ok(Async::Ready(())) => return wake_handle.mutex.complete(),
-                    Err(never) => match never {},
+                    Poll::Pending => {}
+                    Poll::Ready(()) => return wake_handle.mutex.complete(),
                 }
                 let task = Task {
                     spawn,
-                    map,
                     wake_handle: wake_handle.clone(),
                     exec: exec
                 };
@@ -309,7 +305,6 @@ impl Task {
                     Ok(()) => return,            // we've waited
                     Err(r) => { // someone's notified us
                         spawn = r.spawn;
-                        map = r.map;
                         exec = r.exec;
                     }
                 }

@@ -25,19 +25,18 @@
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
-extern crate futures_async_runtime;
+// extern crate futures_async_runtime;
 extern crate futures_core;
 extern crate futures_channel;
 extern crate futures_executor;
 extern crate futures_io;
 extern crate futures_sink;
-extern crate futures_stable;
 extern crate futures_util;
 
 #[cfg(feature = "nightly")] extern crate futures_macro_async;
 #[cfg(feature = "nightly")] extern crate futures_macro_await;
 
-pub use futures_core::future::{Future, IntoFuture};
+pub use futures_core::future::Future;
 pub use futures_util::future::FutureExt;
 pub use futures_core::stream::Stream;
 pub use futures_util::stream::StreamExt;
@@ -83,7 +82,7 @@ macro_rules! task_local {
     )
 }
 
-pub use futures_core::{Async, Poll, Never};
+pub use futures_core::Poll;
 
 #[cfg(feature = "std")]
 pub mod channel {
@@ -124,7 +123,7 @@ pub mod executor {
     //! ```
     //! use futures::executor::ThreadPool;
     //! # use futures::future::{Future, lazy};
-    //! # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(lazy(|_| Ok(())));
+    //! # let my_app: Box<Future<Output = i32>> = Box::new(lazy(|_| 42));
     //!
     //! // assumping `my_app: Future`
     //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
@@ -173,7 +172,7 @@ pub mod executor {
         ThreadPool, ThreadPoolBuilder, JoinHandle,
         block_on, block_on_stream, enter, spawn, spawn_with_handle
     };
-    pub use futures_core::executor::{SpawnError, Executor};
+    pub use futures_core::executor::{SpawnObjError, Executor};
 }
 
 pub mod future {
@@ -192,19 +191,21 @@ pub mod future {
     //! immediate defined value.
 
     pub use futures_core::future::{
-        FutureOption, FutureResult, Future, IntoFuture, err, ok, result
+        FutureOption, Future
+        // FutureResult, IntoFuture, err, ok, result
     };
     pub use futures_util::future::{
-        AndThen, Empty, Flatten, FlattenStream, ErrInto, Fuse,
-        Inspect, IntoStream, Join, Join3, Join4, Join5, Lazy, LoopFn,
-        Map, MapErr, OrElse, PollFn, Select, Then, Either, Loop, FutureExt, empty,
-        lazy, loop_fn, poll_fn
+        Empty, Flatten, FlattenStream, Fuse, Inspect, IntoStream, Lazy,
+        Then, Either, PollFn, Map, FutureExt, empty, lazy, poll_fn,
+        // AndThen, ErrInto, Join, Join3, Join4, Join5, LoopFn,
+        // MapErr, OrElse, Select, Loop, loop_fn,
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::future::{
-        CatchUnwind, JoinAll, SelectAll, SelectOk, Shared, SharedError, SharedItem,
-        join_all, select_all, select_ok
+        CatchUnwind,
+        // JoinAll, SelectAll, SelectOk, Shared, SharedError, SharedItem,
+        // join_all, select_all, select_ok
     };
 }
 
@@ -234,14 +235,6 @@ pub mod io {
     };
 }
 
-#[cfg(feature = "std")]
-pub mod never {
-    //! This module contains the `Never` type.
-    //!
-    //! Values of this type can never be created and will never exist.
-    pub use futures_core::never::*;
-}
-
 pub mod prelude {
     //! A "prelude" for crates using the `futures` crate.
     //!
@@ -256,13 +249,8 @@ pub mod prelude {
     //! The prelude may grow over time as additional items see ubiquitous use.
 
     pub use futures_core::{
-        Future,
-        IntoFuture,
-        Stream,
-        Async,
-        Poll,
-        Never,
-        task,
+        Future, Stream, Poll, task,
+        // IntoFuture, Never,
     };
 
     #[cfg(feature = "std")]
@@ -326,8 +314,9 @@ pub mod sink {
     pub use futures_sink::Sink;
 
     pub use futures_util::sink::{
-        Close, Fanout, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
-        WithFlatMap, SinkExt,
+        Close, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
+        SinkExt,
+        // WithFlatMap, Fanout,
     };
 
     #[cfg(feature = "std")]
@@ -353,18 +342,20 @@ pub mod stream {
     pub use futures_core::stream::Stream;
 
     pub use futures_util::stream::{
-        AndThen, Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold,
-        ForEach, Forward, ErrInto, Fuse, Inspect, InspectErr, IterOk,
-        IterResult, Map, MapErr, Once, OrElse, Peekable, PollFn, Repeat, Select,
-        Skip, SkipWhile, StreamFuture, Take, TakeWhile, Then, Unfold, Zip,
-        StreamExt, empty, iter_ok, iter_result, once, poll_fn, repeat, unfold,
+        Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold, ForEach, Fuse,
+        Inspect, Map, Once, Peekable, PollFn, Repeat, Select, Skip, SkipWhile,
+        StreamFuture, Take, TakeWhile, Then, Unfold, Zip, StreamExt, empty,
+        once, poll_fn, repeat, unfold,
+        // AndThen, Forward, ErrInto, InspectErr, IterOk, IterResult, MapErr,
+        // OrElse, iter_ok, iter_result,
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
-        futures_unordered, select_all, BufferUnordered, Buffered, CatchUnwind, Chunks, Collect,
-        FuturesUnordered, FuturesOrdered, ReuniteError, SelectAll, SplitSink, SplitStream,
-        futures_ordered,
+        CatchUnwind, Chunks, Collect, futures_unordered
+        // , select_all, BufferUnordered, Buffered,
+        // FuturesUnordered, FuturesOrdered, ReuniteError, SelectAll, SplitSink,
+        // SplitStream, futures_ordered,
     };
 }
 
@@ -389,14 +380,14 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, LocalMap, Waker, UnsafeWake,
+        Context, Waker, UnsafeWake
     };
 
     #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
     pub use futures_core::task::AtomicWaker;
 
     #[cfg(feature = "std")]
-    pub use futures_core::task::{LocalKey, Wake};
+    pub use futures_core::task::Wake;
 }
 
 #[cfg(feature = "nightly")]
