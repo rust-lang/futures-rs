@@ -26,51 +26,6 @@ pub trait CoreFutureExt: Future {
 
 impl<T: ?Sized> CoreFutureExt for T where T: Future {}
  
-// should be in std
-// impl<'a, F: ?Sized + Future + Unpin> Future for &'a mut F {
-//     type Output = F::Output;
-
-//     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-//         F::poll(PinMut::new(&mut **self), cx)
-//     }
-// }
-
-// impl<'a, F: ?Sized + Future> Future for PinMut<'a, F> {
-//     type Output = F::Output;
-
-//     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-//         F::poll((*self).reborrow(), cx)
-//     }
-// }
-
-// if_std! {
-//     use std::boxed::{Box, PinBox};
-
-//     impl<'a, F: ?Sized + Future + Unpin> Future for Box<F> {
-//         type Output = F::Output;
-
-//         fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-//             (**self).poll_unpin(cx)
-//         }
-//     }
-
-//     impl<'a, F: ?Sized + Future> Future for PinBox<F> {
-//         type Output = F::Output;
-
-//         fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-//             self.as_pin_mut().poll(cx)
-//         }
-//     }
-
-//     impl<'a, F: Future> Future for ::std::panic::AssertUnwindSafe<F> {
-//         type Output = F::Output;
-
-//         fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-//             unsafe { pinned_field!(self, 0).poll(cx) }
-//         }
-//     }
-// }
-
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
 pub trait TryFuture {
