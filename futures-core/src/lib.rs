@@ -1,6 +1,7 @@
 //! Core traits and types for asynchronous operations in Rust.
 
 #![feature(pin, arbitrary_self_types)]
+#![feature(futures_api)]
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
