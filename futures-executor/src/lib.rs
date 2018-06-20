@@ -1,6 +1,6 @@
 //! Built-in executors and related tools.
 
-#![feature(pin, arbitrary_self_types)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 #![no_std]
 #![deny(missing_docs)]

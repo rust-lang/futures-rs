@@ -8,13 +8,14 @@ use std::mem;
 use std::mem::PinMut;
 use std::marker::Unpin;
 use std::ptr;
+use std::ptr::NonNull;
 use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use futures_core::{Stream, Future, Poll};
-use futures_core::task::{self, AtomicWaker, UnsafeWake, Waker};
+use futures_core::{Stream, Future, Poll, CoreFutureExt};
+use futures_core::task::{self, AtomicWaker, UnsafeWake, Waker, LocalWaker};
 
 /// A set of `Future`s which may complete in any order.
 ///
@@ -346,8 +347,8 @@ impl<T> Stream for FuturesUnordered<T>
                 // deallocating the node if need be.
                 let res = {
                     let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                    let waker = Waker::from(notify);
-                    let mut cx = cx.with_waker(&waker);
+                    let local_waker = LocalWaker::from(notify);
+                    let mut cx = cx.with_waker(&local_waker);
                     future.poll_unpin(&mut cx)
                 };
 
@@ -461,8 +462,8 @@ impl<T> Inner<T> {
 
     /// The dequeue function from the 1024cores intrusive MPSC queue algorithm
     ///
-    /// Note that this unsafe as it required mutual exclusion (only one thread
-    /// can call this) to be guaranteed elsewhere.
+    /// Note that this is unsafe as it required mutual exclusion (only one
+    /// thread can call this) to be guaranteed elsewhere.
     unsafe fn dequeue(&self) -> Dequeue<T> {
         let mut tail = *self.tail_readiness.get();
         let mut next = (*tail).next_readiness.load(Acquire);
@@ -535,12 +536,25 @@ impl<'a, T> Clone for NodeToHandle<'a, T> {
 }
 
 #[doc(hidden)]
+impl<'a, T> From<NodeToHandle<'a, T>> for LocalWaker {
+    fn from(handle: NodeToHandle<'a, T>) -> LocalWaker {
+        unsafe {
+            let ptr: Arc<Node<T>> = handle.0.clone();
+            let ptr: *mut ArcNode<T> = mem::transmute(ptr);
+            let ptr = mem::transmute(ptr as *mut UnsafeWake); // Hide lifetime
+            LocalWaker::new(NonNull::new(ptr).unwrap())
+        }
+    }
+}
+
+#[doc(hidden)]
 impl<'a, T> From<NodeToHandle<'a, T>> for Waker {
     fn from(handle: NodeToHandle<'a, T>) -> Waker {
         unsafe {
-            let ptr = handle.0.clone();
-            let ptr = mem::transmute::<Arc<Node<T>>, *const ArcNode<T>>(ptr);
-            Waker::new(hide_lt(ptr))
+            let ptr: Arc<Node<T>> = handle.0.clone();
+            let ptr: *mut ArcNode<T> = mem::transmute(ptr);
+            let ptr = mem::transmute(ptr as *mut UnsafeWake); // Hide lifetime
+            Waker::new(NonNull::new(ptr).unwrap())
         }
     }
 }
@@ -572,10 +586,6 @@ unsafe impl<T> UnsafeWake for ArcNode<T> {
         let me = me as *const Arc<Node<T>>;
         Node::notify(&*me)
     }
-}
-
-unsafe fn hide_lt<T>(p: *const ArcNode<T>) -> *const UnsafeWake {
-    mem::transmute(p as *const UnsafeWake)
 }
 
 impl<T> Node<T> {

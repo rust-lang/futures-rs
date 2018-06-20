@@ -67,7 +67,7 @@ mod poll;
 pub use poll::Poll;
 
 pub mod future;
-pub use future::{Future, TryFuture};
+pub use future::{Future, CoreFutureExt, TryFuture};
 
 pub mod stream;
 pub use stream::Stream;

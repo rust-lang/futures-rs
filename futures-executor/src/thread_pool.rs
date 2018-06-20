@@ -9,7 +9,7 @@ use std::fmt;
 use std::marker::Unpin;
 
 use futures_core::*;
-use futures_core::task::{self, Wake, Waker, TaskObj};
+use futures_core::task::{self, Wake, TaskObj, local_waker_from_nonlocal};
 use futures_core::executor::{Executor, SpawnObjError};
 
 use enter;
@@ -130,7 +130,7 @@ impl PoolState {
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
             match msg {
-                Message::Run(r) => r.run(),
+                Message::Run(task_container) => task_container.run(),
                 Message::Close => break,
             }
         }
@@ -276,21 +276,20 @@ struct WakeHandle {
 }
 
 impl TaskContainer {
-    /// Actually run the task (invoking `poll` on its future) on the current
-    /// thread.
+    /// Actually run the task (invoking `poll`) on the current thread.
     pub fn run(self) {
         let TaskContainer { mut task, wake_handle, mut exec } = self;
-        let waker = Waker::from(wake_handle.clone());
+        let local_waker = local_waker_from_nonlocal(wake_handle.clone());
 
-        // SAFETY: the ownership of this `Task` object is evidence that
+        // SAFETY: the ownership of this `TaskContainer` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
         unsafe {
             wake_handle.mutex.start_poll();
 
             loop {
                 let res = {
-                    let mut cx = task::Context::new(&waker, &mut exec);
-                    task.poll_task(&mut cx)
+                    let mut cx = task::Context::new(&local_waker, &mut exec);
+                    task.poll_unpin(&mut cx)
                 };
                 match res {
                     Poll::Pending => {}
@@ -302,10 +301,10 @@ impl TaskContainer {
                     exec: exec
                 };
                 match wake_handle.mutex.wait(task_container) {
-                    Ok(()) => return,            // we've waited
-                    Err(r) => { // someone's notified us
-                        task = r.task;
-                        exec = r.exec;
+                    Ok(()) => return, // we've waited
+                    Err(task_container) => { // someone's notified us
+                        task = task_container.task;
+                        exec = task_container.exec;
                     }
                 }
             }

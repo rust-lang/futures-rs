@@ -5,8 +5,8 @@ use std::rc::{Rc, Weak};
 use std::mem::PinMut;
 use std::marker::Unpin;
 
-use futures_core::{Future, Poll, Stream};
-use futures_core::task::{Context, Waker, TaskObj};
+use futures_core::{Future, CoreFutureExt, Poll, Stream};
+use futures_core::task::{Context, LocalWaker, TaskObj, local_waker_from_nonlocal};
 use futures_core::executor::{Executor, SpawnObjError, SpawnErrorKind};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
@@ -46,15 +46,15 @@ type Incoming = RefCell<Vec<TaskContainer>>;
 
 // Set up and run a basic single-threaded executor loop, invocing `f` on each
 // turn.
-fn run_executor<T, F: FnMut(&Waker) -> Poll<T>>(mut f: F) -> T {
+fn run_executor<T, F: FnMut(&LocalWaker) -> Poll<T>>(mut f: F) -> T {
     let _enter = enter()
         .expect("cannot execute `LocalPool` executor from within \
                  another executor");
 
     ThreadNotify::with_current(|thread| {
-        let waker = &Waker::from(thread.clone());
+        let local_waker = local_waker_from_nonlocal(thread.clone());
         loop {
-            if let Poll::Ready(t) = f(waker) {
+            if let Poll::Ready(t) = f(&local_waker) {
                 return t;
             }
             thread.park();
@@ -102,7 +102,7 @@ impl LocalPool {
     /// The function will block the calling thread until *all* tasks in the pool
     /// are complete, including any spawned while running existing tasks.
     pub fn run<Exec>(&mut self, exec: &mut Exec) where Exec: Executor + Sized {
-        run_executor(|waker| self.poll_pool(waker, exec))
+        run_executor(|local_waker| self.poll_pool(local_waker, exec))
     }
 
     /// Runs all the tasks in the pool until the given future completes.
@@ -135,9 +135,9 @@ impl LocalPool {
     pub fn run_until<F, Exec>(&mut self, mut f: F, exec: &mut Exec) -> F::Output
         where F: Future + Unpin, Exec: Executor + Sized
     {
-        run_executor(|waker| {
+        run_executor(|local_waker| {
             {
-                let mut main_cx = Context::new(waker, exec);
+                let mut main_cx = Context::new(local_waker, exec);
 
                 // if our main task is done, so are we
                 match f.poll_unpin(&mut main_cx) {
@@ -146,17 +146,17 @@ impl LocalPool {
                 }
             }
 
-            self.poll_pool(waker, exec);
+            self.poll_pool(local_waker, exec);
             Poll::Pending
         })
     }
 
     // Make maximal progress on the entire pool of spawned task, returning `Ready`
     // if the pool is empty and `Pending` if no further progress can be made.
-    fn poll_pool<Exec>(&mut self, waker: &Waker, exec: &mut Exec) -> Poll<()>
+    fn poll_pool<Exec>(&mut self, local_waker: &LocalWaker, exec: &mut Exec) -> Poll<()>
         where Exec: Executor + Sized {
         // state for the FuturesUnordered, which will never be used
-        let mut pool_cx = Context::new(waker, exec);
+        let mut pool_cx = Context::new(local_waker, exec);
 
         loop {
             // empty the incoming queue of newly-spawned tasks
@@ -204,7 +204,7 @@ pub fn block_on<F: Future + Unpin>(f: F) -> F::Output {
 
 /// Turn a stream into a blocking iterator.
 ///
-/// Whne `next` is called on the resulting `BlockingStream`, the caller
+/// When `next` is called on the resulting `BlockingStream`, the caller
 /// will be blocked until the next element of the `Stream` becomes available.
 /// The default executor for the future is a global `ThreadPool`.
 pub fn block_on_stream<S: Stream>(s: S) -> BlockingStream<S> {
@@ -270,6 +270,6 @@ impl Future for TaskContainer {
     type Output = ();
 
     fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
-        self.task.poll_task(cx)
+        self.task.poll_unpin(cx)
     }
 }
