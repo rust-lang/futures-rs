@@ -19,6 +19,8 @@
 //! streams and sinks, and then spawned as independent tasks that are run to
 //! completion, but *do not block* the thread running them.
 
+#![feature(futures_api)]
+
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/futures/0.2.0")]
 

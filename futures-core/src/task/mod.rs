@@ -2,9 +2,10 @@
 
 use Future;
 
-pub use core::task::{UnsafeWake, Waker};
+pub use core::task::{UnsafeWake, Waker, LocalWaker};
+
 #[cfg(feature = "std")]
-pub use std::task::Wake;
+pub use std::task::{Wake, local_waker, local_waker_from_nonlocal};
 
 pub use core::task::Context;
 
@@ -35,12 +36,6 @@ if_std! {
         fn spawn<F>(&mut self, f: F) where F: Future<Output = ()> + 'static + Send {
             self.executor()
                 .spawn_obj(TaskObj::new(PinBox::new(f))).unwrap()
-        }
-    }
-
-    impl<F: Future<Output = ()> + Send + 'static> From<Box<F>> for TaskObj {
-        fn from(boxed: Box<F>) -> Self {
-            TaskObj::from_poll_task(boxed) // ToDo: This is now wrong! Should be PinBox. Will be replaced with correct version from core soon!
         }
     }
 }

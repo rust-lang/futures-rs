@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-#![feature(pin, arbitrary_self_types)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 extern crate futures;
 extern crate futures_executor;
