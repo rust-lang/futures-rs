@@ -9,7 +9,7 @@ use std::fmt;
 use std::marker::Unpin;
 
 use futures_core::*;
-use futures_core::task::{self, Wake, TaskObj, local_waker_from_nonlocal};
+use futures_core::task::{self, Wake, TaskObj};
 use futures_core::executor::{Executor, SpawnObjError};
 
 use enter;
@@ -279,7 +279,7 @@ impl TaskContainer {
     /// Actually run the task (invoking `poll`) on the current thread.
     pub fn run(self) {
         let TaskContainer { mut task, wake_handle, mut exec } = self;
-        let local_waker = local_waker_from_nonlocal(wake_handle.clone());
+        let local_waker = task::local_waker_from_nonlocal(wake_handle.clone());
 
         // SAFETY: the ownership of this `TaskContainer` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
