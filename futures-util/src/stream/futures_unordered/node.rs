@@ -92,8 +92,10 @@ impl<'a, T> From<NodeToHandle<'a, T>> for LocalWaker {
     fn from(handle: NodeToHandle<'a, T>) -> LocalWaker {
         unsafe {
             let ptr: Arc<Node<T>> = handle.0.clone();
-            let ptr: *mut ArcNode<T> = mem::transmute(ptr);
-            let ptr = mem::transmute(ptr as *mut UnsafeWake); // Hide lifetime
+            let ptr = mem::transmute::<Arc<Node<T>>, *mut ArcNode<T>>(ptr);
+            let ptr = ptr as *mut UnsafeWake;
+            // Hide lifetime
+            let ptr = mem::transmute::<*mut UnsafeWake, *mut UnsafeWake>(ptr);
             LocalWaker::new(NonNull::new(ptr).unwrap())
         }
     }
@@ -104,8 +106,10 @@ impl<'a, T> From<NodeToHandle<'a, T>> for Waker {
     fn from(handle: NodeToHandle<'a, T>) -> Waker {
         unsafe {
             let ptr: Arc<Node<T>> = handle.0.clone();
-            let ptr: *mut ArcNode<T> = mem::transmute(ptr);
-            let ptr = mem::transmute(ptr as *mut UnsafeWake); // Hide lifetime
+            let ptr = mem::transmute::<Arc<Node<T>>, *mut ArcNode<T>>(ptr);
+            let ptr = ptr as *mut UnsafeWake;
+            // Hide lifetime
+            let ptr = mem::transmute::<*mut UnsafeWake, *mut UnsafeWake>(ptr);
             Waker::new(NonNull::new(ptr).unwrap())
         }
     }
