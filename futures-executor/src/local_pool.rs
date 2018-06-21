@@ -3,14 +3,15 @@ use std::prelude::v1::*;
 use std::cell::{RefCell};
 use std::marker::Unpin;
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
+use std::thread::{self, Thread};
 
 use futures_core::{Future, Poll, Stream};
-use futures_core::task::{Context, LocalWaker, TaskObj, local_waker_from_nonlocal};
+use futures_core::task::{self, Context, LocalWaker, TaskObj, Wake};
 use futures_core::executor::{Executor, SpawnObjError, SpawnErrorKind};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 
-use thread::ThreadNotify;
 use enter;
 use ThreadPool;
 
@@ -39,6 +40,22 @@ pub struct LocalExecutor {
 
 type Incoming = RefCell<Vec<TaskObj>>;
 
+pub(crate) struct ThreadNotify {
+    thread: Thread
+}
+
+thread_local! {
+    static CURRENT_THREAD_NOTIFY: Arc<ThreadNotify> = Arc::new(ThreadNotify {
+        thread: thread::current(),
+    });
+}
+
+impl Wake for ThreadNotify {
+    fn wake(arc_self: &Arc<Self>) {
+        arc_self.thread.unpark();
+    }
+}
+
 // Set up and run a basic single-threaded executor loop, invocing `f` on each
 // turn.
 fn run_executor<T, F: FnMut(&LocalWaker) -> Poll<T>>(mut f: F) -> T {
@@ -46,13 +63,14 @@ fn run_executor<T, F: FnMut(&LocalWaker) -> Poll<T>>(mut f: F) -> T {
         .expect("cannot execute `LocalPool` executor from within \
                  another executor");
 
-    ThreadNotify::with_current(|thread| {
-        let local_waker = local_waker_from_nonlocal(thread.clone());
+    CURRENT_THREAD_NOTIFY.with(|thread_notify| {
+        let local_waker =
+          task::local_waker_from_nonlocal(thread_notify.clone());
         loop {
             if let Poll::Ready(t) = f(&local_waker) {
                 return t;
             }
-            thread.park();
+            thread::park();
         }
     })
 }

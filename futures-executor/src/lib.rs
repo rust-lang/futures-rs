@@ -28,8 +28,6 @@ if_std! {
     extern crate futures_channel;
     extern crate num_cpus;
 
-    mod thread;
-
     mod local_pool;
     pub use local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
 
