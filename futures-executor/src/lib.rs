@@ -10,6 +10,9 @@
 #[macro_use]
 extern crate std;
 
+#[macro_use]
+extern crate futures_core;
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
@@ -21,7 +24,6 @@ if_std! {
     #[macro_use]
     extern crate lazy_static;
 
-    extern crate futures_core;
     extern crate futures_util;
     extern crate futures_channel;
     extern crate num_cpus;
