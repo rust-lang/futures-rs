@@ -2,7 +2,6 @@ use std::prelude::v1::*;
 
 use std::cell::{RefCell};
 use std::rc::{Rc, Weak};
-use std::mem::PinMut;
 use std::marker::Unpin;
 
 use futures_core::{Future, CoreFutureExt, Poll, Stream};
@@ -14,10 +13,6 @@ use futures_util::stream::StreamExt;
 use thread::ThreadNotify;
 use enter;
 use ThreadPool;
-
-struct TaskContainer {
-    task: TaskObj,
-}
 
 /// A single-threaded task pool.
 ///
@@ -31,7 +26,7 @@ struct TaskContainer {
 /// single-threaded, it supports a special form of task spawning for non-`Send`
 /// futures, via [`spawn_local`](LocalExecutor::spawn_local).
 pub struct LocalPool {
-    pool: FuturesUnordered<TaskContainer>,
+    pool: FuturesUnordered<TaskObj>,
     incoming: Rc<Incoming>,
 }
 
@@ -42,7 +37,7 @@ pub struct LocalExecutor {
     incoming: Weak<Incoming>,
 }
 
-type Incoming = RefCell<Vec<TaskContainer>>;
+type Incoming = RefCell<Vec<TaskObj>>;
 
 // Set up and run a basic single-threaded executor loop, invocing `f` on each
 // turn.
@@ -236,7 +231,7 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 impl Executor for LocalExecutor {
     fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
-            incoming.borrow_mut().push(TaskContainer { task });
+            incoming.borrow_mut().push(task);
             Ok(())
         } else {
             Err(SpawnObjError{ task, kind: SpawnErrorKind::shutdown() })
@@ -264,12 +259,4 @@ impl LocalExecutor {
         })
     }
     */
-}
-
-impl Future for TaskContainer {
-    type Output = ();
-
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
-        self.task.poll_unpin(cx)
-    }
 }
