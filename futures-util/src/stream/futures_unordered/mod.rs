@@ -3,19 +3,25 @@
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
-use std::marker::PhantomData;
-use std::mem;
-use std::mem::PinMut;
-use std::marker::Unpin;
+use std::marker::{PhantomData, Unpin};
+use std::mem::{self, PinMut};
 use std::ptr;
-use std::ptr::NonNull;
-use std::sync::atomic::Ordering::{Relaxed, SeqCst, Acquire, Release, AcqRel};
+use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
 use futures_core::{Stream, Future, Poll, CoreFutureExt};
-use futures_core::task::{self, AtomicWaker, UnsafeWake, Waker, LocalWaker};
+use futures_core::task::{self, AtomicWaker, LocalWaker};
+
+mod abort;
+mod inner;
+mod iter_mut;
+mod node;
+
+use self::inner::{Inner, Dequeue};
+use self::iter_mut::IterMut;
+use self::node::{Node, NodeToHandle};
 
 /// A set of `Future`s which may complete in any order.
 ///
@@ -65,42 +71,6 @@ impl<T: Unpin> Unpin for FuturesUnordered<T> {}
 // flag tracking if the node is currently inserted in the atomic queue. When the
 // future is notified, it will only insert itself into the linked list if it
 // isn't currently inserted.
-
-struct Inner<T> {
-    // The task using `FuturesUnordered`.
-    parent: AtomicWaker,
-
-    // Head/tail of the readiness queue
-    head_readiness: AtomicPtr<Node<T>>,
-    tail_readiness: UnsafeCell<*const Node<T>>,
-    stub: Arc<Node<T>>,
-}
-
-struct Node<T> {
-    // The future
-    future: UnsafeCell<Option<T>>,
-
-    // Next pointer for linked list tracking all active nodes
-    next_all: UnsafeCell<*const Node<T>>,
-
-    // Previous node in linked list tracking all active nodes
-    prev_all: UnsafeCell<*const Node<T>>,
-
-    // Next pointer in readiness queue
-    next_readiness: AtomicPtr<Node<T>>,
-
-    // Queue that we'll be enqueued to when notified
-    queue: Weak<Inner<T>>,
-
-    // Whether or not this node is currently in the mpsc queue.
-    queued: AtomicBool,
-}
-
-enum Dequeue<T> {
-    Data(*const Node<T>),
-    Empty,
-    Inconsistent,
-}
 
 impl<T> FuturesUnordered<T>
     where T: Future + Unpin
@@ -411,241 +381,6 @@ impl<F: Future + Unpin> FromIterator<F> for FuturesUnordered<F> {
         let acc = FuturesUnordered::new();
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
-}
-
-#[derive(Debug)]
-/// Mutable iterator over all futures in the unordered set.
-pub struct IterMut<'a, F: 'a> {
-    node: *const Node<F>,
-    len: usize,
-    _marker: PhantomData<&'a mut FuturesUnordered<F>>
-}
-
-impl<'a, F> Iterator for IterMut<'a, F> {
-    type Item = &'a mut F;
-
-    fn next(&mut self) -> Option<&'a mut F> {
-        if self.node.is_null() {
-            return None;
-        }
-        unsafe {
-            let future = (*(*self.node).future.get()).as_mut().unwrap();
-            let next = *(*self.node).next_all.get();
-            self.node = next;
-            self.len -= 1;
-            Some(future)
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
-    }
-}
-
-impl<'a, F> ExactSizeIterator for IterMut<'a, F> {}
-
-impl<T> Inner<T> {
-    /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
-    fn enqueue(&self, node: *const Node<T>) {
-        unsafe {
-            debug_assert!((*node).queued.load(Relaxed));
-
-            // This action does not require any coordination
-            (*node).next_readiness.store(ptr::null_mut(), Relaxed);
-
-            // Note that these atomic orderings come from 1024cores
-            let node = node as *mut _;
-            let prev = self.head_readiness.swap(node, AcqRel);
-            (*prev).next_readiness.store(node, Release);
-        }
-    }
-
-    /// The dequeue function from the 1024cores intrusive MPSC queue algorithm
-    ///
-    /// Note that this is unsafe as it required mutual exclusion (only one
-    /// thread can call this) to be guaranteed elsewhere.
-    unsafe fn dequeue(&self) -> Dequeue<T> {
-        let mut tail = *self.tail_readiness.get();
-        let mut next = (*tail).next_readiness.load(Acquire);
-
-        if tail == self.stub() {
-            if next.is_null() {
-                return Dequeue::Empty;
-            }
-
-            *self.tail_readiness.get() = next;
-            tail = next;
-            next = (*next).next_readiness.load(Acquire);
-        }
-
-        if !next.is_null() {
-            *self.tail_readiness.get() = next;
-            debug_assert!(tail != self.stub());
-            return Dequeue::Data(tail);
-        }
-
-        if self.head_readiness.load(Acquire) as *const _ != tail {
-            return Dequeue::Inconsistent;
-        }
-
-        self.enqueue(self.stub());
-
-        next = (*tail).next_readiness.load(Acquire);
-
-        if !next.is_null() {
-            *self.tail_readiness.get() = next;
-            return Dequeue::Data(tail);
-        }
-
-        Dequeue::Inconsistent
-    }
-
-    fn stub(&self) -> *const Node<T> {
-        &*self.stub
-    }
-}
-
-impl<T> Drop for Inner<T> {
-    fn drop(&mut self) {
-        // Once we're in the destructor for `Inner<T>` we need to clear out the
-        // mpsc queue of nodes if there's anything left in there.
-        //
-        // Note that each node has a strong reference count associated with it
-        // which is owned by the mpsc queue. All nodes should have had their
-        // futures dropped already by the `FuturesUnordered` destructor above,
-        // so we're just pulling out nodes and dropping their refcounts.
-        unsafe {
-            loop {
-                match self.dequeue() {
-                    Dequeue::Empty => break,
-                    Dequeue::Inconsistent => abort("inconsistent in drop"),
-                    Dequeue::Data(ptr) => drop(Arc::from_raw(ptr)),
-                }
-            }
-        }
-    }
-}
-
-#[allow(missing_debug_implementations)]
-struct NodeToHandle<'a, T: 'a>(&'a Arc<Node<T>>);
-
-impl<'a, T> Clone for NodeToHandle<'a, T> {
-    fn clone(&self) -> Self {
-        NodeToHandle(self.0)
-    }
-}
-
-#[doc(hidden)]
-impl<'a, T> From<NodeToHandle<'a, T>> for LocalWaker {
-    fn from(handle: NodeToHandle<'a, T>) -> LocalWaker {
-        unsafe {
-            let ptr: Arc<Node<T>> = handle.0.clone();
-            let ptr: *mut ArcNode<T> = mem::transmute(ptr);
-            let ptr = mem::transmute(ptr as *mut UnsafeWake); // Hide lifetime
-            LocalWaker::new(NonNull::new(ptr).unwrap())
-        }
-    }
-}
-
-#[doc(hidden)]
-impl<'a, T> From<NodeToHandle<'a, T>> for Waker {
-    fn from(handle: NodeToHandle<'a, T>) -> Waker {
-        unsafe {
-            let ptr: Arc<Node<T>> = handle.0.clone();
-            let ptr: *mut ArcNode<T> = mem::transmute(ptr);
-            let ptr = mem::transmute(ptr as *mut UnsafeWake); // Hide lifetime
-            Waker::new(NonNull::new(ptr).unwrap())
-        }
-    }
-}
-
-struct ArcNode<T>(PhantomData<T>);
-
-// We should never touch `T` on any thread other than the one owning
-// `FuturesUnordered`, so this should be a safe operation.
-unsafe impl<T> Send for ArcNode<T> {}
-unsafe impl<T> Sync for ArcNode<T> {}
-
-unsafe impl<T> UnsafeWake for ArcNode<T> {
-    unsafe fn clone_raw(&self) -> Waker {
-        let me: *const ArcNode<T> = self;
-        let me: *const *const ArcNode<T> = &me;
-        let me = &*(me as *const Arc<Node<T>>);
-        NodeToHandle(me).into()
-    }
-
-    unsafe fn drop_raw(&self) {
-        let mut me: *const ArcNode<T> = self;
-        let me = &mut me as *mut *const ArcNode<T> as *mut Arc<Node<T>>;
-        ptr::drop_in_place(me);
-    }
-
-    unsafe fn wake(&self) {
-        let me: *const ArcNode<T> = self;
-        let me: *const *const ArcNode<T> = &me;
-        let me = me as *const Arc<Node<T>>;
-        Node::notify(&*me)
-    }
-}
-
-impl<T> Node<T> {
-    fn notify(me: &Arc<Node<T>>) {
-        let inner = match me.queue.upgrade() {
-            Some(inner) => inner,
-            None => return,
-        };
-
-        // It's our job to notify the node that it's ready to get polled,
-        // meaning that we need to enqueue it into the readiness queue. To
-        // do this we flag that we're ready to be queued, and if successful
-        // we then do the literal queueing operation, ensuring that we're
-        // only queued once.
-        //
-        // Once the node is inserted we be sure to notify the parent task,
-        // as it'll want to come along and pick up our node now.
-        //
-        // Note that we don't change the reference count of the node here,
-        // we're just enqueueing the raw pointer. The `FuturesUnordered`
-        // implementation guarantees that if we set the `queued` flag true that
-        // there's a reference count held by the main `FuturesUnordered` queue
-        // still.
-        let prev = me.queued.swap(true, SeqCst);
-        if !prev {
-            inner.enqueue(&**me);
-            inner.parent.wake();
-        }
-    }
-}
-
-impl<T> Drop for Node<T> {
-    fn drop(&mut self) {
-        // Currently a `Node<T>` is sent across all threads for any lifetime,
-        // regardless of `T`. This means that for memory safety we can't
-        // actually touch `T` at any time except when we have a reference to the
-        // `FuturesUnordered` itself.
-        //
-        // Consequently it *should* be the case that we always drop futures from
-        // the `FuturesUnordered` instance, but this is a bomb in place to catch
-        // any bugs in that logic.
-        unsafe {
-            if (*self.future.get()).is_some() {
-                abort("future still here when dropping");
-            }
-        }
-    }
-}
-
-fn abort(s: &str) -> ! {
-    struct DoublePanic;
-
-    impl Drop for DoublePanic {
-        fn drop(&mut self) {
-            panic!("panicking twice to abort the program");
-        }
-    }
-
-    let _bomb = DoublePanic;
-    panic!("{}", s);
 }
 
 /// Converts a list of futures into a `Stream` of results from the futures.
