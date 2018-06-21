@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
 use std::fmt;
-use std::marker::Unpin;
 
 use futures_core::*;
 use futures_core::task::{self, Wake, TaskObj};
@@ -96,7 +95,7 @@ impl ThreadPool {
     ///
     /// Note that the function will return when the provided future completes,
     /// even if some of the tasks it spawned are still running.
-    pub fn run<F: Future + Unpin>(&mut self, f: F) -> F::Output {
+    pub fn run<F: Future>(&mut self, f: F) -> F::Output {
         ::LocalPool::new().run_until(f, self)
     }
 }

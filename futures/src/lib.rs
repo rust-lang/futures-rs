@@ -123,9 +123,10 @@ pub mod executor {
     //! then spawn further tasks back onto the pool to complete its work:
     //!
     //! ```
+    //! # #![feature(pin, arbitrary_self_types, futures_api)]
     //! use futures::executor::ThreadPool;
     //! # use futures::future::{Future, lazy};
-    //! # let my_app: Box<Future<Output = i32>> = Box::new(lazy(|_| 42));
+    //! # let my_app = lazy(|_| 42);
     //!
     //! // assumping `my_app: Future`
     //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
@@ -193,8 +194,7 @@ pub mod future {
     //! immediate defined value.
 
     pub use futures_core::future::{
-        FutureOption, Future
-        // FutureResult, IntoFuture, err, ok, result
+        FutureOption, Future, TryFuture, ReadyFuture, ready
     };
     pub use futures_util::future::{
         Empty, Flatten, FlattenStream, Fuse, Inspect, IntoStream, Lazy,
