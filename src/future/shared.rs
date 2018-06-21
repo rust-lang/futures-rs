@@ -22,7 +22,7 @@ use std::cell::UnsafeCell;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
-use std::collections::HashMap;
+use std::vec::Vec;
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.
@@ -54,7 +54,7 @@ struct Inner<F: Future> {
 
 struct Notifier {
     state: AtomicUsize,
-    waiters: Mutex<HashMap<usize, Task>>,
+    waiters: Mutex<Vec<(usize, Task)>>,
 }
 
 const IDLE: usize = 0;
@@ -69,7 +69,7 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
             next_clone_id: AtomicUsize::new(1),
             notifier: Arc::new(Notifier {
                 state: AtomicUsize::new(IDLE),
-                waiters: Mutex::new(HashMap::new()),
+                waiters: Mutex::new(Vec::new()),
             }),
             future: UnsafeCell::new(Some(executor::spawn(future))),
             result: UnsafeCell::new(None),
@@ -102,7 +102,9 @@ impl<F> Shared<F> where F: Future {
 
     fn set_waiter(&mut self) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.insert(self.waiter, task::current());
+        if let Err(idx) = waiters.binary_search_by_key(&self.waiter, |candidate| candidate.0) {
+            waiters.insert(idx, (self.waiter, task::current()));
+        }
     }
 
     unsafe fn clone_result(&self) -> Result<SharedItem<F::Item>, SharedError<F::Error>> {
@@ -219,7 +221,9 @@ impl<F> Clone for Shared<F> where F: Future {
 impl<F> Drop for Shared<F> where F: Future {
     fn drop(&mut self) {
         let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.remove(&self.waiter);
+        if let Ok(idx) = waiters.binary_search_by_key(&self.waiter, |candidate| candidate.0) {
+            waiters.remove(idx);
+        }
     }
 }
 
@@ -227,7 +231,7 @@ impl Notify for Notifier {
     fn notify(&self, _id: usize) {
         self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
-        let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), HashMap::new());
+        let waiters = mem::replace(&mut *self.waiters.lock().unwrap(), Vec::new());
 
         for (_, waiter) in waiters {
             waiter.notify();
