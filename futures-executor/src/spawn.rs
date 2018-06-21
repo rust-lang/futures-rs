@@ -16,7 +16,13 @@ use std::marker::Unpin;
 ///
 /// See [`spawn`](spawn()) for details.
 #[derive(Debug)]
-pub struct Spawn<F>(Option<F>);
+pub struct Spawn<F> {
+    future: Option<F>
+}
+
+impl<F> Spawn<F> {
+    unsafe_unpinned!(future -> Option<F>);
+}
 
 /// Spawn a task onto the default executor.
 ///
@@ -24,17 +30,17 @@ pub struct Spawn<F>(Option<F>);
 /// onto the default executor. It does *not* provide any way to wait on task
 /// completion or extract a value from the task. That can either be done through
 /// a channel, or by using [`spawn_with_handle`](::spawn_with_handle).
-pub fn spawn<F>(f: F) -> Spawn<F>
+pub fn spawn<F>(future: F) -> Spawn<F>
     where F: Future<Output = ()> + 'static + Send
 {
-    Spawn(Some(f))
+    Spawn { future: Some(future) }
 }
 
-impl<F: Future<Output = ()> + Unpin + Send + 'static> Future for Spawn<F> {
+impl<F: Future<Output = ()> + Send + 'static> Future for Spawn<F> {
     type Output = ();
 
     fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
-        cx.spawn(self.0.take().unwrap());
+        cx.spawn(self.future().take().unwrap());
         Poll::Ready(())
     }
 }
@@ -44,7 +50,13 @@ impl<F: Future<Output = ()> + Unpin + Send + 'static> Future for Spawn<F> {
 ///
 /// See [`spawn_with_handle`](::spawn_with_handle) for details.
 #[derive(Debug)]
-pub struct SpawnWithHandle<F>(Option<F>);
+pub struct SpawnWithHandle<F> {
+    future: Option<F>
+}
+
+impl<F> SpawnWithHandle<F> {
+    unsafe_unpinned!(future -> Option<F>);
+}
 
 /// Spawn a task onto the default executor, yielding a
 /// [`JoinHandle`](::JoinHandle) to the spawned task.
@@ -98,11 +110,11 @@ pub struct SpawnWithHandle<F>(Option<F>);
 pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
     where F: Future + 'static + Send, F::Output: Send
 {
-    SpawnWithHandle(Some(f))
+    SpawnWithHandle { future: Some(f) }
 }
 
 impl<F> Future for SpawnWithHandle<F>
-    where F: Future + Unpin + Send + 'static,
+    where F: Future + Send + 'static,
           F::Output: Send,
 {
     type Output = JoinHandle<F::Output>;
@@ -114,7 +126,7 @@ impl<F> Future for SpawnWithHandle<F>
         // an alias for an implementation of the `UnwindSafe` trait but we can't
         // express that in the standard library right now.
         let sender = MySender {
-            fut: AssertUnwindSafe(self.0.take().unwrap()).catch_unwind(),
+            future: AssertUnwindSafe(self.future().take().unwrap()).catch_unwind(),
             tx: Some(tx),
             keep_running_flag: keep_running_flag.clone(),
         };
@@ -128,11 +140,17 @@ impl<F> Future for SpawnWithHandle<F>
 }
 
 struct MySender<F, T> {
-    fut: F,
+    future: F,
     tx: Option<Sender<T>>,
     keep_running_flag: Arc<AtomicBool>,
 }
-impl<F, T> Unpin for MySender<F, T> {} // ToDo: May I do this?
+impl<F: Unpin, T> Unpin for MySender<F, T> {}
+
+impl<F: Future, T> MySender<F, T> {
+    unsafe_pinned!(future -> F);
+    unsafe_unpinned!(tx -> Option<Sender<T>>);
+    unsafe_unpinned!(keep_running_flag -> Arc<AtomicBool>);
+}
 
 /// The type of future returned from the `ThreadPool::spawn` function, which
 /// proxies the futures running on the thread pool.
@@ -170,25 +188,25 @@ impl<T: Send + 'static> Future for JoinHandle<T> {
     }
 }
 
-impl<F: Future + Unpin> Future for MySender<F, F::Output> {
+impl<F: Future> Future for MySender<F, F::Output> {
     type Output = ();
 
     fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
-        if let Poll::Ready(_) = self.tx.as_mut().unwrap().poll_cancel(cx) {
-            if !self.keep_running_flag.load(Ordering::SeqCst) {
+        if let Poll::Ready(_) = self.tx().as_mut().unwrap().poll_cancel(cx) {
+            if !self.keep_running_flag().load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Poll::Ready(())
             }
         }
 
-        let output = match self.fut.poll_unpin(cx) {
+        let output = match self.future().poll(cx) {
             Poll::Ready(output) => output,
             Poll::Pending => return Poll::Pending,
         };
 
         // if the receiving end has gone away then that's ok, we just ignore the
         // send error here.
-        drop(self.tx.take().unwrap().send(output));
+        drop(self.tx().take().unwrap().send(output));
         Poll::Ready(())
     }
 }
