@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use futures_core::{Stream, Future, Poll, CoreFutureExt};
+use futures_core::{Stream, Future, Poll};
 use futures_core::task::{self, AtomicWaker, LocalWaker};
 
 mod abort;
@@ -47,7 +47,7 @@ pub struct FuturesUnordered<F> {
 
 unsafe impl<T: Send> Send for FuturesUnordered<T> {}
 unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
-impl<T: Unpin> Unpin for FuturesUnordered<T> {}
+impl<T> Unpin for FuturesUnordered<T> {}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
@@ -73,7 +73,7 @@ impl<T: Unpin> Unpin for FuturesUnordered<T> {}
 // isn't currently inserted.
 
 impl<T> FuturesUnordered<T>
-    where T: Future + Unpin
+    where T: Future
 {
     /// Constructs a new, empty `FuturesUnordered`
     ///
@@ -199,6 +199,8 @@ impl<T> FuturesUnordered<T> {
 
     /// Remove the node from the linked list tracking all nodes currently
     /// managed by `FuturesUnordered`.
+    /// This function is unsafe because it has be guaranteed that `node` is a
+    /// valid pointer.
     unsafe fn unlink(&mut self, node: *const Node<T>) -> Arc<Node<T>> {
         let node = Arc::from_raw(node);
         let next = *node.next_all.get();
@@ -221,7 +223,7 @@ impl<T> FuturesUnordered<T> {
 }
 
 impl<T> Stream for FuturesUnordered<T>
-    where T: Future + Unpin
+    where T: Future
 {
     type Item = T::Output;
 
@@ -230,6 +232,7 @@ impl<T> Stream for FuturesUnordered<T>
         self.inner.parent.register(cx.waker());
 
         loop {
+            // Safety: &mut self guarantees mutual exclusion
             let node = match unsafe { self.inner.dequeue() } {
                 Dequeue::Empty => {
                     if self.is_empty() {
@@ -250,89 +253,96 @@ impl<T> Stream for FuturesUnordered<T>
 
             debug_assert!(node != self.inner.stub());
 
-            unsafe {
-                let mut future = match (*(*node).future.get()).take() {
-                    Some(future) => future,
+            // Safety: Node is a valid pointer. We are the only thread that
+            // accesses the `UnsafeCell` that contains the future
+            let future = match unsafe { &mut *(*node).future.get() } {
+                Some(future) => future,
 
-                    // If the future has already gone away then we're just
-                    // cleaning out this node. See the comment in
-                    // `release_node` for more information, but we're basically
-                    // just taking ownership of our reference count here.
-                    None => {
-                        let node = Arc::from_raw(node);
-                        assert!((*node.next_all.get()).is_null());
-                        assert!((*node.prev_all.get()).is_null());
-                        continue
-                    }
-                };
-
-                // Unset queued flag... this must be done before
-                // polling. This ensures that the future gets
-                // rescheduled if it is notified **during** a call
-                // to `poll`.
-                let prev = (*node).queued.swap(false, SeqCst);
-                assert!(prev);
-
-                // We're going to need to be very careful if the `poll`
-                // function below panics. We need to (a) not leak memory and
-                // (b) ensure that we still don't have any use-after-frees. To
-                // manage this we do a few things:
-                //
-                // * This "bomb" here will call `release_node` if dropped
-                //   abnormally. That way we'll be sure the memory management
-                //   of the `node` is managed correctly.
-                // * The future was extracted above (taken ownership). That way
-                //   if it panics we're guaranteed that the future is
-                //   dropped on this thread and doesn't accidentally get
-                //   dropped on a different thread (bad).
-                // * We unlink the node from our internal queue to preemptively
-                //   assume it'll panic, in which case we'll want to discard it
-                //   regardless.
-                struct Bomb<'a, T: 'a> {
-                    queue: &'a mut FuturesUnordered<T>,
-                    node: Option<Arc<Node<T>>>,
+                // If the future has already gone away then we're just
+                // cleaning out this node. See the comment in
+                // `release_node` for more information, but we're basically
+                // just taking ownership of our reference count here.
+                None => {
+                    // Saftey: `release_node` uses `mem::forget`
+                    let node = unsafe { Arc::from_raw(node) };
+                    assert!(node.next_all.get().is_null());
+                    assert!(node.prev_all.get().is_null());
+                    continue
                 }
-                impl<'a, T> Drop for Bomb<'a, T> {
-                    fn drop(&mut self) {
-                        if let Some(node) = self.node.take() {
-                            self.queue.release_node(node);
-                        }
-                    }
-                }
-                let mut bomb = Bomb {
-                    node: Some(self.unlink(node)),
-                    queue: &mut *self,
-                };
+            };
 
-                // Poll the underlying future with the appropriate `notify`
-                // implementation. This is where a large bit of the unsafety
-                // starts to stem from internally. The `notify` instance itself
-                // is basically just our `Arc<Node<T>>` and tracks the mpsc
-                // queue of ready futures.
-                //
-                // Critically though `Node<T>` won't actually access `T`, the
-                // future, while it's floating around inside of `Task`
-                // instances. These structs will basically just use `T` to size
-                // the internal allocation, appropriately accessing fields and
-                // deallocating the node if need be.
-                let res = {
-                    let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                    let local_waker = LocalWaker::from(notify);
-                    let mut cx = cx.with_waker(&local_waker);
-                    future.poll_unpin(&mut cx)
-                };
+            // Safety: `node` is a valid pointer
+            let node = unsafe { self.unlink(node) };
 
-                let ret = match res {
-                    Poll::Pending => {
-                        let node = bomb.node.take().unwrap();
-                        *node.future.get() = Some(future);
-                        bomb.queue.link(node);
-                        continue
-                    }
-                    Poll::Ready(result) => Poll::Ready(Some(result)),
-                };
-                return ret
+            // Unset queued flag... this must be done before
+            // polling. This ensures that the future gets
+            // rescheduled if it is notified **during** a call
+            // to `poll`.
+            let prev = node.queued.swap(false, SeqCst);
+            assert!(prev);
+
+            // We're going to need to be very careful if the `poll`
+            // function below panics. We need to (a) not leak memory and
+            // (b) ensure that we still don't have any use-after-frees. To
+            // manage this we do a few things:
+            //
+            // * When the "bomb" is dropped abnormally, it will call
+            //   `release_node`. That way we'll be sure the memory management
+            //   of the `node` is managed correctly. In particular
+            //   `release_node` will drop the future. This ensures that it is
+            //   dropped on this thread and not accidentally on a different
+            //   thread (bad).
+            // * We unlink the node from our internal queue to preemptively
+            //   assume it'll panic, in which case we'll want to discard it
+            //   regardless.
+            struct Bomb<'a, T: 'a> {
+                queue: &'a mut FuturesUnordered<T>,
+                node: Option<Arc<Node<T>>>,
             }
+
+            impl<'a, T> Drop for Bomb<'a, T> {
+                fn drop(&mut self) {
+                    if let Some(node) = self.node.take() {
+                        self.queue.release_node(node);
+                    }
+                }
+            }
+
+            let mut bomb = Bomb {
+                node: Some(node),
+                queue: &mut *self,
+            };
+
+            // Poll the underlying future with the appropriate `notify`
+            // implementation. This is where a large bit of the unsafety
+            // starts to stem from internally. The `notify` instance itself
+            // is basically just our `Arc<Node<T>>` and tracks the mpsc
+            // queue of ready futures.
+            //
+            // Critically though `Node<T>` won't actually access `T`, the
+            // future, while it's floating around inside of `Task`
+            // instances. These structs will basically just use `T` to size
+            // the internal allocation, appropriately accessing fields and
+            // deallocating the node if need be.
+            let res = {
+                let notify = NodeToHandle(bomb.node.as_ref().unwrap());
+                let local_waker = LocalWaker::from(notify);
+                let mut cx = cx.with_waker(&local_waker);
+
+                // Safety: We won't move the future ever again
+                let future = unsafe { PinMut::new_unchecked(future) };
+                future.poll(&mut cx)
+            };
+
+            let ret = match res {
+                Poll::Pending => {
+                    let node = bomb.node.take().unwrap();
+                    bomb.queue.link(node);
+                    continue
+                }
+                Poll::Ready(result) => Poll::Ready(Some(result)),
+            };
+            return ret
         }
     }
 }
@@ -373,7 +383,7 @@ impl<T> Drop for FuturesUnordered<T> {
     }
 }
 
-impl<F: Future + Unpin> FromIterator<F> for FuturesUnordered<F> {
+impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
     fn from_iter<T>(iter: T) -> Self
     where
         T: IntoIterator<Item = F>,
@@ -396,7 +406,7 @@ impl<F: Future + Unpin> FromIterator<F> for FuturesUnordered<F> {
 pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<I::Item>
 where
     I: IntoIterator,
-    I::Item: Future + Unpin,
+    I::Item: Future,
 {
     futures.into_iter().collect()
 }
