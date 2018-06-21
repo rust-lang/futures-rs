@@ -76,6 +76,9 @@ struct Inner<T> {
 ///
 /// Each half can be separately owned and sent across tasks.
 ///
+/// One-shot channel is used for creating a pending future and completing it manually
+/// later. In other langauges, this functionality is also known under the name of "promise".
+///
 /// # Examples
 ///
 /// ```
