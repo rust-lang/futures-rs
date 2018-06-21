@@ -69,43 +69,17 @@ impl<F> SpawnWithHandle<F> {
 /// # Examples
 ///
 /// ```
+/// # #![feature(pin, arbitrary_self_types, futures_api)]
 /// # extern crate futures;
 /// #
 /// use futures::prelude::*;
 /// use futures::future;
 /// use futures::executor::{block_on, spawn_with_handle};
 ///
-/// # fn main() {
-/// # fn inner() -> Result<(), Never> {
-/// # Ok({
-/// let future = future::ok::<u32, Never>(1);
-/// let join_handle = block_on(spawn_with_handle(future))?;
+/// let future = future::ready::<u32>(1);
+/// let join_handle = block_on(spawn_with_handle(future));
 /// let result = block_on(join_handle);
-/// assert_eq!(result, Ok(1));
-/// # })
-/// # }
-/// # inner().unwrap();
-/// # }
-/// ```
-///
-/// ```
-/// # extern crate futures;
-/// #
-/// use futures::prelude::*;
-/// use futures::future;
-/// use futures::executor::{block_on, spawn_with_handle};
-///
-/// # fn main() {
-/// # fn inner() -> Result<(), Never> {
-/// # Ok({
-/// let future = future::err::<Never, &str>("boom");
-/// let join_handle = block_on(spawn_with_handle(future))?;
-/// let result = block_on(join_handle);
-/// assert_eq!(result, Err("boom"));
-/// # })
-/// # }
-/// # inner().unwrap();
-/// # }
+/// assert_eq!(result, 1);
 /// ```
 pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
     where F: Future + 'static + Send, F::Output: Send

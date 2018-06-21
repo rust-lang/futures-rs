@@ -125,14 +125,15 @@ impl LocalPool {
     /// the `LocalPool` by using its executor handle:
     ///
     /// ```
+    /// # #![feature(pin, arbitrary_self_types, futures_api)]
     /// # extern crate futures;
     /// # use futures::executor::LocalPool;
-    /// # use futures::future::{Future, ok};
+    /// # use futures::future::ready;
     ///
     /// # fn main() {
     /// let mut pool = LocalPool::new();
     /// let mut exec = pool.executor();
-    /// # let my_app: Box<Future<Item = (), Error = ()>> = Box::new(ok(()));
+    /// # let my_app  = ready(());
     ///
     /// // run tasks in the pool until `my_app` completes, by default spawning
     /// // further tasks back onto the pool
