@@ -1,10 +1,10 @@
 use std::prelude::v1::*;
 
 use std::cell::{RefCell};
-use std::rc::{Rc, Weak};
 use std::marker::Unpin;
+use std::rc::{Rc, Weak};
 
-use futures_core::{Future, CoreFutureExt, Poll, Stream};
+use futures_core::{Future, Poll, Stream};
 use futures_core::task::{Context, LocalWaker, TaskObj, local_waker_from_nonlocal};
 use futures_core::executor::{Executor, SpawnObjError, SpawnErrorKind};
 use futures_util::stream::FuturesUnordered;
@@ -127,15 +127,18 @@ impl LocalPool {
     /// be inert after the call completes, but can continue with further use of
     /// `run` or `run_until`. While the function is running, however, all tasks
     /// in the pool will try to make progress.
-    pub fn run_until<F, Exec>(&mut self, mut f: F, exec: &mut Exec) -> F::Output
-        where F: Future + Unpin, Exec: Executor + Sized
+    pub fn run_until<F, Exec>(&mut self, future: F, exec: &mut Exec)
+        -> F::Output
+        where F: Future, Exec: Executor + Sized
     {
+        pin_mut!(future);
+
         run_executor(|local_waker| {
             {
                 let mut main_cx = Context::new(local_waker, exec);
 
                 // if our main task is done, so are we
-                match f.poll_unpin(&mut main_cx) {
+                match future.reborrow().poll(&mut main_cx) {
                     Poll::Ready(output) => return Poll::Ready(output),
                     _ => {}
                 }
@@ -148,8 +151,10 @@ impl LocalPool {
 
     // Make maximal progress on the entire pool of spawned task, returning `Ready`
     // if the pool is empty and `Pending` if no further progress can be made.
-    fn poll_pool<Exec>(&mut self, local_waker: &LocalWaker, exec: &mut Exec) -> Poll<()>
-        where Exec: Executor + Sized {
+    fn poll_pool<Exec>(&mut self, local_waker: &LocalWaker, exec: &mut Exec)
+        -> Poll<()>
+        where Exec: Executor + Sized
+    {
         // state for the FuturesUnordered, which will never be used
         let mut pool_cx = Context::new(local_waker, exec);
 
@@ -192,7 +197,7 @@ lazy_static! {
 ///
 /// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
 /// spawned tasks.
-pub fn block_on<F: Future + Unpin>(f: F) -> F::Output {
+pub fn block_on<F: Future>(f: F) -> F::Output {
     let mut pool = LocalPool::new();
     pool.run_until(f, &mut GLOBAL_POOL.clone())
 }
@@ -216,7 +221,7 @@ impl<S: Stream> BlockingStream<S> {
     }
 }
 
-impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
+impl<S: Stream> Iterator for BlockingStream<S> where S: Unpin {
     type Item = S::Item;
     fn next(&mut self) -> Option<Self::Item> {
         let s = self.stream.take().expect("BlockingStream shouldn't be empty");
