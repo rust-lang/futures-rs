@@ -29,7 +29,7 @@ impl<I> Unpin for Iter<I> {}
 /// use futures_executor::block_on;
 ///
 /// # fn main() {
-/// let mut stream = stream::iter_ok::<_, ()>(vec![17, 19]);
+/// let mut stream = stream::iter(vec![17, 19]);
 /// assert_eq!(Ok(vec![17, 19]), block_on(stream.collect()));
 /// # }
 /// ```
