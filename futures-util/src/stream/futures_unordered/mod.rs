@@ -15,11 +15,11 @@ use futures_core::{Stream, Future, Poll};
 use futures_core::task::{self, AtomicWaker};
 
 mod abort;
-mod inner;
+mod ready_to_run_queue;
 mod iter_mut;
 mod node;
 
-use self::inner::{Inner, Dequeue};
+use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
 use self::iter_mut::IterMut;
 use self::node::Node;
 
@@ -40,7 +40,7 @@ use self::node::Node;
 /// an empty set with the `FuturesUnordered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<F> {
-    inner: Arc<Inner<F>>,
+    ready_to_run_queue: Arc<ReadyToRunQueue<F>>,
     len: usize,
     head_all: *const Node<F>,
 }
@@ -85,22 +85,22 @@ impl<T> FuturesUnordered<T>
             future: UnsafeCell::new(None),
             next_all: UnsafeCell::new(ptr::null()),
             prev_all: UnsafeCell::new(ptr::null()),
-            next_readiness: AtomicPtr::new(ptr::null_mut()),
+            next_ready_to_run: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
-            queue: Weak::new(),
+            ready_to_run_queue: Weak::new(),
         });
         let stub_ptr = &*stub as *const Node<T>;
-        let inner = Arc::new(Inner {
+        let ready_to_run_queue = Arc::new(ReadyToRunQueue {
             parent: AtomicWaker::new(),
-            head_readiness: AtomicPtr::new(stub_ptr as *mut _),
-            tail_readiness: UnsafeCell::new(stub_ptr),
+            head: AtomicPtr::new(stub_ptr as *mut _),
+            tail: UnsafeCell::new(stub_ptr),
             stub: stub,
         });
 
         FuturesUnordered {
             len: 0,
             head_all: ptr::null_mut(),
-            inner: inner,
+            ready_to_run_queue: ready_to_run_queue,
         }
     }
 }
@@ -129,9 +129,9 @@ impl<T> FuturesUnordered<T> {
             future: UnsafeCell::new(Some(future)),
             next_all: UnsafeCell::new(ptr::null_mut()),
             prev_all: UnsafeCell::new(ptr::null_mut()),
-            next_readiness: AtomicPtr::new(ptr::null_mut()),
+            next_ready_to_run: AtomicPtr::new(ptr::null_mut()),
             queued: AtomicBool::new(true),
-            queue: Arc::downgrade(&self.inner),
+            ready_to_run_queue: Arc::downgrade(&self.ready_to_run_queue),
         });
 
         // Right now our node has a strong reference count of 1. We transfer
@@ -143,7 +143,7 @@ impl<T> FuturesUnordered<T> {
         // e.g. getting its unpark notifications going to us tracking which
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
-        self.inner.enqueue(ptr);
+        self.ready_to_run_queue.enqueue(ptr);
     }
 
     /// Returns an iterator that allows modifying each future in the set.
@@ -232,12 +232,12 @@ impl<T> Stream for FuturesUnordered<T>
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.
-        self.inner.parent.register(cx.waker());
+        self.ready_to_run_queue.parent.register(cx.waker());
 
         loop {
             // Safety: &mut self guarantees the mutual exclusion `dequeue`
             // expects
-            let node = match unsafe { self.inner.dequeue() } {
+            let node = match unsafe { self.ready_to_run_queue.dequeue() } {
                 Dequeue::Empty => {
                     if self.is_empty() {
                         return Poll::Ready(None);
@@ -255,7 +255,7 @@ impl<T> Stream for FuturesUnordered<T>
                 Dequeue::Data(node) => node,
             };
 
-            debug_assert!(node != self.inner.stub());
+            debug_assert!(node != self.ready_to_run_queue.stub());
 
             // Safety:
             // - Node is a valid pointer.
@@ -376,7 +376,7 @@ impl<T> Drop for FuturesUnordered<T> {
         // mpsc queue. None of those nodes, however, have futures associated
         // with them so they're safe to destroy on any thread. At this point
         // the `FuturesUnordered` struct, the owner of the one strong reference
-        // to `Inner<T>` will drop the strong reference. At that point
+        // to `MPSCQueue<T>` will drop the strong reference. At that point
         // whichever thread releases the strong refcount last (be it this
         // thread or some other thread as part of an `upgrade`) will clear out
         // the mpsc queue and free all remaining nodes.

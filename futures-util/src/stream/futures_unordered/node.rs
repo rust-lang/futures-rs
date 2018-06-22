@@ -8,7 +8,7 @@ use std::sync::atomic::Ordering::SeqCst;
 
 use futures_core::task::{UnsafeWake, Waker, LocalWaker};
 
-use super::Inner;
+use super::ReadyToRunQueue;
 use super::abort::abort;
 
 pub(super) struct Node<T> {
@@ -22,10 +22,10 @@ pub(super) struct Node<T> {
     pub(super) prev_all: UnsafeCell<*const Node<T>>,
 
     // Next pointer in readiness queue
-    pub(super) next_readiness: AtomicPtr<Node<T>>,
+    pub(super) next_ready_to_run: AtomicPtr<Node<T>>,
 
     // Queue that we'll be enqueued to when notified
-    pub(super) queue: Weak<Inner<T>>,
+    pub(super) ready_to_run_queue: Weak<ReadyToRunQueue<T>>,
 
     // Whether or not this node is currently in the mpsc queue.
     pub(super) queued: AtomicBool,
@@ -33,7 +33,7 @@ pub(super) struct Node<T> {
 
 impl<T> Node<T> {
     pub(super) fn wake(self: &Arc<Node<T>>) {
-        let inner = match self.queue.upgrade() {
+        let inner = match self.ready_to_run_queue.upgrade() {
             Some(inner) => inner,
             None => return,
         };
