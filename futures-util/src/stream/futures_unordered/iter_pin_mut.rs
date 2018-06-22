@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::marker::{PhantomData, Unpin};
 use std::mem::PinMut;
 
 use super::FuturesUnordered;
@@ -11,6 +11,8 @@ pub struct IterPinMut<'a, F: 'a> {
     pub(super) len: usize,
     pub(super) _marker: PhantomData<&'a mut FuturesUnordered<F>>
 }
+
+impl<'a, F: Unpin> Unpin for IterPinMut<'a, F> {}
 
 impl<'a, F> Iterator for IterPinMut<'a, F> {
     type Item = PinMut<'a, F>;
