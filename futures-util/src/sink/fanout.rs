@@ -79,6 +79,7 @@ impl<A, B> Sink for Fanout<A, B>
     }
 }
 
+/* ToDo Reenable test: Disabled because `StreamExt::forward` is not implemented
 #[cfg(test)]
 #[cfg(feature = "std")]
 mod tests {
@@ -107,3 +108,4 @@ mod tests {
         assert_eq!(lists, Ok((&*expected, &*expected)));
     }
 }
+*/
