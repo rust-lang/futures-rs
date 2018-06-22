@@ -12,7 +12,7 @@ use std::sync::{Arc, Weak};
 use std::usize;
 
 use futures_core::{Stream, Future, Poll};
-use futures_core::task::{self, AtomicWaker, LocalWaker};
+use futures_core::task::{self, AtomicWaker};
 
 mod abort;
 mod inner;
@@ -21,7 +21,7 @@ mod node;
 
 use self::inner::{Inner, Dequeue};
 use self::iter_mut::IterMut;
-use self::node::{Node, NodeToHandle};
+use self::node::Node;
 
 /// A set of `Future`s which may complete in any order.
 ///
@@ -325,8 +325,7 @@ impl<T> Stream for FuturesUnordered<T>
             // the internal allocation, appropriately accessing fields and
             // deallocating the node if need be.
             let res = {
-                let notify = NodeToHandle(bomb.node.as_ref().unwrap());
-                let local_waker = LocalWaker::from(notify);
+                let local_waker = bomb.node.as_ref().unwrap().local_waker();
                 let mut cx = cx.with_waker(&local_waker);
 
                 // Safety: We won't move the future ever again
