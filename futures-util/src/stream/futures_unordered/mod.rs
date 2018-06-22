@@ -249,7 +249,7 @@ impl<T> Stream for FuturesUnordered<T>
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    cx.waker().wake();
+                    cx.local_waker().wake();
                     return Poll::Pending;
                 }
                 Dequeue::Data(node) => node,
