@@ -17,10 +17,12 @@ use futures_core::task::{self, AtomicWaker};
 mod abort;
 mod ready_to_run_queue;
 mod iter_mut;
+mod iter_pin_mut;
 mod node;
 
 use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
 use self::iter_mut::IterMut;
+use self::iter_pin_mut::IterPinMut;
 use self::node::Node;
 
 /// A set of `Future`s which may complete in any order.
@@ -149,6 +151,15 @@ impl<T> FuturesUnordered<T> {
     /// Returns an iterator that allows modifying each future in the set.
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut {
+            node: self.head_all,
+            len: self.len,
+            _marker: PhantomData
+        }
+    }
+
+    /// Returns an iterator that allows modifying each future in the set.
+    pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, T> {
+        IterPinMut {
             node: self.head_all,
             len: self.len,
             _marker: PhantomData
