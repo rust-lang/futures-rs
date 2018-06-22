@@ -9,6 +9,9 @@ pub use std::task::{Wake, local_waker, local_waker_from_nonlocal};
 
 pub use core::task::Context;
 
+mod poll;
+pub use self::poll::Poll;
+
 #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 mod atomic_waker;
 #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
