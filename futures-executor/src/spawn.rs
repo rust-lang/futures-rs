@@ -78,8 +78,8 @@ impl<F> SpawnWithHandle<F> {
 ///
 /// let future = future::ready::<u32>(1);
 /// let join_handle = block_on(spawn_with_handle(future));
-/// let result = block_on(join_handle);
-/// assert_eq!(result, 1);
+/// let output = block_on(join_handle);
+/// assert_eq!(output, 1);
 /// ```
 pub fn spawn_with_handle<F>(f: F) -> SpawnWithHandle<F>
     where F: Future + 'static + Send, F::Output: Send

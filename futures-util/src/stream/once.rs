@@ -20,18 +20,13 @@ pub struct Once<F> {
 /// # extern crate futures;
 /// # extern crate futures_executor;
 /// use futures::prelude::*;
+/// use futures::future;
+/// use futures::executor::block_on;
 /// use futures::stream;
-/// use futures_executor::block_on;
 ///
-/// # fn main() {
-/// let mut stream = stream::once::<Result<(), _>>(Err(17));
-/// let collected: Result<Vec<_>, _> = block_on(stream.collect());
-/// assert_eq!(collected, Err(17));
-///
-/// let mut stream = stream::once::<Result<_, ()>>(Ok(92));
-/// let collected: Result<Vec<_>, _> = block_on(stream.collect());
-/// assert_eq!(collected, Ok(vec![92]));
-/// # }
+/// let mut stream = stream::once(future::ready(17));
+/// let collected = block_on(stream.collect::<Vec<i32>>());
+/// assert_eq!(collected, vec![17]);
 /// ```
 pub fn once<F: Future>(item: F) -> Once<F> {
     Once { fut: Some(item) }

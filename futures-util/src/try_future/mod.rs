@@ -59,32 +59,26 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let future = future::ok::<u32, u32>(1);
-    /// let new_future = future.map(|x| x + 3);
+    /// let future = future::ready::<Result<i32, i32>>(Ok(1));
+    /// let new_future = future.map_ok(|x| x + 3);
     /// assert_eq!(block_on(new_future), Ok(4));
-    /// # }
     /// ```
     ///
-    /// Calling `map` on an errored `Future` has no effect:
+    /// Calling `map_ok` on an errored `Future` has no effect:
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let future = future::err::<u32, u32>(1);
-    /// let new_future = future.map(|x| x + 3);
+    /// let future = future::ready::<Result<i32, i32>>(Err(1));
+    /// let new_future = future.map_ok(|x| x + 3);
     /// assert_eq!(block_on(new_future), Err(1));
-    /// # }
     /// ```
     fn map_ok<U, F>(self, f: F) -> MapOk<Self, F>
         where F: FnOnce(Self::Item) -> U,
@@ -111,32 +105,26 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::future::err;
+    /// use futures::future;
     /// use futures::prelude::*;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let future = err::<u32, u32>(1);
+    /// let future = future::ready::<Result<i32, i32>>(Err(1));
     /// let new_future = future.map_err(|x| x + 3);
     /// assert_eq!(block_on(new_future), Err(4));
-    /// # }
     /// ```
     ///
     /// Calling `map_err` on a successful `Future` has no effect:
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::future::ok;
+    /// use futures::future;
     /// use futures::prelude::*;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let future = ok::<u32, u32>(1);
+    /// let future = future::ready::<Result<i32, i32>>(Ok(1));
     /// let new_future = future.map_err(|x| x + 3);
     /// assert_eq!(block_on(new_future), Ok(1));
-    /// # }
     /// ```
     fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
@@ -163,10 +151,8 @@ pub trait TryFutureExt: TryFuture {
     /// use futures::prelude::*;
     /// use futures::future;
     ///
-    /// # fn main() {
-    /// let future_with_err_u8 = future::err::<(), u8>(1);
-    /// let future_with_err_u32 = future_with_err_u8.err_into::<u32>();
-    /// # }
+    /// let future_with_err_u8 = future::ready::<Result<(), u8>>(Err(1));
+    /// let future_with_err_i32 = future_with_err_u8.err_into::<i32>();
     /// ```
     fn err_into<E>(self) -> ErrInto<Self, E>
         where Self: Sized,
@@ -197,19 +183,17 @@ pub trait TryFutureExt: TryFuture {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, TryFuture};
+    /// use futures::future::{self, ReadyFuture};
     ///
-    /// # fn main() {
-    /// let future_of_1 = future::ok::<u32, u32>(1);
+    /// let future_of_1 = future::ready::<Result<i32, i32>>(Ok(1));
     /// let future_of_4 = future_of_1.and_then(|x| {
-    ///     Ok(x + 3)
+    ///     future::ready(Ok(x + 3))
     /// });
     ///
-    /// let future_of_err_1 = future::err::<u32, u32>(1);
-    /// future_of_err_1.and_then(|_| -> TryFuture<u32, u32> {
+    /// let future_of_err_1 = future::ready::<Result<i32, i32>>(Err(1));
+    /// future_of_err_1.and_then(|_| -> ReadyFuture<Result<(), i32>> {
     ///     panic!("should not be called in case of an error");
     /// });
-    /// # }
     /// ```
     fn and_then<B, F>(self, f: F) -> AndThen<Self, B, F>
         where F: FnOnce(Self::Item) -> B,
@@ -241,19 +225,17 @@ pub trait TryFutureExt: TryFuture {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, TryFuture};
+    /// use futures::future::{self, ReadyFuture};
     ///
-    /// # fn main() {
-    /// let future_of_err_1 = future::err::<u32, u32>(1);
-    /// let future_of_4 = future_of_err_1.or_else(|x| -> Result<u32, u32> {
-    ///     Ok(x + 3)
+    /// let future_of_err_1 = future::ready::<Result<i32, i32>>(Err(1));
+    /// let future_of_4 = future_of_err_1.or_else(|x| {
+    ///     future::ready::<Result<i32, ()>>(Ok(x + 3))
     /// });
     ///
-    /// let future_of_1 = future::ok::<u32, u32>(1);
-    /// future_of_1.or_else(|_| -> TryFuture<u32, u32> {
+    /// let future_of_1 = future::ready::<Result<i32, i32>>(Ok(1));
+    /// future_of_1.or_else(|_| -> ReadyFuture<Result<i32, ()>> {
     ///     panic!("should not be called in case of success");
     /// });
-    /// # }
     /// ```
     fn or_else<B, F>(self, f: F) -> OrElse<Self, B, F>
         where F: FnOnce(Self::Error) -> B,
@@ -300,8 +282,7 @@ pub trait TryFutureExt: TryFuture {
     ///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
     ///         }
     ///     }))
-    /// }
-    /// # fn main() {}
+    /// }}
     /// ```
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture, Self: Sized
@@ -326,14 +307,12 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let a = future::ok::<u32, u32>(1);
-    /// let b = future::ok::<u32, u32>(2);
+    /// let a = future::ok::<i32, i32>(1);
+    /// let b = future::ok::<i32, i32>(2);
     /// let pair = a.join(b);
     ///
     /// assert_eq!(block_on(pair), Ok((1, 2)));
@@ -345,14 +324,12 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let a = future::ok::<u32, u32>(1);
-    /// let b = future::err::<u32, u32>(2);
+    /// let a = future::ok::<i32, i32>(1);
+    /// let b = future::err::<i32, i32>(2);
     /// let pair = a.join(b);
     ///
     /// assert_eq!(block_on(pair), Err(2));
@@ -410,16 +387,13 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
-    /// let future = future::err::<(), &str>("something went wrong");
-    /// let new_future = future.recover::<Never, _>(|_| ());
-    /// assert_eq!(block_on(new_future), Ok(()));
-    /// # }
+    /// let future = future::ready::<Result<(), &str>>(Err("Boom!"));
+    /// let new_future = future.recover(|_| ());
+    /// assert_eq!(block_on(new_future), ());
     /// ```
     fn recover<F>(self, f: F) -> Recover<Self, F>
         where Self: Sized,

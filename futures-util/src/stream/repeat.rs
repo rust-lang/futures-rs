@@ -26,10 +26,8 @@ pub struct Repeat<T> {
 /// use futures::stream;
 /// use futures_executor::block_on;
 ///
-/// # fn main() {
-/// let mut stream = stream::repeat::<_, bool>(10);
-/// assert_eq!(Ok(vec![10, 10, 10]), block_on(stream.take(3).collect()));
-/// # }
+/// let mut stream = stream::repeat(9);
+/// assert_eq!(vec![9, 9, 9], block_on(stream.take(3).collect::<Vec<i32>>()));
 /// ```
 pub fn repeat<T>(item: T) -> Repeat<T>
     where T: Clone
