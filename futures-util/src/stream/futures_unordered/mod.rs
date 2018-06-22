@@ -149,7 +149,7 @@ impl<T> FuturesUnordered<T> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_mut(&mut self) -> IterMut<T> {
+    pub fn iter_mut(&mut self) -> IterMut<T> where T: Unpin {
         IterMut {
             node: self.head_all,
             len: self.len,

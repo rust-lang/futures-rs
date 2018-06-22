@@ -4,7 +4,7 @@ use super::node::Node;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterMut<'a, F: 'a> {
+pub struct IterMut<'a, F: 'a + Unpin> {
     pub(super) node: *const Node<F>,
     pub(super) len: usize,
     pub(super) _marker: PhantomData<&'a mut FuturesUnordered<F>>
