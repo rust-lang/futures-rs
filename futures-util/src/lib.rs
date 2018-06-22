@@ -75,11 +75,3 @@ pub use stream::StreamExt;
 
 pub mod sink;
 pub use sink::SinkExt;
-
-pub mod prelude {
-    //! Prelude containing the extension traits, which add functionality to
-    //! existing asynchronous types.
-    // pub use {FutureExt, StreamExt, SinkExt};
-    // #[cfg(feature = "std")]
-    // pub use {AsyncReadExt, AsyncWriteExt};
-}

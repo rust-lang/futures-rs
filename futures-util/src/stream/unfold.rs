@@ -40,21 +40,18 @@ use futures_core::task;
 /// use futures::future;
 /// use futures_executor::block_on;
 ///
-/// # fn main() {
 /// let mut stream = stream::unfold(0, |state| {
 ///     if state <= 2 {
 ///         let next_state = state + 1;
 ///         let yielded = state  * 2;
-///         let fut = future::ok::<_, u32>((yielded, next_state));
-///         Some(fut)
+///         future::ready(Some((yielded, next_state)))
 ///     } else {
-///         None
+///         future::ready(None)
 ///     }
 /// });
 ///
-/// let result = block_on(stream.collect());
-/// assert_eq!(result, Ok(vec![0, 2, 4]));
-/// # }
+/// let result = block_on(stream.collect::<Vec<i32>>());
+/// assert_eq!(result, vec![0, 2, 4]);
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,

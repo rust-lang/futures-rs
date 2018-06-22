@@ -251,8 +251,7 @@ pub mod prelude {
     //! The prelude may grow over time as additional items see ubiquitous use.
 
     pub use futures_core::{
-        Future, Stream, Poll, task,
-        // IntoFuture, Never,
+        Future, TryFuture, Stream, Poll, task
     };
 
     #[cfg(feature = "std")]
@@ -277,6 +276,7 @@ pub mod prelude {
 
     pub use futures_util::{
         FutureExt,
+        TryFutureExt,
         StreamExt,
         SinkExt,
     };
@@ -347,9 +347,8 @@ pub mod stream {
         Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold, ForEach, Fuse,
         Inspect, Map, Once, Peekable, PollFn, Repeat, Select, Skip, SkipWhile,
         StreamFuture, Take, TakeWhile, Then, Unfold, Zip, StreamExt, empty,
-        once, poll_fn, repeat, unfold,
-        // AndThen, Forward, ErrInto, InspectErr, IterOk, IterResult, MapErr,
-        // OrElse, iter_ok, iter_result,
+        once, poll_fn, repeat, unfold, iter
+        // AndThen, Forward, ErrInto, InspectErr MapErr, OrElse
     };
 
     #[cfg(feature = "std")]

@@ -28,10 +28,8 @@ impl<I> Unpin for Iter<I> {}
 /// use futures::stream;
 /// use futures_executor::block_on;
 ///
-/// # fn main() {
 /// let mut stream = stream::iter(vec![17, 19]);
-/// assert_eq!(Ok(vec![17, 19]), block_on(stream.collect()));
-/// # }
+/// assert_eq!(vec![17, 19], block_on(stream.collect::<Vec<i32>>()));
 /// ```
 pub fn iter<I>(i: I) -> Iter<I::IntoIter>
     where I: IntoIterator,

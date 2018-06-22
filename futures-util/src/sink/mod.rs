@@ -58,6 +58,7 @@ pub trait SinkExt: Sink {
         with::new(self, f)
     }
 
+    /*
     /// Composes a function *in front of* the sink.
     ///
     /// This adapter produces a new sink that passes each value through the
@@ -95,14 +96,13 @@ pub trait SinkExt: Sink {
     /// assert_eq!(block_on(rx.collect()), Ok(vec![42, 42, 42, 42, 42]));
     /// # }
     /// ```
-    /*
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
         where F: FnMut(U) -> St,
               St: Stream<Item = Self::SinkItem, Error=Self::SinkError>,
               Self: Sized
-        {
-            with_flat_map::new(self, f)
-        }
+    {
+        with_flat_map::new(self, f)
+    }
     */
 
     /*

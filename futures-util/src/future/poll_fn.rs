@@ -22,21 +22,19 @@ pub struct PollFn<F> {
 /// # Examples
 ///
 /// ```
+/// # #![feature(futures_api)]
 /// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::future::poll_fn;
-/// use futures::never::Never;
 /// use futures::task;
 ///
-/// # fn main() {
-/// fn read_line(cx: &mut task::Context) -> Poll<String, Never> {
-///     Ok(Async::Ready("Hello, World!".into()))
+/// fn read_line(cx: &mut task::Context) -> Poll<String> {
+///     Poll::Ready("Hello, World!".into())
 /// }
 ///
 /// let read_future = poll_fn(read_line);
-/// # }
 /// ```
-pub fn poll_fn<T, E, F>(f: F) -> PollFn<F>
+pub fn poll_fn<T, F>(f: F) -> PollFn<F>
     where F: FnMut(&mut task::Context) -> Poll<T>
 {
     PollFn { inner: f }

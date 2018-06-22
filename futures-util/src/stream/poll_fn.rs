@@ -24,19 +24,18 @@ impl<F> Unpin for PollFn<F> {}
 /// # Examples
 ///
 /// ```
+/// # #![feature(futures_api)]
 /// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::stream::poll_fn;
 ///
-/// # fn main() {
 /// let mut counter = 1usize;
 ///
-/// let read_stream = poll_fn(move |_| -> Poll<Option<String>, std::io::Error> {
-///     if counter == 0 { return Ok(Async::Ready(None)); }
+/// let read_stream = poll_fn(move |_| -> Poll<Option<String>> {
+///     if counter == 0 { return Poll::Ready(None); }
 ///     counter -= 1;
-///     Ok(Async::Ready(Some("Hello, World!".to_owned())))
+///     Poll::Ready(Some("Hello, World!".to_owned()))
 /// });
-/// # }
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where

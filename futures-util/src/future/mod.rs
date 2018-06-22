@@ -85,7 +85,7 @@ pub trait FutureExt: Future {
     /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let future = future::ready(1);
@@ -119,8 +119,8 @@ pub trait FutureExt: Future {
     /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
+    /// use futures::executor::block_on;
     ///
-    /// # fn main() {
     /// let future_of_1 = future::ready(1);
     /// let future_of_4 = future_of_1.then(|x| future::ready(x + 3));
     /// assert_eq!(block_on(future_of_4), 4);
@@ -270,6 +270,8 @@ pub trait FutureExt: Future {
     }
 */
 
+    /* ToDo: futures-core cannot implement Future for Either anymore because of
+             the orphan rule. Remove? Implement our own `Either`?
     /// Wrap this future in an `Either` future, making it the left-hand variant
     /// of that `Either`.
     ///
@@ -329,7 +331,7 @@ pub trait FutureExt: Future {
               Self: Sized,
     {
         Either::Right(self)
-    }
+    }*/
 
     /// Convert this future into a single element stream.
     ///
@@ -346,7 +348,7 @@ pub trait FutureExt: Future {
     /// use futures_executor::block_on;
     ///
     /// # fn main() {
-    /// let future = future::ready::(17);
+    /// let future = future::ready(17);
     /// let stream = future.into_stream();
     /// let collected: Vec<_> = block_on(stream.collect());
     /// assert_eq!(collected, vec![17]);
@@ -435,7 +437,7 @@ pub trait FutureExt: Future {
     ///
     /// # fn main() {
     /// let stream_items = vec![17, 18, 19];
-    /// let future_of_a_stream = future::ready(stream::iter_ok(stream_items));
+    /// let future_of_a_stream = future::ready(stream::iter(stream_items));
     ///
     /// let stream = future_of_a_stream.flatten_stream();
     /// let list: Vec<_> = block_on(stream.collect());
@@ -522,7 +524,7 @@ pub trait FutureExt: Future {
     /// # extern crate futures;
     /// # extern crate futures_executor;
     /// use futures::prelude::*;
-    /// use futures::future::{self, FutureResult};
+    /// use futures::future::{self, ReadyFuture};
     /// use futures_executor::block_on;
     ///
     /// # fn main() {
@@ -614,14 +616,12 @@ pub trait FutureExt: Future {
     /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::{block_on, spawn, ThreadPool};
+    /// use futures_executor::{block_on, spawn_with_handle, ThreadPool};
     ///
-    /// # fn main() {
     /// let pool = ThreadPool::new().expect("unable to create threadpool");
-    /// let future = future::ready(3);
-    /// let spawn_future = spawn(future).with_executor(pool);
-    /// assert_eq!(block_on(spawn_future), 3);
-    /// # }
+    /// let future = spawn_with_handle(future::ready(3)).with_executor(pool);
+    /// let output = block_on(block_on(future));
+    /// assert_eq!(output, 3);
     /// ```
     #[cfg(feature = "std")]
     fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
