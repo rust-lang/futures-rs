@@ -1,3 +1,5 @@
+**Announcement: Current development of the futures crates is happening on the 0.3 branch**
+
 # futures-rs
 
 This library is an implementation of **zero-cost futures** in Rust.
