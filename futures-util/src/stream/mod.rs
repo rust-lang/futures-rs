@@ -3,8 +3,9 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
+use core::marker::Unpin;
 use futures_core::{Future, Stream};
-// use futures_sink::Sink;
+use futures_sink::Sink;
 use super::future::Either;
 
 mod iter;
@@ -36,7 +37,7 @@ mod take_while;
 mod then;
 mod unfold;
 mod zip;
-// mod forward;
+mod forward;
 pub use self::chain::Chain;
 pub use self::concat::Concat;
 pub use self::empty::{Empty, empty};
@@ -60,7 +61,7 @@ pub use self::take_while::TakeWhile;
 pub use self::then::Then;
 pub use self::unfold::{Unfold, unfold};
 pub use self::zip::Zip;
-// pub use self::forward::Forward;
+pub use self::forward::Forward;
 
 if_std! {
     use std;
@@ -691,28 +692,28 @@ pub trait StreamExt: Stream {
         select::new(self, other)
     }
 
-    /* TODO
     /// A future that completes after the given stream has been fully processed
     /// into the sink, including flushing.
     ///
     /// This future will drive the stream to keep producing items until it is
     /// exhausted, sending each item to the sink. It will complete once both the
-    /// stream is exhausted, and the sink has received and flushed all items.
+    /// stream is exhausted and the sink has received and flushed all items.
     /// Note that the sink is **not** closed.
     ///
-    /// Doing `stream.forward(sink)` is roughly equivalent to
-    /// `sink.send_all(stream)`. The returned future will exhaust all items from
-    /// `self`, sending them all to `sink`.
+    /// On completion, the sink is returned.
     ///
-    /// On completion, the pair `(stream, sink)` is returned.
+    /// Note that this combinator is only usable with `Unpin` sinks.
+    /// Sinks that are not `Unpin` will need to be pinned in order to be used
+    /// with `forward`.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
-        where S: Sink<SinkItem = Self::Item>,
-              Self::Error: From<S::SinkError>,
-              Self: Sized
+    where
+        S: Sink + Unpin,
+        Self: Stream<Item = Result<S::SinkItem, S::SinkError>> + Sized,
     {
         forward::new(self, sink)
     }
 
+    /*
     /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
     /// objects.
     ///
@@ -728,7 +729,7 @@ pub trait StreamExt: Stream {
     {
         split::split(self)
     }
-*/
+    */
 
     /// Do something with each item of this stream, afterwards passing it on.
     ///
