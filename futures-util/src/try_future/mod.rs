@@ -4,9 +4,11 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use futures_core::TryFuture;
+use futures_sink::Sink;
 
 // combinators
 mod and_then;
+mod flatten_sink;
 mod map_ok;
 mod map_err;
 mod err_into;
@@ -30,6 +32,7 @@ pub use self::select_ok::{SelectOk, select_ok};
 */
 
 pub use self::and_then::AndThen;
+pub use self::flatten_sink::FlattenSink;
 pub use self::map_ok::MapOk;
 pub use self::map_err::MapErr;
 pub use self::err_into::ErrInto;
@@ -40,6 +43,23 @@ impl<F: TryFuture> TryFutureExt for F {}
 
 /// Adapters specific to `Result`-returning futures
 pub trait TryFutureExt: TryFuture {
+    /// Flatten the execution of this future when the successful result of this
+    /// future is a sink.
+    ///
+    /// This can be useful when sink initialization is deferred, and it is
+    /// convenient to work with that sink as if sink was available at the
+    /// call site.
+    ///
+    /// Note that this function consumes this future and returns a wrapped
+    /// version of it.
+    fn flatten_sink(self) -> FlattenSink<Self, Self::Item>
+    where
+        Self::Item: Sink<SinkError=Self::Error>,
+        Self: Sized,
+    {
+        flatten_sink::new(self)
+    }
+
     /// Map this future's result to a different type, returning a new future of
     /// the resulting type.
     ///
