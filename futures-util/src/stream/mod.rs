@@ -73,7 +73,7 @@ if_std! {
     mod chunks;
     mod collect;
     //mod select_all;
-    //mod split;
+    mod split;
     mod futures_unordered;
     //mod futures_ordered;
     //pub use self::buffered::Buffered;
@@ -82,7 +82,7 @@ if_std! {
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
     //pub use self::select_all::{select_all, SelectAll};
-    //pub use self::split::{SplitStream, SplitSink, ReuniteError};
+    pub use self::split::{SplitStream, SplitSink, ReuniteError};
     pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
     //pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 }
@@ -713,7 +713,6 @@ pub trait StreamExt: Stream {
         forward::new(self, sink)
     }
 
-    /*
     /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
     /// objects.
     ///
@@ -729,7 +728,6 @@ pub trait StreamExt: Stream {
     {
         split::split(self)
     }
-    */
 
     /// Do something with each item of this stream, afterwards passing it on.
     ///

@@ -36,13 +36,13 @@ use futures_core::task::{self, Waker};
 /// these two and then using each independently in a futures-powered fashion.
 #[derive(Debug)]
 pub struct BiLock<T> {
-    inner: Arc<Inner<T>>,
+    arc: Arc<Inner<T>>,
 }
 
 #[derive(Debug)]
 struct Inner<T> {
     state: AtomicUsize,
-    inner: Option<UnsafeCell<T>>,
+    value: Option<UnsafeCell<T>>,
 }
 
 unsafe impl<T: Send> Send for Inner<T> {}
@@ -54,13 +54,19 @@ impl<T> BiLock<T> {
     /// Two handles to the lock are returned, and these are the only two handles
     /// that will ever be available to the lock. These can then be sent to separate
     /// tasks to be managed there.
+    ///
+    /// The data behind the bilock is considered to be pinned, which allows `PinMut`
+    /// references to locked data. However, this means that the locked value
+    /// will only be available through `PinMut` (not `&mut`) unless `T` is `Unpin`.
+    /// Similarly, reuniting the lock and extracting the inner value is only
+    /// possible when `T` is `Unpin`.
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
-        let inner = Arc::new(Inner {
+        let arc = Arc::new(Inner {
             state: AtomicUsize::new(0),
-            inner: Some(UnsafeCell::new(t)),
+            value: Some(UnsafeCell::new(t)),
         });
 
-        (BiLock { inner: inner.clone() }, BiLock { inner: inner })
+        (BiLock { arc: arc.clone() }, BiLock { arc })
     }
 
     /// Attempt to acquire this lock, returning `Pending` if it can't be
@@ -83,9 +89,9 @@ impl<T> BiLock<T> {
     /// task.
     pub fn poll_lock(&self, cx: &mut task::Context) -> Poll<BiLockGuard<T>> {
         loop {
-            match self.inner.state.swap(1, SeqCst) {
+            match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
-                0 => return Poll::Ready(BiLockGuard { inner: self }),
+                0 => return Poll::Ready(BiLockGuard { bilock: self }),
 
                 // Oops, someone else has locked the lock
                 1 => {}
@@ -101,7 +107,7 @@ impl<T> BiLock<T> {
             let me: Box<Waker> = Box::new(cx.waker().clone());
             let me = Box::into_raw(me) as usize;
 
-            match self.inner.state.compare_exchange(1, me, SeqCst, SeqCst) {
+            match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
                 // The lock is still locked, but we've now parked ourselves, so
                 // just report that we're scheduled to receive a notification.
                 Ok(_) => return Poll::Pending,
@@ -135,27 +141,30 @@ impl<T> BiLock<T> {
     /// Note that the returned future will never resolve to an error.
     pub fn lock(&self) -> BiLockAcquire<T> {
         BiLockAcquire {
-            inner: self,
+            bilock: self,
         }
     }
 
     /// Attempts to put the two "halves" of a `BiLock<T>` back together and
     /// recover the original value. Succeeds only if the two `BiLock<T>`s
     /// originated from the same call to `BiLock::new`.
-    pub fn reunite(self, other: Self) -> Result<T, ReuniteError<T>> {
-        if &*self.inner as *const _ == &*other.inner as *const _ {
+    pub fn reunite(self, other: Self) -> Result<T, ReuniteError<T>>
+    where
+        T: Unpin,
+    {
+        if &*self.arc as *const _ == &*other.arc as *const _ {
             drop(other);
-            let inner = Arc::try_unwrap(self.inner)
+            let inner = Arc::try_unwrap(self.arc)
                 .ok()
                 .expect("futures: try_unwrap failed in BiLock<T>::reunite");
-            Ok(unsafe { inner.into_inner() })
+            Ok(unsafe { inner.into_value() })
         } else {
             Err(ReuniteError(self, other))
         }
     }
 
     fn unlock(&self) {
-        match self.inner.state.swap(0, SeqCst) {
+        match self.arc.state.swap(0, SeqCst) {
             // we've locked the lock, shouldn't be possible for us to see an
             // unlocked lock.
             0 => panic!("invalid unlocked state"),
@@ -172,9 +181,9 @@ impl<T> BiLock<T> {
     }
 }
 
-impl<T> Inner<T> {
-    unsafe fn into_inner(mut self) -> T {
-        mem::replace(&mut self.inner, None).unwrap().into_inner()
+impl<T: Unpin> Inner<T> {
+    unsafe fn into_value(mut self) -> T {
+        mem::replace(&mut self.value, None).unwrap().into_inner()
     }
 }
 
@@ -215,25 +224,34 @@ impl<T: Any> Error for ReuniteError<T> {
 /// unlocked.
 #[derive(Debug)]
 pub struct BiLockGuard<'a, T: 'a> {
-    inner: &'a BiLock<T>,
+    bilock: &'a BiLock<T>,
 }
 
 impl<'a, T> Deref for BiLockGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
-        unsafe { &*self.inner.inner.inner.as_ref().unwrap().get() }
+        unsafe { &*self.bilock.arc.value.as_ref().unwrap().get() }
     }
 }
 
-impl<'a, T> DerefMut for BiLockGuard<'a, T> {
+impl<'a, T: Unpin> DerefMut for BiLockGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.inner.inner.inner.as_ref().unwrap().get() }
+        unsafe { &mut *self.bilock.arc.value.as_ref().unwrap().get() }
+    }
+}
+
+impl<'a, T> BiLockGuard<'a, T> {
+    /// Get a mutable pinned reference to the locked value.
+    pub fn as_pin_mut<'b>(&'b mut self) -> PinMut<'b, T> {
+        // Safety: we never allow moving a !Unpin value out of a bilock, nor
+        // allow mutable access to it
+        unsafe { PinMut::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
     }
 }
 
 impl<'a, T> Drop for BiLockGuard<'a, T> {
     fn drop(&mut self) {
-        self.inner.unlock();
+        self.bilock.unlock();
     }
 }
 
@@ -242,7 +260,7 @@ impl<'a, T> Drop for BiLockGuard<'a, T> {
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct BiLockAcquire<'a, T: 'a> {
-    inner: &'a BiLock<T>,
+    bilock: &'a BiLock<T>,
 }
 
 // Pinning is never projected to fields
@@ -252,6 +270,6 @@ impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;
 
     fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.inner.poll_lock(cx)
+        self.bilock.poll_lock(cx)
     }
 }

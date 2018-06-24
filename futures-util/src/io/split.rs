@@ -1,4 +1,5 @@
 use std::io;
+use std::mem::PinMut;
 
 use {Poll, task};
 use lock::BiLock;
@@ -21,7 +22,9 @@ fn lock_and_then<T, U, E, F>(lock: &BiLock<T>, cx: &mut task::Context, f: F) -> 
     where F: FnOnce(&mut T, &mut task::Context) -> Poll<Result<U, E>>
 {
     match lock.poll_lock(cx) {
-        Poll::Ready(ref mut l) => f(l, cx),
+        // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
+        // as a `PinMut` anywhere other than here as a way to get to `&mut`.
+        Poll::Ready(mut l) => f(unsafe { PinMut::get_mut(l.as_pin_mut()) }, cx),
         Poll::Pending => Poll::Pending,
     }
 }
