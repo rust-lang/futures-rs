@@ -195,9 +195,7 @@ impl<T> Stream for FuturesOrdered<T>
     }
 }
 
-impl<T: Debug> Debug for FuturesOrdered<T>
-    where T: Future
-{
+impl<T: Future> Debug for FuturesOrdered<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "FuturesOrdered {{ ... }}")
     }

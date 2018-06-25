@@ -67,8 +67,8 @@ if_std! {
     use std;
     use std::iter::Extend;
 
-    //mod buffered;
-    //mod buffer_unordered;
+    mod buffered;
+    mod buffer_unordered;
     mod catch_unwind;
     mod chunks;
     mod collect;
@@ -76,8 +76,8 @@ if_std! {
     mod split;
     mod futures_unordered;
     mod futures_ordered;
-    //pub use self::buffered::Buffered;
-    //pub use self::buffer_unordered::BufferUnordered;
+    pub use self::buffered::Buffered;
+    pub use self::buffer_unordered::BufferUnordered;
     pub use self::catch_unwind::CatchUnwind;
     pub use self::chunks::Chunks;
     pub use self::collect::Collect;
@@ -560,7 +560,6 @@ pub trait StreamExt: Stream {
         catch_unwind::new(self)
     }
 
-    /* TODO
     /// An adaptor for creating a buffered list of pending futures.
     ///
     /// If this stream's item can be converted into a future, then this adaptor
@@ -600,7 +599,6 @@ pub trait StreamExt: Stream {
     {
         buffer_unordered::new(self, amt)
     }
-*/
 
     /// An adapter for zipping two streams together.
     ///

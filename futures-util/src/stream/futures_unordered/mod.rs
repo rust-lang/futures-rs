@@ -356,7 +356,7 @@ impl<T> Stream for FuturesUnordered<T>
     }
 }
 
-impl<T: Debug> Debug for FuturesUnordered<T> {
+impl<T> Debug for FuturesUnordered<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "FuturesUnordered {{ ... }}")
     }

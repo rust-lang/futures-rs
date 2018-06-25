@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 
-use futures_core::{Poll, Stream};
-use futures_core::task;
+use futures_core::{task, Poll, Stream};
+use futures_sink::Sink;
 
 /// A stream which "fuse"s a stream once it's terminated.
 ///
@@ -15,7 +15,6 @@ pub struct Fuse<S> {
     done: bool,
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Fuse<S>
     where S: Sink
@@ -25,7 +24,6 @@ impl<S> Sink for Fuse<S>
 
     delegate_sink!(stream);
 }
-*/
 
 pub fn new<S: Stream>(s: S) -> Fuse<S> {
     Fuse {
