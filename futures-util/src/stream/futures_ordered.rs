@@ -1,9 +1,11 @@
 use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
-use std::collections::BinaryHeap;
+use std::collections::binary_heap::{BinaryHeap, PeekMut};
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
+use std::marker::Unpin;
+use std::mem::PinMut;
 
-use futures_core::{Async, Future, IntoFuture, Poll, Stream};
+use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
 use stream::FuturesUnordered;
@@ -36,18 +38,18 @@ impl<T> Ord for OrderWrapper<T> {
     }
 }
 
+impl<T> OrderWrapper<T> {
+    unsafe_pinned!(item -> T);
+}
+
 impl<T> Future for OrderWrapper<T>
     where T: Future
 {
-    type Item = OrderWrapper<T::Item>;
-    type Error = T::Error;
+    type Output = OrderWrapper<T::Output>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        let result = ready!(self.item.poll(cx));
-        Ok(Async::Ready(OrderWrapper {
-            item: result,
-            index: self.index
-        }))
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        self.item().poll(cx)
+            .map(|item| OrderWrapper { item, index: self.index })
     }
 }
 
@@ -65,19 +67,19 @@ impl<T> Future for OrderWrapper<T>
 /// large numbers of futures.
 ///
 /// When a `FuturesOrdered` is first created, it does not contain any futures.
-/// Calling `poll` in this state will result in `Ok(Async::Ready(None))` to be
+/// Calling `poll` in this state will result in `Poll::Ready(None))` to be
 /// returned. Futures are submitted to the queue using `push`; however, the
 /// future will **not** be polled at this point. `FuturesOrdered` will only
 /// poll managed futures when `FuturesOrdered::poll` is called. As such, it
 /// is important to call `poll` after pushing new futures.
 ///
-/// If `FuturesOrdered::poll` returns `Ok(Async::Ready(None))` this means that
+/// If `FuturesOrdered::poll` returns `Poll::Ready(None)` this means that
 /// the queue is currently not managing any futures. A future may be submitted
 /// to the queue at a later time. At that point, a call to
 /// `FuturesOrdered::poll` will either return the future's resolved value
-/// **or** `Ok(Async::Pending)` if the future has not yet completed. When
+/// **or** `Poll::Pending` if the future has not yet completed. When
 /// multiple futures are submitted to the queue, `FuturesOrdered::poll` will
-/// return `Ok(Async::Pending)` until the first future completes, even if
+/// return `Poll::Pending` until the first future completes, even if
 /// some of the later futures have already completed.
 ///
 /// Note that you can create a ready-made `FuturesOrdered` via the
@@ -88,10 +90,12 @@ pub struct FuturesOrdered<T>
     where T: Future
 {
     in_progress: FuturesUnordered<OrderWrapper<T>>,
-    queued_results: BinaryHeap<OrderWrapper<T::Item>>,
+    queued_results: BinaryHeap<OrderWrapper<T::Output>>,
     next_incoming_index: usize,
     next_outgoing_index: usize,
 }
+
+impl<T: Future> Unpin for FuturesOrdered<T> {}
 
 /// Converts a list of futures into a `Stream` of results from the futures.
 ///
@@ -104,12 +108,12 @@ pub struct FuturesOrdered<T>
 ///
 /// Note that the returned queue can also be used to dynamically push more
 /// futures into the queue as they become available.
-pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<<I::Item as IntoFuture>::Future>
+pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<I::Item>
 where
     I: IntoIterator,
-    I::Item: IntoFuture,
+    I::Item: Future,
 {
-    futures.into_iter().map(|f| f.into_future()).collect()
+    futures.into_iter().collect()
 }
 
 impl<T> FuturesOrdered<T>
@@ -161,32 +165,33 @@ impl<T> FuturesOrdered<T>
 impl<T> Stream for FuturesOrdered<T>
     where T: Future
 {
-    type Item = T::Item;
-    type Error = T::Error;
+    type Item = T::Output;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        // Get any completed futures from the unordered set.
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        let this = &mut *self;
+
+        // Check to see if we've already received the next value
+        if let Some(next_result) = this.queued_results.peek_mut() {
+            if next_result.index == this.next_outgoing_index {
+                this.next_outgoing_index += 1;
+                return Poll::Ready(Some(PeekMut::pop(next_result).item));
+            }
+        }
+
         loop {
-            match self.in_progress.poll_next(cx)? {
-                Async::Ready(Some(result)) => self.queued_results.push(result),
-                Async::Ready(None) | Async::Pending => break,
+            match PinMut::new(&mut this.in_progress).poll_next(cx) {
+                Poll::Ready(Some(result)) => {
+                    if result.index == this.next_outgoing_index {
+                        this.next_outgoing_index += 1;
+                        return Poll::Ready(Some(result.item));
+                    } else {
+                        this.queued_results.push(result)
+                    }
+                }
+                Poll::Ready(None) => return Poll::Ready(None),
+                Poll::Pending => return Poll::Pending,
             }
         }
-
-        if let Some(next_result) = self.queued_results.peek() {
-            // PeekMut::pop is not stable yet QQ
-            if next_result.index != self.next_outgoing_index {
-                return Ok(Async::Pending);
-            }
-        } else if !self.in_progress.is_empty() {
-            return Ok(Async::Pending);
-        } else {
-            return Ok(Async::Ready(None));
-        }
-
-        let next_result = self.queued_results.pop().unwrap();
-        self.next_outgoing_index += 1;
-        Ok(Async::Ready(Some(next_result.item)))
     }
 }
 
