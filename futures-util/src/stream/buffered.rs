@@ -1,8 +1,9 @@
-use core::mem::PinMut;
 use std::fmt;
+use std::marker::Unpin;
+use std::mem::PinMut;
 
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use futures_core::{task, Future, Poll, Stream};
+use futures_sink::Sink;
 
 use stream::{Fuse, FuturesOrdered};
 
@@ -13,18 +14,35 @@ use stream::{Fuse, FuturesOrdered};
 /// results in the order that they were pulled out of the original stream. This
 /// is created by the `Stream::buffered` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Buffered<S: Stream> {
+pub struct Buffered<S: Stream>
+where
+    S: Stream,
+    S::Item: Future,
+{
     stream: Fuse<S>,
     queue: FuturesOrdered<S::Item>,
     max: usize,
 }
 
+impl<S> Unpin for Buffered<S>
+where
+    S: Stream,
+    S::Item: Future,
+{}
+
+impl<S: Stream> Buffered<S>
+where
+    S: Stream,
+    S::Item: Future,
+{
+    unsafe_pinned!(stream -> Fuse<S>);
+    unsafe_unpinned!(queue -> FuturesOrdered<S::Item>);
+}
+
 impl<S> fmt::Debug for Buffered<S>
-    where S: Stream + fmt::Debug,
-          S::Item: IntoFuture,
-          <<S as Stream>::Item as IntoFuture>::Future: fmt::Debug,
-          <<S as Stream>::Item as IntoFuture>::Item: fmt::Debug,
-          <<S as Stream>::Item as IntoFuture>::Error: fmt::Debug,
+where
+    S: Stream + fmt::Debug,
+    S::Item: Future,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Buffered")
@@ -36,8 +54,9 @@ impl<S> fmt::Debug for Buffered<S>
 }
 
 pub fn new<S>(s: S, amt: usize) -> Buffered<S>
-    where S: Stream,
-          S::Item: IntoFuture<Error=<S as Stream>::Error>,
+where
+    S: Stream,
+    S::Item: Future,
 {
     Buffered {
         stream: super::fuse::new(s),
@@ -47,8 +66,9 @@ pub fn new<S>(s: S, amt: usize) -> Buffered<S>
 }
 
 impl<S> Buffered<S>
-    where S: Stream,
-          S::Item: IntoFuture<Error=<S as Stream>::Error>,
+where
+    S: Stream,
+    S::Item: Future,
 {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
@@ -65,6 +85,15 @@ impl<S> Buffered<S>
         self.stream.get_mut()
     }
 
+    /// Acquires a mutable pinned reference to the underlying stream that this
+    /// combinator is pulling from.
+    ///
+    /// Note that care must be taken to avoid tampering with the state of the
+    /// stream which may otherwise confuse this combinator.
+    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, S> {
+        unsafe { PinMut::new_unchecked(&mut PinMut::get_mut(self).stream) }.get_pin_mut()
+    }
+
     /// Consumes this combinator, returning the underlying stream.
     ///
     /// Note that this may discard intermediate state of this combinator, so
@@ -76,8 +105,9 @@ impl<S> Buffered<S>
 
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for Buffered<S>
-    where S: Sink + Stream,
-          S::Item: IntoFuture,
+where
+    S: Stream + Sink,
+    S::Item: Future,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
@@ -86,37 +116,32 @@ impl<S> Sink for Buffered<S>
 }
 
 impl<S> Stream for Buffered<S>
-    where S: Stream,
-          S::Item: IntoFuture<Error=<S as Stream>::Error>,
+where
+    S: Stream,
+    S::Item: Future,
 {
-    type Item = <S::Item as IntoFuture>::Item;
-    type Error = <S as Stream>::Error;
+    type Item = <S::Item as Future>::Output;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-        // First up, try to spawn off as many futures as possible by filling up
-        // our slab of futures.
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        // Try to spawn off as many futures as possible by filling up
+        // our queue of futures.
         while self.queue.len() < self.max {
-            let future = match self.stream.poll_next(cx)? {
-                Async::Ready(Some(s)) => s.into_future(),
-                Async::Ready(None) |
-                Async::Pending => break,
-            };
-
-            self.queue.push(future);
+            match self.stream().poll_next(cx) {
+                Poll::Ready(Some(future)) => self.queue.push(future),
+                Poll::Ready(None) | Poll::Pending => break,
+            }
         }
 
-        // Try polling a new future
-        if let Some(val) = ready!(self.queue.poll_next(cx)) {
-            return Ok(Async::Ready(Some(val)));
+        // Attempt to pull the next value from the queue
+        if let Some(val) = ready!(PinMut::new(self.queue()).poll_next(cx)) {
+            return Poll::Ready(Some(val))
         }
-
-        // If we've gotten this far, then there are no events for us to process
-        // and nothing was ready, so figure out if we're not done yet  or if
-        // we've reached the end.
+        
+        // If more values are still coming from the stream, we're not done yet
         if self.stream.is_done() {
-            Ok(Async::Ready(None))
+            Poll::Pending
         } else {
-            Ok(Async::Pending)
+            Poll::Ready(None)
         }
     }
 }

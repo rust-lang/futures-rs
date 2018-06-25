@@ -48,7 +48,6 @@ macro_rules! delegate_sink {
         fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
             self.$field().poll_close(cx)
         }
-
     }
 }
 
