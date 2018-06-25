@@ -7,8 +7,9 @@ use std::sync::Arc;
 use std::thread::{self, Thread};
 
 use futures_core::{Future, Poll, Stream};
-use futures_core::task::{self, Context, LocalWaker, TaskObj, Wake};
-use futures_core::executor::{Executor, SpawnObjError, SpawnErrorKind};
+use futures_core::task::{
+    self, Context, LocalWaker, TaskObj, LocalTaskObj, Wake,
+    Executor, SpawnObjError, SpawnLocalObjError, SpawnErrorKind};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 
@@ -27,7 +28,7 @@ use ThreadPool;
 /// single-threaded, it supports a special form of task spawning for non-`Send`
 /// futures, via [`spawn_local`](LocalExecutor::spawn_local).
 pub struct LocalPool {
-    pool: FuturesUnordered<TaskObj>,
+    pool: FuturesUnordered<LocalTaskObj>,
     incoming: Rc<Incoming>,
 }
 
@@ -38,7 +39,7 @@ pub struct LocalExecutor {
     incoming: Weak<Incoming>,
 }
 
-type Incoming = RefCell<Vec<TaskObj>>;
+type Incoming = RefCell<Vec<LocalTaskObj>>;
 
 pub(crate) struct ThreadNotify {
     thread: Thread
@@ -255,7 +256,7 @@ impl<S: Stream> Iterator for BlockingStream<S> where S: Unpin {
 impl Executor for LocalExecutor {
     fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
-            incoming.borrow_mut().push(task);
+            incoming.borrow_mut().push(task.into());
             Ok(())
         } else {
             Err(SpawnObjError{ task, kind: SpawnErrorKind::shutdown() })
@@ -272,15 +273,15 @@ impl Executor for LocalExecutor {
 }
 
 impl LocalExecutor {
-    /*
     /// Spawn a non-`Send` future onto the associated [`LocalPool`](LocalPool).
-    pub fn spawn_local<F>(&mut self, f: F) -> Result<(), SpawnObjError>
-        where F: Future<Item = (), Error = Never> + 'static
+    pub fn spawn_local_obj(&mut self, task: LocalTaskObj)
+        -> Result<(), SpawnLocalObjError>
     {
-        self.spawn_task(Task {
-            fut: Box::new(f),
-            map: LocalMap::new(),
-        })
+        if let Some(incoming) = self.incoming.upgrade() {
+            incoming.borrow_mut().push(task);
+            Ok(())
+        } else {
+            Err(SpawnLocalObjError{ task, kind: SpawnErrorKind::shutdown() })
+        }
     }
-    */
 }

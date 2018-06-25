@@ -8,8 +8,7 @@ use std::thread;
 use std::fmt;
 
 use futures_core::*;
-use futures_core::task::{self, Wake, TaskObj};
-use futures_core::executor::{Executor, SpawnObjError};
+use futures_core::task::{self, Wake, TaskObj, Executor, SpawnObjError};
 
 use enter;
 use num_cpus;
