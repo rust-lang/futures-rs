@@ -175,7 +175,6 @@ pub mod executor {
         ThreadPool, ThreadPoolBuilder, JoinHandle,
         block_on, block_on_stream, enter, spawn, spawn_with_handle
     };
-    pub use futures_core::executor::{SpawnObjError, Executor};
 }
 
 pub mod future {
@@ -253,9 +252,6 @@ pub mod prelude {
     pub use futures_core::{
         Future, TryFuture, Stream, Poll, task
     };
-
-    #[cfg(feature = "std")]
-    pub use futures_core::executor::Executor;
 
     #[cfg(feature = "nightly")]
     pub use futures_stable::{
@@ -381,7 +377,10 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Waker, UnsafeWake
+        Context, Waker, UnsafeWake,
+        Executor,
+        TaskObj, LocalTaskObj,
+        SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
     };
 
     #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]

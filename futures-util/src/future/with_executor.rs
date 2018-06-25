@@ -2,8 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 
 use futures_core::{Future, Poll};
-use futures_core::task;
-use futures_core::executor::Executor;
+use futures_core::task::{self, Executor};
 
 /// Future for the `with_executor` combinator, assigning an executor
 /// to be used when spawning other futures.

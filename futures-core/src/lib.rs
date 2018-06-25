@@ -83,5 +83,3 @@ pub use stream::Stream;
 
 pub mod task;
 pub use task::Poll;
-
-pub mod executor;

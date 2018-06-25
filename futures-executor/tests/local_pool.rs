@@ -6,20 +6,20 @@ extern crate futures;
 extern crate futures_executor;
 extern crate futures_channel;
 
+use std::boxed::PinBox;
 use std::cell::{Cell, RefCell};
-use std::sync::Arc;
+use std::mem::PinMut;
+use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
-use std::mem::PinMut;
 
 use futures::future::lazy;
 use futures::prelude::*;
-use futures::executor::Executor;
-use futures::task;
+use futures::task::{self, Executor};
 use futures_executor::*;
 use futures_channel::oneshot;
 
-struct Pending(Arc<()>);
+struct Pending(Rc<()>);
 
 impl Future for Pending {
     type Output = ();
@@ -30,7 +30,7 @@ impl Future for Pending {
 }
 
 fn pending() -> Pending {
-    Pending(Arc::new(()))
+    Pending(Rc::new(()))
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn run_until_single_future() {
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
-    exec.spawn_obj(Box::new(pending()).into()).unwrap(); // This test used the currently not implemented spawn_local method before
+    exec.spawn_local_obj(PinBox::new(pending()).into()).unwrap();
     assert_eq!(pool.run_until(lazy(|_| ()), &mut exec), ());
 }
 
@@ -63,14 +63,13 @@ fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
-    exec.spawn_obj(Box::new(lazy(move |_| { // This test used the currently not implemented spawn_local method before
+    exec.spawn_local_obj(PinBox::new(lazy(move |_| {
         tx.send(()).unwrap();
         ()
     })).into()).unwrap();
     pool.run_until(rx, &mut exec).unwrap();
 }
 
-/* // This test does not work because it relies on spawn_local which is not implemented
 #[test]
 fn run_executes_spawned() {
     let cnt = Rc::new(Cell::new(0));
@@ -80,8 +79,8 @@ fn run_executes_spawned() {
     let mut exec = pool.executor();
     let mut exec2 = pool.executor();
 
-    exec.spawn_local(Box::new(lazy(move |_| {
-        exec2.spawn_local(Box::new(lazy(move |_| {
+    exec.spawn_local_obj(PinBox::new(lazy(move |_| {
+        exec2.spawn_local_obj(PinBox::new(lazy(move |_| {
             cnt2.set(cnt2.get() + 1);
             ()
         })).into()).unwrap();
@@ -105,10 +104,10 @@ fn run_spawn_many() {
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
-        exec.spawn_local(Box::new(lazy(move |_| {
+        exec.spawn_local_obj(PinBox::new(lazy(move |_| {
             cnt.set(cnt.get() + 1);
             ()
-        }))).unwrap();
+        })).into()).unwrap();
     }
 
     pool.run(&mut exec);
@@ -122,12 +121,11 @@ fn nesting_run() {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
 
-    exec.spawn(Box::new(lazy(|_| {
+    exec.spawn_obj(PinBox::new(lazy(|_| {
         let mut pool = LocalPool::new();
         let mut exec = pool.executor();
         pool.run(&mut exec);
-        Ok(())
-    }))).unwrap();
+    })).into()).unwrap();
     pool.run(&mut exec);
 }
 
@@ -143,7 +141,7 @@ fn tasks_are_scheduled_fairly() {
     impl Future for Spin {
         type Output = ();
 
-        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
+        fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {
@@ -170,16 +168,16 @@ fn tasks_are_scheduled_fairly() {
     let mut pool = LocalPool::new();
     let mut exec = pool.executor();
 
-    exec.spawn_local(Box::new(Spin {
+    exec.spawn_local_obj(PinBox::new(Spin {
         state: state.clone(),
         idx: 0,
-    })).unwrap();
+    }).into()).unwrap();
 
-    exec.spawn_local(Box::new(Spin {
+    exec.spawn_local_obj(PinBox::new(Spin {
         state: state,
         idx: 1,
-    })).unwrap();
+    }).into()).unwrap();
 
     pool.run(&mut exec);
 }
-*/
+

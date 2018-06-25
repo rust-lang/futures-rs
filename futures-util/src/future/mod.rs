@@ -605,7 +605,7 @@ pub trait FutureExt: Future {
     #[cfg(feature = "std")]
     fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
         where Self: Sized,
-              E: ::futures_core::executor::Executor
+              E: ::futures_core::task::Executor
     {
         with_executor::new(self, executor)
     }

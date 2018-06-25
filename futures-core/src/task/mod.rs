@@ -2,22 +2,23 @@
 
 use Future;
 
-pub use core::task::{UnsafeWake, Waker, LocalWaker};
+mod poll;
+pub use self::poll::Poll;
+
+pub use core::task::{
+    Context, Executor,
+    Waker, LocalWaker, UnsafeWake,
+    TaskObj, LocalTaskObj, UnsafeTask,
+    SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
+};
 
 #[cfg(feature = "std")]
 pub use std::task::{Wake, local_waker, local_waker_from_nonlocal};
-
-pub use core::task::Context;
-
-mod poll;
-pub use self::poll::Poll;
 
 #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 mod atomic_waker;
 #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 pub use self::atomic_waker::AtomicWaker;
-
-pub use core::task::{TaskObj, UnsafeTask};
 
 if_std! {
     use std::boxed::PinBox;
