@@ -1,6 +1,6 @@
 [package]
-name = "futures-async-runtime"
-version = "0.2.1"
+name = "futures-async-runtime-preview"
+version = "0.2.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 readme = "../README.md"
@@ -13,17 +13,20 @@ description = """
 Runtime for the async/await macros in the `futures` crate.
 """
 
-[dependencies.futures-core]
-version = "0.2.1"
+[lib]
+name = "futures_async_runtime"
+
+[dependencies.futures-core-preview]
+version = "0.2.2"
 path = "../futures-core"
 default-features = false
 
-[dependencies.futures-stable]
-version = "0.2.1"
+[dependencies.futures-stable-preview]
+version = "0.2.2"
 path = "../futures-stable"
 default-features = false
 
 [features]
-nightly = ["futures-core/nightly", "futures-stable/nightly"]
-std = ["futures-core/std", "futures-stable/std"]
+nightly = ["futures-core-preview/nightly", "futures-stable-preview/nightly"]
+std = ["futures-core-preview/std", "futures-stable-preview/std"]
 default = ["std"]

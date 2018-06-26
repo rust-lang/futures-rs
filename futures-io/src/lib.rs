@@ -6,7 +6,7 @@
 
 #![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2.1")]
+#![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2.2")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
