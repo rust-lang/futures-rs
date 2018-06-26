@@ -1,6 +1,6 @@
 [package]
-name = "futures-io"
-version = "0.2.1"
+name = "futures-io-preview"
+version = "0.2.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
@@ -10,13 +10,16 @@ description = """
 The `AsyncRead` and `AsyncWrite` traits for the futures-rs library.
 """
 
+[lib]
+name = "futures_io"
+
 [features]
-std = ["futures-core/std", "iovec"]
+std = ["futures-core-preview/std", "iovec"]
 default = ["std"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.2.1", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "0.2.2", default-features = false }
 iovec = { version = "0.1", optional = true }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.2.1" }
+futures-preview = { path = "../futures", version = "0.2.2" }

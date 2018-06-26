@@ -1,22 +1,25 @@
 [package]
-name = "futures-stable"
+name = "futures-stable-preview"
 description = "futures which support internal references"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["boats <boats@mozilla.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 
-[dependencies.futures-core]
+[lib]
+name = "futures_stable"
+
+[dependencies.futures-core-preview]
 path = "../futures-core"
-version = "0.2.1"
+version = "0.2.2"
 default-features = false
 
-[dependencies.futures-executor]
+[dependencies.futures-executor-preview]
 path = "../futures-executor"
-version = "0.2.1"
+version = "0.2.2"
 default-features = false
 
 [features]
-nightly = ["futures-core/nightly"]
-std = ["futures-core/std", "futures-executor/std"]
+nightly = ["futures-core-preview/nightly"]
+std = ["futures-core-preview/std", "futures-executor-preview/std"]
 default = ["std"]
