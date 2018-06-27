@@ -28,7 +28,7 @@ impl<A, B> Stream for Either<A, B>
 
     fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<A::Item>> {
         unsafe {
-            match PinMut::get_mut(self) {
+            match PinMut::get_mut_unchecked(self) {
                 Either::Left(a) => PinMut::new_unchecked(a).poll_next(cx),
                 Either::Right(b) => PinMut::new_unchecked(b).poll_next(cx),
             }

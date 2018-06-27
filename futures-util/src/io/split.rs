@@ -24,7 +24,7 @@ fn lock_and_then<T, U, E, F>(lock: &BiLock<T>, cx: &mut task::Context, f: F) -> 
     match lock.poll_lock(cx) {
         // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
         // as a `PinMut` anywhere other than here as a way to get to `&mut`.
-        Poll::Ready(mut l) => f(unsafe { PinMut::get_mut(l.as_pin_mut()) }, cx),
+        Poll::Ready(mut l) => f(unsafe { PinMut::get_mut_unchecked(l.as_pin_mut()) }, cx),
         Poll::Pending => Poll::Pending,
     }
 }

@@ -32,7 +32,7 @@ impl<F, E> Future for WithExecutor<F, E>
     type Output = F::Output;
 
     fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
-        let this = unsafe { PinMut::get_mut(self) };
+        let this = unsafe { PinMut::get_mut_unchecked(self) };
         let fut = unsafe { PinMut::new_unchecked(&mut this.future) };
         let exec = &mut this.executor;
         fut.poll(&mut cx.with_executor(exec))

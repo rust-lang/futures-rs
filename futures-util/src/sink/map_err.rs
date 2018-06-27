@@ -35,7 +35,7 @@ impl<S, F> SinkMapErr<S, F> {
 
     /// Get a pinned reference to the inner sink.
     pub fn get_pinned_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, S> {
-        unsafe { PinMut::new_unchecked(&mut PinMut::get_mut(self).sink) }
+        unsafe { PinMut::new_unchecked(&mut PinMut::get_mut_unchecked(self).sink) }
     }
 
     /// Consumes this combinator, returning the underlying sink.

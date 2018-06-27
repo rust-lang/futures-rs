@@ -49,7 +49,7 @@ pub trait Stream {
 
     /// A convenience for calling `Stream::poll_next` on `Unpin` stream types.
     fn poll_next_unpin(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
-        where Self: Unpin
+        where Self: Unpin + Sized
     {
         PinMut::new(self).poll_next(cx)
     }
@@ -79,7 +79,7 @@ if_std! {
         type Item = S::Item;
 
         fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
-            (**self).poll_next_unpin(cx)
+            PinMut::new(&mut **self).poll_next(cx)
         }
     }
 

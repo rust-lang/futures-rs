@@ -26,7 +26,7 @@ impl<F, S> FlattenSink<F, S> {
         -> State<PinMut<'a, F>, PinMut<'a, S>>
     {
         unsafe {
-            match &mut PinMut::get_mut(self).0 {
+            match &mut PinMut::get_mut_unchecked(self).0 {
                 Waiting(f) => Waiting(PinMut::new_unchecked(f)),
                 Ready(s) => Ready(PinMut::new_unchecked(s)),
                 Closed => Closed,

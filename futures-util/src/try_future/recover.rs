@@ -26,7 +26,7 @@ impl<A, F> Future for Recover<A, F>
         unsafe { pinned_field!(self.reborrow(), inner) }.try_poll(cx)
             .map(|res| res.unwrap_or_else(|e| {
                 let f = unsafe {
-                    PinMut::get_mut(self).f.take()
+                    PinMut::get_mut_unchecked(self).f.take()
                         .expect("Polled future::Recover after completion")
                 };
                 f(e)

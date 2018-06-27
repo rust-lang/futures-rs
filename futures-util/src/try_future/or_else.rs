@@ -34,10 +34,10 @@ impl<A, B, F> Future for OrElse<A, B, F>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         loop {
-            // safe to `get_mut` here because we don't move out
-            let fut2 = match unsafe { PinMut::get_mut(self.reborrow()) }.state {
+            // Safe to use `get_mut_unchecked` here because we don't move out
+            let fut2 = match unsafe { PinMut::get_mut_unchecked(self.reborrow()) }.state {
                 State::First(ref mut fut1, ref mut data) => {
-                    // safe to create a new `PinMut` because `fut1` will never move
+                    // Safe to create a new `PinMut` because `fut1` will never move
                     // before it's dropped.
                     match unsafe { PinMut::new_unchecked(fut1) }.try_poll(cx) {
                         Poll::Pending => return Poll::Pending,
@@ -48,17 +48,17 @@ impl<A, B, F> Future for OrElse<A, B, F>
                     }
                 }
                 State::Second(ref mut fut2) => {
-                    // safe to create a new `PinMut` because `fut2` will never move
+                    // Safe to create a new `PinMut` because `fut2` will never move
                     // before it's dropped; once we're in `Chain::Second` we stay
                     // there forever.
                     return unsafe { PinMut::new_unchecked(fut2) }.try_poll(cx)
                 }
             };
 
-            // safe because we're using the `&mut` to do an assignment, not for moving out
+            // Safe because we're using the `&mut` to do an assignment, not for moving out
             unsafe {
-                // note: it's safe to move the `fut2` here because we haven't yet polled it
-                PinMut::get_mut(self.reborrow()).state = State::Second(fut2);
+                // Note: It's safe to move the `fut2` here because we haven't yet polled it
+                PinMut::get_mut_unchecked(self.reborrow()).state = State::Second(fut2);
             }
         }
     }

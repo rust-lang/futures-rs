@@ -184,7 +184,7 @@ if_std! {
 
         fn start_send(self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
-            unsafe { PinMut::get_mut(self) }.push(item);
+            unsafe { PinMut::get_mut_unchecked(self) }.push(item);
             Ok(())
         }
 
@@ -207,7 +207,7 @@ if_std! {
 
         fn start_send(self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
-            unsafe { PinMut::get_mut(self) }.push_back(item);
+            unsafe { PinMut::get_mut_unchecked(self) }.push_back(item);
             Ok(())
         }
 
@@ -257,7 +257,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn poll_ready(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match PinMut::get_mut(self) {
+            match PinMut::get_mut_unchecked(self) {
                 Either::Left(x) => PinMut::new_unchecked(x).poll_ready(cx),
                 Either::Right(x) => PinMut::new_unchecked(x).poll_ready(cx),
             }
@@ -266,7 +266,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn start_send(self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
         unsafe {
-            match PinMut::get_mut(self) {
+            match PinMut::get_mut_unchecked(self) {
                 Either::Left(x) => PinMut::new_unchecked(x).start_send(item),
                 Either::Right(x) => PinMut::new_unchecked(x).start_send(item),
             }
@@ -275,7 +275,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn poll_flush(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match PinMut::get_mut(self) {
+            match PinMut::get_mut_unchecked(self) {
                 Either::Left(x) => PinMut::new_unchecked(x).poll_flush(cx),
                 Either::Right(x) => PinMut::new_unchecked(x).poll_flush(cx),
             }
@@ -284,7 +284,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn poll_close(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match PinMut::get_mut(self) {
+            match PinMut::get_mut_unchecked(self) {
                 Either::Left(x) => PinMut::new_unchecked(x).poll_close(cx),
                 Either::Right(x) => PinMut::new_unchecked(x).poll_close(cx),
             }

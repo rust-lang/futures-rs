@@ -9,25 +9,27 @@ use core::mem::PinMut;
 /// Created by the `IntoFuture` implementation for `std::option::Option`.
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless polled"]
-pub struct FutureOption<T> {
-    inner: Option<T>,
+pub struct FutureOption<F> {
+    option: Option<F>,
+}
+
+impl<F> FutureOption<F> {
+    unsafe_pinned!(option -> Option<F>);
 }
 
 impl<F: Future> Future for FutureOption<F> {
     type Output = Option<F::Output>;
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        unsafe {
-            match &mut PinMut::get_mut(self).inner {
-                None => Poll::Ready(None),
-                Some(x) => PinMut::new_unchecked(x).poll(cx).map(Some),
-            }
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        match self.option().as_pin_mut() {
+            Some(x) => x.poll(cx).map(Some),
+            None => Poll::Ready(None),
         }
     }
 }
 
 impl<T> From<Option<T>> for FutureOption<T> {
-    fn from(o: Option<T>) -> Self {
-        FutureOption { inner: o }
+    fn from(option: Option<T>) -> Self {
+        FutureOption { option }
     }
 }
