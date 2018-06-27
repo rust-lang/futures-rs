@@ -23,7 +23,7 @@ mod flatten;
 mod fold;
 mod for_each;
 mod fuse;
-mod future;
+mod into_future;
 mod inspect;
 mod map;
 mod once;
@@ -47,7 +47,7 @@ pub use self::flatten::Flatten;
 pub use self::fold::Fold;
 pub use self::for_each::ForEach;
 pub use self::fuse::Fuse;
-pub use self::future::StreamFuture;
+pub use self::into_future::StreamFuture;
 pub use self::inspect::Inspect;
 pub use self::map::Map;
 pub use self::once::{Once, once};
@@ -92,19 +92,21 @@ impl<T: ?Sized> StreamExt for T where T: Stream {}
 /// An extension trait for `Stream`s that provides a variety of convenient
 /// combinator functions.
 pub trait StreamExt: Stream {
-    /// Converts this stream into a `Future`.
-    ///
-    /// A stream can be viewed as a future which will resolve to a pair containing
-    /// the next element of the stream plus the remaining stream. If the stream
-    /// terminates, then the next element is `None` and the remaining stream is
-    /// still passed back, to allow reclamation of its resources.
+    /// Converts this stream into a `Future` of `(next_item, tail_of_stream)`.
+    /// If the stream terminates, then the next item is `None`.
     ///
     /// The returned future can be used to compose streams and futures together by
     /// placing everything into the "world of futures".
-    fn next(self) -> StreamFuture<Self>
-        where Self: Sized
+    ///
+    /// Note that because `into_future` moves the stream, the `Stream` type must
+    /// be `Unpin`. If you want to use `into_future` with a `!Unpin` stream,
+    /// you'll first have to pin the stream. This can be done by wrapping the
+    /// stream in a `PinBox` or pinning it to the stack using the `pin_mut!`
+    /// macro.
+    fn into_future(self) -> StreamFuture<Self>
+        where Self: Sized + Unpin,
     {
-        future::new(self)
+        into_future::new(self)
     }
 
     /// Converts a stream of type `T` to a stream of type `U`.
