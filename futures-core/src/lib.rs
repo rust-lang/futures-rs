@@ -27,7 +27,7 @@ macro_rules! if_std {
 macro_rules! pinned_deref {
     ($e:expr) => (
         ::core::mem::PinMut::new_unchecked(
-            &mut **::core::mem::PinMut::get_mut($e.reborrow())
+            &mut **::core::mem::PinMut::get_mut_unchecked($e.reborrow())
         )
     )
 }
@@ -36,7 +36,7 @@ macro_rules! pinned_deref {
 macro_rules! pinned_field {
     ($e:expr, $f:tt) => (
         ::core::mem::PinMut::new_unchecked(
-            &mut ::core::mem::PinMut::get_mut($e.reborrow()).$f
+            &mut ::core::mem::PinMut::get_mut_unchecked($e.reborrow()).$f
         )
     )
 }
@@ -57,7 +57,7 @@ macro_rules! unsafe_unpinned {
     ($f:tt -> $t:ty) => (
         fn $f<'a>(self: &'a mut PinMut<Self>) -> &'a mut $t {
             unsafe {
-                &mut ::core::mem::PinMut::get_mut(self.reborrow()).$f
+                &mut ::core::mem::PinMut::get_mut_unchecked(self.reborrow()).$f
             }
         }
     )

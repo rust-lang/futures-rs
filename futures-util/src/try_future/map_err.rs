@@ -31,7 +31,7 @@ impl<U, A, F> Future for MapErr<A, F>
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {
-                    PinMut::get_mut(self).f.take().expect("cannot poll MapErr twice")
+                    PinMut::get_mut_unchecked(self).f.take().expect("cannot poll MapErr twice")
                 };
                 Poll::Ready(e.map_err(f))
             }

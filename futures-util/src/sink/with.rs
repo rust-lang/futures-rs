@@ -47,7 +47,7 @@ enum State<Fut, T> {
 impl<Fut, T> State<Fut, T> {
     fn as_pin_mut<'a>(self: PinMut<'a, Self>) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
         unsafe {
-            match PinMut::get_mut(self) {
+            match PinMut::get_mut_unchecked(self) {
                 State::Empty => State::Empty,
                 State::Process(fut) => State::Process(PinMut::new_unchecked(fut)),
                 State::Buffered(x) => State::Buffered(PinMut::new_unchecked(x)),
@@ -116,7 +116,7 @@ impl<S, U, Fut, F, E> With<S, U, Fut, F>
         if let Some(buffered) = buffered {
             PinMut::set(self.state(), State::Buffered(buffered));
         }
-        if let State::Buffered(item) = unsafe { mem::replace(PinMut::get_mut(self.state()), State::Empty) } {
+        if let State::Buffered(item) = unsafe { mem::replace(PinMut::get_mut_unchecked(self.state()), State::Empty) } {
             Poll::Ready(self.sink().start_send(item).map_err(Into::into))
         } else {
             unreachable!()

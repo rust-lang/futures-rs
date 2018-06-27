@@ -43,7 +43,7 @@ impl<'a, F: Unpin> Iterator for IterMut<'a, F> {
     type Item = &'a mut F;
 
     fn next(&mut self) -> Option<&'a mut F> {
-        self.0.next().map(|f| unsafe { PinMut::get_mut(f) })
+        self.0.next().map(|f| PinMut::get_mut(f))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

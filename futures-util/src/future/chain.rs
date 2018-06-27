@@ -24,8 +24,8 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
         let mut f = Some(f);
 
         loop {
-            // safe to `get_mut` here because we don't move out
-            let fut2 = match unsafe { PinMut::get_mut(self.reborrow()) } {
+            // Safe to use `get_mut_unchecked` here because we don't move out
+            let fut2 = match unsafe { PinMut::get_mut_unchecked(self.reborrow()) } {
                 Chain::First(fut1, data) => {
                     // safe to create a new `PinMut` because `fut1` will never move
                     // before it's dropped.
@@ -37,17 +37,17 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
                     }
                 }
                 Chain::Second(fut2) => {
-                    // safe to create a new `PinMut` because `fut2` will never move
+                    // Safe to create a new `PinMut` because `fut2` will never move
                     // before it's dropped; once we're in `Chain::Second` we stay
                     // there forever.
                     return unsafe { PinMut::new_unchecked(fut2) }.poll(cx)
                 }
             };
 
-            // safe because we're using the `&mut` to do an assignment, not for moving out
+            // Safe because we're using the `&mut` to do an assignment, not for moving out
             unsafe {
-                // note: it's safe to move the `fut2` here because we haven't yet polled it
-                *PinMut::get_mut(self.reborrow()) = Chain::Second(fut2);
+                // Note: It's safe to move the `fut2` here because we haven't yet polled it
+                *PinMut::get_mut_unchecked(self.reborrow()) = Chain::Second(fut2);
             }
         }
     }

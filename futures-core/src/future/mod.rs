@@ -18,14 +18,14 @@ pub use core::future::Future;
 pub trait CoreFutureExt: Future {
     /// A convenience for calling `Future::poll` on `Unpin` future types.
     fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
-        where Self: Unpin
+        where Self: Unpin + Sized
     {
         PinMut::new(self).poll(cx)
     }
 }
 
 impl<T: ?Sized> CoreFutureExt for T where T: Future {}
- 
+
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
 pub trait TryFuture {

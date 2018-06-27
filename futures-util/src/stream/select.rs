@@ -33,7 +33,7 @@ impl<S1, S2> Select<S1, S2> {
 
     fn project<'a>(self: PinMut<'a, Self>) -> (&'a mut bool, PinMut<'a, Fuse<S1>>, PinMut<'a, Fuse<S2>>) {
         unsafe {
-            let Select { stream1, stream2, flag } = PinMut::get_mut(self);
+            let Select { stream1, stream2, flag } = PinMut::get_mut_unchecked(self);
             (flag, PinMut::new_unchecked(stream1), PinMut::new_unchecked(stream2))
         }
     }
