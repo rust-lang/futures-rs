@@ -6,14 +6,14 @@ use futures_core::task;
 
 /// A combinator used to temporarily convert a stream into a future.
 ///
-/// This future is returned by the `Stream::next` method.
+/// This future is returned by the `Stream::into_future` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct StreamFuture<S> {
     stream: Option<S>,
 }
 
-pub fn new<S: Stream>(s: S) -> StreamFuture<S> {
+pub fn new<S: Stream + Unpin>(s: S) -> StreamFuture<S> {
     StreamFuture { stream: Some(s) }
 }
 
