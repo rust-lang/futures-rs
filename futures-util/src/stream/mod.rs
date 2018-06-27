@@ -26,6 +26,7 @@ mod fuse;
 mod into_future;
 mod inspect;
 mod map;
+mod next;
 mod once;
 mod peek;
 mod poll_fn;
@@ -50,6 +51,7 @@ pub use self::fuse::Fuse;
 pub use self::into_future::StreamFuture;
 pub use self::inspect::Inspect;
 pub use self::map::Map;
+pub use self::next::Next;
 pub use self::once::{Once, once};
 pub use self::peek::Peekable;
 pub use self::poll_fn::{poll_fn, PollFn};
@@ -92,6 +94,19 @@ impl<T: ?Sized> StreamExt for T where T: Stream {}
 /// An extension trait for `Stream`s that provides a variety of convenient
 /// combinator functions.
 pub trait StreamExt: Stream {
+    /// Creates a future that resolves to the next element in the stream.
+    ///
+    /// Note that because `next` doesn't take ownership over the stream,
+    /// the `Stream` type must be `Unpin`. If you want to use `next` with a
+    /// `!Unpin` stream, you'll first have to pin the stream. This can be
+    /// done by wrapping the stream in a `PinBox` or pinning it to the stack
+    /// using the `pin_mut!` macro.
+    fn next<'a>(&'a mut self) -> Next<'a, Self>
+        where Self: Sized + Unpin,
+    {
+        next::new(self)
+    }
+
     /// Converts this stream into a `Future` of `(next_item, tail_of_stream)`.
     /// If the stream terminates, then the next item is `None`.
     ///
