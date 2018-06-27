@@ -16,7 +16,7 @@ mod map_err;
 mod send;
 mod send_all;
 mod with;
-// mod with_flat_map;
+mod with_flat_map;
 
 if_std! {
     mod buffer;
@@ -31,7 +31,7 @@ pub use self::map_err::SinkMapErr;
 pub use self::send::Send;
 pub use self::send_all::SendAll;
 pub use self::with::With;
-// pub use self::with_flat_map::WithFlatMap;
+pub use self::with_flat_map::WithFlatMap;
 
 impl<T: ?Sized> SinkExt for T where T: Sink {}
 
@@ -58,7 +58,6 @@ pub trait SinkExt: Sink {
         with::new(self, f)
     }
 
-    /*
     /// Composes a function *in front of* the sink.
     ///
     /// This adapter produces a new sink that passes each value through the
@@ -98,12 +97,11 @@ pub trait SinkExt: Sink {
     /// ```
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
         where F: FnMut(U) -> St,
-              St: Stream<Item = Self::SinkItem, Error=Self::SinkError>,
+              St: Stream<Item = Result<Self::SinkItem, Self::SinkError>>,
               Self: Sized
     {
         with_flat_map::new(self, f)
     }
-    */
 
     /*
     fn with_map<U, F>(self, f: F) -> WithMap<Self, U, F>
