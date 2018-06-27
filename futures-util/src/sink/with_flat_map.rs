@@ -1,7 +1,7 @@
-use core::marker::PhantomData;
+use core::marker::{Unpin, PhantomData};
+use core::mem::PinMut;
 
-use futures_core::{Poll, Stream};
-use futures_core::task;
+use futures_core::{task, Poll, Stream};
 use futures_sink::Sink;
 
 /// Sink for the `Sink::with_flat_map` combinator, chaining a computation that returns an iterator
@@ -12,7 +12,7 @@ pub struct WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
-    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
+    St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
     sink: S,
     f: F,
@@ -21,11 +21,18 @@ where
     _phantom: PhantomData<fn(U)>,
 }
 
+impl<S, U, St, F> Unpin for WithFlatMap<S, U, St, F>
+where
+    S: Sink + Unpin,
+    F: FnMut(U) -> St,
+    St: Stream<Item = Result<S::SinkItem, S::SinkError>> + Unpin,
+{}
+
 pub fn new<S, U, St, F>(sink: S, f: F) -> WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
-    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
+    St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
     WithFlatMap {
         sink: sink,
@@ -40,8 +47,12 @@ impl<S, U, St, F> WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
-    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
+    St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
+    unsafe_pinned!(sink -> S);
+    unsafe_unpinned!(f -> F);
+    unsafe_pinned!(stream -> Option<St>);
+
     /// Get a shared reference to the inner sink.
     pub fn get_ref(&self) -> &S {
         &self.sink
@@ -52,6 +63,11 @@ where
         &mut self.sink
     }
 
+    /// Get a pinned mutable reference to the inner sink.
+    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, S> {
+        unsafe { PinMut::new_unchecked(&mut PinMut::get_mut_unchecked(self).sink) }
+    }
+
     /// Consumes this combinator, returning the underlying sink.
     ///
     /// Note that this may discard intermediate state of this combinator, so
@@ -60,29 +76,41 @@ where
         self.sink
     }
 
-    fn try_empty_stream(&mut self, cx: &mut task::Context) -> Poll<(), S::SinkError> {
-        if let Some(x) = self.buffer.take() {
-            match self.sink.poll_ready(cx)? {
-                Async::Ready(()) => self.sink.start_send(x)?,
-                Async::Pending => {
-                    self.buffer = Some(x);
-                    return Ok(Async::Pending);
+    fn try_empty_stream(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+        let WithFlatMap {
+            sink,
+            f: _,
+            stream,
+            buffer,
+            _phantom,
+        } = unsafe { PinMut::get_mut_unchecked(self) };
+        let mut sink = unsafe { PinMut::new_unchecked(sink) };
+        let mut stream = unsafe { PinMut::new_unchecked(stream) };
+
+
+        if let Some(x) = buffer.take() {
+            match try_poll!(sink.reborrow().poll_ready(cx)) {
+                Poll::Ready(()) => try_ready!(Poll::Ready(sink.reborrow().start_send(x))),
+                Poll::Pending => {
+                    *buffer = Some(x);
+                    return Poll::Pending;
                 }
-            }
+            };
         }
-        if let Some(mut stream) = self.stream.take() {
-            while let Some(x) = ready!(stream.poll_next(cx)) {
-                match self.sink.poll_ready(cx)? {
-                    Async::Ready(()) => self.sink.start_send(x)?,
-                    Async::Pending => {
-                        self.stream = Some(stream);
-                        self.buffer = Some(x);
-                        return Ok(Async::Pending);
+        if let Some(mut some_stream) = stream.reborrow().as_pin_mut() {
+            while let Some(x) = ready!(some_stream.reborrow().poll_next(cx)) {
+                let x = try_ready!(Poll::Ready(x));
+                match try_poll!(sink.reborrow().poll_ready(cx)) {
+                    Poll::Ready(()) => try_poll!(Poll::Ready(sink.reborrow().start_send(x))),
+                    Poll::Pending => {
+                        *buffer = Some(x);
+                        return Poll::Pending;
                     }
-                }
+                };
             }
         }
-        Ok(Async::Ready(()))
+        PinMut::set(stream, None);
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -90,11 +118,11 @@ impl<S, U, St, F> Stream for WithFlatMap<S, U, St, F>
 where
     S: Stream + Sink,
     F: FnMut(U) -> St,
-    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
+    St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
     type Item = S::Item;
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<S::Item>, S::Error> {
-        self.sink.poll_next(cx)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        self.sink().poll_next(cx)
     }
 }
 
@@ -102,32 +130,35 @@ impl<S, U, St, F> Sink for WithFlatMap<S, U, St, F>
 where
     S: Sink,
     F: FnMut(U) -> St,
-    St: Stream<Item = S::SinkItem, Error=S::SinkError>,
+    St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
     type SinkItem = U;
     type SinkError = S::SinkError;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         self.try_empty_stream(cx)
     }
 
-    fn start_send(&mut self, i: Self::SinkItem) -> Result<(), Self::SinkError> {
-        assert!(self.stream.is_none());
-        self.stream = Some((self.f)(i));
+    fn start_send(mut self: PinMut<Self>, i: Self::SinkItem) -> Result<(), Self::SinkError> {
+        assert!(self.stream().is_none());
+        let stream = (self.f())(i);
+        PinMut::set(self.stream(), Some(stream));
         Ok(())
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(cx)?.is_pending() {
-            return Ok(Async::Pending);
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        match self.reborrow().try_empty_stream(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(())) => self.sink().poll_flush(cx),
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
-        self.sink.poll_flush(cx)
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.try_empty_stream(cx)?.is_pending() {
-            return Ok(Async::Pending);
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        match self.reborrow().try_empty_stream(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(())) => self.sink().poll_close(cx),
+            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
-        self.sink.poll_close(cx)
     }
 }
