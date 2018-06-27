@@ -21,6 +21,12 @@ extern crate futures_sink;
 
 extern crate either;
 
+#[cfg(feature = "std")]
+extern crate slab;
+
+#[cfg(feature = "std")]
+use futures_core::{Future, Poll, task};
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]

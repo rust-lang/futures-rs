@@ -48,13 +48,15 @@ if_std! {
     mod join_all;
     mod select_all;
     mod select_ok;
+    */
     mod shared;
 
+    /*
     pub use self::join_all::{join_all, JoinAll};
     pub use self::select_all::{SelectAll, SelectAllNext, select_all};
     pub use self::select_ok::{SelectOk, select_ok};
-    pub use self::shared::{Shared, SharedItem, SharedError};
     */
+    pub use self::shared::Shared;
 
     mod with_executor;
     pub use self::catch_unwind::CatchUnwind;
@@ -526,14 +528,13 @@ pub trait FutureExt: Future {
         catch_unwind::new(self)
     }
 
-    /* TODO
     /// Create a cloneable handle to this future where all handles will resolve
     /// to the same result.
     ///
     /// The shared() method provides a method to convert any future into a
     /// cloneable future. It enables a future to be polled by multiple threads.
     ///
-    /// The returned `Shared` future resolves with `SharedItem<Self::Output>`,
+    /// The returned `Shared` future resolves with `Arc<Self::Output>`,
     /// which implements `Deref` to allow shared access to the underlying
     /// result. Ownership of the underlying value cannot currently be reclaimed.
     ///
@@ -585,7 +586,6 @@ pub trait FutureExt: Future {
     {
         shared::new(self)
     }
-*/
 
     /// Assigns the provided `Executor` to be used when spawning tasks
     /// from within the future.

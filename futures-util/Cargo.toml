@@ -11,7 +11,7 @@ Common utilities and extension traits for the futures-rs library.
 """
 
 [features]
-std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std"]
+std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std", "slab"]
 default = ["std", "futures-core/either", "futures-sink/either"]
 bench = []
 
@@ -21,6 +21,7 @@ futures-channel = { path = "../futures-channel", version = "0.3.0-alpha", defaul
 futures-io = { path = "../futures-io", version = "0.3.0-alpha", default-features = false }
 futures-sink = { path = "../futures-sink", version = "0.3.0-alpha", default-features = false}
 either = { version = "1.4", default-features = false }
+slab = { version = "0.4", optional = true }
 
 [dev-dependencies]
 futures = { path = "../futures", version = "0.3.0-alpha" }

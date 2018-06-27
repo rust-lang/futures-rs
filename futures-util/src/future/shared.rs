@@ -19,48 +19,74 @@
 //! # }
 //! ```
 
-use std::{error, fmt, mem, ops};
+use slab::Slab;
+
+use std::fmt;
 use std::cell::UnsafeCell;
+use std::marker::Unpin;
+use std::mem::PinMut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
-use std::collections::HashMap;
+use std::task::local_waker_from_nonlocal;
 
-use futures_core::{Future, Poll, Async};
-use futures_core::task::{self, Wake, Waker, LocalMap};
+use futures_core::{Future, Poll};
+use futures_core::task::{self, Wake, Waker};
 
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.
 #[must_use = "futures do nothing unless polled"]
 pub struct Shared<F: Future> {
     inner: Arc<Inner<F>>,
-    waiter: usize,
-}
-
-impl<F> fmt::Debug for Shared<F>
-    where F: Future + fmt::Debug,
-          F::Item: fmt::Debug,
-          F::Error: fmt::Debug,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("Shared")
-            .field("inner", &self.inner)
-            .field("waiter", &self.waiter)
-            .finish()
-    }
+    waker_key: usize,
 }
 
 struct Inner<F: Future> {
-    next_clone_id: AtomicUsize,
-    future: UnsafeCell<Option<(F, LocalMap)>>,
-    result: UnsafeCell<Option<Result<SharedItem<F::Item>, SharedError<F::Error>>>>,
+    future_or_output: UnsafeCell<FutureOrOutput<F>>,
     notifier: Arc<Notifier>,
 }
 
 struct Notifier {
     state: AtomicUsize,
-    waiters: Mutex<HashMap<usize, Waker>>,
+    wakers: Mutex<Slab<Option<Waker>>>,
 }
+
+// The future itself is polled behind the `Arc`, so it won't be moved
+// when `Shared` is moved.
+impl<F: Future> Unpin for Shared<F> {}
+
+impl<F: Future> fmt::Debug for Shared<F> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Shared")
+            .field("inner", &self.inner)
+            .field("waker_key", &self.waker_key)
+            .finish()
+    }
+}
+
+impl<F: Future> fmt::Debug for Inner<F> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("Inner")
+            .finish()
+    }
+}
+
+enum FutureOrOutput<F: Future> {
+    Future(F),
+    Output(Arc<F::Output>),
+}
+
+unsafe impl<F> Send for Inner<F>
+where
+    F: Future + Send,
+    F::Output: Send + Sync,
+{}
+
+unsafe impl<F> Sync for Inner<F>
+where
+    F: Future + Send,
+    F::Output: Send + Sync,
+{}
 
 const IDLE: usize = 0;
 const POLLING: usize = 1;
@@ -68,18 +94,18 @@ const REPOLL: usize = 2;
 const COMPLETE: usize = 3;
 const POISONED: usize = 4;
 
+const NULL_WAKER_KEY: usize = usize::max_value();
+
 pub fn new<F: Future>(future: F) -> Shared<F> {
     Shared {
         inner: Arc::new(Inner {
-            next_clone_id: AtomicUsize::new(1),
+            future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
             notifier: Arc::new(Notifier {
                 state: AtomicUsize::new(IDLE),
-                waiters: Mutex::new(HashMap::new()),
+                wakers: Mutex::new(Slab::new()),
             }),
-            future: UnsafeCell::new(Some((future, LocalMap::new()))),
-            result: UnsafeCell::new(None),
         }),
-        waiter: 0,
+        waker_key: NULL_WAKER_KEY,
     }
 }
 
@@ -87,7 +113,7 @@ impl<F> Shared<F> where F: Future {
     /// If any clone of this `Shared` has completed execution, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.
-    pub fn peek(&self) -> Option<Result<SharedItem<F::Item>, SharedError<F::Error>>> {
+    pub fn peek(&self) -> Option<Arc<F::Output>> {
         match self.inner.notifier.state.load(SeqCst) {
             COMPLETE => {
                 Some(unsafe { self.clone_result() })
@@ -97,36 +123,54 @@ impl<F> Shared<F> where F: Future {
         }
     }
 
-    fn set_waiter(&mut self, cx: &mut task::Context) {
-        let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.insert(self.waiter, cx.waker().clone());
+    /// Registers the current task to receive a wakeup when `Inner` is awoken.
+    fn set_waker(&mut self, cx: &mut task::Context) {
+        let mut wakers = self.inner.notifier.wakers.lock().unwrap();
+        if self.waker_key == NULL_WAKER_KEY {
+            self.waker_key = wakers.insert(Some(cx.waker().clone()));
+        } else {
+            let waker_slot = &mut wakers[self.waker_key];
+            let needs_replacement = if let Some(old_waker) = waker_slot {
+                // If there's still an unwoken waker in the slot, only wake
+                // if the current one wouldn't wake the same task.
+                !old_waker.will_wake(cx.waker())
+            } else {
+                true
+            };
+            if needs_replacement {
+                *waker_slot = Some(cx.waker().clone());
+            }
+        }
+        debug_assert!(self.waker_key != NULL_WAKER_KEY);
     }
 
-    unsafe fn clone_result(&self) -> Result<SharedItem<F::Item>, SharedError<F::Error>> {
-        match *self.inner.result.get() {
-            Some(Ok(ref item)) => Ok(SharedItem { item: item.item.clone() }),
-            Some(Err(ref e)) => Err(SharedError { error: e.error.clone() }),
-            _ => unreachable!(),
+    /// Safety: callers must first ensure that `self.inner.state`
+    /// is `COMPLETE`
+    unsafe fn clone_result(&self) -> Arc<F::Output> {
+        if let FutureOrOutput::Output(item) = &*self.inner.future_or_output.get() {
+            item.clone()
+        } else {
+            unreachable!()
         }
     }
 
-    fn complete(&self) {
-        unsafe { *self.inner.future.get() = None };
+    /// Safety: polling must have completed and self.inner.result must be
+    /// FutureOrOutput::Output
+    unsafe fn complete(&self) {
         self.inner.notifier.state.store(COMPLETE, SeqCst);
         Wake::wake(&self.inner.notifier);
     }
 }
 
-impl<F> Future for Shared<F>
-    where F: Future
-{
-    type Item = SharedItem<F::Item>;
-    type Error = SharedError<F::Error>;
+impl<F: Future> Future for Shared<F> {
+    type Output = Arc<F::Output>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-        self.set_waiter(cx);
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let this = &mut *self;
 
-        match self.inner.notifier.state.compare_and_swap(IDLE, POLLING, SeqCst) {
+        this.set_waker(cx);
+
+        match this.inner.notifier.state.compare_and_swap(IDLE, POLLING, SeqCst) {
             IDLE => {
                 // Lock acquired, fall through
             }
@@ -134,14 +178,17 @@ impl<F> Future for Shared<F>
                 // Another task is currently polling, at this point we just want
                 // to ensure that our task handle is currently registered
 
-                return Ok(Async::Pending);
+                return Poll::Pending
             }
             COMPLETE => {
-                return unsafe { self.clone_result().map(Async::Ready) };
+                return unsafe { Poll::Ready(this.clone_result()) };
             }
             POISONED => panic!("inner future panicked during poll"),
             _ => unreachable!(),
         }
+
+        let waker = local_waker_from_nonlocal(this.inner.notifier.clone());
+        let mut cx = cx.with_waker(&waker);
 
         loop {
             struct Reset<'a>(&'a AtomicUsize);
@@ -156,69 +203,64 @@ impl<F> Future for Shared<F>
                 }
             }
 
-            let _reset = Reset(&self.inner.notifier.state);
+            let _reset = Reset(&this.inner.notifier.state);
 
             // Poll the future
             let res = unsafe {
-                let (ref mut f, ref mut data) = *(*self.inner.future.get()).as_mut().unwrap();
-                let waker = Waker::from(self.inner.notifier.clone());
-                let mut cx = task::Context::new(data, &waker, cx.executor());
-                f.poll(&mut cx)
+                if let FutureOrOutput::Future(future) = &mut *this.inner.future_or_output.get() {
+                    PinMut::new_unchecked(future).poll(&mut cx)
+                } else {
+                    unreachable!()
+                }
             };
             match res {
-                Ok(Async::Pending) => {
+                Poll::Pending => {
                     // Not ready, try to release the handle
-                    match self.inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
+                    match this.inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
                         POLLING => {
                             // Success
-                            return Ok(Async::Pending);
+                            return Poll::Pending;
                         }
                         REPOLL => {
                             // Gotta poll again!
-                            let prev = self.inner.notifier.state.swap(POLLING, SeqCst);
+                            let prev = this.inner.notifier.state.swap(POLLING, SeqCst);
                             assert_eq!(prev, REPOLL);
                         }
                         _ => unreachable!(),
                     }
-
                 }
-                Ok(Async::Ready(i)) => {
+                Poll::Ready(i) => {
                     unsafe {
-                        (*self.inner.result.get()) = Some(Ok(SharedItem { item: Arc::new(i) }));
+                        *this.inner.future_or_output.get() = FutureOrOutput::Output(Arc::new(i));
                     }
-
-                    break;
-                }
-                Err(e) => {
-                    unsafe {
-                        (*self.inner.result.get()) = Some(Err(SharedError { error: Arc::new(e) }));
-                    }
-
                     break;
                 }
             }
         }
 
-        self.complete();
-        unsafe { self.clone_result().map(Async::Ready) }
+        unsafe {
+            this.complete();
+            Poll::Ready(this.clone_result())
+        }
     }
 }
 
 impl<F> Clone for Shared<F> where F: Future {
     fn clone(&self) -> Self {
-        let next_clone_id = self.inner.next_clone_id.fetch_add(1, SeqCst);
-
         Shared {
             inner: self.inner.clone(),
-            waiter: next_clone_id,
+            waker_key: NULL_WAKER_KEY,
         }
     }
 }
 
 impl<F> Drop for Shared<F> where F: Future {
     fn drop(&mut self) {
-        let mut waiters = self.inner.notifier.waiters.lock().unwrap();
-        waiters.remove(&self.waiter);
+        if self.waker_key != NULL_WAKER_KEY {
+            if let Ok(mut wakers) = self.inner.notifier.wakers.lock() {
+                wakers.remove(self.waker_key);
+            }
+        }
     }
 }
 
@@ -226,83 +268,11 @@ impl Wake for Notifier {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
-        let waiters = mem::replace(&mut *arc_self.waiters.lock().unwrap(), HashMap::new());
-
-        for (_, waiter) in waiters {
-            waiter.wake();
+        let mut lock = arc_self.wakers.lock().unwrap();
+        for (_key, opt_waker) in &mut *lock {
+            if let Some(waker) = opt_waker.take() {
+                waker.wake();
+            }
         }
-    }
-}
-
-impl<F> Sync for Inner<F> 
-    where F: Future + Send,
-          F::Item: Send + Sync,
-          F::Error: Send + Sync
-{}
-
-impl<F> Send for Inner<F>
-    where F: Future + Send,
-          F::Item: Send + Sync,
-          F::Error: Send + Sync
-{}
-
-impl<F> fmt::Debug for Inner<F>
-    where F: Future + fmt::Debug,
-          F::Item: fmt::Debug,
-          F::Error: fmt::Debug,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("Inner")
-            .finish()
-    }
-}
-
-/// A wrapped item of the original future that is cloneable and implements Deref
-/// for ease of use.
-#[derive(Clone, Debug)]
-pub struct SharedItem<T> {
-    item: Arc<T>,
-}
-
-impl<T> ops::Deref for SharedItem<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        &self.item.as_ref()
-    }
-}
-
-/// A wrapped error of the original future that is cloneable and implements Deref
-/// for ease of use.
-#[derive(Clone, Debug)]
-pub struct SharedError<E> {
-    error: Arc<E>,
-}
-
-impl<E> ops::Deref for SharedError<E> {
-    type Target = E;
-
-    fn deref(&self) -> &E {
-        &self.error.as_ref()
-    }
-}
-
-impl<E> fmt::Display for SharedError<E>
-    where E: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.error.fmt(f)
-    }
-}
-
-impl<E> error::Error for SharedError<E>
-    where E: error::Error,
-{
-    fn description(&self) -> &str {
-        self.error.description()
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        self.error.cause()
     }
 }
