@@ -35,9 +35,6 @@ extern crate futures_io;
 extern crate futures_sink;
 extern crate futures_util;
 
-#[cfg(feature = "nightly")] extern crate futures_macro_async;
-#[cfg(feature = "nightly")] extern crate futures_macro_await;
-
 pub use futures_core::future::Future;
 pub use futures_util::future::FutureExt;
 pub use futures_core::stream::Stream;
@@ -253,15 +250,6 @@ pub mod prelude {
         Future, TryFuture, Stream, Poll, task
     };
 
-    #[cfg(feature = "nightly")]
-    pub use futures_stable::{
-        StableFuture,
-        StableStream
-    };
-
-    #[cfg(all(feature = "nightly", feature = "std"))]
-    pub use futures_stable::StableExecutor;
-
     pub use futures_sink::Sink;
 
     #[cfg(feature = "std")]
@@ -281,21 +269,6 @@ pub mod prelude {
     pub use futures_util::{
         AsyncReadExt,
         AsyncWriteExt,
-    };
-
-    #[cfg(feature = "nightly")]
-    pub use futures_macro_async::{
-        async,
-        async_stream,
-        async_block,
-        async_stream_block,
-    };
-
-    #[cfg(feature = "nightly")]
-    pub use futures_macro_await::{
-        await,
-        stream_yield,
-        await_item
     };
 }
 
@@ -388,20 +361,4 @@ pub mod task {
 
     #[cfg(feature = "std")]
     pub use futures_core::task::Wake;
-}
-
-#[cfg(feature = "nightly")]
-pub mod stable {
-    pub use futures_stable::{StableFuture, StableStream};
-
-    #[cfg(feature = "std")]
-    pub use futures_stable::{StableExecutor, block_on_stable};
-}
-
-#[cfg(feature = "nightly")]
-#[doc(hidden)]
-pub mod __rt {
-    #[cfg(feature = "std")]
-    pub extern crate std;
-    pub use futures_async_runtime::*;
 }
