@@ -3,11 +3,15 @@
 //! This crate contains the `Sink` trait which allows values to be sent
 //! asynchronously.
 
-#![no_std]
-#![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://docs.rs/futures-sink/0.2.0")]
-
 #![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(rust_2018_preview)]
+
+#![no_std]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
+#![doc(html_root_url = "https://docs.rs/futures-sink/0.2.0")]
 
 #[cfg(feature = "std")]
 extern crate std;

@@ -4,7 +4,7 @@ use core::mem::PinMut;
 use futures_core::{task, Future, Poll, Stream};
 use futures_sink::Sink;
 
-use stream::{StreamExt, Fuse};
+use crate::stream::{StreamExt, Fuse};
 
 const INVALID_POLL: &str = "polled `Forward` after completion";
 

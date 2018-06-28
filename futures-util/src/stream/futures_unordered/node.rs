@@ -62,7 +62,7 @@ impl<T> Node<T> {
     // Saftey: The returned `NonNull<Unsafe>` needs to be put into a `Waker`
     // or `LocalWaker`
     unsafe fn clone_as_unsafe_wake_without_lifetime(self: &Arc<Node<T>>)
-        -> NonNull<UnsafeWake>
+        -> NonNull<dyn UnsafeWake>
     {
         let clone = self.clone();
 
@@ -70,12 +70,12 @@ impl<T> Node<T> {
         // a single field that is a pointer.
         let ptr = mem::transmute::<Arc<Node<T>>, NonNull<ArcNode<T>>>(clone);
 
-        let ptr = ptr as NonNull<UnsafeWake>;
+        let ptr = ptr as NonNull<dyn UnsafeWake>;
 
         // Hide lifetime of `T`
         // Safety: This is safe because `UnsafeWake` is guaranteed not to
         // touch `T`
-        mem::transmute::<NonNull<UnsafeWake>, NonNull<UnsafeWake>>(ptr)
+        mem::transmute::<NonNull<dyn UnsafeWake>, NonNull<dyn UnsafeWake>>(ptr)
     }
 
     pub(super) fn local_waker(self: &Arc<Node<T>>) -> LocalWaker {

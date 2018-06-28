@@ -1,6 +1,6 @@
 //! Task notification.
 
-use Future;
+use crate::Future;
 
 mod poll;
 pub use self::poll::Poll;

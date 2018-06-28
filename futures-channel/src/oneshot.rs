@@ -11,7 +11,7 @@ use std::fmt;
 use futures_core::{Future, Poll};
 use futures_core::task::{self, Waker};
 
-use lock::Lock;
+use crate::lock::Lock;
 
 /// A future for a value that will be provided by another asynchronous task.
 ///

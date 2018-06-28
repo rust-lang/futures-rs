@@ -3,8 +3,8 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
 
-use Poll;
-use task;
+use crate::Poll;
+use crate::task;
 
 mod option;
 pub use self::option::FutureOption;

@@ -1,9 +1,13 @@
 //! Built-in executors and related tools.
 
 #![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(rust_2018_preview)]
 
 #![no_std]
-#![deny(missing_docs)]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_root_url = "https://docs.rs/futures-executor/0.2.0")]
 
 #[cfg(feature = "std")]
@@ -29,15 +33,15 @@ if_std! {
     extern crate num_cpus;
 
     mod local_pool;
-    pub use local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
+    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
 
     mod unpark_mutex;
     mod thread_pool;
-    pub use thread_pool::{ThreadPool, ThreadPoolBuilder};
+    pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 
     mod enter;
-    pub use enter::{enter, Enter, EnterError};
+    pub use crate::enter::{enter, Enter, EnterError};
 
     mod spawn;
-    pub use spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle, JoinHandle};
+    pub use crate::spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle, JoinHandle};
 }

@@ -30,7 +30,7 @@ impl<S: Stream> CatchUnwind<S> {
 impl<S> Stream for CatchUnwind<S>
     where S: Stream + UnwindSafe,
 {
-    type Item = Result<S::Item, Box<Any + Send>>;
+    type Item = Result<S::Item, Box<dyn Any + Send>>;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         if *self.caught_unwind() {

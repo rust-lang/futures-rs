@@ -88,7 +88,7 @@ use std::usize;
 use futures_core::task::{self, Waker};
 use futures_core::{Poll, Stream};
 
-use mpsc::queue::{Queue, PopResult};
+use crate::mpsc::queue::{Queue, PopResult};
 
 mod queue;
 

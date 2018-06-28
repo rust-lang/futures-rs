@@ -4,10 +4,14 @@
 //! asynchronous tasks.
 
 #![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(rust_2018_preview)]
 
-#![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://docs.rs/futures-channel/0.2.0")]
 #![no_std]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
+#![doc(html_root_url = "https://docs.rs/futures-channel/0.2.0")]
 
 #[cfg(feature = "std")]
 extern crate std;

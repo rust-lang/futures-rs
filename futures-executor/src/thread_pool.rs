@@ -10,9 +10,9 @@ use std::fmt;
 use futures_core::*;
 use futures_core::task::{self, Wake, TaskObj, Executor, SpawnObjError};
 
-use enter;
+use crate::enter;
 use num_cpus;
-use unpark_mutex::UnparkMutex;
+use crate::unpark_mutex::UnparkMutex;
 
 /// A general-purpose thread pool for scheduling asynchronous tasks.
 ///
@@ -30,8 +30,8 @@ pub struct ThreadPoolBuilder {
     pool_size: usize,
     stack_size: usize,
     name_prefix: Option<String>,
-    after_start: Option<Arc<Fn(usize) + Send + Sync>>,
-    before_stop: Option<Arc<Fn(usize) + Send + Sync>>,
+    after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+    before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
 trait AssertSendSync: Send + Sync {}
@@ -95,7 +95,7 @@ impl ThreadPool {
     /// Note that the function will return when the provided future completes,
     /// even if some of the tasks it spawned are still running.
     pub fn run<F: Future>(&mut self, f: F) -> F::Output {
-        ::LocalPool::new().run_until(f, self)
+        crate::LocalPool::new().run_until(f, self)
     }
 }
 
@@ -121,8 +121,8 @@ impl PoolState {
 
     fn work(&self,
             idx: usize,
-            after_start: Option<Arc<Fn(usize) + Send + Sync>>,
-            before_stop: Option<Arc<Fn(usize) + Send + Sync>>) {
+            after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+            before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>) {
         let _scope = enter().unwrap();
         after_start.map(|fun| fun(idx));
         loop {
