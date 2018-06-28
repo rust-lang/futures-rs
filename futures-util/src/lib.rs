@@ -1,10 +1,9 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
-#![no_std]
-
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
@@ -32,9 +31,8 @@ macro_rules! if_std {
     )*)
 }
 
-#[cfg(feature = "std")]
-//#[macro_use]
-extern crate std;
+#[macro_use]
+extern crate core;
 
 macro_rules! delegate_sink {
     ($field:ident) => {
@@ -56,6 +54,10 @@ macro_rules! delegate_sink {
 
     }
 }
+
+// FIXME: currently async/await is only available with std
+#[cfg(feature = "std")]
+pub mod await;
 
 #[cfg(all(feature = "std", any(test, feature = "bench")))]
 pub mod lock;

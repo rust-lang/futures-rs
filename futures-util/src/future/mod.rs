@@ -8,9 +8,11 @@ use futures_core::{Future, Stream};
 // Primitive futures
 mod empty;
 mod lazy;
+mod maybe_done;
 mod poll_fn;
 pub use self::empty::{empty, Empty};
 pub use self::lazy::{lazy, Lazy};
+pub use self::maybe_done::{maybe_done, MaybeDone};
 pub use self::poll_fn::{poll_fn, PollFn};
 
 // combinators
