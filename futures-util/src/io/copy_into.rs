@@ -3,7 +3,7 @@ use std::boxed::Box;
 use std::marker::Unpin;
 use std::mem::PinMut;
 
-use {Future, Poll, task};
+use crate::{Future, Poll, task};
 
 use futures_io::{AsyncRead, AsyncWrite};
 

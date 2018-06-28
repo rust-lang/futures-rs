@@ -1,10 +1,13 @@
 //! Core traits and types for asynchronous operations in Rust.
 
-#![feature(pin, arbitrary_self_types)]
-#![feature(futures_api)]
+#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(rust_2018_preview)]
 
 #![no_std]
+
 #![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_root_url = "https://docs.rs/futures-core/0.3.0")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
@@ -76,10 +79,10 @@ macro_rules! pin_mut {
 }
 
 pub mod future;
-pub use future::{Future, CoreFutureExt, TryFuture};
+pub use crate::future::{Future, CoreFutureExt, TryFuture};
 
 pub mod stream;
-pub use stream::Stream;
+pub use crate::stream::Stream;
 
 pub mod task;
-pub use task::Poll;
+pub use crate::task::Poll;

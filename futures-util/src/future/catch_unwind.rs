@@ -28,7 +28,7 @@ impl<F> CatchUnwind<F> where F: Future {
 impl<F> Future for CatchUnwind<F>
     where F: Future + UnwindSafe,
 {
-    type Output = Result<F::Output, Box<Any + Send>>;
+    type Output = Result<F::Output, Box<dyn Any + Send>>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match catch_unwind(AssertUnwindSafe(|| self.future().poll(cx))) {

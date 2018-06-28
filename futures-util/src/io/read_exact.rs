@@ -2,9 +2,9 @@ use std::io;
 use std::marker::Unpin;
 use std::mem::{self, PinMut};
 
-use {Poll, Future, task};
+use crate::{Poll, Future, task};
 
-use io::AsyncRead;
+use crate::io::AsyncRead;
 
 /// A future which can be used to easily read exactly enough bytes to fill
 /// a buffer.

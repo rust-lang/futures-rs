@@ -2,9 +2,13 @@
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(rust_2018_preview)]
 
 #![no_std]
+
 #![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[cfg(test)]
@@ -60,18 +64,18 @@ pub mod lock;
 mod lock;
 
 pub mod future;
-pub use future::FutureExt;
+pub use crate::future::FutureExt;
 
 pub mod try_future;
-pub use try_future::TryFutureExt;
+pub use crate::try_future::TryFutureExt;
 
 #[cfg(feature = "std")]
 pub mod io;
 #[cfg(feature = "std")]
-pub use io::{AsyncReadExt, AsyncWriteExt};
+pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 
 pub mod stream;
-pub use stream::StreamExt;
+pub use crate::stream::StreamExt;
 
 pub mod sink;
-pub use sink::SinkExt;
+pub use crate::sink::SinkExt;

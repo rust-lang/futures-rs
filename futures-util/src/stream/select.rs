@@ -3,7 +3,7 @@ use core::mem::PinMut;
 use futures_core::{Poll, Stream};
 use futures_core::task;
 
-use stream::{StreamExt, Fuse};
+use crate::stream::{StreamExt, Fuse};
 
 /// An adapter for merging the output of two streams.
 ///

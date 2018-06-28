@@ -1,4 +1,4 @@
-use {task, Stream, Poll};
+use crate::{task, Stream, Poll};
 
 use core::mem::PinMut;
 

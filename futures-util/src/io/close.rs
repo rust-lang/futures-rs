@@ -2,7 +2,7 @@ use std::io;
 use std::marker::Unpin;
 use std::mem::PinMut;
 
-use {Poll, Future, task};
+use crate::{Poll, Future, task};
 
 use futures_io::AsyncWrite;
 

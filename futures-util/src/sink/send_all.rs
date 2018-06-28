@@ -2,7 +2,7 @@ use futures_core::{Poll, Future, Stream};
 use futures_core::task;
 use futures_sink::{Sink};
 
-use stream::{StreamExt, Fuse};
+use crate::stream::{StreamExt, Fuse};
 
 use core::marker::Unpin;
 use core::mem::PinMut;

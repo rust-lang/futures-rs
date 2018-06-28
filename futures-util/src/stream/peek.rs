@@ -4,7 +4,7 @@ use core::marker::Unpin;
 use futures_core::{Poll, Stream};
 use futures_core::task;
 
-use stream::{StreamExt, Fuse};
+use crate::stream::{StreamExt, Fuse};
 
 /// A `Stream` that implements a `peek` method.
 ///

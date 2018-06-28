@@ -4,11 +4,15 @@
 //! asynchronous analogs to `std::io::{Read, Write}`. The primary difference is
 //! that these traits integrate with the asynchronous task system.
 
-#![no_std]
-#![deny(missing_docs, missing_debug_implementations)]
-#![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2.0")]
-
 #![feature(futures_api)]
+#![feature(rust_2018_preview)]
+
+#![no_std]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
+#![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2.0")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -33,9 +37,9 @@ if_std! {
 
     // Re-export io::Error so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
-    pub use StdIo::Error as Error;
-    pub use StdIo::ErrorKind as ErrorKind;
-    pub use StdIo::Result as Result;
+    pub use crate::StdIo::Error as Error;
+    pub use crate::StdIo::ErrorKind as ErrorKind;
+    pub use crate::StdIo::Result as Result;
 
     /// A type used to conditionally initialize buffers passed to `AsyncRead`
     /// methods, modeled after `std`.

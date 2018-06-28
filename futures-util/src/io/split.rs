@@ -1,8 +1,8 @@
 use std::io;
 use std::mem::PinMut;
 
-use {Poll, task};
-use lock::BiLock;
+use crate::{Poll, task};
+use crate::lock::BiLock;
 
 use futures_io::{AsyncRead, AsyncWrite, IoVec};
 
