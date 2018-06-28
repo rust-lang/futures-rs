@@ -22,6 +22,10 @@
 #![feature(futures_api)]
 
 #![no_std]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_root_url = "https://docs.rs/futures/0.2.0")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
