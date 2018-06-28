@@ -5,7 +5,10 @@
 //! that these traits integrate with the asynchronous task system.
 
 #![no_std]
-#![deny(missing_docs, missing_debug_implementations)]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_rnoot_url = "https://docs.rs/futures-io/0.2.0")]
 
 #![feature(futures_api)]

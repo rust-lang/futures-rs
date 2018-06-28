@@ -27,6 +27,7 @@ use ThreadPool;
 /// [`executor()`](LocalPool::executor) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
 /// futures, via [`spawn_local`](LocalExecutor::spawn_local).
+#[derive(Debug)]
 pub struct LocalPool {
     pool: FuturesUnordered<LocalTaskObj>,
     incoming: Rc<Incoming>,
@@ -34,7 +35,7 @@ pub struct LocalPool {
 
 /// A handle to a [`LocalPool`](LocalPool) that implements
 /// [`Executor`](::futures_core::executor::Executor).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LocalExecutor {
     incoming: Weak<Incoming>,
 }
@@ -232,6 +233,7 @@ pub fn block_on_stream<S: Stream>(s: S) -> BlockingStream<S> {
 }
 
 /// An iterator which blocks on values from a stream until they become available.
+#[derive(Debug)]
 pub struct BlockingStream<S: Stream> { stream: Option<S> }
 
 impl<S: Stream> BlockingStream<S> {

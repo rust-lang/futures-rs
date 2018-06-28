@@ -30,8 +30,8 @@ pub struct ThreadPoolBuilder {
     pool_size: usize,
     stack_size: usize,
     name_prefix: Option<String>,
-    after_start: Option<Arc<Fn(usize) + Send + Sync>>,
-    before_stop: Option<Arc<Fn(usize) + Send + Sync>>,
+    after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+    before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>,
 }
 
 trait AssertSendSync: Send + Sync {}
@@ -121,8 +121,8 @@ impl PoolState {
 
     fn work(&self,
             idx: usize,
-            after_start: Option<Arc<Fn(usize) + Send + Sync>>,
-            before_stop: Option<Arc<Fn(usize) + Send + Sync>>) {
+            after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
+            before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>) {
         let _scope = enter().unwrap();
         after_start.map(|fun| fun(idx));
         loop {

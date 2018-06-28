@@ -3,7 +3,10 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 #![no_std]
-#![deny(missing_docs)]
+
+#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_root_url = "https://docs.rs/futures-executor/0.2.0")]
 
 #[cfg(feature = "std")]

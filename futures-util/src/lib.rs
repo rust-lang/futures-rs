@@ -4,7 +4,10 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 #![no_std]
+
 #![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(bare_trait_objects)]
+
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[cfg(test)]
