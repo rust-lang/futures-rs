@@ -28,7 +28,7 @@ impl<T> StableFuture for GenStableFuture<T>
     fn poll(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            let this: &mut Self = unsafe { PinMut::get_mut(self) };
+            let this: &mut Self = unsafe { PinMut::get_mut_unchecked(self) };
             // This is an immovable generator, but since we're only accessing
             // it via a PinMut this is safe.
             match unsafe { this.0.resume() } {

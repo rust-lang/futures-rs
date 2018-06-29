@@ -89,7 +89,7 @@ if_std! {
         type Error = S::Error;
 
         fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            unsafe { ::core::mem::PinMut::get_mut(self.as_pin_mut()).poll_next(cx) }
+            unsafe { ::core::mem::PinMut::get_mut_unchecked(self.as_pin_mut()).poll_next(cx) }
         }
     }
 

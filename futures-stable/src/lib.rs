@@ -86,7 +86,7 @@ if_nightly! {
         type Error = F::Error;
 
         fn poll(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-            F::poll(unsafe { PinMut::get_mut(self) }, ctx)
+            F::poll(unsafe { PinMut::get_mut_unchecked(self) }, ctx)
         }
     }
 
@@ -140,7 +140,7 @@ if_nightly! {
         type Error = S::Error;
 
         fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
-            S::poll_next(unsafe { PinMut::get_mut(self) }, ctx)
+            S::poll_next(unsafe { PinMut::get_mut_unchecked(self) }, ctx)
         }
     }
 }

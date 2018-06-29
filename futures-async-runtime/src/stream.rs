@@ -40,7 +40,7 @@ impl<U, T> StableStream for GenStableStream<U, T>
     fn poll_next(self: PinMut<Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
         CTX.with(|cell| {
             let _r = Reset::new(ctx, cell);
-            let this: &mut Self = unsafe { PinMut::get_mut(self) };
+            let this: &mut Self = unsafe { PinMut::get_mut_unchecked(self) };
             if this.done { return Ok(Async::Ready(None)) }
             // This is an immovable generator, but since we're only accessing
             // it via a PinMut this is safe.

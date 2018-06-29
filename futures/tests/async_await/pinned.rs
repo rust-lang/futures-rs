@@ -1,6 +1,7 @@
 use futures::stable::block_on_stable;
 use futures::executor::{block_on, ThreadPool};
 use futures::prelude::*;
+use futures::prelude::await;
 
 #[async]
 fn foo() -> Result<i32, i32> {
