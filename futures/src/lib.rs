@@ -39,6 +39,8 @@ extern crate futures_io;
 extern crate futures_sink;
 extern crate futures_util;
 
+#[doc(hidden)]
+pub use futures_core::core_reexport;
 pub use futures_core::future::Future;
 pub use futures_util::future::FutureExt;
 pub use futures_core::stream::Stream;
@@ -73,9 +75,9 @@ macro_rules! task_local {
     (static $NAME:ident: $t:ty = $e:expr) => (
         static $NAME: $crate::task::LocalKey<$t> = {
             fn __init() -> $t { $e }
-            fn __key() -> ::std::any::TypeId {
+            fn __key() -> $crate::core_reexport::any::TypeId {
                 struct __A;
-                ::std::any::TypeId::of::<__A>()
+                $crate::core_reexport::any::TypeId::of::<__A>()
             }
             $crate::task::LocalKey {
                 __init: __init,
