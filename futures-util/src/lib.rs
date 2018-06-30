@@ -21,19 +21,12 @@ extern crate futures_sink;
 
 extern crate either;
 
-#[cfg(feature = "std")]
-use futures_core::{Future, Poll, task};
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
         $i
     )*)
 }
-
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate core;
 
 #[doc(hidden)]
 pub use futures_core::core_reexport;
@@ -59,28 +52,31 @@ macro_rules! delegate_sink {
     }
 }
 
-// FIXME: currently async/await is only available with std
-#[cfg(feature = "std")]
-pub mod await;
-
-#[cfg(all(feature = "std", any(test, feature = "bench")))]
-pub mod lock;
-#[cfg(all(feature = "std", not(any(test, feature = "bench"))))]
-mod lock;
-
 pub mod future;
 pub use future::FutureExt;
 
 pub mod try_future;
 pub use try_future::TryFutureExt;
 
-#[cfg(feature = "std")]
-pub mod io;
-#[cfg(feature = "std")]
-pub use io::{AsyncReadExt, AsyncWriteExt};
-
 pub mod stream;
 pub use stream::StreamExt;
 
 pub mod sink;
 pub use sink::SinkExt;
+
+if_std! {
+    extern crate core;
+
+    use futures_core::{Future, Poll, task};
+
+    // FIXME: currently async/await is only available with std
+    pub mod await;
+
+    pub mod io;
+    pub use io::{AsyncReadExt, AsyncWriteExt};
+
+    #[cfg(any(test, feature = "bench"))]
+    pub mod lock;
+    #[cfg(not(any(test, feature = "bench")))]
+    mod lock;
+}
