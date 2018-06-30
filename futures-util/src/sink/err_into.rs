@@ -3,7 +3,7 @@ use futures_core::task;
 use futures_sink::{Sink};
 use sink::{SinkExt, SinkMapErr};
 
-use std::mem::PinMut;
+use core::mem::PinMut;
 
 /// A sink combinator to change the error type of a sink.
 ///

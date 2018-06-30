@@ -31,6 +31,7 @@ macro_rules! if_std {
     )*)
 }
 
+#[cfg(feature = "std")]
 #[macro_use]
 extern crate core;
 

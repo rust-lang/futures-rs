@@ -73,7 +73,7 @@ macro_rules! pin_mut {
         // Shadow the original binding so that it can't be directly accessed
         // ever again.
         #[allow(unused_mut)]
-        let mut $x = unsafe { ::std::mem::PinMut::new_unchecked(&mut $x) };
+        let mut $x = unsafe { ::core::mem::PinMut::new_unchecked(&mut $x) };
     )* }
 }
 
