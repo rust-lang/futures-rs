@@ -10,7 +10,7 @@ macro_rules! join {
         loop {
             let mut all_done = true;
             $(
-                if let ::core::task::Poll::Pending = poll!($fut.reborrow()) {
+                if let $crate::core_reexport::task::Poll::Pending = poll!($fut.reborrow()) {
                     all_done = false;
                 }
             )*

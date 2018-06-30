@@ -11,11 +11,11 @@ macro_rules! select {
         $(
             $crate::await::assert_unpin(&$name);
             let mut $name = $crate::future::maybe_done(&mut $name);
-            let mut $name = ::core::mem::PinMut::new(&mut $name);
+            let mut $name = $crate::core_reexport::mem::PinMut::new(&mut $name);
         )*
         loop {
             $(
-                if let ::core::task::Poll::Ready(()) = poll!($name.reborrow()) {
+                if let $crate::core_reexport::task::Poll::Ready(()) = poll!($name.reborrow()) {
                     break;
                 }
             )*

@@ -4,12 +4,10 @@
 //! thing that ever blocks, so this is assisted with a fast user-space
 //! implementation of a lock that can only have a `try_lock` operation.
 
-extern crate core;
-
-use self::core::cell::UnsafeCell;
-use self::core::ops::{Deref, DerefMut};
-use self::core::sync::atomic::Ordering::SeqCst;
-use self::core::sync::atomic::AtomicBool;
+use core::cell::UnsafeCell;
+use core::ops::{Deref, DerefMut};
+use core::sync::atomic::Ordering::SeqCst;
+use core::sync::atomic::AtomicBool;
 
 /// A "mutex" around a value, similar to `std::sync::Mutex<T>`.
 ///

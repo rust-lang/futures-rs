@@ -18,6 +18,11 @@ extern crate std;
 #[cfg(feature = "either")]
 extern crate either;
 
+#[doc(hidden)]
+pub mod core_reexport {
+    pub use core::*;
+}
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
@@ -28,8 +33,8 @@ macro_rules! if_std {
 #[macro_export]
 macro_rules! pinned_deref {
     ($e:expr) => (
-        ::core::mem::PinMut::new_unchecked(
-            &mut **::core::mem::PinMut::get_mut_unchecked($e.reborrow())
+        $crate::core_reexport::mem::PinMut::new_unchecked(
+            &mut **$crate::core_reexport::mem::PinMut::get_mut_unchecked($e.reborrow())
         )
     )
 }
@@ -37,8 +42,8 @@ macro_rules! pinned_deref {
 #[macro_export]
 macro_rules! pinned_field {
     ($e:expr, $f:tt) => (
-        ::core::mem::PinMut::new_unchecked(
-            &mut ::core::mem::PinMut::get_mut_unchecked($e.reborrow()).$f
+        $crate::core_reexport::mem::PinMut::new_unchecked(
+            &mut $crate::core_reexport::mem::PinMut::get_mut_unchecked($e.reborrow()).$f
         )
     )
 }
@@ -59,7 +64,7 @@ macro_rules! unsafe_unpinned {
     ($f:tt -> $t:ty) => (
         fn $f<'a>(self: &'a mut PinMut<Self>) -> &'a mut $t {
             unsafe {
-                &mut ::core::mem::PinMut::get_mut_unchecked(self.reborrow()).$f
+                &mut $crate::core_reexport::mem::PinMut::get_mut_unchecked(self.reborrow()).$f
             }
         }
     )
@@ -73,7 +78,7 @@ macro_rules! pin_mut {
         // Shadow the original binding so that it can't be directly accessed
         // ever again.
         #[allow(unused_mut)]
-        let mut $x = unsafe { ::core::mem::PinMut::new_unchecked(&mut $x) };
+        let mut $x = unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $x) };
     )* }
 }
 

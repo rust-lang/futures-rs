@@ -35,6 +35,9 @@ macro_rules! if_std {
 #[macro_use]
 extern crate core;
 
+#[doc(hidden)]
+pub use futures_core::core_reexport;
+
 macro_rules! delegate_sink {
     ($field:ident) => {
         fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
