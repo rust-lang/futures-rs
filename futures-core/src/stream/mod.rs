@@ -1,5 +1,6 @@
 //! Asynchronous streams.
 
+use core::marker::Unpin;
 use core::mem::PinMut;
 
 use Poll;
@@ -73,7 +74,6 @@ impl<'a, S: ?Sized + Stream> Stream for PinMut<'a, S> {
 
 if_std! {
     use std::boxed::{Box, PinBox};
-    use std::marker::Unpin;
 
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
         type Item = S::Item;

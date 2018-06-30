@@ -4,8 +4,8 @@
 //! with `async`/`await` code.
 
 use futures_core::{task, Future, Poll};
-use std::marker::Unpin;
-use std::mem::PinMut;
+use core::marker::Unpin;
+use core::mem::PinMut;
 
 #[doc(hidden)]
 pub fn assert_unpin<T: Future + Unpin>(_: &T) {}

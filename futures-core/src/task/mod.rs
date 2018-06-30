@@ -1,5 +1,6 @@
 //! Task notification.
 
+#[cfg(feature = "std")]
 use Future;
 
 mod poll;

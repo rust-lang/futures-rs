@@ -24,8 +24,8 @@ macro_rules! if_std {
 }
 
 use futures_core::{Poll, task};
-use std::marker::Unpin;
-use std::mem::PinMut;
+use core::marker::Unpin;
+use core::mem::PinMut;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
