@@ -1,7 +1,7 @@
 [package]
 name = "futures-stable-preview"
 description = "futures which support internal references"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["boats <boats@mozilla.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
