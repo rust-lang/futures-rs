@@ -19,4 +19,3 @@ futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-feat
 
 [dev-dependencies]
 futures = { path = "../futures", version = "0.3.0-alpha", default-features = true }
-# futures-executor = { path = "../futures-executor", version = "0.2.0", default-features = true }

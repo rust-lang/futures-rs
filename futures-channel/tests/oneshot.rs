@@ -1,31 +1,31 @@
-extern crate futures;
-extern crate futures_channel;
-extern crate futures_executor;
+#![feature(futures_api, arbitrary_self_types, pin)]
 
+extern crate futures;
+
+use std::mem::PinMut;
 use std::sync::mpsc;
 use std::thread;
 
 use futures::future::poll_fn;
 use futures::prelude::*;
 use futures::task;
-use futures::never::Never;
-use futures_channel::oneshot::*;
-use futures_executor::block_on;
+use futures::channel::oneshot::*;
+use futures::executor::block_on;
 
 #[test]
 fn smoke_poll() {
     let (mut tx, rx) = channel::<u32>();
     let mut rx = Some(rx);
     let f = poll_fn(|cx| {
-        assert!(tx.poll_cancel(cx).unwrap().is_pending());
-        assert!(tx.poll_cancel(cx).unwrap().is_pending());
+        assert!(tx.poll_cancel(cx).is_pending());
+        assert!(tx.poll_cancel(cx).is_pending());
         drop(rx.take());
-        assert!(tx.poll_cancel(cx).unwrap().is_ready());
-        assert!(tx.poll_cancel(cx).unwrap().is_ready());
-        Ok::<_, ()>(Async::Ready(()))
+        assert!(tx.poll_cancel(cx).is_ready());
+        assert!(tx.poll_cancel(cx).is_ready());
+        Poll::Ready(())
     });
 
-    block_on(f).unwrap();
+    block_on(f);
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn cancel_notifies() {
     let (tx, rx) = channel::<u32>();
 
     let t = thread::spawn(|| {
-        block_on(WaitForCancel { tx: tx }).unwrap();
+        block_on(WaitForCancel { tx: tx });
     });
     drop(rx);
     t.join().unwrap();
@@ -44,10 +44,9 @@ struct WaitForCancel {
 }
 
 impl Future for WaitForCancel {
-    type Item = ();
-    type Error = Never;
+    type Output = ();
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<(), Never> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.tx.poll_cancel(cx)
     }
 }
@@ -57,7 +56,8 @@ fn cancel_lots() {
     let (tx, rx) = mpsc::channel::<(Sender<_>, mpsc::Sender<_>)>();
     let t = thread::spawn(move || {
         for (tx, tx2) in rx {
-            block_on(WaitForCancel { tx: tx }.then(move |v| tx2.send(v))).unwrap();
+            block_on(WaitForCancel { tx });
+            tx2.send(()).unwrap();
         }
     });
 
@@ -66,7 +66,7 @@ fn cancel_lots() {
         let (tx2, rx2) = mpsc::channel();
         tx.send((otx, tx2)).unwrap();
         drop(orx);
-        rx2.recv().unwrap().unwrap();
+        rx2.recv().unwrap();
     }
     drop(tx);
 
@@ -77,12 +77,14 @@ fn cancel_lots() {
 fn close() {
     let (mut tx, mut rx) = channel::<u32>();
     rx.close();
-    let f = poll_fn(|cx| {
-        assert!(rx.poll(cx).is_err());
-        assert!(tx.poll_cancel(cx).unwrap().is_ready());
-        Ok::<_, ()>(Async::Ready(()))
-    });
-    block_on(f).unwrap();
+    block_on(poll_fn(|cx| {
+        match rx.poll_unpin(cx) {
+            Poll::Ready(Err(_)) => {},
+            _ => panic!(),
+        };
+        assert!(tx.poll_cancel(cx).is_ready());
+        Poll::Ready(())
+    }));
 }
 
 #[test]
@@ -93,7 +95,7 @@ fn close_wakes() {
         rx.close();
         rx2.recv().unwrap();
     });
-    block_on(WaitForCancel { tx: tx }).unwrap();
+    block_on(WaitForCancel { tx: tx });
     tx2.send(()).unwrap();
     t.join().unwrap();
 }
@@ -120,8 +122,7 @@ fn cancel_sends() {
         tx.send(otx).unwrap();
 
         orx.close();
-        let f = poll_fn(|cx| orx.poll(cx));
-        drop(block_on(f));
+        drop(block_on(orx));
     }
 
     drop(tx);

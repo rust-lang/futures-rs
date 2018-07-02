@@ -2,6 +2,7 @@ use std::prelude::v1::*;
 
 use std::cell::{RefCell};
 use std::marker::Unpin;
+use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::thread::{self, Thread};
@@ -228,30 +229,38 @@ pub fn block_on<F: Future>(f: F) -> F::Output {
 /// When `next` is called on the resulting `BlockingStream`, the caller
 /// will be blocked until the next element of the `Stream` becomes available.
 /// The default executor for the future is a global `ThreadPool`.
-pub fn block_on_stream<S: Stream>(s: S) -> BlockingStream<S> {
-    BlockingStream { stream: Some(s) }
+pub fn block_on_stream<S: Stream + Unpin>(stream: S) -> BlockingStream<S> {
+    BlockingStream { stream }
 }
 
 /// An iterator which blocks on values from a stream until they become available.
 #[derive(Debug)]
-pub struct BlockingStream<S: Stream> { stream: Option<S> }
+pub struct BlockingStream<S: Stream + Unpin> { stream: S }
 
-impl<S: Stream> BlockingStream<S> {
-    /// Convert this `BlockingStream` into the inner `Stream` type.
-    pub fn into_inner(self) -> S {
-        self.stream.expect("BlockingStream shouldn't be empty")
+impl<S: Stream + Unpin> Deref for BlockingStream<S> {
+    type Target = S;
+    fn deref(&self) -> &Self::Target {
+        &self.stream
     }
 }
 
-impl<S: Stream> Iterator for BlockingStream<S> where S: Unpin {
+impl<S: Stream + Unpin> DerefMut for BlockingStream<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.stream
+    }
+}
+
+impl<S: Stream + Unpin> BlockingStream<S> {
+    /// Convert this `BlockingStream` into the inner `Stream` type.
+    pub fn into_inner(self) -> S {
+        self.stream
+    }
+}
+
+impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
     type Item = S::Item;
     fn next(&mut self) -> Option<Self::Item> {
-        let s = self.stream.take().expect("BlockingStream shouldn't be empty");
-        let (item, s) =
-          LocalPool::new().run_until(s.next(), &mut GLOBAL_POOL.clone());
-
-        self.stream = Some(s);
-        item
+        LocalPool::new().run_until(self.stream.next(), &mut GLOBAL_POOL.clone())
     }
 }
 

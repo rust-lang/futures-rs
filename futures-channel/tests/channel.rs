@@ -1,14 +1,14 @@
+#![feature(async_await, await_macro, futures_api)]
+
 extern crate futures;
-extern crate futures_channel;
-extern crate futures_executor;
 
 use std::sync::atomic::*;
 use std::thread;
 
 use futures::prelude::*;
-use futures::future::{result, poll_fn};
-use futures_executor::block_on;
-use futures_channel::mpsc;
+use futures::future::poll_fn;
+use futures::executor::block_on;
+use futures::channel::mpsc;
 
 #[test]
 fn sequence() {
@@ -16,9 +16,9 @@ fn sequence() {
 
     let amt = 20;
     let t = thread::spawn(move || {
-        block_on(send(amt, tx)).unwrap()
+        block_on(send_sequence(amt, tx))
     });
-    let list: Vec<_> = block_on(rx.collect()).unwrap();
+    let list: Vec<_> = block_on(rx.collect());
     let mut list = list.into_iter();
     for i in (1..amt + 1).rev() {
         assert_eq!(list.next(), Some(i));
@@ -26,15 +26,11 @@ fn sequence() {
     assert_eq!(list.next(), None);
 
     t.join().unwrap();
+}
 
-    fn send(n: u32, sender: mpsc::Sender<u32>)
-            -> Box<Future<Item=(), Error=()> + Send> {
-        if n == 0 {
-            return Box::new(result(Ok(())))
-        }
-        Box::new(sender.send(n).map_err(|_| ()).and_then(move |sender| {
-            send(n - 1, sender)
-        }))
+async fn send_sequence(n: u32, mut sender: mpsc::Sender<u32>) {
+    for x in 0..n {
+        await!(sender.send(n - x)).unwrap();
     }
 }
 
@@ -43,15 +39,15 @@ fn drop_sender() {
     let (tx, mut rx) = mpsc::channel::<u32>(1);
     drop(tx);
     let f = poll_fn(|cx| {
-        rx.poll_next(cx)
+        rx.poll_next_unpin(cx)
     });
-    assert_eq!(block_on(f).unwrap(), None)
+    assert_eq!(block_on(f), None)
 }
 
 #[test]
 fn drop_rx() {
-    let (tx, rx) = mpsc::channel::<u32>(1);
-    let tx = block_on(tx.send(1)).unwrap();
+    let (mut tx, rx) = mpsc::channel::<u32>(1);
+    block_on(tx.send(1)).unwrap();
     drop(rx);
     assert!(block_on(tx.send(1)).is_err());
 }
@@ -59,7 +55,7 @@ fn drop_rx() {
 #[test]
 fn drop_order() {
     static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
-    let (tx, rx) = mpsc::channel(1);
+    let (mut tx, rx) = mpsc::channel(1);
 
     struct A;
 
@@ -69,7 +65,7 @@ fn drop_order() {
         }
     }
 
-    let tx = block_on(tx.send(A)).unwrap();
+    block_on(tx.send(A)).unwrap();
     assert_eq!(DROPS.load(Ordering::SeqCst), 0);
     drop(rx);
     assert_eq!(DROPS.load(Ordering::SeqCst), 1);
