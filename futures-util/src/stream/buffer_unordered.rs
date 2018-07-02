@@ -115,8 +115,9 @@ where
         }
 
         // Attempt to pull the next value from the queue
-        if let Some(val) = ready!(PinMut::new(self.queue()).poll_next(cx)) {
-            return Poll::Ready(Some(val));
+        match PinMut::new(self.queue()).poll_next(cx) {
+            x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
+            Poll::Ready(None) => {}
         }
 
         // If more values are still coming from the stream, we're not done yet

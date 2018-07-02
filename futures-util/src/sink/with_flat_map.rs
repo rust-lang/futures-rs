@@ -88,14 +88,9 @@ where
         let mut stream = unsafe { PinMut::new_unchecked(stream) };
 
 
-        if let Some(x) = buffer.take() {
-            match try_poll!(sink.reborrow().poll_ready(cx)) {
-                Poll::Ready(()) => try_ready!(Poll::Ready(sink.reborrow().start_send(x))),
-                Poll::Pending => {
-                    *buffer = Some(x);
-                    return Poll::Pending;
-                }
-            };
+        if buffer.is_some() {
+            try_ready!(sink.reborrow().poll_ready(cx));
+            try_ready!(Poll::Ready(sink.reborrow().start_send(buffer.take().unwrap())));
         }
         if let Some(mut some_stream) = stream.reborrow().as_pin_mut() {
             while let Some(x) = ready!(some_stream.reborrow().poll_next(cx)) {
