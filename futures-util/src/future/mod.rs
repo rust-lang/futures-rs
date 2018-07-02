@@ -20,7 +20,7 @@ mod flatten;
 mod flatten_stream;
 mod fuse;
 mod into_stream;
-// mod join;
+mod join;
 mod map;
 // mod select;
 mod then;
@@ -33,7 +33,7 @@ pub use self::flatten::Flatten;
 pub use self::flatten_stream::FlattenStream;
 pub use self::fuse::Fuse;
 pub use self::into_stream::IntoStream;
-// pub use self::join::{Join, Join3, Join4, Join5};
+pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::map::Map;
 // pub use self::select::Select;
 pub use self::then::Then;
@@ -179,6 +179,7 @@ pub trait FutureExt: Future {
     {
         select::new(self, other.into_future())
     }
+    */
 
     /// Joins the result of two futures, waiting for them both to complete.
     ///
@@ -186,14 +187,10 @@ pub trait FutureExt: Future {
     /// `other` future to complete. The returned future will finish with a tuple
     /// of both results.
     ///
-    /// Both futures must have the same error type, and if either finishes with
-    /// an error then the other will be dropped and that error will be
-    /// returned.
-    ///
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.
     ///
-    /// # Examples
+    /// # Example
     ///
     /// ```
     /// # extern crate futures;
@@ -203,73 +200,54 @@ pub trait FutureExt: Future {
     /// use futures_executor::block_on;
     ///
     /// # fn main() {
-    /// let a = future::ok::<u32, u32>(1);
-    /// let b = future::ok::<u32, u32>(2);
+    /// let a = future::ready(1);
+    /// let b = future::ready(2);
     /// let pair = a.join(b);
     ///
-    /// assert_eq!(block_on(pair), Ok((1, 2)));
+    /// assert_eq!(block_on(pair), (1, 2));
     /// # }
     /// ```
-    ///
-    /// If one or both of the joined `Future`s is errored, the resulting
-    /// `Future` will be errored:
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate futures_executor;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures_executor::block_on;
-    ///
-    /// # fn main() {
-    /// let a = future::ok::<u32, u32>(1);
-    /// let b = future::err::<u32, u32>(2);
-    /// let pair = a.join(b);
-    ///
-    /// assert_eq!(block_on(pair), Err(2));
-    /// # }
-    /// ```
-    fn join<B>(self, other: B) -> Join<Self, B::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+    fn join<B>(self, other: B) -> Join<Self, B>
+    where
+        B: Future,
+        Self: Sized,
     {
-        let f = join::new(self, other.into_future());
-        assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
+        let f = join::new(self, other);
+        assert_future::<(Self::Output, B::Output), _>(f)
     }
 
     /// Same as `join`, but with more futures.
-    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B, C>
+    where
+        B: Future,
+        C: Future,
+        Self: Sized,
     {
-        join::new3(self, b.into_future(), c.into_future())
+        join::new3(self, b, c)
     }
 
     /// Same as `join`, but with more futures.
-    fn join4<B, C, D>(self, b: B, c: C, d: D)
-                      -> Join4<Self, B::Future, C::Future, D::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+    fn join4<B, C, D>(self, b: B, c: C, d: D) -> Join4<Self, B, C, D>
+    where
+        B: Future,
+        C: Future,
+        D: Future,
+        Self: Sized,
     {
-        join::new4(self, b.into_future(), c.into_future(), d.into_future())
+        join::new4(self, b, c, d)
     }
 
     /// Same as `join`, but with more futures.
-    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
-                         -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              E: IntoFuture<Error=Self::Error>,
-              Self: Sized,
+    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E) -> Join5<Self, B, C, D, E>
+    where
+        B: Future,
+        C: Future,
+        D: Future,
+        E: Future,
+        Self: Sized,
     {
-        join::new5(self, b.into_future(), c.into_future(), d.into_future(),
-                   e.into_future())
+        join::new5(self, b, c, d, e)
     }
-*/
 
     /* ToDo: futures-core cannot implement Future for Either anymore because of
              the orphan rule. Remove? Implement our own `Either`?

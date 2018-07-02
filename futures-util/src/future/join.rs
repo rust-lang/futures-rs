@@ -1,120 +1,68 @@
 #![allow(non_snake_case)]
 
 use core::fmt;
-use core::mem;
+use core::mem::PinMut;
 
-use futures_core::{Future, Poll, Async};
+use futures_core::{Future, Poll};
 use futures_core::task;
+
+use future::{MaybeDone, maybe_done};
 
 macro_rules! generate {
     ($(
         $(#[$doc:meta])*
-        ($Join:ident, $new:ident, <A, $($B:ident),*>),
+        ($Join:ident, $new:ident, <$($Fut:ident),*>),
     )*) => ($(
         $(#[$doc])*
         #[must_use = "futures do nothing unless polled"]
-        pub struct $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
-        {
-            a: MaybeDone<A>,
-            $($B: MaybeDone<$B>,)*
+        pub struct $Join<$($Fut: Future),*> {
+            $($Fut: MaybeDone<$Fut>,)*
         }
 
-        impl<A, $($B),*> fmt::Debug for $Join<A, $($B),*>
-            where A: Future + fmt::Debug,
-                  A::Item: fmt::Debug,
-                  $(
-                      $B: Future<Error=A::Error> + fmt::Debug,
-                      $B::Item: fmt::Debug
-                  ),*
+        impl<$($Fut),*> fmt::Debug for $Join<$($Fut),*>
+        where
+            $(
+                $Fut: Future + fmt::Debug,
+                $Fut::Output: fmt::Debug,
+            )*
         {
             fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
                 fmt.debug_struct(stringify!($Join))
-                    .field("a", &self.a)
-                    $(.field(stringify!($B), &self.$B))*
+                    $(.field(stringify!($Fut), &self.$Fut))*
                     .finish()
             }
         }
 
-        pub fn $new<A, $($B),*>(a: A, $($B: $B),*) -> $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
-        {
+        pub fn $new<$($Fut: Future),*>($($Fut: $Fut),*) -> $Join<$($Fut),*> {
             $Join {
-                a: MaybeDone::NotYet(a),
-                $($B: MaybeDone::NotYet($B)),*
+                $($Fut: maybe_done($Fut)),*
             }
         }
 
-        impl<A, $($B),*> $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
-        {
-            fn erase(&mut self) {
-                self.a = MaybeDone::Gone;
-                $(self.$B = MaybeDone::Gone;)*
-            }
+        impl<$($Fut: Future),*> $Join<$($Fut),*> {
+            $(
+                unsafe_pinned!($Fut -> MaybeDone<$Fut>);
+            )*
         }
 
-        impl<A, $($B),*> Future for $Join<A, $($B),*>
-            where A: Future,
-                  $($B: Future<Error=A::Error>),*
-        {
-            type Item = (A::Item, $($B::Item),*);
-            type Error = A::Error;
+        impl<$($Fut: Future),*> Future for $Join<$($Fut),*> {
+            type Output = ($($Fut::Output),*);
 
-            fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
-                let mut all_done = match self.a.poll(cx) {
-                    Ok(done) => done,
-                    Err(e) => {
-                        self.erase();
-                        return Err(e)
-                    }
-                };
+            fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+                let mut all_done = true;
                 $(
-                    all_done = match self.$B.poll(cx) {
-                        Ok(done) => all_done && done,
-                        Err(e) => {
-                            self.erase();
-                            return Err(e)
-                        }
-                    };
+                    if self.$Fut().poll(cx).is_pending() {
+                        all_done = false;
+                    }
                 )*
 
                 if all_done {
-                    Ok(Async::Ready((self.a.take(), $(self.$B.take()),*)))
+                    Poll::Ready(($(self.$Fut().take_output().unwrap_or_else(|| unreachable!())),*))
                 } else {
-                    Ok(Async::Pending)
+                    Poll::Pending
                 }
             }
         }
-
-        // Incoherent-- add to futures-core when stable.
-        /*
-        impl<A, $($B),*> IntoFuture for (A, $($B),*)
-            where A: IntoFuture,
-        $(
-            $B: IntoFuture<Error=A::Error>
-        ),*
-        {
-            type Future = $Join<A::Future, $($B::Future),*>;
-            type Item = (A::Item, $($B::Item),*);
-            type Error = A::Error;
-
-            fn into_future(self) -> Self::Future {
-                match self {
-                    (a, $($B),+) => {
-                        $new(
-                            IntoFuture::into_future(a),
-                            $(IntoFuture::into_future($B)),+
-                        )
-                    }
-                }
-            }
-        }
-        */
-
     )*)
 }
 
@@ -142,35 +90,4 @@ generate! {
     ///
     /// This is created by the `Future::join5` method.
     (Join5, new5, <A, B, C, D, E>),
-}
-
-#[derive(Debug)]
-enum MaybeDone<A: Future> {
-    NotYet(A),
-    Done(A::Item),
-    Gone,
-}
-
-impl<A: Future> MaybeDone<A> {
-    fn poll(&mut self, cx: &mut task::Context) -> Result<bool, A::Error> {
-        let res = match *self {
-            MaybeDone::NotYet(ref mut a) => a.poll(cx)?,
-            MaybeDone::Done(_) => return Ok(true),
-            MaybeDone::Gone => panic!("cannot poll Join twice"),
-        };
-        match res {
-            Async::Ready(output) => {
-                *self = MaybeDone::Done(output);
-                Ok(true)
-            }
-            Async::Pending => Ok(false),
-        }
-    }
-
-    fn take(&mut self) -> A::Item {
-        match mem::replace(self, MaybeDone::Gone) {
-            MaybeDone::Done(a) => a,
-            _ => panic!(),
-        }
-    }
 }
