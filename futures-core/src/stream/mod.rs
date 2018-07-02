@@ -72,6 +72,37 @@ impl<'a, S: ?Sized + Stream> Stream for PinMut<'a, S> {
     }
 }
 
+/// A convenience for streams that return `Result` values that includes
+/// a variety of adapters tailored to such futures.
+pub trait TryStream {
+    /// The type of successful values yielded by this future
+    type TryItem;
+
+    /// The type of failures yielded by this future
+    type TryError;
+
+    /// Poll this `TryStream` as if it were a `Stream`.
+    ///
+    /// This method is a stopgap for a compiler limitation that prevents us from
+    /// directly inheriting from the `Stream` trait; in the future it won't be
+    /// needed.
+    fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
+        -> Poll<Option<Result<Self::TryItem, Self::TryError>>>;
+}
+
+impl<S, T, E> TryStream for S
+    where S: Stream<Item = Result<T, E>>
+{
+    type TryItem = T;
+    type TryError = E;
+
+    fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
+        -> Poll<Option<Result<Self::TryItem, Self::TryError>>>
+    {
+        self.poll_next(cx)
+    }
+}
+
 if_std! {
     use std::boxed::{Box, PinBox};
 
