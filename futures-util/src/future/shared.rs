@@ -24,7 +24,7 @@ use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::mem::{self, PinMut};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -116,7 +116,7 @@ impl<F> Shared<F> where F: Future {
     pub fn peek(&self) -> Option<Arc<F::Output>> {
         match self.inner.notifier.state.load(SeqCst) {
             COMPLETE => {
-                Some(unsafe { self.clone_result() })
+                Some(unsafe { self.clone_output() })
             }
             POISONED => panic!("inner future panicked during poll"),
             _ => None,
@@ -131,7 +131,7 @@ impl<F> Shared<F> where F: Future {
         } else {
             let waker_slot = &mut wakers[self.waker_key];
             let needs_replacement = if let Some(old_waker) = waker_slot {
-                // If there's still an unwoken waker in the slot, only wake
+                // If there's still an unwoken waker in the slot, only replace
                 // if the current one wouldn't wake the same task.
                 !old_waker.will_wake(cx.waker())
             } else {
@@ -146,19 +146,12 @@ impl<F> Shared<F> where F: Future {
 
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
-    unsafe fn clone_result(&self) -> Arc<F::Output> {
+    unsafe fn clone_output(&self) -> Arc<F::Output> {
         if let FutureOrOutput::Output(item) = &*self.inner.future_or_output.get() {
             item.clone()
         } else {
             unreachable!()
         }
-    }
-
-    /// Safety: polling must have completed and self.inner.result must be
-    /// FutureOrOutput::Output
-    unsafe fn complete(&self) {
-        self.inner.notifier.state.store(COMPLETE, SeqCst);
-        Wake::wake(&self.inner.notifier);
     }
 }
 
@@ -181,7 +174,7 @@ impl<F: Future> Future for Shared<F> {
                 return Poll::Pending
             }
             COMPLETE => {
-                return unsafe { Poll::Ready(this.clone_result()) };
+                return unsafe { Poll::Ready(this.clone_output()) };
             }
             POISONED => panic!("inner future panicked during poll"),
             _ => unreachable!(),
@@ -229,18 +222,18 @@ impl<F: Future> Future for Shared<F> {
                         _ => unreachable!(),
                     }
                 }
-                Poll::Ready(i) => {
+                Poll::Ready(output) => {
+                    let output = Arc::new(output);
                     unsafe {
-                        *this.inner.future_or_output.get() = FutureOrOutput::Output(Arc::new(i));
+                        *this.inner.future_or_output.get() =
+                            FutureOrOutput::Output(output.clone());
                     }
-                    break;
+                    // Complete the future
+                    this.inner.notifier.state.store(COMPLETE, SeqCst);
+                    Wake::wake(&this.inner.notifier);
+                    return Poll::Ready(output);
                 }
             }
-        }
-
-        unsafe {
-            this.complete();
-            Poll::Ready(this.clone_result())
         }
     }
 }
@@ -258,7 +251,7 @@ impl<F> Drop for Shared<F> where F: Future {
     fn drop(&mut self) {
         if self.waker_key != NULL_WAKER_KEY {
             if let Ok(mut wakers) = self.inner.notifier.wakers.lock() {
-                wakers.remove(self.waker_key);
+                mem::replace(&mut *wakers, Slab::new());
             }
         }
     }
@@ -268,8 +261,8 @@ impl Wake for Notifier {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
-        let mut lock = arc_self.wakers.lock().unwrap();
-        for (_key, opt_waker) in &mut *lock {
+        let wakers = &mut *arc_self.wakers.lock().unwrap();
+        for (_key, opt_waker) in wakers {
             if let Some(waker) = opt_waker.take() {
                 waker.wake();
             }
