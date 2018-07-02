@@ -11,19 +11,27 @@ use core::mem::PinMut;
 /// to a sink and then waits until the sink has fully flushed those values.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SendAll<'a, T: 'a + ?Sized + Sink, U: Stream + 'a + ?Sized> {
-    sink: PinMut<'a, T>,
-    stream: Fuse<PinMut<'a, U>>,
+pub struct SendAll<'a, T, U>
+where
+    T: Sink + Unpin + 'a + ?Sized,
+    U: Stream + Unpin + 'a + ?Sized,
+{
+    sink: &'a mut T,
+    stream: Fuse<&'a mut U>,
     buffered: Option<T::SinkItem>,
 }
 
 // Pinning is never projected to any fields
-impl<'a, T: ?Sized + Sink, U: Stream + ?Sized> Unpin for SendAll<'a, T, U> {}
+impl<'a, T, U> Unpin for SendAll<'a, T, U>
+where
+    T: Sink + Unpin + 'a + ?Sized,
+    U: Stream + Unpin + 'a + ?Sized,
+{}
 
-pub fn new<'a, T, U, E>(sink: PinMut<'a, T>, stream: PinMut<'a, U>) -> SendAll<'a, T, U>
-    where T: Sink + ?Sized,
-          U: Stream<Item = Result<T::SinkItem, E>> + ?Sized,
-          T::SinkError: From<E>,
+pub fn new<'a, T, U>(sink: &'a mut T, stream: &'a mut U) -> SendAll<'a, T, U>
+where
+    T: Sink + Unpin + 'a + ?Sized,
+    U: Stream<Item = Result<T::SinkItem, T::SinkError>> + Unpin + 'a + ?Sized,
 {
     SendAll {
         sink,
@@ -32,18 +40,18 @@ pub fn new<'a, T, U, E>(sink: PinMut<'a, T>, stream: PinMut<'a, U>) -> SendAll<'
     }
 }
 
-impl<'a, T, U, E> SendAll<'a, T, U>
-    where T: Sink + ?Sized,
-          U: Stream<Item = Result<T::SinkItem, E>> + ?Sized,
-          T::SinkError: From<E>,
+impl<'a, T, U> SendAll<'a, T, U>
+where
+    T: Sink + Unpin + 'a + ?Sized,
+    U: Stream<Item = Result<T::SinkItem, T::SinkError>> + Unpin + 'a + ?Sized,
 {
-    fn try_start_send(self: &mut PinMut<Self>, cx: &mut task::Context, item: T::SinkItem)
+    fn try_start_send(&mut self, cx: &mut task::Context, item: T::SinkItem)
         -> Poll<Result<(), T::SinkError>>
     {
         debug_assert!(self.buffered.is_none());
-        match self.sink.reborrow().poll_ready(cx) {
+        match PinMut::new(self.sink).poll_ready(cx) {
             Poll::Ready(Ok(())) => {
-                Poll::Ready(self.sink.reborrow().start_send(item).map_err(Into::into))
+                Poll::Ready(PinMut::new(self.sink).start_send(item))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
@@ -54,30 +62,31 @@ impl<'a, T, U, E> SendAll<'a, T, U>
     }
 }
 
-impl<'a, T, U, E> Future for SendAll<'a, T, U>
-    where T: Sink,
-          U: Stream<Item = Result<T::SinkItem, E>>,
-          T::SinkError: From<E>,
+impl<'a, T, U> Future for SendAll<'a, T, U>
+where
+    T: Sink + Unpin + 'a + ?Sized,
+    U: Stream<Item = Result<T::SinkItem, T::SinkError>> + Unpin + 'a + ?Sized,
 {
     type Output = Result<(), T::SinkError>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
-        if let Some(item) = self.buffered.take() {
-            try_ready!(self.try_start_send(cx, item))
+        if let Some(item) = this.buffered.take() {
+            try_ready!(this.try_start_send(cx, item))
         }
 
         loop {
-            match self.stream.poll_next_unpin(cx) {
-                Poll::Ready(Some(Ok(item))) => try_ready!(self.try_start_send(cx, item)),
+            match this.stream.poll_next_unpin(cx) {
+                Poll::Ready(Some(Ok(item))) => try_ready!(this.try_start_send(cx, item)),
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e.into())),
                 Poll::Ready(None) => {
-                    try_ready!(self.sink.reborrow().poll_flush(cx));
+                    try_ready!(PinMut::new(this.sink).poll_flush(cx));
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(self.sink.reborrow().poll_flush(cx));
+                    try_ready!(PinMut::new(this.sink).poll_flush(cx));
                     return Poll::Pending
                 }
             }
