@@ -6,7 +6,7 @@
 use futures_core::{Future, Stream};
 use futures_sink::Sink;
 use super::future::Either;
-use core::mem::PinMut;
+use core::marker::Unpin;
 
 mod close;
 mod fanout;
@@ -71,28 +71,25 @@ pub trait SinkExt: Sink {
     /// version, much like `Iterator::flat_map`.
     ///
     /// # Examples
-    /// ---
-    /// Using this function with an iterator through use of the `stream::iter_ok()`
-    /// function
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
-    /// use futures::stream;
-    /// use futures_channel::mpsc;
-    /// use futures_executor::block_on;
+    /// use futures::channel::mpsc;
+    /// use futures::executor::block_on;
+    /// use std::collections::VecDeque;
     ///
     /// # fn main() {
-    /// let (tx, rx) = mpsc::channel::<i32>(5);
+    /// let (mut tx, rx) = mpsc::channel(5);
     ///
-    /// let tx = tx.with_flat_map(|x| {
-    ///     stream::iter_ok(vec![42; x].into_iter().map(|y| y))
+    /// let mut tx = tx.with_flat_map(|x| {
+    ///     VecDeque::from(vec![Ok(42); x])
     /// });
     ///
     /// block_on(tx.send(5)).unwrap();
-    /// assert_eq!(block_on(rx.collect()), Ok(vec![42, 42, 42, 42, 42]));
+    /// drop(tx);
+    /// let received: Vec<i32> = block_on(rx.collect());
+    /// assert_eq!(received, vec![42, 42, 42, 42, 42]);
     /// # }
     /// ```
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
@@ -150,13 +147,14 @@ pub trait SinkExt: Sink {
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
     fn buffer(self, amt: usize) -> Buffer<Self>
-        where Self: Sized
+        where Self: Sized,
     {
         buffer::new(self, amt)
     }
 
     /// Close the sink.
-    fn close<'a>(self: PinMut<'a, Self>) -> Close<'a, Self>
+    fn close<'a>(&'a mut self) -> Close<'a, Self>
+        where Self: Unpin,
     {
         close::new(self)
     }
@@ -177,7 +175,8 @@ pub trait SinkExt: Sink {
     ///
     /// This adapter is intended to be used when you want to stop sending to the sink
     /// until all current requests are processed.
-    fn flush<'a>(self: PinMut<'a, Self>) -> Flush<'a, Self>
+    fn flush<'a>(&'a mut self) -> Flush<'a, Self>
+        where Self: Unpin,
     {
         flush::new(self)
     }
@@ -188,7 +187,8 @@ pub trait SinkExt: Sink {
     /// Note that, **because of the flushing requirement, it is usually better
     /// to batch together items to send via `send_all`, rather than flushing
     /// between each item.**
-    fn send<'a>(self: PinMut<'a, Self>, item: Self::SinkItem) -> Send<'a, Self>
+    fn send<'a>(&'a mut self, item: Self::SinkItem) -> Send<'a, Self>
+        where Self: Unpin,
     {
         send::new(self, item)
     }
@@ -204,9 +204,9 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<'a, S, E>(self: PinMut<'a, Self>, stream: PinMut<'a, S>) -> SendAll<'a, Self, S>
-        where S: Stream<Item = Result<Self::SinkItem, E>>,
-              Self::SinkError: From<E>,
+    fn send_all<'a, S, E>(&'a mut self, stream: &'a mut S) -> SendAll<'a, Self, S>
+        where S: Stream<Item = Result<Self::SinkItem, Self::SinkError>> + Unpin,
+              Self: Unpin,
     {
         send_all::new(self, stream)
     }
