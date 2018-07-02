@@ -20,7 +20,7 @@ where
     S::Item: Future,
 {
     stream: Fuse<S>,
-    queue: FuturesUnordered<S::Item>,
+    in_progress_queue: FuturesUnordered<S::Item>,
     max: usize,
 }
 
@@ -38,7 +38,7 @@ where
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("BufferUnordered")
             .field("stream", &self.stream)
-            .field("queue", &self.queue)
+            .field("in_progress_queue", &self.in_progress_queue)
             .field("max", &self.max)
             .finish()
     }
@@ -51,7 +51,7 @@ where
 {
     BufferUnordered {
         stream: super::fuse::new(s),
-        queue: FuturesUnordered::new(),
+        in_progress_queue: FuturesUnordered::new(),
         max: amt,
     }
 }
@@ -62,7 +62,7 @@ where
     S::Item: Future,
 {
     unsafe_pinned!(stream -> Fuse<S>);
-    unsafe_unpinned!(queue -> FuturesUnordered<S::Item>);
+    unsafe_unpinned!(in_progress_queue -> FuturesUnordered<S::Item>);
 
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
@@ -107,15 +107,15 @@ where
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
-        while self.queue.len() < self.max {
+        while self.in_progress_queue.len() < self.max {
             match self.stream().poll_next(cx) {
-                Poll::Ready(Some(future)) => self.queue().push(future),
+                Poll::Ready(Some(future)) => self.in_progress_queue().push(future),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
-        // Attempt to pull the next value from the queue
-        match PinMut::new(self.queue()).poll_next(cx) {
+        // Attempt to pull the next value from the in_progress_queue
+        match PinMut::new(self.in_progress_queue()).poll_next(cx) {
             x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
             Poll::Ready(None) => {}
         }

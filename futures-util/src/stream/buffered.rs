@@ -20,7 +20,7 @@ where
     S::Item: Future,
 {
     stream: Fuse<S>,
-    queue: FuturesOrdered<S::Item>,
+    in_progress_queue: FuturesOrdered<S::Item>,
     max: usize,
 }
 
@@ -36,7 +36,7 @@ where
     S::Item: Future,
 {
     unsafe_pinned!(stream -> Fuse<S>);
-    unsafe_unpinned!(queue -> FuturesOrdered<S::Item>);
+    unsafe_unpinned!(in_progress_queue -> FuturesOrdered<S::Item>);
 }
 
 impl<S> fmt::Debug for Buffered<S>
@@ -47,7 +47,7 @@ where
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Buffered")
             .field("stream", &self.stream)
-            .field("queue", &self.queue)
+            .field("in_progress_queue", &self.in_progress_queue)
             .field("max", &self.max)
             .finish()
     }
@@ -60,7 +60,7 @@ where
 {
     Buffered {
         stream: super::fuse::new(s),
-        queue: FuturesOrdered::new(),
+        in_progress_queue: FuturesOrdered::new(),
         max: amt,
     }
 }
@@ -124,16 +124,16 @@ where
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         // Try to spawn off as many futures as possible by filling up
-        // our queue of futures.
-        while self.queue.len() < self.max {
+        // our in_progress_queue of futures.
+        while self.in_progress_queue.len() < self.max {
             match self.stream().poll_next(cx) {
-                Poll::Ready(Some(future)) => self.queue.push(future),
+                Poll::Ready(Some(future)) => self.in_progress_queue.push(future),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
-        // Attempt to pull the next value from the queue
-        if let Some(val) = ready!(PinMut::new(self.queue()).poll_next(cx)) {
+        // Attempt to pull the next value from the in_progress_queue
+        if let Some(val) = ready!(PinMut::new(self.in_progress_queue()).poll_next(cx)) {
             return Poll::Ready(Some(val))
         }
         
