@@ -35,7 +35,7 @@ pub struct PollFn<F> {
 /// let read_future = poll_fn(read_line);
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T>
+    where F: Unpin + FnMut(&mut task::Context) -> Poll<T>
 {
     PollFn { inner: f }
 }

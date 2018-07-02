@@ -1,7 +1,7 @@
+#![feature(futures_api, async_await, await_macro, pin)]
+
 #[macro_use]
 extern crate futures;
-extern crate futures_channel;
-extern crate futures_executor;
 
 use std::thread;
 use std::sync::{Arc, Mutex};
@@ -9,10 +9,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use futures::prelude::*;
 use futures::future::poll_fn;
-use futures::task;
-use futures_channel::mpsc;
-use futures_channel::oneshot;
-use futures_executor::block_on;
+use futures::channel::mpsc;
+use futures::channel::oneshot;
+use futures::executor::{block_on, block_on_stream};
 
 trait AssertSend: Send {}
 impl AssertSend for mpsc::Sender<i32> {}
@@ -20,72 +19,72 @@ impl AssertSend for mpsc::Receiver<i32> {}
 
 #[test]
 fn send_recv() {
-    let (tx, rx) = mpsc::channel::<i32>(16);
+    let (mut tx, rx) = mpsc::channel::<i32>(16);
 
     block_on(tx.send(1)).unwrap();
-    let v: Vec<_> = block_on(rx.collect()).unwrap();
+    drop(tx);
+    let v: Vec<_> = block_on(rx.collect());
     assert_eq!(v, vec![1]);
 }
 
 #[test]
 fn send_recv_no_buffer() {
-    let (mut tx, mut rx) = mpsc::channel::<i32>(0);
-
     // Run on a task context
-    let f = poll_fn(move |cx| {
-        assert!(tx.poll_flush(cx).unwrap().is_ready());
-        assert!(tx.poll_ready(cx).unwrap().is_ready());
+    block_on(poll_fn(move |cx| {
+        let (tx, rx) = mpsc::channel::<i32>(0);
+        pin_mut!(tx, rx);
+
+        assert!(tx.reborrow().poll_flush(cx).is_ready());
+        assert!(tx.reborrow().poll_ready(cx).is_ready());
 
         // Send first message
-        assert!(tx.start_send(1).is_ok());
-        assert!(tx.poll_ready(cx).unwrap().is_pending());
+        assert!(tx.reborrow().start_send(1).is_ok());
+        assert!(tx.reborrow().poll_ready(cx).is_pending());
 
         // poll_ready said Pending, so no room in buffer, therefore new sends
         // should get rejected with is_full.
-        assert!(tx.start_send(0).unwrap_err().is_full());
-        assert!(tx.poll_ready(cx).unwrap().is_pending());
+        assert!(tx.reborrow().start_send(0).unwrap_err().is_full());
+        assert!(tx.reborrow().poll_ready(cx).is_pending());
 
         // Take the value
-        assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(1)));
-        assert!(tx.poll_ready(cx).unwrap().is_ready());
+        assert_eq!(rx.reborrow().poll_next(cx), Poll::Ready(Some(1)));
+        assert!(tx.reborrow().poll_ready(cx).is_ready());
 
         // Send second message
-        assert!(tx.poll_ready(cx).unwrap().is_ready());
-        assert!(tx.start_send(2).is_ok());
-        assert!(tx.poll_ready(cx).unwrap().is_pending());
+        assert!(tx.reborrow().poll_ready(cx).is_ready());
+        assert!(tx.reborrow().start_send(2).is_ok());
+        assert!(tx.reborrow().poll_ready(cx).is_pending());
 
         // Take the value
-        assert_eq!(rx.poll_next(cx).unwrap(), Async::Ready(Some(2)));
-        assert!(tx.poll_ready(cx).unwrap().is_ready());
+        assert_eq!(rx.reborrow().poll_next(cx), Poll::Ready(Some(2)));
+        assert!(tx.reborrow().poll_ready(cx).is_ready());
 
-        Ok::<_, ()>(Async::Ready(()))
-    });
-    block_on(f).unwrap();
+        Poll::Ready(())
+    }));
 }
 
 #[test]
 fn send_shared_recv() {
-    let (tx1, rx) = mpsc::channel::<i32>(16);
-    let tx2 = tx1.clone();
+    let (mut tx1, rx) = mpsc::channel::<i32>(16);
+    let mut rx = block_on_stream(rx);
+    let mut tx2 = tx1.clone();
 
     block_on(tx1.send(1)).unwrap();
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some(1));
+    assert_eq!(rx.next(), Some(1));
 
     block_on(tx2.send(2)).unwrap();
-    let item = block_on(rx.next()).ok().unwrap().0;
-    assert_eq!(item, Some(2));
+    assert_eq!(rx.next(), Some(2));
 }
 
 #[test]
 fn send_recv_threads() {
-    let (tx, rx) = mpsc::channel::<i32>(16);
+    let (mut tx, rx) = mpsc::channel::<i32>(16);
 
     let t = thread::spawn(move|| {
         block_on(tx.send(1)).unwrap();
     });
 
-    let v: Vec<_> = block_on(rx.take(1).collect()).unwrap();
+    let v: Vec<_> = block_on(rx.take(1).collect());
     assert_eq!(v, vec![1]);
 
     t.join().unwrap();
@@ -93,21 +92,25 @@ fn send_recv_threads() {
 
 #[test]
 fn send_recv_threads_no_capacity() {
-    let (tx, rx) = mpsc::channel::<i32>(0);
+    let (mut tx, rx) = mpsc::channel::<i32>(0);
+    let mut rx = block_on_stream(rx);
 
     let (readytx, readyrx) = mpsc::channel::<()>(2);
-    let t = thread::spawn(move|| {
-        let readytx = readytx.sink_map_err(|_| panic!());
-        let (a, b) = block_on(tx.send(1).join(readytx.send(()))).unwrap();
-        block_on(a.send(2).join(b.send(()))).unwrap();
+    let mut readyrx = block_on_stream(readyrx);
+    let t = thread::spawn(move || {
+        let mut readytx = readytx.sink_map_err(|_| panic!());
+        let (send_res_1, send_res_2) = block_on(tx.send(1).join(readytx.send(())));
+        send_res_1.unwrap();
+        send_res_2.unwrap();
+        block_on(tx.send(2).join(readytx.send(())));
     });
 
-    let readyrx = block_on(readyrx.next()).ok().unwrap().1;
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some(1));
-    drop(block_on(readyrx.next()).ok().unwrap());
-    let item = block_on(rx.next()).ok().unwrap().0;
-    assert_eq!(item, Some(2));
+    readyrx.next();
+    assert_eq!(rx.next(), Some(1));
+    readyrx.next();
+    drop(readyrx);
+    assert_eq!(rx.next(), Some(2));
+    drop(rx);
 
     t.join().unwrap();
 }
@@ -117,18 +120,19 @@ fn recv_close_gets_none() {
     let (mut tx, mut rx) = mpsc::channel::<i32>(10);
 
     // Run on a task context
-    let f = poll_fn(move |cx| {
+    block_on(poll_fn(move |cx| {
         rx.close();
 
-        assert_eq!(rx.poll_next(cx), Ok(Async::Ready(None)));
-        assert!(tx.poll_ready(cx).is_err());
+        assert_eq!(rx.poll_next_unpin(cx), Poll::Ready(None));
+        match tx.poll_ready(cx) {
+            Poll::Pending | Poll::Ready(Ok(_)) => panic!(),
+            Poll::Ready(Err(e)) => assert!(e.is_disconnected()),
+        };
 
         drop(&tx);
 
-        Ok::<_, ()>(Async::Ready(()))
-    });
-
-    block_on(f).unwrap();
+        Poll::Ready(())
+    }));
 }
 
 #[test]
@@ -136,14 +140,12 @@ fn tx_close_gets_none() {
     let (_, mut rx) = mpsc::channel::<i32>(10);
 
     // Run on a task context
-    let f = poll_fn(move |cx| {
-        assert_eq!(rx.poll_next(cx), Ok(Async::Ready(None)));
-        assert_eq!(rx.poll_next(cx), Ok(Async::Ready(None)));
+    block_on(poll_fn(move |cx| {
+        assert_eq!(rx.poll_next_unpin(cx), Poll::Ready(None));
+        assert_eq!(rx.poll_next_unpin(cx), Poll::Ready(None));
 
-        Ok::<_, ()>(Async::Ready(()))
-    });
-
-    block_on(f).unwrap();
+        Poll::Ready(())
+    }));
 }
 
 // #[test]
@@ -176,7 +178,7 @@ fn tx_close_gets_none() {
 //         type Error = ();
 //
 //         fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-//             Ok(Async::Pending)
+//             Ok(Poll::Pending)
 //         }
 //     }
 //
@@ -220,7 +222,7 @@ fn stress_shared_unbounded() {
     let (tx, rx) = mpsc::unbounded::<i32>();
 
     let t = thread::spawn(move|| {
-        let result: Vec<_> = block_on(rx.collect()).unwrap();
+        let result: Vec<_> = block_on(rx.collect());
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
             assert_eq!(item, 1);
@@ -249,7 +251,7 @@ fn stress_shared_bounded_hard() {
     let (tx, rx) = mpsc::channel::<i32>(0);
 
     let t = thread::spawn(move|| {
-        let result: Vec<_> = block_on(rx.collect()).unwrap();
+        let result: Vec<_> = block_on(rx.collect());
         assert_eq!(result.len(), (AMT * NTHREADS) as usize);
         for item in result {
             assert_eq!(item, 1);
@@ -261,7 +263,7 @@ fn stress_shared_bounded_hard() {
 
         thread::spawn(move || {
             for _ in 0..AMT {
-                tx = block_on(tx.send(1)).unwrap();
+                block_on(tx.send(1)).unwrap();
             }
         });
     }
@@ -277,7 +279,7 @@ fn stress_receiver_multi_task_bounded_hard() {
     const NTHREADS: u32 = 2;
 
     let (mut tx, rx) = mpsc::channel::<usize>(0);
-    let rx = Arc::new(Mutex::new(Some(rx)));
+    let rx = Arc::new(Mutex::new(rx));
     let n = Arc::new(AtomicUsize::new(0));
 
     let mut th = vec![];
@@ -291,46 +293,33 @@ fn stress_receiver_multi_task_bounded_hard() {
 
             loop {
                 i += 1;
-                let mut lock = rx.lock().ok().unwrap();
+                let mut rx = rx.lock().unwrap();
 
-                let mut rx = match lock.take() {
-                    Some(rx) => Some(rx),
-                    None => break,
-                };
                 if i % 5 == 0 {
-                    let rx = rx.unwrap();
-                    let (item, rest) = block_on(rx.next()).ok().unwrap();
+                    let item = block_on(rx.next());
 
                     if item.is_none() {
                         break;
                     }
 
                     n.fetch_add(1, Ordering::Relaxed);
-                    *lock = Some(rest);
                 } else {
                     // Just poll
                     let n = n.clone();
                     let f = poll_fn(move |cx| {
-                        let mut rx = rx.take().unwrap();
-                        let r = match rx.poll_next(cx).unwrap() {
-                            Async::Ready(Some(_)) => {
+                        let r = match rx.poll_next_unpin(cx) {
+                            Poll::Ready(Some(_)) => {
                                 n.fetch_add(1, Ordering::Relaxed);
-                                *lock = Some(rx);
                                 false
                             }
-                            Async::Ready(None) => {
-                                true
-                            }
-                            Async::Pending => {
-                                *lock = Some(rx);
-                                false
-                            }
+                            Poll::Ready(None) => true,
+                            Poll::Pending => false,
                         };
 
-                        Ok::<_, ()>(Async::Ready(r))
+                        Poll::Ready(r)
                     });
 
-                    if block_on(f).unwrap() {
+                    if block_on(f) {
                         break;
                     }
                 }
@@ -342,7 +331,7 @@ fn stress_receiver_multi_task_bounded_hard() {
 
 
     for i in 0..AMT {
-        tx = block_on(tx.send(i)).unwrap();
+        block_on(tx.send(i)).unwrap();
     }
     drop(tx);
 
@@ -357,20 +346,23 @@ fn stress_receiver_multi_task_bounded_hard() {
 /// after sender dropped.
 #[test]
 fn stress_drop_sender() {
-    fn list() -> Box<Stream<Item=i32, Error=u32>> {
+    fn list() -> impl Stream<Item=i32> {
         let (tx, rx) = mpsc::channel(1);
-        let f = tx.send(Ok(1))
-          .and_then(|tx| tx.send(Ok(2)))
-          .and_then(|tx| tx.send(Ok(3)));
         thread::spawn(move || {
-            block_on(f).unwrap();
+            block_on(send_one_two_three(tx));
         });
-        Box::new(rx.then(|r| r.unwrap()))
+        rx
     }
 
     for _ in 0..10000 {
-        let v: Vec<_> = block_on(list().collect()).unwrap();
+        let v: Vec<_> = block_on(list().collect());
         assert_eq!(v, vec![1, 2, 3]);
+    }
+}
+
+async fn send_one_two_three(mut tx: mpsc::Sender<i32>) {
+    for i in 1..=3 {
+        await!(tx.send(i)).unwrap();
     }
 }
 
@@ -378,6 +370,7 @@ fn stress_drop_sender() {
 /// no messages are lost.
 fn stress_close_receiver_iter() {
     let (tx, rx) = mpsc::unbounded();
+    let mut rx = block_on_stream(rx);
     let (unwritten_tx, unwritten_rx) = std::sync::mpsc::channel();
     let th = thread::spawn(move || {
         for i in 1.. {
@@ -389,15 +382,12 @@ fn stress_close_receiver_iter() {
     });
 
     // Read one message to make sure thread effectively started
-    let (item, mut rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(Some(1), item);
+    assert_eq!(Some(1), rx.next());
 
     rx.close();
 
     for i in 2.. {
-        let (item, r) = block_on(rx.next()).ok().unwrap();
-        rx = r;
-        match item {
+        match rx.next() {
             Some(r) => assert!(i == r),
             None => {
                 let unwritten = unwritten_rx.recv().expect("unwritten_rx");
@@ -416,31 +406,17 @@ fn stress_close_receiver() {
     }
 }
 
+async fn stress_poll_ready_sender(mut sender: mpsc::Sender<u32>, count: u32) {
+    for i in (1..=count).rev() {
+        // FIXME: should assert `is_ok()`, but cannot because assigning the result
+        // of this expression to a variable causes an ICE. See rust-lang/rust/issues/51995.
+        await!(sender.send(i));
+    }
+}
+
 /// Tests that after `poll_ready` indicates capacity a channel can always send without waiting.
 #[test]
 fn stress_poll_ready() {
-    // A task which checks channel capacity using poll_ready, and pushes items onto the channel when
-    // ready.
-    struct SenderTask {
-        sender: mpsc::Sender<u32>,
-        count: u32,
-    }
-    impl Future for SenderTask {
-        type Item = ();
-        type Error = ();
-
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
-            // In a loop, check if the channel is ready. If so, push an item onto the channel
-            // (asserting that it doesn't attempt to block).
-            while self.count > 0 {
-                try_ready!(self.sender.poll_ready(cx).map_err(|_| ()));
-                assert!(self.sender.start_send(self.count).is_ok());
-                self.count -= 1;
-            }
-            Ok(Async::Ready(()))
-        }
-    }
-
     const AMT: u32 = 1000;
     const NTHREADS: u32 = 8;
 
@@ -451,19 +427,16 @@ fn stress_poll_ready() {
         for _ in 0..NTHREADS {
             let sender = tx.clone();
             threads.push(thread::spawn(move || {
-                block_on(SenderTask {
-                    sender: sender,
-                    count: AMT,
-                })
+                block_on(stress_poll_ready_sender(sender, AMT))
             }));
         }
         drop(tx);
 
-        let result: Vec<_> = block_on(rx.collect()).unwrap();
+        let result: Vec<_> = block_on(rx.collect());
         assert_eq!(result.len() as u32, AMT * NTHREADS);
 
         for thread in threads {
-            thread.join().unwrap().unwrap();
+            thread.join().unwrap();
         }
     }
 
@@ -488,7 +461,7 @@ fn try_send_1() {
         }
     });
 
-    let result: Vec<_> = block_on(rx.collect()).unwrap();
+    let result: Vec<_> = block_on(rx.collect());
     for (i, j) in result.into_iter().enumerate() {
         assert_eq!(i, j);
     }
@@ -499,28 +472,26 @@ fn try_send_1() {
 #[test]
 fn try_send_2() {
     let (mut tx, rx) = mpsc::channel(0);
+    let mut rx = block_on_stream(rx);
 
     tx.try_send("hello").unwrap();
 
     let (readytx, readyrx) = oneshot::channel::<()>();
 
-    let th = thread::spawn(|| {
+    let th = thread::spawn(move || {
         block_on(poll_fn(|cx| {
-            assert!(tx.poll_ready(cx).unwrap().is_pending());
-            Ok::<_, ()>(Async::Ready(()))
-        })).unwrap();
+            assert!(tx.poll_ready(cx).is_pending());
+            Poll::Ready(())
+        }));
 
         drop(readytx);
         block_on(tx.send("goodbye")).unwrap();
     });
 
     drop(block_on(readyrx));
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some("hello"));
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some("goodbye"));
-    let item = block_on(rx.next()).ok().unwrap().0;
-    assert_eq!(item, None);
+    assert_eq!(rx.next(), Some("hello"));
+    assert_eq!(rx.next(), Some("goodbye"));
+    assert_eq!(rx.next(), None);
 
     th.join().unwrap();
 }
@@ -528,22 +499,20 @@ fn try_send_2() {
 #[test]
 fn try_send_fail() {
     let (mut tx, rx) = mpsc::channel(0);
+    let mut rx = block_on_stream(rx);
 
     tx.try_send("hello").unwrap();
 
     // This should fail
     assert!(tx.try_send("fail").is_err());
 
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some("hello"));
+    assert_eq!(rx.next(), Some("hello"));
 
     tx.try_send("goodbye").unwrap();
     drop(tx);
 
-    let (item, rx) = block_on(rx.next()).ok().unwrap();
-    assert_eq!(item, Some("goodbye"));
-    let item = block_on(rx.next()).ok().unwrap().0;
-    assert_eq!(item, None);
+    assert_eq!(rx.next(), Some("goodbye"));
+    assert_eq!(rx.next(), None);
 }
 
 #[test]

@@ -50,41 +50,96 @@ pub use futures_util::sink::SinkExt;
 
 // Macros redefined here because macro re-exports are unstable.
 
-/// A macro for extracting the successful type of a `Poll<T, E>`.
+/// A macro for extracting the successful type of a `Poll<Result<T, E>>`.
 ///
-/// This macro bakes in propagation of both errors and `Pending` signals by
-/// returning early.
+/// This macro bakes in propagation of `Pending` and `Err` signals by returning early.
 #[macro_export]
 macro_rules! try_ready {
+    ($x:expr) => {
+        match $x {
+            $crate::Poll::Ready(Ok(x)) => x,
+            $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(e.into())),
+            $crate::Poll::Pending => return $crate::Poll::Pending,
+        }
+    }
+}
+
+/// A macro for extracting `Poll<T>` from `Poll<Result<T, E>>`.
+///
+/// This macro bakes in propagation of `Err` signals by returning early.
+/// This macro bakes in propagation of `Pending` and `Err` signals by returning early.
+#[macro_export]
+macro_rules! try_poll {
+    ($x:expr) => {
+        match $x {
+            $crate::Poll::Ready(Ok(x)) => $crate::Poll::Ready(x),
+            $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(e.into())),
+            $crate::Poll::Pending => $crate::Poll::Pending,
+        }
+    }
+}
+
+/// A macro for extracting the successful type of a `Poll<T>`.
+///
+/// This macro bakes in propagation of `Pending` signals by returning early.
+#[macro_export]
+macro_rules! ready {
     ($e:expr) => (match $e {
-        Ok($crate::prelude::Async::Ready(t)) => t,
-        Ok($crate::prelude::Async::Pending) => return Ok($crate::prelude::Async::Pending),
-        Err(e) => return Err(From::from(e)),
+        $crate::Poll::Ready(t) => t,
+        $crate::Poll::Pending => return $crate::Poll::Pending,
     })
 }
 
-/// A macro to create a `static` of type `LocalKey`.
-///
-/// This macro is intentionally similar to the `thread_local!`, and creates a
-/// `static` which has a `get_mut` method to access the data on a task.
-///
-/// The data associated with each task local is per-task, so different tasks
-/// will contain different values.
 #[macro_export]
-macro_rules! task_local {
-    (static $NAME:ident: $t:ty = $e:expr) => (
-        static $NAME: $crate::task::LocalKey<$t> = {
-            fn __init() -> $t { $e }
-            fn __key() -> $crate::core_reexport::any::TypeId {
-                struct __A;
-                $crate::core_reexport::any::TypeId::of::<__A>()
-            }
-            $crate::task::LocalKey {
-                __init: __init,
-                __key: __key,
-            }
-        };
+macro_rules! pinned_deref {
+    ($e:expr) => (
+        ::core::mem::PinMut::new_unchecked(
+            &mut **::core::mem::PinMut::get_mut_unchecked($e.reborrow())
+        )
     )
+}
+
+#[macro_export]
+macro_rules! pinned_field {
+    ($e:expr, $f:tt) => (
+        ::core::mem::PinMut::new_unchecked(
+            &mut ::core::mem::PinMut::get_mut_unchecked($e.reborrow()).$f
+        )
+    )
+}
+
+#[macro_export]
+macro_rules! unsafe_pinned {
+    ($f:tt -> $t:ty) => (
+        fn $f<'a>(self: &'a mut PinMut<Self>) -> PinMut<'a, $t> {
+            unsafe {
+                pinned_field!(self, $f)
+            }
+        }
+    )
+}
+
+#[macro_export]
+macro_rules! unsafe_unpinned {
+    ($f:tt -> $t:ty) => (
+        fn $f<'a>(self: &'a mut PinMut<Self>) -> &'a mut $t {
+            unsafe {
+                &mut ::core::mem::PinMut::get_mut_unchecked(self.reborrow()).$f
+            }
+        }
+    )
+}
+
+#[macro_export]
+macro_rules! pin_mut {
+    ($($x:ident),*) => { $(
+        // Move the value to ensure that it is owned
+        let mut $x = $x;
+        // Shadow the original binding so that it can't be directly accessed
+        // ever again.
+        #[allow(unused_mut)]
+        let mut $x = unsafe { ::std::mem::PinMut::new_unchecked(&mut $x) };
+    )* }
 }
 
 pub use futures_core::Poll;

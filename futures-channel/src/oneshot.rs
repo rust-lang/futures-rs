@@ -22,9 +22,6 @@ pub struct Receiver<T> {
     inner: Arc<Inner<T>>,
 }
 
-// The receiver does not ever take a PinMut to the inner T
-impl<T> Unpin for Receiver<T> {}
-
 /// A means of transmitting a single value to another task.
 ///
 /// This is created by the [`channel`](channel) function.
@@ -32,6 +29,10 @@ impl<T> Unpin for Receiver<T> {}
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
+
+// The channels do not ever project PinMut to the inner T
+impl<T> Unpin for Receiver<T> {}
+impl<T> Unpin for Sender<T> {}
 
 /// Internal state of the `Receiver`/`Sender` pair above. This is all used as
 /// the internal synchronization between the two for send/recv operations.
@@ -84,11 +85,10 @@ struct Inner<T> {
 ///
 /// ```
 /// extern crate futures;
-/// extern crate futures_channel;
 ///
 /// use std::thread;
 ///
-/// use futures_channel::oneshot;
+/// use futures::channel::oneshot;
 /// use futures::*;
 ///
 /// fn main() {
@@ -104,7 +104,7 @@ struct Inner<T> {
 ///     });
 ///
 ///     p.send(3).unwrap();
-/// # t.join().unwrap();
+/// # futures::executor::block_on(t.join().unwrap());
 /// }
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {

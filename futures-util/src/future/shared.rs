@@ -11,11 +11,11 @@
 //! use futures_executor::block_on;
 //!
 //! # fn main() {
-//! let future = future::ok::<_, bool>(6);
+//! let future = future::ready(6);
 //! let shared1 = future.shared();
 //! let shared2 = shared1.clone();
-//! assert_eq!(6, *block_on(shared1).unwrap());
-//! assert_eq!(6, *block_on(shared2).unwrap());
+//! assert_eq!(6, *block_on(shared1));
+//! assert_eq!(6, *block_on(shared2));
 //! # }
 //! ```
 
