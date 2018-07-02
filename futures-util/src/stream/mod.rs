@@ -269,8 +269,7 @@ pub trait StreamExt: Stream {
     /// future representing the result of that computation.
     ///
     /// This combinator will collect all successful results of this stream and
-    /// collect them into a `Vec<Self::Item>`. If an error happens then all
-    /// collected elements will be dropped and the error will be returned.
+    /// collect them into a `Vec<Self::Item>`.
     ///
     /// The returned future will be resolved when the stream terminates.
     ///

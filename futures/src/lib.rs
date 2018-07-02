@@ -253,7 +253,7 @@ pub mod prelude {
     //! The prelude may grow over time as additional items see ubiquitous use.
 
     pub use futures_core::{
-        Future, TryFuture, Stream, Poll, task
+        Future, CoreFutureExt, TryFuture, Stream, TryStream, Poll, task
     };
 
     pub use futures_sink::Sink;
@@ -268,6 +268,7 @@ pub mod prelude {
         FutureExt,
         TryFutureExt,
         StreamExt,
+        TryStreamExt,
         SinkExt,
     };
 
@@ -316,7 +317,7 @@ pub mod stream {
     //! [`futures_unordered`](::stream::futures_unordered()), which constructs a
     //! stream from a collection of futures.
 
-    pub use futures_core::stream::Stream;
+    pub use futures_core::stream::{Stream, TryStream};
 
     pub use futures_util::stream::{
         Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold, ForEach, Fuse,
@@ -324,6 +325,10 @@ pub mod stream {
         StreamFuture, Take, TakeWhile, Then, Unfold, Zip, StreamExt, empty,
         once, poll_fn, repeat, unfold, iter
         // AndThen, Forward, ErrInto, InspectErr MapErr, OrElse
+    };
+
+    pub use futures_util::try_stream::{
+        TryCollect,
     };
 
     #[cfg(feature = "std")]

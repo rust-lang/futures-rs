@@ -86,7 +86,7 @@ pub mod future;
 pub use future::{Future, CoreFutureExt, TryFuture};
 
 pub mod stream;
-pub use stream::Stream;
+pub use stream::{Stream, TryStream};
 
 pub mod task;
 pub use task::Poll;
