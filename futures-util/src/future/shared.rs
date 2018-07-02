@@ -24,7 +24,7 @@ use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
 use std::marker::Unpin;
-use std::mem::{self, PinMut};
+use std::mem::PinMut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -251,7 +251,7 @@ impl<F> Drop for Shared<F> where F: Future {
     fn drop(&mut self) {
         if self.waker_key != NULL_WAKER_KEY {
             if let Ok(mut wakers) = self.inner.notifier.wakers.lock() {
-                mem::replace(&mut *wakers, Slab::new());
+                wakers.remove(self.waker_key);
             }
         }
     }
