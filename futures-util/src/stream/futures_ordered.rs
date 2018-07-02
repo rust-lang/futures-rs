@@ -89,7 +89,7 @@ impl<T> Future for OrderWrapper<T>
 pub struct FuturesOrdered<T>
     where T: Future
 {
-    in_progress: FuturesUnordered<OrderWrapper<T>>,
+    in_progress_queue: FuturesUnordered<OrderWrapper<T>>,
     queued_results: BinaryHeap<OrderWrapper<T::Output>>,
     next_incoming_index: usize,
     next_outgoing_index: usize,
@@ -125,7 +125,7 @@ impl<T> FuturesOrdered<T>
     /// state, `FuturesOrdered::poll` will return `Ok(Async::Ready(None))`.
     pub fn new() -> FuturesOrdered<T> {
         FuturesOrdered {
-            in_progress: FuturesUnordered::new(),
+            in_progress_queue: FuturesUnordered::new(),
             queued_results: BinaryHeap::new(),
             next_incoming_index: 0,
             next_outgoing_index: 0,
@@ -138,12 +138,12 @@ impl<T> FuturesOrdered<T>
     /// those currently processing and those that have completed but
     /// which are waiting for earlier futures to complete.
     pub fn len(&self) -> usize {
-        self.in_progress.len() + self.queued_results.len()
+        self.in_progress_queue.len() + self.queued_results.len()
     }
 
     /// Returns `true` if the queue contains no futures
     pub fn is_empty(&self) -> bool {
-        self.in_progress.is_empty() && self.queued_results.is_empty()
+        self.in_progress_queue.is_empty() && self.queued_results.is_empty()
     }
 
     /// Push a future into the queue.
@@ -158,7 +158,7 @@ impl<T> FuturesOrdered<T>
             index: self.next_incoming_index,
         };
         self.next_incoming_index += 1;
-        self.in_progress.push(wrapped);
+        self.in_progress_queue.push(wrapped);
     }
 }
 
@@ -179,7 +179,7 @@ impl<T> Stream for FuturesOrdered<T>
         }
 
         loop {
-            match PinMut::new(&mut this.in_progress).poll_next(cx) {
+            match PinMut::new(&mut this.in_progress_queue).poll_next(cx) {
                 Poll::Ready(Some(result)) => {
                     if result.index == this.next_outgoing_index {
                         this.next_outgoing_index += 1;
