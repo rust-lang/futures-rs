@@ -48,7 +48,7 @@ struct Inner<F: Future> {
 
 struct Notifier {
     state: AtomicUsize,
-    wakers: Mutex<Slab<Option<Waker>>>,
+    wakers: Mutex<Option<Slab<Option<Waker>>>>,
 }
 
 // The future itself is polled behind the `Arc`, so it won't be moved
@@ -102,7 +102,7 @@ pub fn new<F: Future>(future: F) -> Shared<F> {
             future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
             notifier: Arc::new(Notifier {
                 state: AtomicUsize::new(IDLE),
-                wakers: Mutex::new(Slab::new()),
+                wakers: Mutex::new(Some(Slab::new())),
             }),
         }),
         waker_key: NULL_WAKER_KEY,
@@ -125,7 +125,15 @@ impl<F> Shared<F> where F: Future {
 
     /// Registers the current task to receive a wakeup when `Inner` is awoken.
     fn set_waker(&mut self, cx: &mut task::Context) {
+        // Acquire the lock first before checking COMPLETE to ensure there
+        // isn't a race.
         let mut wakers = self.inner.notifier.wakers.lock().unwrap();
+        let wakers = if let Some(wakers) = wakers.as_mut() {
+            wakers
+        } else {
+            // The value is already available, so there's no need to set the waker.
+            return
+        };
         if self.waker_key == NULL_WAKER_KEY {
             self.waker_key = wakers.insert(Some(cx.waker().clone()));
         } else {
@@ -228,9 +236,16 @@ impl<F: Future> Future for Shared<F> {
                         *this.inner.future_or_output.get() =
                             FutureOrOutput::Output(output.clone());
                     }
+
                     // Complete the future
+                    let mut lock = this.inner.notifier.wakers.lock().unwrap();
                     this.inner.notifier.state.store(COMPLETE, SeqCst);
-                    Wake::wake(&this.inner.notifier);
+                    let wakers = &mut lock.take().unwrap();
+                    for (_key, opt_waker) in wakers {
+                        if let Some(waker) = opt_waker.take() {
+                            waker.wake();
+                        }
+                    }
                     return Poll::Ready(output);
                 }
             }
@@ -251,7 +266,9 @@ impl<F> Drop for Shared<F> where F: Future {
     fn drop(&mut self) {
         if self.waker_key != NULL_WAKER_KEY {
             if let Ok(mut wakers) = self.inner.notifier.wakers.lock() {
-                wakers.remove(self.waker_key);
+                if let Some(wakers) = wakers.as_mut() {
+                    wakers.remove(self.waker_key);
+                }
             }
         }
     }
@@ -262,9 +279,11 @@ impl Wake for Notifier {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
         let wakers = &mut *arc_self.wakers.lock().unwrap();
-        for (_key, opt_waker) in wakers {
-            if let Some(waker) = opt_waker.take() {
-                waker.wake();
+        if let Some(wakers) = wakers.as_mut() {
+            for (_key, opt_waker) in wakers {
+                if let Some(waker) = opt_waker.take() {
+                    waker.wake();
+                }
             }
         }
     }
