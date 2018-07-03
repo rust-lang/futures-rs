@@ -31,11 +31,10 @@ pub trait TryStreamExt: TryStream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();

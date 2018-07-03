@@ -18,7 +18,6 @@ pub struct Once<F> {
 ///
 /// ```rust
 /// # extern crate futures;
-/// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::future;
 /// use futures::executor::block_on;

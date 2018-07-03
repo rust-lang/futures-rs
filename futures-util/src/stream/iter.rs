@@ -23,10 +23,9 @@ impl<I> Unpin for Iter<I> {}
 ///
 /// ```rust
 /// # extern crate futures;
-/// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
-/// use futures_executor::block_on;
+/// use futures::executor::block_on;
 ///
 /// let mut stream = stream::iter(vec![17, 19]);
 /// assert_eq!(vec![17, 19], block_on(stream.collect::<Vec<i32>>()));

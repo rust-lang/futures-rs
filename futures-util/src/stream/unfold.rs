@@ -33,12 +33,11 @@ use futures_core::task;
 ///
 /// ```rust
 /// # extern crate futures;
-/// # extern crate futures_executor;
 ///
 /// use futures::prelude::*;
 /// use futures::stream;
 /// use futures::future;
-/// use futures_executor::block_on;
+/// use futures::executor::block_on;
 ///
 /// let mut stream = stream::unfold(0, |state| {
 ///     if state <= 2 {

@@ -5,10 +5,9 @@
 //!
 //! ```
 //! # extern crate futures;
-//! # extern crate futures_executor;
 //! use futures::prelude::*;
 //! use futures::future;
-//! use futures_executor::block_on;
+//! use futures::executor::block_on;
 //!
 //! # fn main() {
 //! let future = future::ready(6);

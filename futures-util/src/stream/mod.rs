@@ -138,9 +138,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     ///
     /// # fn main() {
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
@@ -171,10 +170,9 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens = rx.filter(|x| future::ready(x % 2 == 0));
@@ -203,10 +201,9 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     ///
     /// let (_tx, rx) = mpsc::channel::<i32>(1);
     /// let evens_plus_one = rx.filter_map(|x| {
@@ -248,7 +245,6 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::future;
@@ -280,11 +276,10 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -316,11 +311,10 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
     ///
     /// # fn main() {
@@ -377,11 +371,10 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_channel;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
-    /// use futures_channel::mpsc;
+    /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
     ///
     /// let (tx1, rx1) = mpsc::unbounded();
