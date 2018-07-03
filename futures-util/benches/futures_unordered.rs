@@ -1,4 +1,4 @@
-#![feature(test)]
+#![feature(test, futures_api)]
 
 extern crate futures;
 extern crate futures_channel;
@@ -36,14 +36,13 @@ fn oneshots(b: &mut Bencher) {
             }
         });
 
-        let f = future::poll_fn(move |cx| {
+        block_on(future::poll_fn(move |cx| {
             loop {
-                if let Ok(Async::Ready(None)) = rxs.poll_next(cx) {
+                if let Poll::Ready(None) = rxs.poll_next_unpin(cx) {
                     break
                 }
             }
-            Ok::<_, ()>(Async::Ready(()))
-        });
-        block_on(f).unwrap();
+            Poll::Ready(())
+        }))
     });
 }
