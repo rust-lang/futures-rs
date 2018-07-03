@@ -379,22 +379,24 @@ pub mod stream {
         Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold, ForEach, Fuse,
         Inspect, Map, Once, Peekable, PollFn, Repeat, Select, Skip, SkipWhile,
         StreamFuture, Take, TakeWhile, Then, Unfold, Zip, StreamExt, empty,
-        once, poll_fn, repeat, unfold, iter
-        // AndThen, Forward, ErrInto, InspectErr MapErr, OrElse
+        once, poll_fn, repeat, unfold, iter,
+        Forward, 
     };
 
     pub use futures_util::try_stream::{
         TryCollect,
+        // AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
         CatchUnwind, Chunks, Collect,
-        futures_unordered, FuturesUnordered,
-        futures_ordered, FuturesOrdered,
-        // , select_all, BufferUnordered, Buffered,
-        // , FuturesOrdered, ReuniteError, SelectAll, SplitSink,
-        // SplitStream, futures_ordered,
+        BufferUnordered, Buffered,
+        FuturesUnordered, FuturesOrdered,
+        futures_unordered, futures_ordered,
+        // , select_all,
+        // ReuniteError, SelectAll, SplitSink,
+        // SplitStream,
     };
 }
 
@@ -423,7 +425,6 @@ pub mod task {
         Executor,
         TaskObj, LocalTaskObj,
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
-        local_waker, local_waker_from_nonlocal
     };
 
     #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]

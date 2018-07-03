@@ -1,8 +1,11 @@
-#![feature(test)]
+#![feature(test, futures_api, pin, arbitrary_self_types)]
 
 extern crate futures;
 extern crate futures_executor;
 extern crate test;
+
+use std::marker::Unpin;
+use std::mem::PinMut;
 
 use futures::prelude::*;
 use futures::task::{self, Waker};
@@ -19,23 +22,22 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
     }
 
     impl Future for Yield {
-        type Item = ();
-        type Error = ();
+        type Output = ();
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             if self.rem == 0 {
-                Ok(Async::Ready(()))
+                Poll::Ready(())
             } else {
                 self.rem -= 1;
                 cx.waker().wake();
-                Ok(Async::Pending)
+                Poll::Pending
             }
         }
     }
 
     b.iter(|| {
         let y = Yield { rem: NUM };
-        block_on(y).unwrap();
+        block_on(y);
     });
 }
 
@@ -48,16 +50,15 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
     }
 
     impl Future for Yield {
-        type Item = ();
-        type Error = ();
+        type Output = ();
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             if self.rem == 0 {
-                Ok(Async::Ready(()))
+                Poll::Ready(())
             } else {
                 self.rem -= 1;
                 cx.waker().wake();
-                Ok(Async::Pending)
+                Poll::Pending
             }
         }
     }
@@ -65,7 +66,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
     b.iter(|| {
         for _ in 0..NUM {
             let y = Yield { rem: 1 };
-            block_on(y).unwrap();
+            block_on(y);
         }
     });
 }
@@ -83,18 +84,18 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
         rem: usize,
         tx: mpsc::SyncSender<Waker>,
     }
+    impl Unpin for Yield {}
 
     impl Future for Yield {
-        type Item = ();
-        type Error = ();
+        type Output = ();
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             if self.rem == 0 {
-                Ok(Async::Ready(()))
+                Poll::Ready(())
             } else {
                 self.rem -= 1;
                 self.tx.send(cx.waker().clone()).unwrap();
-                Ok(Async::Pending)
+                Poll::Pending
             }
         }
     }
@@ -111,6 +112,6 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
             tx: tx.clone(),
         };
 
-        block_on(y).unwrap();
+        block_on(y);
     });
 }
