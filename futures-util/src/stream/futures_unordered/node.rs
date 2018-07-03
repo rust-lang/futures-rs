@@ -27,7 +27,7 @@ pub(super) struct Node<T> {
     // Queue that we'll be enqueued to when notified
     pub(super) ready_to_run_queue: Weak<ReadyToRunQueue<T>>,
 
-    // Whether or not this node is currently in the mpsc queue.
+    // Whether or not this node is currently in the ready to run queue.
     pub(super) queued: AtomicBool,
 }
 
