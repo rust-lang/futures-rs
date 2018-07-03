@@ -25,6 +25,8 @@ pub(super) struct ReadyToRunQueue<T> {
     pub(super) stub: Arc<Node<T>>,
 }
 
+/// An MPSC queue into which the nodes containing the futures are inserted
+/// whenever the future inside is scheduled for polling.
 impl<T> ReadyToRunQueue<T> {
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
     pub(super) fn enqueue(&self, node: *const Node<T>) {
@@ -89,12 +91,12 @@ impl<T> ReadyToRunQueue<T> {
 impl<T> Drop for ReadyToRunQueue<T> {
     fn drop(&mut self) {
         // Once we're in the destructor for `Inner<T>` we need to clear out the
-        // mpsc queue of nodes if there's anything left in there.
+        // ready to run queue of nodes if there's anything left in there.
         //
         // Note that each node has a strong reference count associated with it
-        // which is owned by the mpsc queue. All nodes should have had their
-        // futures dropped already by the `FuturesUnordered` destructor above,
-        // so we're just pulling out nodes and dropping their refcounts.
+        // which is owned by the ready to run queue. All nodes should have had
+        // their futures dropped already by the `FuturesUnordered` destructor
+        // above, so we're just pulling out nodes and dropping their refcounts.
         unsafe {
             loop {
                 match self.dequeue() {

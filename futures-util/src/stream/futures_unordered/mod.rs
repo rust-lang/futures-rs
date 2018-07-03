@@ -172,17 +172,17 @@ impl<T> FuturesUnordered<T> {
             drop((*node.future.get()).take());
         }
 
-        // If the queued flag was previously set then it means that this node
-        // is still in our internal mpsc queue. We then transfer ownership
-        // of our reference count to the mpsc queue, and it'll come along and
-        // free it later, noticing that the future is `None`.
+        // If the queued flag was previously set, then it means that this node
+        // is still in our internal ready to run queue. We then transfer
+        // ownership of our reference count to the ready to run queue, and it'll
+        // come along and free it later, noticing that the future is `None`.
         //
         // If, however, the queued flag was *not* set then we're safe to
         // release our reference count on the internal node. The queued flag
         // was set above so all future `enqueue` operations will not actually
-        // enqueue the node, so our node will never see the mpsc queue again.
-        // The node itself will be deallocated once all reference counts have
-        // been dropped by the various owning tasks elsewhere.
+        // enqueue the node, so our node will never see the ready to run queue
+        // again. The node itself will be deallocated once all reference counts
+        // have been dropped by the various owning tasks elsewhere.
         if prev {
             mem::forget(node);
         }
@@ -329,7 +329,8 @@ impl<T> Stream for FuturesUnordered<T>
             // Poll the underlying future with the appropriate waker
             // implementation. This is where a large bit of the unsafety
             // starts to stem from internally. The waker is basically just
-            // our `Arc<Node<T>>` and tracks the mpsc queue of ready futures.
+            // our `Arc<Node<T>>` and can schedule the future for polling by
+            // enqueuing its node in the ready to run queue.
             //
             // Critically though `Node<T>` won't actually access `T`, the
             // future, while it's floating around inside of `Task`
@@ -378,13 +379,13 @@ impl<T> Drop for FuturesUnordered<T> {
         }
 
         // Note that at this point we could still have a bunch of nodes in the
-        // mpsc queue. None of those nodes, however, have futures associated
-        // with them so they're safe to destroy on any thread. At this point
-        // the `FuturesUnordered` struct, the owner of the one strong reference
-        // to `MPSCQueue<T>` will drop the strong reference. At that point
-        // whichever thread releases the strong refcount last (be it this
-        // thread or some other thread as part of an `upgrade`) will clear out
-        // the mpsc queue and free all remaining nodes.
+        // ready to run queue. None of those nodes, however, have futures
+        // associated with them so they're safe to destroy on any thread. At
+        // this point the `FuturesUnordered` struct, the owner of the one strong
+        // reference to the ready to run queue will drop the strong reference.
+        // At that point whichever thread releases the strong refcount last (be
+        // it this thread or some other thread as part of an `upgrade`) will
+        // clear out the ready to run queue and free all remaining nodes.
         //
         // While that freeing operation isn't guaranteed to happen here, it's
         // guaranteed to happen "promptly" as no more "blocking work" will
