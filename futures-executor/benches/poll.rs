@@ -1,23 +1,25 @@
-#![feature(test)]
+#![feature(test, pin, arbitrary_self_types, futures_api)]
 
 extern crate futures;
 extern crate test;
 
 use futures::prelude::*;
-use futures::task::{self, Waker, Wake};
+use futures::task::{self, Waker, LocalWaker, Wake, local_waker_from_nonlocal};
 use futures::executor::LocalPool;
 
+use std::marker::Unpin;
+use std::mem::PinMut;
 use std::sync::Arc;
 use test::Bencher;
 
-fn notify_noop() -> Waker {
+fn notify_noop() -> LocalWaker {
     struct Noop;
 
     impl Wake for Noop {
         fn wake(_: &Arc<Self>) {}
     }
 
-    Waker::from(Arc::new(Noop))
+    local_waker_from_nonlocal(Arc::new(Noop))
 }
 
 #[bench]
@@ -28,27 +30,27 @@ fn task_init(b: &mut Bencher) {
         num: u32,
         task: Option<Waker>,
     };
+    impl Unpin for MyFuture {}
 
     impl Future for MyFuture {
-        type Item = ();
-        type Error = ();
+        type Output = ();
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), ()> {
+        fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
             if self.num == NUM {
-                Ok(Async::Ready(()))
+                Poll::Ready(())
             } else {
                 self.num += 1;
 
                 if let Some(ref t) = self.task {
                     t.wake();
-                    return Ok(Async::Pending);
+                    return Poll::Pending;
                 }
 
                 let t = cx.waker().clone();
                 t.wake();
                 self.task = Some(t);
 
-                Ok(Async::Pending)
+                Poll::Pending
             }
         }
     }
@@ -61,13 +63,10 @@ fn task_init(b: &mut Bencher) {
     let pool = LocalPool::new();
     let mut exec = pool.executor();
     let waker = notify_noop();
-    let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
+    let mut cx = task::Context::new(&waker, &mut exec);
 
     b.iter(|| {
         fut.num = 0;
-
-        while let Ok(Async::Pending) = fut.poll(&mut cx) {
-        }
+        while let Poll::Pending = fut.poll_unpin(&mut cx) {}
     });
 }
