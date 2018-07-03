@@ -59,19 +59,19 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
     type SinkError = E;
 
     fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
-        self.sink().poll_ready(cx).map_err(self.expect_f())
+        self.sink().poll_ready(cx).map_err(|e| self.expect_f()(e))
     }
 
     fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-        self.sink().start_send(item).map_err(self.expect_f())
+        self.sink().start_send(item).map_err(|e| self.expect_f()(e))
     }
 
     fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
-        self.sink().poll_flush(cx).map_err(self.expect_f())
+        self.sink().poll_flush(cx).map_err(|e| self.expect_f()(e))
     }
 
     fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
-        self.sink().poll_close(cx).map_err(self.expect_f())
+        self.sink().poll_close(cx).map_err(|e| self.expect_f()(e))
     }
 }
 
