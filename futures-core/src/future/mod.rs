@@ -9,6 +9,9 @@ use task;
 mod option;
 pub use self::option::FutureOption;
 
+mod future_obj;
+pub use self::future_obj::{FutureObj, LocalFutureObj};
+
 #[cfg(feature = "either")]
 mod either;
 
