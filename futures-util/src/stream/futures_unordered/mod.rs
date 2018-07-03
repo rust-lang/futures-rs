@@ -160,7 +160,16 @@ impl<T> FuturesUnordered<T> {
         }
     }
 
+    /// Releases the node. It destorys the future inside and either drops
+    /// the `Arc<Node>` or transfers ownership to the ready to run queue.
+    /// The node this method is called on must have been unlinked before.
     fn release_node(&mut self, node: Arc<Node<T>>) {
+        // `release_node` must only be called on unlinked nodes
+        unsafe {
+            debug_assert!((*node.next_all.get()).is_null());
+            debug_assert!((*node.prev_all.get()).is_null());
+        }
+
         // The future is done, try to reset the queued flag. This will prevent
         // `notify` from doing any work in the future
         let prev = node.queued.swap(true, SeqCst);
@@ -274,10 +283,20 @@ impl<T> Stream for FuturesUnordered<T>
                 // `release_node` for more information, but we're basically
                 // just taking ownership of our reference count here.
                 None => {
-                    // Saftey: `release_node` uses `mem::forget`
+                    // This case only happens when `release_node` was called
+                    // for this node before and couldn't drop the node
+                    // because it was already enqueued in the ready to run
+                    // queue.
+
+                    // Safety: `node` is a valid pointer
                     let node = unsafe { Arc::from_raw(node) };
-                    assert!(node.next_all.get().is_null());
-                    assert!(node.prev_all.get().is_null());
+
+                    // Double check that the call to `release_node` really
+                    // happened. Calling it required the node to be unlinked.
+                    unsafe {
+                        debug_assert!((*node.next_all.get()).is_null());
+                        debug_assert!((*node.prev_all.get()).is_null());
+                    }
                     continue
                 }
             };
