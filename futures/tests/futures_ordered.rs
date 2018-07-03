@@ -1,25 +1,28 @@
+#![feature(pin, futures_api)]
+
 extern crate futures;
 
-use std::any::Any;
+// use std::any::Any;
 
-use futures::executor::{block_on, block_on_stream};
 use futures::channel::oneshot;
-use futures::stream::futures_ordered;
+use futures::executor::{block_on, block_on_stream};
+use futures::future::{ready, FutureObj};
 use futures::prelude::*;
+use futures::stream::{futures_ordered, FuturesOrdered};
 
 mod support;
 
 #[test]
 fn works_1() {
-    let (a_tx, a_rx) = oneshot::channel::<u32>();
-    let (b_tx, b_rx) = oneshot::channel::<u32>();
-    let (c_tx, c_rx) = oneshot::channel::<u32>();
+    let (a_tx, a_rx) = oneshot::channel::<i32>();
+    let (b_tx, b_rx) = oneshot::channel::<i32>();
+    let (c_tx, c_rx) = oneshot::channel::<i32>();
 
     let mut stream = futures_ordered(vec![a_rx, b_rx, c_rx]);
 
     b_tx.send(99).unwrap();
     support::noop_waker_cx(|cx| {
-        assert!(stream.poll_next(cx).unwrap().is_pending());
+        assert!(stream.poll_next_unpin(cx).is_pending());
     });
 
     a_tx.send(33).unwrap();
@@ -34,39 +37,37 @@ fn works_1() {
 
 #[test]
 fn works_2() {
-    let (a_tx, a_rx) = oneshot::channel::<u32>();
-    let (b_tx, b_rx) = oneshot::channel::<u32>();
-    let (c_tx, c_rx) = oneshot::channel::<u32>();
+    let (a_tx, a_rx) = oneshot::channel::<i32>();
+    let (b_tx, b_rx) = oneshot::channel::<i32>();
+    let (c_tx, c_rx) = oneshot::channel::<i32>();
 
     let mut stream = futures_ordered(vec![
-        Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
-        Box::new(b_rx.join(c_rx).map(|(a, b)| a + b)) as _,
+        FutureObj::new(Box::new(a_rx)),
+        FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
     ]);
 
     support::noop_waker_cx(|cx| {
         a_tx.send(33).unwrap();
         b_tx.send(33).unwrap();
-        assert!(stream.poll_next(cx).unwrap().is_ready());
-        assert!(stream.poll_next(cx).unwrap().is_pending());
+        assert!(stream.poll_next_unpin(cx).is_ready());
+        assert!(stream.poll_next_unpin(cx).is_pending());
         c_tx.send(33).unwrap();
-        assert!(stream.poll_next(cx).unwrap().is_ready());
+        assert!(stream.poll_next_unpin(cx).is_ready());
     })
 }
 
 #[test]
 fn from_iterator() {
-    use futures::future::ok;
-    use futures::stream::FuturesOrdered;
-
     let stream = vec![
-        ok::<u32, ()>(1),
-        ok::<u32, ()>(2),
-        ok::<u32, ()>(3)
+        ready::<i32>(1),
+        ready::<i32>(2),
+        ready::<i32>(3)
     ].into_iter().collect::<FuturesOrdered<_>>();
     assert_eq!(stream.len(), 3);
-    assert_eq!(block_on(stream.collect()), Ok(vec![1,2,3]));
+    assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);
 }
 
+/* ToDo: This requires FutureExt::select to be implemented
 #[test]
 fn queue_never_unblocked() {
     let (_a_tx, a_rx) = oneshot::channel::<Box<Any+Send>>();
@@ -89,4 +90,4 @@ fn queue_never_unblocked() {
         assert!(stream.poll_next(cx).unwrap().is_pending());
         assert!(stream.poll_next(cx).unwrap().is_pending());
     })
-}
+}*/
