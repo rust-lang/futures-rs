@@ -1,29 +1,35 @@
+#![feature(pin, futures_api)]
+
 extern crate futures;
 
 mod support;
 
+use std::boxed::PinBox;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
+use futures::future::{lazy, LocalFutureObj};
 use futures::prelude::*;
-use futures::future;
+use futures::task::LocalTaskObj;
 
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
-    let (tx, rx) = oneshot::channel::<u32>();
+    let (tx, rx) = oneshot::channel::<i32>();
     let f = rx.shared();
-    let threads = (0..threads_number).map(|_| {
+    let join_handles = (0..threads_number).map(|_| {
         let cloned_future = f.clone();
         thread::spawn(move || {
-            assert_eq!(*block_on(cloned_future).unwrap(), 6);
+            assert_eq!(block_on(cloned_future).unwrap(), 6);
         })
     }).collect::<Vec<_>>();
+
     tx.send(6).unwrap();
-    assert_eq!(*block_on(f).unwrap(), 6);
-    for f in threads {
-        f.join().unwrap();
+
+    assert_eq!(block_on(f).unwrap(), 6);
+    for join_handle in join_handles {
+        join_handle.join().unwrap();
     }
 }
 
@@ -42,6 +48,7 @@ fn many_threads() {
     send_shared_oneshot_and_wait_on_multiple_threads(1000);
 }
 
+/* ToDo: This requires FutureExt::select to be implemented
 #[test]
 fn drop_on_one_task_ok() {
     let (tx, rx) = oneshot::channel::<u32>();
@@ -68,27 +75,30 @@ fn drop_on_one_task_ok() {
     let result = block_on(rx3).unwrap();
     assert_eq!(result, 42);
     t2.join().unwrap();
-}
+}*/
 
 #[test]
 fn drop_in_poll() {
-    let slot = Rc::new(RefCell::new(None));
-    let slot2 = slot.clone();
-    let future = future::poll_fn(move |_| {
-        drop(slot2.borrow_mut().take().unwrap());
-        Ok::<_, u32>(1.into())
+    let slot1 = Rc::new(RefCell::new(None));
+    let slot2 = slot1.clone();
+
+    let future1 = lazy(move |_| {
+        slot2.replace(None); // Drop future
+        1
     }).shared();
-    let future2 = Box::new(future.clone()) as Box<Future<Item=_, Error=_>>;
-    *slot.borrow_mut() = Some(future2);
-    assert_eq!(*block_on(future).unwrap(), 1);
+
+    let future2 = LocalFutureObj::new(Box::new(future1.clone()));
+    slot1.replace(Some(future2));
+
+    assert_eq!(*block_on(future1), 1);
 }
 
 #[test]
 fn peek() {
-    let mut core = LocalPool::new();
-    let exec = &mut core.executor();
+    let mut local_pool = LocalPool::new();
+    let exec = &mut local_pool.executor();
 
-    let (tx0, rx0) = oneshot::channel::<u32>();
+    let (tx0, rx0) = oneshot::channel::<i32>();
     let f1 = rx0.shared();
     let f2 = f1.clone();
 
@@ -106,9 +116,9 @@ fn peek() {
     }
 
     // Once the Shared has been polled, the value is peekable on the clone.
-    exec.spawn(Box::new(f1.map(|_|()).recover(|_|()))).unwrap();
-    core.run(exec);
+    exec.spawn_local_obj(LocalTaskObj::new(PinBox::new(f1.map(|_| ())))).unwrap();
+    local_pool.run(exec);
     for _ in 0..2 {
-        assert_eq!(42, *f2.peek().unwrap().unwrap());
+        assert_eq!(*f2.peek().unwrap(), Ok(42));
     }
 }

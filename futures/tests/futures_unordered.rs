@@ -2,7 +2,6 @@
 
 extern crate futures;
 
-// use std::any::Any;
 use std::boxed::Box;
 
 use futures::channel::oneshot;
