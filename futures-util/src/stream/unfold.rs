@@ -58,7 +58,7 @@ pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
           Fut: Future<Output = Option<(It, T)>>,
 {
     Unfold {
-        f: f,
+        f,
         state: Some(init),
         fut: None,
     }
@@ -90,21 +90,19 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
     type Item = It;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<It>> {
-        loop {
-            if let Some(state) = self.state().take() {
-                let fut = (self.f())(state);
-                PinMut::set(self.fut(), Some(fut));
-            }
+        if let Some(state) = self.state().take() {
+            let fut = (self.f())(state);
+            PinMut::set(self.fut(), Some(fut));
+        }
 
-            let step = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
-            PinMut::set(self.fut(), None);
+        let step = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
+        PinMut::set(self.fut(), None);
 
-            if let Some((item, next_state)) = step {
-                *self.state() = Some(next_state);
-                return Poll::Ready(Some(item))
-            } else {
-                return Poll::Ready(None)
-            }
+        if let Some((item, next_state)) = step {
+            *self.state() = Some(next_state);
+            return Poll::Ready(Some(item))
+        } else {
+            return Poll::Ready(None)
         }
     }
 }

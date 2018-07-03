@@ -15,7 +15,7 @@ pub struct MapErr<A, F> {
 
 pub fn new<A, F>(future: A, f: F) -> MapErr<A, F> {
     MapErr {
-        future: future,
+        future,
         f: Some(f),
     }
 }
@@ -28,7 +28,7 @@ impl<U, A, F> Future for MapErr<A, F>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match unsafe { pinned_field!(self, future) }.try_poll(cx) {
-            Poll::Pending => return Poll::Pending,
+            Poll::Pending => Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {
                     PinMut::get_mut_unchecked(self).f.take().expect("cannot poll MapErr twice")

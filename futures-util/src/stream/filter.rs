@@ -30,7 +30,7 @@ pub fn new<S, R, P>(s: S, pred: P) -> Filter<S, R, P>
 {
     Filter {
         stream: s,
-        pred: pred,
+        pred,
         pending_fut: None,
         pending_item: None,
     }

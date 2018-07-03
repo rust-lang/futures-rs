@@ -80,7 +80,7 @@ where
         loop {
             match this.stream.poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(item))) => try_ready!(this.try_start_send(cx, item)),
-                Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e.into())),
+                Poll::Ready(Some(Err(err))) => return Poll::Ready(Err(err)),
                 Poll::Ready(None) => {
                     try_ready!(PinMut::new(this.sink).poll_flush(cx));
                     return Poll::Ready(Ok(()))

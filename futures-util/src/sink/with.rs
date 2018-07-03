@@ -45,7 +45,9 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
-    fn as_pin_mut<'a>(self: PinMut<'a, Self>) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
+    fn as_pin_mut<'a>(
+        self: PinMut<'a, Self>
+    ) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
         unsafe {
             match PinMut::get_mut_unchecked(self) {
                 State::Empty => State::Empty,
@@ -64,8 +66,8 @@ pub fn new<S, U, Fut, F, E>(sink: S, f: F) -> With<S, U, Fut, F>
 {
     With {
         state: State::Empty,
-        sink: sink,
-        f: f,
+        sink,
+        f,
         _phantom: PhantomData,
     }
 }

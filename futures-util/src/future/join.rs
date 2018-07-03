@@ -48,7 +48,9 @@ macro_rules! generate {
         impl<$($Fut: Future),*> Future for $Join<$($Fut),*> {
             type Output = ($($Fut::Output),*);
 
-            fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+            fn poll(
+                mut self: PinMut<Self>, cx: &mut task::Context
+            ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 $(
                     if self.$Fut().poll(cx).is_pending() {
@@ -57,7 +59,7 @@ macro_rules! generate {
                 )*
 
                 if all_done {
-                    Poll::Ready(($(self.$Fut().take_output().unwrap_or_else(|| unreachable!())),*))
+                    Poll::Ready(($(self.$Fut().take_output().unwrap()), *))
                 } else {
                     Poll::Pending
                 }

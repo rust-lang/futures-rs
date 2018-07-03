@@ -72,9 +72,7 @@ impl<T> Unpin for FuturesUnordered<T> {}
 // is notified, it will only insert itself into the linked list if it isn't
 // currently inserted.
 
-impl<T> FuturesUnordered<T>
-    where T: Future
-{
+impl<T: Future> FuturesUnordered<T> {
     /// Constructs a new, empty `FuturesUnordered`
     ///
     /// The returned `FuturesUnordered` does not contain any futures.
@@ -94,14 +92,20 @@ impl<T> FuturesUnordered<T>
             parent: AtomicWaker::new(),
             head: AtomicPtr::new(stub_ptr as *mut _),
             tail: UnsafeCell::new(stub_ptr),
-            stub: stub,
+            stub,
         });
 
         FuturesUnordered {
             len: 0,
             head_all: ptr::null_mut(),
-            ready_to_run_queue: ready_to_run_queue,
+            ready_to_run_queue,
         }
+    }
+}
+
+impl<T: Future> Default for FuturesUnordered<T> {
+    fn default() -> FuturesUnordered<T> {
+        FuturesUnordered::new()
     }
 }
 
@@ -237,9 +241,7 @@ impl<T> FuturesUnordered<T> {
     }
 }
 
-impl<T> Stream for FuturesUnordered<T>
-    where T: Future
-{
+impl<T: Future> Stream for FuturesUnordered<T> {
     type Item = T::Output;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context)

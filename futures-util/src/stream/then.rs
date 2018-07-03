@@ -25,7 +25,7 @@ pub fn new<S, U, F>(s: S, f: F) -> Then<S, U, F>
     Then {
         stream: s,
         future: None,
-        f: f,
+        f,
     }
 }
 

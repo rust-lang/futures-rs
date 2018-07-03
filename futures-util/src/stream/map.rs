@@ -21,7 +21,7 @@ pub fn new<S, U, F>(s: S, f: F) -> Map<S, F>
 {
     Map {
         stream: s,
-        f: f,
+        f,
     }
 }
 

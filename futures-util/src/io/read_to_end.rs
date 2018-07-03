@@ -48,7 +48,7 @@ impl<'a> Drop for Guard<'a> {
 fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context, buf: &mut Vec<u8>)
     -> Poll<io::Result<()>>
 {
-    let mut g = Guard { len: buf.len(), buf: buf };
+    let mut g = Guard { len: buf.len(), buf };
     let ret;
     loop {
         if g.len == g.buf.len() {

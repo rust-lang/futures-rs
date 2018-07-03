@@ -37,7 +37,7 @@ impl<'a, A> Future for ReadExact<'a, A>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
-        while this.buf.len() > 0 {
+        while !this.buf.is_empty() {
             let n = try_ready!(this.a.poll_read(cx, this.buf));
             {
                 let (rest, _) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);

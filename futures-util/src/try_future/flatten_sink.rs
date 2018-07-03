@@ -22,9 +22,9 @@ pub struct FlattenSink<F, S>(State<F, S>);
 impl<F: Unpin, S: Unpin> Unpin for FlattenSink<F, S> {}
 
 impl<F, S> FlattenSink<F, S> {
-    fn project_pin<'a>(self: PinMut<'a, Self>)
-        -> State<PinMut<'a, F>, PinMut<'a, S>>
-    {
+    fn project_pin<'a>(
+        self: PinMut<'a, Self>
+    ) -> State<PinMut<'a, F>, PinMut<'a, S>> {
         unsafe {
             match &mut PinMut::get_mut_unchecked(self).0 {
                 Waiting(f) => Waiting(PinMut::new_unchecked(f)),

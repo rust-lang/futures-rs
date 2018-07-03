@@ -19,7 +19,7 @@ pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
           F: FnOnce(&A::Output),
 {
     Inspect {
-        future: future,
+        future,
         f: Some(f),
     }
 }

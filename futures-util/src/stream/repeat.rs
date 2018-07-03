@@ -32,9 +32,7 @@ pub struct Repeat<T> {
 pub fn repeat<T>(item: T) -> Repeat<T>
     where T: Clone
 {
-    Repeat {
-        item: item,
-    }
+    Repeat { item }
 }
 
 impl<T> Unpin for Repeat<T> {}

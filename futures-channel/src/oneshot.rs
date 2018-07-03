@@ -113,7 +113,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
         inner: inner.clone(),
     };
     let sender = Sender {
-        inner: inner,
+        inner,
     };
     (sender, receiver)
 }
@@ -247,7 +247,7 @@ impl<T> Inner<T> {
         if self.complete.load(SeqCst) {
             if let Some(mut slot) = self.data.try_lock() {
                 if let Some(data) = slot.take() {
-                    return Ok(Some(data.into()));
+                    return Ok(Some(data));
                 }
             }
             Err(Canceled)
@@ -257,8 +257,6 @@ impl<T> Inner<T> {
     }
 
     fn recv(&self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
-        let mut done = false;
-
         // Check to see if some data has arrived. If it hasn't then we need to
         // block our task.
         //
@@ -266,15 +264,15 @@ impl<T> Inner<T> {
         // the only situation where this can happen is during `Sender::drop`
         // when we are indeed completed already. If that's happening then we
         // know we're completed so keep going.
-        if self.complete.load(SeqCst) {
-            done = true;
+        let done = if self.complete.load(SeqCst) {
+            true
         } else {
             let task = cx.waker().clone();
             match self.rx_task.try_lock() {
-                Some(mut slot) => *slot = Some(task),
-                None => done = true,
+                Some(mut slot) => { *slot = Some(task); false },
+                None => true,
             }
-        }
+        };
 
         // If we're `done` via one of the paths above, then look at the data and
         // figure out what the answer is. If, however, we stored `rx_task`

@@ -34,7 +34,7 @@ impl<S> Stream for CatchUnwind<S>
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         if *self.caught_unwind() {
-            return Poll::Ready(None)
+            Poll::Ready(None)
         } else {
             let res = catch_unwind(AssertUnwindSafe(|| self.stream().poll_next(cx)));
             match res {

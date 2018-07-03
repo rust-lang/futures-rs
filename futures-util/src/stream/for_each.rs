@@ -25,7 +25,7 @@ pub fn new<S, U, F>(s: S, f: F) -> ForEach<S, U, F>
 {
     ForEach {
         stream: s,
-        f: f,
+        f,
         fut: None,
     }
 }

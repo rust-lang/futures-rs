@@ -63,7 +63,7 @@ impl<S> Fuse<S> {
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, S> {
-        unsafe { PinMut::new_unchecked(&mut PinMut::get_mut_unchecked(self).stream) }
+        unsafe { PinMut::map_unchecked(self, |x| &mut x.stream) }
     }
 
     /// Consumes this combinator, returning the underlying stream.
