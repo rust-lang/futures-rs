@@ -5,7 +5,7 @@ use std::mem::PinMut;
 use futures_core::{task, Future, Poll, Stream};
 use futures_sink::Sink;
 
-use stream::{Fuse, FuturesUnordered};
+use crate::stream::{Fuse, FuturesUnordered};
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible, delivering results as they become available.

@@ -3,8 +3,8 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 
-use Poll;
-use task;
+use crate::Poll;
+use crate::task;
 
 /// A stream of values produced asynchronously.
 ///

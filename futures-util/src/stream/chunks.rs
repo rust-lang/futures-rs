@@ -5,7 +5,7 @@ use std::prelude::v1::*;
 use futures_core::{Poll, Stream};
 use futures_core::task;
 
-use stream::Fuse;
+use crate::stream::Fuse;
 
 /// An adaptor that chunks up elements in a vector.
 ///

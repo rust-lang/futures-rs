@@ -1,4 +1,4 @@
-use {Sink, Poll};
+use crate::{Sink, Poll};
 use futures_core::task;
 use futures_channel::mpsc::{Sender, SendError, UnboundedSender};
 use std::mem::PinMut;

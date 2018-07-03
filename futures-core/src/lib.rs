@@ -83,10 +83,10 @@ macro_rules! pin_mut {
 }
 
 pub mod future;
-pub use future::{Future, CoreFutureExt, TryFuture};
+pub use crate::future::{Future, CoreFutureExt, TryFuture};
 
 pub mod stream;
-pub use stream::{Stream, TryStream};
+pub use crate::stream::{Stream, TryStream};
 
 pub mod task;
-pub use task::Poll;
+pub use crate::task::Poll;

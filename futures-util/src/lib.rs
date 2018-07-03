@@ -55,19 +55,19 @@ macro_rules! delegate_sink {
 }
 
 pub mod future;
-pub use future::FutureExt;
+pub use crate::future::FutureExt;
 
 pub mod try_future;
-pub use try_future::TryFutureExt;
+pub use crate::try_future::TryFutureExt;
 
 pub mod stream;
-pub use stream::StreamExt;
+pub use crate::stream::StreamExt;
 
 pub mod try_stream;
-pub use try_stream::TryStreamExt;
+pub use crate::try_stream::TryStreamExt;
 
 pub mod sink;
-pub use sink::SinkExt;
+pub use crate::sink::SinkExt;
 
 if_std! {
     extern crate core;
@@ -78,7 +78,7 @@ if_std! {
     pub mod await;
 
     pub mod io;
-    pub use io::{AsyncReadExt, AsyncWriteExt};
+    pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 
     #[cfg(any(test, feature = "bench"))]
     pub mod lock;

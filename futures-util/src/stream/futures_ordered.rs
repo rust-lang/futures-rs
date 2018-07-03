@@ -8,7 +8,7 @@ use std::mem::PinMut;
 use futures_core::{Future, Poll, Stream};
 use futures_core::task;
 
-use stream::FuturesUnordered;
+use crate::stream::FuturesUnordered;
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]

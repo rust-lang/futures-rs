@@ -1,5 +1,8 @@
+cargo-features = ["edition"]
+
 [package]
 name = "futures-core"
+edition = "2018"
 version = "0.3.0-alpha"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"

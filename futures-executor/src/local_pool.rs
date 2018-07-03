@@ -14,8 +14,8 @@ use futures_core::task::{
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 
-use enter;
-use ThreadPool;
+use crate::enter;
+use crate::ThreadPool;
 
 /// A single-threaded task pool.
 ///

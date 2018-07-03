@@ -3,7 +3,7 @@ use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
 
-use task::Waker;
+use crate::task::Waker;
 
 /// A synchronization primitive for task wakeup.
 ///
