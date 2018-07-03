@@ -58,9 +58,7 @@ impl<S> Future for Concat<S>
             match self.stream().poll_next(cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
-                    return Poll::Ready(
-                        self.accum().take().unwrap_or_else(Default::default)
-                    )
+                    return Poll::Ready(self.accum().take().unwrap_or_default())
                 }
                 Poll::Ready(Some(e)) => {
                     let accum = self.accum();
