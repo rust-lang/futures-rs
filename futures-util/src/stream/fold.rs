@@ -25,7 +25,7 @@ pub fn new<S, Fut, T, F>(s: S, f: F, t: T) -> Fold<S, Fut, T, F>
 {
     Fold {
         stream: s,
-        f: f,
+        f,
         accum: Some(t),
         fut: None,
     }

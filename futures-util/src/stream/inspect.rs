@@ -19,7 +19,7 @@ pub fn new<S, F>(stream: S, f: F) -> Inspect<S, F>
           F: FnMut(&S::Item) -> (),
 {
     Inspect {
-        stream: stream,
+        stream,
         inspect: f,
     }
 }

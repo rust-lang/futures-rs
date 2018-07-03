@@ -21,7 +21,7 @@ pub struct Buffer<S: Sink> {
 
 pub fn new<S: Sink>(sink: S, amt: usize) -> Buffer<S> {
     Buffer {
-        sink: sink,
+        sink,
         buf: VecDeque::with_capacity(amt),
         cap: amt,
     }
@@ -45,7 +45,7 @@ impl<S: Sink> Buffer<S> {
             if let Err(e) = self.sink().start_send(item) {
                 return Poll::Ready(Err(e));
             }
-            if self.buf.len() != 0 {
+            if !self.buf.is_empty() {
                 try_ready!(self.sink().poll_ready(cx));
             }
         }

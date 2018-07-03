@@ -387,7 +387,7 @@ pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
 
 fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner {
-        buffer: buffer,
+        buffer,
         state: AtomicUsize::new(INIT_STATE),
         message_queue: Queue::new(),
         parked_queue: Queue::new(),
@@ -405,7 +405,7 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
     };
 
     let rx = Receiver {
-        inner: inner,
+        inner,
     };
 
     (tx, rx)

@@ -29,7 +29,7 @@ pub fn new<S, R, F>(s: S, f: F) -> FilterMap<S, R, F>
 {
     FilterMap {
         stream: s,
-        f: f,
+        f,
         pending: None,
     }
 }

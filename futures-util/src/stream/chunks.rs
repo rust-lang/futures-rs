@@ -101,11 +101,11 @@ impl<S> Stream for Chunks<S>
                 // Since the underlying stream ran out of values, return what we
                 // have buffered, if we have anything.
                 None => {
-                    let last = if self.items().len() > 0 {
+                    let last = if self.items().is_empty() {
+                        None
+                    } else {
                         let full_buf = mem::replace(self.items(), Vec::new());
                         Some(full_buf)
-                    } else {
-                        None
                     };
 
                     return Poll::Ready(last);

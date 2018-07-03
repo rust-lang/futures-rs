@@ -46,17 +46,21 @@ impl<S: Stream + Unpin> Unpin for Concat<S> {}
 
 impl<S> Future for Concat<S>
     where S: Stream,
-          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
-
+          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> +
+                   IntoIterator + Default,
 {
     type Output = S::Item;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>, cx: &mut task::Context
+    ) -> Poll<Self::Output> {
         loop {
             match self.stream().poll_next(cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
-                    return Poll::Ready(self.accum().take().unwrap_or_else(|| Default::default()))
+                    return Poll::Ready(
+                        self.accum().take().unwrap_or_else(Default::default)
+                    )
                 }
                 Poll::Ready(Some(e)) => {
                     let accum = self.accum();

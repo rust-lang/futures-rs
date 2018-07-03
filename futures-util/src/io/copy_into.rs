@@ -31,9 +31,9 @@ pub fn copy_into<'a, R: ?Sized, W: ?Sized>(
     reader: &'a mut R, writer: &'a mut W) -> CopyInto<'a, R, W>
 {
     CopyInto {
-        reader: reader,
+        reader,
         read_done: false,
-        writer: writer,
+        writer,
         amt: 0,
         pos: 0,
         cap: 0,

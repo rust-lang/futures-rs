@@ -116,9 +116,7 @@ where
     futures.into_iter().collect()
 }
 
-impl<T> FuturesOrdered<T>
-    where T: Future
-{
+impl<T: Future> FuturesOrdered<T> {
     /// Constructs a new, empty `FuturesOrdered`
     ///
     /// The returned `FuturesOrdered` does not contain any futures and, in this
@@ -162,9 +160,13 @@ impl<T> FuturesOrdered<T>
     }
 }
 
-impl<T> Stream for FuturesOrdered<T>
-    where T: Future
-{
+impl<T: Future> Default for FuturesOrdered<T> {
+    fn default() -> FuturesOrdered<T> {
+        FuturesOrdered::new()
+    }
+}
+
+impl<T: Future> Stream for FuturesOrdered<T> {
     type Item = T::Output;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {

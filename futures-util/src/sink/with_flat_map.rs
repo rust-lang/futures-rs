@@ -35,8 +35,8 @@ where
     St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
     WithFlatMap {
-        sink: sink,
-        f: f,
+        sink,
+        f,
         stream: None,
         buffer: None,
         _phantom: PhantomData,
@@ -65,7 +65,7 @@ where
 
     /// Get a pinned mutable reference to the inner sink.
     pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, S> {
-        unsafe { PinMut::new_unchecked(&mut PinMut::get_mut_unchecked(self).sink) }
+        unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
     }
 
     /// Consumes this combinator, returning the underlying sink.
@@ -77,16 +77,10 @@ where
     }
 
     fn try_empty_stream(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
-        let WithFlatMap {
-            sink,
-            f: _,
-            stream,
-            buffer,
-            _phantom,
-        } = unsafe { PinMut::get_mut_unchecked(self) };
+        let WithFlatMap { sink, stream, buffer, .. } =
+            unsafe { PinMut::get_mut_unchecked(self) };
         let mut sink = unsafe { PinMut::new_unchecked(sink) };
         let mut stream = unsafe { PinMut::new_unchecked(stream) };
-
 
         if buffer.is_some() {
             try_ready!(sink.reborrow().poll_ready(cx));

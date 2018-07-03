@@ -16,7 +16,7 @@ pub struct ErrInto<A, E> {
 
 pub fn new<A, E>(future: A) -> ErrInto<A, E> {
     ErrInto {
-        future: future,
+        future,
         f: PhantomData
     }
 }
@@ -29,7 +29,7 @@ impl<A, E> Future for ErrInto<A, E>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match unsafe { pinned_field!(self, future) }.try_poll(cx) {
-            Poll::Pending => return Poll::Pending,
+            Poll::Pending => Poll::Pending,
             Poll::Ready(e) => {
                 Poll::Ready(e.map_err(Into::into))
             }
