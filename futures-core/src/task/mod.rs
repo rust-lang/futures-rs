@@ -16,7 +16,7 @@ mod atomic_waker;
 pub use self::atomic_waker::AtomicWaker;
 
 if_std! {
-    use Future;
+    use crate::Future;
     use std::boxed::PinBox;
 
     pub use std::task::{Wake, local_waker, local_waker_from_nonlocal};

@@ -1,7 +1,7 @@
 use futures_core::{Stream, Poll};
 use futures_core::task;
 use futures_sink::{Sink};
-use sink::{SinkExt, SinkMapErr};
+use crate::sink::{SinkExt, SinkMapErr};
 
 use core::mem::PinMut;
 

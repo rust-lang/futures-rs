@@ -6,7 +6,7 @@ use core::mem::PinMut;
 use futures_core::{Future, Poll};
 use futures_core::task;
 
-use future::{MaybeDone, maybe_done};
+use crate::future::{MaybeDone, maybe_done};
 
 macro_rules! generate {
     ($(

@@ -3,9 +3,9 @@ use std::marker::Unpin;
 use std::mem::PinMut;
 use std::vec::Vec;
 
-use {Poll, Future, task};
+use crate::{Poll, Future, task};
 
-use io::AsyncRead;
+use crate::io::AsyncRead;
 
 /// A future which can be used to easily read the entire contents of a stream
 /// into a vector.

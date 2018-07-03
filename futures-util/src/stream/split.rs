@@ -7,7 +7,7 @@ use std::mem::PinMut;
 use futures_core::{task, Stream, Poll};
 use futures_sink::Sink;
 
-use lock::BiLock;
+use crate::lock::BiLock;
 
 /// A `Stream` part of the split pair
 #[must_use = "streams do nothing unless polled"]

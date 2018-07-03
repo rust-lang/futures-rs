@@ -32,15 +32,15 @@ if_std! {
     extern crate num_cpus;
 
     mod local_pool;
-    pub use local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
+    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
 
     mod unpark_mutex;
     mod thread_pool;
-    pub use thread_pool::{ThreadPool, ThreadPoolBuilder};
+    pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 
     mod enter;
-    pub use enter::{enter, Enter, EnterError};
+    pub use crate::enter::{enter, Enter, EnterError};
 
     mod spawn;
-    pub use spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle, JoinHandle};
+    pub use crate::spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle, JoinHandle};
 }

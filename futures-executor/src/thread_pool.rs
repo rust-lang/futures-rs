@@ -10,9 +10,9 @@ use std::fmt;
 use futures_core::*;
 use futures_core::task::{self, Wake, TaskObj, Executor, SpawnObjError};
 
-use enter;
+use crate::enter;
 use num_cpus;
-use unpark_mutex::UnparkMutex;
+use crate::unpark_mutex::UnparkMutex;
 
 /// A general-purpose thread pool for scheduling asynchronous tasks.
 ///
@@ -95,7 +95,7 @@ impl ThreadPool {
     /// Note that the function will return when the provided future completes,
     /// even if some of the tasks it spawned are still running.
     pub fn run<F: Future>(&mut self, f: F) -> F::Output {
-        ::LocalPool::new().run_until(f, self)
+        crate::LocalPool::new().run_until(f, self)
     }
 }
 
