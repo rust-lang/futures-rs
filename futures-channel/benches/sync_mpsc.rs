@@ -2,17 +2,17 @@
 
 #[macro_use]
 extern crate futures;
-extern crate futures_channel;
 extern crate test;
 
 use futures::task::{self, Wake, LocalWaker};
 use futures::executor::LocalPool;
 use futures::prelude::*;
-
-use futures_channel::mpsc::unbounded;
-use futures_channel::mpsc::channel;
-use futures_channel::mpsc::Sender;
-use futures_channel::mpsc::UnboundedSender;
+use futures::channel::mpsc::{
+    unbounded,
+    channel,
+    Sender,
+    UnboundedSender,
+};
 
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -129,10 +129,7 @@ fn bounded_1_tx(b: &mut Bencher) {
         b.iter(|| {
             let (tx, mut rx) = channel(0);
 
-            let mut tx = TestSender {
-                tx: tx,
-                last: 0,
-            };
+            let mut tx = TestSender { tx, last: 0 };
 
             for i in 0..1000 {
                 assert_eq!(Poll::Ready(Some(i + 1)), tx.poll_next_unpin(cx));
