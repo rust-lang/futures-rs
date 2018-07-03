@@ -21,10 +21,9 @@ pub struct Repeat<T> {
 ///
 /// ```rust
 /// # extern crate futures;
-/// # extern crate futures_executor;
 /// use futures::prelude::*;
 /// use futures::stream;
-/// use futures_executor::block_on;
+/// use futures::executor::block_on;
 ///
 /// let mut stream = stream::repeat(9);
 /// assert_eq!(vec![9, 9, 9], block_on(stream.take(3).collect::<Vec<i32>>()));

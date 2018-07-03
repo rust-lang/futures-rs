@@ -83,7 +83,6 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::executor::block_on;
@@ -194,10 +193,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let a = future::ready(1);
@@ -321,10 +319,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let future = future::ready(17);
@@ -357,10 +354,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let nested_future = future::ready(future::ready(1));
@@ -390,11 +386,10 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::stream;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let stream_items = vec![17, 18, 19];
@@ -445,10 +440,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let future = future::ready(1);
@@ -483,10 +477,9 @@ pub trait FutureExt: Future {
     ///
     /// ```rust
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future::{self, ReadyFuture};
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let mut future = future::ready(2);
@@ -523,10 +516,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let future = future::ready(6);
@@ -540,12 +532,11 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use std::thread;
     ///
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::block_on;
+    /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let future = future::ready(6);
@@ -572,10 +563,9 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// # extern crate futures;
-    /// # extern crate futures_executor;
     /// use futures::prelude::*;
     /// use futures::future;
-    /// use futures_executor::{block_on, spawn_with_handle, ThreadPool};
+    /// use futures::executor::{block_on, spawn_with_handle, ThreadPool};
     ///
     /// let pool = ThreadPool::new().expect("unable to create threadpool");
     /// let future = spawn_with_handle(future::ready(3)).with_executor(pool);
