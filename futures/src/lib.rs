@@ -251,7 +251,8 @@ pub mod future {
     //! immediate defined value.
 
     pub use futures_core::future::{
-        FutureOption, Future, TryFuture, ReadyFuture, ready
+        FutureOption, Future, TryFuture, ReadyFuture, ready,
+        FutureObj, LocalFutureObj
     };
     pub use futures_util::future::{
         Empty, Flatten, FlattenStream, Fuse, Inspect, IntoStream, Lazy,
@@ -262,7 +263,7 @@ pub mod future {
 
     #[cfg(feature = "std")]
     pub use futures_util::future::{
-        CatchUnwind,
+        CatchUnwind
         // JoinAll, SelectAll, SelectOk, Shared, SharedError, SharedItem,
         // join_all, select_all, select_ok
     };
@@ -388,9 +389,11 @@ pub mod stream {
 
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
-        CatchUnwind, Chunks, Collect, futures_unordered
+        CatchUnwind, Chunks, Collect,
+        futures_unordered, FuturesUnordered,
+        futures_ordered, FuturesOrdered,
         // , select_all, BufferUnordered, Buffered,
-        // FuturesUnordered, FuturesOrdered, ReuniteError, SelectAll, SplitSink,
+        // , FuturesOrdered, ReuniteError, SelectAll, SplitSink,
         // SplitStream, futures_ordered,
     };
 }
@@ -420,6 +423,7 @@ pub mod task {
         Executor,
         TaskObj, LocalTaskObj,
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
+        local_waker, local_waker_from_nonlocal
     };
 
     #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
