@@ -419,7 +419,7 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Waker, UnsafeWake,
+        Context, Waker, LocalWaker, UnsafeWake, UnsafeTask,
         Executor,
         TaskObj, LocalTaskObj,
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
@@ -430,5 +430,8 @@ pub mod task {
     pub use futures_core::task::AtomicWaker;
 
     #[cfg(feature = "std")]
-    pub use futures_core::task::Wake;
+    pub use futures_core::task::{
+        local_waker, local_waker_from_nonlocal,
+        Wake,
+    };
 }
