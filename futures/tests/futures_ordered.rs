@@ -1,5 +1,8 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
+#[macro_use]
+extern crate futures;
+
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureObj};
@@ -17,7 +20,7 @@ fn works_1() {
     let mut stream = futures_ordered(vec![a_rx, b_rx, c_rx]);
 
     b_tx.send(99).unwrap();
-    support::noop_waker_cx(|cx| {
+    support::with_noop_waker_context(|cx| {
         assert!(stream.poll_next_unpin(cx).is_pending());
     });
 
@@ -42,7 +45,7 @@ fn works_2() {
         FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
     ]);
 
-    support::noop_waker_cx(|cx| {
+    support::with_noop_waker_context(|cx| {
         a_tx.send(33).unwrap();
         b_tx.send(33).unwrap();
         assert!(stream.poll_next_unpin(cx).is_ready());
@@ -75,7 +78,7 @@ fn queue_never_unblocked() {
         Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))) as _,
     ]);
 
-    support::noop_waker_cx(|cx| {
+    support::with_noop_waker_context(f)(|cx| {
         for _ in 0..10 {
             assert!(stream.poll_next(cx).unwrap().is_pending());
         }

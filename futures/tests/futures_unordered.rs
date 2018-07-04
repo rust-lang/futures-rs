@@ -1,5 +1,8 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
+#[macro_use]
+extern crate futures;
+
 use std::boxed::Box;
 
 use futures::channel::oneshot;
@@ -41,7 +44,7 @@ fn works_2() {
 
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
-    support::noop_waker_cx(|cx| {
+    support::with_noop_waker_context(|cx| {
         assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(9))));
         c_tx.send(20).unwrap();
         assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(30))));
@@ -72,7 +75,7 @@ fn finished_future() {
         //FutureObj::new(Box::new(b_rx.select(c_rx))),
     ]);
 
-    support::noop_waker_cx(|cx| {
+    support::with_noop_waker_context(f)(|cx| {
         for _ in 0..10 {
             assert!(stream.poll_next_unpin(cx).is_pending());
         }
