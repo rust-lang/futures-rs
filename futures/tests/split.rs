@@ -1,4 +1,4 @@
-#![feature(pin, futures_api, arbitrary_self_types)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 #[macro_use]
 extern crate futures;
