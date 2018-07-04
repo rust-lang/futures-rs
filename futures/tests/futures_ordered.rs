@@ -6,7 +6,7 @@ extern crate futures;
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{ready, FutureObj};
+use futures::future::{self, FutureObj};
 use futures::prelude::*;
 use futures::stream::{futures_ordered, FuturesOrdered};
 
@@ -59,9 +59,9 @@ fn works_2() {
 #[test]
 fn from_iterator() {
     let stream = vec![
-        ready::<i32>(1),
-        ready::<i32>(2),
-        ready::<i32>(3)
+        future::ready::<i32>(1),
+        future::ready::<i32>(2),
+        future::ready::<i32>(3)
     ].into_iter().collect::<FuturesOrdered<_>>();
     assert_eq!(stream.len(), 3);
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);

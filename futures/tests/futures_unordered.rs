@@ -6,7 +6,7 @@ use std::boxed::Box;
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{ready, empty, FutureObj};
+use futures::future::{self, FutureObj};
 use futures::stream::{futures_unordered, FuturesUnordered};
 use futures::prelude::*;
 
@@ -54,9 +54,9 @@ fn works_2() {
 #[test]
 fn from_iterator() {
     let stream = vec![
-        ready::<i32>(1),
-        ready::<i32>(2),
-        ready::<i32>(3)
+        future::ready::<i32>(1),
+        future::ready::<i32>(2),
+        future::ready::<i32>(3)
     ].into_iter().collect::<FuturesUnordered<_>>();
     assert_eq!(stream.len(), 3);
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);
@@ -114,9 +114,9 @@ fn iter_mut_cancel() {
 #[test]
 fn iter_mut_len() {
     let mut stream = futures_unordered(vec![
-        empty::<()>(),
-        empty::<()>(),
-        empty::<()>()
+        future::empty::<()>(),
+        future::empty::<()>(),
+        future::empty::<()>()
     ]);
 
     let mut iter_mut = stream.iter_mut();
