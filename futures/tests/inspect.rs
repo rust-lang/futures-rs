@@ -1,7 +1,5 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-extern crate futures;
-
 use futures::executor::block_on;
 use futures::future;
 use futures::prelude::*;
