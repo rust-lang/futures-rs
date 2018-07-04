@@ -48,99 +48,8 @@ pub use futures_util::stream::StreamExt;
 pub use futures_sink::Sink;
 pub use futures_util::sink::SinkExt;
 
-// Macros redefined here because macro re-exports are unstable.
-
-/// A macro for extracting the successful type of a `Poll<Result<T, E>>`.
-///
-/// This macro bakes in propagation of `Pending` and `Err` signals by returning early.
-#[macro_export]
-macro_rules! try_ready {
-    ($x:expr) => {
-        match $x {
-            $crate::Poll::Ready(Ok(x)) => x,
-            $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(e.into())),
-            $crate::Poll::Pending => return $crate::Poll::Pending,
-        }
-    }
-}
-
-/// A macro for extracting `Poll<T>` from `Poll<Result<T, E>>`.
-///
-/// This macro bakes in propagation of `Err` signals by returning early.
-/// This macro bakes in propagation of `Pending` and `Err` signals by returning early.
-#[macro_export]
-macro_rules! try_poll {
-    ($x:expr) => {
-        match $x {
-            $crate::Poll::Ready(Ok(x)) => $crate::Poll::Ready(x),
-            $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(e.into())),
-            $crate::Poll::Pending => $crate::Poll::Pending,
-        }
-    }
-}
-
-/// A macro for extracting the successful type of a `Poll<T>`.
-///
-/// This macro bakes in propagation of `Pending` signals by returning early.
-#[macro_export]
-macro_rules! ready {
-    ($e:expr) => (match $e {
-        $crate::Poll::Ready(t) => t,
-        $crate::Poll::Pending => return $crate::Poll::Pending,
-    })
-}
-
-#[macro_export]
-macro_rules! pinned_deref {
-    ($e:expr) => (
-        ::core::mem::PinMut::new_unchecked(
-            &mut **::core::mem::PinMut::get_mut_unchecked($e.reborrow())
-        )
-    )
-}
-
-#[macro_export]
-macro_rules! pinned_field {
-    ($e:expr, $f:tt) => (
-        ::core::mem::PinMut::new_unchecked(
-            &mut ::core::mem::PinMut::get_mut_unchecked($e.reborrow()).$f
-        )
-    )
-}
-
-#[macro_export]
-macro_rules! unsafe_pinned {
-    ($f:tt -> $t:ty) => (
-        fn $f<'a>(self: &'a mut PinMut<Self>) -> PinMut<'a, $t> {
-            unsafe {
-                pinned_field!(self, $f)
-            }
-        }
-    )
-}
-
-#[macro_export]
-macro_rules! unsafe_unpinned {
-    ($f:tt -> $t:ty) => (
-        fn $f<'a>(self: &'a mut PinMut<Self>) -> &'a mut $t {
-            unsafe {
-                &mut ::core::mem::PinMut::get_mut_unchecked(self.reborrow()).$f
-            }
-        }
-    )
-}
-
-#[macro_export]
-macro_rules! pin_mut {
-    ($($x:ident),*) => { $(
-        // Move the value to ensure that it is owned
-        let mut $x = $x;
-        // Shadow the original binding so that it can't be directly accessed
-        // ever again.
-        #[allow(unused_mut)]
-        let mut $x = unsafe { ::std::mem::PinMut::new_unchecked(&mut $x) };
-    )* }
-}
+#[macro_use]
+mod macros;
 
 pub use futures_core::Poll;
 
@@ -380,7 +289,7 @@ pub mod stream {
         Inspect, Map, Once, Peekable, PollFn, Repeat, Select, Skip, SkipWhile,
         StreamFuture, Take, TakeWhile, Then, Unfold, Zip, StreamExt, empty,
         once, poll_fn, repeat, unfold, iter,
-        Forward, 
+        Forward,
     };
 
     pub use futures_util::try_stream::{

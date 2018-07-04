@@ -1,6 +1,3 @@
-
-pub use core::task::Poll;
-
 /// A macro for extracting the successful type of a `Poll<Result<T, E>>`.
 ///
 /// This macro bakes in propagation of `Pending` and `Err` signals by returning early.

@@ -12,8 +12,18 @@ use super::chain::Chain;
 ///
 /// This is created by the `Future::flatten` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct Flatten<A> where A: Future, A::Output: Future {
+pub struct Flatten<A>
+    where A: Future,
+          A::Output: Future,
+{
     state: Chain<A, A::Output, ()>,
+}
+
+impl<A> Flatten<A>
+    where A: Future,
+          A::Output: Future,
+{
+    unsafe_pinned!(state -> Chain<A, A::Output, ()>);
 }
 
 impl<A> fmt::Debug for Flatten<A>
@@ -43,6 +53,6 @@ impl<A> Future for Flatten<A>
     type Output = <A::Output as Future>::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        unsafe { pinned_field!(self, state) }.poll(cx, |a, ()| a)
+        self.state().poll(cx, |a, ()| a)
     }
 }

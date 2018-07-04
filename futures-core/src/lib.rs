@@ -30,57 +30,8 @@ macro_rules! if_std {
     )*)
 }
 
-#[macro_export]
-macro_rules! pinned_deref {
-    ($e:expr) => (
-        $crate::core_reexport::mem::PinMut::new_unchecked(
-            &mut **$crate::core_reexport::mem::PinMut::get_mut_unchecked($e.reborrow())
-        )
-    )
-}
-
-#[macro_export]
-macro_rules! pinned_field {
-    ($e:expr, $f:tt) => (
-        $crate::core_reexport::mem::PinMut::new_unchecked(
-            &mut $crate::core_reexport::mem::PinMut::get_mut_unchecked($e.reborrow()).$f
-        )
-    )
-}
-
-#[macro_export]
-macro_rules! unsafe_pinned {
-    ($f:tt -> $t:ty) => (
-        fn $f<'a>(self: &'a mut PinMut<Self>) -> PinMut<'a, $t> {
-            unsafe {
-                pinned_field!(self, $f)
-            }
-        }
-    )
-}
-
-#[macro_export]
-macro_rules! unsafe_unpinned {
-    ($f:tt -> $t:ty) => (
-        fn $f<'a>(self: &'a mut PinMut<Self>) -> &'a mut $t {
-            unsafe {
-                &mut $crate::core_reexport::mem::PinMut::get_mut_unchecked(self.reborrow()).$f
-            }
-        }
-    )
-}
-
-#[macro_export]
-macro_rules! pin_mut {
-    ($($x:ident),*) => { $(
-        // Move the value to ensure that it is owned
-        let mut $x = $x;
-        // Shadow the original binding so that it can't be directly accessed
-        // ever again.
-        #[allow(unused_mut)]
-        let mut $x = unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $x) };
-    )* }
-}
+#[macro_use]
+mod macros;
 
 pub mod future;
 pub use crate::future::{Future, CoreFutureExt, TryFuture};

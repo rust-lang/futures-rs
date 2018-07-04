@@ -13,6 +13,10 @@ pub struct MapOk<A, F> {
     f: Option<F>,
 }
 
+impl<A, F> MapOk<A, F> {
+    unsafe_pinned!(future -> A);
+}
+
 pub fn new<A, F>(future: A, f: F) -> MapOk<A, F> {
     MapOk {
         future,
@@ -27,7 +31,7 @@ impl<U, A, F> Future for MapOk<A, F>
     type Output = Result<U, A::Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.try_poll(cx) {
+        match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {

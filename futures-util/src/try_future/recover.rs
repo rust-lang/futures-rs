@@ -12,6 +12,10 @@ pub struct Recover<A, F> {
     f: Option<F>,
 }
 
+impl<A, F> Recover<A, F> {
+    unsafe_pinned!(inner -> A);
+}
+
 pub fn new<A, F>(future: A, f: F) -> Recover<A, F> {
     Recover { inner: future, f: Some(f) }
 }
@@ -23,7 +27,7 @@ impl<A, F> Future for Recover<A, F>
     type Output = A::Item;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Item> {
-        unsafe { pinned_field!(self.reborrow(), inner) }.try_poll(cx)
+        self.inner().try_poll(cx)
             .map(|res| res.unwrap_or_else(|e| {
                 let f = unsafe {
                     PinMut::get_mut_unchecked(self).f.take()

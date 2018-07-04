@@ -125,8 +125,8 @@ if_std! {
     impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 
-        fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
-            unsafe { pinned_field!(self, 0).poll_next(cx) }
+        fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+            unsafe { PinMut::map_unchecked(self, |x| &mut x.0) }.poll_next(cx)
         }
     }
 
