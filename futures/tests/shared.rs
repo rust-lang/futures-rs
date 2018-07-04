@@ -11,7 +11,7 @@ use std::thread;
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
-use futures::future::{lazy, LocalFutureObj};
+use futures::future::{self, LocalFutureObj};
 use futures::prelude::*;
 use futures::task::LocalTaskObj;
 
@@ -82,7 +82,7 @@ fn drop_in_poll() {
     let slot1 = Rc::new(RefCell::new(None));
     let slot2 = slot1.clone();
 
-    let future1 = lazy(move |_| {
+    let future1 = future::lazy(move |_| {
         slot2.replace(None); // Drop future
         1
     }).shared();
