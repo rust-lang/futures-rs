@@ -1,9 +1,5 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-extern crate futures;
-
-mod support;
-
 use std::boxed::PinBox;
 use std::cell::RefCell;
 use std::rc::Rc;
