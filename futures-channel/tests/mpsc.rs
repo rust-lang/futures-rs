@@ -408,8 +408,6 @@ fn stress_close_receiver() {
 
 async fn stress_poll_ready_sender(mut sender: mpsc::Sender<u32>, count: u32) {
     for i in (1..=count).rev() {
-        // FIXME: should assert `is_ok()`, but cannot because assigning the result
-        // of this expression to a variable causes an ICE. See rust-lang/rust/issues/51995.
         await!(sender.send(i)).unwrap();
     }
 }
