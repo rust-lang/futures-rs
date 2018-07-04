@@ -13,6 +13,10 @@ pub struct MapErr<A, F> {
     f: Option<F>,
 }
 
+impl<A, F> MapErr<A, F> {
+    unsafe_pinned!(future -> A);
+}
+
 pub fn new<A, F>(future: A, f: F) -> MapErr<A, F> {
     MapErr {
         future,
@@ -27,7 +31,7 @@ impl<U, A, F> Future for MapErr<A, F>
     type Output = Result<A::Item, U>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.try_poll(cx) {
+        match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(e) => {
                 let f = unsafe {

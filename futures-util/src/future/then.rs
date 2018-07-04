@@ -10,8 +10,18 @@ use super::chain::Chain;
 /// This is created by the `Future::then` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Then<A, B, F> where A: Future, B: Future {
+pub struct Then<A, B, F>
+    where A: Future,
+          B: Future,
+{
     state: Chain<A, B, F>,
+}
+
+impl<A, B, F> Then<A, B, F>
+    where A: Future,
+          B: Future,
+{
+    unsafe_pinned!(state -> Chain<A, B, F>);
 }
 
 pub fn new<A, B, F>(future: A, f: F) -> Then<A, B, F>
@@ -31,6 +41,6 @@ impl<A, B, F> Future for Then<A, B, F>
     type Output = B::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<B::Output> {
-        unsafe { pinned_field!(self, state) }.poll(cx, |a, f| f(a))
+        self.state().poll(cx, |a, f| f(a))
     }
 }

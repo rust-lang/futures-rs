@@ -1,10 +1,7 @@
 //! Task notification.
 
-mod poll;
-pub use self::poll::Poll;
-
 pub use core::task::{
-    Context, Executor,
+    Context, Executor, Poll,
     Waker, LocalWaker, UnsafeWake,
     TaskObj, LocalTaskObj, UnsafeTask,
     SpawnErrorKind, SpawnObjError, SpawnLocalObjError,

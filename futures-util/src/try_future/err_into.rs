@@ -11,13 +11,17 @@ use futures_core::task;
 #[must_use = "futures do nothing unless polled"]
 pub struct ErrInto<A, E> {
     future: A,
-    f: PhantomData<E>
+    _marker: PhantomData<E>,
+}
+
+impl<A, E> ErrInto<A, E> {
+    unsafe_pinned!(future -> A);
 }
 
 pub fn new<A, E>(future: A) -> ErrInto<A, E> {
     ErrInto {
         future,
-        f: PhantomData
+        _marker: PhantomData,
     }
 }
 
@@ -28,7 +32,7 @@ impl<A, E> Future for ErrInto<A, E>
     type Output = Result<A::Item, E>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        match unsafe { pinned_field!(self, future) }.try_poll(cx) {
+        match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(e) => {
                 Poll::Ready(e.map_err(Into::into))
