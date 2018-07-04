@@ -75,7 +75,7 @@ if_std! {
     use futures_core::{Future, Poll, task};
 
     // FIXME: currently async/await is only available with std
-    pub mod await;
+    pub mod async_await;
 
     pub mod io;
     pub use crate::io::{AsyncReadExt, AsyncWriteExt};

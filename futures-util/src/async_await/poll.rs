@@ -9,7 +9,7 @@ use core::mem::PinMut;
 #[macro_export]
 macro_rules! poll {
     ($x:expr) => {
-        await!($crate::await::poll($x))
+        await!($crate::async_await::poll($x))
     }
 }
 

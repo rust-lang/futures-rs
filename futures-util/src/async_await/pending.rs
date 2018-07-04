@@ -10,7 +10,7 @@ use core::mem::PinMut;
 #[macro_export]
 macro_rules! pending {
     () => {
-        await!($crate::await::pending_once())
+        await!($crate::async_await::pending_once())
     }
 }
 
