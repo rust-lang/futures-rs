@@ -1,3 +1,5 @@
+#![feature(pin, arbitrary_self_types, futures_api)]
+
 extern crate futures;
 
 use std::sync::mpsc;

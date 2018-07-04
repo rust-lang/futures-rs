@@ -1,8 +1,6 @@
-#![feature(pin, futures_api)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 extern crate futures;
-
-// use std::any::Any;
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
