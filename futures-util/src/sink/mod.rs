@@ -204,8 +204,8 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<'a, S, E>(&'a mut self, stream: &'a mut S) -> SendAll<'a, Self, S>
-        where S: Stream<Item = Result<Self::SinkItem, Self::SinkError>> + Unpin,
+    fn send_all<'a, S>(&'a mut self, stream: &'a mut S) -> SendAll<'a, Self, S>
+        where S: Stream<Item = Self::SinkItem> + Unpin,
               Self: Unpin,
     {
         send_all::new(self, stream)

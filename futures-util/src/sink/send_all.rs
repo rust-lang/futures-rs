@@ -31,7 +31,7 @@ where
 pub fn new<'a, T, U>(sink: &'a mut T, stream: &'a mut U) -> SendAll<'a, T, U>
 where
     T: Sink + Unpin + 'a + ?Sized,
-    U: Stream<Item = Result<T::SinkItem, T::SinkError>> + Unpin + 'a + ?Sized,
+    U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
 {
     SendAll {
         sink,
@@ -43,7 +43,7 @@ where
 impl<'a, T, U> SendAll<'a, T, U>
 where
     T: Sink + Unpin + 'a + ?Sized,
-    U: Stream<Item = Result<T::SinkItem, T::SinkError>> + Unpin + 'a + ?Sized,
+    U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
 {
     fn try_start_send(&mut self, cx: &mut task::Context, item: T::SinkItem)
         -> Poll<Result<(), T::SinkError>>
@@ -65,7 +65,7 @@ where
 impl<'a, T, U> Future for SendAll<'a, T, U>
 where
     T: Sink + Unpin + 'a + ?Sized,
-    U: Stream<Item = Result<T::SinkItem, T::SinkError>> + Unpin + 'a + ?Sized,
+    U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
 {
     type Output = Result<(), T::SinkError>;
 
@@ -79,8 +79,9 @@ where
 
         loop {
             match this.stream.poll_next_unpin(cx) {
-                Poll::Ready(Some(Ok(item))) => try_ready!(this.try_start_send(cx, item)),
-                Poll::Ready(Some(Err(err))) => return Poll::Ready(Err(err)),
+                Poll::Ready(Some(item)) => {
+                    try_ready!(this.try_start_send(cx, item))
+                }
                 Poll::Ready(None) => {
                     try_ready!(PinMut::new(this.sink).poll_flush(cx));
                     return Poll::Ready(Ok(()))
