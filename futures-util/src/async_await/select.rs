@@ -9,7 +9,7 @@ macro_rules! select {
         $name:ident => $body:expr,
     )*) => { {
         $(
-            $crate::await::assert_unpin(&$name);
+            $crate::async_await::assert_unpin(&$name);
             let mut $name = $crate::future::maybe_done(&mut $name);
             let mut $name = $crate::core_reexport::mem::PinMut::new(&mut $name);
         )*
