@@ -1,6 +1,5 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
-
 use futures_core::{Future, Poll};
 use futures_core::task;
 
@@ -9,40 +8,37 @@ use futures_core::task;
 /// This is created by the `Future::map` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Map<A, F> where A: Future {
-    future: A,
-    f: Option<F>,
+pub struct Map<Fut, F> {
+    future: Fut,
+    op: Option<F>,
 }
 
-pub fn new<A, F>(future: A, f: F) -> Map<A, F>
-    where A: Future,
-{
-    Map {
-        future,
-        f: Some(f),
+impl<Fut, F> Map<Fut, F> {
+    unsafe_pinned!(future -> Fut);
+    unsafe_unpinned!(op -> Option<F>);
+
+    /// Creates a new Map.
+    pub fn new(future: Fut, op: F) -> Map<Fut, F> {
+        Map { future, op: Some(op) }
     }
 }
 
-impl<A: Future, F> Map<A, F> {
-    unsafe_pinned!(future -> A);
-    unsafe_unpinned!(f -> Option<F>);
-}
+impl<Fut: Unpin, F> Unpin for Map<Fut, F> {}
 
-impl<A: Future + Unpin, F> Unpin for Map<A, F> {}
-
-impl<U, A, F> Future for Map<A, F>
-    where A: Future,
-          F: FnOnce(A::Output) -> U,
+impl<Fut, F, T> Future for Map<Fut, F>
+    where Fut: Future,
+          F: FnOnce(Fut::Output) -> T,
 {
-    type Output = U;
+    type Output = T;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<U> {
-        let e = match self.future().poll(cx) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(e) => e,
-        };
-
-        let f = self.f().take().expect("cannot poll Map twice");
-        Poll::Ready(f(e))
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
+        match self.future().poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(output) => {
+                let op = self.op().take()
+                    .expect("Map must not be polled after it returned `Poll::Ready`");
+                Poll::Ready(op(output))
+            }
+        }
     }
 }

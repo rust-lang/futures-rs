@@ -1,6 +1,6 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
-
-use futures_core::{Future, Poll, TryFuture};
+use futures_core::{Future, TryFuture, Poll};
 use futures_core::task;
 
 /// Future for the `map_ok` combinator, changing the type of a future.
@@ -8,36 +8,36 @@ use futures_core::task;
 /// This is created by the `Future::map_ok` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct MapOk<A, F> {
-    future: A,
-    f: Option<F>,
+pub struct MapOk<Fut, F> {
+    future: Fut,
+    op: Option<F>,
 }
 
-impl<A, F> MapOk<A, F> {
-    unsafe_pinned!(future -> A);
-}
+impl<Fut, F> MapOk<Fut, F> {
+    unsafe_pinned!(future -> Fut);
+    unsafe_unpinned!(op -> Option<F>);
 
-pub fn new<A, F>(future: A, f: F) -> MapOk<A, F> {
-    MapOk {
-        future,
-        f: Some(f),
+    /// Creates a new MapOk.
+    pub fn new(future: Fut, op: F) -> MapOk<Fut, F> {
+        MapOk { future, op: Some(op) }
     }
 }
 
-impl<U, A, F> Future for MapOk<A, F>
-    where A: TryFuture,
-          F: FnOnce(A::Item) -> U,
+impl<Fut: Unpin, F> Unpin for MapOk<Fut, F> {}
+
+impl<Fut, F, T> Future for MapOk<Fut, F>
+    where Fut: TryFuture,
+          F: FnOnce(Fut::Item) -> T,
 {
-    type Output = Result<U, A::Error>;
+    type Output = Result<T, Fut::Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(e) => {
-                let f = unsafe {
-                    PinMut::get_mut_unchecked(self).f.take().expect("cannot poll MapOk twice")
-                };
-                Poll::Ready(e.map(f))
+            Poll::Ready(result) => {
+                let op = self.op().take()
+                    .expect("MapOk must not be polled after it returned `Poll::Ready`");
+                Poll::Ready(result.map(op))
             }
         }
     }

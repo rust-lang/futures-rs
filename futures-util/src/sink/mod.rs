@@ -3,10 +3,10 @@
 //! This module contains a number of functions for working with `Sink`s,
 //! including the `SinkExt` trait which adds methods to `Sink` types.
 
+use core::marker::Unpin;
+use either::Either;
 use futures_core::{Future, Stream};
 use futures_sink::Sink;
-use super::future::Either;
-use core::marker::Unpin;
 
 mod close;
 mod fanout;

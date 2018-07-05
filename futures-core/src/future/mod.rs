@@ -52,6 +52,7 @@ impl<F, T, E> TryFuture for F
     type Item = T;
     type Error = E;
 
+    #[inline]
     fn try_poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
         self.poll(cx)
     }
@@ -67,6 +68,7 @@ impl<T> Unpin for ReadyFuture<T> {}
 impl<T> Future for ReadyFuture<T> {
     type Output = T;
 
+    #[inline]
     fn poll(mut self: PinMut<Self>, _cx: &mut task::Context) -> Poll<T> {
         Poll::Ready(self.0.take().unwrap())
     }

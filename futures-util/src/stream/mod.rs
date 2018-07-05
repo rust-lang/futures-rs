@@ -4,9 +4,9 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::marker::Unpin;
+use either::Either;
 use futures_core::{Future, Stream};
 use futures_sink::Sink;
-use super::future::Either;
 
 mod iter;
 pub use self::iter::{iter, Iter};
