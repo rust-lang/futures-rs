@@ -7,59 +7,68 @@ use futures_core::{Future, Stream};
 
 // Primitive futures
 mod empty;
-mod lazy;
-mod maybe_done;
-mod poll_fn;
 pub use self::empty::{empty, Empty};
+
+mod lazy;
 pub use self::lazy::{lazy, Lazy};
+
+mod maybe_done;
 pub use self::maybe_done::{maybe_done, MaybeDone};
+
+mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
-// combinators
+// Combinators
 mod flatten;
-mod flatten_stream;
-mod fuse;
-mod into_stream;
-mod join;
-mod map;
-// mod select;
-mod then;
-mod inspect;
-
-// impl details
-mod chain;
-
 pub use self::flatten::Flatten;
+
+mod flatten_stream;
 pub use self::flatten_stream::FlattenStream;
+
+mod fuse;
 pub use self::fuse::Fuse;
+
+mod into_stream;
 pub use self::into_stream::IntoStream;
+
+mod join;
 pub use self::join::{Join, Join3, Join4, Join5};
+
+mod map;
 pub use self::map::Map;
+
+// Todo
+// mod select;
 // pub use self::select::Select;
+
+mod then;
 pub use self::then::Then;
+
+mod inspect;
 pub use self::inspect::Inspect;
 
-pub use either::Either;
+// Implementation details
+mod chain;
+crate use self::chain::Chain;
 
 if_std! {
     mod catch_unwind;
+    pub use self::catch_unwind::CatchUnwind;
 
-    /* TODO
-    mod join_all;
-    mod select_all;
-    mod select_ok;
-    */
+    // ToDo
+    // mod join_all;
+    // pub use self::join_all::{join_all, JoinAll};
+
+    // mod select_all;
+    // pub use self::select_all::{SelectAll, SelectAllNext, select_all};
+
+    // mod select_ok;
+    // pub use self::select_ok::{SelectOk, select_ok};
+
     mod shared;
-
-    /*
-    pub use self::join_all::{join_all, JoinAll};
-    pub use self::select_all::{SelectAll, SelectAllNext, select_all};
-    pub use self::select_ok::{SelectOk, select_ok};
-    */
     pub use self::shared::Shared;
 
     mod with_executor;
-    pub use self::catch_unwind::CatchUnwind;
     pub use self::with_executor::WithExecutor;
 }
 
@@ -97,7 +106,7 @@ pub trait FutureExt: Future {
         where F: FnOnce(Self::Output) -> U,
               Self: Sized,
     {
-        assert_future::<U, _>(map::new(self, f))
+        assert_future::<U, _>(Map::new(self, f))
     }
 
     /// Chain on a computation for when a future finished, passing the result of
@@ -125,12 +134,12 @@ pub trait FutureExt: Future {
     /// let future_of_4 = future_of_1.then(|x| future::ready(x + 3));
     /// assert_eq!(block_on(future_of_4), 4);
     /// ```
-    fn then<B, F>(self, f: F) -> Then<Self, B, F>
-        where F: FnOnce(Self::Output) -> B,
-              B: Future,
+    fn then<Fut, F>(self, async_op: F) -> Then<Self, Fut, F>
+        where F: FnOnce(Self::Output) -> Fut,
+              Fut: Future,
               Self: Sized,
     {
-        assert_future::<B::Output, _>(then::new(self, f))
+        assert_future::<Fut::Output, _>(Then::new(self, async_op))
     }
 
     /* TODO

@@ -5,6 +5,9 @@ pub mod assert;
 mod delayed;
 pub use self::delayed::{delayed, Delayed};
 
+mod run_in_background;
+pub use self::run_in_background::RunInBackgroundExt;
+
 mod noop_waker_context;
 pub use self::noop_waker_context::with_noop_waker_context;
 
@@ -36,16 +39,3 @@ pub use self::panic_waker_context::with_panic_waker_context;
 //     })
 // }
 
-// pub trait ForgetExt {
-//     fn forget(self);
-// }
-
-// impl<F> ForgetExt for F
-//     where F: Future + Sized + Send + 'static,
-//           F::Item: Send,
-//           F::Error: Send
-// {
-//     fn forget(self) {
-//         thread::spawn(|| block_on(self));
-//     }
-// }

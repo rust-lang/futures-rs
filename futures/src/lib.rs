@@ -165,9 +165,9 @@ pub mod future {
     };
     pub use futures_util::future::{
         Empty, Flatten, FlattenStream, Fuse, Inspect, IntoStream, Lazy,
-        Then, Either, PollFn, Map, FutureExt, empty, lazy, poll_fn,
+        Then, PollFn, Map, FutureExt, empty, lazy, poll_fn,
         // AndThen, ErrInto, Join, Join3, Join4, Join5, LoopFn,
-        // MapErr, OrElse, Select, Loop, loop_fn,
+        // MapErr, OrElse, Select, Loop, loop_fn, Either
     };
 
     #[cfg(feature = "std")]
