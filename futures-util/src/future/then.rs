@@ -20,7 +20,7 @@ impl<Fut1, Fut2, F> Then<Fut1, Fut2, F>
     unsafe_pinned!(chain -> Chain<Fut1, Fut2, F>);
 
     /// Creates a new `Then`.
-    pub fn new(future: Fut1, async_op: F) -> Then<Fut1, Fut2, F> {
+    pub(super) fn new(future: Fut1, async_op: F) -> Then<Fut1, Fut2, F> {
         Then {
             chain: Chain::new(future, async_op),
         }
