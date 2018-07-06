@@ -67,11 +67,11 @@ impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
 
 #[test]
 fn then_drops_eagerly() {
-    let (start_tx, start_rx) = oneshot::channel::<()>();
+    let (tx0, rx0) = oneshot::channel::<()>();
     let (tx1, rx1) = mpsc::channel::<()>();
     let (tx2, rx2) = mpsc::channel::<()>();
 
-    FutureData { _data: tx1, future: start_rx.unwrap_or_else(|_| { panic!() }) }
+    FutureData { _data: tx1, future: rx0.unwrap_or_else(|_| { panic!() }) }
         .then(move |_| {
             assert!(rx1.recv().is_err()); // tx1 should have been dropped
             tx2.send(()).unwrap();
@@ -80,17 +80,17 @@ fn then_drops_eagerly() {
         .run_in_background();
 
     assert_eq!(Err(mpsc::TryRecvError::Empty), rx2.try_recv());
-    start_tx.send(()).unwrap();
+    tx0.send(()).unwrap();
     rx2.recv().unwrap();
 }
 
 #[test]
 fn and_then_drops_eagerly() {
-    let (start_tx, start_rx) = oneshot::channel::<Result<(), ()>>();
+    let (tx0, rx0) = oneshot::channel::<Result<(), ()>>();
     let (tx1, rx1) = mpsc::channel::<()>();
     let (tx2, rx2) = mpsc::channel::<()>();
 
-    FutureData { _data: tx1, future: start_rx.unwrap_or_else(|_| { panic!() }) }
+    FutureData { _data: tx1, future: rx0.unwrap_or_else(|_| { panic!() }) }
         .and_then(move |_| {
             assert!(rx1.recv().is_err()); // tx1 should have been dropped
             tx2.send(()).unwrap();
@@ -99,17 +99,17 @@ fn and_then_drops_eagerly() {
         .run_in_background();
 
     assert_eq!(Err(mpsc::TryRecvError::Empty), rx2.try_recv());
-    start_tx.send(Ok(())).unwrap();
+    tx0.send(Ok(())).unwrap();
     rx2.recv().unwrap();
 }
 
 #[test]
 fn or_else_drops_eagerly() {
-    let (start_tx, start_rx) = oneshot::channel::<Result<(), ()>>();
+    let (tx0, rx0) = oneshot::channel::<Result<(), ()>>();
     let (tx1, rx1) = mpsc::channel::<()>();
     let (tx2, rx2) = mpsc::channel::<()>();
 
-    FutureData { _data: tx1, future: start_rx.unwrap_or_else(|_| { panic!() }) }
+    FutureData { _data: tx1, future: rx0.unwrap_or_else(|_| { panic!() }) }
         .or_else(move |_| {
             assert!(rx1.recv().is_err()); // tx1 should have been dropped
             tx2.send(()).unwrap();
@@ -118,6 +118,6 @@ fn or_else_drops_eagerly() {
         .run_in_background();
 
     assert_eq!(Err(mpsc::TryRecvError::Empty), rx2.try_recv());
-    start_tx.send(Err(())).unwrap();
+    tx0.send(Err(())).unwrap();
     rx2.recv().unwrap();
 }

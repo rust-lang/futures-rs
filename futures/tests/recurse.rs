@@ -1,10 +1,10 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-use std::sync::mpsc;
-
 use futures::executor::block_on;
 use futures::future::{self, FutureObj};
 use futures::prelude::*;
+use std::sync::mpsc;
+use std::thread;
 
 #[test]
 fn lots() {
@@ -18,7 +18,7 @@ fn lots() {
     }
 
     let (tx, rx) = mpsc::channel();
-    ::std::thread::spawn(|| {
+    thread::spawn(|| {
         block_on(do_it((1_000, 0)).map(move |x| tx.send(x).unwrap()))
     });
     assert_eq!(500_500, rx.recv().unwrap());

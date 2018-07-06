@@ -92,18 +92,18 @@ struct Inner<T> {
 /// use futures::*;
 ///
 /// fn main() {
-///     let (p, c) = oneshot::channel::<i32>();
+///     let (tx, rx) = oneshot::channel::<i32>();
 ///
 /// # let t =
 ///     thread::spawn(|| {
-///         let future = c.map(|i| {
+///         let future = rx.map(|i| {
 ///             println!("got: {:?}", i);
 ///         });
 ///         // ...
 /// # return future;
 ///     });
 ///
-///     p.send(3).unwrap();
+///     tx.send(3).unwrap();
 /// # futures::executor::block_on(t.join().unwrap());
 /// }
 /// ```
