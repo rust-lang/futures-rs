@@ -28,11 +28,11 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
     pub fn poll<F>(
         self: PinMut<Self>,
         cx: &mut Context,
-        async_op: F,
+        op: F,
     ) -> Poll<Result<Fut2::Item, Fut2::Error>>
         where F: FnOnce(Result<Fut1::Item, Fut1::Error>, Data) -> TryChainAction<Fut2>,
     {
-        let mut async_op = Some(async_op);
+        let mut op = Some(op);
 
         // Safe to call `get_mut_unchecked` because we won't move the futures.
         let this = unsafe { PinMut::get_mut_unchecked(self) };
@@ -56,8 +56,8 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
             };
 
             *this = TryChain::Empty; // Drop fut1
-            let async_op = async_op.take().unwrap();
-            match async_op(output, data) {
+            let op = op.take().unwrap();
+            match op(output, data) {
                 TryChainAction::Future(fut2) => *this = TryChain::Second(fut2),
                 TryChainAction::Output(output) => return Poll::Ready(output),
             }
