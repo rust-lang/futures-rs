@@ -5,7 +5,7 @@ use futures_core::task::{Context, Poll};
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 crate enum Chain<Fut1, Fut2, Data> {
-    First(Option<Fut1>, Option<Data>),
+    First(Fut1, Option<Data>),
     Second(Fut2),
     Empty,
 }
@@ -15,7 +15,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
           Fut2: Future,
 {
     pub fn new(fut1: Fut1, data: Data) -> Chain<Fut1, Fut2, Data> {
-        Chain::First(Some(fut1), Some(data))
+        Chain::First(fut1, Some(data))
     }
 
     pub fn poll<F>(
@@ -33,7 +33,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
         loop {
             let (output, data) = match this {
                 Chain::First(fut1, data) => {
-                    match unsafe { PinMut::new_unchecked(fut1.as_mut().unwrap()) }.poll(cx) {
+                    match unsafe { PinMut::new_unchecked(fut1) }.poll(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(output) => (output, data.take().unwrap()),
                     }
