@@ -13,7 +13,7 @@ impl<Fut> IntoFuture<Fut> {
     unsafe_pinned!(future -> Fut);
 
     #[inline]
-    pub fn new(future: Fut) -> IntoFuture<Fut> {
+    pub(super) fn new(future: Fut) -> IntoFuture<Fut> {
         IntoFuture { future }
     }
 }

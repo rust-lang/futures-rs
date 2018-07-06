@@ -18,7 +18,7 @@ impl<Fut, F> Map<Fut, F> {
     unsafe_unpinned!(op -> Option<F>);
 
     /// Creates a new Map.
-    pub fn new(future: Fut, op: F) -> Map<Fut, F> {
+    pub(super) fn new(future: Fut, op: F) -> Map<Fut, F> {
         Map { future, op: Some(op) }
     }
 }

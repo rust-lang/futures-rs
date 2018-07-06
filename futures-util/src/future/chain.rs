@@ -14,11 +14,11 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
     where Fut1: Future,
           Fut2: Future,
 {
-    pub fn new(fut1: Fut1, data: Data) -> Chain<Fut1, Fut2, Data> {
+    crate fn new(fut1: Fut1, data: Data) -> Chain<Fut1, Fut2, Data> {
         Chain::First(fut1, Some(data))
     }
 
-    pub fn poll<F>(
+    crate fn poll<F>(
         self: PinMut<Self>,
         cx: &mut Context,
         async_op: F,

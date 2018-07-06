@@ -18,7 +18,7 @@ impl<Fut, F> UnwrapOrElse<Fut, F> {
     unsafe_unpinned!(op -> Option<F>);
 
     /// Creates a new UnwrapOrElse.
-    pub fn new(future: Fut, op: F) -> UnwrapOrElse<Fut, F> {
+    pub(super) fn new(future: Fut, op: F) -> UnwrapOrElse<Fut, F> {
         UnwrapOrElse { future, op: Some(op) }
     }
 }

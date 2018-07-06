@@ -18,7 +18,7 @@ impl<Fut, F> MapOk<Fut, F> {
     unsafe_unpinned!(op -> Option<F>);
 
     /// Creates a new MapOk.
-    pub fn new(future: Fut, op: F) -> MapOk<Fut, F> {
+    pub(super) fn new(future: Fut, op: F) -> MapOk<Fut, F> {
         MapOk { future, op: Some(op) }
     }
 }

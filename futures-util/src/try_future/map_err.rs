@@ -18,7 +18,7 @@ impl<Fut, F> MapErr<Fut, F> {
     unsafe_unpinned!(op -> Option<F>);
 
     /// Creates a new MapErr.
-    pub fn new(future: Fut, op: F) -> MapErr<Fut, F> {
+    pub(super) fn new(future: Fut, op: F) -> MapErr<Fut, F> {
         MapErr { future, op: Some(op) }
     }
 }

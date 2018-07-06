@@ -21,11 +21,11 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
     where Fut1: TryFuture,
           Fut2: TryFuture,
 {
-    pub fn new(fut1: Fut1, data: Data) -> TryChain<Fut1, Fut2, Data> {
+    crate fn new(fut1: Fut1, data: Data) -> TryChain<Fut1, Fut2, Data> {
         TryChain::First(fut1, Some(data))
     }
 
-    pub fn poll<F>(
+    crate fn poll<F>(
         self: PinMut<Self>,
         cx: &mut Context,
         op: F,
