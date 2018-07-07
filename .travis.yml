@@ -47,9 +47,9 @@ matrix:
     #     - cargo test --manifest-path futures/testcrate/Cargo.toml
 
 script:
-  - cargo build --all # for now build only; tests require the full suite of crates
-#  - cargo test --all
-#  - cargo test --all --release
+  - cargo build --all
+  - cargo test --all
+  - cargo test --all --release
 
 env:
   global:

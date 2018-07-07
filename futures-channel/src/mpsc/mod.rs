@@ -1,38 +1,42 @@
 //! A multi-producer, single-consumer queue for sending values across
 //! asynchronous tasks.
 //!
-//! Similarly to the `std`, channel creation provides [`Receiver`](Receiver) and
-//! [`Sender`](Sender) handles. [`Receiver`](Receiver) implements
-//! [`Stream`](futures_core::Stream) and allows a task to read values out of the
-//! channel. If there is no message to read from the channel, the current task
-//! will be notified when a new value is sent. [`Sender`](Sender) implements the
-//! `Sink` trait and allows a task to send messages into
+//! Similarly to the `std`, channel creation provides [`Receiver`] and
+//! [`Sender`] handles. [`Receiver`] implements [`Stream`] and allows a task to
+//! read values out of the channel. If there is no message to read from the
+//! channel, the current task will be notified when a new value is sent.
+//! [`Sender`] implements the `Sink` trait and allows a task to send messages into
 //! the channel. If the channel is at capacity, the send will be rejected and
 //! the task will be notified when additional capacity is available. In other
 //! words, the channel provides backpressure.
 //!
-//! Unbounded channels are also available using the [`unbounded`](unbounded)
-//! constructor.
+//! Unbounded channels are also available using the `unbounded` constructor.
 //!
 //! # Disconnection
 //!
-//! When all [`Sender`](Sender) handles have been dropped, it is no longer
+//! When all [`Sender`] handles have been dropped, it is no longer
 //! possible to send values into the channel. This is considered the termination
-//! event of the stream. As such, [`Receiver::poll_next`](Receiver::poll_next)
+//! event of the stream. As such, [`Receiver::poll_next`]
 //! will return `Ok(Ready(None))`.
 //!
-//! If the [`Receiver`](Receiver) handle is dropped, then messages can no longer
+//! If the [`Receiver`] handle is dropped, then messages can no longer
 //! be read out of the channel. In this case, all further attempts to send will
 //! result in an error.
 //!
 //! # Clean Shutdown
 //!
-//! If the [`Receiver`](Receiver) is simply dropped, then it is possible for
+//! If the [`Receiver`] is simply dropped, then it is possible for
 //! there to be messages still in the channel that will not be processed. As
 //! such, it is usually desirable to perform a "clean" shutdown. To do this, the
 //! receiver will first call `close`, which will prevent any further messages to
 //! be sent into the channel. Then, the receiver consumes the channel to
 //! completion, at which point the receiver can be dropped.
+//!
+//! [`Sender`]: struct.Sender.html
+//! [`Receiver`]: struct.Receiver.html
+//! [`Stream`]: ../../futures_core/stream/trait.Stream.html
+//! [`Receiver::poll_next`]:
+//!     ../../futures_core/stream/trait.Stream.html#tymethod.poll_next
 
 // At the core, the channel uses an atomic FIFO queue for message passing. This
 // queue is used as the primary coordination primitive. In order to enforce
@@ -74,19 +78,18 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-use std::mem::PinMut;
-use std::marker::Unpin;
-use std::fmt;
-use std::error::Error;
+use futures_core::stream::Stream;
+use futures_core::task::{self, Waker, Poll};
 use std::any::Any;
+use std::error::Error;
+use std::fmt;
+use std::marker::Unpin;
+use std::mem::PinMut;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::usize;
-
-use futures_core::task::{self, Waker};
-use futures_core::{Poll, Stream};
 
 use crate::mpsc::queue::{Queue, PopResult};
 
@@ -371,7 +374,8 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     channel2(Some(buffer))
 }
 
-/// Creates an unbounded mpsc channel for communicating between asynchronous tasks.
+/// Creates an unbounded mpsc channel for communicating between asynchronous
+/// tasks.
 ///
 /// A `send` on this channel will always succeed as long as the receive half has
 /// not been closed. If the receiver falls behind, messages will be arbitrarily
@@ -556,8 +560,8 @@ impl<T> Sender<T> {
             // This probably is never hit? Odds are the process will run out of
             // memory first. It may be worth to return something else in this
             // case?
-            assert!(state.num_messages < MAX_CAPACITY, "buffer space exhausted; \
-                    sending this messages would overflow the state");
+            assert!(state.num_messages < MAX_CAPACITY, "buffer space \
+                    exhausted; sending this messages would overflow the state");
 
             state.num_messages += 1;
 
@@ -642,9 +646,13 @@ impl<T> Sender<T> {
     ///
     /// - `Ok(Async::Ready(_))` if there is sufficient capacity;
     /// - `Ok(Async::Pending)` if the channel may not have
-    /// capacity, in which case the current task is queued to be notified once capacity is available;
+    ///   capacity, in which case the current task is queued to be notified once
+    ///   capacity is available;
     /// - `Err(SendError)` if the receiver has been dropped.
-    pub fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<Result<(), SendError>> {
+    pub fn poll_ready(
+        &mut self,
+        cx: &mut task::Context
+    ) -> Poll<Result<(), SendError>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
             return Poll::Ready(Err(SendError {
@@ -698,7 +706,10 @@ impl<T> Sender<T> {
 
 impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
-    pub fn poll_ready(&self, _: &mut task::Context) -> Poll<Result<(), SendError>> {
+    pub fn poll_ready(
+        &self,
+        _: &mut task::Context,
+    ) -> Poll<Result<(), SendError>> {
         self.0.poll_ready_nb()
     }
 
@@ -851,8 +862,8 @@ impl<T> Receiver<T> {
         loop {
             match unsafe { self.inner.message_queue.pop() } {
                 PopResult::Data(msg) => {
-                    // If there are any parked task handles in the parked queue, pop
-                    // one and unpark it.
+                    // If there are any parked task handles in the parked queue,
+                    // pop one and unpark it.
                     self.unpark_one();
 
                     // Decrement number of messages
@@ -948,7 +959,10 @@ impl<T> Unpin for Receiver<T> {}
 impl<T> Stream for Receiver<T> {
     type Item = T;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
         loop {
             // Try to read a message off of the message queue.
             let msg = match self.next_message() {
@@ -1015,7 +1029,10 @@ impl<T> UnboundedReceiver<T> {
 impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
         PinMut::new(&mut self.0).poll_next(cx)
     }
 }

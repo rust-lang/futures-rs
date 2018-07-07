@@ -70,7 +70,7 @@ impl ThreadPool {
     /// Creates a new thread pool with the default configuration.
     ///
     /// See documentation for the methods in
-    /// [`ThreadPoolBuilder`](::ThreadPoolBuilder) for details on the default
+    /// [`ThreadPoolBuilder`](ThreadPoolBuilder) for details on the default
     /// configuration.
     pub fn new() -> Result<ThreadPool, io::Error> {
         ThreadPoolBuilder::new().create()
@@ -79,7 +79,7 @@ impl ThreadPool {
     /// Create a default thread pool configuration, which can then be customized.
     ///
     /// See documentation for the methods in
-    /// [`ThreadPoolBuilder`](::ThreadPoolBuilder) for details on the default
+    /// [`ThreadPoolBuilder`](ThreadPoolBuilder) for details on the default
     /// configuration.
     pub fn builder() -> ThreadPoolBuilder {
         ThreadPoolBuilder::new()
@@ -229,7 +229,7 @@ impl ThreadPoolBuilder {
         self
     }
 
-    /// Create a [`ThreadPool`](::ThreadPool) with the given configuration.
+    /// Create a [`ThreadPool`](ThreadPool) with the given configuration.
     ///
     /// # Panics
     ///

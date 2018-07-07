@@ -13,7 +13,7 @@ mod atomic_waker;
 pub use self::atomic_waker::AtomicWaker;
 
 if_std! {
-    use crate::Future;
+    use crate::future::Future;
     use std::boxed::PinBox;
 
     pub use std::task::{Wake, local_waker, local_waker_from_nonlocal};
@@ -26,8 +26,7 @@ if_std! {
         ///
         /// This method will panic if the default executor is unable to spawn.
         ///
-        /// To handle executor errors, use [executor()](self::Context::executor)
-        /// instead.
+        /// To handle executor errors, use `Context::executor()` on instead.
         fn spawn<F>(&mut self, f: F) where F: Future<Output = ()> + 'static + Send;
     }
 

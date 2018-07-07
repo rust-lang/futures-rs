@@ -6,7 +6,7 @@ use futures_core::task;
 
 /// Do something with the item of a future, passing it on.
 ///
-/// This is created by the [`FutureExt::inspect`] method.
+/// This is created by the [`super::FutureExt::inspect`] method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Inspect<A, F> where A: Future {

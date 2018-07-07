@@ -7,7 +7,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures-executor/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/futures-executor/0.3.0-alpha")]
 
 #[cfg(feature = "std")]
 #[macro_use]
@@ -26,10 +26,6 @@ macro_rules! if_std {
 if_std! {
     #[macro_use]
     extern crate lazy_static;
-
-    extern crate futures_util;
-    extern crate futures_channel;
-    extern crate num_cpus;
 
     mod local_pool;
     pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};

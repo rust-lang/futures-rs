@@ -29,7 +29,7 @@ impl<F> Spawn<F> {
 /// This function returns a future that will spawn the given future as a task
 /// onto the default executor. It does *not* provide any way to wait on task
 /// completion or extract a value from the task. That can either be done through
-/// a channel, or by using [`spawn_with_handle`](::spawn_with_handle).
+/// a channel, or by using [`spawn_with_handle`](spawn_with_handle).
 pub fn spawn<F>(future: F) -> Spawn<F>
     where F: Future<Output = ()> + 'static + Send
 {
@@ -46,9 +46,9 @@ impl<F: Future<Output = ()> + Send + 'static> Future for Spawn<F> {
 }
 
 /// A future representing the completion of task spawning, yielding a
-/// [`JoinHandle`](::JoinHandle) to the spawned task.
+/// [`JoinHandle`](JoinHandle) to the spawned task.
 ///
-/// See [`spawn_with_handle`](::spawn_with_handle) for details.
+/// See [`spawn_with_handle`](spawn_with_handle) for details.
 #[derive(Debug)]
 pub struct SpawnWithHandle<F> {
     future: Option<F>
@@ -59,11 +59,11 @@ impl<F> SpawnWithHandle<F> {
 }
 
 /// Spawn a task onto the default executor, yielding a
-/// [`JoinHandle`](::JoinHandle) to the spawned task.
+/// [`JoinHandle`](JoinHandle) to the spawned task.
 ///
 /// This function returns a future that will spawn the given future as a task
 /// onto the default executor. On completion, that future will yield a
-/// [`JoinHandle`](::JoinHandle) that can itself be used as a future
+/// [`JoinHandle`](JoinHandle) that can itself be used as a future
 /// representing the completion of the spawned task.
 ///
 /// # Examples
