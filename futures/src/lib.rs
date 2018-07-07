@@ -136,7 +136,7 @@ pub mod future {
     //!   adapters for chaining and composing futures.
     //! - Top-level future combinators like [`lazy`](crate::future::lazy) which
     //!   creates a future from a closure that defines its return value, and
-    //!   [`result`](crate::future::result), which constructs a future with an
+    //!   [`ready`](crate::future::ready), which constructs a future with an
     //!   immediate defined value.
 
     pub use futures_core::future::{
