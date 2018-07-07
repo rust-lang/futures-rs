@@ -582,7 +582,6 @@ pub trait FutureExt: Future {
     /// let output = block_on(block_on(future));
     /// assert_eq!(output, 3);
     /// ```
-    #[cfg(feature = "std")]
     fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
         where Self: Sized,
               E: ::futures_core::task::Executor

@@ -326,10 +326,11 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Executor, Waker, LocalWaker, UnsafeWake,
+        Context, Poll, Executor, Waker, LocalWaker, UnsafeWake,
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
     };
 
+    #[cfg(feature = "std")]
     #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
     pub use futures_core::task::AtomicWaker;
 

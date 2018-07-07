@@ -10,7 +10,6 @@
 #![doc(html_root_url = "https://docs.rs/futures-core/0.3.0-alpha")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
-#![cfg_attr(feature = "nightly", feature(pin))]
 
 #[macro_use]
 #[cfg(feature = "std")]
@@ -34,10 +33,7 @@ macro_rules! if_std {
 mod macros;
 
 pub mod future;
-//pub use crate::future::{Future, CoreFutureExt, TryFuture};
 
 pub mod stream;
-//pub use crate::stream::{Stream, TryStream};
 
 pub mod task;
-//pub use crate::task::Poll;
