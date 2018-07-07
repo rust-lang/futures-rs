@@ -9,20 +9,8 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-util/0.3.0-alpha")]
 
-#[cfg(test)]
-extern crate futures_channel;
 #[macro_use]
 extern crate futures_core;
-#[cfg(test)]
-extern crate futures_executor;
-
-extern crate futures_io;
-extern crate futures_sink;
-
-extern crate either;
-
-#[cfg(feature = "std")]
-extern crate slab;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -36,19 +24,31 @@ pub use futures_core::core_reexport;
 
 macro_rules! delegate_sink {
     ($field:ident) => {
-        fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_ready(
+            mut self: PinMut<Self>,
+            cx: &mut $crate::core_reexport::task::Context,
+        ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_ready(cx)
         }
 
-        fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        fn start_send(
+            mut self: PinMut<Self>,
+            item: Self::SinkItem
+        ) -> Result<(), Self::SinkError> {
             self.$field().start_send(item)
         }
 
-        fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_flush(
+            mut self: PinMut<Self>,
+            cx: &mut $crate::core_reexport::task::Context
+        ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_flush(cx)
         }
 
-        fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_close(
+            mut self: PinMut<Self>,
+            cx: &mut $crate::core_reexport::task::Context
+        ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_close(cx)
         }
     }
@@ -70,16 +70,11 @@ pub mod sink;
 pub use crate::sink::SinkExt;
 
 if_std! {
-    extern crate core;
-
-    use futures_core::{Future, Poll, task};
-
     // FIXME: currently async/await is only available with std
     pub mod async_await;
 
     pub mod io;
     pub use crate::io::{AsyncReadExt, AsyncWriteExt};
-
     #[cfg(any(test, feature = "bench"))]
     pub mod lock;
     #[cfg(not(any(test, feature = "bench")))]

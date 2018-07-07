@@ -1,5 +1,6 @@
-use futures_core::{task, Future, Poll};
 use core::mem::PinMut;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 /// A macro which yields to the event loop once.
 /// This is similar to returning `Poll::Pending` from a `Future::poll` implementation.
@@ -27,7 +28,7 @@ pub struct PendingOnce {
 
 impl Future for PendingOnce {
     type Output = ();
-    fn poll(mut self: PinMut<Self>, _: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, _: &mut Context) -> Poll<Self::Output> {
         if self.is_ready {
             Poll::Ready(())
         } else {

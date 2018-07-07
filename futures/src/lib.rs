@@ -34,13 +34,6 @@
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
 #[doc(hidden)] pub use futures_core::core_reexport;
-pub use futures_core::future::Future;
-pub use futures_core::task::Poll;
-pub use futures_util::future::FutureExt;
-pub use futures_core::stream::Stream;
-pub use futures_util::stream::StreamExt;
-pub use futures_sink::Sink;
-pub use futures_util::sink::SinkExt;
 
 #[macro_use]
 mod macros;
@@ -205,9 +198,9 @@ pub mod prelude {
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use futures_core::{
-        Future, CoreFutureExt, TryFuture, Stream, TryStream, Poll, task
-    };
+    pub use futures_core::future::{Future, CoreFutureExt, TryFuture};
+    pub use futures_core::stream::{Stream, TryStream};
+    pub use futures_core::task::{self, Poll};
 
     pub use futures_sink::Sink;
 

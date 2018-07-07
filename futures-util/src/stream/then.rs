@@ -1,10 +1,8 @@
-use core::mem::PinMut;
 use core::marker::Unpin;
-
-
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use core::mem::PinMut;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 
 /// A stream combinator which chains a computation onto each item produced by a
 /// stream.
@@ -56,7 +54,7 @@ impl<S, U, F> Stream for Then<S, U, F>
 {
     type Item = U::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U::Output>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<U::Output>> {
         if self.future().as_pin_mut().is_none() {
             let item = match ready!(self.stream().poll_next(cx)) {
                 None => return Poll::Ready(None),

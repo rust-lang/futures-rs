@@ -1,10 +1,10 @@
+use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
 use core::mem::PinMut;
-
-use futures_core::{task, Future, Poll, Stream};
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 use futures_sink::Sink;
-
-use crate::stream::{StreamExt, Fuse};
 
 const INVALID_POLL: &str = "polled `Forward` after completion";
 
@@ -49,7 +49,7 @@ where
 
     fn try_start_send(
         mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        cx: &mut Context,
         item: U::SinkItem,
     ) -> Poll<Result<(), U::SinkError>> {
         debug_assert!(self.buffered.is_none());
@@ -71,7 +71,7 @@ where
 {
     type Output = Result<U, U::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered().take() {

@@ -5,9 +5,9 @@
 macro_rules! try_ready {
     ($x:expr) => {
         match $x {
-            $crate::Poll::Ready(Ok(x)) => x,
-            $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(e.into())),
-            $crate::Poll::Pending => return $crate::Poll::Pending,
+            $crate::task::Poll::Ready(Ok(x)) => x,
+            $crate::task::Poll::Ready(Err(e)) => return $crate::task::Poll::Ready(Err(e.into())),
+            $crate::task::Poll::Pending => return $crate::task::Poll::Pending,
         }
     }
 }
@@ -21,9 +21,9 @@ macro_rules! try_ready {
 macro_rules! try_poll {
     ($x:expr) => {
         match $x {
-            $crate::Poll::Ready(Ok(x)) => $crate::Poll::Ready(x),
-            $crate::Poll::Ready(Err(e)) => return $crate::Poll::Ready(Err(e.into())),
-            $crate::Poll::Pending => $crate::Poll::Pending,
+            $crate::task::Poll::Ready(Ok(x)) => $crate::task::Poll::Ready(x),
+            $crate::task::Poll::Ready(Err(e)) => return $crate::task::Poll::Ready(Err(e.into())),
+            $crate::task::Poll::Pending => $crate::task::Poll::Pending,
         }
     }
 }
@@ -34,7 +34,7 @@ macro_rules! try_poll {
 #[macro_export]
 macro_rules! ready {
     ($e:expr) => (match $e {
-        $crate::Poll::Ready(t) => t,
-        $crate::Poll::Pending => return $crate::Poll::Pending,
+        $crate::task::Poll::Ready(t) => t,
+        $crate::task::Poll::Pending => return $crate::task::Poll::Pending,
     })
 }

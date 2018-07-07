@@ -1,5 +1,5 @@
 use core::mem::PinMut;
-use futures_core::TryFuture;
+use futures_core::future::TryFuture;
 use futures_core::task::{Context, Poll};
 
 #[must_use = "futures do nothing unless polled"]

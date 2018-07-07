@@ -1,5 +1,5 @@
-use futures_core::{Future, Poll, CoreFutureExt};
-use futures_core::task::{Context, ContextExt};
+use futures_core::future::{Future, CoreFutureExt};
+use futures_core::task::{Context, Poll, ContextExt};
 use futures_channel::oneshot::{channel, Sender, Receiver};
 use futures_util::FutureExt;
 

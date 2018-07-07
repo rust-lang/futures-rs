@@ -1,8 +1,7 @@
-use core::mem::PinMut;
 use core::marker::{Unpin, PhantomData};
-
-use futures_core::{Stream, Poll};
-use futures_core::task;
+use core::mem::PinMut;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
 
 /// A stream which contains no elements.
 ///
@@ -27,7 +26,7 @@ impl<T> Unpin for Empty<T> {}
 impl<T> Stream for Empty<T> {
     type Item = T;
 
-    fn poll_next(self: PinMut<Self>, _: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: PinMut<Self>, _: &mut Context) -> Poll<Option<Self::Item>> {
         Poll::Ready(None)
     }
 }

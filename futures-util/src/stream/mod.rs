@@ -5,7 +5,8 @@
 
 use core::marker::Unpin;
 use either::Either;
-use futures_core::{Future, Stream};
+use futures_core::future::Future;
+use futures_core::stream::Stream;
 use futures_sink::Sink;
 
 mod iter;

@@ -1,7 +1,7 @@
 //! A channel for sending a single message between asynchronous tasks.
 
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Waker};
+use futures_core::task::{Context, Poll, Waker};
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -83,12 +83,9 @@ struct Inner<T> {
 /// # Examples
 ///
 /// ```
-/// extern crate futures;
-///
-/// use std::thread;
-///
 /// use futures::channel::oneshot;
-/// use futures::*;
+/// use futures::prelude::*;
+/// use std::thread;
 ///
 /// fn main() {
 ///     let (sender, receiver) = oneshot::channel::<i32>();
@@ -160,7 +157,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<()> {
+    fn poll_cancel(&self, cx: &mut Context) -> Poll<()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -255,7 +252,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
+    fn recv(&self, cx: &mut Context) -> Poll<Result<T, Canceled>> {
         // Check to see if some data has arrived. If it hasn't then we need to
         // block our task.
         //
@@ -354,7 +351,7 @@ impl<T> Sender<T> {
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
-    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<()> {
+    pub fn poll_cancel(&mut self, cx: &mut Context) -> Poll<()> {
         self.inner.poll_cancel(cx)
     }
 
@@ -398,7 +395,7 @@ impl<T> Receiver<T> {
     ///
     /// Any `send` operation which happens after this method returns is
     /// guaranteed to fail. After calling this method, you can use
-    /// [`Receiver::poll`](<Receiver as Future>::poll) to determine whether a
+    /// [`Receiver::poll`](Future::poll) to determine whether a
     /// message had previously been sent.
     pub fn close(&mut self) {
         self.inner.close_rx()
@@ -406,13 +403,13 @@ impl<T> Receiver<T> {
 
     /// Attempts to receive a message outside of the context of a task.
     ///
-    /// Useful when a [`Context`](futures_core::task::Context) is not available
+    /// Useful when a [`Context`](Context) is not available
     /// such as within a `Drop` impl.
     ///
     /// Does not schedule a task wakeup or have any other side effects.
     ///
     /// A return value of `None` must be considered immediately stale (out of
-    /// date) unless [`::close`](Receiver::close) has been called first.
+    /// date) unless [`close`](Receiver::close) has been called first.
     ///
     /// Returns an error if the sender was dropped.
     pub fn try_recv(&mut self) -> Result<Option<T>, Canceled> {
@@ -425,7 +422,7 @@ impl<T> Future for Receiver<T> {
 
     fn poll(
         self: PinMut<Self>,
-        cx: &mut task::Context,
+        cx: &mut Context,
     ) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)
     }

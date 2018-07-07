@@ -1,10 +1,10 @@
-use core::mem::PinMut;
-use core::fmt::{Debug, Formatter, Result as FmtResult};
-use core::default::Default;
 use core::marker::Unpin;
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use core::mem::PinMut;
+use core::default::Default;
+use core::fmt::{Debug, Formatter, Result as FmtResult};
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
 
 /// A stream combinator to concatenate the results of a stream into the first
 /// yielded item.
@@ -52,7 +52,7 @@ impl<S> Future for Concat<S>
     type Output = S::Item;
 
     fn poll(
-        mut self: PinMut<Self>, cx: &mut task::Context
+        mut self: PinMut<Self>, cx: &mut Context
     ) -> Poll<Self::Output> {
         loop {
             match self.stream().poll_next(cx) {

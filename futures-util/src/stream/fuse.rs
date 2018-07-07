@@ -1,6 +1,6 @@
 use core::mem::PinMut;
-
-use futures_core::{task, Poll, Stream};
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 use futures_sink::Sink;
 
 /// A stream which "fuse"s a stream once it's terminated.
@@ -81,7 +81,7 @@ impl<S> Fuse<S> {
 impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
         if *self.done() {
             return Poll::Ready(None);
         }

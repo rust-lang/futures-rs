@@ -1,5 +1,5 @@
 use core::mem::PinMut;
-use futures_core::{Future, TryFuture};
+use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
 
 /// Converts a `TryFuture` into a normal `Future`

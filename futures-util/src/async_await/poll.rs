@@ -1,4 +1,5 @@
-use futures_core::{task, Future, Poll};
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 use core::marker::Unpin;
 use core::mem::PinMut;
 
@@ -26,7 +27,7 @@ pub struct PollOnce<F: Future + Unpin> {
 
 impl<F: Future + Unpin> Future for PollOnce<F> {
     type Output = Poll<F::Output>;
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         Poll::Ready(PinMut::new(&mut self.future).poll(cx))
     }
 }

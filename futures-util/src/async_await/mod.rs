@@ -3,8 +3,8 @@
 //! This module contains a number of functions and combinators for working
 //! with `async`/`await` code.
 
-use futures_core::Future;
 use core::marker::Unpin;
+use futures_core::future::Future;
 
 #[macro_use]
 mod poll;

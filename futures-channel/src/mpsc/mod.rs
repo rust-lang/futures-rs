@@ -365,7 +365,7 @@ impl SenderTask {
 /// `buffer` "first come, first serve" slots available to all senders.
 ///
 /// The [`Receiver`](Receiver) returned implements the
-/// [`Stream`](futures_core::Stream) trait, while [`Sender`](Sender) implements
+/// [`Stream`](futures_core::stream::Stream) trait, while [`Sender`](Sender) implements
 /// `Sink`.
 pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
     // Check that the requested buffer size does not exceed the maximum buffer

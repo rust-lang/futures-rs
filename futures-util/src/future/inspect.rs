@@ -1,8 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
-
-use futures_core::{Future, Poll};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 /// Do something with the item of a future, passing it on.
 ///
@@ -37,7 +36,7 @@ impl<A, F> Future for Inspect<A, F>
 {
     type Output = A::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<A::Output> {
         let e = match self.future().poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,

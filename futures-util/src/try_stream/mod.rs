@@ -3,7 +3,7 @@
 //! This module contains a number of functions for working with `Streams`s
 //! that return `Result`s, allowing for short-circuiting computations.
 
-use futures_core::TryStream;
+use futures_core::stream::TryStream;
 
 if_std! {
     // combinators

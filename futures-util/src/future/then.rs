@@ -1,6 +1,6 @@
 use super::Chain;
 use core::mem::PinMut;
-use futures_core::Future;
+use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
 /// Future for the `then` combinator, chaining computations on the end of

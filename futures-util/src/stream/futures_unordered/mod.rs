@@ -1,6 +1,9 @@
 //! An unbounded set of futures.
 
 use std::cell::UnsafeCell;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll, AtomicWaker};
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::{PhantomData, Unpin};
@@ -11,17 +14,16 @@ use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::{Arc, Weak};
 use std::usize;
 
-use futures_core::{Stream, Future, Poll};
-use futures_core::task::{self, AtomicWaker};
-
 mod abort;
-mod ready_to_run_queue;
-mod iter;
-mod node;
 
-use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
+mod iter;
 use self::iter::{IterMut, IterPinMut};
+
+mod node;
 use self::node::Node;
+
+mod ready_to_run_queue;
+use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
 
 /// A set of `Future`s which may complete in any order.
 ///
@@ -244,7 +246,7 @@ impl<T> FuturesUnordered<T> {
 impl<T: Future> Stream for FuturesUnordered<T> {
     type Item = T::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context)
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.

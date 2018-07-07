@@ -2,9 +2,8 @@
 
 use core::fmt;
 use core::mem::PinMut;
-
-use futures_core::{Future, Poll};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 use crate::future::{MaybeDone, maybe_done};
 
@@ -49,7 +48,7 @@ macro_rules! generate {
             type Output = ($($Fut::Output),*);
 
             fn poll(
-                mut self: PinMut<Self>, cx: &mut task::Context
+                mut self: PinMut<Self>, cx: &mut Context
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 $(

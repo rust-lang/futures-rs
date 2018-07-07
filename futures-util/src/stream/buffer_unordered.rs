@@ -1,11 +1,11 @@
+use crate::stream::{Fuse, FuturesUnordered};
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
+use futures_sink::Sink;
 use std::fmt;
 use std::marker::Unpin;
 use std::mem::PinMut;
-
-use futures_core::{task, Future, Poll, Stream};
-use futures_sink::Sink;
-
-use crate::stream::{Fuse, FuturesUnordered};
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible, delivering results as they become available.
@@ -104,7 +104,7 @@ where
 {
     type Item = <S::Item as Future>::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.in_progress_queue.len() < self.max {
