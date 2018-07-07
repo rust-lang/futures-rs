@@ -1,3 +1,22 @@
+/// A pinned projection of a struct field.
+///
+/// ```
+/// #![feature(pin, arbitrary_self_types)]
+/// # #[macro_use] extern crate futures_core;
+/// # struct Bar;
+/// # use core::mem::PinMut;
+/// struct Foo {
+///     field: Bar,
+/// }
+///
+/// impl Foo {
+///     unsafe_pinned!(field -> Bar);
+///
+///     fn baz(mut self: PinMut<Self>) {
+///         let _: PinMut<Bar> = self.field(); // Pinned reference to the field
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! unsafe_pinned {
     ($f:tt -> $t:ty) => (
@@ -13,6 +32,29 @@ macro_rules! unsafe_pinned {
     )
 }
 
+/// An unpinned projection of a struct field.
+///
+/// This macro is unsafe because it returns a normal non-pin reference to
+/// the struct field. It is up to the programmer to ensure that the contained
+/// value is either not moved at all or only moved when it's safe.
+///
+/// ```
+/// #![feature(pin, arbitrary_self_types)]
+/// # #[macro_use] extern crate futures_core;
+/// # use core::mem::PinMut;
+/// # struct Bar;
+/// struct Foo {
+///     field: Bar,
+/// }
+///
+/// impl Foo {
+///     unsafe_unpinned!(field -> Bar);
+///
+///     fn baz(mut self: PinMut<Self>) {
+///         let _: &mut Bar = self.field(); // Normal reference to the field
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! unsafe_unpinned {
     ($f:tt -> $t:ty) => (
@@ -28,6 +70,17 @@ macro_rules! unsafe_unpinned {
     )
 }
 
+/// Pins a value on the stack.
+///
+/// ```
+/// #![feature(pin, arbitrary_self_types)]
+/// # #[macro_use] extern crate futures_core;
+/// # use core::mem::PinMut;
+/// # struct Foo {}
+/// let foo = Foo { /* ... */ };
+/// pin_mut!(foo);
+/// let _: PinMut<Foo> = foo;
+/// ```
 #[macro_export]
 macro_rules! pin_mut {
     ($($x:ident),*) => { $(
