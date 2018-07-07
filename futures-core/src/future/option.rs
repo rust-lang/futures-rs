@@ -1,7 +1,7 @@
 //! Definition of the `Option` (optional step) combinator
 
-use crate::{Future, Poll};
-use crate::task;
+use crate::future::Future;
+use crate::task::{Context, Poll};
 use core::mem::PinMut;
 
 /// A future representing a value which may or may not be present.
@@ -20,7 +20,7 @@ impl<F> FutureOption<F> {
 impl<F: Future> Future for FutureOption<F> {
     type Output = Option<F::Output>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         match self.option().as_pin_mut() {
             Some(x) => x.poll(cx).map(Some),
             None => Poll::Ready(None),

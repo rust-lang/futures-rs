@@ -1,10 +1,8 @@
 //! Asynchronous streams.
 
+use crate::task::{Context, Poll};
 use core::marker::Unpin;
 use core::mem::PinMut;
-
-use crate::Poll;
-use crate::task;
 
 /// A stream of values produced asynchronously.
 ///
@@ -29,27 +27,31 @@ pub trait Stream {
     /// There are several possible return values, each indicating a distinct
     /// stream state:
     ///
-    /// - [`Pending`](::Poll) means that this stream's next value is not ready
+    /// - `Poll::Pending` means that this stream's next value is not ready
     /// yet. Implementations will ensure that the current task will be notified
     /// when the next value may be ready.
     ///
-    /// - [`Ready(Some(val))`](::Poll) means that the stream has successfully
+    /// - `Poll::Ready(Some(val))` means that the stream has successfully
     /// produced a value, `val`, and may produce further values on subsequent
     /// `poll_next` calls.
     ///
-    /// - [`Ready(None)`](::Poll) means that the stream has terminated, and
+    /// - `Poll::Ready(None)` means that the stream has terminated, and
     /// `poll_next` should not be invoked again.
     ///
     /// # Panics
     ///
     /// Once a stream is finished, i.e. `Ready(None)` has been returned, further
-    /// calls to `poll_next` may result in a panic or other "bad behavior".  If this
-    /// is difficult to guard against then the `fuse` adapter can be used to
-    /// ensure that `poll_next` always returns `Ready(None)` in subsequent calls.
-    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>>;
+    /// calls to `poll_next` may result in a panic or other "bad behavior".  If
+    /// this is difficult to guard against then the `fuse` adapter can be used
+    /// to ensure that `poll_next` always returns `Ready(None)` in subsequent
+    /// calls.
+    fn poll_next(
+        self: PinMut<Self>,
+        cx: &mut Context,
+    ) -> Poll<Option<Self::Item>>;
 
     /// A convenience for calling `Stream::poll_next` on `Unpin` stream types.
-    fn poll_next_unpin(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
+    fn poll_next_unpin(&mut self, cx: &mut Context) -> Poll<Option<Self::Item>>
         where Self: Unpin + Sized
     {
         PinMut::new(self).poll_next(cx)
@@ -59,7 +61,10 @@ pub trait Stream {
 impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut Context,
+    ) -> Poll<Option<Self::Item>> {
         S::poll_next(PinMut::new(&mut **self), cx)
     }
 }
@@ -67,7 +72,10 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
 impl<'a, S: ?Sized + Stream> Stream for PinMut<'a, S> {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut Context,
+    ) -> Poll<Option<Self::Item>> {
         S::poll_next((*self).reborrow(), cx)
     }
 }
@@ -86,7 +94,7 @@ pub trait TryStream {
     /// This method is a stopgap for a compiler limitation that prevents us from
     /// directly inheriting from the `Stream` trait; in the future it won't be
     /// needed.
-    fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
+    fn try_poll_next(self: PinMut<Self>, cx: &mut Context)
         -> Poll<Option<Result<Self::TryItem, Self::TryError>>>;
 }
 
@@ -96,7 +104,7 @@ impl<S, T, E> TryStream for S
     type TryItem = T;
     type TryError = E;
 
-    fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
+    fn try_poll_next(self: PinMut<Self>, cx: &mut Context)
         -> Poll<Option<Result<Self::TryItem, Self::TryError>>>
     {
         self.poll_next(cx)
@@ -109,7 +117,10 @@ if_std! {
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
         type Item = S::Item;
 
-        fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(
+            mut self: PinMut<Self>,
+            cx: &mut Context,
+        ) -> Poll<Option<Self::Item>> {
             PinMut::new(&mut **self).poll_next(cx)
         }
     }
@@ -117,7 +128,10 @@ if_std! {
     impl<S: ?Sized + Stream> Stream for PinBox<S> {
         type Item = S::Item;
 
-        fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(
+            mut self: PinMut<Self>,
+            cx: &mut Context,
+        ) -> Poll<Option<Self::Item>> {
             self.as_pin_mut().poll_next(cx)
         }
     }
@@ -125,7 +139,10 @@ if_std! {
     impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 
-        fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+        fn poll_next(
+            self: PinMut<Self>,
+            cx: &mut Context,
+        ) -> Poll<Option<S::Item>> {
             unsafe { PinMut::map_unchecked(self, |x| &mut x.0) }.poll_next(cx)
         }
     }
@@ -133,7 +150,10 @@ if_std! {
     impl<T: Unpin> Stream for ::std::collections::VecDeque<T> {
         type Item = T;
 
-        fn poll_next(mut self: PinMut<Self>, _cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        fn poll_next(
+            mut self: PinMut<Self>,
+            _cx: &mut Context,
+        ) -> Poll<Option<Self::Item>> {
             Poll::Ready(self.pop_front())
         }
     }

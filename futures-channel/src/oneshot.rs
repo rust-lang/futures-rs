@@ -1,5 +1,7 @@
 //! A channel for sending a single message between asynchronous tasks.
 
+use futures_core::future::Future;
+use futures_core::task::{self, Poll, Waker};
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -7,9 +9,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
 use std::error::Error;
 use std::fmt;
-
-use futures_core::{Future, Poll};
-use futures_core::task::{self, Waker};
 
 use crate::lock::Lock;
 
@@ -73,11 +72,11 @@ struct Inner<T> {
 
 /// Creates a new one-shot channel for sending values across asynchronous tasks.
 ///
-/// This function is similar to Rust's channel constructor found in the standard library.
-/// Two halves are returned, the first of which is a `Sender` handle, used to
-/// signal the end of a computation and provide its value. The second half is a
-/// `Receiver` which implements the `Future` trait, resolving to the value that
-/// was given to the `Sender` handle.
+/// This function is similar to Rust's channel constructor found in the standard
+/// library. Two halves are returned, the first of which is a `Sender` handle,
+/// used to signal the end of a computation and provide its value. The second
+/// half is a `Receiver` which implements the `Future` trait, resolving to the
+/// value that was given to the `Sender` handle.
 ///
 /// Each half can be separately owned and sent across tasks.
 ///
@@ -179,10 +178,10 @@ impl<T> Inner<T> {
         // hence we're canceled. If it succeeds then we just store our handle.
         //
         // Crucially we then check `oneshot_gone` *again* before we return.
-        // While we were storing our handle inside `notify_cancel` the `Receiver`
-        // may have been dropped. The first thing it does is set the flag, and
-        // if it fails to acquire the lock it assumes that we'll see the flag
-        // later on. So... we then try to see the flag later on!
+        // While we were storing our handle inside `notify_cancel` the
+        // `Receiver` may have been dropped. The first thing it does is set the
+        // flag, and if it fails to acquire the lock it assumes that we'll see
+        // the flag later on. So... we then try to see the flag later on!
         let handle = cx.waker().clone();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
@@ -284,8 +283,8 @@ impl<T> Inner<T> {
         // successfully blocked our task and we return `Pending`.
         if done || self.complete.load(SeqCst) {
             // If taking the lock fails, the sender will realise that the we're
-            // `done` when it checks the `complete` flag on the way out, and will
-            // treat the send as a failure.
+            // `done` when it checks the `complete` flag on the way out, and
+            // will treat the send as a failure.
             if let Some(mut slot) = self.data.try_lock() {
                 if let Some(data) = slot.take() {
                     return Poll::Ready(Ok(data));
@@ -399,16 +398,16 @@ impl<T> Receiver<T> {
     ///
     /// Any `send` operation which happens after this method returns is
     /// guaranteed to fail. After calling this method, you can use
-    /// [`Receiver::poll`](Receiver::poll) to determine whether a message had
-    /// previously been sent.
+    /// [`Receiver::poll`](<Receiver as Future>::poll) to determine whether a
+    /// message had previously been sent.
     pub fn close(&mut self) {
         self.inner.close_rx()
     }
 
     /// Attempts to receive a message outside of the context of a task.
     ///
-    /// Useful when a [`Context`](Context) is not available such as within a
-    /// `Drop` impl.
+    /// Useful when a [`Context`](futures_core::task::Context) is not available
+    /// such as within a `Drop` impl.
     ///
     /// Does not schedule a task wakeup or have any other side effects.
     ///
@@ -424,7 +423,10 @@ impl<T> Receiver<T> {
 impl<T> Future for Receiver<T> {
     type Output = Result<T, Canceled>;
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
+    fn poll(
+        self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)
     }
 }

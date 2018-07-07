@@ -24,10 +24,10 @@ use crate::ThreadPool;
 /// work in between I/O actions.
 ///
 /// To get a handle to the pool that implements
-/// [`Executor`](::futures_core::executor::Executor), use the
+/// [`Executor`](futures_core::task::Executor), use the
 /// [`executor()`](LocalPool::executor) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
-/// futures, via [`spawn_local`](LocalExecutor::spawn_local).
+/// futures, via [`spawn_local_obj`](LocalExecutor::spawn_local_obj).
 #[derive(Debug)]
 pub struct LocalPool {
     pool: FuturesUnordered<LocalFutureObj<'static, ()>>,
@@ -35,7 +35,7 @@ pub struct LocalPool {
 }
 
 /// A handle to a [`LocalPool`](LocalPool) that implements
-/// [`Executor`](::futures_core::executor::Executor).
+/// [`Executor`](futures_core::task::Executor).
 #[derive(Clone, Debug)]
 pub struct LocalExecutor {
     incoming: Weak<Incoming>,

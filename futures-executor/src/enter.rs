@@ -6,7 +6,7 @@ thread_local!(static ENTERED: Cell<bool> = Cell::new(false));
 
 /// Represents an executor context.
 ///
-/// For more details, see [`enter` documentation](::enter())
+/// For more details, see [`enter` documentation](enter()).
 pub struct Enter {
     _a: ()
 }

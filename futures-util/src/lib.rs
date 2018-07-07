@@ -7,7 +7,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures/0.1")]
+#![doc(html_root_url = "https://docs.rs/futures-util/0.3.0-alpha")]
 
 #[cfg(test)]
 extern crate futures_channel;

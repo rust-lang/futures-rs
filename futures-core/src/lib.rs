@@ -7,7 +7,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures-core/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/futures-core/0.3.0-alpha")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(pin))]
@@ -20,7 +20,7 @@ extern crate either;
 
 #[doc(hidden)]
 pub mod core_reexport {
-    pub use core::*;
+    pub use core::{mem, future, task};
 }
 
 macro_rules! if_std {

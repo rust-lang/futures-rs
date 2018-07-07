@@ -1,7 +1,6 @@
-use crate::{task, Stream, Poll};
-
+use crate::stream::{Stream};
+use crate::task::{self, Poll};
 use core::mem::PinMut;
-
 use either::Either;
 
 // impl<A, B> Future for Either<A, B>
