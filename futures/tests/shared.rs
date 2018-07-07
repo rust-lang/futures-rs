@@ -1,15 +1,12 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-use std::boxed::PinBox;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::thread;
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
 use futures::future::{self, LocalFutureObj};
 use futures::prelude::*;
-use futures::task::LocalTaskObj;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::thread;
 
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     let (tx, rx) = oneshot::channel::<i32>();
@@ -112,7 +109,7 @@ fn peek() {
     }
 
     // Once the Shared has been polled, the value is peekable on the clone.
-    exec.spawn_local_obj(LocalTaskObj::new(PinBox::new(f1.map(|_| ())))).unwrap();
+    exec.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
     local_pool.run(exec);
     for _ in 0..2 {
         assert_eq!(*f2.peek().unwrap(), Ok(42));

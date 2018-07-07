@@ -1,21 +1,16 @@
 //! Futures.
 
-use core::mem::PinMut;
 use core::marker::Unpin;
+use core::mem::PinMut;
+use crate::{task, Poll};
 
-use crate::Poll;
-use crate::task;
+pub use core::future::{Future, FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 mod option;
 pub use self::option::FutureOption;
 
-mod future_obj;
-pub use self::future_obj::{FutureObj, LocalFutureObj};
-
 #[cfg(feature = "either")]
 mod either;
-
-pub use core::future::Future;
 
 /// Will probably merge with futures_util::FutureExt
 pub trait CoreFutureExt: Future {

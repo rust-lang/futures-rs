@@ -3,9 +3,9 @@
 pub use core::task::{
     Context, Executor, Poll,
     Waker, LocalWaker, UnsafeWake,
-    TaskObj, LocalTaskObj, UnsafeTask,
     SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
 };
+pub use core::future::FutureObj;
 
 #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
 mod atomic_waker;
@@ -34,7 +34,7 @@ if_std! {
     impl<'a> ContextExt for Context<'a> {
         fn spawn<F>(&mut self, f: F) where F: Future<Output = ()> + 'static + Send {
             self.executor()
-                .spawn_obj(TaskObj::new(PinBox::new(f))).unwrap()
+                .spawn_obj(FutureObj::new(PinBox::new(f))).unwrap()
         }
     }
 }

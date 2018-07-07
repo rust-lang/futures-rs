@@ -161,7 +161,7 @@ pub mod future {
 
     pub use futures_core::future::{
         FutureOption, Future, TryFuture, ReadyFuture, ready,
-        FutureObj, LocalFutureObj
+        FutureObj, LocalFutureObj, UnsafeFutureObj,
     };
     pub use futures_util::future::{
         Empty, Flatten, FlattenStream, Fuse, Inspect, IntoStream, Lazy,
@@ -330,9 +330,7 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Waker, LocalWaker, UnsafeWake, UnsafeTask,
-        Executor,
-        TaskObj, LocalTaskObj,
+        Context, Executor, Waker, LocalWaker, UnsafeWake,
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
     };
 
