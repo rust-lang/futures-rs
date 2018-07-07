@@ -7,8 +7,8 @@ use std::sync::mpsc;
 use std::thread;
 use std::fmt;
 
-use futures_core::*;
-use futures_core::task::{self, Wake, TaskObj, Executor, SpawnObjError};
+use futures_core::future::{Future, FutureObj, CoreFutureExt};
+use futures_core::task::{self, Poll, Wake, Executor, SpawnObjError};
 
 use crate::enter;
 use num_cpus;
@@ -100,7 +100,10 @@ impl ThreadPool {
 }
 
 impl Executor for ThreadPool {
-    fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
+    fn spawn_obj(
+        &mut self,
+        task: FutureObj<'static, ()>,
+    ) -> Result<(), SpawnObjError> {
         let task_container = TaskContainer {
             task,
             wake_handle: Arc::new(WakeHandle {
@@ -263,7 +266,7 @@ impl ThreadPoolBuilder {
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 struct TaskContainer {
-    task: TaskObj,
+    task: FutureObj<'static, ()>,
     exec: ThreadPool,
     wake_handle: Arc<WakeHandle>,
 }

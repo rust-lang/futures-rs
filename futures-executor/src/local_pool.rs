@@ -1,18 +1,18 @@
-use std::prelude::v1::*;
-
+use futures_core::future::{Future, FutureObj, LocalFutureObj};
+use futures_core::stream::{Stream};
+use futures_core::task::{
+    self, Context, Poll, LocalWaker, Wake,
+    Executor, SpawnObjError, SpawnLocalObjError, SpawnErrorKind
+};
+use futures_util::stream::FuturesUnordered;
+use futures_util::stream::StreamExt;
 use std::cell::{RefCell};
 use std::marker::Unpin;
 use std::ops::{Deref, DerefMut};
+use std::prelude::v1::*;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::thread::{self, Thread};
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task::{
-    self, Context, LocalWaker, TaskObj, LocalTaskObj, Wake,
-    Executor, SpawnObjError, SpawnLocalObjError, SpawnErrorKind};
-use futures_util::stream::FuturesUnordered;
-use futures_util::stream::StreamExt;
 
 use crate::enter;
 use crate::ThreadPool;
@@ -30,7 +30,7 @@ use crate::ThreadPool;
 /// futures, via [`spawn_local`](LocalExecutor::spawn_local).
 #[derive(Debug)]
 pub struct LocalPool {
-    pool: FuturesUnordered<LocalTaskObj>,
+    pool: FuturesUnordered<LocalFutureObj<'static, ()>>,
     incoming: Rc<Incoming>,
 }
 
@@ -41,7 +41,7 @@ pub struct LocalExecutor {
     incoming: Weak<Incoming>,
 }
 
-type Incoming = RefCell<Vec<LocalTaskObj>>;
+type Incoming = RefCell<Vec<LocalFutureObj<'static, ()>>>;
 
 pub(crate) struct ThreadNotify {
     thread: Thread
@@ -265,7 +265,10 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 }
 
 impl Executor for LocalExecutor {
-    fn spawn_obj(&mut self, task: TaskObj) -> Result<(), SpawnObjError> {
+    fn spawn_obj(
+        &mut self,
+        task: FutureObj<'static, ()>,
+    ) -> Result<(), SpawnObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
             incoming.borrow_mut().push(task.into());
             Ok(())
@@ -285,9 +288,10 @@ impl Executor for LocalExecutor {
 
 impl LocalExecutor {
     /// Spawn a non-`Send` future onto the associated [`LocalPool`](LocalPool).
-    pub fn spawn_local_obj(&mut self, task: LocalTaskObj)
-        -> Result<(), SpawnLocalObjError>
-    {
+    pub fn spawn_local_obj(
+        &mut self,
+        task: LocalFutureObj<'static, ()>,
+    ) -> Result<(), SpawnLocalObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
             incoming.borrow_mut().push(task);
             Ok(())
