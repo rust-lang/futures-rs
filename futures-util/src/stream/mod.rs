@@ -16,78 +16,111 @@ mod repeat;
 pub use self::repeat::{repeat, Repeat};
 
 mod chain;
-mod concat;
-mod empty;
-mod filter;
-mod filter_map;
-mod flatten;
-mod fold;
-mod for_each;
-mod fuse;
-mod into_future;
-mod inspect;
-mod map;
-mod next;
-mod once;
-mod peek;
-mod poll_fn;
-mod select;
-mod skip;
-mod skip_while;
-mod take;
-mod take_while;
-mod then;
-mod unfold;
-mod zip;
-mod forward;
 pub use self::chain::Chain;
+
+mod concat;
 pub use self::concat::Concat;
-pub use self::empty::{Empty, empty};
+
+mod empty;
+pub use self::empty::{empty, Empty};
+
+mod filter;
 pub use self::filter::Filter;
+
+mod filter_map;
 pub use self::filter_map::FilterMap;
+
+mod flatten;
 pub use self::flatten::Flatten;
+
+mod fold;
 pub use self::fold::Fold;
-pub use self::for_each::ForEach;
-pub use self::fuse::Fuse;
-pub use self::into_future::StreamFuture;
-pub use self::inspect::Inspect;
-pub use self::map::Map;
-pub use self::next::Next;
-pub use self::once::{Once, once};
-pub use self::peek::Peekable;
-pub use self::poll_fn::{poll_fn, PollFn};
-pub use self::select::Select;
-pub use self::skip::Skip;
-pub use self::skip_while::SkipWhile;
-pub use self::take::Take;
-pub use self::take_while::TakeWhile;
-pub use self::then::Then;
-pub use self::unfold::{Unfold, unfold};
-pub use self::zip::Zip;
+
+mod forward;
 pub use self::forward::Forward;
+
+mod for_each;
+pub use self::for_each::ForEach;
+
+mod fuse;
+pub use self::fuse::Fuse;
+
+mod into_future;
+pub use self::into_future::StreamFuture;
+
+mod inspect;
+pub use self::inspect::Inspect;
+
+mod map;
+pub use self::map::Map;
+
+mod next;
+pub use self::next::Next;
+
+mod once;
+pub use self::once::{once, Once};
+
+mod peek;
+pub use self::peek::Peekable;
+
+mod poll_fn;
+pub use self::poll_fn::{poll_fn, PollFn};
+
+mod select;
+pub use self::select::Select;
+
+mod skip;
+pub use self::skip::Skip;
+
+mod skip_while;
+pub use self::skip_while::SkipWhile;
+
+mod take;
+pub use self::take::Take;
+
+mod take_while;
+pub use self::take_while::TakeWhile;
+
+mod then;
+pub use self::then::Then;
+
+mod unfold;
+pub use self::unfold::{unfold, Unfold};
+
+mod zip;
+pub use self::zip::Zip;
 
 if_std! {
     use std;
     use std::iter::Extend;
 
-    mod buffered;
     mod buffer_unordered;
-    mod catch_unwind;
-    mod chunks;
-    mod collect;
-    //mod select_all;
-    mod split;
-    mod futures_unordered;
-    mod futures_ordered;
-    pub use self::buffered::Buffered;
     pub use self::buffer_unordered::BufferUnordered;
+
+    mod buffered;
+    pub use self::buffered::Buffered;
+
+    mod catch_unwind;
     pub use self::catch_unwind::CatchUnwind;
+
+    mod chunks;
     pub use self::chunks::Chunks;
+
+    mod collect;
     pub use self::collect::Collect;
-    //pub use self::select_all::{select_all, SelectAll};
-    pub use self::split::{SplitStream, SplitSink, ReuniteError};
-    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+
+    mod futures_ordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
+
+    mod futures_unordered;
+    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+
+    mod split;
+    pub use self::split::{SplitStream, SplitSink, ReuniteError};
+
+    // ToDo
+    // mod select_all;
+    // pub use self::select_all::{select_all, SelectAll};
 }
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}

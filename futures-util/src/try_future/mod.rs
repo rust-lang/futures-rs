@@ -33,7 +33,7 @@ mod flatten_sink;
 pub use self::flatten_sink::FlattenSink;
 
 mod into_future;
-crate use self::into_future::IntoFuture;
+pub use self::into_future::IntoFuture;
 
 mod map_err;
 pub use self::map_err::MapErr;

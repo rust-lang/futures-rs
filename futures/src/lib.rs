@@ -140,21 +140,34 @@ pub mod future {
     //!   immediate defined value.
 
     pub use futures_core::future::{
-        FutureOption, Future, TryFuture, ReadyFuture, ready,
+        FutureOption, Future, TryFuture,
         FutureObj, LocalFutureObj, UnsafeFutureObj,
+        ready, ReadyFuture,
     };
+
     pub use futures_util::future::{
-        Empty, Flatten, FlattenStream, Fuse, Inspect, IntoStream, Lazy,
-        Then, PollFn, Map, FutureExt, empty, lazy, poll_fn,
-        // AndThen, ErrInto, Join, Join3, Join4, Join5, LoopFn,
-        // MapErr, OrElse, Select, Loop, loop_fn, Either
+        empty, Empty,
+        lazy, Lazy,
+        maybe_done, MaybeDone,
+        poll_fn, PollFn,
+
+        FutureExt,
+        FlattenStream, Flatten, Fuse, Inspect, IntoStream, Join, Join3, Join4,
+        Join5, Map, Then, WithExecutor,
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::future::{
-        CatchUnwind
-        // JoinAll, SelectAll, SelectOk, Shared, SharedError, SharedItem,
-        // join_all, select_all, select_ok
+        // For FutureExt:
+        CatchUnwind, Shared
+
+        // ToDo: JoinAll, SelectAll, SelectOk, join_all, select_all, select_ok
+    };
+
+    pub use futures_util::try_future::{
+        TryFutureExt,
+        AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
+        UnwrapOrElse,
     };
 }
 
@@ -264,27 +277,35 @@ pub mod stream {
     pub use futures_core::stream::{Stream, TryStream};
 
     pub use futures_util::stream::{
-        Chain, Concat, Empty, Filter, FilterMap, Flatten, Fold, ForEach, Fuse,
-        Inspect, Map, Once, Peekable, PollFn, Repeat, Select, Skip, SkipWhile,
-        StreamFuture, Take, TakeWhile, Then, Unfold, Zip, StreamExt, empty,
-        once, poll_fn, repeat, unfold, iter,
-        Forward,
-    };
+        iter, Iter,
+        repeat, Repeat,
+        empty, Empty,
+        once, Once,
+        poll_fn, PollFn,
+        unfold, Unfold,
 
-    pub use futures_util::try_stream::{
-        TryCollect,
-        // AndThen, ErrInto, InspectErr, MapErr, OrElse
+        StreamExt,
+        Chain, Concat, Filter, FilterMap, Flatten, Fold, Forward, ForEach, Fuse,
+        StreamFuture, Inspect, Map, Next, Peekable, Select, Skip, SkipWhile,
+        Take, TakeWhile, Then, Zip
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
-        CatchUnwind, Chunks, Collect,
-        BufferUnordered, Buffered,
-        FuturesUnordered, FuturesOrdered,
-        futures_unordered, futures_ordered,
-        // , select_all,
-        // ReuniteError, SelectAll, SplitSink,
-        // SplitStream,
+        futures_ordered, FuturesOrdered,
+        futures_unordered, FuturesUnordered,
+
+        // For StreamExt:
+        BufferUnordered, Buffered, CatchUnwind, Chunks, Collect, SplitStream,
+        SplitSink, ReuniteError,
+
+        // ToDo: select_all, SelectAll,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::try_stream::{
+        TryCollect,
+        // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 }
 

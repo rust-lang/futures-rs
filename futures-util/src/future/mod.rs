@@ -48,6 +48,9 @@ pub use self::then::Then;
 mod inspect;
 pub use self::inspect::Inspect;
 
+mod with_executor;
+pub use self::with_executor::WithExecutor;
+
 // Implementation details
 mod chain;
 crate use self::chain::Chain;
@@ -68,9 +71,6 @@ if_std! {
 
     mod shared;
     pub use self::shared::Shared;
-
-    mod with_executor;
-    pub use self::with_executor::WithExecutor;
 }
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
