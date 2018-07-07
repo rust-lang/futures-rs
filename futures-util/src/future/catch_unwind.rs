@@ -1,10 +1,9 @@
-use std::mem::PinMut;
-use std::prelude::v1::*;
+use futures_core::future::Future;
+use futures_core::task::{Poll, Context};
 use std::any::Any;
+use std::mem::PinMut;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
-
-use futures_core::{Future, Poll};
-use futures_core::task;
+use std::prelude::v1::*;
 
 /// Future for the `catch_unwind` combinator.
 ///
@@ -30,7 +29,7 @@ impl<F> Future for CatchUnwind<F>
 {
     type Output = Result<F::Output, Box<dyn Any + Send>>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         match catch_unwind(AssertUnwindSafe(|| self.future().poll(cx))) {
             Ok(res) => res.map(Ok),
             Err(e) => Poll::Ready(Err(e))

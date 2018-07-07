@@ -1,9 +1,9 @@
-use std::prelude::v1::*;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
 use std::marker::Unpin;
 use std::mem::{self, PinMut};
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use std::prelude::v1::*;
 
 /// A future which collects all of the values of a stream into a vector.
 ///
@@ -40,7 +40,7 @@ impl<S, C> Future for Collect<S, C>
 {
     type Output = C;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<C> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<C> {
         loop {
             match ready!(self.stream().poll_next(cx)) {
                 Some(e) => self.items().extend(Some(e)),

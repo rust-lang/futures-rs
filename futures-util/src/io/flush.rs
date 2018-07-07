@@ -1,8 +1,8 @@
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 use std::io;
 use std::marker::Unpin;
 use std::mem::PinMut;
-
-use crate::{Poll, Future, task};
 
 use futures_io::AsyncWrite;
 
@@ -32,7 +32,7 @@ impl<'a, A> Future for Flush<'a, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         self.a.poll_flush(cx)
     }
 }

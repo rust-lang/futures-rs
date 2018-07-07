@@ -2,9 +2,8 @@
 
 use core::mem::PinMut;
 use core::marker;
-
-use futures_core::{Future, Poll};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 /// A future which is never resolved.
 ///
@@ -26,7 +25,7 @@ pub fn empty<T>() -> Empty<T> {
 impl<T> Future for Empty<T> {
     type Output = T;
 
-    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<T> {
+    fn poll(self: PinMut<Self>, _: &mut Context) -> Poll<T> {
         Poll::Pending
     }
 }

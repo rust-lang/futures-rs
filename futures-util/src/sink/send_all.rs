@@ -1,5 +1,6 @@
-use futures_core::{Poll, Future, Stream};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 use futures_sink::{Sink};
 
 use crate::stream::{StreamExt, Fuse};
@@ -45,7 +46,7 @@ where
     T: Sink + Unpin + 'a + ?Sized,
     U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
 {
-    fn try_start_send(&mut self, cx: &mut task::Context, item: T::SinkItem)
+    fn try_start_send(&mut self, cx: &mut Context, item: T::SinkItem)
         -> Poll<Result<(), T::SinkError>>
     {
         debug_assert!(self.buffered.is_none());
@@ -69,7 +70,7 @@ where
 {
     type Output = Result<(), T::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else

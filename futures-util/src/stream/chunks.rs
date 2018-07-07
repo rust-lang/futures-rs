@@ -1,11 +1,9 @@
-use std::mem::{self, PinMut};
-use std::marker::Unpin;
-use std::prelude::v1::*;
-
-use futures_core::{Poll, Stream};
-use futures_core::task;
-
 use crate::stream::Fuse;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
+use std::marker::Unpin;
+use std::mem::{self, PinMut};
+use std::prelude::v1::*;
 
 /// An adaptor that chunks up elements in a vector.
 ///
@@ -84,7 +82,7 @@ impl<S> Stream for Chunks<S>
 {
     type Item = Vec<<S as Stream>::Item>;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {
             match ready!(self.stream().poll_next(cx)) {

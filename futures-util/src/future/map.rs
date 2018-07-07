@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
-use futures_core::{Future, Poll};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 /// Future for the `map` combinator, changing the type of a future.
 ///
@@ -31,7 +31,7 @@ impl<Fut, F, T> Future for Map<Fut, F>
 {
     type Output = T;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<T> {
         match self.future().poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(output) => {

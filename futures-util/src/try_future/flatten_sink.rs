@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
-
-use futures_core::{task, Poll, TryFuture};
+use futures_core::future::TryFuture;
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ where
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context)
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut Context)
         -> Poll<Result<(), Self::SinkError>>
     {
         let resolved_stream = match self.reborrow().project_pin() {
@@ -69,7 +69,7 @@ where
         }
     }
 
-    fn poll_flush(self: PinMut<Self>, cx: &mut task::Context)
+    fn poll_flush(self: PinMut<Self>, cx: &mut Context)
         -> Poll<Result<(), Self::SinkError>>
     {
         match self.project_pin() {
@@ -80,7 +80,7 @@ where
         }
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context)
+    fn poll_close(mut self: PinMut<Self>, cx: &mut Context)
         -> Poll<Result<(), Self::SinkError>>
     {
         let res = match self.reborrow().project_pin() {

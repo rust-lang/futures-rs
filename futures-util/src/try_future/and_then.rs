@@ -1,6 +1,6 @@
 use super::{TryChain, TryChainAction};
 use core::mem::PinMut;
-use futures_core::{Future, TryFuture};
+use futures_core::future::{Future, TryFuture};
 use futures_core::task::{Context, Poll};
 
 /// Future for the `and_then` combinator, chaining a computation onto the end of

@@ -3,7 +3,7 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-use futures_core::TryFuture;
+use futures_core::future::TryFuture;
 use futures_sink::Sink;
 
 /* TODO

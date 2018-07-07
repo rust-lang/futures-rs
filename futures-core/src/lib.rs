@@ -34,10 +34,10 @@ macro_rules! if_std {
 mod macros;
 
 pub mod future;
-pub use crate::future::{Future, CoreFutureExt, TryFuture};
+//pub use crate::future::{Future, CoreFutureExt, TryFuture};
 
 pub mod stream;
-pub use crate::stream::{Stream, TryStream};
+//pub use crate::stream::{Stream, TryStream};
 
 pub mod task;
-pub use crate::task::Poll;
+//pub use crate::task::Poll;

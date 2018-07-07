@@ -1,8 +1,7 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
-
-use futures_core::{Stream, Poll};
-use futures_core::task;
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 
 /// Do something with the items of a stream, passing it on.
 ///
@@ -72,7 +71,7 @@ impl<S, F> Stream for Inspect<S, F>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
         let item = ready!(self.stream().poll_next(cx));
         Poll::Ready(item.map(|e| {
             (self.inspect())(&e);

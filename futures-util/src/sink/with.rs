@@ -1,9 +1,8 @@
-use core::marker::Unpin;
+use core::marker::{Unpin, PhantomData};
 use core::mem::{self, PinMut};
-use core::marker::PhantomData;
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 use futures_sink::{Sink};
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
@@ -80,7 +79,7 @@ impl<S, U, Fut, F> Stream for With<S, U, Fut, F>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }
@@ -109,7 +108,7 @@ impl<S, U, Fut, F, E> With<S, U, Fut, F>
         self.sink
     }
 
-    fn poll(self: &mut PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), E>> {
+    fn poll(self: &mut PinMut<Self>, cx: &mut Context) -> Poll<Result<(), E>> {
         let buffered = match self.state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
             State::Process(mut fut) => Some(try_ready!(fut.poll(cx))),
@@ -135,7 +134,7 @@ impl<S, U, Fut, F, E> Sink for With<S, U, Fut, F>
     type SinkItem = U;
     type SinkError = E;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
         self.poll(cx)
     }
 
@@ -145,13 +144,13 @@ impl<S, U, Fut, F, E> Sink for With<S, U, Fut, F>
         Ok(())
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.poll(cx));
         try_ready!(self.sink().poll_flush(cx));
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.poll(cx));
         try_ready!(self.sink().poll_close(cx));
         Poll::Ready(Ok(()))

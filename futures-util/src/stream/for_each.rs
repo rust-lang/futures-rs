@@ -1,10 +1,8 @@
-use core::mem::PinMut;
 use core::marker::Unpin;
-
-
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use core::mem::PinMut;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Poll, Context};
 
 /// A stream combinator which executes a unit closure over each item on a
 /// stream.
@@ -45,7 +43,7 @@ impl<S, U, F> Future for ForEach<S, U, F>
 {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
         loop {
             if let Some(fut) = self.fut().as_pin_mut() {
                 ready!(fut.poll(cx));

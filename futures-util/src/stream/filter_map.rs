@@ -1,10 +1,8 @@
 use core::mem::PinMut;
 use core::marker::Unpin;
-
-
-
-use futures_core::{Future, Poll, Stream};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::stream::Stream;
+use futures_core::task::{Context, Poll};
 
 /// A combinator used to filter the results of a stream and simultaneously map
 /// them to a different type.
@@ -94,7 +92,7 @@ impl<S, R, F, B> Stream for FilterMap<S, R, F>
 {
     type Item = B;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<B>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<B>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
                 let item = match ready!(self.stream().poll_next(cx)) {

@@ -2,9 +2,8 @@
 
 use core::mem::{self, PinMut};
 use core::marker::Unpin;
-
-use futures_core::{Future, Poll};
-use futures_core::task;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 /// `MaybeDone`, a future that may have completed.
 ///
@@ -50,7 +49,7 @@ impl<F: Future> MaybeDone<F> {
 impl<A: Future> Future for MaybeDone<A> {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
         let res = unsafe {
             match PinMut::get_mut_unchecked(self.reborrow()) {
                 MaybeDone::Future(a) => {

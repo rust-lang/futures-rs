@@ -1,10 +1,9 @@
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
+use futures_io::AsyncWrite;
 use std::io;
 use std::marker::Unpin;
 use std::mem::{self, PinMut};
-
-use crate::{Poll, Future, task};
-
-use futures_io::AsyncWrite;
 
 /// A future used to write the entire contents of some data to a stream.
 ///
@@ -35,7 +34,7 @@ impl<'a, A> Future for WriteAll<'a, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<io::Result<()>> {
+    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
             let n = try_ready!(this.a.poll_write(cx, this.buf));
