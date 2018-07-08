@@ -1,7 +1,7 @@
-use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
 use core::marker::Unpin;
 use core::mem::PinMut;
+use futures_core::future::Future;
+use futures_core::task::{Context, Poll};
 
 /// A macro which returns the result of polling a future once within the
 /// current `async` context.

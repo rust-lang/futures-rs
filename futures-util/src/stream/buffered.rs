@@ -1,11 +1,11 @@
 use crate::stream::{Fuse, FuturesOrdered};
-use std::fmt;
-use std::marker::Unpin;
-use std::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
+use std::fmt;
+use std::marker::Unpin;
+use std::mem::PinMut;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible.

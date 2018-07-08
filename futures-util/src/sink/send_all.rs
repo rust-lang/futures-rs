@@ -1,12 +1,10 @@
+use crate::stream::{StreamExt, Fuse};
+use core::marker::Unpin;
+use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Poll, Context};
-use futures_sink::{Sink};
-
-use crate::stream::{StreamExt, Fuse};
-
-use core::marker::Unpin;
-use core::mem::PinMut;
+use futures_sink::Sink;
 
 /// Future for the `Sink::send_all` combinator, which sends a stream of values
 /// to a sink and then waits until the sink has fully flushed those values.

@@ -1,14 +1,12 @@
 //! Definition of the `JoinAll` combinator, waiting for all of a list of futures
 //! to finish.
 
-use std::prelude::v1::*;
-
-use std::fmt;
-use std::mem;
-use std::iter::FromIterator;
-
 use futures_core::{Future, IntoFuture, Poll, Async};
 use futures_core::task;
+use std::fmt;
+use std::iter::FromIterator;
+use std::mem;
+use std::prelude::v1::*;
 
 #[derive(Debug)]
 enum ElemState<F> where F: Future {

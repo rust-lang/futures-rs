@@ -3,7 +3,7 @@ use core::mem::{self, PinMut};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Poll, Context};
-use futures_sink::{Sink};
+use futures_sink::Sink;
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
 /// to pushing a value into the underlying sink.
