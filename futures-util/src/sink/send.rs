@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{Poll, Context};
-use futures_sink::{Sink};
+use futures_sink::Sink;
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
 /// then waits until the sink has fully flushed.

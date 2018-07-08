@@ -1,9 +1,8 @@
+use core::marker::Unpin;
+use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{Poll, Context};
 use futures_sink::Sink;
-
-use core::marker::Unpin;
-use core::mem::PinMut;
 
 /// Future for the `flush` combinator, which polls the sink until all data
 /// has been flushed.

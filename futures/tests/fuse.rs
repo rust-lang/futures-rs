@@ -3,8 +3,8 @@
 #[macro_use]
 extern crate futures;
 
-use futures::prelude::*;
 use futures::future;
+use futures::prelude::*;
 
 mod support;
 

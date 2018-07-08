@@ -1,5 +1,5 @@
-use core::mem::PinMut;
 use core::marker::Unpin;
+use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};

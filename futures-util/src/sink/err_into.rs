@@ -1,9 +1,8 @@
 use crate::sink::{SinkExt, SinkMapErr};
+use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{Poll, Context};
 use futures_sink::{Sink};
-
-use core::mem::PinMut;
 
 /// A sink combinator to change the error type of a sink.
 ///

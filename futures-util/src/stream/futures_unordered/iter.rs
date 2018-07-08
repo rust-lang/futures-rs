@@ -1,8 +1,7 @@
-use std::marker::{PhantomData, Unpin};
-use std::mem::PinMut;
-
 use super::FuturesUnordered;
 use super::node::Node;
+use std::marker::{PhantomData, Unpin};
+use std::mem::PinMut;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.

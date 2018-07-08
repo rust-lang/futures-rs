@@ -1,6 +1,6 @@
 use std::cell::UnsafeCell;
-use std::mem;
 use std::marker::PhantomData;
+use std::mem;
 use std::ptr::{self, NonNull};
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicPtr, AtomicBool};

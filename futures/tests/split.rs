@@ -3,11 +3,10 @@
 #[macro_use]
 extern crate futures;
 
-use std::mem::PinMut;
-
 use futures::executor::block_on;
 use futures::prelude::*;
 use futures::stream;
+use std::mem::PinMut;
 
 struct Join<T, U> {
     stream: T,

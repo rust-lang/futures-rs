@@ -1,7 +1,7 @@
 //! Definition of the Empty combinator, a future that's never ready.
 
-use core::mem::PinMut;
 use core::marker;
+use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 

@@ -3,13 +3,12 @@
 #[macro_use]
 extern crate futures;
 
-use std::boxed::Box;
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureObj};
 use futures::stream::{futures_unordered, FuturesUnordered};
 use futures::prelude::*;
+use std::boxed::Box;
 
 mod support;
 

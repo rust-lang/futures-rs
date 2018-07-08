@@ -1,9 +1,9 @@
 //! An unbounded set of futures.
 
-use std::cell::UnsafeCell;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll, AtomicWaker};
+use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::{PhantomData, Unpin};

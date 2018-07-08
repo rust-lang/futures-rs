@@ -1,8 +1,8 @@
 //! Definition of the Lazy combinator, deferring execution of a function until
 //! the future is polled.
 
-use core::mem::PinMut;
 use core::marker::Unpin;
+use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
