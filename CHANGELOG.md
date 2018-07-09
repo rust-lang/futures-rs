@@ -1,3 +1,8 @@
+**Note**: This CHANGELOG is no longer maintained for newer 0.1.x releases.
+See instead the github release tags and individual git commits.
+
+-----
+
 # 0.1.17 - 2017-10-31
 
 * Add a `close` method on `sink::Wait`
