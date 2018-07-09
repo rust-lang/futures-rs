@@ -22,6 +22,17 @@ pub mod core_reexport {
     pub use core::{mem, future, task};
 }
 
+#[doc(hidden)] pub use crate::future::Future;
+#[doc(hidden)] pub use crate::future::CoreFutureExt;
+#[doc(hidden)] pub use crate::future::TryFuture;
+
+#[doc(hidden)] pub use crate::stream::Stream;
+#[doc(hidden)] pub use crate::stream::TryStream;
+
+#[doc(hidden)] pub use crate::task::Poll;
+#[doc(hidden)] pub use crate::task::Context;
+#[cfg(feature = "std")] #[doc(hidden)] pub use crate::task::ContextExt;
+
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
