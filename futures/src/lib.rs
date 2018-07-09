@@ -49,8 +49,6 @@
 #[doc(hidden)] pub use futures_util::sink::SinkExt;
 
 #[doc(hidden)] pub use futures_core::task::Poll;
-#[doc(hidden)] pub use futures_core::task::Context;
-#[cfg(feature = "std")] #[doc(hidden)] pub use futures_core::task::ContextExt;
 
 #[macro_use]
 mod macros;
