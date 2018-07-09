@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// A future which "fuses" a future once it's been resolved.
 ///
@@ -28,7 +28,7 @@ impl<A: Future> Fuse<A> {
 impl<A: Future> Future for Fuse<A> {
     type Output = A::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<A::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
         // safety: we use this &mut only for matching, not for movement
         let v = match self.future().as_pin_mut() {
             Some(fut) => {

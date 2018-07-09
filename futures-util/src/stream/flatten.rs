@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.
@@ -71,7 +71,7 @@ impl<S> Stream for Flatten<S>
 {
     type Item = <S::Item as Stream>::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
             if self.next().as_pin_mut().is_none() {
                 match ready!(self.stream().poll_next(cx)) {

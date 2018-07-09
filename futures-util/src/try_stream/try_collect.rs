@@ -1,6 +1,6 @@
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use std::marker::Unpin;
 use std::mem::{self, PinMut};
 use std::prelude::v1::*;
@@ -40,7 +40,7 @@ impl<S, C> Future for TryCollect<S, C>
 {
     type Output = Result<C, S::TryError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         loop {
             match ready!(self.stream().try_poll_next(cx)) {
                 Some(Ok(x)) => self.items().extend(Some(x)),

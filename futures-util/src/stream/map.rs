@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// A stream combinator which will change the type of a stream from one
 /// type to another.
@@ -72,7 +72,7 @@ impl<S, F, U> Stream for Map<S, F>
 {
     type Item = U;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<U>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U>> {
         let option = ready!(self.stream().poll_next(cx));
         Poll::Ready(option.map(self.f()))
     }

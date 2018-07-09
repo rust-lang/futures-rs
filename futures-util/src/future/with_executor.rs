@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll, Executor};
+use futures_core::task::{self, Poll, Executor};
 
 /// Future for the `with_executor` combinator, assigning an executor
 /// to be used when spawning other futures.
@@ -29,7 +29,7 @@ impl<F, E> Future for WithExecutor<F, E>
 {
     type Output = F::Output;
 
-    fn poll(self: PinMut<Self>, cx: &mut Context) -> Poll<F::Output> {
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
         let this = unsafe { PinMut::get_mut_unchecked(self) };
         let fut = unsafe { PinMut::new_unchecked(&mut this.future) };
         let exec = &mut this.executor;

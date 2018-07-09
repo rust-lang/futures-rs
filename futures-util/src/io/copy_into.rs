@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use futures_io::{AsyncRead, AsyncWrite};
 use std::boxed::Box;
 use std::io;
@@ -46,7 +46,7 @@ impl<'a, R, W> Future for CopyInto<'a, R, W>
 {
     type Output = io::Result<u64>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         loop {
             // If our buffer is empty, then we need to read some data to

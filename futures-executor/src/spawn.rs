@@ -1,5 +1,5 @@
 use futures_core::future::{Future, CoreFutureExt};
-use futures_core::task::{Context, Poll, ContextExt};
+use futures_core::task::{self, Poll, ContextExt};
 use futures_channel::oneshot::{channel, Sender, Receiver};
 use futures_util::FutureExt;
 
@@ -39,7 +39,7 @@ pub fn spawn<F>(future: F) -> Spawn<F>
 impl<F: Future<Output = ()> + Send + 'static> Future for Spawn<F> {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
         cx.spawn(self.future().take().unwrap());
         Poll::Ready(())
     }
@@ -93,7 +93,7 @@ impl<F> Future for SpawnWithHandle<F>
 {
     type Output = JoinHandle<F::Output>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let (tx, rx) = channel();
         let keep_running_flag = Arc::new(AtomicBool::new(false));
         // AssertUnwindSafe is used here because `Send + 'static` is basically
@@ -152,7 +152,7 @@ impl<T> JoinHandle<T> {
 impl<T: Send + 'static> Future for JoinHandle<T> {
     type Output = T;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<T> { // ToDo: This was weird! Double check!
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> { // ToDo: This was weird! Double check!
         match self.inner.poll_unpin(cx) {
             Poll::Ready(Ok(Ok(output))) => Poll::Ready(output),
             Poll::Ready(Ok(Err(e))) => panic::resume_unwind(e),
@@ -165,7 +165,7 @@ impl<T: Send + 'static> Future for JoinHandle<T> {
 impl<F: Future> Future for MySender<F, F::Output> {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<()> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
         if let Poll::Ready(_) = self.tx().as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running_flag().load(Ordering::SeqCst) {
                 // Cancelled, bail out

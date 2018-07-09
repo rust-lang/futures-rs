@@ -2,7 +2,7 @@
 
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll, AtomicWaker};
+use futures_core::task::{self, Poll, AtomicWaker};
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
@@ -246,7 +246,7 @@ impl<T> FuturesUnordered<T> {
 impl<T: Future> Stream for FuturesUnordered<T> {
     type Item = T::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context)
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context)
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.

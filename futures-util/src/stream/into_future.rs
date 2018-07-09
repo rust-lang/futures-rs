@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A combinator used to temporarily convert a stream into a future.
 ///
@@ -60,7 +60,7 @@ impl<S> StreamFuture<S> {
 impl<S: Stream + Unpin> Future for StreamFuture<S> {
     type Output = (Option<S::Item>, S);
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
             ready!(PinMut::new(s).poll_next(cx))

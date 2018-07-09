@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
@@ -26,7 +26,7 @@ pub fn new<'a, S: Sink + Unpin + ?Sized>(sink: &'a mut S, item: S::SinkItem) -> 
 impl<'a, S: Sink + Unpin + ?Sized> Future for Send<'a, S> {
     type Output = Result<(), S::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {
             let mut sink = PinMut::new(this.sink);

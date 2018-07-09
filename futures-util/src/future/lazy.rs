@@ -4,7 +4,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// A future which, when polled, invokes a closure and yields its result.
 ///
@@ -39,17 +39,17 @@ impl<F> Unpin for Lazy<F> {}
 /// # }
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F>
-    where F: FnOnce(&mut Context) -> R,
+    where F: FnOnce(&mut task::Context) -> R,
 {
     Lazy { f: Some(f) }
 }
 
 impl<R, F> Future for Lazy<F>
-    where F: FnOnce(&mut Context) -> R,
+    where F: FnOnce(&mut task::Context) -> R,
 {
     type Output = R;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<R> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<R> {
         Poll::Ready((self.f.take().unwrap())(cx))
     }
 }

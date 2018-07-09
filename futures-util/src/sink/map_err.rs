@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 use futures_sink::{Sink};
 
 /// Sink for the `Sink::sink_map_err` combinator.
@@ -57,7 +57,7 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
     type SinkItem = S::SinkItem;
     type SinkError = E;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_ready(cx).map_err(|e| self.expect_f()(e))
     }
 
@@ -65,11 +65,11 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
         self.sink().start_send(item).map_err(|e| self.expect_f()(e))
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_flush(cx).map_err(|e| self.expect_f()(e))
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_close(cx).map_err(|e| self.expect_f()(e))
     }
 }
@@ -77,7 +77,7 @@ impl<S, F, E> Sink for SinkMapErr<S, F>
 impl<S: Stream, F> Stream for SinkMapErr<S, F> {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }

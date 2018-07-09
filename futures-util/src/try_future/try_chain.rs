@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::future::TryFuture;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
 
     crate fn poll<F>(
         self: PinMut<Self>,
-        cx: &mut Context,
+        cx: &mut task::Context,
         op: F,
     ) -> Poll<Result<Fut2::Item, Fut2::Error>>
         where F: FnOnce(Result<Fut1::Item, Fut1::Error>, Data) -> TryChainAction<Fut2>,

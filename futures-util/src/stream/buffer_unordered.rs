@@ -1,7 +1,7 @@
 use crate::stream::{Fuse, FuturesUnordered};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 use std::fmt;
 use std::marker::Unpin;
@@ -104,7 +104,7 @@ where
 {
     type Item = <S::Item as Future>::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.in_progress_queue.len() < self.max {

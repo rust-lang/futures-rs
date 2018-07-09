@@ -4,7 +4,7 @@ use core::mem::PinMut;
 use core::default::Default;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// A stream combinator to concatenate the results of a stream into the first
 /// yielded item.
@@ -52,7 +52,7 @@ impl<S> Future for Concat<S>
     type Output = S::Item;
 
     fn poll(
-        mut self: PinMut<Self>, cx: &mut Context
+        mut self: PinMut<Self>, cx: &mut task::Context
     ) -> Poll<Self::Output> {
         loop {
             match self.stream().poll_next(cx) {

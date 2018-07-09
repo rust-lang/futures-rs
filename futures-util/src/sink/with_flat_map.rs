@@ -1,7 +1,7 @@
 use core::marker::{Unpin, PhantomData};
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 
 /// Sink for the `Sink::with_flat_map` combinator, chaining a computation that returns an iterator
@@ -76,7 +76,7 @@ where
         self.sink
     }
 
-    fn try_empty_stream(self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), S::SinkError>> {
+    fn try_empty_stream(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
         let WithFlatMap { sink, stream, buffer, .. } =
             unsafe { PinMut::get_mut_unchecked(self) };
         let mut sink = unsafe { PinMut::new_unchecked(sink) };
@@ -110,7 +110,7 @@ where
     St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
 {
     type Item = S::Item;
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }
@@ -124,7 +124,7 @@ where
     type SinkItem = U;
     type SinkError = S::SinkError;
 
-    fn poll_ready(self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         self.try_empty_stream(cx)
     }
 
@@ -135,7 +135,7 @@ where
         Ok(())
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         match self.reborrow().try_empty_stream(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => self.sink().poll_flush(cx),
@@ -143,7 +143,7 @@ where
         }
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         match self.reborrow().try_empty_stream(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => self.sink().poll_close(cx),

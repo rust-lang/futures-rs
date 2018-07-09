@@ -1,7 +1,7 @@
 use crate::stream::FuturesUnordered;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 use std::collections::binary_heap::{BinaryHeap, PeekMut};
 use std::fmt::{self, Debug};
@@ -46,7 +46,7 @@ impl<T> Future for OrderWrapper<T>
 {
     type Output = OrderWrapper<T::Output>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.item().poll(cx)
             .map(|item| OrderWrapper { item, index: self.index })
     }
@@ -168,7 +168,7 @@ impl<T: Future> Default for FuturesOrdered<T> {
 impl<T: Future> Stream for FuturesOrdered<T> {
     type Item = T::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
 
         // Check to see if we've already received the next value

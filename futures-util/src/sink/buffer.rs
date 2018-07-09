@@ -1,5 +1,5 @@
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 use std::collections::VecDeque;
 use std::marker::Unpin;
@@ -37,7 +37,7 @@ impl<S: Sink> Buffer<S> {
         &self.sink
     }
 
-    fn try_empty_buffer(self: &mut PinMut<Self>, cx: &mut Context) -> Poll<Result<(), S::SinkError>> {
+    fn try_empty_buffer(self: &mut PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
         try_ready!(self.sink().poll_ready(cx));
         while let Some(item) = self.buf().pop_front() {
             if let Err(e) = self.sink().start_send(item) {
@@ -55,7 +55,7 @@ impl<S: Sink> Buffer<S> {
 impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }
@@ -64,7 +64,7 @@ impl<S: Sink> Sink for Buffer<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         if *self.cap() == 0 {
             return self.sink().poll_ready(cx);
         }
@@ -89,13 +89,13 @@ impl<S: Sink> Sink for Buffer<S> {
         }
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf().is_empty());
         self.sink().poll_flush(cx)
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf().is_empty());
         self.sink().poll_close(cx)

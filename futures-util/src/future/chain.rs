@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
 
     crate fn poll<F>(
         self: PinMut<Self>,
-        cx: &mut Context,
+        cx: &mut task::Context,
         async_op: F,
     ) -> Poll<Fut2::Output>
         where F: FnOnce(Fut1::Output, Data) -> Fut2,

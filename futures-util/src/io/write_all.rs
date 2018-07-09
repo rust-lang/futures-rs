@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::marker::Unpin;
@@ -34,7 +34,7 @@ impl<'a, A> Future for WriteAll<'a, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<io::Result<()>> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
             let n = try_ready!(this.a.poll_write(cx, this.buf));

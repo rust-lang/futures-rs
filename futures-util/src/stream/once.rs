@@ -1,7 +1,7 @@
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A stream which emits single element and then EOF.
 ///
@@ -36,7 +36,7 @@ impl<F> Once<F> {
 impl<F: Future> Stream for Once<F> {
     type Item = F::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<F::Output>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<F::Output>> {
         let val = if let Some(f) = self.fut().as_pin_mut() {
             ready!(f.poll(cx))
         } else {

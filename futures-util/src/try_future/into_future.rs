@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// Converts a `TryFuture` into a normal `Future`
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl<Fut: TryFuture> Future for IntoFuture<Fut> {
     type Output = Result<Fut::Item, Fut::Error>;
 
     #[inline]
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.future().try_poll(cx)
     }
 }
