@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use futures_io::AsyncRead;
 use std::io;
 use std::marker::Unpin;
@@ -44,7 +44,7 @@ impl<'a> Drop for Guard<'a> {
 //
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
-fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut Context, buf: &mut Vec<u8>)
+fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context, buf: &mut Vec<u8>)
     -> Poll<io::Result<()>>
 {
     let mut g = Guard { len: buf.len(), buf };
@@ -81,7 +81,7 @@ impl<'a, A> Future for ReadToEnd<'a, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         read_to_end_internal(this.a, cx, this.buf)
     }

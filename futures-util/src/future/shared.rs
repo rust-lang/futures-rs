@@ -19,7 +19,7 @@
 //! ```
 
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll, Wake, Waker};
+use futures_core::task::{self, Poll, Wake, Waker};
 use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
@@ -121,7 +121,7 @@ impl<F> Shared<F> where F: Future {
     }
 
     /// Registers the current task to receive a wakeup when `Inner` is awoken.
-    fn set_waker(&mut self, cx: &mut Context) {
+    fn set_waker(&mut self, cx: &mut task::Context) {
         // Acquire the lock first before checking COMPLETE to ensure there
         // isn't a race.
         let mut wakers = self.inner.notifier.wakers.lock().unwrap();
@@ -163,7 +163,7 @@ impl<F> Shared<F> where F: Future {
 impl<F: Future> Future for Shared<F> {
     type Output = Arc<F::Output>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
 
         this.set_waker(cx);

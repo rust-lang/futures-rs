@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A stream combinator which skips a number of elements before continuing.
 ///
@@ -66,7 +66,7 @@ impl<S> Stream for Skip<S>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         while *self.remaining() > 0 {
             match ready!(self.stream().poll_next(cx)) {
                 Some(_) => *self.remaining() -= 1,

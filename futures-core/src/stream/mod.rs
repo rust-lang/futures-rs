@@ -1,6 +1,6 @@
 //! Asynchronous streams.
 
-use crate::task::{Context, Poll};
+use crate::task::{self, Poll};
 use core::marker::Unpin;
 use core::mem::PinMut;
 
@@ -47,11 +47,11 @@ pub trait Stream {
     /// calls.
     fn poll_next(
         self: PinMut<Self>,
-        cx: &mut Context,
+        cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>>;
 
     /// A convenience for calling `Stream::poll_next` on `Unpin` stream types.
-    fn poll_next_unpin(&mut self, cx: &mut Context) -> Poll<Option<Self::Item>>
+    fn poll_next_unpin(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
         where Self: Unpin + Sized
     {
         PinMut::new(self).poll_next(cx)
@@ -63,7 +63,7 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
 
     fn poll_next(
         mut self: PinMut<Self>,
-        cx: &mut Context,
+        cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         S::poll_next(PinMut::new(&mut **self), cx)
     }
@@ -74,7 +74,7 @@ impl<'a, S: ?Sized + Stream> Stream for PinMut<'a, S> {
 
     fn poll_next(
         mut self: PinMut<Self>,
-        cx: &mut Context,
+        cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         S::poll_next((*self).reborrow(), cx)
     }
@@ -94,7 +94,7 @@ pub trait TryStream {
     /// This method is a stopgap for a compiler limitation that prevents us from
     /// directly inheriting from the `Stream` trait; in the future it won't be
     /// needed.
-    fn try_poll_next(self: PinMut<Self>, cx: &mut Context)
+    fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
         -> Poll<Option<Result<Self::TryItem, Self::TryError>>>;
 }
 
@@ -104,7 +104,7 @@ impl<S, T, E> TryStream for S
     type TryItem = T;
     type TryError = E;
 
-    fn try_poll_next(self: PinMut<Self>, cx: &mut Context)
+    fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
         -> Poll<Option<Result<Self::TryItem, Self::TryError>>>
     {
         self.poll_next(cx)
@@ -119,7 +119,7 @@ if_std! {
 
         fn poll_next(
             mut self: PinMut<Self>,
-            cx: &mut Context,
+            cx: &mut task::Context,
         ) -> Poll<Option<Self::Item>> {
             PinMut::new(&mut **self).poll_next(cx)
         }
@@ -130,7 +130,7 @@ if_std! {
 
         fn poll_next(
             mut self: PinMut<Self>,
-            cx: &mut Context,
+            cx: &mut task::Context,
         ) -> Poll<Option<Self::Item>> {
             self.as_pin_mut().poll_next(cx)
         }
@@ -141,7 +141,7 @@ if_std! {
 
         fn poll_next(
             self: PinMut<Self>,
-            cx: &mut Context,
+            cx: &mut task::Context,
         ) -> Poll<Option<S::Item>> {
             unsafe { PinMut::map_unchecked(self, |x| &mut x.0) }.poll_next(cx)
         }
@@ -152,7 +152,7 @@ if_std! {
 
         fn poll_next(
             mut self: PinMut<Self>,
-            _cx: &mut Context,
+            _cx: &mut task::Context,
         ) -> Poll<Option<Self::Item>> {
             Poll::Ready(self.pop_front())
         }

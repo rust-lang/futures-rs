@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// An adapter for merging the output of two streams.
 ///
@@ -37,7 +37,7 @@ impl<S1, S2> Select<S1, S2> {
     }
 }
 
-fn poll_inner<S1, S2>(flag: &mut bool, a: PinMut<S1>, b: PinMut<S2>, cx: &mut Context)
+fn poll_inner<S1, S2>(flag: &mut bool, a: PinMut<S1>, b: PinMut<S2>, cx: &mut task::Context)
     -> Poll<Option<S1::Item>>
 where S1: Stream, S2: Stream<Item = S1::Item>
 {
@@ -67,7 +67,7 @@ impl<S1, S2> Stream for Select<S1, S2>
 {
     type Item = S1::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S1::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S1::Item>> {
         let flipped = *self.flag();
         let (flag, s1, s2) = self.project();
 

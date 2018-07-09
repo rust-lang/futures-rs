@@ -1,6 +1,6 @@
 use crate::io::AsyncRead;
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 use std::io;
 use std::marker::Unpin;
 use std::mem::{self, PinMut};
@@ -34,7 +34,7 @@ impl<'a, A> Future for ReadExact<'a, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         while !this.buf.is_empty() {
             let n = try_ready!(this.a.poll_read(cx, this.buf));

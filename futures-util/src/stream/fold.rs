@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A future used to collect all the results of a stream into one generic type.
 ///
@@ -45,7 +45,7 @@ impl<S, Fut, T, F> Future for Fold<S, Fut, T, F>
 {
     type Output = T;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<T> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
         loop {
             // we're currently processing a future to produce a new accum value
             if self.accum().is_none() {

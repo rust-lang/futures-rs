@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A stream combinator which skips elements of a stream while a predicate
 /// holds.
@@ -84,7 +84,7 @@ impl<S, R, P> Stream for SkipWhile<S, R, P>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         if *self.done_skipping() {
             return self.stream().poll_next(cx);
         }

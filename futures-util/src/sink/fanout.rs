@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::mem::PinMut;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 
 /// Sink that clones incoming items and forwards them to two sinks at the same time.
@@ -49,7 +49,7 @@ impl<A, B> Sink for Fanout<A, B>
     type SinkItem = A::SinkItem;
     type SinkError = A::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         let left_ready = try_poll!(self.left().poll_ready(cx)).is_ready();
         let right_ready = try_poll!(self.right().poll_ready(cx)).is_ready();
         let ready = left_ready && right_ready;
@@ -62,14 +62,14 @@ impl<A, B> Sink for Fanout<A, B>
         Ok(())
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         let left_ready = try_poll!(self.left().poll_flush(cx)).is_ready();
         let right_ready = try_poll!(self.right().poll_flush(cx)).is_ready();
         let ready = left_ready && right_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
         let left_ready = try_poll!(self.left().poll_close(cx)).is_ready();
         let right_ready = try_poll!(self.right().poll_close(cx)).is_ready();
         let ready = left_ready && right_ready;

@@ -1,6 +1,6 @@
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A stream combinator which returns a maximum number of elements.
 ///
@@ -66,7 +66,7 @@ impl<S> Stream for Take<S>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         if *self.remaining() == 0 {
             Poll::Ready(None)
         } else {

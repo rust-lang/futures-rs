@@ -3,7 +3,7 @@
 use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
-use futures_core::task::{Poll, Context};
+use futures_core::task::{self, Poll};
 
 /// A stream which adapts a function returning `Poll`.
 ///
@@ -38,18 +38,18 @@ impl<F> Unpin for PollFn<F> {}
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&mut Context) -> Poll<Option<T>>,
+    F: FnMut(&mut task::Context) -> Poll<Option<T>>,
 {
     PollFn { inner: f }
 }
 
 impl<T, F> Stream for PollFn<F>
 where
-    F: FnMut(&mut Context) -> Poll<Option<T>>,
+    F: FnMut(&mut task::Context) -> Poll<Option<T>>,
 {
     type Item = T;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<T>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
         (&mut self.inner)(cx)
     }
 }

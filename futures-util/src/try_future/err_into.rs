@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// Future for the `err_into` combinator, changing the error type of a future.
 ///
@@ -30,7 +30,7 @@ impl<A, E> Future for ErrInto<A, E>
 {
     type Output = Result<A::Item, E>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(e) => {

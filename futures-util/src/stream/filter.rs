@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// A stream combinator used to filter the results of a stream and only yield
 /// some values.
@@ -96,7 +96,7 @@ impl<S, R, P> Stream for Filter<S, R, P>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         loop {
             if self.pending_fut().as_pin_mut().is_none() {
                 let item = match ready!(self.stream().poll_next(cx)) {

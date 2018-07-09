@@ -1,6 +1,6 @@
 //! Futures.
 
-use crate::task::{Context, Poll};
+use crate::task::{self, Poll};
 use core::marker::Unpin;
 use core::mem::PinMut;
 pub use core::future::{Future, FutureObj, LocalFutureObj, UnsafeFutureObj};
@@ -14,7 +14,7 @@ mod either;
 /// Will probably merge with futures_util::FutureExt
 pub trait CoreFutureExt: Future {
     /// A convenience for calling `Future::poll` on `Unpin` future types.
-    fn poll_unpin(&mut self, cx: &mut Context) -> Poll<Self::Output>
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
         where Self: Unpin + Sized
     {
         PinMut::new(self).poll(cx)
@@ -39,7 +39,7 @@ pub trait TryFuture {
     /// needed.
     fn try_poll(
         self: PinMut<Self>,
-        cx: &mut Context,
+        cx: &mut task::Context,
     ) -> Poll<Result<Self::Item, Self::Error>>;
 }
 
@@ -50,7 +50,7 @@ impl<F, T, E> TryFuture for F
     type Error = E;
 
     #[inline]
-    fn try_poll(self: PinMut<Self>, cx: &mut Context) -> Poll<F::Output> {
+    fn try_poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
         self.poll(cx)
     }
 }
@@ -66,7 +66,7 @@ impl<T> Future for ReadyFuture<T> {
     type Output = T;
 
     #[inline]
-    fn poll(mut self: PinMut<Self>, _cx: &mut Context) -> Poll<T> {
+    fn poll(mut self: PinMut<Self>, _cx: &mut task::Context) -> Poll<T> {
         Poll::Ready(self.0.take().unwrap())
     }
 }

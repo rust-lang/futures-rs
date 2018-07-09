@@ -1,7 +1,7 @@
 use super::{TryChain, TryChainAction};
 use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
-use futures_core::task::{Context, Poll};
+use futures_core::task::{self, Poll};
 
 /// Future for the `and_then` combinator, chaining a computation onto the end of
 /// another future which completes successfully.
@@ -34,7 +34,7 @@ impl<Fut1, Fut2, F> Future for AndThen<Fut1, Fut2, F>
 {
     type Output = Result<Fut2::Item, Fut2::Error>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.try_chain().poll(cx, |result, async_op| {
             match result {
                 Ok(item) => TryChainAction::Future(async_op(item)),

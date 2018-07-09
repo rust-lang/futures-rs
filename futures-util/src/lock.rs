@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 use futures_core::future::Future;
-use futures_core::task::{Context, Poll, Waker};
+use futures_core::task::{self, Poll, Waker};
 use std::any::Any;
 use std::boxed::Box;
 use std::cell::UnsafeCell;
@@ -86,7 +86,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, cx: &mut Context) -> Poll<BiLockGuard<T>> {
+    pub fn poll_lock(&self, cx: &mut task::Context) -> Poll<BiLockGuard<T>> {
         loop {
             match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -268,7 +268,7 @@ impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
 impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;
 
-    fn poll(self: PinMut<Self>, cx: &mut Context) -> Poll<Self::Output> {
+    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.bilock.poll_lock(cx)
     }
 }
