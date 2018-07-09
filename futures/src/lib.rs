@@ -34,6 +34,23 @@
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
 #[doc(hidden)] pub use futures_core::core_reexport;
+#[doc(hidden)] pub use futures_core::future::Future;
+#[doc(hidden)] pub use futures_core::future::CoreFutureExt;
+#[doc(hidden)] pub use futures_core::future::TryFuture;
+#[doc(hidden)] pub use futures_util::future::FutureExt;
+#[doc(hidden)] pub use futures_util::try_future::TryFutureExt;
+
+#[doc(hidden)] pub use futures_core::stream::Stream;
+#[doc(hidden)] pub use futures_core::stream::TryStream;
+#[doc(hidden)] pub use futures_util::stream::StreamExt;
+#[doc(hidden)] pub use futures_util::try_stream::TryStreamExt;
+
+#[doc(hidden)] pub use futures_sink::Sink;
+#[doc(hidden)] pub use futures_util::sink::SinkExt;
+
+#[doc(hidden)] pub use futures_core::task::Poll;
+#[doc(hidden)] pub use futures_core::task::Context;
+#[cfg(feature = "std")] #[doc(hidden)] pub use futures_core::task::ContextExt;
 
 #[macro_use]
 mod macros;
