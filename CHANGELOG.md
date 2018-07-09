@@ -1,10 +1,16 @@
-# 0.2.1 - 2018-4-19
+**Note**: This CHANGELOG is no longer maintained for newer 0.1.x and
+other releases.  See instead the github release tags and individual
+git commits.
+
+-----
+
+# 0.2.1 - 2018-4-19 (*yanked*)
 
 * Add the `futures-stable` crate for working with immovable futures.
 * Add async/await support behind the `nightly` feature gate.
 * Add `Stream::for_each_concurrent`.
 
-# 0.2.0 - 2018-4-6
+# 0.2.0 - 2018-4-6 (*yanked*)
 
 * Separate out the futures crate into a number of separate crates which
   are reexported by a single facade.
