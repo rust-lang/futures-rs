@@ -8,6 +8,9 @@ pub use self::delayed::{delayed, Delayed};
 mod run_in_background;
 pub use self::run_in_background::RunInBackgroundExt;
 
+mod counter_waker_context;
+pub use self::counter_waker_context::with_counter_waker_context;
+
 mod noop_waker_context;
 pub use self::noop_waker_context::with_noop_waker_context;
 

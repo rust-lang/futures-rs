@@ -175,6 +175,7 @@ pub mod future {
 
     #[cfg(feature = "std")]
     pub use futures_util::future::{
+        abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
         // For FutureExt:
         CatchUnwind, Shared
 
