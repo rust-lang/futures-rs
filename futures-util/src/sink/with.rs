@@ -9,29 +9,43 @@ use futures_sink::Sink;
 /// to pushing a value into the underlying sink.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct With<S, U, Fut, F>
-    where S: Sink,
+pub struct With<Si, U, Fut, F>
+    where Si: Sink,
           F: FnMut(U) -> Fut,
           Fut: Future,
 {
-    sink: S,
+    sink: Si,
     f: F,
-    state: State<Fut, S::SinkItem>,
+    state: State<Fut, Si::SinkItem>,
     _phantom: PhantomData<fn(U)>,
 }
 
-impl<S, U, Fut, F> With<S, U, Fut, F>
-where S: Sink,
+impl<Si, U, Fut, F> With<Si, U, Fut, F>
+where Si: Sink,
       F: FnMut(U) -> Fut,
       Fut: Future,
 {
-    unsafe_pinned!(sink -> S);
+    unsafe_pinned!(sink -> Si);
     unsafe_unpinned!(f -> F);
-    unsafe_pinned!(state -> State<Fut, S::SinkItem>);
+    unsafe_pinned!(state -> State<Fut, Si::SinkItem>);
+
+    pub(super) fn new<E>(sink: Si, f: F) -> With<Si, U, Fut, F>
+        where Si: Sink,
+            F: FnMut(U) -> Fut,
+            Fut: Future<Output = Result<Si::SinkItem, E>>,
+            E: From<Si::SinkError>,
+    {
+        With {
+            state: State::Empty,
+            sink,
+            f,
+            _phantom: PhantomData,
+        }
+    }
 }
 
-impl<S, U, Fut, F> Unpin for With<S, U, Fut, F>
-where S: Sink + Unpin,
+impl<Si, U, Fut, F> Unpin for With<Si, U, Fut, F>
+where Si: Sink + Unpin,
       F: FnMut(U) -> Fut,
       Fut: Future + Unpin,
 {}
@@ -49,25 +63,14 @@ impl<Fut, T> State<Fut, T> {
     ) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
         unsafe {
             match PinMut::get_mut_unchecked(self) {
-                State::Empty => State::Empty,
-                State::Process(fut) => State::Process(PinMut::new_unchecked(fut)),
-                State::Buffered(x) => State::Buffered(PinMut::new_unchecked(x)),
+                State::Empty =>
+                    State::Empty,
+                State::Process(fut) =>
+                    State::Process(PinMut::new_unchecked(fut)),
+                State::Buffered(item) =>
+                    State::Buffered(PinMut::new_unchecked(item)),
             }
         }
-    }
-}
-
-pub fn new<S, U, Fut, F, E>(sink: S, f: F) -> With<S, U, Fut, F>
-    where S: Sink,
-          F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<S::SinkItem, E>>,
-          E: From<S::SinkError>,
-{
-    With {
-        state: State::Empty,
-        sink,
-        f,
-        _phantom: PhantomData,
     }
 }
 
@@ -79,24 +82,27 @@ impl<S, U, Fut, F> Stream for With<S, U, Fut, F>
 {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }
 
-impl<S, U, Fut, F, E> With<S, U, Fut, F>
-    where S: Sink,
+impl<Si, U, Fut, F, E> With<Si, U, Fut, F>
+    where Si: Sink,
           F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<S::SinkItem, E>>,
-          E: From<S::SinkError>,
+          Fut: Future<Output = Result<Si::SinkItem, E>>,
+          E: From<Si::SinkError>,
 {
     /// Get a shared reference to the inner sink.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &Si {
         &self.sink
     }
 
     /// Get a mutable reference to the inner sink.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut Si {
         &mut self.sink
     }
 
@@ -104,11 +110,14 @@ impl<S, U, Fut, F, E> With<S, U, Fut, F>
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> Si {
         self.sink
     }
 
-    fn poll(self: &mut PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), E>> {
+    fn poll(
+        self: &mut PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), E>> {
         let buffered = match self.state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
             State::Process(mut fut) => Some(try_ready!(fut.poll(cx))),
@@ -125,32 +134,44 @@ impl<S, U, Fut, F, E> With<S, U, Fut, F>
     }
 }
 
-impl<S, U, Fut, F, E> Sink for With<S, U, Fut, F>
-    where S: Sink,
+impl<Si, U, Fut, F, E> Sink for With<Si, U, Fut, F>
+    where Si: Sink,
           F: FnMut(U) -> Fut,
-          Fut: Future<Output = Result<S::SinkItem, E>>,
-          E: From<S::SinkError>,
+          Fut: Future<Output = Result<Si::SinkItem, E>>,
+          E: From<Si::SinkError>,
 {
     type SinkItem = U;
     type SinkError = E;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         self.poll(cx)
     }
 
-    fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+    fn start_send(
+        mut self: PinMut<Self>,
+        item: Self::SinkItem,
+    ) -> Result<(), Self::SinkError> {
         let item = (self.f())(item);
         PinMut::set(self.state(), State::Process(item));
         Ok(())
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.poll(cx));
         try_ready!(self.sink().poll_flush(cx));
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.poll(cx));
         try_ready!(self.sink().poll_close(cx));
         Poll::Ready(Ok(()))

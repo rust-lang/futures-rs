@@ -52,7 +52,8 @@ impl<S: Sink> Wait<S> {
     ///
     /// This function will call the underlying sink's `close` method
     /// until it returns that it's closed. If the method returns
-    /// `Pending` the current thread will be blocked until it's otherwise closed.
+    /// `Pending` the current thread will be blocked until it's otherwise
+    /// closed.
     pub fn close(&mut self) -> Result<(), S::SinkError> {
         self.sink.wait_close()
     }

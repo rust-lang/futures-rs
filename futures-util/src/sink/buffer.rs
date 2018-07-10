@@ -14,30 +14,34 @@ pub struct Buffer<S: Sink> {
     buf: VecDeque<S::SinkItem>,
 
     // Track capacity separately from the `VecDeque`, which may be rounded up
-    cap: usize,
-}
-
-pub fn new<S: Sink>(sink: S, amt: usize) -> Buffer<S> {
-    Buffer {
-        sink,
-        buf: VecDeque::with_capacity(amt),
-        cap: amt,
-    }
+    capacity: usize,
 }
 
 impl<S: Sink + Unpin> Unpin for Buffer<S> {}
 
-impl<S: Sink> Buffer<S> {
-    unsafe_pinned!(sink -> S);
-    unsafe_unpinned!(buf -> VecDeque<S::SinkItem>);
-    unsafe_unpinned!(cap -> usize);
+impl<Si: Sink> Buffer<Si> {
+    unsafe_pinned!(sink -> Si);
+    unsafe_unpinned!(buf -> VecDeque<Si::SinkItem>);
+    unsafe_unpinned!(capacity -> usize);
+
+
+    pub(super) fn new(sink: Si, capacity: usize) -> Buffer<Si> {
+        Buffer {
+            sink,
+            buf: VecDeque::with_capacity(capacity),
+            capacity,
+        }
+    }
 
     /// Get a shared reference to the inner sink.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &Si {
         &self.sink
     }
 
-    fn try_empty_buffer(self: &mut PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn try_empty_buffer(
+        self: &mut PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Result<(), Si::SinkError>> {
         try_ready!(self.sink().poll_ready(cx));
         while let Some(item) = self.buf().pop_front() {
             if let Err(e) = self.sink().start_send(item) {
@@ -64,8 +68,11 @@ impl<S: Sink> Sink for Buffer<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
-        if *self.cap() == 0 {
+    fn poll_ready(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
+        if *self.capacity() == 0 {
             return self.sink().poll_ready(cx);
         }
 
@@ -73,15 +80,18 @@ impl<S: Sink> Sink for Buffer<S> {
             return Poll::Ready(Err(e));
         }
 
-        if self.buf().len() >= *self.cap() {
+        if self.buf().len() >= *self.capacity() {
             Poll::Pending
         } else {
             Poll::Ready(Ok(()))
         }
     }
 
-    fn start_send(mut self: PinMut<Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
-        if *self.cap() == 0 {
+    fn start_send(
+        mut self: PinMut<Self>,
+        item: Self::SinkItem,
+    ) -> Result<(), Self::SinkError> {
+        if *self.capacity() == 0 {
             self.sink().start_send(item)
         } else {
             self.buf().push_back(item);
@@ -89,13 +99,19 @@ impl<S: Sink> Sink for Buffer<S> {
         }
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf().is_empty());
         self.sink().poll_flush(cx)
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf().is_empty());
         self.sink().poll_close(cx)

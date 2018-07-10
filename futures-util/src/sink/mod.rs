@@ -10,29 +10,36 @@ use futures_core::stream::Stream;
 use futures_sink::Sink;
 
 mod close;
+pub use self::close::Close;
+
 mod fanout;
+pub use self::fanout::Fanout;
+
 mod flush;
+pub use self::flush::Flush;
+
 mod err_into;
+pub use self::err_into::SinkErrInto;
+
 mod map_err;
+pub use self::map_err::SinkMapErr;
+
 mod send;
+pub use self::send::Send;
+
 mod send_all;
+pub use self::send_all::SendAll;
+
 mod with;
+pub use self::with::With;
+
 mod with_flat_map;
+pub use self::with_flat_map::WithFlatMap;
 
 if_std! {
     mod buffer;
     pub use self::buffer::Buffer;
 }
-
-pub use self::close::Close;
-pub use self::fanout::Fanout;
-pub use self::flush::Flush;
-pub use self::err_into::SinkErrInto;
-pub use self::map_err::SinkMapErr;
-pub use self::send::Send;
-pub use self::send_all::SendAll;
-pub use self::with::With;
-pub use self::with_flat_map::WithFlatMap;
 
 impl<T: ?Sized> SinkExt for T where T: Sink {}
 
@@ -56,7 +63,7 @@ pub trait SinkExt: Sink {
               E: From<Self::SinkError>,
               Self: Sized
     {
-        with::new(self, f)
+        With::new(self, f)
     }
 
     /// Composes a function *in front of* the sink.
@@ -98,7 +105,7 @@ pub trait SinkExt: Sink {
               St: Stream<Item = Result<Self::SinkItem, Self::SinkError>>,
               Self: Sized
     {
-        with_flat_map::new(self, f)
+        WithFlatMap::new(self, f)
     }
 
     /*
@@ -120,7 +127,7 @@ pub trait SinkExt: Sink {
         where F: FnOnce(Self::SinkError) -> E,
               Self: Sized,
     {
-        map_err::new(self, f)
+        SinkMapErr::new(self, f)
     }
 
     /// Map this sink's error to a different error type using the `Into` trait.
@@ -130,15 +137,15 @@ pub trait SinkExt: Sink {
         where Self: Sized,
               Self::SinkError: Into<E>,
     {
-        err_into::new(self)
+        SinkErrInto::new(self)
     }
 
 
     /// Adds a fixed-size buffer to the current sink.
     ///
-    /// The resulting sink will buffer up to `amt` items when the underlying
-    /// sink is unwilling to accept additional items. Calling `flush` on
-    /// the buffered sink will attempt to both empty the buffer and complete
+    /// The resulting sink will buffer up to `capacity` items when the
+    /// underlying sink is unwilling to accept additional items. Calling `flush`
+    /// on the buffered sink will attempt to both empty the buffer and complete
     /// processing on the underlying sink.
     ///
     /// Note that this function consumes the given sink, returning a wrapped
@@ -147,17 +154,17 @@ pub trait SinkExt: Sink {
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
-    fn buffer(self, amt: usize) -> Buffer<Self>
+    fn buffer(self, capacity: usize) -> Buffer<Self>
         where Self: Sized,
     {
-        buffer::new(self, amt)
+        Buffer::new(self, capacity)
     }
 
     /// Close the sink.
     fn close<'a>(&'a mut self) -> Close<'a, Self>
         where Self: Unpin,
     {
-        close::new(self)
+        Close::new(self)
     }
 
     /// Fanout items to multiple sinks.
@@ -169,7 +176,7 @@ pub trait SinkExt: Sink {
               Self::SinkItem: Clone,
               S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
     {
-        fanout::new(self, other)
+        Fanout::new(self, other)
     }
 
     /// Flush the sync, processing all pending items.
@@ -179,7 +186,7 @@ pub trait SinkExt: Sink {
     fn flush<'a>(&'a mut self) -> Flush<'a, Self>
         where Self: Unpin,
     {
-        flush::new(self)
+        Flush::new(self)
     }
 
     /// A future that completes after the given item has been fully processed
@@ -191,7 +198,7 @@ pub trait SinkExt: Sink {
     fn send<'a>(&'a mut self, item: Self::SinkItem) -> Send<'a, Self>
         where Self: Unpin,
     {
-        send::new(self, item)
+        Send::new(self, item)
     }
 
     /// A future that completes after the given stream has been fully processed
@@ -209,7 +216,7 @@ pub trait SinkExt: Sink {
         where S: Stream<Item = Self::SinkItem> + Unpin,
               Self: Unpin,
     {
-        send_all::new(self, stream)
+        SendAll::new(self, stream)
     }
 
     /// Wrap this sink in an `Either` sink, making it the left-hand variant
