@@ -104,11 +104,11 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), 4);
     /// # }
     /// ```
-    fn map<U, F>(self, op: F) -> Map<Self, F>
+    fn map<U, F>(self, f: F) -> Map<Self, F>
         where F: FnOnce(Self::Output) -> U,
               Self: Sized,
     {
-        assert_future::<U, _>(Map::new(self, op))
+        assert_future::<U, _>(Map::new(self, f))
     }
 
     /// Chain on a computation for when a future finished, passing the result of
@@ -136,12 +136,12 @@ pub trait FutureExt: Future {
     /// let future_of_4 = future_of_1.then(|x| future::ready(x + 3));
     /// assert_eq!(block_on(future_of_4), 4);
     /// ```
-    fn then<Fut, F>(self, async_op: F) -> Then<Self, Fut, F>
+    fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
         where F: FnOnce(Self::Output) -> Fut,
               Fut: Future,
               Self: Sized,
     {
-        assert_future::<Fut::Output, _>(Then::new(self, async_op))
+        assert_future::<Fut::Output, _>(Then::new(self, f))
     }
 
     /* TODO
@@ -478,11 +478,11 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), 1);
     /// # }
     /// ```
-    fn inspect<F>(self, op: F) -> Inspect<Self, F>
+    fn inspect<F>(self, f: F) -> Inspect<Self, F>
         where F: FnOnce(&Self::Output) -> (),
               Self: Sized,
     {
-        assert_future::<Self::Output, _>(Inspect::new(self, op))
+        assert_future::<Self::Output, _>(Inspect::new(self, f))
     }
 
     /// Catches unwinding panics while polling the future.

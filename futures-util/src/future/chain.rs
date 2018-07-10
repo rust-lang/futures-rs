@@ -21,11 +21,11 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
     crate fn poll<F>(
         self: PinMut<Self>,
         cx: &mut task::Context,
-        async_op: F,
+        f: F,
     ) -> Poll<Fut2::Output>
         where F: FnOnce(Fut1::Output, Data) -> Fut2,
     {
-        let mut async_op = Some(async_op);
+        let mut f = Some(f);
 
         // Safe to call `get_mut_unchecked` because we won't move the futures.
         let this = unsafe { PinMut::get_mut_unchecked(self) };
@@ -45,7 +45,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
             };
 
             *this = Chain::Empty; // Drop fut1
-            let fut2 = (async_op.take().unwrap())(output, data);
+            let fut2 = (f.take().unwrap())(output, data);
             *this = Chain::Second(fut2)
         }
     }

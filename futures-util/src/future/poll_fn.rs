@@ -11,7 +11,7 @@ use futures_core::task::{self, Poll};
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct PollFn<F> {
-    op: F,
+    f: F,
 }
 
 /// Creates a new future wrapping around a function returning `Poll`.
@@ -32,10 +32,10 @@ pub struct PollFn<F> {
 ///
 /// let read_future = poll_fn(read_line);
 /// ```
-pub fn poll_fn<T, F>(op: F) -> PollFn<F>
+pub fn poll_fn<T, F>(f: F) -> PollFn<F>
     where F: Unpin + FnMut(&mut task::Context) -> Poll<T>
 {
-    PollFn { op }
+    PollFn { f }
 }
 
 impl<T, F> Future for PollFn<F>
@@ -44,6 +44,6 @@ impl<T, F> Future for PollFn<F>
     type Output = T;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
-        (&mut self.op)(cx)
+        (&mut self.f)(cx)
     }
 }

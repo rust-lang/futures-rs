@@ -10,17 +10,17 @@ use futures_core::task::{self, Poll};
 #[must_use = "futures do nothing unless polled"]
 pub struct Inspect<Fut, F> where Fut: Future {
     future: Fut,
-    op: Option<F>,
+    f: Option<F>,
 }
 
 impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
     unsafe_pinned!(future -> Fut);
-    unsafe_unpinned!(op -> Option<F>);
+    unsafe_unpinned!(f -> Option<F>);
 
-    pub(super) fn new(future: Fut, op: F) -> Inspect<Fut, F> {
+    pub(super) fn new(future: Fut, f: F) -> Inspect<Fut, F> {
         Inspect {
             future,
-            op: Some(op),
+            f: Some(f),
         }
     }
 }
@@ -39,7 +39,7 @@ impl<Fut, F> Future for Inspect<Fut, F>
             Poll::Ready(e) => e,
         };
 
-        let f = self.op().take().expect("cannot poll Inspect twice");
+        let f = self.f().take().expect("cannot poll Inspect twice");
         f(&e);
         Poll::Ready(e)
     }

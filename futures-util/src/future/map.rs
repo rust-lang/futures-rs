@@ -10,16 +10,16 @@ use futures_core::task::{self, Poll};
 #[must_use = "futures do nothing unless polled"]
 pub struct Map<Fut, F> {
     future: Fut,
-    op: Option<F>,
+    f: Option<F>,
 }
 
 impl<Fut, F> Map<Fut, F> {
     unsafe_pinned!(future -> Fut);
-    unsafe_unpinned!(op -> Option<F>);
+    unsafe_unpinned!(f -> Option<F>);
 
     /// Creates a new Map.
-    pub(super) fn new(future: Fut, op: F) -> Map<Fut, F> {
-        Map { future, op: Some(op) }
+    pub(super) fn new(future: Fut, f: F) -> Map<Fut, F> {
+        Map { future, f: Some(f) }
     }
 }
 
@@ -35,9 +35,9 @@ impl<Fut, F, T> Future for Map<Fut, F>
         match self.future().poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(output) => {
-                let op = self.op().take()
+                let f = self.f().take()
                     .expect("Map must not be polled after it returned `Poll::Ready`");
-                Poll::Ready(op(output))
+                Poll::Ready(f(output))
             }
         }
     }

@@ -20,9 +20,9 @@ impl<Fut1, Fut2, F> Then<Fut1, Fut2, F>
     unsafe_pinned!(chain -> Chain<Fut1, Fut2, F>);
 
     /// Creates a new `Then`.
-    pub(super) fn new(future: Fut1, async_op: F) -> Then<Fut1, Fut2, F> {
+    pub(super) fn new(future: Fut1, f: F) -> Then<Fut1, Fut2, F> {
         Then {
-            chain: Chain::new(future, async_op),
+            chain: Chain::new(future, f),
         }
     }
 }
@@ -35,6 +35,6 @@ impl<Fut1, Fut2, F> Future for Then<Fut1, Fut2, F>
     type Output = Fut2::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Fut2::Output> {
-        self.chain().poll(cx, |output, async_op| async_op(output))
+        self.chain().poll(cx, |output, f| f(output))
     }
 }

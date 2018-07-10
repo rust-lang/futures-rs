@@ -19,14 +19,14 @@ pub struct WriteHalf<T> {
 fn lock_and_then<T, U, E, F>(
     lock: &BiLock<T>,
     cx: &mut task::Context,
-    op: F
+    f: F
 ) -> Poll<Result<U, E>>
     where F: FnOnce(&mut T, &mut task::Context) -> Poll<Result<U, E>>
 {
     match lock.poll_lock(cx) {
         // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
         // as a `PinMut` anywhere other than here as a way to get to `&mut`.
-        Poll::Ready(mut l) => op(unsafe { PinMut::get_mut_unchecked(l.as_pin_mut()) }, cx),
+        Poll::Ready(mut l) => f(unsafe { PinMut::get_mut_unchecked(l.as_pin_mut()) }, cx),
         Poll::Pending => Poll::Pending,
     }
 }
