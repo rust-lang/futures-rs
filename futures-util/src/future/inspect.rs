@@ -8,40 +8,38 @@ use futures_core::task::{self, Poll};
 /// This is created by the [`super::FutureExt::inspect`] method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Inspect<A, F> where A: Future {
-    future: A,
-    f: Option<F>,
+pub struct Inspect<Fut, F> where Fut: Future {
+    future: Fut,
+    op: Option<F>,
 }
 
+impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
+    unsafe_pinned!(future -> Fut);
+    unsafe_unpinned!(op -> Option<F>);
 
-
-impl<A: Future, F: FnOnce(&A::Output)> Inspect<A, F> {
-    unsafe_pinned!(future -> A);
-    unsafe_unpinned!(f -> Option<F>);
-
-    pub(super) fn new(future: A, f: F) -> Inspect<A, F> {
+    pub(super) fn new(future: Fut, op: F) -> Inspect<Fut, F> {
         Inspect {
             future,
-            f: Some(f),
+            op: Some(op),
         }
     }
 }
 
-impl<A: Future + Unpin, F> Unpin for Inspect<A, F> {}
+impl<Fut: Future + Unpin, F> Unpin for Inspect<Fut, F> {}
 
-impl<A, F> Future for Inspect<A, F>
-    where A: Future,
-          F: FnOnce(&A::Output),
+impl<Fut, F> Future for Inspect<Fut, F>
+    where Fut: Future,
+          F: FnOnce(&Fut::Output),
 {
-    type Output = A::Output;
+    type Output = Fut::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
         let e = match self.future().poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };
 
-        let f = self.f().take().expect("cannot poll Inspect twice");
+        let f = self.op().take().expect("cannot poll Inspect twice");
         f(&e);
         Poll::Ready(e)
     }

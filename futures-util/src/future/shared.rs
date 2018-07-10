@@ -33,13 +33,13 @@ use std::task::local_waker_from_nonlocal;
 /// A future that is cloneable and can be polled in multiple threads.
 /// Use `Future::shared()` method to convert any future into a `Shared` future.
 #[must_use = "futures do nothing unless polled"]
-pub struct Shared<F: Future> {
-    inner: Arc<Inner<F>>,
+pub struct Shared<Fut: Future> {
+    inner: Arc<Inner<Fut>>,
     waker_key: usize,
 }
 
-struct Inner<F: Future> {
-    future_or_output: UnsafeCell<FutureOrOutput<F>>,
+struct Inner<Fut: Future> {
+    future_or_output: UnsafeCell<FutureOrOutput<Fut>>,
     notifier: Arc<Notifier>,
 }
 
@@ -50,9 +50,9 @@ struct Notifier {
 
 // The future itself is polled behind the `Arc`, so it won't be moved
 // when `Shared` is moved.
-impl<F: Future> Unpin for Shared<F> {}
+impl<Fut: Future> Unpin for Shared<Fut> {}
 
-impl<F: Future> fmt::Debug for Shared<F> {
+impl<Fut: Future> fmt::Debug for Shared<Fut> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Shared")
             .field("inner", &self.inner)
@@ -61,28 +61,28 @@ impl<F: Future> fmt::Debug for Shared<F> {
     }
 }
 
-impl<F: Future> fmt::Debug for Inner<F> {
+impl<Fut: Future> fmt::Debug for Inner<Fut> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Inner")
             .finish()
     }
 }
 
-enum FutureOrOutput<F: Future> {
-    Future(F),
-    Output(Arc<F::Output>),
+enum FutureOrOutput<Fut: Future> {
+    Future(Fut),
+    Output(Arc<Fut::Output>),
 }
 
-unsafe impl<F> Send for Inner<F>
+unsafe impl<Fut> Send for Inner<Fut>
 where
-    F: Future + Send,
-    F::Output: Send + Sync,
+    Fut: Future + Send,
+    Fut::Output: Send + Sync,
 {}
 
-unsafe impl<F> Sync for Inner<F>
+unsafe impl<Fut> Sync for Inner<Fut>
 where
-    F: Future + Send,
-    F::Output: Send + Sync,
+    Fut: Future + Send,
+    Fut::Output: Send + Sync,
 {}
 
 const IDLE: usize = 0;
@@ -93,8 +93,8 @@ const POISONED: usize = 4;
 
 const NULL_WAKER_KEY: usize = usize::max_value();
 
-impl<F: Future> Shared<F> {
-    pub(super) fn new(future: F) -> Shared<F> {
+impl<Fut: Future> Shared<Fut> {
+    pub(super) fn new(future: Fut) -> Shared<Fut> {
         Shared {
             inner: Arc::new(Inner {
                 future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
@@ -108,11 +108,11 @@ impl<F: Future> Shared<F> {
     }
 }
 
-impl<F> Shared<F> where F: Future {
+impl<Fut> Shared<Fut> where Fut: Future {
     /// If any clone of this `Shared` has completed execution, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.
-    pub fn peek(&self) -> Option<Arc<F::Output>> {
+    pub fn peek(&self) -> Option<Arc<Fut::Output>> {
         match self.inner.notifier.state.load(SeqCst) {
             COMPLETE => {
                 Some(unsafe { self.clone_output() })
@@ -153,7 +153,7 @@ impl<F> Shared<F> where F: Future {
 
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
-    unsafe fn clone_output(&self) -> Arc<F::Output> {
+    unsafe fn clone_output(&self) -> Arc<Fut::Output> {
         if let FutureOrOutput::Output(item) = &*self.inner.future_or_output.get() {
             item.clone()
         } else {
@@ -162,8 +162,8 @@ impl<F> Shared<F> where F: Future {
     }
 }
 
-impl<F: Future> Future for Shared<F> {
-    type Output = Arc<F::Output>;
+impl<Fut: Future> Future for Shared<Fut> {
+    type Output = Arc<Fut::Output>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
@@ -252,7 +252,7 @@ impl<F: Future> Future for Shared<F> {
     }
 }
 
-impl<F> Clone for Shared<F> where F: Future {
+impl<Fut> Clone for Shared<Fut> where Fut: Future {
     fn clone(&self) -> Self {
         Shared {
             inner: self.inner.clone(),
@@ -261,7 +261,7 @@ impl<F> Clone for Shared<F> where F: Future {
     }
 }
 
-impl<F> Drop for Shared<F> where F: Future {
+impl<Fut> Drop for Shared<Fut> where Fut: Future {
     fn drop(&mut self) {
         if self.waker_key != NULL_WAKER_KEY {
             if let Ok(mut wakers) = self.inner.notifier.wakers.lock() {

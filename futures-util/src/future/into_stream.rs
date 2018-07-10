@@ -7,22 +7,22 @@ use futures_core::task::{self, Poll};
 /// containing a single element.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
-pub struct IntoStream<F: Future> {
-    future: Option<F>
+pub struct IntoStream<Fut: Future> {
+    future: Option<Fut>
 }
 
-impl<F: Future> IntoStream<F> {
-    unsafe_pinned!(future -> Option<F>);
+impl<Fut: Future> IntoStream<Fut> {
+    unsafe_pinned!(future -> Option<Fut>);
 
-    pub(super) fn new(future: F) -> IntoStream<F> {
+    pub(super) fn new(future: Fut) -> IntoStream<Fut> {
         IntoStream {
             future: Some(future)
         }
     }
 }
 
-impl<F: Future> Stream for IntoStream<F> {
-    type Item = F::Output;
+impl<Fut: Future> Stream for IntoStream<Fut> {
+    type Item = Fut::Output;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         let v = match self.future().as_pin_mut() {

@@ -9,28 +9,28 @@ use futures_core::task::{self, Poll};
 ///
 /// This is created by the `maybe_done` function.
 #[derive(Debug)]
-pub enum MaybeDone<F: Future> {
+pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
-    Future(F),
+    Future(Fut),
     /// The output of the completed future
-    Done(F::Output),
+    Done(Fut::Output),
     /// The empty variant after the result of a `maybe_done` has been
     /// taken using the `take_output` method.
     Gone,
 }
 
-// safe because we never generate `PinMut<A::Output>`
-impl<F: Future + Unpin> Unpin for MaybeDone<F> {}
+// Safe because we never generate `PinMut<Fut::Output>`
+impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 
 /// Creates a new future from a closure.
-pub fn maybe_done<F: Future>(f: F) -> MaybeDone<F> {
-    MaybeDone::Future(f)
+pub fn maybe_done<Fut: Future>(future: Fut) -> MaybeDone<Fut> {
+    MaybeDone::Future(future)
 }
 
-impl<F: Future> MaybeDone<F> {
+impl<Fut: Future> MaybeDone<Fut> {
     /// Attempt to take the output of a `MaybeDone` without driving it
     /// towards completion.
-    pub fn take_output(self: PinMut<Self>) -> Option<F::Output> {
+    pub fn take_output(self: PinMut<Self>) -> Option<Fut::Output> {
         unsafe {
             let this = PinMut::get_mut_unchecked(self);
             match this {
@@ -46,7 +46,7 @@ impl<F: Future> MaybeDone<F> {
     }
 }
 
-impl<A: Future> Future for MaybeDone<A> {
+impl<Fut: Future> Future for MaybeDone<Fut> {
     type Output = ();
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {

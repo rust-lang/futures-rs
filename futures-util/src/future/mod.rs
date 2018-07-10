@@ -5,6 +5,7 @@
 
 use futures_core::future::Future;
 use futures_core::stream::Stream;
+use futures_core::task::Executor;
 
 // Primitive futures
 mod empty;
@@ -103,11 +104,11 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), 4);
     /// # }
     /// ```
-    fn map<U, F>(self, f: F) -> Map<Self, F>
+    fn map<U, F>(self, op: F) -> Map<Self, F>
         where F: FnOnce(Self::Output) -> U,
               Self: Sized,
     {
-        assert_future::<U, _>(Map::new(self, f))
+        assert_future::<U, _>(Map::new(self, op))
     }
 
     /// Chain on a computation for when a future finished, passing the result of
@@ -215,46 +216,63 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(pair), (1, 2));
     /// # }
     /// ```
-    fn join<B>(self, other: B) -> Join<Self, B>
+    fn join<Fut2>(self, other: Fut2) -> Join<Self, Fut2>
     where
-        B: Future,
+        Fut2: Future,
         Self: Sized,
     {
         let f = Join::new(self, other);
-        assert_future::<(Self::Output, B::Output), _>(f)
+        assert_future::<(Self::Output, Fut2::Output), _>(f)
     }
 
     /// Same as `join`, but with more futures.
-    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B, C>
+    fn join3<Fut2, Fut3>(
+        self,
+        future2: Fut2,
+        future3: Fut3,
+    ) -> Join3<Self, Fut2, Fut3>
     where
-        B: Future,
-        C: Future,
+        Fut2: Future,
+        Fut3: Future,
         Self: Sized,
     {
-        Join3::new(self, b, c)
+        Join3::new(self, future2, future3)
     }
 
     /// Same as `join`, but with more futures.
-    fn join4<B, C, D>(self, b: B, c: C, d: D) -> Join4<Self, B, C, D>
+    fn join4<Fut2, Fut3, Fut4>(
+        self,
+        future2: Fut2,
+        future3: Fut3,
+        future4: Fut4,
+    ) -> Join4<Self, Fut2, Fut3, Fut4>
     where
-        B: Future,
-        C: Future,
-        D: Future,
+        Fut2: Future,
+        Fut3: Future,
+        Fut3: Future,
+        Fut4: Future,
         Self: Sized,
     {
-        Join4::new(self, b, c, d)
+        Join4::new(self, future2, future3, future4)
     }
 
     /// Same as `join`, but with more futures.
-    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E) -> Join5<Self, B, C, D, E>
+    fn join5<Fut2, Fut3, Fut4, Fut5>(
+        self,
+        future2: Fut2,
+        future3: Fut3,
+        future4: Fut4,
+        future5: Fut5,
+    ) -> Join5<Self, Fut2, Fut3, Fut4, Fut5>
     where
-        B: Future,
-        C: Future,
-        D: Future,
-        E: Future,
+        Fut2: Future,
+        Fut3: Future,
+        Fut3: Future,
+        Fut4: Future,
+        Fut5: Future,
         Self: Sized,
     {
-        Join5::new(self, b, c, d, e)
+        Join5::new(self, future2, future3, future4, future5)
     }
 
     /* ToDo: futures-core cannot implement Future for Either anymore because of
@@ -460,11 +478,11 @@ pub trait FutureExt: Future {
     /// assert_eq!(block_on(new_future), 1);
     /// # }
     /// ```
-    fn inspect<F>(self, f: F) -> Inspect<Self, F>
+    fn inspect<F>(self, op: F) -> Inspect<Self, F>
         where F: FnOnce(&Self::Output) -> (),
               Self: Sized,
     {
-        assert_future::<Self::Output, _>(Inspect::new(self, f))
+        assert_future::<Self::Output, _>(Inspect::new(self, op))
     }
 
     /// Catches unwinding panics while polling the future.
@@ -584,7 +602,7 @@ pub trait FutureExt: Future {
     /// ```
     fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
         where Self: Sized,
-              E: ::futures_core::task::Executor
+              E: Executor
     {
         WithExecutor::new(self, executor)
     }
@@ -592,8 +610,8 @@ pub trait FutureExt: Future {
 
 // Just a helper function to ensure the futures we're returning all have the
 // right implementations.
-fn assert_future<A, F>(t: F) -> F
-    where F: Future<Output=A>,
+fn assert_future<T, F>(future: F) -> F
+    where F: Future<Output=T>,
 {
-    t
+    future
 }
