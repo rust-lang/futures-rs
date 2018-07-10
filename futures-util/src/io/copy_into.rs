@@ -26,17 +26,20 @@ pub struct CopyInto<'a, R: ?Sized + 'a, W: ?Sized + 'a> {
 // No projections of PinMut<CopyInto> into PinMut<Field> are ever done.
 impl<'a, R: ?Sized, W: ?Sized> Unpin for CopyInto<'a, R, W> {}
 
-pub fn copy_into<'a, R: ?Sized, W: ?Sized>(
-    reader: &'a mut R, writer: &'a mut W) -> CopyInto<'a, R, W>
-{
-    CopyInto {
-        reader,
-        read_done: false,
-        writer,
-        amt: 0,
-        pos: 0,
-        cap: 0,
-        buf: Box::new([0; 2048]),
+impl<'a, R: ?Sized, W: ?Sized> CopyInto<'a, R, W> {
+    pub(super) fn new(
+        reader: &'a mut R,
+        writer: &'a mut W,
+    ) -> CopyInto<'a, R, W> {
+        CopyInto {
+            reader,
+            read_done: false,
+            writer,
+            amt: 0,
+            pos: 0,
+            cap: 0,
+            buf: Box::new([0; 2048]),
+        }
     }
 }
 

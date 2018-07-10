@@ -11,33 +11,31 @@ use std::mem::{self, PinMut};
 ///
 /// [`write_all`]: fn.write_all.html
 #[derive(Debug)]
-pub struct WriteAll<'a, A: ?Sized + 'a> {
-    a: &'a mut A,
+pub struct WriteAll<'a, W: ?Sized + 'a> {
+    writer: &'a mut W,
     buf: &'a [u8],
 }
 
 // Pinning is never projected to fields
-impl<'a, A: ?Sized> Unpin for WriteAll<'a, A> {}
+impl<'a, W: ?Sized> Unpin for WriteAll<'a, W> {}
 
-pub fn write_all<'a, A>(a: &'a mut A, buf: &'a [u8]) -> WriteAll<'a, A>
-    where A: AsyncWrite + ?Sized,
-{
-    WriteAll { a, buf }
+impl<'a, W: AsyncWrite + ?Sized> WriteAll<'a, W> {
+    pub(super) fn new(writer: &'a mut W, buf: &'a [u8]) -> WriteAll<'a, W> {
+        WriteAll { writer, buf }
+    }
 }
 
 fn zero_write() -> io::Error {
     io::Error::new(io::ErrorKind::WriteZero, "zero-length write")
 }
 
-impl<'a, A> Future for WriteAll<'a, A>
-    where A: AsyncWrite + ?Sized,
-{
+impl<'a, W: AsyncWrite + ?Sized> Future for WriteAll<'a, W> {
     type Output = io::Result<()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.a.poll_write(cx, this.buf));
+            let n = try_ready!(this.writer.poll_write(cx, this.buf));
             {
                 let (rest, _) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;

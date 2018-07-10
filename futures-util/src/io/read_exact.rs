@@ -12,32 +12,33 @@ use std::mem::{self, PinMut};
 ///
 /// [`read_exact`]: fn.read_exact.html
 #[derive(Debug)]
-pub struct ReadExact<'a, A: ?Sized + 'a> {
-    a: &'a mut A,
+pub struct ReadExact<'a, R: ?Sized + 'a> {
+    reader: &'a mut R,
     buf: &'a mut [u8],
 }
 
-impl<'a, A: ?Sized> Unpin for ReadExact<'a, A> {}
+impl<'a, R: ?Sized> Unpin for ReadExact<'a, R> {}
 
-pub fn read_exact<'a, A>(a: &'a mut A, buf: &'a mut [u8]) -> ReadExact<'a, A>
-    where A: AsyncRead + ?Sized,
-{
-    ReadExact { a, buf }
+impl<'a, R: AsyncRead + ?Sized> ReadExact<'a, R> {
+    pub(super) fn new(
+        reader: &'a mut R,
+        buf: &'a mut [u8]
+    ) -> ReadExact<'a, R> {
+        ReadExact { reader, buf }
+    }
 }
 
 fn eof() -> io::Error {
     io::Error::new(io::ErrorKind::UnexpectedEof, "early eof")
 }
 
-impl<'a, A> Future for ReadExact<'a, A>
-    where A: AsyncRead + ?Sized,
-{
+impl<'a, R: AsyncRead + ?Sized> Future for ReadExact<'a, R> {
     type Output = io::Result<()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.a.poll_read(cx, this.buf));
+            let n = try_ready!(this.reader.poll_read(cx, this.buf));
             {
                 let (rest, _) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);
                 this.buf = rest;

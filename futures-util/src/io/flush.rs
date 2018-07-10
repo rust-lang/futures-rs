@@ -14,25 +14,25 @@ use futures_io::AsyncWrite;
 ///
 /// [`flush`]: fn.flush.html
 #[derive(Debug)]
-pub struct Flush<'a, A: ?Sized + 'a> {
-    a: &'a mut A,
+pub struct Flush<'a, W: ?Sized + 'a> {
+    writer: &'a mut W,
 }
 
 // Pinning is never projected to fields
-impl<'a, A: ?Sized> Unpin for Flush<'a, A> {}
+impl<'a, W: ?Sized> Unpin for Flush<'a, W> {}
 
-pub fn flush<'a, A>(a: &'a mut A) -> Flush<'a, A>
-    where A: AsyncWrite + ?Sized,
-{
-    Flush { a }
+impl<W: AsyncWrite + ?Sized> Flush<'a, W> {
+    pub(super) fn new(writer: &'a mut W) -> Flush<'a, W> {
+        Flush { writer }
+    }
 }
 
-impl<'a, A> Future for Flush<'a, A>
-    where A: AsyncWrite + ?Sized,
+impl<'a, W> Future for Flush<'a, W>
+    where W: AsyncWrite + ?Sized,
 {
     type Output = io::Result<()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.a.poll_flush(cx)
+        self.writer.poll_flush(cx)
     }
 }

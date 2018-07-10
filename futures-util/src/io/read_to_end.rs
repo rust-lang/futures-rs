@@ -13,18 +13,21 @@ use std::vec::Vec;
 ///
 /// [`read_to_end`]: fn.read_to_end.html
 #[derive(Debug)]
-pub struct ReadToEnd<'a, A: ?Sized + 'a> {
-    a: &'a mut A,
+pub struct ReadToEnd<'a, R: ?Sized + 'a> {
+    reader: &'a mut R,
     buf: &'a mut Vec<u8>,
 }
 
 // We never project pinning to fields
-impl<'a, A: ?Sized> Unpin for ReadToEnd<'a, A> {}
+impl<'a, R: ?Sized> Unpin for ReadToEnd<'a, R> {}
 
-pub fn read_to_end<'a, A>(a: &'a mut A, buf: &'a mut Vec<u8>) -> ReadToEnd<'a, A>
-    where A: AsyncRead + ?Sized,
-{
-    ReadToEnd { a, buf }
+impl<R: AsyncRead + ?Sized> ReadToEnd<'a, R> {
+    pub(super) fn new(
+        reader: &'a mut R,
+        buf: &'a mut Vec<u8>
+    ) -> ReadToEnd<'a, R> {
+        ReadToEnd { reader, buf }
+    }
 }
 
 struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
@@ -44,9 +47,11 @@ impl<'a> Drop for Guard<'a> {
 //
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
-fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context, buf: &mut Vec<u8>)
-    -> Poll<io::Result<()>>
-{
+fn read_to_end_internal<R: AsyncRead + ?Sized>(
+    rd: &mut R,
+    cx: &mut task::Context,
+    buf: &mut Vec<u8>,
+) -> Poll<io::Result<()>> {
     let mut g = Guard { len: buf.len(), buf };
     let ret;
     loop {
@@ -55,11 +60,11 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(r: &mut R, cx: &mut task::Context
                 g.buf.reserve(32);
                 let capacity = g.buf.capacity();
                 g.buf.set_len(capacity);
-                r.initializer().initialize(&mut g.buf[g.len..]);
+                rd.initializer().initialize(&mut g.buf[g.len..]);
             }
         }
 
-        match r.poll_read(cx, &mut g.buf[g.len..]) {
+        match rd.poll_read(cx, &mut g.buf[g.len..]) {
             Poll::Ready(Ok(0)) => {
                 ret = Poll::Ready(Ok(()));
                 break;
@@ -83,6 +88,6 @@ impl<'a, A> Future for ReadToEnd<'a, A>
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
-        read_to_end_internal(this.a, cx, this.buf)
+        read_to_end_internal(this.reader, cx, this.buf)
     }
 }
