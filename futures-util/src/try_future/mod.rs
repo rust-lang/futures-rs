@@ -215,7 +215,7 @@ pub trait TryFutureExt: TryFuture {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, ReadyFuture};
+    /// use futures::future::{self, Ready};
     ///
     /// let future_of_1 = future::ready::<Result<i32, i32>>(Ok(1));
     /// let future_of_4 = future_of_1.and_then(|x| {
@@ -223,7 +223,7 @@ pub trait TryFutureExt: TryFuture {
     /// });
     ///
     /// let future_of_err_1 = future::ready::<Result<i32, i32>>(Err(1));
-    /// future_of_err_1.and_then(|_| -> ReadyFuture<Result<(), i32>> {
+    /// future_of_err_1.and_then(|_| -> Ready<Result<(), i32>> {
     ///     panic!("should not be called in case of an error");
     /// });
     /// ```
@@ -257,7 +257,7 @@ pub trait TryFutureExt: TryFuture {
     /// ```
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, ReadyFuture};
+    /// use futures::future::{self, Ready};
     ///
     /// let future_of_err_1 = future::ready::<Result<i32, i32>>(Err(1));
     /// let future_of_4 = future_of_err_1.or_else(|x| {
@@ -265,7 +265,7 @@ pub trait TryFutureExt: TryFuture {
     /// });
     ///
     /// let future_of_1 = future::ready::<Result<i32, i32>>(Ok(1));
-    /// future_of_1.or_else(|_| -> ReadyFuture<Result<i32, ()>> {
+    /// future_of_1.or_else(|_| -> Ready<Result<i32, ()>> {
     ///     panic!("should not be called in case of success");
     /// });
     /// ```

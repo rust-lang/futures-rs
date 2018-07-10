@@ -2,8 +2,7 @@ use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
-
-use crate::task::Waker;
+use futures_core::task::Waker;
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -172,7 +171,8 @@ impl AtomicWaker {
     /// ```
     /// # #![feature(pin, arbitrary_self_types, futures_api)]
     /// # use futures_core::future::Future;
-    /// # use futures_core::task::{self, Poll, AtomicWaker};
+    /// # use futures_core::task::{self, Poll};
+    /// # use futures_util::task::AtomicWaker;
     /// # use std::sync::atomic::AtomicBool;
     /// # use std::sync::atomic::Ordering::SeqCst;
     /// # use std::mem::PinMut;

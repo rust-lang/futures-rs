@@ -33,9 +33,9 @@
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
-#[doc(hidden)] pub use futures_core::core_reexport;
+#[doc(hidden)] pub use futures_util::core_reexport;
+
 #[doc(hidden)] pub use futures_core::future::Future;
-#[doc(hidden)] pub use futures_core::future::CoreFutureExt;
 #[doc(hidden)] pub use futures_core::future::TryFuture;
 #[doc(hidden)] pub use futures_util::future::FutureExt;
 #[doc(hidden)] pub use futures_util::try_future::TryFutureExt;
@@ -155,9 +155,8 @@ pub mod future {
     //!   immediate defined value.
 
     pub use futures_core::future::{
-        FutureOption, Future, TryFuture,
+        Future, TryFuture,
         FutureObj, LocalFutureObj, UnsafeFutureObj,
-        ready, ReadyFuture,
     };
 
     pub use futures_util::future::{
@@ -165,6 +164,9 @@ pub mod future {
         lazy, Lazy,
         maybe_done, MaybeDone,
         poll_fn, PollFn,
+        ready, Ready,
+
+        OptionFuture,
 
         FutureExt,
         FlattenStream, Flatten, Fuse, Inspect, IntoStream, Join, Join3, Join4,
@@ -226,7 +228,7 @@ pub mod prelude {
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use futures_core::future::{Future, CoreFutureExt, TryFuture};
+    pub use futures_core::future::{Future, TryFuture};
     pub use futures_core::stream::{Stream, TryStream};
     pub use futures_core::task::{self, Poll};
 
@@ -341,17 +343,18 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Poll, Executor, Waker, LocalWaker, UnsafeWake,
+        Context, Poll, Executor,
+        Waker, LocalWaker, UnsafeWake,
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
     };
 
-    #[cfg(feature = "std")]
+    pub use futures_util::task::ContextExt;
+
     #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
-    pub use futures_core::task::AtomicWaker;
+    pub use futures_util::task::AtomicWaker;
 
     #[cfg(feature = "std")]
     pub use futures_core::task::{
-        local_waker, local_waker_from_nonlocal,
-        Wake,
+        Wake, local_waker, local_waker_from_nonlocal
     };
 }

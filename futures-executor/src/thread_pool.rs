@@ -1,18 +1,16 @@
-use std::prelude::v1::*;
-
+use crate::enter;
+use crate::unpark_mutex::UnparkMutex;
+use futures_core::future::{Future, FutureObj};
+use futures_core::task::{self, Poll, Wake, Executor, SpawnObjError};
+use futures_util::future::FutureExt;
+use num_cpus;
 use std::io;
+use std::prelude::v1::*;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
 use std::fmt;
-
-use futures_core::future::{Future, FutureObj, CoreFutureExt};
-use futures_core::task::{self, Poll, Wake, Executor, SpawnObjError};
-
-use crate::enter;
-use num_cpus;
-use crate::unpark_mutex::UnparkMutex;
 
 /// A general-purpose thread pool for scheduling asynchronous tasks.
 ///

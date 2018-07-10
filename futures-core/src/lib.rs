@@ -11,19 +11,13 @@
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
-#[macro_use]
 #[cfg(feature = "std")]
 extern crate std;
+
 #[cfg(feature = "either")]
 extern crate either;
 
-#[doc(hidden)]
-pub mod core_reexport {
-    pub use core::{mem, future, task};
-}
-
 #[doc(hidden)] pub use crate::future::Future;
-#[doc(hidden)] pub use crate::future::CoreFutureExt;
 #[doc(hidden)] pub use crate::future::TryFuture;
 
 #[doc(hidden)] pub use crate::stream::Stream;
@@ -37,9 +31,6 @@ macro_rules! if_std {
         $i
     )*)
 }
-
-#[macro_use]
-mod macros;
 
 pub mod future;
 

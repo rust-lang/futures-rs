@@ -1,8 +1,8 @@
-use futures_core::future::{Future, CoreFutureExt};
-use futures_core::task::{self, Poll, ContextExt};
+use futures_core::future::Future;
+use futures_core::task::{self, Poll};
 use futures_channel::oneshot::{channel, Sender, Receiver};
-use futures_util::FutureExt;
-
+use futures_util::future::FutureExt;
+use futures_util::task::ContextExt;
 use std::thread;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
