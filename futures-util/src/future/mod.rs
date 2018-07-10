@@ -65,6 +65,9 @@ mod chain;
 crate use self::chain::Chain;
 
 if_std! {
+    mod abortable;
+    pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
+
     mod catch_unwind;
     pub use self::catch_unwind::CatchUnwind;
 
