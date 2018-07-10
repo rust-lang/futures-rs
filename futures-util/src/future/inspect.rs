@@ -13,19 +13,18 @@ pub struct Inspect<A, F> where A: Future {
     f: Option<F>,
 }
 
-pub fn new<A, F>(future: A, f: F) -> Inspect<A, F>
-    where A: Future,
-          F: FnOnce(&A::Output),
-{
-    Inspect {
-        future,
-        f: Some(f),
-    }
-}
 
-impl<A: Future, F> Inspect<A, F> {
+
+impl<A: Future, F: FnOnce(&A::Output)> Inspect<A, F> {
     unsafe_pinned!(future -> A);
     unsafe_unpinned!(f -> Option<F>);
+
+    pub(super) fn new(future: A, f: F) -> Inspect<A, F> {
+        Inspect {
+            future,
+            f: Some(f),
+        }
+    }
 }
 
 impl<A: Future + Unpin, F> Unpin for Inspect<A, F> {}

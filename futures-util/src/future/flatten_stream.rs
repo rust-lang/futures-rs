@@ -13,6 +13,14 @@ pub struct FlattenStream<F: Future> {
     state: State<F>
 }
 
+impl<F: Future> FlattenStream<F> {
+    pub(super) fn new(f: F) -> FlattenStream<F> {
+        FlattenStream {
+            state: State::Future(f)
+        }
+    }
+}
+
 impl<F> fmt::Debug for FlattenStream<F>
     where F: Future + fmt::Debug,
           F::Output: fmt::Debug,
@@ -21,12 +29,6 @@ impl<F> fmt::Debug for FlattenStream<F>
         fmt.debug_struct("FlattenStream")
             .field("state", &self.state)
             .finish()
-    }
-}
-
-pub fn new<F: Future>(f: F) -> FlattenStream<F> {
-    FlattenStream {
-        state: State::Future(f)
     }
 }
 

@@ -14,11 +14,10 @@ pub struct WithExecutor<F, E> where F: Future, E: Executor {
     future: F
 }
 
-pub fn new<F, E>(future: F, executor: E) -> WithExecutor<F, E>
-    where F: Future,
-          E: Executor,
-{
-    WithExecutor { executor, future }
+impl<F: Future, E: Executor> WithExecutor<F, E> {
+    pub(super) fn new(future: F, executor: E) -> WithExecutor<F, E> {
+        WithExecutor { executor, future }
+    }
 }
 
 impl<F: Future + Unpin, E: Executor> Unpin for WithExecutor<F, E> {}
