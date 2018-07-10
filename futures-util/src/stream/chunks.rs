@@ -71,8 +71,8 @@ impl<S> Chunks<S> where S: Stream {
         self.stream.into_inner()
     }
 
-    unsafe_unpinned!(items ->  Vec<S::Item>);
-    unsafe_pinned!(stream -> Fuse<S>);
+    unsafe_unpinned!(items:  Vec<S::Item>);
+    unsafe_pinned!(stream: Fuse<S>);
 }
 
 impl<S: Unpin + Stream> Unpin for Chunks<S> {}

@@ -17,7 +17,7 @@ impl<Fut1, Fut2, F> Then<Fut1, Fut2, F>
     where Fut1: Future,
           Fut2: Future,
 {
-    unsafe_pinned!(chain -> Chain<Fut1, Fut2, F>);
+    unsafe_pinned!(chain: Chain<Fut1, Fut2, F>);
 
     /// Creates a new `Then`.
     pub(super) fn new(future: Fut1, f: F) -> Then<Fut1, Fut2, F> {

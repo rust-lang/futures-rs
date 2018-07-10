@@ -17,7 +17,7 @@ impl<Si, E> SinkErrInto<Si, E>
     where Si: Sink,
           Si::SinkError: Into<E>,
 {
-    unsafe_pinned!(sink -> SinkMapErr<Si, fn(Si::SinkError) -> E>);
+    unsafe_pinned!(sink: SinkMapErr<Si, fn(Si::SinkError) -> E>);
 
     pub(super) fn new(sink: Si) -> SinkErrInto<Si, E> {
         SinkErrInto {

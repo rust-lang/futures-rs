@@ -20,9 +20,9 @@ pub struct Buffer<S: Sink> {
 impl<S: Sink + Unpin> Unpin for Buffer<S> {}
 
 impl<Si: Sink> Buffer<Si> {
-    unsafe_pinned!(sink -> Si);
-    unsafe_unpinned!(buf -> VecDeque<Si::SinkItem>);
-    unsafe_unpinned!(capacity -> usize);
+    unsafe_pinned!(sink: Si);
+    unsafe_unpinned!(buf: VecDeque<Si::SinkItem>);
+    unsafe_unpinned!(capacity: usize);
 
 
     pub(super) fn new(sink: Si, capacity: usize) -> Buffer<Si> {

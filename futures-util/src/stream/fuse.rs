@@ -74,8 +74,8 @@ impl<S> Fuse<S> {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(done -> bool);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(done: bool);
 }
 
 impl<S: Stream> Stream for Fuse<S> {

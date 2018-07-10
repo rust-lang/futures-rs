@@ -29,8 +29,8 @@ impl<S: Stream, C: Default> Collect<S, C> {
         mem::replace(self.items(), Default::default())
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(items -> C);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(items: C);
 }
 
 impl<S: Unpin + Stream, C> Unpin for Collect<S, C> {}

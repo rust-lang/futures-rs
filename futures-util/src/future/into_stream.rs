@@ -12,7 +12,7 @@ pub struct IntoStream<Fut: Future> {
 }
 
 impl<Fut: Future> IntoStream<Fut> {
-    unsafe_pinned!(future -> Option<Fut>);
+    unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(future: Fut) -> IntoStream<Fut> {
         IntoStream {

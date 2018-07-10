@@ -21,7 +21,7 @@ pub struct Spawn<F> {
 }
 
 impl<F> Spawn<F> {
-    unsafe_unpinned!(future -> Option<F>);
+    unsafe_unpinned!(future: Option<F>);
 }
 
 /// Spawn a task onto the default executor.
@@ -55,7 +55,7 @@ pub struct SpawnWithHandle<F> {
 }
 
 impl<F> SpawnWithHandle<F> {
-    unsafe_unpinned!(future -> Option<F>);
+    unsafe_unpinned!(future: Option<F>);
 }
 
 /// Spawn a task onto the default executor, yielding a
@@ -121,9 +121,9 @@ struct MySender<F, T> {
 impl<F: Unpin, T> Unpin for MySender<F, T> {}
 
 impl<F: Future, T> MySender<F, T> {
-    unsafe_pinned!(future -> F);
-    unsafe_unpinned!(tx -> Option<Sender<T>>);
-    unsafe_unpinned!(keep_running_flag -> Arc<AtomicBool>);
+    unsafe_pinned!(future: F);
+    unsafe_unpinned!(tx: Option<Sender<T>>);
+    unsafe_unpinned!(keep_running_flag: Arc<AtomicBool>);
 }
 
 /// The type of future returned from the `ThreadPool::spawn` function, which

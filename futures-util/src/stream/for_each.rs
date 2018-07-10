@@ -29,9 +29,9 @@ pub fn new<S, U, F>(s: S, f: F) -> ForEach<S, U, F>
 }
 
 impl<S, U, F> ForEach<S, U, F> {
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(f -> F);
-    unsafe_pinned!(fut -> Option<U>);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(fut: Option<U>);
 }
 
 impl<S, U, F> Unpin for ForEach<S, U, F> {}

@@ -25,9 +25,9 @@ where Si: Sink,
       F: FnMut(U) -> Fut,
       Fut: Future,
 {
-    unsafe_pinned!(sink -> Si);
-    unsafe_unpinned!(f -> F);
-    unsafe_pinned!(state -> State<Fut, Si::SinkItem>);
+    unsafe_pinned!(sink: Si);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(state: State<Fut, Si::SinkItem>);
 
     pub(super) fn new<E>(sink: Si, f: F) -> With<Si, U, Fut, F>
         where Si: Sink,

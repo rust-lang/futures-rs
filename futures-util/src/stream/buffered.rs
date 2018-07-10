@@ -35,8 +35,8 @@ where
     S: Stream,
     S::Item: Future,
 {
-    unsafe_pinned!(stream -> Fuse<S>);
-    unsafe_unpinned!(in_progress_queue -> FuturesOrdered<S::Item>);
+    unsafe_pinned!(stream: Fuse<S>);
+    unsafe_unpinned!(in_progress_queue: FuturesOrdered<S::Item>);
 }
 
 impl<S> fmt::Debug for Buffered<S>

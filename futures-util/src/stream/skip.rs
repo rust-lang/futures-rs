@@ -45,8 +45,8 @@ impl<S> Skip<S> {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(remaining -> u64);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(remaining: u64);
 }
 
 /* TODO

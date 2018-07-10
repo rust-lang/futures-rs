@@ -10,7 +10,7 @@ pub struct IntoFuture<Fut> {
 }
 
 impl<Fut> IntoFuture<Fut> {
-    unsafe_pinned!(future -> Fut);
+    unsafe_pinned!(future: Fut);
 
     #[inline]
     pub(super) fn new(future: Fut) -> IntoFuture<Fut> {

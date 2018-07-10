@@ -29,8 +29,8 @@ impl<S: TryStream, C: Default> TryCollect<S, C> {
         mem::replace(self.items(), Default::default())
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(items -> C);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(items: C);
 }
 
 impl<S: Unpin + TryStream, C> Unpin for TryCollect<S, C> {}

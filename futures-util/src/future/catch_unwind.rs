@@ -15,7 +15,7 @@ pub struct CatchUnwind<Fut> where Fut: Future {
 }
 
 impl<Fut> CatchUnwind<Fut> where Fut: Future + UnwindSafe {
-    unsafe_pinned!(future -> Fut);
+    unsafe_pinned!(future: Fut);
 
     pub(super) fn new(future: Fut) -> CatchUnwind<Fut> {
         CatchUnwind { future }

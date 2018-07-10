@@ -56,11 +56,11 @@ impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(pred -> P);
-    unsafe_pinned!(pending_fut -> Option<R>);
-    unsafe_unpinned!(pending_item -> Option<S::Item>);
-    unsafe_unpinned!(done_skipping -> bool);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(pred: P);
+    unsafe_pinned!(pending_fut: Option<R>);
+    unsafe_unpinned!(pending_item: Option<S::Item>);
+    unsafe_unpinned!(done_skipping: bool);
 }
 
 impl<S: Unpin + Stream, R: Unpin, P> Unpin for SkipWhile<S, R, P> {}

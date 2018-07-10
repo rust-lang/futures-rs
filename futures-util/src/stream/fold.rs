@@ -30,10 +30,10 @@ pub fn new<S, Fut, T, F>(s: S, f: F, t: T) -> Fold<S, Fut, T, F>
 }
 
 impl<S, Fut, T, F> Fold<S, Fut, T, F> {
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(f -> F);
-    unsafe_unpinned!(accum -> Option<T>);
-    unsafe_pinned!(fut -> Option<Fut>);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(f: F);
+    unsafe_unpinned!(accum: Option<T>);
+    unsafe_pinned!(fut: Option<Fut>);
 }
 
 impl<S: Unpin, Fut: Unpin, T, F> Unpin for Fold<S, Fut, T, F> {}

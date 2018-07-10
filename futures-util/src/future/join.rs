@@ -41,7 +41,7 @@ macro_rules! generate {
 
         impl<$($Fut: Future),*> $Join<$($Fut),*> {
             $(
-                unsafe_pinned!($Fut -> MaybeDone<$Fut>);
+                unsafe_pinned!($Fut: MaybeDone<$Fut>);
             )*
         }
 

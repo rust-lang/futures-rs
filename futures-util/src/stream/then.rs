@@ -40,9 +40,9 @@ impl<S, U, F> Sink for Then<S, U, F>
  */
 
 impl<S, U, F> Then<S, U, F> {
-    unsafe_pinned!(stream -> S);
-    unsafe_pinned!(future -> Option<U>);
-    unsafe_unpinned!(f -> F);
+    unsafe_pinned!(stream: S);
+    unsafe_pinned!(future: Option<U>);
+    unsafe_unpinned!(f: F);
 }
 
 impl<S: Unpin, U: Unpin, F> Unpin for Then<S, U, F> {}

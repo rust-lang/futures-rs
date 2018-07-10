@@ -14,7 +14,7 @@ pub struct ErrInto<A, E> {
 }
 
 impl<A, E> ErrInto<A, E> {
-    unsafe_pinned!(future -> A);
+    unsafe_pinned!(future: A);
 }
 
 pub fn new<A, E>(future: A) -> ErrInto<A, E> {

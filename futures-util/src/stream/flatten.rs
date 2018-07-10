@@ -49,8 +49,8 @@ impl<S: Stream> Flatten<S> {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_pinned!(next -> Option<S::Item>);
+    unsafe_pinned!(stream: S);
+    unsafe_pinned!(next: Option<S::Item>);
 }
 
 /* TODO

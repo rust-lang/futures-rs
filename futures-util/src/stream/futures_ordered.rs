@@ -38,7 +38,7 @@ impl<T> Ord for OrderWrapper<T> {
 }
 
 impl<T> OrderWrapper<T> {
-    unsafe_pinned!(item -> T);
+    unsafe_pinned!(item: T);
 }
 
 impl<T> Future for OrderWrapper<T>

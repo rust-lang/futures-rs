@@ -43,9 +43,9 @@ where
     U: Sink + Unpin,
     T: Stream<Item = Result<U::SinkItem, U::SinkError>>,
 {
-    unsafe_pinned!(sink -> Option<U>);
-    unsafe_pinned!(stream -> Fuse<T>);
-    unsafe_unpinned!(buffered -> Option<U::SinkItem>);
+    unsafe_pinned!(sink: Option<U>);
+    unsafe_pinned!(stream: Fuse<T>);
+    unsafe_unpinned!(buffered: Option<U::SinkItem>);
 
     fn try_start_send(
         mut self: PinMut<Self>,

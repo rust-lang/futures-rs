@@ -55,8 +55,8 @@ impl<S: Stream> Peekable<S> {
         }
     }
 
-    unsafe_pinned!(stream -> Fuse<S>);
-    unsafe_unpinned!(peeked -> Option<S::Item>);
+    unsafe_pinned!(stream: Fuse<S>);
+    unsafe_unpinned!(peeked: Option<S::Item>);
 }
 
 impl<S: Stream> Stream for Peekable<S> {

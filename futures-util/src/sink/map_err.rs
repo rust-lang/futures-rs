@@ -15,8 +15,8 @@ pub struct SinkMapErr<Si, F> {
 impl<Si: Unpin, F> Unpin for SinkMapErr<Si, F> {}
 
 impl<Si, F> SinkMapErr<Si, F> {
-    unsafe_pinned!(sink -> Si);
-    unsafe_unpinned!(f -> Option<F>);
+    unsafe_pinned!(sink: Si);
+    unsafe_unpinned!(f: Option<F>);
 
     pub(super) fn new(sink: Si, f: F) -> SinkMapErr<Si, F> {
         SinkMapErr { sink, f: Some(f) }

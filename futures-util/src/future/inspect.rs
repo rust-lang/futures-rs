@@ -14,8 +14,8 @@ pub struct Inspect<Fut, F> where Fut: Future {
 }
 
 impl<Fut: Future, F: FnOnce(&Fut::Output)> Inspect<Fut, F> {
-    unsafe_pinned!(future -> Fut);
-    unsafe_unpinned!(f -> Option<F>);
+    unsafe_pinned!(future: Fut);
+    unsafe_unpinned!(f: Option<F>);
 
     pub(super) fn new(future: Fut, f: F) -> Inspect<Fut, F> {
         Inspect {

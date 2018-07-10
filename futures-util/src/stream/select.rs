@@ -27,7 +27,7 @@ pub fn new<S1, S2>(stream1: S1, stream2: S2) -> Select<S1, S2>
 }
 
 impl<S1, S2> Select<S1, S2> {
-    unsafe_unpinned!(flag -> bool);
+    unsafe_unpinned!(flag: bool);
 
     fn project<'a>(self: PinMut<'a, Self>) -> (&'a mut bool, PinMut<'a, Fuse<S1>>, PinMut<'a, Fuse<S2>>) {
         unsafe {

@@ -24,8 +24,8 @@ pub fn new<S1, S2>(s1: S1, s2: S2) -> Chain<S1, S2>
 
 // All interactions with `PinMut<Chain<..>>` happen through these methods
 impl<S1, S2> Chain<S1, S2> {
-    unsafe_pinned!(first -> Option<S1>);
-    unsafe_pinned!(second -> S2);
+    unsafe_pinned!(first: Option<S1>);
+    unsafe_pinned!(second: S2);
 }
 
 impl<S1, S2> Stream for Chain<S1, S2>
