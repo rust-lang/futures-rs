@@ -7,8 +7,6 @@ use std::mem::PinMut;
 
 /// A future which can be used to easily read available number of bytes to fill
 /// a buffer.
-///
-/// Created by the [`read`] function.
 #[derive(Debug)]
 pub struct Read<'a, R: ?Sized + 'a> {
     reader: &'a mut R,
