@@ -35,9 +35,9 @@ where
     F: FnMut(U) -> St,
     St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
 {
-    unsafe_pinned!(sink -> Si);
-    unsafe_unpinned!(f -> F);
-    unsafe_pinned!(stream -> Option<St>);
+    unsafe_pinned!(sink: Si);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(stream: Option<St>);
 
     pub(super) fn new(sink: Si, f: F) -> WithFlatMap<Si, U, St, F> {
         WithFlatMap {

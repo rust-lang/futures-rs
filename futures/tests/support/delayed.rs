@@ -7,8 +7,8 @@ pub struct Delayed<F> {
 }
 
 impl<F> Delayed<F> {
-    unsafe_pinned!(future -> F);
-    unsafe_unpinned!(polled_before -> bool);
+    unsafe_pinned!(future: F);
+    unsafe_unpinned!(polled_before: bool);
 }
 
 impl<F: Future> Future for Delayed<F> {

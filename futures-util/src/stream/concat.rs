@@ -38,8 +38,8 @@ pub fn new<S>(s: S) -> Concat<S>
 
 // These methods are the only points of access going through `PinMut`
 impl<S: Stream> Concat<S> {
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(accum -> Option<S::Item>);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(accum: Option<S::Item>);
 }
 
 impl<S: Stream + Unpin> Unpin for Concat<S> {}

@@ -47,8 +47,8 @@ impl<S: Stream, F> Inspect<S, F> {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(inspect -> F);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(inspect: F);
 }
 
 impl<S: Stream + Unpin, F> Unpin for Inspect<S, F> {}

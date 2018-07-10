@@ -62,10 +62,10 @@ impl<S, R, P> Filter<S, R, P>
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(pred -> P);
-    unsafe_pinned!(pending_fut -> Option<R>);
-    unsafe_unpinned!(pending_item -> Option<S::Item>);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(pred: P);
+    unsafe_pinned!(pending_fut: Option<R>);
+    unsafe_unpinned!(pending_item: Option<S::Item>);
 }
 
 impl<S, R, P> Unpin for Filter<S, R, P>

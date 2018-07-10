@@ -30,7 +30,7 @@ pub fn once<F: Future>(item: F) -> Once<F> {
 }
 
 impl<F> Once<F> {
-    unsafe_pinned!(fut -> Option<F>);
+    unsafe_pinned!(fut: Option<F>);
 }
 
 impl<F: Future> Stream for Once<F> {

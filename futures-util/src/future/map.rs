@@ -14,8 +14,8 @@ pub struct Map<Fut, F> {
 }
 
 impl<Fut, F> Map<Fut, F> {
-    unsafe_pinned!(future -> Fut);
-    unsafe_unpinned!(f -> Option<F>);
+    unsafe_pinned!(future: Fut);
+    unsafe_unpinned!(f: Option<F>);
 
     /// Creates a new Map.
     pub(super) fn new(future: Fut, f: F) -> Map<Fut, F> {

@@ -14,8 +14,8 @@ struct Join<T, U> {
 }
 
 impl<T, U> Join<T, U> {
-    unsafe_pinned!(stream -> T);
-    unsafe_pinned!(sink -> U);
+    unsafe_pinned!(stream: T);
+    unsafe_pinned!(sink: U);
 }
 
 impl<T: Stream, U> Stream for Join<T, U> {

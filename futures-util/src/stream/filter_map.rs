@@ -60,9 +60,9 @@ impl<S, R, F> FilterMap<S, R, F>
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(f -> F);
-    unsafe_pinned!(pending -> Option<R>);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(pending: Option<R>);
 }
 
 impl<S, R, F> Unpin for FilterMap<S, R, F>

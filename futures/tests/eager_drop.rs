@@ -54,7 +54,7 @@ struct FutureData<F, T> {
 }
 
 impl<F, T> FutureData<F, T> {
-    unsafe_pinned!(future -> F);
+    unsafe_pinned!(future: F);
 }
 
 impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {

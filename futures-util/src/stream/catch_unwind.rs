@@ -22,8 +22,8 @@ pub fn new<S>(stream: S) -> CatchUnwind<S>
 }
 
 impl<S: Stream> CatchUnwind<S> {
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(caught_unwind -> bool);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(caught_unwind: bool);
 }
 
 impl<S> Stream for CatchUnwind<S>

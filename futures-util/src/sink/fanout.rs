@@ -13,8 +13,8 @@ pub struct Fanout<Si1: Sink, Si2: Sink> {
 }
 
 impl<Si1: Sink, Si2: Sink> Fanout<Si1, Si2> {
-    unsafe_pinned!(sink1 -> Si1);
-    unsafe_pinned!(sink2 -> Si2);
+    unsafe_pinned!(sink1: Si1);
+    unsafe_pinned!(sink2: Si2);
 
     pub(super) fn new(sink1: Si1, sink2: Si2) -> Fanout<Si1, Si2> {
         Fanout { sink1, sink2 }

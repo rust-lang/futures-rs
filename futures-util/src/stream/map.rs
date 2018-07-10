@@ -48,8 +48,8 @@ impl<S, F> Map<S, F> {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(f -> F);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(f: F);
 }
 
 impl<S: Unpin, F> Unpin for Map<S, F> {}

@@ -14,8 +14,8 @@ pub struct MapErr<Fut, F> {
 }
 
 impl<Fut, F> MapErr<Fut, F> {
-    unsafe_pinned!(future -> Fut);
-    unsafe_unpinned!(op -> Option<F>);
+    unsafe_pinned!(future: Fut);
+    unsafe_unpinned!(op: Option<F>);
 
     /// Creates a new MapErr.
     pub(super) fn new(future: Fut, op: F) -> MapErr<Fut, F> {

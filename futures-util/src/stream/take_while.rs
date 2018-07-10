@@ -56,11 +56,11 @@ impl<S, R, P> TakeWhile<S, R, P> where S: Stream {
         self.stream
     }
 
-    unsafe_pinned!(stream -> S);
-    unsafe_unpinned!(pred -> P);
-    unsafe_pinned!(pending_fut -> Option<R>);
-    unsafe_unpinned!(pending_item -> Option<S::Item>);
-    unsafe_unpinned!(done_taking -> bool);
+    unsafe_pinned!(stream: S);
+    unsafe_unpinned!(pred: P);
+    unsafe_pinned!(pending_fut: Option<R>);
+    unsafe_unpinned!(pending_item: Option<S::Item>);
+    unsafe_unpinned!(done_taking: bool);
 }
 
 impl<S: Unpin + Stream, R: Unpin, P> Unpin for TakeWhile<S, R, P> {}

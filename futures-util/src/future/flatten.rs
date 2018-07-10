@@ -22,7 +22,7 @@ impl<Fut> Flatten<Fut>
     where Fut: Future,
           Fut::Output: Future,
 {
-    unsafe_pinned!(state -> Chain<Fut, Fut::Output, ()>);
+    unsafe_pinned!(state: Chain<Fut, Fut::Output, ()>);
 
     pub(super) fn new(future: Fut) -> Flatten<Fut> {
         Flatten {

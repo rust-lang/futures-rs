@@ -16,7 +16,7 @@ pub struct Fuse<Fut: Future> {
 }
 
 impl<Fut: Future> Fuse<Fut> {
-    unsafe_pinned!(future -> Option<Fut>);
+    unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(f: Fut) -> Fuse<Fut> {
         Fuse {

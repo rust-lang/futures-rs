@@ -14,7 +14,7 @@ pub struct FutureOption<F> {
 }
 
 impl<F> FutureOption<F> {
-    unsafe_pinned!(option -> Option<F>);
+    unsafe_pinned!(option: Option<F>);
 }
 
 impl<F: Future> Future for FutureOption<F> {

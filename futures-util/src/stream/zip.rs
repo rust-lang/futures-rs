@@ -30,10 +30,10 @@ pub fn new<S1, S2>(stream1: S1, stream2: S2) -> Zip<S1, S2>
 }
 
 impl<S1: Stream, S2: Stream> Zip<S1, S2> {
-    unsafe_pinned!(stream1 -> Fuse<S1>);
-    unsafe_pinned!(stream2 -> Fuse<S2>);
-    unsafe_unpinned!(queued1 -> Option<S1::Item>);
-    unsafe_unpinned!(queued2 -> Option<S2::Item>);
+    unsafe_pinned!(stream1: Fuse<S1>);
+    unsafe_pinned!(stream2: Fuse<S2>);
+    unsafe_unpinned!(queued1: Option<S1::Item>);
+    unsafe_unpinned!(queued2: Option<S2::Item>);
 }
 
 impl<S1: Unpin + Stream, S2: Unpin + Stream> Unpin for Zip<S1, S2> {}

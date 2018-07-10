@@ -61,8 +61,8 @@ where
     S: Stream,
     S::Item: Future,
 {
-    unsafe_pinned!(stream -> Fuse<S>);
-    unsafe_unpinned!(in_progress_queue -> FuturesUnordered<S::Item>);
+    unsafe_pinned!(stream: Fuse<S>);
+    unsafe_unpinned!(in_progress_queue: FuturesUnordered<S::Item>);
 
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
