@@ -23,6 +23,12 @@ impl<A> Flatten<A>
           A::Output: Future,
 {
     unsafe_pinned!(state -> Chain<A, A::Output, ()>);
+
+    pub(super) fn new(future: A) -> Flatten<A> {
+        Flatten {
+            state: Chain::new(future, ()),
+        }
+    }
 }
 
 impl<A> fmt::Debug for Flatten<A>
@@ -33,15 +39,6 @@ impl<A> fmt::Debug for Flatten<A>
         fmt.debug_struct("Flatten")
             .field("state", &self.state)
             .finish()
-    }
-}
-
-pub fn new<A>(future: A) -> Flatten<A>
-    where A: Future,
-          A::Output: Future,
-{
-    Flatten {
-        state: Chain::new(future, ()),
     }
 }
 

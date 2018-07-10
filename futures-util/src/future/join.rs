@@ -9,7 +9,7 @@ use futures_core::task::{self, Poll};
 macro_rules! generate {
     ($(
         $(#[$doc:meta])*
-        ($Join:ident, $new:ident, <$($Fut:ident),*>),
+        ($Join:ident, <$($Fut:ident),*>),
     )*) => ($(
         $(#[$doc])*
         #[must_use = "futures do nothing unless polled"]
@@ -31,9 +31,11 @@ macro_rules! generate {
             }
         }
 
-        pub fn $new<$($Fut: Future),*>($($Fut: $Fut),*) -> $Join<$($Fut),*> {
-            $Join {
-                $($Fut: maybe_done($Fut)),*
+        impl<$($Fut: Future),*> $Join<$($Fut),*> {
+            pub(super) fn new($($Fut: $Fut),*) -> $Join<$($Fut),*> {
+                $Join {
+                    $($Fut: maybe_done($Fut)),*
+                }
             }
         }
 
@@ -71,23 +73,23 @@ generate! {
     /// complete.
     ///
     /// This is created by the `Future::join` method.
-    (Join, new, <A, B>),
+    (Join, <A, B>),
 
     /// Future for the `join3` combinator, waiting for three futures to
     /// complete.
     ///
     /// This is created by the `Future::join3` method.
-    (Join3, new3, <A, B, C>),
+    (Join3, <A, B, C>),
 
     /// Future for the `join4` combinator, waiting for four futures to
     /// complete.
     ///
     /// This is created by the `Future::join4` method.
-    (Join4, new4, <A, B, C, D>),
+    (Join4, <A, B, C, D>),
 
     /// Future for the `join5` combinator, waiting for five futures to
     /// complete.
     ///
     /// This is created by the `Future::join5` method.
-    (Join5, new5, <A, B, C, D, E>),
+    (Join5, <A, B, C, D, E>),
 }

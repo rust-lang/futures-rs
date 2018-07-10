@@ -93,16 +93,18 @@ const POISONED: usize = 4;
 
 const NULL_WAKER_KEY: usize = usize::max_value();
 
-pub fn new<F: Future>(future: F) -> Shared<F> {
-    Shared {
-        inner: Arc::new(Inner {
-            future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
-            notifier: Arc::new(Notifier {
-                state: AtomicUsize::new(IDLE),
-                wakers: Mutex::new(Some(Slab::new())),
+impl<F: Future> Shared<F> {
+    pub(super) fn new(future: F) -> Shared<F> {
+        Shared {
+            inner: Arc::new(Inner {
+                future_or_output: UnsafeCell::new(FutureOrOutput::Future(future)),
+                notifier: Arc::new(Notifier {
+                    state: AtomicUsize::new(IDLE),
+                    wakers: Mutex::new(Some(Slab::new())),
+                }),
             }),
-        }),
-        waker_key: NULL_WAKER_KEY,
+            waker_key: NULL_WAKER_KEY,
+        }
     }
 }
 

@@ -15,9 +15,11 @@ pub struct Fuse<A: Future> {
     future: Option<A>,
 }
 
-pub fn new<A: Future>(f: A) -> Fuse<A> {
-    Fuse {
-        future: Some(f),
+impl<A: Future> Fuse<A> {
+    pub(super) fn new(f: A) -> Fuse<A> {
+        Fuse {
+            future: Some(f),
+        }
     }
 }
 

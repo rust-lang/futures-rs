@@ -11,14 +11,14 @@ pub struct IntoStream<F: Future> {
     future: Option<F>
 }
 
-pub fn new<F: Future>(future: F) -> IntoStream<F> {
-    IntoStream {
-        future: Some(future)
-    }
-}
-
 impl<F: Future> IntoStream<F> {
     unsafe_pinned!(future -> Option<F>);
+
+    pub(super) fn new(future: F) -> IntoStream<F> {
+        IntoStream {
+            future: Some(future)
+        }
+    }
 }
 
 impl<F: Future> Stream for IntoStream<F> {

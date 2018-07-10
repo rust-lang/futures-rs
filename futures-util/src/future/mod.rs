@@ -220,7 +220,7 @@ pub trait FutureExt: Future {
         B: Future,
         Self: Sized,
     {
-        let f = join::new(self, other);
+        let f = Join::new(self, other);
         assert_future::<(Self::Output, B::Output), _>(f)
     }
 
@@ -231,7 +231,7 @@ pub trait FutureExt: Future {
         C: Future,
         Self: Sized,
     {
-        join::new3(self, b, c)
+        Join3::new(self, b, c)
     }
 
     /// Same as `join`, but with more futures.
@@ -242,7 +242,7 @@ pub trait FutureExt: Future {
         D: Future,
         Self: Sized,
     {
-        join::new4(self, b, c, d)
+        Join4::new(self, b, c, d)
     }
 
     /// Same as `join`, but with more futures.
@@ -254,7 +254,7 @@ pub trait FutureExt: Future {
         E: Future,
         Self: Sized,
     {
-        join::new5(self, b, c, d, e)
+        Join5::new(self, b, c, d, e)
     }
 
     /* ToDo: futures-core cannot implement Future for Either anymore because of
@@ -343,7 +343,7 @@ pub trait FutureExt: Future {
     fn into_stream(self) -> IntoStream<Self>
         where Self: Sized
     {
-        into_stream::new(self)
+        IntoStream::new(self)
     }
 
     /// Flatten the execution of this future when the successful result of this
@@ -378,7 +378,7 @@ pub trait FutureExt: Future {
         where Self::Output: Future,
         Self: Sized
     {
-        let f = flatten::new(self);
+        let f = Flatten::new(self);
         assert_future::<<<Self as Future>::Output as Future>::Output, _>(f)
     }
 
@@ -414,7 +414,7 @@ pub trait FutureExt: Future {
         where Self::Output: Stream,
               Self: Sized
     {
-        flatten_stream::new(self)
+        FlattenStream::new(self)
     }
 
     /// Fuse a future such that `poll` will never again be called once it has
@@ -435,7 +435,7 @@ pub trait FutureExt: Future {
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {
-        let f = fuse::new(self);
+        let f = Fuse::new(self);
         assert_future::<Self::Output, _>(f)
     }
 
@@ -464,7 +464,7 @@ pub trait FutureExt: Future {
         where F: FnOnce(&Self::Output) -> (),
               Self: Sized,
     {
-        assert_future::<Self::Output, _>(inspect::new(self, f))
+        assert_future::<Self::Output, _>(Inspect::new(self, f))
     }
 
     /// Catches unwinding panics while polling the future.
@@ -506,7 +506,7 @@ pub trait FutureExt: Future {
     fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + ::std::panic::UnwindSafe
     {
-        catch_unwind::new(self)
+        CatchUnwind::new(self)
     }
 
     /// Create a cloneable handle to this future where all handles will resolve
@@ -563,7 +563,7 @@ pub trait FutureExt: Future {
     fn shared(self) -> Shared<Self>
         where Self: Sized
     {
-        shared::new(self)
+        Shared::new(self)
     }
 
     /// Assigns the provided `Executor` to be used when spawning tasks
@@ -586,7 +586,7 @@ pub trait FutureExt: Future {
         where Self: Sized,
               E: ::futures_core::task::Executor
     {
-        with_executor::new(self, executor)
+        WithExecutor::new(self, executor)
     }
 }
 

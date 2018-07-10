@@ -14,14 +14,12 @@ pub struct CatchUnwind<F> where F: Future {
     future: F,
 }
 
-pub fn new<F>(future: F) -> CatchUnwind<F>
-    where F: Future + UnwindSafe,
-{
-    CatchUnwind { future }
-}
-
-impl<F> CatchUnwind<F> where F: Future {
+impl<F> CatchUnwind<F> where F: Future + UnwindSafe {
     unsafe_pinned!(future -> F);
+
+    pub(super) fn new(future: F) -> CatchUnwind<F> {
+        CatchUnwind { future }
+    }
 }
 
 impl<F> Future for CatchUnwind<F>
