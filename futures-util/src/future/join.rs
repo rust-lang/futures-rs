@@ -73,23 +73,23 @@ generate! {
     /// complete.
     ///
     /// This is created by the `Future::join` method.
-    (Join, <A, B>),
+    (Join, <Fut1, Fut2>),
 
     /// Future for the `join3` combinator, waiting for three futures to
     /// complete.
     ///
     /// This is created by the `Future::join3` method.
-    (Join3, <A, B, C>),
+    (Join3, <Fut1, Fut2, Fut3>),
 
     /// Future for the `join4` combinator, waiting for four futures to
     /// complete.
     ///
     /// This is created by the `Future::join4` method.
-    (Join4, <A, B, C, D>),
+    (Join4, <Fut1, Fut2, Fut3, Fut4>),
 
     /// Future for the `join5` combinator, waiting for five futures to
     /// complete.
     ///
     /// This is created by the `Future::join5` method.
-    (Join5, <A, B, C, D, E>),
+    (Join5, <Fut1, Fut2, Fut3, Fut4, Fut5>),
 }

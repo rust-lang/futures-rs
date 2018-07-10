@@ -10,22 +10,22 @@ use std::prelude::v1::*;
 /// This is created by the `Future::catch_unwind` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct CatchUnwind<F> where F: Future {
-    future: F,
+pub struct CatchUnwind<Fut> where Fut: Future {
+    future: Fut,
 }
 
-impl<F> CatchUnwind<F> where F: Future + UnwindSafe {
-    unsafe_pinned!(future -> F);
+impl<Fut> CatchUnwind<Fut> where Fut: Future + UnwindSafe {
+    unsafe_pinned!(future -> Fut);
 
-    pub(super) fn new(future: F) -> CatchUnwind<F> {
+    pub(super) fn new(future: Fut) -> CatchUnwind<Fut> {
         CatchUnwind { future }
     }
 }
 
-impl<F> Future for CatchUnwind<F>
-    where F: Future + UnwindSafe,
+impl<Fut> Future for CatchUnwind<Fut>
+    where Fut: Future + UnwindSafe,
 {
-    type Output = Result<F::Output, Box<dyn Any + Send>>;
+    type Output = Result<Fut::Output, Box<dyn Any + Send>>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match catch_unwind(AssertUnwindSafe(|| self.future().poll(cx))) {

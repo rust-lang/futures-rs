@@ -12,7 +12,7 @@ use futures_core::task::{self, Poll};
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Lazy<F> {
-    f: Option<F>
+    op: Option<F>
 }
 
 // safe because we never generate `PinMut<F>`
@@ -41,7 +41,7 @@ impl<F> Unpin for Lazy<F> {}
 pub fn lazy<F, R>(f: F) -> Lazy<F>
     where F: FnOnce(&mut task::Context) -> R,
 {
-    Lazy { f: Some(f) }
+    Lazy { op: Some(f) }
 }
 
 impl<R, F> Future for Lazy<F>
@@ -50,6 +50,6 @@ impl<R, F> Future for Lazy<F>
     type Output = R;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<R> {
-        Poll::Ready((self.f.take().unwrap())(cx))
+        Poll::Ready((self.op.take().unwrap())(cx))
     }
 }

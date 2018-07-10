@@ -11,26 +11,24 @@ use futures_core::task::{self, Poll};
 /// This is created by the `Future::fuse` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Fuse<A: Future> {
-    future: Option<A>,
+pub struct Fuse<Fut: Future> {
+    future: Option<Fut>,
 }
 
-impl<A: Future> Fuse<A> {
-    pub(super) fn new(f: A) -> Fuse<A> {
+impl<Fut: Future> Fuse<Fut> {
+    unsafe_pinned!(future -> Option<Fut>);
+
+    pub(super) fn new(f: Fut) -> Fuse<Fut> {
         Fuse {
             future: Some(f),
         }
     }
 }
 
-impl<A: Future> Fuse<A> {
-    unsafe_pinned!(future -> Option<A>);
-}
+impl<Fut: Future> Future for Fuse<Fut> {
+    type Output = Fut::Output;
 
-impl<A: Future> Future for Fuse<A> {
-    type Output = A::Output;
-
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<A::Output> {
+    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
         // safety: we use this &mut only for matching, not for movement
         let v = match self.future().as_pin_mut() {
             Some(fut) => {

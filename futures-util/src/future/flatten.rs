@@ -11,29 +11,29 @@ use super::chain::Chain;
 ///
 /// This is created by the `Future::flatten` method.
 #[must_use = "futures do nothing unless polled"]
-pub struct Flatten<A>
-    where A: Future,
-          A::Output: Future,
+pub struct Flatten<Fut>
+    where Fut: Future,
+          Fut::Output: Future,
 {
-    state: Chain<A, A::Output, ()>,
+    state: Chain<Fut, Fut::Output, ()>,
 }
 
-impl<A> Flatten<A>
-    where A: Future,
-          A::Output: Future,
+impl<Fut> Flatten<Fut>
+    where Fut: Future,
+          Fut::Output: Future,
 {
-    unsafe_pinned!(state -> Chain<A, A::Output, ()>);
+    unsafe_pinned!(state -> Chain<Fut, Fut::Output, ()>);
 
-    pub(super) fn new(future: A) -> Flatten<A> {
+    pub(super) fn new(future: Fut) -> Flatten<Fut> {
         Flatten {
             state: Chain::new(future, ()),
         }
     }
 }
 
-impl<A> fmt::Debug for Flatten<A>
-    where A: Future + fmt::Debug,
-          A::Output: Future + fmt::Debug,
+impl<Fut> fmt::Debug for Flatten<Fut>
+    where Fut: Future + fmt::Debug,
+          Fut::Output: Future + fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("Flatten")
@@ -42,11 +42,11 @@ impl<A> fmt::Debug for Flatten<A>
     }
 }
 
-impl<A> Future for Flatten<A>
-    where A: Future,
-          A::Output: Future,
+impl<Fut> Future for Flatten<Fut>
+    where Fut: Future,
+          Fut::Output: Future,
 {
-    type Output = <A::Output as Future>::Output;
+    type Output = <Fut::Output as Future>::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.state().poll(cx, |a, ()| a)

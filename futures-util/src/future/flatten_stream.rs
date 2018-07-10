@@ -9,21 +9,21 @@ use futures_core::task::{self, Poll};
 ///
 /// This is created by the `Future::flatten_stream` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct FlattenStream<F: Future> {
-    state: State<F>
+pub struct FlattenStream<Fut: Future> {
+    state: State<Fut>
 }
 
-impl<F: Future> FlattenStream<F> {
-    pub(super) fn new(f: F) -> FlattenStream<F> {
+impl<Fut: Future> FlattenStream<Fut> {
+    pub(super) fn new(future: Fut) -> FlattenStream<Fut> {
         FlattenStream {
-            state: State::Future(f)
+            state: State::Future(future)
         }
     }
 }
 
-impl<F> fmt::Debug for FlattenStream<F>
-    where F: Future + fmt::Debug,
-          F::Output: fmt::Debug,
+impl<Fut> fmt::Debug for FlattenStream<Fut>
+    where Fut: Future + fmt::Debug,
+          Fut::Output: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("FlattenStream")
@@ -33,18 +33,18 @@ impl<F> fmt::Debug for FlattenStream<F>
 }
 
 #[derive(Debug)]
-enum State<F: Future> {
+enum State<Fut: Future> {
     // future is not yet called or called and not ready
-    Future(F),
+    Future(Fut),
     // future resolved to Stream
-    Stream(F::Output),
+    Stream(Fut::Output),
 }
 
-impl<F> Stream for FlattenStream<F>
-    where F: Future,
-          F::Output: Stream,
+impl<Fut> Stream for FlattenStream<Fut>
+    where Fut: Future,
+          Fut::Output: Stream,
 {
-    type Item = <F::Output as Stream>::Item;
+    type Item = <Fut::Output as Stream>::Item;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
         loop {
