@@ -11,25 +11,23 @@ use std::mem::PinMut;
 ///
 /// [`close`]: fn.close.html
 #[derive(Debug)]
-pub struct Close<'a, A: ?Sized + 'a> {
-    a: &'a mut A,
+pub struct Close<'a, W: ?Sized + 'a> {
+    writer: &'a mut W,
 }
 
 // PinMut is never projected to fields
-impl<'a, A: ?Sized> Unpin for Close<'a, A> {}
+impl<'a, W: ?Sized> Unpin for Close<'a, W> {}
 
-pub fn close<'a, A: ?Sized>(a: &'a mut A) -> Close<'a, A>
-    where A: AsyncWrite,
-{
-    Close { a }
+impl<W: AsyncWrite + ?Sized> Close<'a, W> {
+    pub(super) fn new(writer: &'a mut W) -> Close<'a, W> {
+        Close { writer }
+    }
 }
 
-impl<'a, A> Future for Close<'a, A>
-    where A: AsyncWrite + ?Sized,
-{
+impl<'a, W: AsyncWrite + ?Sized> Future for Close<'a, W> {
     type Output = io::Result<()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.a.poll_close(cx)
+        self.writer.poll_close(cx)
     }
 }

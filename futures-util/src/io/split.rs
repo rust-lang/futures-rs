@@ -16,13 +16,17 @@ pub struct WriteHalf<T> {
     handle: BiLock<T>,
 }
 
-fn lock_and_then<T, U, E, F>(lock: &BiLock<T>, cx: &mut task::Context, f: F) -> Poll<Result<U, E>>
+fn lock_and_then<T, U, E, F>(
+    lock: &BiLock<T>,
+    cx: &mut task::Context,
+    op: F
+) -> Poll<Result<U, E>>
     where F: FnOnce(&mut T, &mut task::Context) -> Poll<Result<U, E>>
 {
     match lock.poll_lock(cx) {
         // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
         // as a `PinMut` anywhere other than here as a way to get to `&mut`.
-        Poll::Ready(mut l) => f(unsafe { PinMut::get_mut_unchecked(l.as_pin_mut()) }, cx),
+        Poll::Ready(mut l) => op(unsafe { PinMut::get_mut_unchecked(l.as_pin_mut()) }, cx),
         Poll::Pending => Poll::Pending,
     }
 }
@@ -32,7 +36,7 @@ pub fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {
     (ReadHalf { handle: a }, WriteHalf { handle: b })
 }
 
-impl<T: AsyncRead> AsyncRead for ReadHalf<T> {
+impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
     fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
         -> Poll<io::Result<usize>>
     {
@@ -46,7 +50,7 @@ impl<T: AsyncRead> AsyncRead for ReadHalf<T> {
     }
 }
 
-impl<T: AsyncWrite> AsyncWrite for WriteHalf<T> {
+impl<W: AsyncWrite> AsyncWrite for WriteHalf<W> {
     fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
         -> Poll<io::Result<usize>>
     {

@@ -5,21 +5,9 @@
 //! `AsyncReadExt` and `AsyncWriteExt` traits which add methods
 //! to the `AsyncRead` and `AsyncWrite` types.
 
-
 use std::vec::Vec;
 
 pub use futures_io::{AsyncRead, AsyncWrite, IoVec};
-
-pub use self::allow_std::AllowStdIo;
-pub use self::copy_into::CopyInto;
-pub use self::flush::Flush;
-pub use self::read::Read;
-pub use self::read_exact::ReadExact;
-pub use self::read_to_end::ReadToEnd;
-pub use self::close::Close;
-pub use self::split::{ReadHalf, WriteHalf};
-pub use self::window::Window;
-pub use self::write_all::WriteAll;
 
 // Temporarily removed until AsyncBufRead is implemented
 // pub use io::lines::{lines, Lines};
@@ -28,15 +16,34 @@ pub use self::write_all::WriteAll;
 // mod read_until;
 
 mod allow_std;
+pub use self::allow_std::AllowStdIo;
+
 mod copy_into;
+pub use self::copy_into::CopyInto;
+
 mod flush;
+pub use self::flush::Flush;
+
 mod read;
+pub use self::read::Read;
+
 mod read_exact;
+pub use self::read_exact::ReadExact;
+
 mod read_to_end;
+pub use self::read_to_end::ReadToEnd;
+
 mod close;
+pub use self::close::Close;
+
 mod split;
+pub use self::split::{ReadHalf, WriteHalf};
+
 mod window;
+pub use self::window::Window;
+
 mod write_all;
+pub use self::write_all::WriteAll;
 
 /// An extension trait which adds utility methods to `AsyncRead` types.
 pub trait AsyncReadExt: AsyncRead {
@@ -48,10 +55,13 @@ pub trait AsyncReadExt: AsyncRead {
     /// provided.
     ///
     /// On success the number of bytes is returned.
-    fn copy_into<'a, W>(&'a mut self, writer: &'a mut W) -> CopyInto<'a, Self, W>
+    fn copy_into<'a, W>(
+        &'a mut self,
+        writer: &'a mut W,
+    ) -> CopyInto<'a, Self, W>
         where W: AsyncWrite,
     {
-        copy_into::copy_into(self, writer)
+        CopyInto::new(self, writer)
     }
 
     /// Tries to read some bytes directly into the given `buf` in asynchronous
@@ -59,9 +69,8 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// The returned future will resolve to the number of bytes read once the read
     /// operation is completed.
-    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self>
-    {
-        read::read(self, buf)
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self> {
+        Read::new(self, buf)
     }
 
     /// Creates a future which will read exactly enough bytes to fill `buf`,
@@ -71,15 +80,19 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// In the case of an error the buffer and the object will be discarded, with
     /// the error yielded.
-    fn read_exact<'a>(&'a mut self, buf: &'a mut [u8]) -> ReadExact<'a, Self>
-    {
-        read_exact::read_exact(self, buf)
+    fn read_exact<'a>(
+        &'a mut self,
+        buf: &'a mut [u8],
+    ) -> ReadExact<'a, Self> {
+        ReadExact::new(self, buf)
     }
 
     /// Creates a future which will read all the bytes from this `AsyncRead`.
-    fn read_to_end<'a>(&'a mut self, buf: &'a mut Vec<u8>) -> ReadToEnd<'a, Self>
-    {
-        read_to_end::read_to_end(self, buf)
+    fn read_to_end<'a>(
+        &'a mut self,
+        buf: &'a mut Vec<u8>,
+    ) -> ReadToEnd<'a, Self> {
+        ReadToEnd::new(self, buf)
     }
 
     /// Helper method for splitting this read/write object into two halves.
@@ -93,20 +106,18 @@ pub trait AsyncReadExt: AsyncRead {
     }
 }
 
-impl<T: AsyncRead + ?Sized> AsyncReadExt for T {}
+impl<R: AsyncRead + ?Sized> AsyncReadExt for R {}
 
 /// An extension trait which adds utility methods to `AsyncWrite` types.
 pub trait AsyncWriteExt: AsyncWrite {
     /// Creates a future which will entirely flush this `AsyncWrite`.
-    fn flush<'a>(&'a mut self) -> Flush<'a, Self>
-    {
-        flush::flush(self)
+    fn flush<'a>(&'a mut self) -> Flush<'a, Self> {
+        Flush::new(self)
     }
 
     /// Creates a future which will entirely close this `AsyncWrite`.
-    fn close<'a>(&'a mut self) -> Close<'a, Self>
-    {
-        close::close(self)
+    fn close<'a>(&'a mut self) -> Close<'a, Self> {
+        Close::new(self)
     }
 
     /// Write data into this object.
@@ -115,10 +126,9 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// this `AsyncWrite`.
     ///
     /// The returned future will not complete until all the data has been written.
-    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self>
-    {
-        write_all::write_all(self, buf)
+    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
+        WriteAll::new(self, buf)
     }
 }
 
-impl<T: AsyncWrite + ?Sized> AsyncWriteExt for T {}
+impl<W: AsyncWrite + ?Sized> AsyncWriteExt for W {}
