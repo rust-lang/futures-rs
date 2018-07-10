@@ -8,12 +8,12 @@ use futures_sink::Sink;
 /// has been flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Flush<'a, S: 'a + Unpin + ?Sized> {
-    sink: &'a mut S,
+pub struct Flush<'a, Si: 'a + Unpin + ?Sized> {
+    sink: &'a mut Si,
 }
 
 // Pin is never projected to a field.
-impl<'a, S: Unpin + ?Sized> Unpin for Flush<'a, S> {}
+impl<'a, Si: Unpin + ?Sized> Unpin for Flush<'a, Si> {}
 
 /// A future that completes when the sink has finished processing all
 /// pending requests.
@@ -21,8 +21,10 @@ impl<'a, S: Unpin + ?Sized> Unpin for Flush<'a, S> {}
 /// The sink itself is returned after flushing is complete; this adapter is
 /// intended to be used when you want to stop sending to the sink until
 /// all current requests are processed.
-pub fn new<'a, S: Sink + Unpin + ?Sized>(sink: &'a mut S) -> Flush<'a, S> {
-    Flush { sink }
+impl<'a, Si: Sink + Unpin + ?Sized> Flush<'a, Si> {
+    pub(super) fn new(sink: &'a mut Si) -> Flush<'a, Si> {
+        Flush { sink }
+    }
 }
 
 impl<'a, S: Sink + Unpin + ?Sized> Future for Flush<'a, S> {

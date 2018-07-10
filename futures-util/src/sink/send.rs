@@ -8,25 +8,30 @@ use futures_sink::Sink;
 /// then waits until the sink has fully flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Send<'a, S: Sink + Unpin + 'a + ?Sized> {
-    sink: &'a mut S,
-    item: Option<S::SinkItem>,
+pub struct Send<'a, Si: Sink + Unpin + 'a + ?Sized> {
+    sink: &'a mut Si,
+    item: Option<Si::SinkItem>,
 }
 
 // Pinning is never projected to children
-impl<'a, S: Sink + Unpin + ?Sized> Unpin for Send<'a, S> {}
+impl<'a, Si: Sink + Unpin + ?Sized> Unpin for Send<'a, Si> {}
 
-pub fn new<'a, S: Sink + Unpin + ?Sized>(sink: &'a mut S, item: S::SinkItem) -> Send<'a, S> {
-    Send {
-        sink,
-        item: Some(item),
+impl<'a, Si: Sink + Unpin + ?Sized> Send<'a, Si> {
+    pub(super) fn new(sink: &'a mut Si, item: Si::SinkItem) -> Send<'a, Si> {
+        Send {
+            sink,
+            item: Some(item),
+        }
     }
 }
 
-impl<'a, S: Sink + Unpin + ?Sized> Future for Send<'a, S> {
-    type Output = Result<(), S::SinkError>;
+impl<'a, Si: Sink + Unpin + ?Sized> Future for Send<'a, Si> {
+    type Output = Result<(), Si::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {
             let mut sink = PinMut::new(this.sink);

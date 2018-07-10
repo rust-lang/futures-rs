@@ -10,43 +10,44 @@ use futures_sink::Sink;
 /// to a sink and then waits until the sink has fully flushed those values.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SendAll<'a, T, U>
+pub struct SendAll<'a, Si, St>
 where
-    T: Sink + Unpin + 'a + ?Sized,
-    U: Stream + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + 'a + ?Sized,
+    St: Stream + Unpin + 'a + ?Sized,
 {
-    sink: &'a mut T,
-    stream: Fuse<&'a mut U>,
-    buffered: Option<T::SinkItem>,
+    sink: &'a mut Si,
+    stream: Fuse<&'a mut St>,
+    buffered: Option<Si::SinkItem>,
 }
 
 // Pinning is never projected to any fields
-impl<'a, T, U> Unpin for SendAll<'a, T, U>
+impl<'a, Si, St> Unpin for SendAll<'a, Si, St>
 where
-    T: Sink + Unpin + 'a + ?Sized,
-    U: Stream + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + 'a + ?Sized,
+    St: Stream + Unpin + 'a + ?Sized,
 {}
 
-pub fn new<'a, T, U>(sink: &'a mut T, stream: &'a mut U) -> SendAll<'a, T, U>
+impl<'a, Si, St> SendAll<'a, Si, St>
 where
-    T: Sink + Unpin + 'a + ?Sized,
-    U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + 'a + ?Sized,
+    St: Stream<Item = Si::SinkItem> + Unpin + 'a + ?Sized,
 {
-    SendAll {
-        sink,
-        stream: stream.fuse(),
-        buffered: None,
+    pub(super) fn new(
+        sink: &'a mut Si,
+        stream: &'a mut St,
+    ) -> SendAll<'a, Si, St> {
+        SendAll {
+            sink,
+            stream: stream.fuse(),
+            buffered: None,
+        }
     }
-}
 
-impl<'a, T, U> SendAll<'a, T, U>
-where
-    T: Sink + Unpin + 'a + ?Sized,
-    U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
-{
-    fn try_start_send(&mut self, cx: &mut task::Context, item: T::SinkItem)
-        -> Poll<Result<(), T::SinkError>>
-    {
+    fn try_start_send(
+        &mut self,
+        cx: &mut task::Context,
+        item: Si::SinkItem,
+    ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
         match PinMut::new(self.sink).poll_ready(cx) {
             Poll::Ready(Ok(())) => {
@@ -61,14 +62,17 @@ where
     }
 }
 
-impl<'a, T, U> Future for SendAll<'a, T, U>
+impl<'a, Si, St> Future for SendAll<'a, Si, St>
 where
-    T: Sink + Unpin + 'a + ?Sized,
-    U: Stream<Item = T::SinkItem> + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + 'a + ?Sized,
+    St: Stream<Item = Si::SinkItem> + Unpin + 'a + ?Sized,
 {
-    type Output = Result<(), T::SinkError>;
+    type Output = Result<(), Si::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
