@@ -10,7 +10,7 @@
 #![doc(html_root_url = "https://docs.rs/futures-util/0.3.0-alpha")]
 
 #[macro_use]
-extern crate futures_core;
+mod macros;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -20,7 +20,9 @@ macro_rules! if_std {
 }
 
 #[doc(hidden)]
-pub use futures_core::core_reexport;
+pub mod core_reexport {
+    pub use core::{mem, marker, future, task};
+}
 
 macro_rules! delegate_sink {
     ($field:ident) => {
@@ -55,26 +57,29 @@ macro_rules! delegate_sink {
 }
 
 pub mod future;
-pub use crate::future::FutureExt;
+#[doc(hidden)] pub use crate::future::FutureExt;
 
 pub mod try_future;
-pub use crate::try_future::TryFutureExt;
+#[doc(hidden)] pub use crate::try_future::TryFutureExt;
 
 pub mod stream;
-pub use crate::stream::StreamExt;
+#[doc(hidden)] pub use crate::stream::StreamExt;
 
 pub mod try_stream;
-pub use crate::try_stream::TryStreamExt;
+#[doc(hidden)] pub use crate::try_stream::TryStreamExt;
 
 pub mod sink;
-pub use crate::sink::SinkExt;
+#[doc(hidden)] pub use crate::sink::SinkExt;
+
+pub mod task;
 
 if_std! {
     // FIXME: currently async/await is only available with std
     pub mod async_await;
 
     pub mod io;
-    pub use crate::io::{AsyncReadExt, AsyncWriteExt};
+    #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
+
     #[cfg(any(test, feature = "bench"))]
     pub mod lock;
     #[cfg(not(any(test, feature = "bench")))]

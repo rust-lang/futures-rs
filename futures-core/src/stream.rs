@@ -4,6 +4,9 @@ use crate::task::{self, Poll};
 use core::marker::Unpin;
 use core::mem::PinMut;
 
+#[cfg(feature = "either")]
+use either::Either;
+
 /// A stream of values produced asynchronously.
 ///
 /// If `Future<Output = T>` is an asynchronous version of `T`, then `Stream<Item
@@ -77,6 +80,23 @@ impl<'a, S: ?Sized + Stream> Stream for PinMut<'a, S> {
         cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         S::poll_next((*self).reborrow(), cx)
+    }
+}
+
+#[cfg(feature = "either")]
+impl<A, B> Stream for Either<A, B>
+    where A: Stream,
+          B: Stream<Item = A::Item>
+{
+    type Item = A::Item;
+
+    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<A::Item>> {
+        unsafe {
+            match PinMut::get_mut_unchecked(self) {
+                Either::Left(a) => PinMut::new_unchecked(a).poll_next(cx),
+                Either::Right(b) => PinMut::new_unchecked(b).poll_next(cx),
+            }
+        }
     }
 }
 

@@ -7,7 +7,7 @@
 ///
 /// ```
 /// # #![feature(pin, arbitrary_self_types)]
-/// # #[macro_use] extern crate futures_core;
+/// # #[macro_use] extern crate futures;
 /// # use core::mem::PinMut;
 /// # use core::marker::Unpin;
 /// struct Foo<T> {
@@ -25,7 +25,7 @@
 /// impl<T: Unpin> Unpin for Foo<T> {}; // Conditional Unpin impl
 /// ```
 ///
-/// [`Unpin`]: core::mem::Unpin
+/// [`Unpin`]: std::marker::Unpin
 /// [`drop`]: Drop::drop
 #[macro_export]
 macro_rules! unsafe_pinned {
@@ -51,7 +51,7 @@ macro_rules! unsafe_pinned {
 ///
 /// ```
 /// # #![feature(pin, arbitrary_self_types)]
-/// # #[macro_use] extern crate futures_core;
+/// # #[macro_use] extern crate futures;
 /// # use core::mem::PinMut;
 /// # struct Bar;
 /// struct Foo {
@@ -85,7 +85,7 @@ macro_rules! unsafe_unpinned {
 ///
 /// ```
 /// # #![feature(pin, arbitrary_self_types)]
-/// # #[macro_use] extern crate futures_core;
+/// # #[macro_use] extern crate futures;
 /// # use core::mem::PinMut;
 /// # struct Foo {}
 /// let foo = Foo { /* ... */ };

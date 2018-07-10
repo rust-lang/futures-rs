@@ -1,8 +1,9 @@
 //! An unbounded set of futures.
 
+use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll, AtomicWaker};
+use futures_core::task::{self, Poll};
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;

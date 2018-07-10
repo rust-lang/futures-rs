@@ -1,10 +1,9 @@
+use crate::task::AtomicWaker;
 use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering::{Relaxed, Acquire, Release, AcqRel};
-
-use futures_core::task::AtomicWaker;
 
 use super::abort::abort;
 use super::node::Node;

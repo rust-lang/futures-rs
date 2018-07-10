@@ -13,8 +13,9 @@
 #[macro_use]
 extern crate std;
 
-#[cfg_attr(feature = "std", macro_use)]
-extern crate futures_core;
+#[cfg(feature = "std")]
+#[macro_use]
+extern crate futures_util;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(

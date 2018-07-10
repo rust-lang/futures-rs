@@ -3,9 +3,11 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
+use core::marker::Unpin;
+use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::Executor;
+use futures_core::task::{self, Poll, Executor};
 
 // Primitive futures
 mod empty;
@@ -17,8 +19,14 @@ pub use self::lazy::{lazy, Lazy};
 mod maybe_done;
 pub use self::maybe_done::{maybe_done, MaybeDone};
 
+mod option;
+pub use self::option::{OptionFuture};
+
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
+
+mod ready;
+pub use self::ready::{ready, Ready};
 
 // Combinators
 mod flatten;
@@ -506,14 +514,14 @@ pub trait FutureExt: Future {
     /// ```rust
     /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::future::{self, ReadyFuture};
+    /// use futures::future::{self, Ready};
     /// use futures::executor::block_on;
     ///
     /// # fn main() {
     /// let mut future = future::ready(2);
     /// assert!(block_on(future.catch_unwind()).is_ok());
     ///
-    /// let mut future = future::lazy(|_| -> ReadyFuture<i32> {
+    /// let mut future = future::lazy(|_| -> Ready<i32> {
     ///     panic!();
     ///     future::ready(2)
     /// });
@@ -605,6 +613,13 @@ pub trait FutureExt: Future {
               E: Executor
     {
         WithExecutor::new(self, executor)
+    }
+
+    /// A convenience for calling `Future::poll` on `Unpin` future types.
+    fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
+        where Self: Unpin + Sized
+    {
+        PinMut::new(self).poll(cx)
     }
 }
 
