@@ -9,15 +9,15 @@ use std::mem::PinMut;
 /// number of values when the underlying sink is unable to accept them.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct Buffer<S: Sink> {
-    sink: S,
-    buf: VecDeque<S::SinkItem>,
+pub struct Buffer<Si: Sink> {
+    sink: Si,
+    buf: VecDeque<Si::SinkItem>,
 
     // Track capacity separately from the `VecDeque`, which may be rounded up
     capacity: usize,
 }
 
-impl<S: Sink + Unpin> Unpin for Buffer<S> {}
+impl<Si: Sink + Unpin> Unpin for Buffer<Si> {}
 
 impl<Si: Sink> Buffer<Si> {
     unsafe_pinned!(sink: Si);
@@ -64,9 +64,9 @@ impl<S> Stream for Buffer<S> where S: Sink + Stream {
     }
 }
 
-impl<S: Sink> Sink for Buffer<S> {
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
+impl<Si: Sink> Sink for Buffer<Si> {
+    type SinkItem = Si::SinkItem;
+    type SinkError = Si::SinkError;
 
     fn poll_ready(
         mut self: PinMut<Self>,

@@ -171,10 +171,10 @@ pub trait SinkExt: Sink {
     ///
     /// This adapter clones each incoming item and forwards it to both this as well as
     /// the other sink at the same time.
-    fn fanout<S>(self, other: S) -> Fanout<Self, S>
+    fn fanout<Si>(self, other: Si) -> Fanout<Self, Si>
         where Self: Sized,
               Self::SinkItem: Clone,
-              S: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
+              Si: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
     {
         Fanout::new(self, other)
     }
@@ -212,8 +212,11 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<'a, S>(&'a mut self, stream: &'a mut S) -> SendAll<'a, Self, S>
-        where S: Stream<Item = Self::SinkItem> + Unpin,
+    fn send_all<'a, St>(
+        &'a mut self,
+        stream: &'a mut St
+    ) -> SendAll<'a, Self, St>
+        where St: Stream<Item = Self::SinkItem> + Unpin,
               Self: Unpin,
     {
         SendAll::new(self, stream)
@@ -224,8 +227,8 @@ pub trait SinkExt: Sink {
     ///
     /// This can be used in combination with the `right_sink` method to write `if`
     /// statements that evaluate to different streams in different branches.
-    fn left_sink<B>(self) -> Either<Self, B>
-        where B: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
+    fn left_sink<Si2>(self) -> Either<Self, Si2>
+        where Si2: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
               Self: Sized
     {
         Either::Left(self)
@@ -236,8 +239,8 @@ pub trait SinkExt: Sink {
     ///
     /// This can be used in combination with the `left_sink` method to write `if`
     /// statements that evaluate to different streams in different branches.
-    fn right_sink<B>(self) -> Either<B, Self>
-        where B: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
+    fn right_sink<Si1>(self) -> Either<Si1, Self>
+        where Si1: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
               Self: Sized
     {
         Either::Right(self)
