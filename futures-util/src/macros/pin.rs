@@ -1,9 +1,10 @@
 /// A pinned projection of a struct field.
 ///
 /// To make using this macro safe, two things need to be ensured:
-/// - If [`Drop`] is implemented, [`drop`] must not move the field's value
-/// - If [`Unpin`] is implemented, it has to be conditionally:
-///   The struct can only be [`Unpin`] if the field's type is [`Unpin`].
+/// - If the struct implements [`Drop`], the [`drop`] method is not allowed to
+///   move the value of the field.
+/// - If the struct wants to implement [`Unpin`], it has to do so conditionally:
+///   The struct can only implement [`Unpin`] if the field's type is [`Unpin`].
 ///
 /// ```
 /// # #![feature(pin, arbitrary_self_types)]
