@@ -9,17 +9,17 @@ use executor;
 /// sink is otherwise unable to make progress.
 #[must_use = "sinks do nothing unless used"]
 #[derive(Debug)]
-pub struct Wait<S> {
-    sink: executor::Spawn<S>,
+pub struct Wait<Si> {
+    sink: executor::Spawn<Si>,
 }
 
-pub fn new<S: Sink>(s: S) -> Wait<S> {
+pub fn new<Si: Sink>(s: Si) -> Wait<Si> {
     Wait {
         sink: executor::spawn(s),
     }
 }
 
-impl<S: Sink> Wait<S> {
+impl<Si: Sink> Wait<Si> {
     /// Sends a value to this sink, blocking the current thread until it's able
     /// to do so.
     ///
@@ -33,7 +33,7 @@ impl<S: Sink> Wait<S> {
     /// If `Ok(())` is returned then the `value` provided was successfully sent
     /// along the sink, and if `Err(e)` is returned then an error occurred
     /// which prevented the value from being sent.
-    pub fn send(&mut self, value: S::SinkItem) -> Result<(), S::SinkError> {
+    pub fn send(&mut self, value: Si::SinkItem) -> Result<(), Si::SinkError> {
         self.sink.wait_send(value)
     }
 
@@ -44,7 +44,7 @@ impl<S: Sink> Wait<S> {
     /// until it returns that it's ready to proceed. If the method returns
     /// `Pending` the current thread will be blocked until it's otherwise
     /// ready to proceed.
-    pub fn flush(&mut self) -> Result<(), S::SinkError> {
+    pub fn flush(&mut self) -> Result<(), Si::SinkError> {
         self.sink.wait_flush()
     }
 
@@ -54,7 +54,7 @@ impl<S: Sink> Wait<S> {
     /// until it returns that it's closed. If the method returns
     /// `Pending` the current thread will be blocked until it's otherwise
     /// closed.
-    pub fn close(&mut self) -> Result<(), S::SinkError> {
+    pub fn close(&mut self) -> Result<(), Si::SinkError> {
         self.sink.wait_close()
     }
 }

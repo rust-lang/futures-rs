@@ -27,10 +27,13 @@ impl<'a, Si: Sink + Unpin + ?Sized> Flush<'a, Si> {
     }
 }
 
-impl<'a, S: Sink + Unpin + ?Sized> Future for Flush<'a, S> {
-    type Output = Result<(), S::SinkError>;
+impl<'a, Si: Sink + Unpin + ?Sized> Future for Flush<'a, Si> {
+    type Output = Result<(), Si::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         PinMut::new(&mut self.sink).poll_flush(cx)
     }
 }
