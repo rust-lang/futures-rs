@@ -13,7 +13,7 @@ pub struct StreamFuture<St> {
     stream: Option<St>,
 }
 
-
+impl<St: Stream + Unpin> Unpin for StreamFuture<St> {}
 
 impl<St: Stream + Unpin> StreamFuture<St> {
     pub(super) fn new(stream: St) -> StreamFuture<St> {

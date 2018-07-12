@@ -17,6 +17,8 @@ pub struct Chunks<St: Stream> {
     items: Vec<St::Item>,
 }
 
+impl<St: Unpin + Stream> Unpin for Chunks<St> {}
+
 impl<St: Stream> Chunks<St> where St: Stream {
     unsafe_unpinned!(items:  Vec<St::Item>);
     unsafe_pinned!(stream: Fuse<St>);
@@ -58,8 +60,6 @@ impl<St: Stream> Chunks<St> where St: Stream {
         self.stream.into_inner()
     }
 }
-
-impl<St: Unpin + Stream> Unpin for Chunks<St> {}
 
 impl<St: Stream> Stream for Chunks<St> {
     type Item = Vec<St::Item>;

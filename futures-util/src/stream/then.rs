@@ -16,6 +16,8 @@ pub struct Then<St, Fut, F> {
     f: F,
 }
 
+impl<St: Unpin, Fut: Unpin, F> Unpin for Then<St, Fut, F> {}
+
 impl<St, Fut, F> Then<St, Fut, F>
     where St: Stream,
           F: FnMut(St::Item) -> Fut,
@@ -32,8 +34,6 @@ impl<St, Fut, F> Then<St, Fut, F>
         }
     }
 }
-
-impl<St: Unpin, Fut: Unpin, F> Unpin for Then<St, Fut, F> {}
 
 impl<St, Fut, F> Stream for Then<St, Fut, F>
     where St: Stream,

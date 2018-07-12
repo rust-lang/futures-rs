@@ -72,13 +72,13 @@ pub struct Unfold<T, F, Fut> {
     fut: Option<Fut>,
 }
 
+impl<T, F, Fut: Unpin> Unpin for Unfold<T, F, Fut> {}
+
 impl<T, F, Fut> Unfold<T, F, Fut> {
     unsafe_unpinned!(f: F);
     unsafe_unpinned!(state: Option<T>);
     unsafe_pinned!(fut: Option<Fut>);
 }
-
-impl<T, F, Fut: Unpin> Unpin for Unfold<T, F, Fut> {}
 
 impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,

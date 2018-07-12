@@ -10,7 +10,7 @@ use futures_core::task::{self, Poll};
 /// This structure is produced by the `Stream::take_while` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TakeWhile<St, Fut, F> where St: Stream {
+pub struct TakeWhile<St: Stream , Fut, F> {
     stream: St,
     f: F,
     pending_fut: Option<Fut>,
@@ -18,11 +18,19 @@ pub struct TakeWhile<St, Fut, F> where St: Stream {
     done_taking: bool,
 }
 
+impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for TakeWhile<St, Fut, F> {}
+
 impl<St, Fut, F> TakeWhile<St, Fut, F>
     where St: Stream,
           F: FnMut(&St::Item) -> Fut,
           Fut: Future<Output = bool>,
 {
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(pending_fut: Option<Fut>);
+    unsafe_unpinned!(pending_item: Option<St::Item>);
+    unsafe_unpinned!(done_taking: bool);
+
     pub(super) fn new(stream: St, f: F) -> TakeWhile<St, Fut, F> {
         TakeWhile {
             stream,
@@ -55,15 +63,7 @@ impl<St, Fut, F> TakeWhile<St, Fut, F>
     pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-    unsafe_pinned!(pending_fut: Option<Fut>);
-    unsafe_unpinned!(pending_item: Option<St::Item>);
-    unsafe_unpinned!(done_taking: bool);
 }
-
-impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for TakeWhile<St, Fut, F> {}
 
 impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
     where St: Stream,

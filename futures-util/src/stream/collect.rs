@@ -15,6 +15,8 @@ pub struct Collect<St, C> where St: Stream {
     collection: C,
 }
 
+impl<St: Unpin + Stream, C> Unpin for Collect<St, C> {}
+
 impl<St: Stream, C: Default> Collect<St, C> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(collection: C);
@@ -30,8 +32,6 @@ impl<St: Stream, C: Default> Collect<St, C> {
         }
     }
 }
-
-impl<St: Unpin + Stream, C> Unpin for Collect<St, C> {}
 
 impl<St, C> Future for Collect<St, C>
 where St: Stream,

@@ -13,6 +13,8 @@ pub struct Inspect<St, F> where St: Stream {
     f: F,
 }
 
+impl<St: Stream + Unpin, F> Unpin for Inspect<St, F> {}
+
 impl<St, F> Inspect<St, F>
     where St: Stream,
           F: FnMut(&St::Item) -> (),
@@ -47,8 +49,6 @@ impl<St, F> Inspect<St, F>
         self.stream
     }
 }
-
-impl<St: Stream + Unpin, F> Unpin for Inspect<St, F> {}
 
 impl<St, F> Stream for Inspect<St, F>
     where St: Stream,

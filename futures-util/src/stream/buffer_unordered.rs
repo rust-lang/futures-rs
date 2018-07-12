@@ -26,7 +26,7 @@ where
 
 impl<St> Unpin for BufferUnordered<St>
 where
-    St: Stream + fmt::Debug,
+    St: Stream + Unpin,
     St::Item: Future,
 {}
 

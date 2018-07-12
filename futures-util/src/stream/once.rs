@@ -1,16 +1,8 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
-
-/// A stream which emits single element and then EOF.
-///
-/// This stream will never block and is always ready.
-#[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
-pub struct Once<Fut> {
-    future: Option<Fut>
-}
 
 /// Creates a stream of single element
 ///
@@ -28,6 +20,17 @@ pub struct Once<Fut> {
 pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
     Once { future: Some(future) }
 }
+
+/// A stream which emits single element and then EOF.
+///
+/// This stream will never block and is always ready.
+#[derive(Debug)]
+#[must_use = "streams do nothing unless polled"]
+pub struct Once<Fut> {
+    future: Option<Fut>
+}
+
+impl<Fut: Unpin> Unpin for Once<Fut> {}
 
 impl<Fut> Once<Fut> {
     unsafe_pinned!(future: Option<Fut>);

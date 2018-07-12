@@ -1,3 +1,4 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -14,6 +15,8 @@ pub struct Fuse<St> {
     stream: St,
     done: bool,
 }
+
+impl<St: Unpin> Unpin for Fuse<St> {}
 
 impl<St: Stream> Fuse<St> {
     unsafe_pinned!(stream: St);

@@ -1,4 +1,5 @@
 use crate::stream::{StreamExt, Fuse};
+use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -14,6 +15,8 @@ pub struct Select<St1, St2> {
     stream2: Fuse<St2>,
     flag: bool,
 }
+
+impl<St1: Unpin, St2: Unpin> Unpin for Select<St1, St2> {}
 
 impl<St1, St2> Select<St1, St2>
     where St1: Stream,
