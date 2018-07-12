@@ -40,7 +40,7 @@ impl<'a, R: AsyncRead + ?Sized> Future for ReadExact<'a, R> {
         while !this.buf.is_empty() {
             let n = try_ready!(this.reader.poll_read(cx, this.buf));
             {
-                let (rest, _) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);
+                let (_, rest) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);
                 this.buf = rest;
             }
             if n == 0 {
