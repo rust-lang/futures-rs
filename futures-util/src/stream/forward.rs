@@ -17,77 +17,79 @@ const INVALID_POLL: &str = "polled `Forward` after completion";
 // This limitation is necessary in order to return the sink after the forwarding
 // has completed so that it can be used again.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
-pub struct Forward<T: Stream, U: Sink + Unpin> {
-    sink: Option<U>,
-    stream: Fuse<T>,
-    buffered: Option<U::SinkItem>,
+#[must_use = "steams do nothing unless polled"]
+pub struct Forward<St: Stream, Si: Sink + Unpin> {
+    sink: Option<Si>,
+    stream: Fuse<St>,
+    buffered_item: Option<Si::SinkItem>,
 }
 
-impl<T: Stream + Unpin, U: Sink + Unpin> Unpin for Forward<T, U> {}
+impl<St: Stream + Unpin, Si: Sink + Unpin> Unpin for Forward<St, Si> {}
 
-pub fn new<T, U>(stream: T, sink: U) -> Forward<T, U>
+impl<St, Si> Forward<St, Si>
 where
-    U: Sink + Unpin,
-    T: Stream<Item = Result<U::SinkItem, U::SinkError>>,
+    Si: Sink + Unpin,
+    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
 {
+    unsafe_pinned!(sink: Option<Si>);
+    unsafe_pinned!(stream: Fuse<St>);
+    unsafe_unpinned!(buffered_item: Option<Si::SinkItem>);
+
+    pub(super) fn new(stream: St, sink: Si) -> Forward<St, Si> {
     Forward {
         sink: Some(sink),
         stream: stream.fuse(),
-        buffered: None,
+            buffered_item: None,
     }
 }
-
-impl<T, U> Forward<T, U>
-where
-    U: Sink + Unpin,
-    T: Stream<Item = Result<U::SinkItem, U::SinkError>>,
-{
-    unsafe_pinned!(sink: Option<U>);
-    unsafe_pinned!(stream: Fuse<T>);
-    unsafe_unpinned!(buffered: Option<U::SinkItem>);
 
     fn try_start_send(
         mut self: PinMut<Self>,
         cx: &mut task::Context,
-        item: U::SinkItem,
-    ) -> Poll<Result<(), U::SinkError>> {
-        debug_assert!(self.buffered.is_none());
+        item: Si::SinkItem,
+    ) -> Poll<Result<(), Si::SinkError>> {
+        debug_assert!(self.buffered_item.is_none());
         {
             let mut sink = self.sink().as_pin_mut().unwrap();
             if try_poll!(sink.reborrow().poll_ready(cx)).is_ready() {
                 return Poll::Ready(sink.start_send(item));
             }
         }
-        *self.buffered() = Some(item);
+        *self.buffered_item() = Some(item);
         Poll::Pending
     }
 }
 
-impl<T, U> Future for Forward<T, U>
+impl<St, Si> Future for Forward<St, Si>
 where
-    U: Sink + Unpin,
-    T: Stream<Item = Result<U::SinkItem, U::SinkError>>,
+    Si: Sink + Unpin,
+    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
 {
-    type Output = Result<U, U::SinkError>;
+    type Output = Result<Si, Si::SinkError>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
-        if let Some(item) = self.buffered().take() {
+        if let Some(item) = self.buffered_item().take() {
             try_ready!(self.reborrow().try_start_send(cx, item));
         }
 
         loop {
             match self.stream().poll_next(cx) {
-                Poll::Ready(Some(Ok(item))) => try_ready!(self.reborrow().try_start_send(cx, item)),
+                Poll::Ready(Some(Ok(item))) =>
+                   try_ready!(self.reborrow().try_start_send(cx, item)),
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
                 Poll::Ready(None) => {
-                    try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL).poll_close(cx));
+                    try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)
+                                   .poll_close(cx));
                     return Poll::Ready(Ok(self.sink().take().unwrap()))
                 }
                 Poll::Pending => {
-                    try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL).poll_flush(cx));
+                    try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)
+                                   .poll_flush(cx));
                     return Poll::Pending
                 }
             }

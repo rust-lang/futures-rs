@@ -7,24 +7,25 @@ use futures_core::task::{self, Poll};
 /// This structure is produced by the `Stream::take` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Take<S> {
-    stream: S,
+pub struct Take<St> {
+    stream: St,
     remaining: u64,
 }
 
-pub fn new<S>(s: S, amt: u64) -> Take<S>
-    where S: Stream,
-{
-    Take {
-        stream: s,
-        remaining: amt,
-    }
-}
+impl<St: Stream> Take<St> {
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(remaining: u64);
 
-impl<S> Take<S> {
+    pub(super) fn new(stream: St, n: u64) -> Take<St> {
+        Take {
+            stream,
+            remaining: n,
+        }
+    }
+
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -33,7 +34,7 @@ impl<S> Take<S> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -41,12 +42,31 @@ impl<S> Take<S> {
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
+}
 
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(remaining: u64);
+impl<St> Stream for Take<St>
+    where St: Stream,
+{
+    type Item = St::Item;
+
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Option<St::Item>> {
+        if *self.remaining() == 0 {
+            Poll::Ready(None)
+        } else {
+            let next = ready!(self.stream().poll_next(cx));
+            match next {
+                Some(_) => *self.remaining() -= 1,
+                None => *self.remaining() = 0,
+            }
+            Poll::Ready(next)
+        }
+    }
 }
 
 /* TODO
@@ -60,22 +80,3 @@ impl<S> Sink for Take<S>
     delegate_sink!(stream);
 }
 */
-
-impl<S> Stream for Take<S>
-    where S: Stream,
-{
-    type Item = S::Item;
-
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
-        if *self.remaining() == 0 {
-            Poll::Ready(None)
-        } else {
-            let next = ready!(self.stream().poll_next(cx));
-            match next {
-                Some(_) => *self.remaining() -= 1,
-                None => *self.remaining() = 0,
-            }
-            Poll::Ready(next)
-        }
-    }
-}

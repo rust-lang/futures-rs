@@ -12,45 +12,32 @@ use std::prelude::v1::*;
 /// is created by the `Stream::chunks` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Chunks<S>
-    where S: Stream
-{
-    items: Vec<S::Item>,
-    stream: Fuse<S>
+pub struct Chunks<St: Stream> {
+    stream: Fuse<St>,
+    items: Vec<St::Item>,
 }
 
-pub fn new<S>(s: S, capacity: usize) -> Chunks<S>
-    where S: Stream
-{
-    assert!(capacity > 0);
+impl<St: Stream> Chunks<St> where St: Stream {
+    unsafe_unpinned!(items:  Vec<St::Item>);
+    unsafe_pinned!(stream: Fuse<St>);
 
-    Chunks {
-        items: Vec::with_capacity(capacity),
-        stream: super::fuse::new(s),
+    pub(super) fn new(stream: St, capacity: usize) -> Chunks<St> {
+        assert!(capacity > 0);
+
+        Chunks {
+            stream: super::Fuse::new(stream),
+            items: Vec::with_capacity(capacity),
+        }
     }
-}
 
-/* TODO
-// Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Chunks<S>
-    where S: Sink + Stream
-{
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
-
-    delegate_sink!(stream);
-}
-*/
-
-impl<S> Chunks<S> where S: Stream {
-    fn take(mut self: PinMut<Self>) -> Vec<S::Item> {
+    fn take(mut self: PinMut<Self>) -> Vec<St::Item> {
         let cap = self.items().capacity();
         mem::replace(self.items(), Vec::with_capacity(cap))
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         self.stream.get_ref()
     }
 
@@ -59,7 +46,7 @@ impl<S> Chunks<S> where S: Stream {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         self.stream.get_mut()
     }
 
@@ -67,22 +54,20 @@ impl<S> Chunks<S> where S: Stream {
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream.into_inner()
     }
-
-    unsafe_unpinned!(items:  Vec<S::Item>);
-    unsafe_pinned!(stream: Fuse<S>);
 }
 
-impl<S: Unpin + Stream> Unpin for Chunks<S> {}
+impl<St: Unpin + Stream> Unpin for Chunks<St> {}
 
-impl<S> Stream for Chunks<S>
-    where S: Stream
-{
-    type Item = Vec<<S as Stream>::Item>;
+impl<St: Stream> Stream for Chunks<St> {
+    type Item = Vec<St::Item>;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {
             match ready!(self.stream().poll_next(cx)) {
@@ -112,3 +97,15 @@ impl<S> Stream for Chunks<S>
         }
     }
 }
+
+/* TODO
+// Forwarding impl of Sink from the underlying stream
+impl<S> Sink for Chunks<S>
+    where S: Sink + Stream
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream);
+}
+*/

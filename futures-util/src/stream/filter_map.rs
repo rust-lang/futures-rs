@@ -10,36 +10,32 @@ use futures_core::task::{self, Poll};
 /// This structure is returned by the `Stream::filter_map` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct FilterMap<S, R, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> R,
-          R: Future,
+pub struct FilterMap<St, Fut, F>
+    where St: Stream,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future,
 {
-    stream: S,
+    stream: St,
     f: F,
-    pending: Option<R>,
+    pending: Option<Fut>,
 }
 
-pub fn new<S, R, F>(s: S, f: F) -> FilterMap<S, R, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> R,
-          R: Future,
+impl<St, Fut, F> FilterMap<St, Fut, F>
+    where St: Stream,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future,
 {
-    FilterMap {
-        stream: s,
-        f,
-        pending: None,
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(pending: Option<Fut>);
+
+    pub(super) fn new(stream: St, f: F) -> FilterMap<St, Fut, F> {
+        FilterMap { stream, f, pending: None }
     }
-}
 
-impl<S, R, F> FilterMap<S, R, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> R,
-          R: Future,
-{
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -48,7 +44,7 @@ impl<S, R, F> FilterMap<S, R, F>
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -56,43 +52,28 @@ impl<S, R, F> FilterMap<S, R, F>
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(f: F);
-    unsafe_pinned!(pending: Option<R>);
 }
 
-impl<S, R, F> Unpin for FilterMap<S, R, F>
-    where S: Stream + Unpin,
-          F: FnMut(S::Item) -> R,
-          R: Future + Unpin,
+impl<St, Fut, F> Unpin for FilterMap<St, Fut, F>
+    where St: Stream + Unpin,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future + Unpin,
 {}
 
-/* TODO
-// Forwarding impl of Sink from the underlying stream
-impl<S, R, F> Sink for FilterMap<S, R, F>
-    where S: Stream + Sink,
-          F: FnMut(S::Item) -> R,
-          R: IntoFuture<Error=S::Error>,
+impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
+    where St: Stream,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future<Output = Option<T>>,
 {
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
+    type Item = T;
 
-    delegate_sink!(stream);
-}
-*/
-
-impl<S, R, F, B> Stream for FilterMap<S, R, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> R,
-          R: Future<Output = Option<B>>,
-{
-    type Item = B;
-
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<B>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
                 let item = match ready!(self.stream().poll_next(cx)) {
@@ -111,3 +92,17 @@ impl<S, R, F, B> Stream for FilterMap<S, R, F>
         }
     }
 }
+
+/* TODO
+// Forwarding impl of Sink from the underlying stream
+impl<S, R, F> Sink for FilterMap<S, R, F>
+    where S: Stream + Sink,
+          F: FnMut(S::Item) -> R,
+          R: IntoFuture<Error=S::Error>,
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream);
+}
+*/

@@ -10,50 +10,50 @@ use futures_core::task::{self, Poll};
 /// This structure is returned by the `Stream::for_each` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct ForEach<S, U, F> {
-    stream: S,
+pub struct ForEach<St, Fut, F> {
+    stream: St,
     f: F,
-    fut: Option<U>,
+    future: Option<Fut>,
 }
 
-pub fn new<S, U, F>(s: S, f: F) -> ForEach<S, U, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> U,
-          U: Future<Output = ()>,
+impl<St, Fut, F> ForEach<St, Fut, F>
+where St: Stream,
+      F: FnMut(St::Item) -> Fut,
+      Fut: Future<Output = ()>,
 {
-    ForEach {
-        stream: s,
-        f,
-        fut: None,
-    }
-}
-
-impl<S, U, F> ForEach<S, U, F> {
-    unsafe_pinned!(stream: S);
+    unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
-    unsafe_pinned!(fut: Option<U>);
+    unsafe_pinned!(future: Option<Fut>);
+
+    pub(super) fn new(stream: St, f: F) -> ForEach<St, Fut, F> {
+        ForEach {
+            stream,
+            f,
+            future: None,
+        }
+    }
 }
 
 impl<S, U, F> Unpin for ForEach<S, U, F> {}
 
-impl<S, U, F> Future for ForEach<S, U, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> U,
-          U: Future<Output = ()>,
+impl<St, Fut, F> Future for ForEach<St, Fut, F>
+    where St: Stream,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future<Output = ()>,
 {
     type Output = ();
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
         loop {
-            if let Some(fut) = self.fut().as_pin_mut() {
-                ready!(fut.poll(cx));
+            if let Some(future) = self.future().as_pin_mut() {
+                ready!(future.poll(cx));
             }
-            PinMut::set(self.fut(), None);
+            PinMut::set(self.future(), None);
 
             match ready!(self.stream().poll_next(cx)) {
                 Some(e) => {
-                    let fut = (self.f())(e);
-                    PinMut::set(self.fut(), Some(fut));
+                    let future = (self.f())(e);
+                    PinMut::set(self.future(), Some(future));
                 }
                 None => {
                     return Poll::Ready(());

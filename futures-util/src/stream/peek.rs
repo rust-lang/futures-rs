@@ -11,38 +11,32 @@ use futures_core::task::{self, Poll};
 /// call to `poll` will return the owned item.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Peekable<S: Stream> {
-    stream: Fuse<S>,
-    peeked: Option<S::Item>,
+pub struct Peekable<St: Stream> {
+    stream: Fuse<St>,
+    peeked: Option<St::Item>,
 }
-
-pub fn new<S: Stream>(stream: S) -> Peekable<S> {
-    Peekable {
-        stream: stream.fuse(),
-        peeked: None
-    }
-}
-
-/* TODO
-// Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Peekable<S>
-    where S: Sink + Stream
-{
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
-
-    delegate_sink!(stream);
-}
-*/
 
 impl<S: Unpin + Stream> Unpin for Peekable<S> {}
 
-impl<S: Stream> Peekable<S> {
+impl<St: Stream> Peekable<St> {
+    unsafe_pinned!(stream: Fuse<St>);
+    unsafe_unpinned!(peeked: Option<St::Item>);
+
+    pub(super) fn new(stream: St) -> Peekable<St> {
+        Peekable {
+            stream: stream.fuse(),
+            peeked: None
+        }
+    }
+
     /// Peek retrieves a reference to the next item in the stream.
     ///
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
-    pub fn peek<'a>(self: &'a mut PinMut<Self>, cx: &mut task::Context) -> Poll<Option<&'a S::Item>> {
+    pub fn peek<'a>(
+        self: &'a mut PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<&'a St::Item>> {
         if self.peeked().is_some() {
             return Poll::Ready(self.peeked().as_ref())
         }
@@ -54,9 +48,6 @@ impl<S: Stream> Peekable<S> {
             }
         }
     }
-
-    unsafe_pinned!(stream: Fuse<S>);
-    unsafe_unpinned!(peeked: Option<S::Item>);
 }
 
 impl<S: Stream> Stream for Peekable<S> {
@@ -72,3 +63,15 @@ impl<S: Stream> Stream for Peekable<S> {
         self.stream().poll_next(cx)
     }
 }
+
+/* TODO
+// Forwarding impl of Sink from the underlying stream
+impl<S> Sink for Peekable<S>
+    where S: Sink + Stream
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream);
+}
+*/

@@ -21,22 +21,22 @@ use stream::{StreamExt, StreamFuture, FuturesUnordered};
 /// `select_all` function in the `stream` module, or you can start with an
 /// empty set with the `SelectAll::new` constructor.
 #[must_use = "streams do nothing unless polled"]
-pub struct SelectAll<S> {
-    inner: FuturesUnordered<StreamFuture<S>>,
+pub struct SelectAll<St> {
+    inner: FuturesUnordered<StreamFuture<St>>,
 }
 
-impl<T: Debug> Debug for SelectAll<T> {
+impl<St: Debug> Debug for SelectAll<St> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "SelectAll {{ ... }}")
     }
 }
 
-impl<S: Stream> SelectAll<S> {
+impl<St: Stream> SelectAll<St> {
     /// Constructs a new, empty `SelectAll`
     ///
     /// The returned `SelectAll` does not contain any streams and, in this
     /// state, `SelectAll::poll` will return `Ok(Async::Ready(None))`.
-    pub fn new() -> SelectAll<S> {
+    pub fn new() -> SelectAll<St> {
         SelectAll { inner: FuturesUnordered::new() }
     }
 
@@ -63,11 +63,14 @@ impl<S: Stream> SelectAll<S> {
     }
 }
 
-impl<S: Stream> Stream for SelectAll<S> {
+impl<St: Stream> Stream for SelectAll<St> {
     type Item = S::Item;
     type Error = S::Error;
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(
+        &mut self,
+        cx: &mut task::Context,
+    ) -> Poll<Option<Self::Item>, Self::Error> {
         match self.inner.poll_next(cx).map_err(|(err, _)| err)? {
             Async::Pending => Ok(Async::Pending),
             Async::Ready(Some((Some(item), remaining))) => {

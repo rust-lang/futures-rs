@@ -42,15 +42,15 @@ use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
 /// `futures_unordered` function in the `stream` module, or you can start with
 /// an empty set with the `FuturesUnordered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
-pub struct FuturesUnordered<F> {
-    ready_to_run_queue: Arc<ReadyToRunQueue<F>>,
+pub struct FuturesUnordered<Fut> {
+    ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
     len: usize,
-    head_all: *const Node<F>,
+    head_all: *const Node<Fut>,
 }
 
-unsafe impl<T: Send> Send for FuturesUnordered<T> {}
-unsafe impl<T: Sync> Sync for FuturesUnordered<T> {}
-impl<T> Unpin for FuturesUnordered<T> {}
+unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
+unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
+impl<Fut> Unpin for FuturesUnordered<Fut> {}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
@@ -75,13 +75,13 @@ impl<T> Unpin for FuturesUnordered<T> {}
 // is notified, it will only insert itself into the linked list if it isn't
 // currently inserted.
 
-impl<T: Future> FuturesUnordered<T> {
+impl<Fut: Future> FuturesUnordered<Fut> {
     /// Constructs a new, empty `FuturesUnordered`
     ///
     /// The returned `FuturesUnordered` does not contain any futures.
     /// In this state, `FuturesUnordered::poll_next` will return
     /// `Poll::Ready(None)`.
-    pub fn new() -> FuturesUnordered<T> {
+    pub fn new() -> FuturesUnordered<Fut> {
         let stub = Arc::new(Node {
             future: UnsafeCell::new(None),
             next_all: UnsafeCell::new(ptr::null()),
@@ -90,7 +90,7 @@ impl<T: Future> FuturesUnordered<T> {
             queued: AtomicBool::new(true),
             ready_to_run_queue: Weak::new(),
         });
-        let stub_ptr = &*stub as *const Node<T>;
+        let stub_ptr = &*stub as *const Node<Fut>;
         let ready_to_run_queue = Arc::new(ReadyToRunQueue {
             parent: AtomicWaker::new(),
             head: AtomicPtr::new(stub_ptr as *mut _),
@@ -106,13 +106,13 @@ impl<T: Future> FuturesUnordered<T> {
     }
 }
 
-impl<T: Future> Default for FuturesUnordered<T> {
-    fn default() -> FuturesUnordered<T> {
+impl<Fut: Future> Default for FuturesUnordered<Fut> {
+    fn default() -> FuturesUnordered<Fut> {
         FuturesUnordered::new()
     }
 }
 
-impl<T> FuturesUnordered<T> {
+impl<Fut> FuturesUnordered<Fut> {
     /// Returns the number of futures contained in the set.
     ///
     /// This represents the total number of in-flight futures.
@@ -131,7 +131,7 @@ impl<T> FuturesUnordered<T> {
     /// function will not call `poll` on the submitted future. The caller must
     /// ensure that `FuturesUnordered::poll_next` is called in order to receive
     /// task notifications.
-    pub fn push(&mut self, future: T) {
+    pub fn push(&mut self, future: Fut) {
         let node = Arc::new(Node {
             future: UnsafeCell::new(Some(future)),
             next_all: UnsafeCell::new(ptr::null_mut()),
@@ -154,12 +154,12 @@ impl<T> FuturesUnordered<T> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_mut(&mut self) -> IterMut<T> where T: Unpin {
+    pub fn iter_mut(&mut self) -> IterMut<Fut> where Fut: Unpin {
         IterMut(PinMut::new(self).iter_pin_mut())
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, T> {
+    pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, Fut> {
         IterPinMut {
             node: self.head_all,
             len: self.len,
@@ -170,7 +170,7 @@ impl<T> FuturesUnordered<T> {
     /// Releases the node. It destorys the future inside and either drops
     /// the `Arc<Node>` or transfers ownership to the ready to run queue.
     /// The node this method is called on must have been unlinked before.
-    fn release_node(&mut self, node: Arc<Node<T>>) {
+    fn release_node(&mut self, node: Arc<Node<Fut>>) {
         // `release_node` must only be called on unlinked nodes
         unsafe {
             debug_assert!((*node.next_all.get()).is_null());
@@ -183,7 +183,7 @@ impl<T> FuturesUnordered<T> {
 
         // Drop the future, even if it hasn't finished yet. This is safe
         // because we're dropping the future on the thread that owns
-        // `FuturesUnordered`, which correctly tracks T's lifetimes and such.
+        // `FuturesUnordered`, which correctly tracks Fut's lifetimes and such.
         unsafe {
             drop((*node.future.get()).take());
         }
@@ -205,7 +205,7 @@ impl<T> FuturesUnordered<T> {
     }
 
     /// Insert a new node into the internal linked list.
-    fn link(&mut self, node: Arc<Node<T>>) -> *const Node<T> {
+    fn link(&mut self, node: Arc<Node<Fut>>) -> *const Node<Fut> {
         let ptr = Arc::into_raw(node);
         unsafe {
             *(*ptr).next_all.get() = self.head_all;
@@ -223,7 +223,7 @@ impl<T> FuturesUnordered<T> {
     /// managed by `FuturesUnordered`.
     /// This function is unsafe because it has be guaranteed that `node` is a
     /// valid pointer.
-    unsafe fn unlink(&mut self, node: *const Node<T>) -> Arc<Node<T>> {
+    unsafe fn unlink(&mut self, node: *const Node<Fut>) -> Arc<Node<Fut>> {
         let node = Arc::from_raw(node);
         let next = *node.next_all.get();
         let prev = *node.prev_all.get();
@@ -244,8 +244,8 @@ impl<T> FuturesUnordered<T> {
     }
 }
 
-impl<T: Future> Stream for FuturesUnordered<T> {
-    type Item = T::Output;
+impl<Fut: Future> Stream for FuturesUnordered<Fut> {
+    type Item = Fut::Output;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context)
         -> Poll<Option<Self::Item>>
@@ -332,12 +332,12 @@ impl<T: Future> Stream for FuturesUnordered<T> {
             // * We unlink the node from our internal queue to preemptively
             //   assume it'll panic, in which case we'll want to discard it
             //   regardless.
-            struct Bomb<'a, T: 'a> {
-                queue: &'a mut FuturesUnordered<T>,
-                node: Option<Arc<Node<T>>>,
+            struct Bomb<'a, Fut: 'a> {
+                queue: &'a mut FuturesUnordered<Fut>,
+                node: Option<Arc<Node<Fut>>>,
             }
 
-            impl<'a, T> Drop for Bomb<'a, T> {
+            impl<'a, Fut> Drop for Bomb<'a, Fut> {
                 fn drop(&mut self) {
                     if let Some(node) = self.node.take() {
                         self.queue.release_node(node);
@@ -353,12 +353,12 @@ impl<T: Future> Stream for FuturesUnordered<T> {
             // Poll the underlying future with the appropriate waker
             // implementation. This is where a large bit of the unsafety
             // starts to stem from internally. The waker is basically just
-            // our `Arc<Node<T>>` and can schedule the future for polling by
+            // our `Arc<Node<Fut>>` and can schedule the future for polling by
             // enqueuing its node in the ready to run queue.
             //
-            // Critically though `Node<T>` won't actually access `T`, the
-            // future, while it's floating around inside of `Task`
-            // instances. These structs will basically just use `T` to size
+            // Critically though `Node<Fut>` won't actually access `Fut`, the
+            // future, while it's floating around inside of wakers.
+            // These structs will basically just use `Fut` to size
             // the internal allocation, appropriately accessing fields and
             // deallocating the node if need be.
 
@@ -381,19 +381,18 @@ impl<T: Future> Stream for FuturesUnordered<T> {
     }
 }
 
-impl<T> Debug for FuturesUnordered<T> {
+impl<Fut> Debug for FuturesUnordered<Fut> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "FuturesUnordered {{ ... }}")
     }
 }
 
-impl<T> Drop for FuturesUnordered<T> {
+impl<Fut> Drop for FuturesUnordered<Fut> {
     fn drop(&mut self) {
         // When a `FuturesUnordered` is dropped we want to drop all futures
         // associated with it. At the same time though there may be tons of
-        // `Task` handles flying around which contain `Node<T>` references
-        // inside them. We'll let those naturally get deallocated when the
-        // `Task` itself goes out of scope or gets notified.
+        // wakers flying around which contain `Node<Fut>` references
+        // inside them. We'll let those naturally get deallocated.
         unsafe {
             while !self.head_all.is_null() {
                 let head = self.head_all;
@@ -417,10 +416,10 @@ impl<T> Drop for FuturesUnordered<T> {
     }
 }
 
-impl<F: Future> FromIterator<F> for FuturesUnordered<F> {
-    fn from_iter<T>(iter: T) -> Self
+impl<Fut: Future> FromIterator<Fut> for FuturesUnordered<Fut> {
+    fn from_iter<I>(iter: I) -> Self
     where
-        T: IntoIterator<Item = F>,
+        I: IntoIterator<Item = Fut>,
     {
         let acc = FuturesUnordered::new();
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })

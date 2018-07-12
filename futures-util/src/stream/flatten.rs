@@ -8,27 +8,29 @@ use futures_core::task::{self, Poll};
 /// This combinator is created by the `Stream::flatten` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Flatten<S>
-    where S: Stream,
+pub struct Flatten<St>
+    where St: Stream,
 {
-    stream: S,
-    next: Option<S::Item>,
+    stream: St,
+    next: Option<St::Item>,
 }
 
-pub fn new<S>(s: S) -> Flatten<S>
-    where S: Stream,
-          S::Item: Stream,
+
+
+impl<St: Stream> Flatten<St>
+where St: Stream,
+      St::Item: Stream,
 {
-    Flatten {
-        stream: s,
-        next: None,
+    unsafe_pinned!(stream: St);
+    unsafe_pinned!(next: Option<St::Item>);
+
+    pub(super) fn new(stream: St) -> Flatten<St>{
+        Flatten { stream, next: None, }
     }
-}
 
-impl<S: Stream> Flatten<S> {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -37,7 +39,7 @@ impl<S: Stream> Flatten<S> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -45,33 +47,21 @@ impl<S: Stream> Flatten<S> {
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: S);
-    unsafe_pinned!(next: Option<S::Item>);
 }
 
-/* TODO
-// Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Flatten<S>
-    where S: Sink + Stream
+impl<St> Stream for Flatten<St>
+    where St: Stream,
+          St::Item: Stream,
 {
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
+    type Item = <St::Item as Stream>::Item;
 
-    delegate_sink!(stream);
-}
- */
-
-impl<S> Stream for Flatten<S>
-    where S: Stream,
-          S::Item: Stream,
-{
-    type Item = <S::Item as Stream>::Item;
-
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<Self::Item>> {
         loop {
             if self.next().as_pin_mut().is_none() {
                 match ready!(self.stream().poll_next(cx)) {
@@ -88,3 +78,15 @@ impl<S> Stream for Flatten<S>
         }
     }
 }
+
+/* TODO
+// Forwarding impl of Sink from the underlying stream
+impl<S> Sink for Flatten<S>
+    where S: Sink + Stream
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream);
+}
+ */

@@ -8,32 +8,37 @@ use futures_core::task::{self, Poll};
 /// from second stream.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Chain<S1, S2> {
-    first: Option<S1>,
-    second: S2,
-}
-
-pub fn new<S1, S2>(s1: S1, s2: S2) -> Chain<S1, S2>
-    where S1: Stream, S2: Stream<Item=S1::Item>,
-{
-    Chain {
-        first: Some(s1),
-        second: s2,
-    }
+pub struct Chain<St1, St2> {
+    first: Option<St1>,
+    second: St2,
 }
 
 // All interactions with `PinMut<Chain<..>>` happen through these methods
-impl<S1, S2> Chain<S1, S2> {
-    unsafe_pinned!(first: Option<S1>);
-    unsafe_pinned!(second: S2);
+impl<St1, St2> Chain<St1, St2>
+where St1: Stream,
+      St2: Stream<Item = St1::Item>,
+{
+    unsafe_pinned!(first: Option<St1>);
+    unsafe_pinned!(second: St2);
+
+    pub(super) fn new(stream1: St1, stream2: St2) -> Chain<St1, St2> {
+        Chain {
+            first: Some(stream1),
+            second: stream2,
+        }
+    }
 }
 
-impl<S1, S2> Stream for Chain<S1, S2>
-    where S1: Stream, S2: Stream<Item=S1::Item>,
+impl<St1, St2> Stream for Chain<St1, St2>
+where St1: Stream,
+      St2: Stream<Item=St1::Item>,
 {
-    type Item = S1::Item;
+    type Item = St1::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.first().as_pin_mut() {
             if let Some(item) = ready!(first.poll_next(cx)) {
                 return Poll::Ready(Some(item))

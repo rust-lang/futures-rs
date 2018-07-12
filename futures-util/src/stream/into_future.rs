@@ -9,15 +9,16 @@ use futures_core::task::{self, Poll};
 /// This future is returned by the `Stream::into_future` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct StreamFuture<S> {
-    stream: Option<S>,
+pub struct StreamFuture<St> {
+    stream: Option<St>,
 }
 
-pub fn new<S: Stream + Unpin>(s: S) -> StreamFuture<S> {
-    StreamFuture { stream: Some(s) }
-}
 
-impl<S> StreamFuture<S> {
+
+impl<St: Stream + Unpin> StreamFuture<St> {
+    pub(super) fn new(stream: St) -> StreamFuture<St> {
+        StreamFuture { stream: Some(stream) }
+    }
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     ///
@@ -25,7 +26,7 @@ impl<S> StreamFuture<S> {
     /// implementation of `Future::poll` consumes the underlying stream during polling
     /// in order to return it to the caller of `Future::poll` if the stream yielded
     /// an element.
-    pub fn get_ref(&self) -> Option<&S> {
+    pub fn get_ref(&self) -> Option<&St> {
         self.stream.as_ref()
     }
 
@@ -39,7 +40,7 @@ impl<S> StreamFuture<S> {
     /// implementation of `Future::poll` consumes the underlying stream during polling
     /// in order to return it to the caller of `Future::poll` if the stream yielded
     /// an element.
-    pub fn get_mut(&mut self) -> Option<&mut S> {
+    pub fn get_mut(&mut self) -> Option<&mut St> {
         self.stream.as_mut()
     }
 
@@ -52,15 +53,18 @@ impl<S> StreamFuture<S> {
     /// implementation of `Future::poll` consumes the underlying stream during polling
     /// in order to return it to the caller of `Future::poll` if the stream yielded
     /// an element.
-    pub fn into_inner(self) -> Option<S> {
+    pub fn into_inner(self) -> Option<St> {
         self.stream
     }
 }
 
-impl<S: Stream + Unpin> Future for StreamFuture<S> {
-    type Output = (Option<S::Item>, S);
+impl<St: Stream + Unpin> Future for StreamFuture<St> {
+    type Output = (Option<St::Item>, St);
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
             ready!(PinMut::new(s).poll_next(cx))

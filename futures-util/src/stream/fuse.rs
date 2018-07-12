@@ -10,29 +10,19 @@ use futures_sink::Sink;
 /// finished.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Fuse<S> {
-    stream: S,
+pub struct Fuse<St> {
+    stream: St,
     done: bool,
 }
 
-// Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Fuse<S>
-    where S: Sink
-{
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
+impl<St: Stream> Fuse<St> {
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(done: bool);
 
-    delegate_sink!(stream);
-}
-
-pub fn new<S: Stream>(s: S) -> Fuse<S> {
-    Fuse {
-        stream: s,
-        done: false,
+    pub(super) fn new(stream: St) -> Fuse<St> {
+        Fuse { stream, done: false }
     }
-}
 
-impl<S> Fuse<S> {
     /// Returns whether the underlying stream has finished or not.
     ///
     /// If this method returns `true`, then all future calls to poll are
@@ -44,7 +34,7 @@ impl<S> Fuse<S> {
 
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -53,7 +43,7 @@ impl<S> Fuse<S> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -62,26 +52,26 @@ impl<S> Fuse<S> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, S> {
-        unsafe { PinMut::map_unchecked(self, |x| &mut x.stream) }
+    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, St> {
+        unsafe { PinMut::map_unchecked(self, |x| x.get_mut()) }
     }
 
     /// Consumes this combinator, returning the underlying stream.
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(done: bool);
 }
 
 impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<S::Item>> {
         if *self.done() {
             return Poll::Ready(None);
         }
@@ -92,4 +82,12 @@ impl<S: Stream> Stream for Fuse<S> {
         }
         Poll::Ready(item)
     }
+}
+
+// Forwarding impl of Sink from the underlying stream
+impl<S: Stream + Sink> Sink for Fuse<S> {
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream);
 }
