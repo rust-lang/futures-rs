@@ -9,25 +9,25 @@ use futures_core::task::{self, Poll};
 /// This is produced by the `Stream::map` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Map<S, F> {
-    stream: S,
+pub struct Map<St, F> {
+    stream: St,
     f: F,
 }
 
-pub fn new<S, U, F>(s: S, f: F) -> Map<S, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> U,
+impl<St, T, F> Map<St, F>
+    where St: Stream,
+          F: FnMut(St::Item) -> T,
 {
-    Map {
-        stream: s,
-        f,
-    }
-}
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
 
-impl<S, F> Map<S, F> {
+    pub(super) fn new(stream: St, f: F) -> Map<St, F> {
+        Map { stream, f }
+    }
+
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -36,7 +36,7 @@ impl<S, F> Map<S, F> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -44,15 +44,27 @@ impl<S, F> Map<S, F> {
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(f: F);
 }
 
-impl<S: Unpin, F> Unpin for Map<S, F> {}
+impl<St: Unpin, F> Unpin for Map<St, F> {}
+
+impl<St, F, T> Stream for Map<St, F>
+    where St: Stream,
+          F: FnMut(St::Item) -> T,
+{
+    type Item = T;
+
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Option<T>> {
+        let option = ready!(self.stream().poll_next(cx));
+        Poll::Ready(option.map(self.f()))
+    }
+}
 
 /* TODO
 // Forwarding impl of Sink from the underlying stream
@@ -65,15 +77,3 @@ impl<S, F> Sink for Map<S, F>
     delegate_sink!(stream);
 }
 */
-
-impl<S, F, U> Stream for Map<S, F>
-    where S: Stream,
-          F: FnMut(S::Item) -> U,
-{
-    type Item = U;
-
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<U>> {
-        let option = ready!(self.stream().poll_next(cx));
-        Poll::Ready(option.map(self.f()))
-    }
-}

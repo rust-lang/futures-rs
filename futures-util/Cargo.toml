@@ -17,6 +17,7 @@ Common utilities and extension traits for the futures-rs library.
 std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std", "slab"]
 default = ["std", "futures-core/either", "futures-sink/either"]
 bench = []
+nightly = []
 
 [dependencies]
 futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-features = false }

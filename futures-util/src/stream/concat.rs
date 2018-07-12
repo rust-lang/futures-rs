@@ -11,14 +11,15 @@ use futures_core::task::{self, Poll};
 ///
 /// This structure is produced by the `Stream::concat` method.
 #[must_use = "streams do nothing unless polled"]
-pub struct Concat<S>
-    where S: Stream,
-{
-    stream: S,
-    accum: Option<S::Item>,
+pub struct Concat<St: Stream> {
+    stream: St,
+    accum: Option<St::Item>,
 }
 
-impl<S: Debug> Debug for Concat<S> where S: Stream, S::Item: Debug {
+impl<St> Debug for Concat<St>
+where St: Stream + Debug,
+      St::Item: Debug,
+{
     fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
         fmt.debug_struct("Concat")
             .field("accum", &self.accum)
@@ -26,30 +27,30 @@ impl<S: Debug> Debug for Concat<S> where S: Stream, S::Item: Debug {
     }
 }
 
-pub fn new<S>(s: S) -> Concat<S>
-    where S: Stream,
-          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
+impl<St> Concat<St>
+where St: Stream,
+      St::Item: Extend<<St::Item as IntoIterator>::Item> +
+                IntoIterator + Default,
 {
-    Concat {
-        stream: s,
-        accum: None,
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(accum: Option<St::Item>);
+
+    pub(super) fn new(stream: St) -> Concat<St> {
+        Concat {
+            stream,
+            accum: None,
+        }
     }
 }
 
-// These methods are the only points of access going through `PinMut`
-impl<S: Stream> Concat<S> {
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(accum: Option<S::Item>);
-}
+impl<St: Stream + Unpin> Unpin for Concat<St> {}
 
-impl<S: Stream + Unpin> Unpin for Concat<S> {}
-
-impl<S> Future for Concat<S>
-    where S: Stream,
-          S::Item: Extend<<<S as Stream>::Item as IntoIterator>::Item> +
-                   IntoIterator + Default,
+impl<St> Future for Concat<St>
+where St: Stream,
+      St::Item: Extend<<St::Item as IntoIterator>::Item> +
+                IntoIterator + Default,
 {
-    type Output = S::Item;
+    type Output = St::Item;
 
     fn poll(
         mut self: PinMut<Self>, cx: &mut task::Context

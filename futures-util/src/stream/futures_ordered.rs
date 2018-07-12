@@ -12,7 +12,7 @@ use std::mem::PinMut;
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 struct OrderWrapper<T> {
-    item: T,
+    data: T, // A future or a future's output
     index: usize,
 }
 
@@ -38,7 +38,7 @@ impl<T> Ord for OrderWrapper<T> {
 }
 
 impl<T> OrderWrapper<T> {
-    unsafe_pinned!(item: T);
+    unsafe_pinned!(data: T);
 }
 
 impl<T> Future for OrderWrapper<T>
@@ -46,9 +46,12 @@ impl<T> Future for OrderWrapper<T>
 {
     type Output = OrderWrapper<T::Output>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.item().poll(cx)
-            .map(|item| OrderWrapper { item, index: self.index })
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
+        self.data().poll(cx)
+            .map(|output| OrderWrapper { data: output, index: self.index })
     }
 }
 
@@ -85,11 +88,9 @@ impl<T> Future for OrderWrapper<T>
 /// `futures_ordered` function in the `stream` module, or you can start with an
 /// empty queue with the `FuturesOrdered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
-pub struct FuturesOrdered<T>
-    where T: Future
-{
+pub struct FuturesOrdered<T: Future> {
     in_progress_queue: FuturesUnordered<OrderWrapper<T>>,
-    queued_results: BinaryHeap<OrderWrapper<T::Output>>,
+    queued_outputs: BinaryHeap<OrderWrapper<T::Output>>,
     next_incoming_index: usize,
     next_outgoing_index: usize,
 }
@@ -115,15 +116,15 @@ where
     futures.into_iter().collect()
 }
 
-impl<T: Future> FuturesOrdered<T> {
+impl<Fut: Future> FuturesOrdered<Fut> {
     /// Constructs a new, empty `FuturesOrdered`
     ///
     /// The returned `FuturesOrdered` does not contain any futures and, in this
     /// state, `FuturesOrdered::poll` will return `Ok(Async::Ready(None))`.
-    pub fn new() -> FuturesOrdered<T> {
+    pub fn new() -> FuturesOrdered<Fut> {
         FuturesOrdered {
             in_progress_queue: FuturesUnordered::new(),
-            queued_results: BinaryHeap::new(),
+            queued_outputs: BinaryHeap::new(),
             next_incoming_index: 0,
             next_outgoing_index: 0,
         }
@@ -135,12 +136,12 @@ impl<T: Future> FuturesOrdered<T> {
     /// those currently processing and those that have completed but
     /// which are waiting for earlier futures to complete.
     pub fn len(&self) -> usize {
-        self.in_progress_queue.len() + self.queued_results.len()
+        self.in_progress_queue.len() + self.queued_outputs.len()
     }
 
     /// Returns `true` if the queue contains no futures
     pub fn is_empty(&self) -> bool {
-        self.in_progress_queue.is_empty() && self.queued_results.is_empty()
+        self.in_progress_queue.is_empty() && self.queued_outputs.is_empty()
     }
 
     /// Push a future into the queue.
@@ -149,9 +150,9 @@ impl<T: Future> FuturesOrdered<T> {
     /// This function will not call `poll` on the submitted future. The caller
     /// must ensure that `FuturesOrdered::poll` is called in order to receive
     /// task notifications.
-    pub fn push(&mut self, future: T) {
+    pub fn push(&mut self, future: Fut) {
         let wrapped = OrderWrapper {
-            item: future,
+            data: future,
             index: self.next_incoming_index,
         };
         self.next_incoming_index += 1;
@@ -159,34 +160,37 @@ impl<T: Future> FuturesOrdered<T> {
     }
 }
 
-impl<T: Future> Default for FuturesOrdered<T> {
-    fn default() -> FuturesOrdered<T> {
+impl<Fut: Future> Default for FuturesOrdered<Fut> {
+    fn default() -> FuturesOrdered<Fut> {
         FuturesOrdered::new()
     }
 }
 
-impl<T: Future> Stream for FuturesOrdered<T> {
-    type Item = T::Output;
+impl<Fut: Future> Stream for FuturesOrdered<Fut> {
+    type Item = Fut::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
 
         // Check to see if we've already received the next value
-        if let Some(next_result) = this.queued_results.peek_mut() {
-            if next_result.index == this.next_outgoing_index {
+        if let Some(next_output) = this.queued_outputs.peek_mut() {
+            if next_output.index == this.next_outgoing_index {
                 this.next_outgoing_index += 1;
-                return Poll::Ready(Some(PeekMut::pop(next_result).item));
+                return Poll::Ready(Some(PeekMut::pop(next_output).data));
             }
         }
 
         loop {
             match PinMut::new(&mut this.in_progress_queue).poll_next(cx) {
-                Poll::Ready(Some(result)) => {
-                    if result.index == this.next_outgoing_index {
+                Poll::Ready(Some(output)) => {
+                    if output.index == this.next_outgoing_index {
                         this.next_outgoing_index += 1;
-                        return Poll::Ready(Some(result.item));
+                        return Poll::Ready(Some(output.data));
                     } else {
-                        this.queued_results.push(result)
+                        this.queued_outputs.push(output)
                     }
                 }
                 Poll::Ready(None) => return Poll::Ready(None),
@@ -196,16 +200,16 @@ impl<T: Future> Stream for FuturesOrdered<T> {
     }
 }
 
-impl<T: Future> Debug for FuturesOrdered<T> {
+impl<Fut: Future> Debug for FuturesOrdered<Fut> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "FuturesOrdered {{ ... }}")
     }
 }
 
-impl<F: Future> FromIterator<F> for FuturesOrdered<F> {
+impl<Fut: Future> FromIterator<Fut> for FuturesOrdered<Fut> {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = F>,
+        T: IntoIterator<Item = Fut>,
     {
         let acc = FuturesOrdered::new();
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })

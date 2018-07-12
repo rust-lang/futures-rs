@@ -2,16 +2,12 @@
 
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
 #![doc(html_root_url = "https://docs.rs/futures-executor/0.3.0-alpha")]
-
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate std;
 
 #[cfg(feature = "std")]
 #[macro_use]

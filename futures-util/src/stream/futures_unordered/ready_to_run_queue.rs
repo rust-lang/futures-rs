@@ -8,27 +8,27 @@ use std::sync::atomic::Ordering::{Relaxed, Acquire, Release, AcqRel};
 use super::abort::abort;
 use super::node::Node;
 
-pub(super) enum Dequeue<T> {
-    Data(*const Node<T>),
+pub(super) enum Dequeue<Fut> {
+    Data(*const Node<Fut>),
     Empty,
     Inconsistent,
 }
 
-pub(super) struct ReadyToRunQueue<T> {
+pub(super) struct ReadyToRunQueue<Fut> {
     // The task using `FuturesUnordered`.
     pub(super) parent: AtomicWaker,
 
     // Head/tail of the readiness queue
-    pub(super) head: AtomicPtr<Node<T>>,
-    pub(super) tail: UnsafeCell<*const Node<T>>,
-    pub(super) stub: Arc<Node<T>>,
+    pub(super) head: AtomicPtr<Node<Fut>>,
+    pub(super) tail: UnsafeCell<*const Node<Fut>>,
+    pub(super) stub: Arc<Node<Fut>>,
 }
 
 /// An MPSC queue into which the nodes containing the futures are inserted
 /// whenever the future inside is scheduled for polling.
-impl<T> ReadyToRunQueue<T> {
+impl<Fut> ReadyToRunQueue<Fut> {
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
-    pub(super) fn enqueue(&self, node: *const Node<T>) {
+    pub(super) fn enqueue(&self, node: *const Node<Fut>) {
         unsafe {
             debug_assert!((*node).queued.load(Relaxed));
 
@@ -46,7 +46,7 @@ impl<T> ReadyToRunQueue<T> {
     ///
     /// Note that this is unsafe as it required mutual exclusion (only one
     /// thread can call this) to be guaranteed elsewhere.
-    pub(super) unsafe fn dequeue(&self) -> Dequeue<T> {
+    pub(super) unsafe fn dequeue(&self) -> Dequeue<Fut> {
         let mut tail = *self.tail.get();
         let mut next = (*tail).next_ready_to_run.load(Acquire);
 
@@ -82,15 +82,15 @@ impl<T> ReadyToRunQueue<T> {
         Dequeue::Inconsistent
     }
 
-    pub(super) fn stub(&self) -> *const Node<T> {
+    pub(super) fn stub(&self) -> *const Node<Fut> {
         &*self.stub
     }
 }
 
-impl<T> Drop for ReadyToRunQueue<T> {
+impl<Fut> Drop for ReadyToRunQueue<Fut> {
     fn drop(&mut self) {
-        // Once we're in the destructor for `Inner<T>` we need to clear out the
-        // ready to run queue of nodes if there's anything left in there.
+        // Once we're in the destructor for `Inner<Fut>` we need to clear out
+        // the ready to run queue of nodes if there's anything left in there.
         //
         // Note that each node has a strong reference count associated with it
         // which is owned by the ready to run queue. All nodes should have had

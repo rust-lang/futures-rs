@@ -86,7 +86,10 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
 {
     type Item = It;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<It>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Option<It>> {
         if let Some(state) = self.state().take() {
             let fut = (self.f())(state);
             PinMut::set(self.fut(), Some(fut));

@@ -228,31 +228,13 @@ pub mod prelude {
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use futures_core::future::{Future, TryFuture};
-    pub use futures_core::stream::{Stream, TryStream};
-    pub use futures_core::task::{self, Poll};
-
-    pub use futures_sink::Sink;
-
-    #[cfg(feature = "std")]
-    pub use futures_io::{
-        AsyncRead,
-        AsyncWrite,
-    };
-
-    pub use futures_util::{
-        FutureExt,
-        TryFutureExt,
-        StreamExt,
-        TryStreamExt,
-        SinkExt,
-    };
+    pub use crate::future::{self, Future, TryFuture, FutureExt, TryFutureExt};
+    pub use crate::stream::{self, Stream, TryStream, StreamExt, TryStreamExt};
+    pub use crate::task::{self, Poll, ContextExt};
+    pub use crate::sink::{self, Sink, SinkExt};
 
     #[cfg(feature = "std")]
-    pub use futures_util::{
-        AsyncReadExt,
-        AsyncWriteExt,
-    };
+    pub use crate::io::{ AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt };
 }
 
 pub mod sink {
@@ -319,8 +301,14 @@ pub mod stream {
         // ToDo: select_all, SelectAll,
     };
 
+    pub use futures_util::try_stream::{
+        TryStreamExt,
+        // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
+    };
+
     #[cfg(feature = "std")]
     pub use futures_util::try_stream::{
+        // For TryStreamExt:
         TryCollect,
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };

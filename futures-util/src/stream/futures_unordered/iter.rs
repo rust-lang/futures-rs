@@ -5,20 +5,20 @@ use std::mem::PinMut;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterPinMut<'a, F: 'a> {
-    pub(super) node: *const Node<F>,
+pub struct IterPinMut<'a, Fut: 'a> {
+    pub(super) node: *const Node<Fut>,
     pub(super) len: usize,
-    pub(super) _marker: PhantomData<&'a mut FuturesUnordered<F>>
+    pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>
 }
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterMut<'a, F: 'a + Unpin> (pub(super) IterPinMut<'a, F>);
+pub struct IterMut<'a, Fut: 'a + Unpin> (pub(super) IterPinMut<'a, Fut>);
 
-impl<'a, F> Iterator for IterPinMut<'a, F> {
-    type Item = PinMut<'a, F>;
+impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
+    type Item = PinMut<'a, Fut>;
 
-    fn next(&mut self) -> Option<PinMut<'a, F>> {
+    fn next(&mut self) -> Option<PinMut<'a, Fut>> {
         if self.node.is_null() {
             return None;
         }
@@ -36,12 +36,12 @@ impl<'a, F> Iterator for IterPinMut<'a, F> {
     }
 }
 
-impl<'a, F> ExactSizeIterator for IterPinMut<'a, F> {}
+impl<'a, Fut> ExactSizeIterator for IterPinMut<'a, Fut> {}
 
-impl<'a, F: Unpin> Iterator for IterMut<'a, F> {
-    type Item = &'a mut F;
+impl<'a, Fut: Unpin> Iterator for IterMut<'a, Fut> {
+    type Item = &'a mut Fut;
 
-    fn next(&mut self) -> Option<&'a mut F> {
+    fn next(&mut self) -> Option<&'a mut Fut> {
         self.0.next().map(PinMut::get_mut)
     }
 
@@ -50,4 +50,4 @@ impl<'a, F: Unpin> Iterator for IterMut<'a, F> {
     }
 }
 
-impl<'a, F: Unpin> ExactSizeIterator for IterMut<'a, F> {}
+impl<'a, Fut: Unpin> ExactSizeIterator for IterMut<'a, Fut> {}

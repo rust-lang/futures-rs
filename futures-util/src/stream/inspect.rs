@@ -8,25 +8,25 @@ use futures_core::task::{self, Poll};
 /// This is created by the `Stream::inspect` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Inspect<S, F> where S: Stream {
-    stream: S,
-    inspect: F,
+pub struct Inspect<St, F> where St: Stream {
+    stream: St,
+    f: F,
 }
 
-pub fn new<S, F>(stream: S, f: F) -> Inspect<S, F>
-    where S: Stream,
-          F: FnMut(&S::Item) -> (),
+impl<St, F> Inspect<St, F>
+    where St: Stream,
+          F: FnMut(&St::Item) -> (),
 {
-    Inspect {
-        stream,
-        inspect: f,
-    }
-}
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
 
-impl<S: Stream, F> Inspect<S, F> {
+    pub(super) fn new(stream: St, f: F) -> Inspect<St, F> {
+        Inspect { stream, f }
+    }
+
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -35,7 +35,7 @@ impl<S: Stream, F> Inspect<S, F> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -43,15 +43,30 @@ impl<S: Stream, F> Inspect<S, F> {
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(inspect: F);
 }
 
-impl<S: Stream + Unpin, F> Unpin for Inspect<S, F> {}
+impl<St: Stream + Unpin, F> Unpin for Inspect<St, F> {}
+
+impl<St, F> Stream for Inspect<St, F>
+    where St: Stream,
+          F: FnMut(&St::Item),
+{
+    type Item = St::Item;
+
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context
+    ) -> Poll<Option<St::Item>> {
+        let item = ready!(self.stream().poll_next(cx));
+        Poll::Ready(item.map(|e| {
+            (self.f())(&e);
+            e
+        }))
+    }
+}
 
 /* TODO
 // Forwarding impl of Sink from the underlying stream
@@ -64,18 +79,3 @@ impl<S, F> Sink for Inspect<S, F>
     delegate_sink!(stream);
 }
 */
-
-impl<S, F> Stream for Inspect<S, F>
-    where S: Stream,
-          F: FnMut(&S::Item),
-{
-    type Item = S::Item;
-
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
-        let item = ready!(self.stream().poll_next(cx));
-        Poll::Ready(item.map(|e| {
-            (self.inspect())(&e);
-            e
-        }))
-    }
-}

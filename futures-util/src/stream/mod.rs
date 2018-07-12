@@ -128,178 +128,197 @@ impl<T: ?Sized> StreamExt for T where T: Stream {}
 /// An extension trait for `Stream`s that provides a variety of convenient
 /// combinator functions.
 pub trait StreamExt: Stream {
-    /// Creates a future that resolves to the next element in the stream.
+    /// Creates a future that resolves to the next item in the stream.
     ///
     /// Note that because `next` doesn't take ownership over the stream,
-    /// the `Stream` type must be `Unpin`. If you want to use `next` with a
-    /// `!Unpin` stream, you'll first have to pin the stream. This can be
-    /// done by wrapping the stream in a `PinBox` or pinning it to the stack
-    /// using the `pin_mut!` macro.
+    /// the [`Stream`] type must be [`Unpin`]. If you want to use `next` with a
+    /// [`!Unpin`](Unpin) stream, you'll first have to pin the stream. This can
+    /// be done by wrapping the stream in a [`PinBox`](std::boxed::PinBox) or
+    /// pinning it to the stack using the `pin_mut!` macro.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #![feature(pin)]
+    /// #[macro_use] extern crate futures;
+    /// use futures::executor::block_on;
+    /// use futures::prelude::*;
+    /// use futures::stream;
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// pin_mut!(stream);
+    ///
+    /// assert_eq!(block_on(stream.next()), Some(1));
+    /// assert_eq!(block_on(stream.next()), Some(2));
+    /// assert_eq!(block_on(stream.next()), Some(3));
+    /// assert_eq!(block_on(stream.next()), None);
+    /// ```
     fn next<'a>(&'a mut self) -> Next<'a, Self>
         where Self: Sized + Unpin,
     {
-        next::new(self)
+        Next::new(self)
     }
 
-    /// Converts this stream into a `Future` of `(next_item, tail_of_stream)`.
-    /// If the stream terminates, then the next item is `None`.
+    /// Converts this stream into a future of `(next_item, tail_of_stream)`.
+    /// If the stream terminates, then the next item is [`None`].
     ///
-    /// The returned future can be used to compose streams and futures together by
-    /// placing everything into the "world of futures".
+    /// The returned future can be used to compose streams and futures together
+    /// by placing everything into the "world of futures".
     ///
-    /// Note that because `into_future` moves the stream, the `Stream` type must
-    /// be `Unpin`. If you want to use `into_future` with a `!Unpin` stream,
-    /// you'll first have to pin the stream. This can be done by wrapping the
-    /// stream in a `PinBox` or pinning it to the stack using the `pin_mut!`
-    /// macro.
+    /// Note that because `into_future` moves the stream, the [`Stream`] type
+    /// must be [`Unpin`]. If you want to use `into_future` with a
+    /// [`!Unpin`](Unpin) stream, you'll first have to pin the stream. This can
+    /// be done by wrapping the stream in a [`PinBox`](std::boxed::PinBox) or
+    /// pinning it to the stack using the `pin_mut!` macro.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #![feature(pin)]
+    /// #[macro_use] extern crate futures;
+    /// use futures::executor::block_on;
+    /// use futures::prelude::*;
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// pin_mut!(stream);
+    ///
+    /// let (item, stream) = block_on(stream.into_future());
+    /// assert_eq!(Some(1), item);
+    ///
+    /// let (item, stream) = block_on(stream.into_future());
+    /// assert_eq!(Some(2), item);
+    /// ```
     fn into_future(self) -> StreamFuture<Self>
         where Self: Sized + Unpin,
     {
-        into_future::new(self)
+        StreamFuture::new(self)
     }
 
-    /// Converts a stream of type `T` to a stream of type `U`.
+    /// Maps this stream's items to a different type, returning a new stream of
+    /// the resulting type.
     ///
     /// The provided closure is executed over all elements of this stream as
-    /// they are made available, and the callback will be executed inline with
-    /// calls to `poll`.
+    /// they are made available. It is executed inline with calls to
+    /// [`poll_next`](Stream::poll_next).
     ///
-    /// Note that this function consumes the receiving stream and returns a
+    /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it, similar to the existing `map` methods in the
     /// standard library.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
+    /// use futures::executor::block_on;
     /// use futures::prelude::*;
-    /// use futures::channel::mpsc;
     ///
-    /// # fn main() {
-    /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let rx = rx.map(|x| x + 3);
-    /// # }
+    /// let stream = stream::iter(1..=3);
+    /// let stream = stream.map(|x| x + 3);
+    ///
+    /// assert_eq!(vec![4, 5, 6], block_on(stream.collect::<Vec<_>>()));
     /// ```
-    fn map<U, F>(self, f: F) -> Map<Self, F>
-        where F: FnMut(Self::Item) -> U,
+    fn map<T, F>(self, f: F) -> Map<Self, F>
+        where F: FnMut(Self::Item) -> T,
               Self: Sized
     {
-        map::new(self, f)
+        Map::new(self, f)
     }
 
     /// Filters the values produced by this stream according to the provided
-    /// predicate.
+    /// asynchronous predicate.
     ///
-    /// As values of this stream are made available, the provided predicate will
-    /// be run against them. If the predicate returns a `Future` which resolves
-    /// to `true`, then the stream will yield the value, but if the predicate
-    /// returns a `Future` which resolves to `false`, then the  value will be
-    /// discarded and the next value will be produced.
+    /// As values of this stream are made available, the provided predicate `f`
+    /// will be run against them. If the predicate returns a `Future` which
+    /// resolves to `true`, then the stream will yield the value, but if the
+    /// predicate returns a `Future` which resolves to `false`, then the value
+    /// will be discarded and the next value will be produced.
     ///
-    /// Note that this function consumes the receiving stream and returns a
+    /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it, similar to the existing `filter` methods in the
     /// standard library.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
+    /// use futures::executor::block_on;
     /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::channel::mpsc;
     ///
-    /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let evens = rx.filter(|x| future::ready(x % 2 == 0));
+    /// let stream = stream::iter(1..=10);
+    /// let evens = stream.filter(|x| future::ready(x % 2 == 0));
+    ///
+    /// assert_eq!(vec![2, 4, 6, 8, 10], block_on(evens.collect::<Vec<_>>()));
     /// ```
-    fn filter<R, P>(self, pred: P) -> Filter<Self, R, P>
-        where P: FnMut(&Self::Item) -> R,
-              R: Future<Output = bool>,
+    fn filter<Fut, F>(self, f: F) -> Filter<Self, Fut, F>
+        where F: FnMut(&Self::Item) -> Fut,
+              Fut: Future<Output = bool>,
               Self: Sized,
     {
-        filter::new(self, pred)
+        Filter::new(self, f)
     }
 
     /// Filters the values produced by this stream while simultaneously mapping
-    /// them to a different type.
+    /// them to a different type according to the provided asynchronous closure.
     ///
     /// As values of this stream are made available, the provided function will
-    /// be run on them. If the predicate returns `Some(e)` then the stream will
-    /// yield the value `e`, but if the predicate returns `None` then the next
-    /// value will be produced.
+    /// be run on them. If the future returned by the predicate `f` resolves to
+    /// [`Some(item)`](Some) then the stream will yield the value `item`, but if
+    /// it resolves to [`None`] then the next value will be produced.
     ///
-    /// Note that this function consumes the receiving stream and returns a
-    /// wrapped version of it, similar to the existing `filter_map` methods in the
-    /// standard library.
+    /// Note that this function consumes the stream passed into it and returns a
+    /// wrapped version of it, similar to the existing `filter_map` methods in
+    /// the standard library.
     ///
     /// # Examples
-    ///
     /// ```
-    /// # extern crate futures;
+    /// use futures::executor::block_on;
     /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::channel::mpsc;
     ///
-    /// let (_tx, rx) = mpsc::channel::<i32>(1);
-    /// let evens_plus_one = rx.filter_map(|x| {
-    ///     future::ready(
-    ///         if x % 0 == 2 {
-    ///             Some(x + 1)
-    ///         } else {
-    ///             None
-    ///         }
-    ///     )
+    /// let stream = stream::iter(1..=10);
+    /// let evens = stream.filter_map(|x| {
+    ///     let ret = if x % 2 == 0 { Some(x + 1) } else { None };
+    ///     future::ready(ret)
     /// });
+    ///
+    /// assert_eq!(vec![3, 5, 7, 9, 11], block_on(evens.collect::<Vec<_>>()));
     /// ```
-    fn filter_map<R, B, F>(self, f: F) -> FilterMap<Self, R, F>
-        where F: FnMut(Self::Item) -> R,
-              R: Future<Output = Option<B>>,
+    fn filter_map<Fut, T, F>(self, f: F) -> FilterMap<Self, Fut, F>
+        where F: FnMut(Self::Item) -> Fut,
+              Fut: Future<Output = Option<T>>,
               Self: Sized,
     {
-        filter_map::new(self, f)
+        FilterMap::new(self, f)
     }
 
-    /// Chain on a computation for when a value is ready, passing the resulting
-    /// item to the provided closure `f`.
+    /// Computes from this stream's items new items of a different type using
+    /// an asynchronous closure.
     ///
-    /// This function can be used to ensure a computation runs regardless of
-    /// the next value on the stream. The closure provided will be yielded a
-    /// `Result` once a value is ready, and the returned future will then be run
-    /// to completion to produce the next value on this stream.
+    /// The provided closure `f` will be called with an `Item` once a value is
+    /// ready, it returns a future which will then be run to completion
+    /// to produce the next value on this stream.
     ///
-    /// The returned value of the closure must implement the `IntoFuture` trait
-    /// and can represent some more work to be done before the composed stream
-    /// is finished. Note that the `Result` type implements the `IntoFuture`
-    /// trait so it is possible to simply alter the `Result` yielded to the
-    /// closure and return it.
-    ///
-    /// Note that this function consumes the receiving stream and returns a
+    /// Note that this function consumes the stream passed into it and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
+    /// use futures::executor::block_on;
     /// use futures::prelude::*;
-    /// use futures::channel::mpsc;
-    /// use futures::future;
     ///
-    /// let (_tx, rx) = mpsc::channel::<i32>(1);
+    /// let stream = stream::iter(1..=3);
+    /// let stream = stream.then(|x| future::ready(x + 3));
     ///
-    /// let rx = rx.then(|x| future::ready(x + 3));
+    /// assert_eq!(vec![4, 5, 6], block_on(stream.collect::<Vec<_>>()));
     /// ```
-    fn then<U, F>(self, f: F) -> Then<Self, U, F>
-        where F: FnMut(Self::Item) -> U,
-              U: Future,
+    fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
+        where F: FnMut(Self::Item) -> Fut,
+              Fut: Future,
               Self: Sized
     {
-        then::new(self, f)
+        Then::new(self, f)
     }
 
     /// Collect all of the values of this stream into a vector, returning a
     /// future representing the result of that computation.
-    ///
-    /// This combinator will collect all successful results of this stream and
-    /// collect them into a `Vec<Self::Item>`.
     ///
     /// The returned future will be resolved when the stream terminates.
     ///
@@ -309,12 +328,10 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use std::thread;
-    ///
     /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use std::thread;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
     ///
@@ -331,27 +348,27 @@ pub trait StreamExt: Stream {
     fn collect<C: Default + Extend<Self::Item>>(self) -> Collect<Self, C>
         where Self: Sized
     {
-        collect::new(self)
+        Collect::new(self)
     }
 
-    /// Concatenate all results of a stream into a single extendable
+    /// Concatenate all items of a stream into a single extendable
     /// destination, returning a future representing the end result.
     ///
     /// This combinator will extend the first item with the contents
     /// of all the subsequent results of the stream. If the stream is
     /// empty, the default value will be returned.
     ///
+    /// Works with all collections that implement the
+    /// [`Extend`](std::iter::Extend) trait.
+    ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use std::thread;
-    ///
     /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use std::thread;
     ///
-    /// # fn main() {
     /// let (mut tx, rx) = mpsc::unbounded();
     ///
     /// thread::spawn(move || {
@@ -360,19 +377,21 @@ pub trait StreamExt: Stream {
     ///         tx.unbounded_send(vec![n + 1, n + 2, n + 3]).unwrap();
     ///     }
     /// });
+    ///
     /// let result = block_on(rx.concat());
+    ///
     /// assert_eq!(result, vec![7, 8, 9, 4, 5, 6, 1, 2, 3]);
-    /// # }
     /// ```
     fn concat(self) -> Concat<Self>
-        where Self: Sized,
-              Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> + IntoIterator + Default,
+    where Self: Sized,
+          Self::Item: Extend<<<Self as Stream>::Item as IntoIterator>::Item> +
+                      IntoIterator + Default,
     {
-        concat::new(self)
+        Concat::new(self)
     }
 
-    /// Execute an accumulating computation over a stream, collecting all the
-    /// values into one final result.
+    /// Execute an accumulating asynchronous computation over a stream,
+    /// collecting all the values into one final result.
     ///
     /// This combinator will accumulate all values returned by this stream
     /// according to the closure provided. The initial state is also provided to
@@ -383,10 +402,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::stream;
-    /// use futures::future;
     /// use futures::executor::block_on;
     ///
     /// let number_stream = stream::iter(0..6);
@@ -398,18 +414,18 @@ pub trait StreamExt: Stream {
               Fut: Future<Output = T>,
               Self: Sized
     {
-        fold::new(self, f, init)
+        Fold::new(self, f, init)
     }
 
     /// Flattens a stream of streams into just one continuous stream.
     ///
-    /// ```
-    /// # extern crate futures;
-    /// use std::thread;
+    /// # Examples
     ///
+    /// ```
     /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use std::thread;
     ///
     /// let (tx1, rx1) = mpsc::unbounded();
     /// let (tx2, rx2) = mpsc::unbounded();
@@ -435,40 +451,66 @@ pub trait StreamExt: Stream {
         where Self::Item: Stream,
               Self: Sized
     {
-        flatten::new(self)
+        Flatten::new(self)
     }
 
-    /// Skip elements on this stream while the predicate provided resolves to
-    /// `true`.
+    /// Skip elements on this stream while the provided asynchronous predicate
+    /// resolves to `true`.
     ///
     /// This function, like `Iterator::skip_while`, will skip elements on the
-    /// stream until the `predicate` resolves to `false`. Once one element
+    /// stream until the predicate `f` resolves to `false`. Once one element
     /// returns false all future elements will be returned from the underlying
     /// stream.
-    fn skip_while<R, P>(self, pred: P) -> SkipWhile<Self, R, P>
-        where P: FnMut(&Self::Item) -> R,
-              R: Future<Output = bool>,
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::prelude::*;
+    /// use futures::executor::block_on;
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = stream.skip_while(|x| future::ready(*x <= 5));
+    ///
+    /// assert_eq!(vec![6, 7, 8, 9, 10], block_on(stream.collect::<Vec<_>>()));
+    /// ```
+    fn skip_while<Fut, F>(self, f: F) -> SkipWhile<Self, Fut, F>
+        where F: FnMut(&Self::Item) -> Fut,
+              Fut: Future<Output = bool>,
               Self: Sized
     {
-        skip_while::new(self, pred)
+        SkipWhile::new(self, f)
     }
 
-    /// Take elements from this stream while the predicate provided resolves to
-    /// `true`.
+    /// Take elements from this stream while the provided asynchronous predicate
+    /// resolves to `true`.
     ///
     /// This function, like `Iterator::take_while`, will take elements from the
-    /// stream until the `predicate` resolves to `false`. Once one element
+    /// stream until the predicate `f` resolves to `false`. Once one element
     /// returns false it will always return that the stream is done.
-    fn take_while<R, P>(self, pred: P) -> TakeWhile<Self, R, P>
-        where P: FnMut(&Self::Item) -> R,
-              R: Future<Output = bool>,
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::prelude::*;
+    /// use futures::executor::block_on;
+    ///
+    /// let stream = stream::iter(1..=10);
+    ///
+    /// let stream = stream.take_while(|x| future::ready(*x <= 5));
+    ///
+    /// assert_eq!(vec![1, 2, 3, 4, 5], block_on(stream.collect::<Vec<_>>()));
+    /// ```
+    fn take_while<Fut, F>(self, f: F) -> TakeWhile<Self, Fut, F>
+        where F: FnMut(&Self::Item) -> Fut,
+              Fut: Future<Output = bool>,
               Self: Sized
     {
-        take_while::new(self, pred)
+        TakeWhile::new(self, f)
     }
 
-    /// Runs this stream to completion, executing the provided closure for each
-    /// element on the stream.
+    /// Runs this stream to completion, executing the provided asynchronous
+    /// closure for each element on the stream.
     ///
     /// The closure provided will be called for each item this stream produces,
     /// yielding a future. That future will then be executed to completion
@@ -479,53 +521,118 @@ pub trait StreamExt: Stream {
     ///
     /// To process each item in the stream and produce another stream instead
     /// of a single future, use `then` instead.
-    fn for_each<U, F>(self, f: F) -> ForEach<Self, U, F>
-        where F: FnMut(Self::Item) -> U,
-              U: Future<Output = ()>,
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::executor::block_on;
+    /// use futures::prelude::*;
+    ///
+    /// let mut x = 0;
+    ///
+    /// {
+    ///     let fut = stream::repeat(1).take(3).for_each(|item| {
+    ///         x += item;
+    ///         future::ready(())
+    ///     });
+    ///     block_on(fut);
+    /// }
+    ///
+    /// assert_eq!(x, 3);
+    /// ```
+    fn for_each<Fut, F>(self, f: F) -> ForEach<Self, Fut, F>
+        where F: FnMut(Self::Item) -> Fut,
+              Fut: Future<Output = ()>,
               Self: Sized
     {
-        for_each::new(self, f)
+        ForEach::new(self, f)
     }
 
-    /// Creates a new stream of at most `amt` items of the underlying stream.
+    /// Creates a new stream of at most `n` items of the underlying stream.
     ///
-    /// Once `amt` items have been yielded from this stream then it will always
+    /// Once `n` items have been yielded from this stream then it will always
     /// return that the stream is done.
-    fn take(self, amt: u64) -> Take<Self>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::executor::block_on;
+    /// use futures::prelude::*;
+    ///
+    /// let stream = stream::iter(1..=10).take(3);
+    ///
+    /// assert_eq!(vec![1, 2, 3], block_on(stream.collect::<Vec<_>>()));
+    /// ```
+    fn take(self, n: u64) -> Take<Self>
         where Self: Sized
     {
-        take::new(self, amt)
+        Take::new(self, n)
     }
 
-    /// Creates a new stream which skips `amt` items of the underlying stream.
+    /// Creates a new stream which skips `n` items of the underlying stream.
     ///
-    /// Once `amt` items have been skipped from this stream then it will always
+    /// Once `n` items have been skipped from this stream then it will always
     /// return the remaining items on this stream.
-    fn skip(self, amt: u64) -> Skip<Self>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::executor::block_on;
+    /// use futures::prelude::*;
+    ///
+    /// let stream = stream::iter(1..=10).skip(5);
+    ///
+    /// assert_eq!(vec![6, 7, 8, 9, 10], block_on(stream.collect::<Vec<_>>()));
+    /// ```
+    fn skip(self, n: u64) -> Skip<Self>
         where Self: Sized
     {
-        skip::new(self, amt)
+        Skip::new(self, n)
     }
 
-    /// Fuse a stream such that `poll_next` will never again be called once it has
-    /// finished.
+    /// Fuse a stream such that [`poll_next`](Stream::poll_next) will never
+    /// again be called once it has finished.
     ///
-    /// Currently once a stream has returned `None` from `poll_next` any further
-    /// calls could exhibit bad behavior such as block forever, panic, never
-    /// return, etc. If it is known that `poll_next` may be called after stream has
-    /// already finished, then this method can be used to ensure that it has
+    /// Normally, once a stream has returned [`None`] from
+    /// [`poll_next`](Stream::poll_next) any further calls could exhibit bad
+    /// behavior such as block forever, panic, never return, etc. If it is known
+    /// that [`poll_next`](Stream::poll_next) may be called after stream
+    /// has already finished, then this method can be used to ensure that it has
     /// defined semantics.
     ///
-    /// Once a stream has been `fuse`d and it finishes, then it will forever
-    /// return `None` from `poll_nexzt`. This, unlike for the trait's `poll_next`
-    /// method, is guaranteed.
+    /// The [`poll_next`](Stream::poll_next) method of a `fuse`d stream
+    /// is guaranteed to return [`None`] after the underlying stream has
+    /// finished.
     ///
-    /// Also note that as soon as this stream returns `None` it will be dropped
-    /// to reclaim resources associated with it.
+    /// # Examples
+    ///
+    /// ```
+    /// # #![feature(futures_api)]
+    /// #[macro_use] extern crate futures;
+    /// use futures::executor::block_on_stream;
+    /// use futures::prelude::*;
+    ///
+    /// let mut x = 0;
+    /// let stream = stream::poll_fn(|_| {
+    ///     x += 1;
+    ///     match x {
+    ///         0..=2 => Poll::Ready(Some(x)),
+    ///         3 => Poll::Ready(None),
+    ///         _ => panic!("should not happen")
+    ///     }
+    /// }).fuse();
+    ///
+    /// let mut iter = block_on_stream(stream);
+    /// assert_eq!(Some(1), iter.next());
+    /// assert_eq!(Some(2), iter.next());
+    /// assert_eq!(None, iter.next());
+    /// assert_eq!(None, iter.next());
+    /// // ...
+    /// ```
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {
-        fuse::new(self)
+        Fuse::new(self)
     }
 
     /// Borrows a stream, rather than consuming it.
@@ -533,16 +640,17 @@ pub trait StreamExt: Stream {
     /// This is useful to allow applying stream adaptors while still retaining
     /// ownership of the original stream.
     ///
+    /// # Examples
+    ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
-    /// use futures::stream;
-    /// use futures::future;
     /// use futures::executor::block_on;
     ///
     /// let mut stream = stream::iter(1..5);
     ///
-    /// let sum = block_on(stream.by_ref().take(2).fold(0, |a, b| future::ready(a + b)));
+    /// let sum = block_on(stream.by_ref()
+    ///                          .take(2)
+    ///                          .fold(0, |a, b| future::ready(a + b)));
     /// assert_eq!(sum, 3);
     ///
     /// // You can use the stream again
@@ -567,8 +675,9 @@ pub trait StreamExt: Stream {
     /// Note that this method requires the `UnwindSafe` bound from the standard
     /// library. This isn't always applied automatically, and the standard
     /// library provides an `AssertUnwindSafe` wrapper type to apply it
-    /// after-the fact. To assist using this method, the `Stream` trait is also
-    /// implemented for `AssertUnwindSafe<S>` where `S` implements `Stream`.
+    /// after-the fact. To assist using this method, the [`Stream`] trait is
+    /// also implemented for `AssertUnwindSafe<St>` where `St` implements
+    /// [`Stream`].
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
@@ -576,16 +685,13 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```rust
-    /// # extern crate futures;
-    ///
-    /// use futures::prelude::*;
-    /// use futures::stream;
     /// use futures::executor::block_on;
+    /// use futures::prelude::*;
     ///
     /// let stream = stream::iter(vec![Some(10), None, Some(11)]);
-    /// // panic on second element
+    /// // Panic on second element
     /// let stream_panicking = stream.map(|o| o.unwrap());
-    /// // collect all the results
+    /// // Collect all the results
     /// let stream = stream_panicking.catch_unwind();
     ///
     /// let results: Vec<Result<i32, _>> = block_on(stream.collect());
@@ -600,47 +706,47 @@ pub trait StreamExt: Stream {
     fn catch_unwind(self) -> CatchUnwind<Self>
         where Self: Sized + std::panic::UnwindSafe
     {
-        catch_unwind::new(self)
+        CatchUnwind::new(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
     ///
     /// If this stream's item can be converted into a future, then this adaptor
-    /// will buffer up to at most `amt` futures and then return results in the
-    /// same order as the underlying stream. No more than `amt` futures will be
-    /// buffered at any point in time, and less than `amt` may also be buffered
+    /// will buffer up to at most `n` futures and then return the outputs in the
+    /// same order as the underlying stream. No more than `n` futures will be
+    /// buffered at any point in time, and less than `n` may also be buffered
     /// depending on the state of each future.
     ///
-    /// The returned stream will be a stream of each future's result.
+    /// The returned stream will be a stream of each future's output.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
-    fn buffered(self, amt: usize) -> Buffered<Self>
+    fn buffered(self, n: usize) -> Buffered<Self>
         where Self::Item: Future,
               Self: Sized
     {
-        buffered::new(self, amt)
+        Buffered::new(self, n)
     }
 
     /// An adaptor for creating a buffered list of pending futures (unordered).
     ///
     /// If this stream's item can be converted into a future, then this adaptor
-    /// will buffer up to `amt` futures and then return results in the order
-    /// in which they complete. No more than `amt` futures will be buffered at
-    /// any point in time, and less than `amt` may also be buffered depending on
+    /// will buffer up to `n` futures and then return the outputs in the order
+    /// in which they complete. No more than `n` futures will be buffered at
+    /// any point in time, and less than `n` may also be buffered depending on
     /// the state of each future.
     ///
-    /// The returned stream will be a stream of each future's result.
+    /// The returned stream will be a stream of each future's output.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
-    fn buffer_unordered(self, amt: usize) -> BufferUnordered<Self>
+    fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
         where Self::Item: Future,
               Self: Sized
     {
-        buffer_unordered::new(self, amt)
+        BufferUnordered::new(self, n)
     }
 
     /// An adapter for zipping two streams together.
@@ -648,11 +754,26 @@ pub trait StreamExt: Stream {
     /// The zipped stream waits for both streams to produce an item, and then
     /// returns that pair. If either stream ends then the zipped stream will
     /// also end.
-    fn zip<S>(self, other: S) -> Zip<Self, S>
-        where S: Stream,
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::prelude::*;
+    /// use futures::executor::block_on;
+    ///
+    /// let mut stream1 = stream::iter(1..=3);
+    /// let mut stream2 = stream::iter(5..=10);
+    ///
+    /// let vec = block_on(stream1.zip(stream2)
+    ///                           .collect::<Vec<_>>());
+    /// assert_eq!(vec![(1, 5), (2, 6), (3, 7)], vec);
+    /// ```
+    ///
+    fn zip<St>(self, other: St) -> Zip<Self, St>
+        where St: Stream,
               Self: Sized,
     {
-        zip::new(self, other)
+        Zip::new(self, other)
     }
 
     /// Adapter for chaining two stream.
@@ -661,10 +782,8 @@ pub trait StreamExt: Stream {
     /// first stream reaches the end, emits the elements from the second stream.
     ///
     /// ```rust
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::stream;
     /// use futures::executor::block_on;
+    /// use futures::prelude::*;
     ///
     /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
     /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);
@@ -679,11 +798,11 @@ pub trait StreamExt: Stream {
     ///     Ok(20),
     /// ]);
     /// ```
-    fn chain<S>(self, other: S) -> Chain<Self, S>
-        where S: Stream<Item = Self::Item>,
+    fn chain<St>(self, other: St) -> Chain<Self, St>
+        where St: Stream<Item = Self::Item>,
               Self: Sized
     {
-        chain::new(self, other)
+        Chain::new(self, other)
     }
 
     /// Creates a new stream which exposes a `peek` method.
@@ -692,7 +811,7 @@ pub trait StreamExt: Stream {
     fn peekable(self) -> Peekable<Self>
         where Self: Sized
     {
-        peek::new(self)
+        Peekable::new(self)
     }
 
     /// An adaptor for chunking up items of the stream inside a vector.
@@ -717,7 +836,7 @@ pub trait StreamExt: Stream {
     fn chunks(self, capacity: usize) -> Chunks<Self>
         where Self: Sized
     {
-        chunks::new(self, capacity)
+        Chunks::new(self, capacity)
     }
 
     /// Creates a stream that selects the next element from either this stream
@@ -726,11 +845,11 @@ pub trait StreamExt: Stream {
     /// This combinator will attempt to pull items from both streams. Each
     /// stream will be polled in a round-robin fashion, and whenever a stream is
     /// ready to yield an item that item is yielded.
-    fn select<S>(self, other: S) -> Select<Self, S>
-        where S: Stream<Item = Self::Item>,
+    fn select<St>(self, other: St) -> Select<Self, St>
+        where St: Stream<Item = Self::Item>,
               Self: Sized,
     {
-        select::new(self, other)
+        Select::new(self, other)
     }
 
     /// A future that completes after the given stream has been fully processed
@@ -751,7 +870,7 @@ pub trait StreamExt: Stream {
         S: Sink + Unpin,
         Self: Stream<Item = Result<S::SinkItem, S::SinkError>> + Sized,
     {
-        forward::new(self, sink)
+        Forward::new(self, sink)
     }
 
     /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
@@ -779,7 +898,7 @@ pub trait StreamExt: Stream {
         where F: FnMut(&Self::Item),
               Self: Sized,
     {
-        inspect::new(self, f)
+        Inspect::new(self, f)
     }
 
     /// Wrap this stream in an `Either` stream, making it the left-hand variant

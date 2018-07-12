@@ -16,7 +16,6 @@ The core traits and types in for the `futures` library.
 [features]
 default = ["std"]
 std = ["either/use_std"]
-nightly = []
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }

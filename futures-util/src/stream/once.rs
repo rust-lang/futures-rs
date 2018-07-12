@@ -8,8 +8,8 @@ use futures_core::task::{self, Poll};
 /// This stream will never block and is always ready.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Once<F> {
-    fut: Option<F>
+pub struct Once<Fut> {
+    future: Option<Fut>
 }
 
 /// Creates a stream of single element
@@ -25,24 +25,27 @@ pub struct Once<F> {
 /// let collected = block_on(stream.collect::<Vec<i32>>());
 /// assert_eq!(collected, vec![17]);
 /// ```
-pub fn once<F: Future>(item: F) -> Once<F> {
-    Once { fut: Some(item) }
+pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
+    Once { future: Some(future) }
 }
 
-impl<F> Once<F> {
-    unsafe_pinned!(fut: Option<F>);
+impl<Fut> Once<Fut> {
+    unsafe_pinned!(future: Option<Fut>);
 }
 
-impl<F: Future> Stream for Once<F> {
-    type Item = F::Output;
+impl<Fut: Future> Stream for Once<Fut> {
+    type Item = Fut::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<F::Output>> {
-        let val = if let Some(f) = self.fut().as_pin_mut() {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<Fut::Output>> {
+        let val = if let Some(f) = self.future().as_pin_mut() {
             ready!(f.poll(cx))
         } else {
             return Poll::Ready(None)
         };
-        PinMut::set(self.fut(), None);
+        PinMut::set(self.future(), None);
         Poll::Ready(Some(val))
     }
 }

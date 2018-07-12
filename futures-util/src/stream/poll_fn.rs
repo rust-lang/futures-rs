@@ -11,7 +11,7 @@ use futures_core::task::{self, Poll};
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct PollFn<F> {
-    inner: F,
+    f: F,
 }
 
 impl<F> Unpin for PollFn<F> {}
@@ -40,7 +40,7 @@ pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
     F: FnMut(&mut task::Context) -> Poll<Option<T>>,
 {
-    PollFn { inner: f }
+    PollFn { f }
 }
 
 impl<T, F> Stream for PollFn<F>
@@ -50,6 +50,6 @@ where
     type Item = T;
 
     fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
-        (&mut self.inner)(cx)
+        (&mut self.f)(cx)
     }
 }

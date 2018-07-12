@@ -10,32 +10,35 @@ use std::prelude::v1::*;
 /// This is created by the `Stream::catch_unwind` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct CatchUnwind<S> where S: Stream {
-    stream: S,
+pub struct CatchUnwind<St: Stream> {
+    stream: St,
     caught_unwind: bool,
 }
 
-pub fn new<S>(stream: S) -> CatchUnwind<S>
-    where S: Stream + UnwindSafe,
-{
-    CatchUnwind { stream, caught_unwind: false }
-}
-
-impl<S: Stream> CatchUnwind<S> {
-    unsafe_pinned!(stream: S);
+impl<St: Stream + UnwindSafe> CatchUnwind<St> {
+    unsafe_pinned!(stream: St);
     unsafe_unpinned!(caught_unwind: bool);
+
+    pub(super) fn new(stream: St) -> CatchUnwind<St> {
+        CatchUnwind { stream, caught_unwind: false }
+    }
 }
 
-impl<S> Stream for CatchUnwind<S>
-    where S: Stream + UnwindSafe,
+impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
 {
-    type Item = Result<S::Item, Box<dyn Any + Send>>;
+    type Item = Result<St::Item, Box<dyn Any + Send>>;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<Self::Item>> {
         if *self.caught_unwind() {
             Poll::Ready(None)
         } else {
-            let res = catch_unwind(AssertUnwindSafe(|| self.stream().poll_next(cx)));
+            let res = catch_unwind(AssertUnwindSafe(|| {
+                self.stream().poll_next(cx)
+            }));
+
             match res {
                 Ok(poll) => poll.map(|opt| opt.map(Ok)),
                 Err(e) => {

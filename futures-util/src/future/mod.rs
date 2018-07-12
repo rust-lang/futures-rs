@@ -87,7 +87,7 @@ impl<T: ?Sized> FutureExt for T where T: Future {}
 /// An extension trait for `Future`s that provides a variety of convenient
 /// adapters.
 pub trait FutureExt: Future {
-    /// Map this future's result to a different type, returning a new future of
+    /// Map this future's output to a different type, returning a new future of
     /// the resulting type.
     ///
     /// This function is similar to the `Option::map` or `Iterator::map` where

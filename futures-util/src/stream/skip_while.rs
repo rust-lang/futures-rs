@@ -10,32 +10,32 @@ use futures_core::task::{self, Poll};
 /// This structure is produced by the `Stream::skip_while` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct SkipWhile<S, R, P> where S: Stream {
-    stream: S,
-    pred: P,
-    pending_fut: Option<R>,
-    pending_item: Option<S::Item>,
+pub struct SkipWhile<St, Fut, F> where St: Stream {
+    stream: St,
+    f: F,
+    pending_fut: Option<Fut>,
+    pending_item: Option<St::Item>,
     done_skipping: bool,
 }
 
-pub fn new<S, R, P>(s: S, p: P) -> SkipWhile<S, R, P>
-    where S: Stream,
-          P: FnMut(&S::Item) -> R,
-          R: Future<Output = bool>,
+impl<St, Fut, F> SkipWhile<St, Fut, F>
+    where St: Stream,
+          F: FnMut(&St::Item) -> Fut,
+          Fut: Future<Output = bool>,
 {
-    SkipWhile {
-        stream: s,
-        pred: p,
-        pending_fut: None,
-        pending_item: None,
-        done_skipping: false,
+    pub(super) fn new(stream: St, f: F) -> SkipWhile<St, Fut, F> {
+        SkipWhile {
+            stream,
+            f,
+            pending_fut: None,
+            pending_item: None,
+            done_skipping: false,
+        }
     }
-}
 
-impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
-    pub fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &St {
         &self.stream
     }
 
@@ -44,7 +44,7 @@ impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    pub fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut St {
         &mut self.stream
     }
 
@@ -52,39 +52,30 @@ impl<S, R, P> SkipWhile<S, R, P> where S: Stream {
     ///
     /// Note that this may discard intermediate state of this combinator, so
     /// care should be taken to avoid losing resources when this is called.
-    pub fn into_inner(self) -> S {
+    pub fn into_inner(self) -> St {
         self.stream
     }
 
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(pred: P);
-    unsafe_pinned!(pending_fut: Option<R>);
-    unsafe_unpinned!(pending_item: Option<S::Item>);
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(pending_fut: Option<Fut>);
+    unsafe_unpinned!(pending_item: Option<St::Item>);
     unsafe_unpinned!(done_skipping: bool);
 }
 
-impl<S: Unpin + Stream, R: Unpin, P> Unpin for SkipWhile<S, R, P> {}
+impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for SkipWhile<St, Fut, F> {}
 
-/* TODO
-// Forwarding impl of Sink from the underlying stream
-impl<S, R, P> Sink for SkipWhile<S, R, P>
-    where S: Sink + Stream, R: IntoFuture
+impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
+    where St: Stream,
+          F: FnMut(&St::Item) -> Fut,
+          Fut: Future<Output = bool>,
 {
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
+    type Item = St::Item;
 
-    delegate_sink!(stream);
-}
-*/
-
-impl<S, R, P> Stream for SkipWhile<S, R, P>
-    where S: Stream,
-          P: FnMut(&S::Item) -> R,
-          R: Future<Output = bool>,
-{
-    type Item = S::Item;
-
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<St::Item>> {
         if *self.done_skipping() {
             return self.stream().poll_next(cx);
         }
@@ -95,7 +86,7 @@ impl<S, R, P> Stream for SkipWhile<S, R, P>
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
-                let fut = (self.pred())(&item);
+                let fut = (self.f())(&item);
                 PinMut::set(self.pending_fut(), Some(fut));
                 *self.pending_item() = Some(item);
             }
@@ -111,3 +102,15 @@ impl<S, R, P> Stream for SkipWhile<S, R, P>
         }
     }
 }
+
+/* TODO
+// Forwarding impl of Sink from the underlying stream
+impl<S, R, P> Sink for SkipWhile<S, R, P>
+    where S: Sink + Stream, R: IntoFuture
+{
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream);
+}
+*/
