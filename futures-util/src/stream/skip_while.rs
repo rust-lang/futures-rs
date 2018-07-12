@@ -18,11 +18,19 @@ pub struct SkipWhile<St, Fut, F> where St: Stream {
     done_skipping: bool,
 }
 
+impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for SkipWhile<St, Fut, F> {}
+
 impl<St, Fut, F> SkipWhile<St, Fut, F>
     where St: Stream,
           F: FnMut(&St::Item) -> Fut,
           Fut: Future<Output = bool>,
 {
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
+    unsafe_pinned!(pending_fut: Option<Fut>);
+    unsafe_unpinned!(pending_item: Option<St::Item>);
+    unsafe_unpinned!(done_skipping: bool);
+
     pub(super) fn new(stream: St, f: F) -> SkipWhile<St, Fut, F> {
         SkipWhile {
             stream,
@@ -55,15 +63,7 @@ impl<St, Fut, F> SkipWhile<St, Fut, F>
     pub fn into_inner(self) -> St {
         self.stream
     }
-
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-    unsafe_pinned!(pending_fut: Option<Fut>);
-    unsafe_unpinned!(pending_item: Option<St::Item>);
-    unsafe_unpinned!(done_skipping: bool);
 }
-
-impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for SkipWhile<St, Fut, F> {}
 
 impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
     where St: Stream,

@@ -16,6 +16,12 @@ pub struct ForEach<St, Fut, F> {
     future: Option<Fut>,
 }
 
+impl<St, Fut, F> Unpin for ForEach<St, Fut, F>
+where St: Stream + Unpin,
+      F: FnMut(St::Item) -> Fut,
+      Fut: Future<Output = ()> + Unpin,
+{}
+
 impl<St, Fut, F> ForEach<St, Fut, F>
 where St: Stream,
       F: FnMut(St::Item) -> Fut,
@@ -33,8 +39,6 @@ where St: Stream,
         }
     }
 }
-
-impl<S, U, F> Unpin for ForEach<S, U, F> {}
 
 impl<St, Fut, F> Future for ForEach<St, Fut, F>
     where St: Stream,

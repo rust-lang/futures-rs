@@ -16,6 +16,8 @@ pub struct Fold<St, Fut, T, F> {
     future: Option<Fut>,
 }
 
+impl<St: Unpin, Fut: Unpin, T, F> Unpin for Fold<St, Fut, T, F> {}
+
 impl<St, Fut, T, F> Fold<St, Fut, T, F>
 where St: Stream,
       F: FnMut(T, St::Item) -> Fut,
@@ -35,8 +37,6 @@ where St: Stream,
         }
     }
 }
-
-impl<St: Unpin, Fut: Unpin, T, F> Unpin for Fold<St, Fut, T, F> {}
 
 impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
     where St: Stream,

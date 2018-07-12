@@ -16,16 +16,7 @@ pub struct Concat<St: Stream> {
     accum: Option<St::Item>,
 }
 
-impl<St> Debug for Concat<St>
-where St: Stream + Debug,
-      St::Item: Debug,
-{
-    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
-        fmt.debug_struct("Concat")
-            .field("accum", &self.accum)
-            .finish()
-    }
-}
+impl<St: Stream + Unpin> Unpin for Concat<St> {}
 
 impl<St> Concat<St>
 where St: Stream,
@@ -43,7 +34,16 @@ where St: Stream,
     }
 }
 
-impl<St: Stream + Unpin> Unpin for Concat<St> {}
+impl<St> Debug for Concat<St>
+where St: Stream + Debug,
+      St::Item: Debug,
+{
+    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+        fmt.debug_struct("Concat")
+            .field("accum", &self.accum)
+            .finish()
+    }
+}
 
 impl<St> Future for Concat<St>
 where St: Stream,

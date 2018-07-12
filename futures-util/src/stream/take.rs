@@ -1,3 +1,4 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -11,6 +12,8 @@ pub struct Take<St> {
     stream: St,
     remaining: u64,
 }
+
+impl<St: Unpin> Unpin for Take<St> {}
 
 impl<St: Stream> Take<St> {
     unsafe_pinned!(stream: St);

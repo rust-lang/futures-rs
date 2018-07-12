@@ -20,6 +20,12 @@ pub struct FilterMap<St, Fut, F>
     pending: Option<Fut>,
 }
 
+impl<St, Fut, F> Unpin for FilterMap<St, Fut, F>
+    where St: Stream + Unpin,
+          F: FnMut(St::Item) -> Fut,
+          Fut: Future + Unpin,
+{}
+
 impl<St, Fut, F> FilterMap<St, Fut, F>
     where St: Stream,
           F: FnMut(St::Item) -> Fut,
@@ -56,12 +62,6 @@ impl<St, Fut, F> FilterMap<St, Fut, F>
         self.stream
     }
 }
-
-impl<St, Fut, F> Unpin for FilterMap<St, Fut, F>
-    where St: Stream + Unpin,
-          F: FnMut(St::Item) -> Fut,
-          Fut: Future + Unpin,
-{}
 
 impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
     where St: Stream,

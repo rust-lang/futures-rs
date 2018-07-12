@@ -1,3 +1,4 @@
+use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -15,7 +16,10 @@ pub struct Flatten<St>
     next: Option<St::Item>,
 }
 
-
+impl<St: Stream> Unpin for Flatten<St>
+where St: Stream + Unpin,
+      St::Item: Stream + Unpin,
+{}
 
 impl<St: Stream> Flatten<St>
 where St: Stream,

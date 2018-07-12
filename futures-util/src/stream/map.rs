@@ -14,6 +14,8 @@ pub struct Map<St, F> {
     f: F,
 }
 
+impl<St: Unpin, F> Unpin for Map<St, F> {}
+
 impl<St, T, F> Map<St, F>
     where St: Stream,
           F: FnMut(St::Item) -> T,
@@ -48,8 +50,6 @@ impl<St, T, F> Map<St, F>
         self.stream
     }
 }
-
-impl<St: Unpin, F> Unpin for Map<St, F> {}
 
 impl<St, F, T> Stream for Map<St, F>
     where St: Stream,

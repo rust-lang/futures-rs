@@ -16,7 +16,7 @@ pub struct Peekable<St: Stream> {
     peeked: Option<St::Item>,
 }
 
-impl<S: Unpin + Stream> Unpin for Peekable<S> {}
+impl<St: Stream + Unpin> Unpin for Peekable<St> {}
 
 impl<St: Stream> Peekable<St> {
     unsafe_pinned!(stream: Fuse<St>);

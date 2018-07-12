@@ -11,6 +11,8 @@ pub struct Next<'a, St: 'a> {
     stream: &'a mut St,
 }
 
+impl<'a, St: Stream + Unpin> Unpin for Next<'a, St> {}
+
 impl<'a, St: Stream + Unpin> Next<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Next<'a, St> {
         Next { stream }
