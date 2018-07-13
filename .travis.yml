@@ -9,14 +9,6 @@ matrix:
     - rust: nightly
       script: cargo bench --all && cd futures-util && cargo bench --features=bench
     - rust: nightly
-      before_script:
-        - pip install ghp-import --user && export PATH=$HOME/.local/bin:$PATH
-      script:
-        - cargo doc
-      after_success:
-        - ghp-import -n target/doc
-        - git push -qf https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
-    - rust: nightly
       script:
         - cargo build --manifest-path futures/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
