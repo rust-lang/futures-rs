@@ -143,10 +143,8 @@ pub trait StreamExt: Stream {
     /// #[macro_use] extern crate futures;
     /// use futures::executor::block_on;
     /// use futures::prelude::*;
-    /// use futures::stream;
     ///
-    /// let stream = stream::iter(1..=3);
-    /// pin_mut!(stream);
+    /// let mut stream = stream::iter(1..=3);
     ///
     /// assert_eq!(block_on(stream.next()), Some(1));
     /// assert_eq!(block_on(stream.next()), Some(2));
@@ -180,7 +178,6 @@ pub trait StreamExt: Stream {
     /// use futures::prelude::*;
     ///
     /// let stream = stream::iter(1..=3);
-    /// pin_mut!(stream);
     ///
     /// let (item, stream) = block_on(stream.into_future());
     /// assert_eq!(Some(1), item);
