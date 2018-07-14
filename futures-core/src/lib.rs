@@ -9,8 +9,6 @@
 
 #![doc(html_root_url = "https://docs.rs/futures-core/0.3.0-alpha")]
 
-#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
-
 #[cfg(feature = "std")]
 extern crate std;
 

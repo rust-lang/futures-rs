@@ -339,7 +339,10 @@ pub mod task {
 
     pub use futures_util::task::ContextExt;
 
-    #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
+    #[cfg_attr(
+        feature = "nightly",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     pub use futures_util::task::AtomicWaker;
 
     #[cfg(feature = "std")]

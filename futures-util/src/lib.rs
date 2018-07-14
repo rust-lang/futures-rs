@@ -2,6 +2,7 @@
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
+#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(missing_docs, missing_debug_implementations, warnings)]
