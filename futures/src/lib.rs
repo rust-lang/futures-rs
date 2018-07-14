@@ -22,8 +22,8 @@
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/futures/0.2.2")]
 
-#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
+#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 extern crate futures_async_runtime;
 extern crate futures_core;
@@ -392,7 +392,10 @@ pub mod task {
         Context, LocalMap, Waker, UnsafeWake,
     };
 
-    #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
+    #[cfg_attr(
+        feature = "nightly",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     pub use futures_core::task::AtomicWaker;
 
     #[cfg(feature = "std")]
