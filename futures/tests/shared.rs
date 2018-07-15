@@ -4,19 +4,21 @@ use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
 use futures::future::{self, FutureExt, LocalFutureObj};
 use futures::task::LocalSpawn;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::thread;
 
 fn send_shared_oneshot_and_wait_on_multiple_threads(threads_number: u32) {
     let (tx, rx) = oneshot::channel::<i32>();
     let f = rx.shared();
-    let join_handles = (0..threads_number).map(|_| {
-        let cloned_future = f.clone();
-        thread::spawn(move || {
-            assert_eq!(block_on(cloned_future).unwrap(), 6);
+    let join_handles = (0..threads_number)
+        .map(|_| {
+            let cloned_future = f.clone();
+            thread::spawn(move || {
+                assert_eq!(block_on(cloned_future).unwrap(), 6);
+            })
         })
-    }).collect::<Vec<_>>();
+        .collect::<Vec<_>>();
 
     tx.send(6).unwrap();
 
@@ -114,4 +116,39 @@ fn peek() {
     for _ in 0..2 {
         assert_eq!(f2.peek().unwrap(), Ok(42));
     }
+}
+
+struct CountClone(Rc<Cell<i32>>);
+
+impl Clone for CountClone {
+    fn clone(&self) -> Self {
+        self.0.set(self.0.get() + 1);
+        CountClone(self.0.clone())
+    }
+}
+
+#[test]
+fn dont_clone_in_single_owner_shared_future() {
+    let counter = CountClone(Rc::new(Cell::new(0)));
+    let (tx, rx) = oneshot::channel();
+
+    let rx = rx.shared();
+
+    tx.send(counter).ok().unwrap();
+
+    assert_eq!(block_on(rx).unwrap().0.get(), 0);
+}
+
+#[test]
+fn dont_do_unnecessary_clones_on_output() {
+    let counter = CountClone(Rc::new(Cell::new(0)));
+    let (tx, rx) = oneshot::channel();
+
+    let rx = rx.shared();
+
+    tx.send(counter).ok().unwrap();
+
+    assert_eq!(block_on(rx.clone()).unwrap().0.get(), 1);
+    assert_eq!(block_on(rx.clone()).unwrap().0.get(), 2);
+    assert_eq!(block_on(rx).unwrap().0.get(), 2);
 }
