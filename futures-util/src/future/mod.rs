@@ -630,6 +630,7 @@ pub trait FutureExt: Future {
     fn shared(self) -> Shared<Self>
     where
         Self: Sized,
+        Self::Output: Clone,
     {
         Shared::new(self)
     }

@@ -4,6 +4,7 @@ use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
 use std::marker::Unpin;
+use std::mem;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
@@ -51,6 +52,7 @@ impl<Fut: Future> fmt::Debug for Inner<Fut> {
 enum FutureOrOutput<Fut: Future> {
     Future(Fut),
     Output(Fut::Output),
+    Done,
 }
 
 unsafe impl<Fut> Send for Inner<Fut>
@@ -135,11 +137,26 @@ where
 
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
+    unsafe fn take_or_clone_output(&mut self) -> Fut::Output {
+        if let Some(inner) = Arc::get_mut(&mut self.inner) {
+            let output = mem::replace(
+                &mut inner.future_or_output,
+                UnsafeCell::new(FutureOrOutput::Done)
+            );
+            if let FutureOrOutput::Output(item) = output.into_inner() {
+                return item;
+            }
+        }
+        self.clone_output()
+    }
+
+    /// Safety: callers must first ensure that `self.inner.state`
+    /// is `COMPLETE`
     unsafe fn clone_output(&self) -> Fut::Output {
-        if let FutureOrOutput::Output(item) = &*self.inner.future_or_output.get() {
-            item.clone()
-        } else {
-            unreachable!()
+        match &*self.inner.future_or_output.get() {
+            FutureOrOutput::Output(item) => item.clone(),
+            FutureOrOutput::Done => panic!("Shared future polled again after completion"),
+            FutureOrOutput::Future(_) => unreachable!(),
         }
     }
 }
@@ -163,10 +180,10 @@ where
                 // Another task is currently polling, at this point we just want
                 // to ensure that our task handle is currently registered
 
-                return Poll::Pending
+                return Poll::Pending;
             }
             COMPLETE => {
-                return unsafe { Poll::Ready(this.clone_output()) };
+                return unsafe { Poll::Ready(this.take_or_clone_output()) };
             }
             POISONED => panic!("inner future panicked during poll"),
             _ => unreachable!(),
@@ -175,24 +192,27 @@ where
         let waker = local_waker_from_nonlocal(this.inner.notifier.clone());
         let lw = &waker;
 
-        loop {
-            struct Reset<'a>(&'a AtomicUsize);
+        struct Reset<'a>(&'a AtomicUsize);
 
-            impl<'a> Drop for Reset<'a> {
-                fn drop(&mut self) {
-                    use std::thread;
+        impl<'a> Drop for Reset<'a> {
+            fn drop(&mut self) {
+                use std::thread;
 
-                    if thread::panicking() {
-                        self.0.store(POISONED, SeqCst);
-                    }
+                if thread::panicking() {
+                    self.0.store(POISONED, SeqCst);
                 }
             }
+        }
 
+
+        let output = loop {
             let _reset = Reset(&this.inner.notifier.state);
 
             // Poll the future
             let res = unsafe {
-                if let FutureOrOutput::Future(future) = &mut *this.inner.future_or_output.get() {
+                if let FutureOrOutput::Future(future) =
+                    &mut *this.inner.future_or_output.get()
+                {
                     Pin::new_unchecked(future).poll(lw)
                 } else {
                     unreachable!()
@@ -201,38 +221,53 @@ where
             match res {
                 Poll::Pending => {
                     // Not ready, try to release the handle
-                    match this.inner.notifier.state.compare_and_swap(POLLING, IDLE, SeqCst) {
+                    match this
+                        .inner
+                        .notifier
+                        .state
+                        .compare_and_swap(POLLING, IDLE, SeqCst)
+                    {
                         POLLING => {
                             // Success
                             return Poll::Pending;
                         }
                         REPOLL => {
                             // Gotta poll again!
-                            let prev = this.inner.notifier.state.swap(POLLING, SeqCst);
+                            let prev =
+                                this.inner.notifier.state.swap(POLLING, SeqCst);
                             assert_eq!(prev, REPOLL);
                         }
                         _ => unreachable!(),
                     }
                 }
-                Poll::Ready(output) => {
-                    unsafe {
-                        *this.inner.future_or_output.get() =
-                            FutureOrOutput::Output(output.clone());
-                    }
+                Poll::Ready(output) => break output,
+            }
+        };
 
-                    // Complete the future
-                    let mut lock = this.inner.notifier.wakers.lock().unwrap();
-                    this.inner.notifier.state.store(COMPLETE, SeqCst);
-                    let wakers = &mut lock.take().unwrap();
-                    for (_key, opt_waker) in wakers {
-                        if let Some(waker) = opt_waker.take() {
-                            waker.wake();
-                        }
-                    }
-                    return Poll::Ready(output);
-                }
+        if let Some(_) = Arc::get_mut(&mut this.inner) {
+            unsafe {
+                *this.inner.future_or_output.get() = FutureOrOutput::Done;
+            }
+            return Poll::Ready(output);
+        }
+
+        let _reset = Reset(&this.inner.notifier.state);
+
+        unsafe {
+            *this.inner.future_or_output.get() =
+                FutureOrOutput::Output(output.clone());
+        }
+
+        // Complete the future
+        let mut lock = this.inner.notifier.wakers.lock().unwrap();
+        this.inner.notifier.state.store(COMPLETE, SeqCst);
+        let wakers = &mut lock.take().unwrap();
+        for (_key, opt_waker) in wakers {
+            if let Some(waker) = opt_waker.take() {
+                waker.wake();
             }
         }
+        Poll::Ready(output)
     }
 }
 
