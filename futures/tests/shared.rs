@@ -82,7 +82,7 @@ fn drop_in_poll() {
     let future2 = LocalFutureObj::new(Box::new(future1.clone()));
     slot1.replace(Some(future2));
 
-    assert_eq!(*block_on(future1), 1);
+    assert_eq!(block_on(future1), 1);
 }
 
 #[test]
@@ -111,6 +111,6 @@ fn peek() {
     spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
     local_pool.run(spawn);
     for _ in 0..2 {
-        assert_eq!(*f2.peek().unwrap(), Ok(42));
+        assert_eq!(f2.peek().unwrap(), Ok(42));
     }
 }
