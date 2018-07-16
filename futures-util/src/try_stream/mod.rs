@@ -50,7 +50,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(output, Err(6));
     /// ```
     #[cfg(feature = "std")]
-    fn try_collect<C: Default + Extend<Self::TryItem>>(self) -> TryCollect<Self, C>
+    fn try_collect<C: Default + Extend<Self::Ok>>(self) -> TryCollect<Self, C>
         where Self: Sized
     {
         try_collect::new(self)
