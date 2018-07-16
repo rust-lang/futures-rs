@@ -4,9 +4,11 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::marker::Unpin;
+use core::mem::PinMut;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
+use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 
 mod iter;
@@ -920,5 +922,16 @@ pub trait StreamExt: Stream {
               Self: Sized
     {
         Either::Right(self)
+    }
+
+    /// A convenience for calling [`Stream::poll_next`] on [`Unpin`] stream
+    /// types.
+    fn poll_next_unpin(
+        &mut self,
+        cx: &mut task::Context
+    ) -> Poll<Option<Self::Item>>
+    where Self: Unpin + Sized
+    {
+        PinMut::new(self).poll_next(cx)
     }
 }
