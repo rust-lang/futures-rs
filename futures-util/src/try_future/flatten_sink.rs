@@ -37,7 +37,7 @@ impl<F, S> FlattenSink<F, S> {
 
 impl<F, S> Sink for FlattenSink<F, S>
 where
-    F: TryFuture<Item = S>,
+    F: TryFuture<Ok = S>,
     S: Sink<SinkError = F::Error>,
 {
     type SinkItem = S::SinkItem;
@@ -96,7 +96,7 @@ where
 
 pub fn new<F, S>(fut: F) -> FlattenSink<F, S>
 where
-    F: TryFuture<Item = S>,
+    F: TryFuture<Ok = S>,
     S: Sink<SinkError = F::Error>,
 {
     FlattenSink(Waiting(fut))

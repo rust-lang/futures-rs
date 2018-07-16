@@ -28,13 +28,13 @@ impl<A, E> Future for ErrInto<A, E>
     where A: TryFuture,
           A::Error: Into<E>,
 {
-    type Output = Result<A::Item, E>;
+    type Output = Result<A::Ok, E>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(e) => {
-                Poll::Ready(e.map_err(Into::into))
+            Poll::Ready(output) => {
+                Poll::Ready(output.map_err(Into::into))
             }
         }
     }

@@ -27,7 +27,7 @@ impl<Fut: Unpin, F> Unpin for MapOk<Fut, F> {}
 
 impl<Fut, F, T> Future for MapOk<Fut, F>
     where Fut: TryFuture,
-          F: FnOnce(Fut::Item) -> T,
+          F: FnOnce(Fut::Ok) -> T,
 {
     type Output = Result<T, Fut::Error>;
 

@@ -9,7 +9,7 @@ pub use core::future::{Future, FutureObj, LocalFutureObj, UnsafeFutureObj};
 /// a variety of adapters tailored to such futures.
 pub trait TryFuture {
     /// The type of successful values yielded by this future
-    type Item;
+    type Ok;
 
     /// The type of failures yielded by this future
     type Error;
@@ -22,13 +22,13 @@ pub trait TryFuture {
     fn try_poll(
         self: PinMut<Self>,
         cx: &mut task::Context,
-    ) -> Poll<Result<Self::Item, Self::Error>>;
+    ) -> Poll<Result<Self::Ok, Self::Error>>;
 }
 
 impl<F, T, E> TryFuture for F
     where F: Future<Output = Result<T, E>>
 {
-    type Item = T;
+    type Ok = T;
     type Error = E;
 
     #[inline]

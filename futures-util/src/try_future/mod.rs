@@ -64,9 +64,9 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// Note that this function consumes this future and returns a wrapped
     /// version of it.
-    fn flatten_sink(self) -> FlattenSink<Self, Self::Item>
+    fn flatten_sink(self) -> FlattenSink<Self, Self::Ok>
     where
-        Self::Item: Sink<SinkError=Self::Error>,
+        Self::Ok: Sink<SinkError=Self::Error>,
         Self: Sized,
     {
         flatten_sink::new(self)
@@ -113,7 +113,7 @@ pub trait TryFutureExt: TryFuture {
     /// assert_eq!(block_on(new_future), Err(1));
     /// ```
     fn map_ok<T, F>(self, op: F) -> MapOk<Self, F>
-        where F: FnOnce(Self::Item) -> T,
+        where F: FnOnce(Self::Ok) -> T,
               Self: Sized,
     {
         MapOk::new(self, op)
@@ -228,7 +228,7 @@ pub trait TryFutureExt: TryFuture {
     /// });
     /// ```
     fn and_then<Fut, F>(self, async_op: F) -> AndThen<Self, Fut, F>
-        where F: FnOnce(Self::Item) -> Fut,
+        where F: FnOnce(Self::Ok) -> Fut,
               Fut: TryFuture<Error = Self::Error>,
               Self: Sized,
     {
@@ -271,7 +271,7 @@ pub trait TryFutureExt: TryFuture {
     /// ```
     fn or_else<Fut, F>(self, async_op: F) -> OrElse<Self, Fut, F>
         where F: FnOnce(Self::Error) -> Fut,
-              Fut: TryFuture<Item = Self::Item>,
+              Fut: TryFuture<Ok = Self::Ok>,
               Self: Sized,
     {
         OrElse::new(self, async_op)
@@ -429,7 +429,7 @@ pub trait TryFutureExt: TryFuture {
     /// ```
     fn unwrap_or_else<F>(self, op: F) -> UnwrapOrElse<Self, F>
         where Self: Sized,
-              F: FnOnce(Self::Error) -> Self::Item
+              F: FnOnce(Self::Error) -> Self::Ok
     {
         UnwrapOrElse::new(self, op)
     }
