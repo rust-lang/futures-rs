@@ -15,20 +15,16 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures = "0.2.0"
+futures-preview = "0.3.0-alpha"
 ```
 
 Next, add this to your crate:
 
 ```rust
-extern crate futures;
+extern crate futures-preview as futures;
 
 use futures::Future;
 ```
-
-For more information about how you can use futures with async I/O you can take a
-look at [https://tokio.rs](https://tokio.rs) which is an introduction to both
-the Tokio stack and also futures.
 
 ### Feature `std`
 
@@ -38,7 +34,7 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures = { version = "0.2.0", default-features = false }
+futures-preview = { version = "0.3.0-alpha", default-features = false }
 ```
 
 # License
