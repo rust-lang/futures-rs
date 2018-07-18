@@ -29,7 +29,7 @@ impl<Fut, F, E> Future for MapErr<Fut, F>
     where Fut: TryFuture,
           F: FnOnce(Fut::Error) -> E,
 {
-    type Output = Result<Fut::Item, E>;
+    type Output = Result<Fut::Ok, E>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {

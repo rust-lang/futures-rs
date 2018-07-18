@@ -27,9 +27,9 @@ impl<Fut: Unpin, F> Unpin for UnwrapOrElse<Fut, F> {}
 
 impl<Fut, F> Future for UnwrapOrElse<Fut, F>
     where Fut: TryFuture,
-          F: FnOnce(Fut::Error) -> Fut::Item,
+          F: FnOnce(Fut::Error) -> Fut::Ok,
 {
-    type Output = Fut::Item;
+    type Output = Fut::Ok;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {

@@ -52,13 +52,6 @@ pub trait Stream {
         self: PinMut<Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>>;
-
-    /// A convenience for calling `Stream::poll_next` on `Unpin` stream types.
-    fn poll_next_unpin(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>>
-        where Self: Unpin + Sized
-    {
-        PinMut::new(self).poll_next(cx)
-    }
 }
 
 impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
@@ -104,10 +97,10 @@ impl<A, B> Stream for Either<A, B>
 /// a variety of adapters tailored to such futures.
 pub trait TryStream {
     /// The type of successful values yielded by this future
-    type TryItem;
+    type Ok;
 
     /// The type of failures yielded by this future
-    type TryError;
+    type Error;
 
     /// Poll this `TryStream` as if it were a `Stream`.
     ///
@@ -115,17 +108,17 @@ pub trait TryStream {
     /// directly inheriting from the `Stream` trait; in the future it won't be
     /// needed.
     fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
-        -> Poll<Option<Result<Self::TryItem, Self::TryError>>>;
+        -> Poll<Option<Result<Self::Ok, Self::Error>>>;
 }
 
 impl<S, T, E> TryStream for S
     where S: Stream<Item = Result<T, E>>
 {
-    type TryItem = T;
-    type TryError = E;
+    type Ok = T;
+    type Error = E;
 
     fn try_poll_next(self: PinMut<Self>, cx: &mut task::Context)
-        -> Poll<Option<Result<Self::TryItem, Self::TryError>>>
+        -> Poll<Option<Result<Self::Ok, Self::Error>>>
     {
         self.poll_next(cx)
     }

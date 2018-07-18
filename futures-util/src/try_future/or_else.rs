@@ -29,15 +29,15 @@ impl<Fut1, Fut2, F> OrElse<Fut1, Fut2, F>
 
 impl<Fut1, Fut2, F> Future for OrElse<Fut1, Fut2, F>
     where Fut1: TryFuture,
-          Fut2: TryFuture<Item = Fut1::Item>,
+          Fut2: TryFuture<Ok = Fut1::Ok>,
           F: FnOnce(Fut1::Error) -> Fut2,
 {
-    type Output = Result<Fut2::Item, Fut2::Error>;
+    type Output = Result<Fut2::Ok, Fut2::Error>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.try_chain().poll(cx, |result, async_op| {
             match result {
-                Ok(item) => TryChainAction::Output(Ok(item)),
+                Ok(ok) => TryChainAction::Output(Ok(ok)),
                 Err(err) => TryChainAction::Future(async_op(err)),
             }
         })

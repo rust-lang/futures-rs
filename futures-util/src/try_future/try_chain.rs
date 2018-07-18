@@ -14,7 +14,7 @@ crate enum TryChainAction<Fut2>
     where Fut2: TryFuture,
 {
     Future(Fut2),
-    Output(Result<Fut2::Item, Fut2::Error>),
+    Output(Result<Fut2::Ok, Fut2::Error>),
 }
 
 impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
@@ -29,8 +29,8 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
         self: PinMut<Self>,
         cx: &mut task::Context,
         op: F,
-    ) -> Poll<Result<Fut2::Item, Fut2::Error>>
-        where F: FnOnce(Result<Fut1::Item, Fut1::Error>, Data) -> TryChainAction<Fut2>,
+    ) -> Poll<Result<Fut2::Ok, Fut2::Error>>
+        where F: FnOnce(Result<Fut1::Ok, Fut1::Error>, Data) -> TryChainAction<Fut2>,
     {
         let mut op = Some(op);
 
