@@ -209,7 +209,7 @@ pub trait FutureExt: Future {
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
@@ -234,7 +234,7 @@ pub trait FutureExt: Future {
 
     /// Same as `join`, but with more futures.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
@@ -264,7 +264,7 @@ pub trait FutureExt: Future {
 
     /// Same as `join`, but with more futures.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
@@ -298,7 +298,7 @@ pub trait FutureExt: Future {
 
     /// Same as `join`, but with more futures.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
