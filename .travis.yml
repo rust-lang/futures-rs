@@ -24,7 +24,8 @@ matrix:
         - cargo build --manifest-path futures-macro-async/Cargo.toml --features nightly
         - cargo build --manifest-path futures/Cargo.toml --features nightly
         - cargo test --manifest-path futures-macro-await/Cargo.toml --features nightly
-        - cargo test --manifest-path futures/Cargo.toml --features nightly --test async_await_tests
+        - cargo test --manifest-path futures-core/Cargo.toml --features nightly
+        - cargo test --manifest-path futures/Cargo.toml --features nightly
     - rust: nightly
       script:
         - rustup target add thumbv6m-none-eabi
