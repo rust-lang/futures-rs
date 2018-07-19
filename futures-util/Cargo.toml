@@ -1,33 +1,36 @@
 cargo-features = ["edition"]
 
 [package]
-name = "futures-util"
+name = "futures-util-preview"
 edition = "2018"
-version = "0.3.0-alpha"
+version = "0.3.0-alpha.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://github.com/rust-lang-nursery/futures-rs"
-documentation = "https://docs.rs/futures-core"
+documentation = "https://docs.rs/futures-util-preview"
 description = """
 Common utilities and extension traits for the futures-rs library.
 """
 
+[lib]
+name = "futures_util"
+
 [features]
-std = ["futures-core/std", "futures-io/std", "futures-sink/std", "either/use_std", "slab"]
-default = ["std", "futures-core/either", "futures-sink/either"]
+std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "either/use_std", "slab"]
+default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 bench = []
 nightly = []
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.0-alpha", default-features = false }
-futures-io = { path = "../futures-io", version = "0.3.0-alpha", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.0-alpha", default-features = false}
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.1", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.1", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.1", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.1", default-features = false}
 either = { version = "1.4", default-features = false }
 slab = { version = "0.4", optional = true }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.0-alpha" }
-futures-executor = { path = "../futures-executor", version = "0.3.0-alpha" }
+futures-preview = { path = "../futures", version = "0.3.0-alpha.1" }
+futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.1" }
 # futures-channel = { path = "../futures-channel", version = "0.2.0" }

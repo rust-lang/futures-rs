@@ -8,7 +8,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures-util/0.3.0-alpha")]
+#![doc(html_root_url = "https://docs.rs/futures-util-preview/0.3.0-alpha.1")]
 
 #[macro_use]
 mod macros;

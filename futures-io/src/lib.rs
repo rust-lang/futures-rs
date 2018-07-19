@@ -9,7 +9,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_rnoot_url = "https://docs.rs/futures-io/0.3.0-alpha")]
+#![doc(html_root_url = "https://docs.rs/futures-io-preview/0.3.0-alpha.1")]
 
 #![feature(futures_api)]
 

@@ -7,7 +7,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures-executor/0.3.0-alpha")]
+#![doc(html_root_url = "https://docs.rs/futures-executor-preview/0.3.0-alpha.1")]
 
 #[cfg(feature = "std")]
 #[macro_use]
