@@ -22,8 +22,8 @@
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/futures/0.2.2")]
 
-#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "nightly", feature(use_extern_macros))]
+#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 extern crate futures_async_runtime;
 extern crate futures_core;
@@ -392,7 +392,10 @@ pub mod task {
         Context, LocalMap, Waker, UnsafeWake,
     };
 
-    #[cfg_attr(feature = "nightly", cfg(target_has_atomic = "ptr"))]
+    #[cfg_attr(
+        feature = "nightly",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     pub use futures_core::task::AtomicWaker;
 
     #[cfg(feature = "std")]
@@ -419,6 +422,10 @@ pub mod stable {
     //! write asynchronous code in an ergonomic blocking style:
     //!
     //! ```rust
+    //! #![feature(use_extern_macros, proc_macro_non_items, generators, pin)]
+    //! use futures::prelude::*;
+    //! use futures::prelude::await;
+    //!
     //! /// A simple async function which returns immediately once polled:
     //! #[async]
     //! fn foo() -> Result<i32, i32> {
@@ -434,17 +441,18 @@ pub mod stable {
     //!
     //! /// Async functions can also choose to return a `Box`ed `Future` type.
     //! /// To opt into `Send`able futures, use `#[async(boxed, send)]`.
+    //!
     //! #[async(boxed)]
     //! fn boxed(x: i32) -> Result<i32, i32> {
     //!     Ok(
-    //!         await!(foo())? + await!(bar()) + x
+    //!         await!(foo())? + await!(bar())? + x
     //!     )
     //! }
     //!
     //! /// Async expressions can also be written in `async_block!`s:
     //! fn async_block() -> impl StableFuture<Item = i32, Error = i32> {
     //!     println!("Runs before the future is returned");
-    //!     async_block! { 
+    //!     async_block! {
     //!         println!("Runs the first time the future is polled");
     //!         Ok(5)
     //!     }

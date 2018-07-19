@@ -8,6 +8,16 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   = note: required by `futures::__rt::gen_future`
 
 error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
+ --> $DIR/not-a-result.rs:8:13
+  |
+8 | fn foo() -> u32 {
+  |             ^^^ async functions must return a `Result` or a typedef of `Result`
+  |
+  = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
+  = note: required because of the requirements on the impl of `futures::__rt::MyStableFuture<u32>` for `impl futures::__rt::MyStableFuture<<[static generator@$DIR/not-a-result.rs:7:1: 7:9 _] as std::ops::Generator>::Return>`
+  = note: the return type of a function must have a statically known size
+
+error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   --> $DIR/not-a-result.rs:13:17
    |
 13 |   fn bar() -> u32 {
@@ -37,6 +47,16 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
    = note: required by `futures::__rt::gen_stream`
 
 error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
+  --> $DIR/not-a-result.rs:18:14
+   |
+18 | fn foos() -> u32 {
+   |              ^^^ async functions must return a `Result` or a typedef of `Result`
+   |
+   = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
+   = note: required because of the requirements on the impl of `futures::__rt::MyStableStream<u32, u32>` for `impl futures::__rt::MyStableStream<u32, <[static generator@$DIR/not-a-result.rs:17:1: 17:28 _] as std::ops::Generator>::Return>`
+   = note: the return type of a function must have a statically known size
+
+error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
   --> $DIR/not-a-result.rs:23:18
    |
 23 |   fn bars() -> u32 {
@@ -56,6 +76,6 @@ error[E0277]: the trait bound `u32: futures::__rt::IsResult` is not satisfied
    = help: the trait `futures::__rt::IsResult` is not implemented for `u32`
    = note: required by `futures::__rt::gen_stream`
 
-error: aborting due to 6 previous errors
+error: aborting due to 8 previous errors
 
 For more information about this error, try `rustc --explain E0277`.

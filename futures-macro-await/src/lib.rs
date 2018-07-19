@@ -16,10 +16,11 @@
 ///
 #[cfg_attr(feature = "nightly", doc = "```")]
 #[cfg_attr(not(feature = "nightly"), doc = "```ignore")]
-/// #![feature(proc_macro, generators, pin)]
+/// #![feature(use_extern_macros, generators, pin)]
 /// extern crate futures;
 ///
 /// use futures::prelude::*;
+/// use futures::prelude::await;
 /// use futures::future;
 /// use futures::stable::block_on_stable;
 ///
@@ -77,10 +78,11 @@ macro_rules! await {
 ///
 #[cfg_attr(feature = "nightly", doc = "```")]
 #[cfg_attr(not(feature = "nightly"), doc = "```ignore")]
-/// #![feature(proc_macro, generators, pin)]
+/// #![feature(use_extern_macros, generators, pin)]
 /// extern crate futures;
 ///
 /// use futures::prelude::*;
+/// use futures::prelude::async;
 /// use futures::stream;
 /// use futures::stable::block_on_stable;
 ///
@@ -126,10 +128,11 @@ macro_rules! await_item {
 ///
 #[cfg_attr(feature = "nightly", doc = "```")]
 #[cfg_attr(not(feature = "nightly"), doc = "```ignore")]
-/// #![feature(proc_macro, generators, pin)]
+/// #![feature(use_extern_macros, generators, pin)]
 /// extern crate futures;
 ///
 /// use futures::prelude::*;
+/// use futures::prelude::await;
 /// use futures::stream;
 /// use futures::executor::block_on;
 ///

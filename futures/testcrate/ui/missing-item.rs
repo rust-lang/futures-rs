@@ -1,5 +1,5 @@
 #![allow(warnings)]
-#![feature(proc_macro, generators, pin)]
+#![feature(use_extern_macros, proc_macro_non_items, generators, pin)]
 
 extern crate futures;
 
