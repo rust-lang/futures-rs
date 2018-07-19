@@ -3,7 +3,7 @@
 This library is an implementation of **zero-cost futures** in Rust.
 
 [![Build Status](https://travis-ci.org/rust-lang-nursery/futures-rs.svg?branch=master)](https://travis-ci.org/rust-lang-nursery/futures-rs)
-[![Crates.io](https://img.shields.io/crates/v/futures.svg?maxAge=2592000)](https://crates.io/crates/futures)
+[![Crates.io](https://img.shields.io/crates/v/futures-preview.svg?maxAge=2592000)](https://crates.io/crates/futures-preview)
 
 [Documentation](https://rust-lang-nursery.github.io/futures-rs/doc/futures)
 
