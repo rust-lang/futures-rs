@@ -1,23 +1,26 @@
 cargo-features = ["edition"]
 
 [package]
-name = "futures-sink"
+name = "futures-sink-preview"
 edition = "2018"
-version = "0.3.0-alpha"
+version = "0.3.0-alpha.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://github.com/rust-lang-nursery/futures-rs"
-documentation = "https://docs.rs/futures-core"
+documentation = "https://docs.rs/futures-sink-preview"
 description = """
 The asynchronous `Sink` trait for the futures-rs library.
 """
 
+[lib]
+name = "futures_sink"
+
 [features]
-std = ["either/use_std", "futures-core/std", "futures-channel/std"]
+std = ["either/use_std", "futures-core-preview/std", "futures-channel-preview/std"]
 default = ["std"]
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }
-futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.0-alpha", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.1", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.1", default-features = false }

@@ -1,24 +1,27 @@
 cargo-features = ["edition"]
 
 [package]
-name = "futures-channel"
+name = "futures-channel-preview"
 edition = "2018"
-version = "0.3.0-alpha"
+version = "0.3.0-alpha.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://github.com/rust-lang-nursery/futures-rs"
-documentation = "https://docs.rs/futures-core"
+documentation = "https://docs.rs/futures-channel-preview"
 description = """
 Channels for asynchronous communication using futures-rs.
 """
 
+[lib]
+name = "futures_channel"
+
 [features]
-std = ["futures-core/std"]
+std = ["futures-core-preview/std"]
 default = ["std"]
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.1", default-features = false }
 
 [dev-dependencies]
-futures = { path = "../futures", version = "0.3.0-alpha", default-features = true }
+futures-preview = { path = "../futures", version = "0.3.0-alpha.1", default-features = true }

@@ -1,35 +1,38 @@
 cargo-features = ["edition"]
 
 [package]
-name = "futures"
+name = "futures-preview"
 edition = "2018"
-version = "0.3.0-alpha"
+version = "0.3.0-alpha.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 readme = "README.md"
 keywords = ["futures", "async", "future"]
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://github.com/rust-lang-nursery/futures-rs"
-documentation = "https://docs.rs/futures"
+documentation = "https://docs.rs/futures-preview"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
 """
 categories = ["asynchronous"]
 
+[lib]
+name = "futures"
+
 [badges]
 travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
-futures-core = { path = "../futures-core", version = "0.3.0-alpha", default-features = false }
-futures-channel = { path = "../futures-channel", version = "0.3.0-alpha", default-features = false }
-futures-executor = { path = "../futures-executor", version = "0.3.0-alpha", default-features = false }
-futures-io = { path = "../futures-io", version = "0.3.0-alpha", default-features = false }
-futures-sink = { path = "../futures-sink", version = "0.3.0-alpha", default-features = false }
-futures-util = { path = "../futures-util", version = "0.3.0-alpha", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.1", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.1", default-features = false }
+futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.1", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.1", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.1", default-features = false }
+futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.1", default-features = false }
 
 [features]
-nightly = ["futures-util/nightly"]
-std = ["futures-core/std", "futures-executor/std", "futures-io/std", "futures-sink/std", "futures-util/std"]
+nightly = ["futures-util-preview/nightly"]
+std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std"]
 default = ["std"]

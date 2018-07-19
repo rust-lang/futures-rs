@@ -15,15 +15,15 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "0.3.0-alpha"
+futures-preview = "0.3.0-alpha.1"
 ```
 
 Next, add this to your crate:
 
 ```rust
-extern crate futures_preview as futures;
+extern crate futures; // Note: It's not `futures_preview`
 
-use futures::Future;
+use futures::future::Future;
 ```
 
 ### Feature `std`
@@ -34,7 +34,7 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "0.3.0-alpha", default-features = false }
+futures-preview = { version = "0.3.0-alpha.1", default-features = false }
 ```
 
 # License

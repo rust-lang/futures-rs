@@ -10,7 +10,7 @@
 #![deny(missing_docs, missing_debug_implementations, warnings)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures-channel/0.3.0-alpha")]
+#![doc(html_root_url = "https://docs.rs/futures-channel-preview/0.3.0-alpha.1")]
 
 #[cfg(feature = "std")]
 extern crate std;
