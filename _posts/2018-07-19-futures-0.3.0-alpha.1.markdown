@@ -1,24 +1,20 @@
 ---
 layout: post
-title:  "Futures 0.3.0-alpha"
+title:  "Futures 0.3.0-alpha.1"
 author: "Aaron Turon"
 author_github: "aturon"
 date:   2018-07-19 17:00
 categories: blog
 ---
 
-<div class="info">
-    This is a preview. The crates aren't live on crates.io, yet
-</div>
-
 Welcome to the inaugural post of the new futures-rs blog!
 
 After several months of work, we’re happy to announce an *alpha* release of the new edition of future-rs, version 0.3. The immediate goal of this work is to support async/await notation ([with borrowing](http://aturon.github.io/2018/04/24/async-borrowing/)) in Rust itself, which has entailed significant changes to the futures crate.
 
 ## TL;DR
-- The 0.3.0-alpha release is available in the new `futures-preview` family of crates.
+- The 0.3.0-alpha.1 release is available in the new `futures-preview` family of crates.
 - It requires a nightly compiler, and works with rustc’s new support for async/await notation.
-- Tokio and Hyper support is not yet available for 0.3.0-alpha, but that’s the next area of work.
+- Tokio and Hyper support is not yet available for 0.3.0-alpha.1, but that’s the next area of work.
 - Neither the futures crate nor async/await notation will be stabilized for the initial release of the Rust 2018 Edition.
 - Futures 0.1 continues to be maintained and is the primary way to write production async code today. We plan to continue maintaining 0.1 for some time after 0.3.0 is released, as well.
 
@@ -26,7 +22,7 @@ In short, this alpha release sets the stage for kicking off integration and docu
 
 ## The futures-preview crate
 
-We’re publishing a 0.3.0-alpha release of futures today, but rather than doing it within the existing `futures` crate, we’re publishing within the new `futures-preview` family of crates. This allows us to more clearly signal that this version is a work in progress, and to keep crates.io and docs.rs pages pointing to the 0.1 series.
+We’re publishing a 0.3.0-alpha.1 release of futures today, but rather than doing it within the existing `futures` crate, we’re publishing within the new `futures-preview` family of crates. This allows us to more clearly signal that this version is a work in progress, and to keep crates.io and docs.rs pages pointing to the 0.1 series.
 
 In other words:
 
@@ -59,13 +55,13 @@ While we had originally hoped to ship async/await notation as part of Rust 2018,
 
 ### Ecosystem integration
 
-As of this writing, futures 0.3.0-alpha is not integrated in any way with other libraries like Tokio or Hyper. Achieving such integration is a crucial part of getting real experience with the design and ultimately heading toward stabilization. The Futures Team intends to work closely with the Tokio Team to determine the best way forward here — either a shim crate for compatibility with futures 0.1, or direct integration via a feature-flag.
+As of this writing, futures 0.3.0-alpha.1 is not integrated in any way with other libraries like Tokio or Hyper. Achieving such integration is a crucial part of getting real experience with the design and ultimately heading toward stabilization. The Futures Team intends to work closely with the Tokio Team to determine the best way forward here — either a shim crate for compatibility with futures 0.1, or direct integration via a feature-flag.
 
 This integration is our main next area of work, and we’d love to have help! If you’re interested in getting involved, drop by the #wg-net channel on [the Discord](https://discord.gg/rust-lang).
 
 ### Crate structure and relation to `std`
 
-To support built-in async/await notation, the `Future` trait and associated machinery [must move into the standard library](https://github.com/rust-lang/rfcs/pull/2418). As such, the futures 0.3.0-alpha release just re-exports those definitions, and then adds a host of useful extras, including streams, sinks, I/O traits, and the various combinators.
+To support built-in async/await notation, the `Future` trait and associated machinery [must move into the standard library](https://github.com/rust-lang/rfcs/pull/2418). As such, the futures 0.3.0-alpha.1 release just re-exports those definitions, and then adds a host of useful extras, including streams, sinks, I/O traits, and the various combinators.
 
 The overall organization of the crate is similar to the 0.2 release:
 
@@ -81,7 +77,7 @@ You can read more about the rationale for the breakdown into multiple crates in 
 
 ### Changes from 0.2
 
-*Note: To read about the changes between 0.1 and 0.2 take a look at [this blog post](http://aturon.github.io/2018/02/27/futures-0-2-RC/).*
+*Note: Changes between 0.1 and 0.2 are outlined in the [0.2 notes](http://aturon.github.io/2018/02/27/futures-0-2-RC/).*
 
 Aside from some minor structural changes, there are two major changes from the 0.2 release:
 
@@ -90,7 +86,7 @@ Aside from some minor structural changes, there are two major changes from the 0
 
 Both of these changes are described and motivated in detail in [the companion RFC](https://github.com/rust-lang/rfcs/pull/2418).
 
-The RFC, however, covers only the core `Future` trait and executor system. The bulk of the work in 0.3.0-alpha has been pushing through these ideas through the rest of the crates, adapting the combinators and other traits to fit with pinning and the ability to borrow across yield points. For example, the [revised](https://github.com/rust-lang-nursery/futures-rs/blob/0.3/futures-util/src/io/mod.rs#L67-L74) `AsyncReadExt` trait now provides a `read` method that operates on borrowed data, just like in the `Read` trait in `std`:
+The RFC, however, covers only the core `Future` trait and executor system. The bulk of the work in 0.3.0-alpha.1 has been pushing through these ideas through the rest of the crates, adapting the combinators and other traits to fit with pinning and the ability to borrow across yield points. For example, the [revised](https://github.com/rust-lang-nursery/futures-rs/blob/0.3/futures-util/src/io/mod.rs#L67-L74) `AsyncReadExt` trait now provides a `read` method that operates on borrowed data, just like in the `Read` trait in `std`:
 
 ```rust
 trait AsyncReadExt: AsyncRead {
@@ -109,7 +105,7 @@ In contrast, the 0.1-style API must operate on *owned* buffers, which are thread
 
 ## The road ahead
 
-While futures 0.3.0-alpha is a major milestone, we still have a *ton* of work to do! The immediate next steps include:
+While futures 0.3.0-alpha.1 is a major milestone, we still have a *ton* of work to do! The immediate next steps include:
 
 
 - Work out the integration story for Tokio, Hyper, and other important crates.
