@@ -1,0 +1,151 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `futures_util` crate."><meta name="keywords" content="rust, rustlang, rust-lang, futures_util"><title>futures_util - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><p class='location'>Crate futures_util</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'futures_util', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>futures_util</a></span><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/futures_util/lib.rs.html#1-88' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Combinators and utilities for working with <code>Future</code>s, <code>Stream</code>s, <code>Sink</code>s,
+and the <code>AsyncRead</code> and <code>AsyncWrite</code> traits.</p>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="async_await/index.html"
+                                  title='mod futures_util::async_await'>async_await</a></td>
+                           <td class='docblock-short'>
+                                <p>Await</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="future/index.html"
+                                  title='mod futures_util::future'>future</a></td>
+                           <td class='docblock-short'>
+                                <p>Futures</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="io/index.html"
+                                  title='mod futures_util::io'>io</a></td>
+                           <td class='docblock-short'>
+                                <p>IO</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="sink/index.html"
+                                  title='mod futures_util::sink'>sink</a></td>
+                           <td class='docblock-short'>
+                                <p>Sinks</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="stream/index.html"
+                                  title='mod futures_util::stream'>stream</a></td>
+                           <td class='docblock-short'>
+                                <p>Streams</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="task/index.html"
+                                  title='mod futures_util::task'>task</a></td>
+                           <td class='docblock-short'>
+                                <p>Task notification</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="try_future/index.html"
+                                  title='mod futures_util::try_future'>try_future</a></td>
+                           <td class='docblock-short'>
+                                <p>Futures</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="try_stream/index.html"
+                                  title='mod futures_util::try_stream'>try_stream</a></td>
+                           <td class='docblock-short'>
+                                <p>Streams</p>
+
+                           </td>
+                       </tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.join.html"
+                                  title='macro futures_util::join'>join</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.pending.html"
+                                  title='macro futures_util::pending'>pending</a></td>
+                           <td class='docblock-short'>
+                                <p>A macro which yields to the event loop once.
+This is similar to returning <code>Poll::Pending</code> from a <code>Future::poll</code> implementation.
+If <code>pending!</code> is used, the current task should be scheduled to receive a wakeup
+when it is ready to make progress.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.pin_mut.html"
+                                  title='macro futures_util::pin_mut'>pin_mut</a></td>
+                           <td class='docblock-short'>
+                                <p>Pins a value on the stack.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.poll.html"
+                                  title='macro futures_util::poll'>poll</a></td>
+                           <td class='docblock-short'>
+                                <p>A macro which returns the result of polling a future once within the
+current <code>async</code> context.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.ready.html"
+                                  title='macro futures_util::ready'>ready</a></td>
+                           <td class='docblock-short'>
+                                <p>Extracts the successful type of a <code>Poll&lt;T&gt;</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.select.html"
+                                  title='macro futures_util::select'>select</a></td>
+                           <td class='docblock-short'>
+                                
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.try_poll.html"
+                                  title='macro futures_util::try_poll'>try_poll</a></td>
+                           <td class='docblock-short'>
+                                <p>Extracts <code>Poll&lt;T&gt;</code> from <code>Poll&lt;Result&lt;T, E&gt;&gt;</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.try_ready.html"
+                                  title='macro futures_util::try_ready'>try_ready</a></td>
+                           <td class='docblock-short'>
+                                <p>Extracts the successful type of a <code>Poll&lt;Result&lt;T, E&gt;&gt;</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.unsafe_pinned.html"
+                                  title='macro futures_util::unsafe_pinned'>unsafe_pinned</a></td>
+                           <td class='docblock-short'>
+                                <p>A pinned projection of a struct field.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="macro" href="macro.unsafe_unpinned.html"
+                                  title='macro futures_util::unsafe_unpinned'>unsafe_unpinned</a></td>
+                           <td class='docblock-short'>
+                                <p>An unpinned projection of a struct field.</p>
+
+                           </td>
+                       </tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g. <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g. <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g. <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../";window.currentCrate = "futures_util";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

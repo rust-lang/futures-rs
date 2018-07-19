@@ -1,0 +1,398 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `future` mod in crate `futures`."><meta name="keywords" content="rust, rustlang, rust-lang, future"><title>futures::future - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><p class='location'>Module future</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>futures</a></p><script>window.sidebarCurrent = {name: 'future', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>futures</a>::<wbr><a class="mod" href=''>future</a></span><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../src/futures/lib.rs.html#144-190' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>Asynchronous values.</p>
+<p>This module contains:</p>
+<ul>
+<li>The <a href="../../futures/prelude/trait.Future.html"><code>Future</code> trait</a>.</li>
+<li>The <a href="../../futures/prelude/trait.FutureExt.html"><code>FutureExt</code></a> trait, which provides
+adapters for chaining and composing futures.</li>
+<li>Top-level future combinators like <a href="../../futures/future/fn.lazy.html"><code>lazy</code></a> which
+creates a future from a closure that defines its return value, and
+<a href="../../futures/future/fn.ready.html"><code>ready</code></a>, which constructs a future with an
+immediate defined value.</li>
+</ul>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.AbortHandle.html"
+                                  title='struct futures::future::AbortHandle'>AbortHandle</a></td>
+                           <td class='docblock-short'>
+                                <p>A handle to a <code>Abortable</code> future.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.AbortRegistration.html"
+                                  title='struct futures::future::AbortRegistration'>AbortRegistration</a></td>
+                           <td class='docblock-short'>
+                                <p>A registration handle for a <code>Abortable</code> future.
+Values of this type can be acquired from <code>AbortHandle::new</code> and are used
+in calls to <code>Abortable::new</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Abortable.html"
+                                  title='struct futures::future::Abortable'>Abortable</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which can be remotely short-circuited using an <code>AbortHandle</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Aborted.html"
+                                  title='struct futures::future::Aborted'>Aborted</a></td>
+                           <td class='docblock-short'>
+                                <p>Indicator that the <code>Abortable</code> future was aborted.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.AndThen.html"
+                                  title='struct futures::future::AndThen'>AndThen</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>and_then</code> combinator, chaining a computation onto the end of
+another future which completes successfully.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.CatchUnwind.html"
+                                  title='struct futures::future::CatchUnwind'>CatchUnwind</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>catch_unwind</code> combinator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Empty.html"
+                                  title='struct futures::future::Empty'>Empty</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which is never resolved.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.ErrInto.html"
+                                  title='struct futures::future::ErrInto'>ErrInto</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>err_into</code> combinator, changing the error type of a future.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Flatten.html"
+                                  title='struct futures::future::Flatten'>Flatten</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>flatten</code> combinator.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.FlattenSink.html"
+                                  title='struct futures::future::FlattenSink'>FlattenSink</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>flatten_sink</code> combinator, flattening a
+future-of-a-sink to get just the result of the final sink as a sink.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.FlattenStream.html"
+                                  title='struct futures::future::FlattenStream'>FlattenStream</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>flatten_stream</code> combinator, flattening a
+future-of-a-stream to get just the result of the final stream as a stream.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Fuse.html"
+                                  title='struct futures::future::Fuse'>Fuse</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which &quot;fuses&quot; a future once it's been resolved.</p>
+
+                           </td>
+                       </tr>
+                       <tr class='unstable module-item'>
+                           <td><a class="struct" href="struct.FutureObj.html"
+                                  title='struct futures::future::FutureObj'>FutureObj</a></td>
+                           <td class='docblock-short'>
+                               [<div class='stab unstable'>Experimental</div>] <p>A custom trait object for polling futures, roughly akin to
+<code>Box&lt;dyn Future&lt;Output = T&gt; + Send + 'a&gt;</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Inspect.html"
+                                  title='struct futures::future::Inspect'>Inspect</a></td>
+                           <td class='docblock-short'>
+                                <p>Do something with the item of a future, passing it on.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.IntoFuture.html"
+                                  title='struct futures::future::IntoFuture'>IntoFuture</a></td>
+                           <td class='docblock-short'>
+                                <p>Converts a <code>TryFuture</code> into a normal <code>Future</code></p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.IntoStream.html"
+                                  title='struct futures::future::IntoStream'>IntoStream</a></td>
+                           <td class='docblock-short'>
+                                <p>A type which converts a <code>Future</code> into a <code>Stream</code>
+containing a single element.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Join.html"
+                                  title='struct futures::future::Join'>Join</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>join</code> combinator, waiting for two futures to
+complete.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Join3.html"
+                                  title='struct futures::future::Join3'>Join3</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>join3</code> combinator, waiting for three futures to
+complete.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Join4.html"
+                                  title='struct futures::future::Join4'>Join4</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>join4</code> combinator, waiting for four futures to
+complete.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Join5.html"
+                                  title='struct futures::future::Join5'>Join5</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>join5</code> combinator, waiting for five futures to
+complete.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Lazy.html"
+                                  title='struct futures::future::Lazy'>Lazy</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which, when polled, invokes a closure and yields its result.</p>
+
+                           </td>
+                       </tr>
+                       <tr class='unstable module-item'>
+                           <td><a class="struct" href="struct.LocalFutureObj.html"
+                                  title='struct futures::future::LocalFutureObj'>LocalFutureObj</a></td>
+                           <td class='docblock-short'>
+                               [<div class='stab unstable'>Experimental</div>] <p>A custom trait object for polling futures, roughly akin to
+<code>Box&lt;dyn Future&lt;Output = T&gt; + 'a&gt;</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Map.html"
+                                  title='struct futures::future::Map'>Map</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>map</code> combinator, changing the type of a future.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.MapErr.html"
+                                  title='struct futures::future::MapErr'>MapErr</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>map_err</code> combinator, changing the type of a future.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.MapOk.html"
+                                  title='struct futures::future::MapOk'>MapOk</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>map_ok</code> combinator, changing the type of a future.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.OptionFuture.html"
+                                  title='struct futures::future::OptionFuture'>OptionFuture</a></td>
+                           <td class='docblock-short'>
+                                <p>A future representing a value which may or may not be present.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.OrElse.html"
+                                  title='struct futures::future::OrElse'>OrElse</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>or_else</code> combinator, chaining a computation onto the end of
+a future which fails with an error.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.PollFn.html"
+                                  title='struct futures::future::PollFn'>PollFn</a></td>
+                           <td class='docblock-short'>
+                                <p>A future which adapts a function returning <code>Poll</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Ready.html"
+                                  title='struct futures::future::Ready'>Ready</a></td>
+                           <td class='docblock-short'>
+                                <p>A future that is immediately ready with a value</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Shared.html"
+                                  title='struct futures::future::Shared'>Shared</a></td>
+                           <td class='docblock-short'>
+                                <p>A future that is cloneable and can be polled in multiple threads.
+Use <code>Future::shared()</code> method to convert any future into a <code>Shared</code> future.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Then.html"
+                                  title='struct futures::future::Then'>Then</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>then</code> combinator, chaining computations on the end of
+another future regardless of its outcome.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.UnwrapOrElse.html"
+                                  title='struct futures::future::UnwrapOrElse'>UnwrapOrElse</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>unwrap_or_else</code> combinator. It unwraps the result, returning
+the content of the <code>Ok</code> as <code>Output</code> or if the value is an <code>Err</code> then it
+calls <code>op</code> with its value.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.WithExecutor.html"
+                                  title='struct futures::future::WithExecutor'>WithExecutor</a></td>
+                           <td class='docblock-short'>
+                                <p>Future for the <code>with_executor</code> combinator, assigning an executor
+to be used when spawning other futures.</p>
+
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.MaybeDone.html"
+                                  title='enum futures::future::MaybeDone'>MaybeDone</a></td>
+                           <td class='docblock-short'>
+                                <p><code>MaybeDone</code>, a future that may have completed.</p>
+
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class='unstable module-item'>
+                           <td><a class="trait" href="trait.Future.html"
+                                  title='trait futures::future::Future'>Future</a></td>
+                           <td class='docblock-short'>
+                               [<div class='stab unstable'>Experimental</div>] <p>A future represents an asychronous computation.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.FutureExt.html"
+                                  title='trait futures::future::FutureExt'>FutureExt</a></td>
+                           <td class='docblock-short'>
+                                <p>An extension trait for <code>Future</code>s that provides a variety of convenient
+adapters.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.TryFuture.html"
+                                  title='trait futures::future::TryFuture'>TryFuture</a></td>
+                           <td class='docblock-short'>
+                                <p>A convenience for futures that return <code>Result</code> values that includes
+a variety of adapters tailored to such futures.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.TryFutureExt.html"
+                                  title='trait futures::future::TryFutureExt'>TryFutureExt</a></td>
+                           <td class='docblock-short'>
+                                <p>Adapters specific to <code>Result</code>-returning futures</p>
+
+                           </td>
+                       </tr>
+                       <tr class='unstable module-item'>
+                           <td><a class="trait" href="trait.UnsafeFutureObj.html"
+                                  title='trait futures::future::UnsafeFutureObj'>UnsafeFutureObj</a></td>
+                           <td class='docblock-short'>
+                               [<div class='stab unstable'>Experimental</div>] <p>A custom implementation of a future trait object for <code>FutureObj</code>, providing
+a hand-rolled vtable.</p>
+
+                           </td>
+                       </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.abortable.html"
+                                  title='fn futures::future::abortable'>abortable</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a new <code>Abortable</code> future and a <code>AbortHandle</code> which can be used to stop it.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.empty.html"
+                                  title='fn futures::future::empty'>empty</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a future which never resolves, representing a computation that never
+finishes.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.lazy.html"
+                                  title='fn futures::future::lazy'>lazy</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a new future from a closure.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.maybe_done.html"
+                                  title='fn futures::future::maybe_done'>maybe_done</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a new future from a closure.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.poll_fn.html"
+                                  title='fn futures::future::poll_fn'>poll_fn</a></td>
+                           <td class='docblock-short'>
+                                <p>Creates a new future wrapping around a function returning <code>Poll</code>.</p>
+
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="fn" href="fn.ready.html"
+                                  title='fn futures::future::ready'>ready</a></td>
+                           <td class='docblock-short'>
+                                <p>Create a future that is immediately ready with a value.</p>
+
+                           </td>
+                       </tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g. <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g. <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g. <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../";window.currentCrate = "futures";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script defer src="../../search-index.js"></script></body></html>

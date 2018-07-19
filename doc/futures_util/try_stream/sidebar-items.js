@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["TryCollect","A future which attempts to collect all of the values of a stream."]],"trait":[["TryStreamExt","Adapters specific to `Result`-returning streams"]]});

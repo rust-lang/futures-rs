@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["channel","Creates a new one-shot channel for sending values across asynchronous tasks."]],"struct":[["Canceled","Error returned from a `Receiver` when the corresponding `Sender` is dropped."],["Receiver","A future for a value that will be provided by another asynchronous task."],["Sender","A means of transmitting a single value to another task."]]});

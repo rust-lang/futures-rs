@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AtomicWaker","A synchronization primitive for task wakeup."]],"trait":[["ContextExt","Extension trait for `Context`, adding methods that require allocation."]]});

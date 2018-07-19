@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["VecSinkError","The error type for `Vec` and `VecDequeue` when used as `Sink`s. Values of this type can never be created."]],"trait":[["Sink","A `Sink` is a value into which other values can be sent, asynchronously."]]});

@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `UnsafeWake` trait in crate `futures_core`."><meta name="keywords" content="rust, rustlang, rust-lang, UnsafeWake"><title>futures_core::task::UnsafeWake - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script></head><body class="rustdoc trait"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><p class='location'>Trait UnsafeWake</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.clone_raw">clone_raw</a><a href="#tymethod.drop_raw">drop_raw</a><a href="#tymethod.wake">wake</a></div><a class="sidebar-title" href="#provided-methods">Provided Methods</a><div class="sidebar-links"><a href="#method.wake_local">wake_local</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>futures_core</a>::<wbr><a href='index.html'>task</a></p><script>window.sidebarCurrent = {name: 'UnsafeWake', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>futures_core</a>::<wbr><a href='index.html'>task</a>::<wbr><a class="trait" href=''>UnsafeWake</a></span><span class='out-of-band'><span class='since' title='Stable since Rust version '></span><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='https://doc.rust-lang.org/nightly/src/core/task/wake.rs.html#201-276' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust trait'>pub unsafe trait UnsafeWake: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> {
+    unsafe fn <a href='#tymethod.clone_raw' class='fnname'>clone_raw</a>(&amp;self) -&gt; <a class="struct" href="../../futures_core/task/struct.Waker.html" title="struct futures_core::task::Waker">Waker</a>;
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.drop_raw' class='fnname'>drop_raw</a>(&amp;self);
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.wake' class='fnname'>wake</a>(&amp;self);
+
+    unsafe fn <a href='#method.wake_local' class='fnname'>wake_local</a>(&amp;self) { ... }
+}</pre></div><div class='stability'><div class='stab unstable'><details><summary><span class=microscope>🔬</span> This is a nightly-only experimental API.  (<code>futures_api</code>)</summary><p>futures in libcore are unstable</p>
+</details></div></div><div class='docblock'><p>An unsafe trait for implementing custom memory management for a <code>Waker</code> or <code>LocalWaker</code>.</p>
+<p>A <code>Waker</code> conceptually is a cloneable trait object for <code>Wake</code>, and is
+most often essentially just <code>Arc&lt;dyn Wake&gt;</code>. However, in some contexts
+(particularly <code>no_std</code>), it's desirable to avoid <code>Arc</code> in favor of some
+custom memory management strategy. This trait is designed to allow for such
+customization.</p>
+<p>When using <code>std</code>, a default implementation of the <code>UnsafeWake</code> trait is provided for
+<code>Arc&lt;T&gt;</code> where <code>T: Wake</code>.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>
+              Required Methods<a href='#required-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='tymethod.clone_raw' class='method'><span id='clone_raw.v' class='invisible'><code>unsafe fn <a href='#tymethod.clone_raw' class='fnname'>clone_raw</a>(&amp;self) -&gt; <a class="struct" href="../../futures_core/task/struct.Waker.html" title="struct futures_core::task::Waker">Waker</a></code></span></h3><div class='stability'><div class='stab unstable'><details><summary><span class=microscope>🔬</span> This is a nightly-only experimental API.  (<code>futures_api</code>)</summary><p>futures in libcore are unstable</p>
+</details></div></div><div class='docblock'><p>Creates a clone of this <code>UnsafeWake</code> and stores it behind a <code>Waker</code>.</p>
+<p>This function will create a new uniquely owned handle that under the
+hood references the same notification instance. In other words calls
+to <code>wake</code> on the returned handle should be equivalent to calls to
+<code>wake</code> on this handle.</p>
+<h1 id="unsafety" class="section-header"><a href="#unsafety">Unsafety</a></h1>
+<p>This function is unsafe to call because it's asserting the <code>UnsafeWake</code>
+value is in a consistent state, i.e. hasn't been dropped.</p>
+</div><h3 id='tymethod.drop_raw' class='method'><span id='drop_raw.v' class='invisible'><code>unsafe fn <a href='#tymethod.drop_raw' class='fnname'>drop_raw</a>(&amp;self)</code></span></h3><div class='stability'><div class='stab unstable'><details><summary><span class=microscope>🔬</span> This is a nightly-only experimental API.  (<code>futures_api</code>)</summary><p>futures in libcore are unstable</p>
+</details></div></div><div class='docblock'><p>Drops this instance of <code>UnsafeWake</code>, deallocating resources
+associated with it.</p>
+<p>FIXME(cramertj)
+This method is intended to have a signature such as:</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><pre class="rust rust-example-rendered ignore">
+<span class="kw">fn</span> <span class="ident">drop_raw</span>(<span class="self">self</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="self">Self</span>);</pre>
+<p>Unfortunately in Rust today that signature is not object safe.
+Nevertheless it's recommended to implement this function <em>as if</em> that
+were its signature. As such it is not safe to call on an invalid
+pointer, nor is the validity of the pointer guaranteed after this
+function returns.</p>
+<h1 id="unsafety-1" class="section-header"><a href="#unsafety-1">Unsafety</a></h1>
+<p>This function is unsafe to call because it's asserting the <code>UnsafeWake</code>
+value is in a consistent state, i.e. hasn't been dropped.</p>
+</div><h3 id='tymethod.wake' class='method'><span id='wake.v' class='invisible'><code>unsafe fn <a href='#tymethod.wake' class='fnname'>wake</a>(&amp;self)</code></span></h3><div class='stability'><div class='stab unstable'><details><summary><span class=microscope>🔬</span> This is a nightly-only experimental API.  (<code>futures_api</code>)</summary><p>futures in libcore are unstable</p>
+</details></div></div><div class='docblock'><p>Indicates that the associated task is ready to make progress and should
+be <code>poll</code>ed.</p>
+<p>Executors generally maintain a queue of &quot;ready&quot; tasks; <code>wake</code> should place
+the associated task onto this queue.</p>
+<h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
+<p>Implementations should avoid panicking, but clients should also be prepared
+for panics.</p>
+<h1 id="unsafety-2" class="section-header"><a href="#unsafety-2">Unsafety</a></h1>
+<p>This function is unsafe to call because it's asserting the <code>UnsafeWake</code>
+value is in a consistent state, i.e. hasn't been dropped.</p>
+</div></div>
+            <h2 id='provided-methods' class='small-section-header'>
+              Provided Methods<a href='#provided-methods' class='anchor'></a>
+            </h2>
+            <div class='methods'>
+        <h3 id='method.wake_local' class='method'><span id='wake_local.v' class='invisible'><code>unsafe fn <a href='#method.wake_local' class='fnname'>wake_local</a>(&amp;self)</code></span></h3><div class='stability'><div class='stab unstable'><details><summary><span class=microscope>🔬</span> This is a nightly-only experimental API.  (<code>futures_api</code>)</summary><p>futures in libcore are unstable</p>
+</details></div></div><div class='docblock'><p>Indicates that the associated task is ready to make progress and should
+be <code>poll</code>ed. This function is the same as <code>wake</code>, but can only be called
+from the thread that this <code>UnsafeWake</code> is &quot;local&quot; to. This allows for
+implementors to provide specialized wakeup behavior specific to the current
+thread. This function is called by <code>LocalWaker::wake</code>.</p>
+<p>Executors generally maintain a queue of &quot;ready&quot; tasks; <code>wake_local</code> should place
+the associated task onto this queue.</p>
+<h1 id="panics-1" class="section-header"><a href="#panics-1">Panics</a></h1>
+<p>Implementations should avoid panicking, but clients should also be prepared
+for panics.</p>
+<h1 id="unsafety-3" class="section-header"><a href="#unsafety-3">Unsafety</a></h1>
+<p>This function is unsafe to call because it's asserting the <code>UnsafeWake</code>
+value is in a consistent state, i.e. hasn't been dropped, and that the
+<code>UnsafeWake</code> hasn't moved from the thread on which it was created.</p>
+</div></div>
+        <h2 id='implementors' class='small-section-header'>
+          Implementors<a href='#implementors' class='anchor'></a>
+        </h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript">window.inlined_types=new Set([]);</script><script type="text/javascript" async
+                         src="../../implementors/core/task/wake/trait.UnsafeWake.js">
+                 </script></section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g. <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g. <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g. <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../";window.currentCrate = "futures_core";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script defer src="../../search-index.js"></script></body></html>
