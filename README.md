@@ -7,7 +7,7 @@ This library is an implementation of **zero-cost futures** in Rust.
 
 [Documentation](https://docs.rs/futures)
 
-[Tutorial](https://tokio.rs/docs/getting-started/futures/)
+[Website](https://rust-lang-nursery.github.io/futures-rs/)
 
 ## Usage
 
