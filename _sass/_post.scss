@@ -1,0 +1,54 @@
+article.post {
+  margin: 0 auto;
+  padding: 15px;
+  max-width: 800px;
+
+  .post-header {
+    margin-bottom: 60px;
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .post-meta {
+      text-align: center;
+      color: #aaa;
+
+      a.author-github {
+        text-decoration: none;
+        outline: none;
+        color: #aaa;
+      }
+
+      a.author-github:hover,
+      a.author-github:focus {
+        border-bottom: 2px solid #aaa;
+      }
+    }
+  }
+
+  .post-content {
+    div.info  {
+      background: rgb(181, 211, 255);
+      border-left: 4px solid rgb(54, 95, 156);
+      padding: 15px;
+      border-radius: 4px;
+    }
+
+    a {
+      text-decoration: none;
+      color: $primary-color;
+      outline: none;
+      font-weight: bold;
+    }
+
+    a:hover,
+    a:focus {
+      border-bottom: 2px solid $primary-color;
+    }
+  }
+}

@@ -1,0 +1,56 @@
+#home-futures-logo-box {
+  background: linear-gradient(to right, #493c7a, #4b79a1, #493c7a);
+  padding: 30px 15px 50px;
+
+  .slogan {
+    margin-top: 20px;
+  }
+}
+
+.page-home {
+  margin: 0 auto;
+  padding: 15px;
+  max-width: 800px;
+
+  h2 {
+    font-size: 40px;
+  }
+
+  ul.post-list {
+    margin: 20px 0 50px;
+    padding: 0;
+
+    li {
+      list-style-type: none;
+
+      h3 {
+        margin-top: 5px;
+
+        a {
+          color: inherit;
+          text-decoration: none;
+          outline: none;
+        }
+
+        a:hover, a:focus {
+          border-bottom: 2px solid $primary_color;
+        }
+      }
+    }
+  }
+
+  .rss {
+    margin: 30px 0;
+
+    a {
+      text-decoration: none;
+      color: black;
+      outline: none;
+      font-weight: bold;
+    }
+
+    a:hover, a:focus {
+      border-bottom: 2px solid black;
+    }
+  }
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 25 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g id="Artboard1" transform="matrix(0.949743,0,0,1.26593,-1.39493,-4.22143)">
+        <rect x="1.469" y="3.335" width="26.323" height="19.714" style="fill:none;"/>
+        <g transform="matrix(1.05292,0,0,0.789931,5.40337,0.400125)">
+            <path d="M0,7.43C9.673,7.43 17.526,15.283 17.526,24.956" style="fill:none;stroke:black;stroke-width:4px;"/>
+        </g>
+        <g transform="matrix(0.653483,0,0,0.490263,5.40337,7.87865)">
+            <path d="M0,7.43C9.673,7.43 17.526,15.283 17.526,24.956" style="fill:none;stroke:black;stroke-width:6.44px;"/>
+        </g>
+        <g transform="matrix(1.32027,0,0,1.03208,0.98272,-0.507412)">
+            <ellipse cx="4.609" cy="18.554" rx="2.791" ry="2.687"/>
+        </g>
+    </g>
+</svg>

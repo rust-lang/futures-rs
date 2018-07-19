@@ -1,0 +1,133 @@
+---
+layout: post
+title:  "Futures 0.3.0-alpha"
+author: "Aaron Turon"
+author_github: "aturon"
+date:   2018-07-19 17:00
+categories: blog
+---
+
+<div class="info">
+    This is a preview. The crates aren't live on crates.io, yet
+</div>
+
+Welcome to the inaugural post of the new futures-rs blog!
+
+After several months of work, we’re happy to announce an *alpha* release of the new edition of future-rs, version 0.3. The immediate goal of this work is to support async/await notation ([with borrowing](http://aturon.github.io/2018/04/24/async-borrowing/)) in Rust itself, which has entailed significant changes to the futures crate.
+
+## TL;DR
+- The 0.3.0-alpha release is available in the new `futures-preview` family of crates.
+- It requires a nightly compiler, and works with rustc’s new support for async/await notation.
+- Tokio and Hyper support is not yet available for 0.3.0-alpha, but that’s the next area of work.
+- Neither the futures crate nor async/await notation will be stabilized for the initial release of the Rust 2018 Edition.
+- Futures 0.1 continues to be maintained and is the primary way to write production async code today. We plan to continue maintaining 0.1 for some time after 0.3.0 is released, as well.
+
+In short, this alpha release sets the stage for kicking off integration and documentation, but is not yet widely usable.
+
+## The futures-preview crate
+
+We’re publishing a 0.3.0-alpha release of futures today, but rather than doing it within the existing `futures` crate, we’re publishing within the new `futures-preview` family of crates. This allows us to more clearly signal that this version is a work in progress, and to keep crates.io and docs.rs pages pointing to the 0.1 series.
+
+In other words:
+
+
+- Futures 0.1 is the production-ready way to use futures today, and is actively maintained.
+- Ongoing work for async/await will live in the `futures-preview` crates until it is ready to be promoted to 0.3.0.
+
+## What is futures 0.3?
+### Async/await
+
+With futures 0.3 alpha, it is possible to use the new `async`/`await` notation that recently landed in nightly:
+
+```rust
+use futures::executor::block_on;
+use futures::future;
+
+block_on(async {
+    let fut = future::lazy(|_| vec![0, 1, 2, 3]);
+    let shared1 = fut.shared();
+    let shared2 = shared1.clone();
+
+    assert_eq!(await!(shared1).len(), 4);
+    assert_eq!(await!(shared2).len(), 4);
+})
+````
+
+The notation works as described in [the corresponding RFC](https://github.com/rust-lang/rfcs/pull/2394); more documentation for it is forthcoming. There are several open questions on this notation, but these are largely on hold until we have achieved integration with Tokio and Hyper, at which point more serious code can be written against the library.
+
+While we had originally hoped to ship async/await notation as part of Rust 2018, there’s no chance at this point of having adequate feedback and confidence to do so in time. However, the [Networking WG](https://github.com/rust-lang-nursery/net-wg/) plans to continue pushing hard in this space up to and after the Rust 2018 launch, to provide the strongest story on *nightly* Rust that we can, and to get us on a path for stabilization.
+
+### Ecosystem integration
+
+As of this writing, futures 0.3.0-alpha is not integrated in any way with other libraries like Tokio or Hyper. Achieving such integration is a crucial part of getting real experience with the design and ultimately heading toward stabilization. The Futures Team intends to work closely with the Tokio Team to determine the best way forward here — either a shim crate for compatibility with futures 0.1, or direct integration via a feature-flag.
+
+This integration is our main next area of work, and we’d love to have help! If you’re interested in getting involved, drop by the #wg-net channel on [the Discord](https://discord.gg/rust-lang).
+
+### Crate structure and relation to `std`
+
+To support built-in async/await notation, the `Future` trait and associated machinery [must move into the standard library](https://github.com/rust-lang/rfcs/pull/2418). As such, the futures 0.3.0-alpha release just re-exports those definitions, and then adds a host of useful extras, including streams, sinks, I/O traits, and the various combinators.
+
+The overall organization of the crate is similar to the 0.2 release:
+
+
+- The `futures-core-preview` crate re-exports the futures-related items from `std`, and defines `Stream`, `TryFuture` and `TryStream`.
+- The `futures-executor-preview` crate provides basic executors (a thread pool and a thread-local executor).
+- The `futures-io-preview` and `futures-sink-preview` crates define core traits for I/O and sinks, respectively.
+- The `futures-channel-preview` crate defines basic `Sync` channels for futures.
+- The `futures-util-preview` crate defines a collection of extension traits with useful adapters (aka combinators).
+- The `futures-preview` crate is a “facade” combining and re-exporting all of the above crates for convenience.
+
+You can read more about the rationale for the breakdown into multiple crates in the [0.2 notes](http://aturon.github.io/2018/02/27/futures-0-2-RC/).
+
+### Changes from 0.2
+
+*Note: To read about the changes between 0.1 and 0.2 take a look at [this blog post](http://aturon.github.io/2018/02/27/futures-0-2-RC/).*
+
+Aside from some minor structural changes, there are two major changes from the 0.2 release:
+
+- Using pinned types to support borrowing within async blocks.
+- Factoring out the `Error` type into separate traits (`TryFuture` and `TryStream`).
+
+Both of these changes are described and motivated in detail in [the companion RFC](https://github.com/rust-lang/rfcs/pull/2418).
+
+The RFC, however, covers only the core `Future` trait and executor system. The bulk of the work in 0.3.0-alpha has been pushing through these ideas through the rest of the crates, adapting the combinators and other traits to fit with pinning and the ability to borrow across yield points. For example, the [revised](https://github.com/rust-lang-nursery/futures-rs/blob/0.3/futures-util/src/io/mod.rs#L67-L74) `AsyncReadExt` trait now provides a `read` method that operates on borrowed data, just like in the `Read` trait in `std`:
+
+```rust
+trait AsyncReadExt: AsyncRead {
+    /// Tries to read some bytes directly into the given `buf` in asynchronous
+    /// manner, returning a future type.
+    ///
+    /// The returned future will resolve to the number of bytes read once the read
+    /// operation is completed.
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self> {
+        Read::new(self, buf)
+    }
+}
+```
+
+In contrast, the 0.1-style API must operate on *owned* buffers, which are threaded through the futures code. You can learn more about how this all works in [this blog post on borrowing and async/await](http://aturon.github.io/2018/04/24/async-borrowing/).
+
+## The road ahead
+
+While futures 0.3.0-alpha is a major milestone, we still have a *ton* of work to do! The immediate next steps include:
+
+
+- Work out the integration story for Tokio, Hyper, and other important crates.
+- Write documentation for async/await notation.
+- Flesh out the migration path from futures 0.1 code.
+- Generally gain experience and feedback using this new design and async/await notation, so that we can get on track for stabilization.
+
+More generally, the futures team plans on communicating via this blog much more regularly about progress and ways to get involved. And now that the alpha is at the door, the broader [Networking WG](https://github.com/rust-lang-nursery/net-wg/) is hoping to reboot, bring in a lot more people, and start focusing on ecosystem concerns.
+
+As always, if you’re interested in getting involved in this space, reach out on #wg-net on [Discord](https://discord.gg/rust-lang).
+
+## Thank you!
+
+This alpha release is the result of work by a growing set of people contributing to the futures crate (some of whom have joined the team officially):
+
+- [@aturon](https://github.com/aturon)
+- [@cramertj](https://github.com/cramertj)
+- [@MajorBreakfast](https://github.com/MajorBreakfast)
+- [@Nemo157](https://github.com/Nemo157)
+- [@ngg](https://github.com/ngg)
+- [@tinaun](https://github.com/tinaun)

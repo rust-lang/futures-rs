@@ -1,0 +1,34 @@
+header.site-header {
+  background: linear-gradient(to right, #493c7a, #4b79a1, #493c7a);
+
+  .wrapper {
+    margin: 0 auto;
+    padding: 15px 15px;
+    max-width: 800px;
+    display: flex;
+    align-items: center;
+
+    .github-link {
+      border: 2px solid white;
+      padding: 5px 10px;
+      color: white;
+      text-decoration: none;
+      outline: none;
+
+      display: flex;
+      align-items: center;
+
+      img {
+        margin-right: 8px;
+      }
+
+      &:hover, &:focus {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      &:active {
+        background: rgba(255, 255, 255, 0.6);
+      }
+    }
+  }
+}

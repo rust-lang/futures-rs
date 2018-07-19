@@ -1,0 +1,23 @@
+footer.site-footer {
+  border-top: 1px solid #eee;
+
+  .wrapper {
+    margin: 0 auto;
+    padding: 30px 15px;
+    max-width: 800px;
+
+    display: flex;
+    color: #aaa;
+
+    a {
+      text-decoration: none;
+      color: #777;
+      outline: none;
+      font-weight: bold;
+    }
+
+    a:hover, a:focus {
+      border-bottom: 2px solid #777;
+    }
+  }
+}

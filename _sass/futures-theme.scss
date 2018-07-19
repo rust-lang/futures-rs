@@ -1,0 +1,25 @@
+$primary-color: #F03E0E;
+
+@import 'reset';
+@import 'fonts';
+@import 'syntax';
+
+@import 'header';
+@import 'footer';
+
+@import 'home';
+@import 'post';
+
+body {
+  font-family: Roboto;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto Slab';
+  color: $primary-color;
+}
+
+h1 {
+  font-size: 40px;
+  text-align: center;
+}

@@ -1,0 +1,42 @@
+---
+layout: default
+---
+<div id="home-futures-logo-box">
+  <img src="assets/images/futures-rs-logo.svg"
+       alt="Futures RS Logo"
+       style="max-width: 100%; max-height: 220px">
+
+  <div class="slogan"
+       style="color: white; text-align: center;">
+    Zero-cost asynchronous programming in Rust
+  </div>
+</div>
+
+<div class="page-home">
+  {{ content }}
+
+  {%- if site.posts.size > 0 -%}
+    <h2 class="post-list-heading">Blog Posts</h2>
+    <ul class="post-list">
+      {%- for post in site.posts -%}
+      <li>
+        {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
+        <span class="post-meta">{{ post.date | date: date_format }}</span>
+        <h3>
+          <a class="post-link" href="{{ post.url | relative_url }}">
+            {{ post.title | escape }}
+          </a>
+        </h3>
+      </li>
+      {%- endfor -%}
+    </ul>
+
+    <div class="rss">
+      <a class="rss-link" href="{{ "/feed.xml" | relative_url }}">
+        <img src="{{site.baseurl}}/assets/images/rss.svg" alt="RSS" style="width: 15px;">
+        RSS Feed
+      </a>
+    </div>
+  {%- endif -%}
+
+</div>

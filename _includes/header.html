@@ -1,0 +1,22 @@
+<header class="site-header" role="banner">
+  <div class="wrapper">
+    {%- assign default_paths = site.pages | map: "path" -%}
+    {%- assign page_paths = site.header_pages | default: default_paths -%}
+
+    {%- if page.layout != "home" -%}
+      <a class="site-title" rel="author" href="{{ "/" | relative_url }}">
+        <img src="{{site.baseurl}}/assets/images/futures-rs-logo-flat.svg"
+          alt="Futures RS Logo"
+          width="160" height="56">
+      </a>
+    {%- endif -%}
+
+    <div style="flex: 1;"></div>
+
+    <a class="github-link" href="https://github.com/rust-lang-nursery/futures-rs">
+      <img src="{{site.baseurl}}/assets/images/github.svg" alt="GitHub" width="25" height="25">
+      Code
+    </a>
+    <div
+  </div>
+</header>
