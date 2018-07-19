@@ -21,7 +21,7 @@ futures-preview = "0.3.0-alpha"
 Next, add this to your crate:
 
 ```rust
-extern crate futures-preview as futures;
+extern crate futures_preview as futures;
 
 use futures::Future;
 ```
