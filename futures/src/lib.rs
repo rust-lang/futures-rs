@@ -419,6 +419,10 @@ pub mod stable {
     //! write asynchronous code in an ergonomic blocking style:
     //!
     //! ```rust
+    //! #![feature(use_extern_macros, proc_macro_non_items, generators, pin)]
+    //! use futures::prelude::*;
+    //! use futures::prelude::await;
+    //!
     //! /// A simple async function which returns immediately once polled:
     //! #[async]
     //! fn foo() -> Result<i32, i32> {
@@ -434,17 +438,18 @@ pub mod stable {
     //!
     //! /// Async functions can also choose to return a `Box`ed `Future` type.
     //! /// To opt into `Send`able futures, use `#[async(boxed, send)]`.
+    //!
     //! #[async(boxed)]
     //! fn boxed(x: i32) -> Result<i32, i32> {
     //!     Ok(
-    //!         await!(foo())? + await!(bar()) + x
+    //!         await!(foo())? + await!(bar())? + x
     //!     )
     //! }
     //!
     //! /// Async expressions can also be written in `async_block!`s:
     //! fn async_block() -> impl StableFuture<Item = i32, Error = i32> {
     //!     println!("Runs before the future is returned");
-    //!     async_block! { 
+    //!     async_block! {
     //!         println!("Runs the first time the future is polled");
     //!         Ok(5)
     //!     }
