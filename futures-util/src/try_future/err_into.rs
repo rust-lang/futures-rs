@@ -8,29 +8,32 @@ use futures_core::task::{self, Poll};
 /// This is created by the `Future::err_into` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct ErrInto<A, E> {
-    future: A,
+pub struct ErrInto<Fut, E> {
+    future: Fut,
     _marker: PhantomData<E>,
 }
 
-impl<A, E> ErrInto<A, E> {
-    unsafe_pinned!(future: A);
-}
+impl<Fut, E> ErrInto<Fut, E> {
+    unsafe_pinned!(future: Fut);
 
-pub fn new<A, E>(future: A) -> ErrInto<A, E> {
-    ErrInto {
-        future,
-        _marker: PhantomData,
+    pub(super) fn new(future: Fut) -> ErrInto<Fut, E> {
+        ErrInto {
+            future,
+            _marker: PhantomData,
+        }
     }
 }
 
-impl<A, E> Future for ErrInto<A, E>
-    where A: TryFuture,
-          A::Error: Into<E>,
+impl<Fut, E> Future for ErrInto<Fut, E>
+    where Fut: TryFuture,
+          Fut::Error: Into<E>,
 {
-    type Output = Result<A::Ok, E>;
+    type Output = Result<Fut::Ok, E>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(output) => {

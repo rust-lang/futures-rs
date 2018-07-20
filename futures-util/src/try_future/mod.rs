@@ -66,10 +66,10 @@ pub trait TryFutureExt: TryFuture {
     /// version of it.
     fn flatten_sink(self) -> FlattenSink<Self, Self::Ok>
     where
-        Self::Ok: Sink<SinkError=Self::Error>,
+        Self::Ok: Sink<SinkError = Self::Error>,
         Self: Sized,
     {
-        flatten_sink::new(self)
+        FlattenSink::new(self)
     }
 
     /// Map this future's result to a different type, returning a new future of
@@ -112,11 +112,11 @@ pub trait TryFutureExt: TryFuture {
     /// let new_future = future.map_ok(|x| x + 3);
     /// assert_eq!(block_on(new_future), Err(1));
     /// ```
-    fn map_ok<T, F>(self, op: F) -> MapOk<Self, F>
+    fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
         where F: FnOnce(Self::Ok) -> T,
               Self: Sized,
     {
-        MapOk::new(self, op)
+        MapOk::new(self, f)
     }
 
     /// Map this future's error to a different error, returning a new future.
@@ -158,11 +158,11 @@ pub trait TryFutureExt: TryFuture {
     /// let new_future = future.map_err(|x| x + 3);
     /// assert_eq!(block_on(new_future), Ok(1));
     /// ```
-    fn map_err<E, F>(self, op: F) -> MapErr<Self, F>
+    fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
               Self: Sized,
     {
-        MapErr::new(self, op)
+        MapErr::new(self, f)
     }
 
     /// Map this future's error to a new error type using the `Into` trait.
@@ -190,7 +190,7 @@ pub trait TryFutureExt: TryFuture {
         where Self: Sized,
               Self::Error: Into<E>
     {
-        err_into::new(self)
+        ErrInto::new(self)
     }
 
     /// Execute another future after this one has resolved successfully.
@@ -227,12 +227,12 @@ pub trait TryFutureExt: TryFuture {
     ///     panic!("should not be called in case of an error");
     /// });
     /// ```
-    fn and_then<Fut, F>(self, async_op: F) -> AndThen<Self, Fut, F>
+    fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
         where F: FnOnce(Self::Ok) -> Fut,
               Fut: TryFuture<Error = Self::Error>,
               Self: Sized,
     {
-        AndThen::new(self, async_op)
+        AndThen::new(self, f)
     }
 
     /// Execute another future if this one resolves with an error.
@@ -269,12 +269,12 @@ pub trait TryFutureExt: TryFuture {
     ///     panic!("should not be called in case of success");
     /// });
     /// ```
-    fn or_else<Fut, F>(self, async_op: F) -> OrElse<Self, Fut, F>
+    fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
         where F: FnOnce(Self::Error) -> Fut,
               Fut: TryFuture<Ok = Self::Ok>,
               Self: Sized,
     {
-        OrElse::new(self, async_op)
+        OrElse::new(self, f)
     }
 
     /* TODO
@@ -427,11 +427,11 @@ pub trait TryFutureExt: TryFuture {
     /// let new_future = future.unwrap_or_else(|_| ());
     /// assert_eq!(block_on(new_future), ());
     /// ```
-    fn unwrap_or_else<F>(self, op: F) -> UnwrapOrElse<Self, F>
+    fn unwrap_or_else<F>(self, f: F) -> UnwrapOrElse<Self, F>
         where Self: Sized,
               F: FnOnce(Self::Error) -> Self::Ok
     {
-        UnwrapOrElse::new(self, op)
+        UnwrapOrElse::new(self, f)
     }
 
     /// Wraps a `TryFuture` so that it implements `Future`. `TryFuture`s

@@ -22,7 +22,10 @@ impl<Fut: TryFuture> Future for IntoFuture<Fut> {
     type Output = Result<Fut::Ok, Fut::Error>;
 
     #[inline]
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         self.future().try_poll(cx)
     }
 }

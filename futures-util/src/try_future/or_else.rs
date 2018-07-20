@@ -20,9 +20,9 @@ impl<Fut1, Fut2, F> OrElse<Fut1, Fut2, F>
     unsafe_pinned!(try_chain: TryChain<Fut1, Fut2, F>);
 
     /// Creates a new `Then`.
-    pub(super) fn new(future: Fut1, async_op: F) -> OrElse<Fut1, Fut2, F> {
+    pub(super) fn new(future: Fut1, f: F) -> OrElse<Fut1, Fut2, F> {
         OrElse {
-            try_chain: TryChain::new(future, async_op),
+            try_chain: TryChain::new(future, f),
         }
     }
 }
@@ -34,7 +34,10 @@ impl<Fut1, Fut2, F> Future for OrElse<Fut1, Fut2, F>
 {
     type Output = Result<Fut2::Ok, Fut2::Error>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         self.try_chain().poll(cx, |result, async_op| {
             match result {
                 Ok(ok) => TryChainAction::Output(Ok(ok)),
