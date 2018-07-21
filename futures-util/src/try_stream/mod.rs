@@ -15,8 +15,8 @@ impl<S: TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
 pub trait TryStreamExt: TryStream {
-    /// Attempt to Collect all of the values of this stream into a vector, returning a
-    /// future representing the result of that computation.
+    /// Attempt to Collect all of the values of this stream into a vector,
+    /// returning a future representing the result of that computation.
     ///
     /// This combinator will collect all successful results of this stream and
     /// collect them into a `Vec<Self::Item>`. If an error happens then all
@@ -53,6 +53,6 @@ pub trait TryStreamExt: TryStream {
     fn try_collect<C: Default + Extend<Self::Ok>>(self) -> TryCollect<Self, C>
         where Self: Sized
     {
-        try_collect::new(self)
+        TryCollect::new(self)
     }
 }
