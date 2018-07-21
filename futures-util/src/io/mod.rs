@@ -65,15 +65,12 @@ pub trait AsyncReadExt: AsyncRead {
     /// use std::io::Cursor;
     ///
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut output = [0u8; 5];
+    /// let mut writer = Cursor::new([0u8; 5]);
     ///
-    /// let bytes = {
-    ///     let mut writer = Cursor::new(&mut output[..]);
-    ///     await!(reader.copy_into(&mut writer))?
-    /// };
+    /// let bytes = await!(reader.copy_into(&mut writer))?;
     ///
     /// assert_eq!(bytes, 4);
-    /// assert_eq!(output, [1, 2, 3, 4, 0]);
+    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
     fn copy_into<'a, W>(
@@ -201,23 +198,22 @@ pub trait AsyncReadExt: AsyncRead {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
     ///
+    /// // Note that for `Cursor` the read and write halves share a single
+    /// // seek position. This may or may not be true for other types that
+    /// // implement both `AsyncRead` and `AsyncWrite`.
+    ///
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
-    /// let mut buffer = [0, 0, 0, 0, 5, 6, 7, 8];
-    /// let mut output = [0u8; 5];
+    /// let mut buffer = Cursor::new([0, 0, 0, 0, 5, 6, 7, 8]);
+    /// let mut writer = Cursor::new([0u8; 5]);
     ///
     /// {
-    ///     let mut writer = Cursor::new(&mut output[..]);
-    ///     // Note that for `Cursor` the read and write halves share a single
-    ///     // seek position. This may or may not be true for other types that
-    ///     // implement both `AsyncRead` and `AsyncWrite`.
-    ///     let buffer_cursor = Cursor::new(&mut buffer[..]);
-    ///     let (mut buffer_reader, mut buffer_writer) = buffer_cursor.split();
+    ///     let (mut buffer_reader, mut buffer_writer) = (&mut buffer).split();
     ///     await!(reader.copy_into(&mut buffer_writer))?;
     ///     await!(buffer_reader.copy_into(&mut writer))?;
     /// }
     ///
-    /// assert_eq!(buffer, [1, 2, 3, 4, 5, 6, 7, 8]);
-    /// assert_eq!(output, [5, 6, 7, 8, 0]);
+    /// assert_eq!(buffer.into_inner(), [1, 2, 3, 4, 5, 6, 7, 8]);
+    /// assert_eq!(writer.into_inner(), [5, 6, 7, 8, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
     fn split(self) -> (ReadHalf<Self>, WriteHalf<Self>)
@@ -278,14 +274,11 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// use futures::io::AsyncWriteExt;
     /// use std::io::Cursor;
     ///
-    /// let mut output = [0u8; 5];
+    /// let mut writer = Cursor::new([0u8; 5]);
     ///
-    /// {
-    ///     let mut writer = Cursor::new(&mut output[..]);
-    ///     await!(writer.write_all(&[1, 2, 3, 4]))?;
-    /// }
+    /// await!(writer.write_all(&[1, 2, 3, 4]))?;
     ///
-    /// assert_eq!(output, [1, 2, 3, 4, 0]);
+    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
     fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
