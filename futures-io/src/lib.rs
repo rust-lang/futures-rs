@@ -23,9 +23,9 @@ macro_rules! if_std {
 if_std! {
     use futures_core::task::{self, Poll};
     use std::boxed::Box;
+    use std::cmp;
     use std::io as StdIo;
     use std::ptr;
-    use std::vec::Vec;
 
     // Re-export IoVec for convenience
     pub use iovec::IoVec;
@@ -354,16 +354,31 @@ if_std! {
         }
     }
 
-    impl<'a> AsyncWrite for StdIo::Cursor<&'a mut [u8]> {
-        delegate_async_write_to_stdio!();
-    }
+    impl<T: AsMut<[u8]>> AsyncWrite for StdIo::Cursor<T> {
+        fn poll_write(
+            &mut self,
+            _: &mut task::Context,
+            buf: &[u8],
+        ) -> Poll<Result<usize>> {
+            let position = self.position();
+            let result = {
+                let mut out = self.get_mut().as_mut();
+                let pos = cmp::min(out.len() as u64, position) as usize;
+                StdIo::Write::write(&mut &mut out[pos..], buf)
+            };
+            if let Ok(offset) = result {
+                self.set_position(position + offset as u64);
+            }
+            Poll::Ready(result)
+        }
 
-    impl AsyncWrite for StdIo::Cursor<Vec<u8>> {
-        delegate_async_write_to_stdio!();
-    }
+        fn poll_flush(&mut self, _: &mut task::Context) -> Poll<Result<()>> {
+            Poll::Ready(StdIo::Write::flush(&mut self.get_mut().as_mut()))
+        }
 
-    impl AsyncWrite for StdIo::Cursor<Box<[u8]>> {
-        delegate_async_write_to_stdio!();
+        fn poll_close(&mut self, cx: &mut task::Context) -> Poll<Result<()>> {
+            self.poll_flush(cx)
+        }
     }
 
     impl AsyncWrite for StdIo::Sink {
