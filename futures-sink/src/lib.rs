@@ -4,7 +4,7 @@
 //! asynchronously.
 
 #![no_std]
-#![deny(missing_docs, missing_debug_implementations)]
+#![warn(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures-sink-preview/0.3.0-alpha.1")]
 
 #![feature(pin, arbitrary_self_types, futures_api)]

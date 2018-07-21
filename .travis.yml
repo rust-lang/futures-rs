@@ -5,25 +5,43 @@ sudo: false
 
 matrix:
   include:
-    - os: osx
-    - os: linux
+    - name: cargo test
+      os: osx
+
+    - name: cargo test
+      os: linux
+
+    - name: Deny warnings
+      rust: nightly
+      script:
+        - RUSTFLAGS=-Dwarnings cargo check
+
     - name: cargo bench
       rust: nightly
-      script: cargo bench --all && cd futures-util && cargo bench --features=bench
+      script:
+        - cargo bench --all
+        - cargo bench -p futures-util-preview --features=bench
+
     - name: cargo build --no-default-features
       rust: nightly
       script:
         - cargo build --manifest-path futures/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
+        - cargo build --manifest-path futures-io/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
+
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
       script:
         - rustup target add thumbv6m-none-eabi
-        - cargo build --manifest-path futures/Cargo.toml --target thumbv6m-none-eabi --no-default-features --features nightly
+        - cargo build --manifest-path futures/Cargo.toml
+            --target thumbv6m-none-eabi
+            --no-default-features
+            --features nightly
+
     - name: cargo doc
       rust: nightly
       script:

@@ -25,7 +25,7 @@
 
 #![no_std]
 
-#![deny(missing_docs, missing_debug_implementations)]
+#![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
 #![doc(html_root_url = "https://docs.rs/futures-preview/0.3.0-alpha.1")]
