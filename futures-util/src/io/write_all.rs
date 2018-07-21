@@ -37,7 +37,7 @@ impl<'a, W: AsyncWrite + ?Sized> Future for WriteAll<'a, W> {
         while !this.buf.is_empty() {
             let n = try_ready!(this.writer.poll_write(cx, this.buf));
             {
-                let (rest, _) = mem::replace(&mut this.buf, &[]).split_at(n);
+                let (_, rest) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;
             }
             if n == 0 {
