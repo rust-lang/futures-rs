@@ -30,6 +30,7 @@ where
         FlattenSink(Waiting(future))
     }
 
+    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     fn project_pin(
         self: PinMut<'a, Self>
     ) -> State<PinMut<'a, Fut>, PinMut<'a, Si>> {

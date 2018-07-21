@@ -58,6 +58,7 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
+    #[allow(needless_lifetimes, wrong_self_convention)] // https://github.com/rust-lang/rust/issues/52675
     fn as_pin_mut(
         self: PinMut<'a, Self>,
     ) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
