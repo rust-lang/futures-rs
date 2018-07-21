@@ -153,7 +153,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(block_on(stream.next()), Some(3));
     /// assert_eq!(block_on(stream.next()), None);
     /// ```
-    fn next<'a>(&'a mut self) -> Next<'a, Self>
+    fn next(&mut self) -> Next<'_, Self>
         where Self: Sized + Unpin,
     {
         Next::new(self)

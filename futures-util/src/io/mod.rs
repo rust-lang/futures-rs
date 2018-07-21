@@ -250,12 +250,12 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// assert_eq!(output, [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
-    fn flush<'a>(&'a mut self) -> Flush<'a, Self> {
+    fn flush(&mut self) -> Flush<'_, Self> {
         Flush::new(self)
     }
 
     /// Creates a future which will entirely close this `AsyncWrite`.
-    fn close<'a>(&'a mut self) -> Close<'a, Self> {
+    fn close(&mut self) -> Close<'_, Self> {
         Close::new(self)
     }
 
@@ -281,7 +281,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
-    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
+    fn write_all(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
         WriteAll::new(self, buf)
     }
 }

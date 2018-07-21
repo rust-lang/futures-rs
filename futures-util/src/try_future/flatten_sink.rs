@@ -30,7 +30,7 @@ where
         FlattenSink(Waiting(future))
     }
 
-    fn project_pin<'a>(
+    fn project_pin(
         self: PinMut<'a, Self>
     ) -> State<PinMut<'a, Fut>, PinMut<'a, Si>> {
         unsafe {

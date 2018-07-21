@@ -48,6 +48,7 @@ macro_rules! generate {
         impl<$($Fut: Future),*> Future for $Join<$($Fut),*> {
             type Output = ($($Fut::Output),*);
 
+            #[allow(useless_let_if_seq)]
             fn poll(
                 mut self: PinMut<Self>, cx: &mut task::Context
             ) -> Poll<Self::Output> {

@@ -241,7 +241,7 @@ impl<'a, T: Unpin> DerefMut for BiLockGuard<'a, T> {
 
 impl<'a, T> BiLockGuard<'a, T> {
     /// Get a mutable pinned reference to the locked value.
-    pub fn as_pin_mut<'b>(&'b mut self) -> PinMut<'b, T> {
+    pub fn as_pin_mut(&mut self) -> PinMut<'_, T> {
         // Safety: we never allow moving a !Unpin value out of a bilock, nor
         // allow mutable access to it
         unsafe { PinMut::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }

@@ -58,8 +58,8 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
-    fn as_pin_mut<'a>(
-        self: PinMut<'a, Self>
+    fn as_pin_mut(
+        self: PinMut<'a, Self>,
     ) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
         unsafe {
             match PinMut::get_mut_unchecked(self) {

@@ -43,7 +43,7 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     /// ```
     pub fn new(future: Fut, reg: AbortRegistration) -> Self {
         Abortable {
-            future: future,
+            future,
             inner: reg.inner,
         }
     }
@@ -94,7 +94,7 @@ impl AbortHandle {
                 inner: inner.clone(),
             },
             AbortRegistration {
-                inner: inner,
+                inner,
             },
         )
     }
