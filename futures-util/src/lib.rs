@@ -5,7 +5,7 @@
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
 #![doc(html_root_url = "https://docs.rs/futures-util-preview/0.3.0-alpha.1")]
