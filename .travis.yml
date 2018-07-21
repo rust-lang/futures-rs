@@ -6,6 +6,7 @@ sudo: false
 matrix:
   include:
     - os: osx
+    - os: linux
     - name: cargo bench
       rust: nightly
       script: cargo bench --all && cd futures-util && cargo bench --features=bench
