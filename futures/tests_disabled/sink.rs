@@ -230,8 +230,8 @@ impl<T> Sink for ManualFlush<T> {
         Ok(Async::Ready(()))
     }
 
-    fn start_send(&mut self, op: Self::SinkItem) -> Result<(), Self::SinkError> {
-        if let Some(item) = op {
+    fn start_send(&mut self, f: Self::SinkItem) -> Result<(), Self::SinkError> {
+        if let Some(item) = f {
             self.data.push(item);
         } else {
             self.force_flush();

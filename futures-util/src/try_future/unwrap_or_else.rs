@@ -10,16 +10,16 @@ use futures_core::task::{self, Poll};
 #[must_use = "futures do nothing unless polled"]
 pub struct UnwrapOrElse<Fut, F> {
     future: Fut,
-    op: Option<F>,
+    f: Option<F>,
 }
 
 impl<Fut, F> UnwrapOrElse<Fut, F> {
     unsafe_pinned!(future: Fut);
-    unsafe_unpinned!(op: Option<F>);
+    unsafe_unpinned!(f: Option<F>);
 
     /// Creates a new UnwrapOrElse.
-    pub(super) fn new(future: Fut, op: F) -> UnwrapOrElse<Fut, F> {
-        UnwrapOrElse { future, op: Some(op) }
+    pub(super) fn new(future: Fut, f: F) -> UnwrapOrElse<Fut, F> {
+        UnwrapOrElse { future, f: Some(f) }
     }
 }
 
@@ -31,11 +31,14 @@ impl<Fut, F> Future for UnwrapOrElse<Fut, F>
 {
     type Output = Fut::Ok;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
-                let op = self.op().take()
+                let op = self.f().take()
                     .expect("UnwrapOrElse already returned `Poll::Ready` before");
                 Poll::Ready(result.unwrap_or_else(op))
             }

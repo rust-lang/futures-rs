@@ -10,39 +10,37 @@ use std::prelude::v1::*;
 /// This future is created by the `Stream::try_collect` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TryCollect<S, C> where S: TryStream {
-    stream: S,
+pub struct TryCollect<St, C> where St: TryStream {
+    stream: St,
     items: C,
 }
 
-pub fn new<S, C>(s: S) -> TryCollect<S, C>
-    where S: TryStream, C: Default
-{
-    TryCollect {
-        stream: s,
-        items: Default::default(),
-    }
-}
+impl<St: TryStream, C: Default> TryCollect<St, C> {
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(items: C);
 
-impl<S: TryStream, C: Default> TryCollect<S, C> {
+    pub(super) fn new(s: St) -> TryCollect<St, C> {
+        TryCollect {
+            stream: s,
+            items: Default::default(),
+        }
+    }
+
     fn finish(mut self: PinMut<Self>) -> C {
         mem::replace(self.items(), Default::default())
     }
-
-    unsafe_pinned!(stream: S);
-    unsafe_unpinned!(items: C);
 }
 
-impl<S: Unpin + TryStream, C> Unpin for TryCollect<S, C> {}
+impl<St: Unpin + TryStream, C> Unpin for TryCollect<St, C> {}
 
-impl<S, C> Future for TryCollect<S, C>
-    where S: TryStream, C: Default + Extend<S::Ok>
+impl<St, C> Future for TryCollect<St, C>
+    where St: TryStream, C: Default + Extend<St::Ok>
 {
-    type Output = Result<C, S::Error>;
+    type Output = Result<C, St::Error>;
 
     fn poll(
         mut self: PinMut<Self>,
-        cx: &mut task::Context
+        cx: &mut task::Context,
     ) -> Poll<Self::Output> {
         loop {
             match ready!(self.stream().try_poll_next(cx)) {

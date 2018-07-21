@@ -10,16 +10,16 @@ use futures_core::task::{self, Poll};
 #[must_use = "futures do nothing unless polled"]
 pub struct MapOk<Fut, F> {
     future: Fut,
-    op: Option<F>,
+    f: Option<F>,
 }
 
 impl<Fut, F> MapOk<Fut, F> {
     unsafe_pinned!(future: Fut);
-    unsafe_unpinned!(op: Option<F>);
+    unsafe_unpinned!(f: Option<F>);
 
     /// Creates a new MapOk.
-    pub(super) fn new(future: Fut, op: F) -> MapOk<Fut, F> {
-        MapOk { future, op: Some(op) }
+    pub(super) fn new(future: Fut, f: F) -> MapOk<Fut, F> {
+        MapOk { future, f: Some(f) }
     }
 }
 
@@ -31,11 +31,14 @@ impl<Fut, F, T> Future for MapOk<Fut, F>
 {
     type Output = Result<T, Fut::Error>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Self::Output> {
         match self.future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
-                let op = self.op().take()
+                let op = self.f().take()
                     .expect("MapOk must not be polled after it returned `Poll::Ready`");
                 Poll::Ready(result.map(op))
             }

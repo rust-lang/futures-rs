@@ -5,9 +5,9 @@ use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 
 #[derive(Debug)]
-enum State<F, S> {
-    Waiting(F),
-    Ready(S),
+enum State<Fut, Si> {
+    Waiting(Fut),
+    Ready(Si),
     Closed,
 }
 use self::State::*;
@@ -17,14 +17,22 @@ use self::State::*;
 ///
 /// This is created by the `Future::flatten_sink` method.
 #[derive(Debug)]
-pub struct FlattenSink<F, S>(State<F, S>);
+pub struct FlattenSink<Fut, Si>(State<Fut, Si>);
 
-impl<F: Unpin, S: Unpin> Unpin for FlattenSink<F, S> {}
+impl<Fut: Unpin, Si: Unpin> Unpin for FlattenSink<Fut, Si> {}
 
-impl<F, S> FlattenSink<F, S> {
+impl<Fut, Si> FlattenSink<Fut, Si>
+where
+    Fut: TryFuture<Ok = Si>,
+    Si: Sink<SinkError = Fut::Error>,
+{
+    pub(super) fn new(future: Fut) -> FlattenSink<Fut, Si> {
+        FlattenSink(Waiting(future))
+    }
+
     fn project_pin<'a>(
         self: PinMut<'a, Self>
-    ) -> State<PinMut<'a, F>, PinMut<'a, S>> {
+    ) -> State<PinMut<'a, Fut>, PinMut<'a, Si>> {
         unsafe {
             match &mut PinMut::get_mut_unchecked(self).0 {
                 Waiting(f) => Waiting(PinMut::new_unchecked(f)),
@@ -35,17 +43,18 @@ impl<F, S> FlattenSink<F, S> {
     }
 }
 
-impl<F, S> Sink for FlattenSink<F, S>
+impl<Fut, Si> Sink for FlattenSink<Fut, Si>
 where
-    F: TryFuture<Ok = S>,
-    S: Sink<SinkError = F::Error>,
+    Fut: TryFuture<Ok = Si>,
+    Si: Sink<SinkError = Fut::Error>,
 {
-    type SinkItem = S::SinkItem;
-    type SinkError = S::SinkError;
+    type SinkItem = Si::SinkItem;
+    type SinkError = Si::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context)
-        -> Poll<Result<(), Self::SinkError>>
-    {
+    fn poll_ready(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         let resolved_stream = match self.reborrow().project_pin() {
             Ready(s) => return s.poll_ready(cx),
             Waiting(f) => try_ready!(f.try_poll(cx)),
@@ -59,9 +68,10 @@ where
         }
     }
 
-    fn start_send(self: PinMut<Self>, item: Self::SinkItem)
-        -> Result<(), Self::SinkError>
-    {
+    fn start_send(
+        self: PinMut<Self>,
+        item: Self::SinkItem,
+    ) -> Result<(), Self::SinkError> {
         match self.project_pin() {
             Ready(s) => s.start_send(item),
             Waiting(_) => panic!("poll_ready not called first"),
@@ -69,9 +79,10 @@ where
         }
     }
 
-    fn poll_flush(self: PinMut<Self>, cx: &mut task::Context)
-        -> Poll<Result<(), Self::SinkError>>
-    {
+    fn poll_flush(
+        self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         match self.project_pin() {
             Ready(s) => s.poll_flush(cx),
             // if sink not yet resolved, nothing written ==> everything flushed
@@ -80,9 +91,10 @@ where
         }
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context)
-        -> Poll<Result<(), Self::SinkError>>
-    {
+    fn poll_close(
+        mut self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Result<(), Self::SinkError>> {
         let res = match self.reborrow().project_pin() {
             Ready(s) => s.poll_close(cx),
             Waiting(_) | Closed => Poll::Ready(Ok(())),
@@ -92,12 +104,4 @@ where
         }
         res
     }
-}
-
-pub fn new<F, S>(fut: F) -> FlattenSink<F, S>
-where
-    F: TryFuture<Ok = S>,
-    S: Sink<SinkError = F::Error>,
-{
-    FlattenSink(Waiting(fut))
 }
