@@ -125,7 +125,9 @@ impl PoolState {
             after_start: Option<Arc<dyn Fn(usize) + Send + Sync>>,
             before_stop: Option<Arc<dyn Fn(usize) + Send + Sync>>) {
         let _scope = enter().unwrap();
-        after_start.map(|fun| fun(idx));
+        if let Some(after_start) = after_start {
+            after_start(idx);
+        }
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
             match msg {
@@ -133,7 +135,9 @@ impl PoolState {
                 Message::Close => break,
             }
         }
-        before_stop.map(|fun| fun(idx));
+        if let Some(before_stop) = before_stop {
+            before_stop(idx);
+        }
     }
 }
 
@@ -261,6 +265,12 @@ impl ThreadPoolBuilder {
     }
 }
 
+impl Default for ThreadPoolBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
 struct TaskContainer {
@@ -297,7 +307,7 @@ impl TaskContainer {
                 let task_container = TaskContainer {
                     task,
                     wake_handle: wake_handle.clone(),
-                    exec: exec
+                    exec,
                 };
                 match wake_handle.mutex.wait(task_container) {
                     Ok(()) => return, // we've waited
