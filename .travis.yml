@@ -11,16 +11,10 @@ matrix:
     - name: cargo test
       os: linux
 
-    - name: cargo rustc -- -D warnings
+    - name: Deny warnings
       rust: nightly
       script:
-        - cargo rustc --manifest-path futures/Cargo.toml -- -Dwarnings
-        - cargo rustc --manifest-path futures-core/Cargo.toml -- -Dwarnings
-        - cargo rustc --manifest-path futures-channel/Cargo.toml -- -Dwarnings
-        - cargo rustc --manifest-path futures-executor/Cargo.toml -- -Dwarnings
-        - cargo rustc --manifest-path futures-io/Cargo.toml -- -Dwarnings
-        - cargo rustc --manifest-path futures-sink/Cargo.toml -- -Dwarnings
-        - cargo rustc --manifest-path futures-util/Cargo.toml -- -Dwarnings
+        - RUSTFLAGS=-Dwarnings cargo check
 
     - name: cargo bench
       rust: nightly
