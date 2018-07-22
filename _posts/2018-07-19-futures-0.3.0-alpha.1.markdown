@@ -57,7 +57,7 @@ While we had originally hoped to ship async/await notation as part of Rust 2018,
 
 As of this writing, futures 0.3.0-alpha.1 is not integrated in any way with other libraries like Tokio or Hyper. Achieving such integration is a crucial part of getting real experience with the design and ultimately heading toward stabilization. The Futures Team intends to work closely with the Tokio Team to determine the best way forward here — either a shim crate for compatibility with futures 0.1, or direct integration via a feature-flag.
 
-This integration is our main next area of work, and we’d love to have help! If you’re interested in getting involved, drop by the #wg-net channel on [the Discord](https://discord.gg/rust-lang).
+This integration is our main next area of work, and we’d love to have help! If you’re interested in getting involved, drop by the #wg-net channel on [Discord](https://discord.gg/rust-lang).
 
 ### Crate structure and relation to `std`
 
