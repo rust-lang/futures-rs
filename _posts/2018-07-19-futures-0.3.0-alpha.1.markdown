@@ -35,19 +35,30 @@ In other words:
 
 With futures 0.3 alpha, it is possible to use the new `async`/`await` notation that recently landed in nightly:
 
-```rust
-use futures::executor::block_on;
-use futures::future;
+```toml
+cargo-features = ["edition"]
 
-block_on(async {
+[package]
+edition = "2018"
+```
+
+```rust
+#![feature(async_await, await_macro)]
+
+use futures::executor::block_on;
+use futures::future::{self, FutureExt};
+
+fn main() {
+  block_on(async {
     let fut = future::lazy(|_| vec![0, 1, 2, 3]);
     let shared1 = fut.shared();
     let shared2 = shared1.clone();
 
     assert_eq!(await!(shared1).len(), 4);
     assert_eq!(await!(shared2).len(), 4);
-})
-````
+  })
+}
+```
 
 The notation works as described in [the corresponding RFC](https://github.com/rust-lang/rfcs/pull/2394); more documentation for it is forthcoming. There are several open questions on this notation, but these are largely on hold until we have achieved integration with Tokio and Hyper, at which point more serious code can be written against the library.
 
