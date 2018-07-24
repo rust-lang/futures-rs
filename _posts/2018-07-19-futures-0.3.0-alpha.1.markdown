@@ -77,12 +77,26 @@ To support built-in async/await notation, the `Future` trait and associated mach
 The overall organization of the crate is similar to the 0.2 release:
 
 
-- The `futures-core-preview` crate re-exports the futures-related items from `std`, and defines `Stream`, `TryFuture` and `TryStream`.
-- The `futures-executor-preview` crate provides basic executors (a thread pool and a thread-local executor).
-- The `futures-io-preview` and `futures-sink-preview` crates define core traits for I/O and sinks, respectively.
-- The `futures-channel-preview` crate defines basic `Sync` channels for futures.
-- The `futures-util-preview` crate defines a collection of extension traits with useful adapters (aka combinators).
-- The `futures-preview` crate is a “facade” combining and re-exporting all of the above crates for convenience.
+[`futures-core-preview`](https://crates.io/crates/futures-core-preview)
+: This crate re-exports the futures-related items from `std`, and defines `Stream`, `TryFuture` and `TryStream`.
+
+[`futures-executor-preview`](https://crates.io/crates/futures-executor-preview)
+: This crate provides basic executors (a thread pool and a thread-local executor).
+
+[`futures-io-preview`](https://crates.io/crates/futures-io-preview)
+: This crate defines core traits for I/O.
+
+[`futures-sink-preview`](https://crates.io/crates/futures-sink-preview)
+: This crate defines the core `Sink` trait.
+
+[`futures-channel-preview`](https://crates.io/crates/futures-channel-preview)
+: This crate defines basic `Sync` channels for futures.
+
+[`futures-util-preview`](https://crates.io/crates/futures-util-preview)
+: This crate defines a collection of extension traits with useful adapters (aka combinators).
+
+[`futures-preview`](https://crates.io/crates/futures-preview)
+: This crate is a “facade” combining and re-exporting all of the above crates for convenience.
 
 You can read more about the rationale for the breakdown into multiple crates in the [0.2 notes](http://aturon.github.io/2018/02/27/futures-0-2-RC/).
 
