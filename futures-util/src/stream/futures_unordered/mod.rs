@@ -316,6 +316,8 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             let prev = node.queued.swap(false, SeqCst);
             assert!(prev);
 
+            let local_waker = node.local_waker();
+
             // We're going to need to be very careful if the `poll`
             // function below panics. We need to (a) not leak memory and
             // (b) ensure that we still don't have any use-after-frees. To
@@ -352,33 +354,29 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // implementation. This is where a large bit of the unsafety
             // starts to stem from internally. The waker is basically just
             // our `Arc<Node<Fut>>` and can schedule the future for polling by
-            // enqueuing itself in the ready to run queue.
+            // enqueuing its node in the ready to run queue.
             //
             // Critically though `Node<Fut>` won't actually access `Fut`, the
             // future, while it's floating around inside of wakers.
             // These structs will basically just use `Fut` to size
             // the internal allocation, appropriately accessing fields and
             // deallocating the node if need be.
-            let res = {
-                let local_waker = bomb.node.as_ref().unwrap().local_waker();
-                let mut cx = cx.with_waker(&*local_waker);
 
-                // Safety: We won't move the future ever again
-                let future = unsafe { PinMut::new_unchecked(future) };
+            // Safety: We won't move the future ever again
+            let future = unsafe { PinMut::new_unchecked(future) };
 
-                future.poll(&mut cx)
-            };
+            let mut cx = cx.with_waker(&local_waker);
+            let res = future.poll(&mut cx);
 
-            match res {
+            let ret = match res {
                 Poll::Pending => {
                     let node = bomb.node.take().unwrap();
                     bomb.queue.link(node);
                     continue
                 }
-                Poll::Ready(output) => {
-                    return Poll::Ready(Some(output))
-                }
-            }
+                Poll::Ready(result) => Poll::Ready(Some(result)),
+            };
+            return ret
         }
     }
 }
