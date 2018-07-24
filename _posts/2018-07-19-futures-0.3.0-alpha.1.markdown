@@ -90,7 +90,7 @@ The overall organization of the crate is similar to the 0.2 release:
 : This crate defines the core `Sink` trait.
 
 [`futures-channel-preview`](https://crates.io/crates/futures-channel-preview)
-: This crate defines basic `Sync` channels for futures.
+: This crate defines basic `Sync` channels with end points implementing `Future`, `Stream` or `Sink`.
 
 [`futures-util-preview`](https://crates.io/crates/futures-util-preview)
 : This crate defines a collection of extension traits with useful adapters (aka combinators).
