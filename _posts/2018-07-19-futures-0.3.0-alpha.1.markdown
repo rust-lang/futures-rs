@@ -39,18 +39,14 @@ With futures 0.3 alpha, it is possible to use the new `async`/`await` notation t
 cargo-features = ["edition"]
 
 [package]
-edition = '2018
+edition = "2018"
 ```
 
 ```rust
-#![feature(async_await)]
-#![feature(await_macro)]
-
-extern crate futures;
+#![feature(async_await, await_macro)]
 
 use futures::executor::block_on;
-use futures::future;
-use futures::prelude::*;
+use futures::future::{self, FutureExt};
 
 
 fn main() {
@@ -63,7 +59,7 @@ fn main() {
     assert_eq!(await!(shared2).len(), 4);
   })
 }
-````
+```
 
 The notation works as described in [the corresponding RFC](https://github.com/rust-lang/rfcs/pull/2394); more documentation for it is forthcoming. There are several open questions on this notation, but these are largely on hold until we have achieved integration with Tokio and Hyper, at which point more serious code can be written against the library.
 
