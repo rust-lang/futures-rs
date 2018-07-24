@@ -48,7 +48,6 @@ edition = "2018"
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
 
-
 fn main() {
   block_on(async {
     let fut = future::lazy(|_| vec![0, 1, 2, 3]);
