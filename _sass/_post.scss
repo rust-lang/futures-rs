@@ -55,6 +55,7 @@ article.post {
       > code.highlighter-rouge {
         position: relative;
         box-shadow: 0 3px 0 0px white; // Hide link underline (border)
+        color: $primary-color;
 
         &:hover,
         &:focus {
