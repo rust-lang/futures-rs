@@ -44,11 +44,34 @@ article.post {
       color: $primary-color;
       outline: none;
       font-weight: bold;
+      white-space: nowrap;
+
+      &:hover,
+      &:focus {
+        border-bottom: 2px solid $primary-color;
+      }
+
+      > code.highlighter-rouge,
+      > code.highlighter-rouge {
+        position: relative;
+        box-shadow: 0 3px 0 0px white; // Hide link underline (border)
+
+        &:hover,
+        &:focus {
+          color: white;
+          background: $primary-color;
+          border-color: $primary-color;
+        }
+      }
     }
 
-    a:hover,
-    a:focus {
-      border-bottom: 2px solid $primary-color;
+    dl {
+      dt {
+        margin-bottom: 3px;
+      }
+      dd {
+        margin-bottom: 10px;
+      }
     }
   }
 }
