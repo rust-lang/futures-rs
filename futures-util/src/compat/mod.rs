@@ -12,13 +12,16 @@ use futures::executor::{with_notify, NotifyHandle, Notify, UnsafeNotify};
 use futures_core::Future as Future03;
 use futures_core::TryFuture as TryFuture03;
 use futures_core::Poll as Poll03;
-use futures_core::task;
+use futures_core::task as task03;
 use futures_core::task::Executor as Executor03;
 use futures_core::task::{Wake, Waker, LocalWaker, local_waker_from_nonlocal};
 
-use core::mem::PinMut;
-use core::marker::Unpin;
+use std::mem::PinMut;
+use std::marker::Unpin;
 use std::sync::Arc;
+
+mod executor;
+pub use self::executor::{Executor01CompatExt, ExecutorFuture01, CompatExecutor};
 
 /// Converts a futures 0.3 `TryFuture` into a futures 0.1 `Future`
 /// and vice versa.
@@ -47,7 +50,7 @@ impl<Fut, E> Compat<Fut, E> {
 impl<T> Future03 for Compat<T, ()> where T: Future01 {
     type Output = Result<T::Item, T::Error>;
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll03<Self::Output> {
+    fn poll(self: PinMut<Self>, cx: &mut task03::Context) -> Poll03<Self::Output> {
         use futures::Async;
 
         let notify = &WakerToHandle(cx.waker());
@@ -109,7 +112,7 @@ impl<T, E> Future01 for Compat<T, E> where T: TryFuture03 + Unpin,
         use futures::Async;
 
         let waker = current_as_waker();
-        let mut cx = task::Context::new(&waker, self.executor.as_mut().unwrap());
+        let mut cx = task03::Context::new(&waker, self.executor.as_mut().unwrap());
         match PinMut::new(&mut self.inner).try_poll(&mut cx) {
             Poll03::Ready(Ok(t)) => Ok(Async::Ready(t)),
             Poll03::Pending => Ok(Async::NotReady),

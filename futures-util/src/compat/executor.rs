@@ -1,47 +1,70 @@
 
-pub trait ExecCompat: Executor01<
-        Compat<FutureObj<'static, ()>, BoxedExecutor>
-    > + Clone + Send + 'static
+use futures::future::Executor as Executor01;
+
+use futures_core::task::Executor as Executor03;
+use futures_core::task as task03;
+use futures_core::future::FutureObj;
+
+use super::Compat;
+use crate::{TryFutureExt, FutureExt, future::NeverError};
+
+pub struct BoxedExecutor(Box<dyn Executor03 + Send>);
+
+impl Executor03 for BoxedExecutor {
+    fn spawn_obj(&mut self, future: FutureObj<'static, ()>) -> Result<(), task03::SpawnObjError> {
+        (&mut *self.0).spawn_obj(future)
+    }
+}
+
+/// A future that can run on a futures 0.1 executor.
+pub type ExecutorFuture01 = Compat<NeverError<FutureObj<'static, ()>>, BoxedExecutor>;
+
+/// Extension trait for futures 0.1 Executors.
+pub trait Executor01CompatExt: Executor01<ExecutorFuture01> 
+    + Clone + Send + 'static
 {
-    fn compat(self) -> ExecutorCompat<Self> 
+    /// Creates an exector compatable with futures 0.3.
+    fn compat(self) -> CompatExecutor<Self> 
         where Self: Sized;
 }
 
-impl<E> ExecCompat for E
-where E: Executor01<
-        Compat<FutureObj<'static, ()>, BoxedExecutor>
-      >,
+impl<E> Executor01CompatExt for E
+where E: Executor01<ExecutorFuture01>,
       E: Clone + Send + 'static
 {
-    fn compat(self) -> ExecutorCompat<Self> {
-        ExecutorCompat {
+    fn compat(self) -> CompatExecutor<Self> {
+        CompatExecutor {
             exec: self,
         }
     }
 }
 
+/// Converts `futures 0.1` Executors into `futures 0.3` Executors
 #[derive(Clone)]
-pub struct ExecutorCompat<E> {
+pub struct CompatExecutor<E> {
     exec: E
 }
 
-impl<E> Executor03 for ExecutorCompat<E> 
-    where E: Executor01<
-        Compat<FutureObj<'static, ()>, Box<Executor03>>
-    >,
+impl<E> Executor03 for CompatExecutor<E> 
+    where E: Executor01<ExecutorFuture01>,
     E: Clone + Send + 'static,
 {
-    fn spawn_obj(&mut self, obj: FutureObj<'static, ()>) -> Result<(), task::SpawnObjError> {
+    fn spawn_obj(
+        &mut self, 
+        future: FutureObj<'static, ()>,
+    ) -> Result<(), task03::SpawnObjError> {
         
-        self.exec.execute(obj.compat(Box::new(self.clone())))
-                 .map_err(|exec_err| {
-                     use futures_core::task::{SpawnObjError, SpawnErrorKind};
+        let fut = future.never_error().compat(BoxedExecutor(Box::new(self.clone())));
+
+        self.exec.execute(fut)
+            .map_err(|exec_err| {
+                use futures_core::task::{SpawnObjError, SpawnErrorKind};
                      
-                     let fut = exec_err.into_future().compat().map(|_| ());
-                     SpawnObjError {
-                         kind: SpawnErrorKind::shutdown(),
-                         task: Box::new(fut).into(),   
-                     }
-                 })
+                let fut = exec_err.into_future().into_inner().unwrap_or_else(|_| ());
+                SpawnObjError {
+                    kind: SpawnErrorKind::shutdown(),
+                    task: Box::new(fut).into(),   
+                }
+            })
     }
 }
