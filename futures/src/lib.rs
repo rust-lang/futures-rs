@@ -50,9 +50,18 @@
 
 #[doc(hidden)] pub use futures_core::task::Poll;
 
-#[macro_use]
-mod macros;
-pub use futures_util::{join, select, pending, poll};
+// Macro reexports
+pub use futures_util::{
+    // Pinning
+    pin_mut, unsafe_pinned, unsafe_unpinned,
+    // Error/readiness propagation
+    try_ready, try_poll, ready,
+};
+#[cfg(feature = "std")]
+pub use futures_util::{
+    // Async-await
+    join, select, pending, poll,
+};
 
 #[cfg(feature = "std")]
 pub mod channel {
