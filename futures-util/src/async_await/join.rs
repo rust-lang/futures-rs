@@ -5,19 +5,19 @@ macro_rules! join {
     ($($fut:ident),*) => { {
         $(
             let mut $fut = $crate::future::maybe_done($fut);
-            pin_mut!($fut);
+            $crate::pin_mut!($fut);
         )*
         loop {
             let mut all_done = true;
             $(
-                if let $crate::core_reexport::task::Poll::Pending = poll!($fut.reborrow()) {
+                if let $crate::core_reexport::task::Poll::Pending = $crate::poll!($fut.reborrow()) {
                     all_done = false;
                 }
             )*
             if all_done {
                 break;
             } else {
-                pending!();
+                $crate::pending!();
             }
         }
 
@@ -25,14 +25,4 @@ macro_rules! join {
             $fut.reborrow().take_output().unwrap(),
         )*)
     } }
-}
-
-async fn a() {}
-async fn b() -> usize { 5 }
-
-#[allow(unused)]
-async fn test_join_compiles() -> ((), usize) {
-    let a = a();
-    let b = b();
-    join!(a, b)
 }
