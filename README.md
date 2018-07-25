@@ -1,13 +1,28 @@
-# futures-rs
+<p align="center">
+  <img alt="futures-rs" src="https://raw.githubusercontent.com/rust-lang-nursery/futures-rs/gh-pages/assets/images/futures-rs-logo.svg?sanitize=true" width="400">
+</p>
 
-This library is an implementation of **zero-cost futures** in Rust.
+<p align="center">
+  Zero-cost asynchronous programming in Rust
+</p>
 
-[![Build Status](https://travis-ci.org/rust-lang-nursery/futures-rs.svg?branch=master)](https://travis-ci.org/rust-lang-nursery/futures-rs)
-[![Crates.io](https://img.shields.io/crates/v/futures-preview.svg?maxAge=2592000)](https://crates.io/crates/futures-preview)
+<p align="center">
+  <a href="https://travis-ci.org/rust-lang-nursery/futures-rs">
+    <img alt="Build Status" src="https://travis-ci.org/rust-lang-nursery/futures-rs.svg?branch=master">
+  </a>
 
-[Documentation](https://rust-lang-nursery.github.io/futures-rs/doc/futures)
+  <a href="https://crates.io/crates/futures-preview">
+    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures-preview.svg?maxAge=2592000">
+  </a>
+</p>
 
-[Website](https://rust-lang-nursery.github.io/futures-rs/)
+<p align="center">
+  <a href="https://rust-lang-nursery.github.io/futures-rs/doc/futures">
+    Documentation
+  </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
+    Website
+  </a>
+</p>
 
 ## Usage
 
