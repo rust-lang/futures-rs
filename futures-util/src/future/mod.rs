@@ -57,6 +57,9 @@ pub use self::then::Then;
 mod inspect;
 pub use self::inspect::Inspect;
 
+mod never_error;
+pub use self::never_error::NeverError;
+
 mod with_executor;
 pub use self::with_executor::WithExecutor;
 
@@ -83,6 +86,8 @@ if_std! {
 
     mod shared;
     pub use self::shared::Shared;
+
+    use std::boxed::PinBox;
 }
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
@@ -630,6 +635,21 @@ pub trait FutureExt: Future {
         where Self: Sized
     {
         Shared::new(self)
+    }
+
+    /// Wrap the future in a Box, pinning it.
+    #[cfg(feature = "std")]
+    fn boxed(self) -> PinBox<Self>
+        where Self: Sized
+    {
+        PinBox::new(self)
+    }
+
+    /// Turns a `Future` into a `TryFuture` that never errors
+    fn never_error(self) -> NeverError<Self>
+        where Self: Sized
+    {
+        NeverError::new(self)
     }
 
     /// Assigns the provided `Executor` to be used when spawning tasks

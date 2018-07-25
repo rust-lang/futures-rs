@@ -6,6 +6,15 @@
 use futures_core::future::TryFuture;
 use futures_sink::Sink;
 
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+
+#[cfg(feature = "compat")]
+use futures_core::task::Executor;
+
+#[cfg(feature = "compat")]
+use core::marker::Unpin;
+
 /* TODO
 mod join;
 mod select;
@@ -477,6 +486,17 @@ pub trait TryFutureExt: TryFuture {
         UnwrapOrElse::new(self, f)
     }
 
+    /// Wraps a [`TryFuture`] into a future compatable with libraries using
+    /// futures 0.1 future definitons. Requires the `compat` feature to enable.
+    /// 
+    #[cfg(feature = "compat")]
+    fn compat<E>(self, executor: E) -> Compat<Self, E> 
+        where Self: Sized + Unpin,
+              E: Executor,
+    {
+        Compat::new(self, Some(executor))
+    }
+
     /// Wraps a [`TryFuture`] into a type that implements
     /// [`Future`](std::future::Future).
     ///
@@ -498,7 +518,7 @@ pub trait TryFutureExt: TryFuture {
     /// fn take_future(future: impl Future<Output = Result<T, E>>) { /* ... */ }
     ///
     /// take_future(make_try_future().into_future());
-    /// ```
+    /// ```    
     fn into_future(self) -> IntoFuture<Self>
         where Self: Sized,
     {

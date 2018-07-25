@@ -75,6 +75,9 @@ pub mod sink;
 
 pub mod task;
 
+#[cfg(feature = "compat")]
+pub mod compat;
+
 if_std! {
     // FIXME: currently async/await is only available with std
     pub mod async_await;
