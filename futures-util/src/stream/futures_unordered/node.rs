@@ -99,13 +99,11 @@ impl<Fut> Node<Fut> {
 
     /// Returns a local waker for this node without cloning the Arc.
     pub(super) fn local_waker(self: &'a Arc<Node<Fut>>) -> LocalWakerRef<'a> {
-        // Safety: This is save because an `Arc` is a struct which contains
+        // Safety: This is safe because an `Arc` is a struct which contains
         // a single field that is a pointer.
         let ptr = unsafe {
-            *mem::transmute::<*const Arc<Node<Fut>>,
-                              *const NonNull<ArcNodeUnowned<Fut>>>(self)
+            *(self as *const _ as *const NonNull<ArcNodeUnowned<Fut>>)
         };
-
 
         let ptr = ptr as NonNull<dyn UnsafeWake>;
 

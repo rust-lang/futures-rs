@@ -11,10 +11,12 @@ matrix:
     - name: cargo test
       os: linux
 
-    - name: Deny warnings
+    - name: cargo clippy
       rust: nightly
+      install:
+        - rustup component add clippy-preview
       script:
-        - RUSTFLAGS=-Dwarnings cargo check
+        - cargo clippy --all -- -Dwarnings
 
     - name: cargo bench
       rust: nightly
@@ -35,8 +37,9 @@ matrix:
 
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
-      script:
+      install:
         - rustup target add thumbv6m-none-eabi
+      script:
         - cargo build --manifest-path futures/Cargo.toml
             --target thumbv6m-none-eabi
             --no-default-features

@@ -33,7 +33,8 @@ impl<Si, F> SinkMapErr<Si, F> {
     }
 
     /// Get a pinned reference to the inner sink.
-    pub fn get_pinned_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
+    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    pub fn get_pinned_mut(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
         unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
     }
 
@@ -61,6 +62,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         mut self: PinMut<Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
+        #[allow(redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.sink().poll_ready(cx).map_err(|e| self.take_f()(e))
     }
 
@@ -68,6 +70,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         mut self: PinMut<Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
+        #[allow(redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.sink().start_send(item).map_err(|e| self.take_f()(e))
     }
 
@@ -75,6 +78,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         mut self: PinMut<Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
+        #[allow(redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.sink().poll_flush(cx).map_err(|e| self.take_f()(e))
     }
 
@@ -82,6 +86,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         mut self: PinMut<Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
+        #[allow(redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.sink().poll_close(cx).map_err(|e| self.take_f()(e))
     }
 }

@@ -80,7 +80,8 @@ impl<T> AsyncWrite for AllowStdIo<T> where T: io::Write {
     }
 
     fn poll_flush(&mut self, _: &mut task::Context) -> Poll<io::Result<()>> {
-        Poll::Ready(Ok(try_with_interrupt!(io::Write::flush(self))))
+        try_with_interrupt!(io::Write::flush(self));
+        Poll::Ready(Ok(()))
     }
 
     fn poll_close(&mut self, cx: &mut task::Context) -> Poll<io::Result<()>> {

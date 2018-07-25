@@ -161,7 +161,7 @@ pub trait SinkExt: Sink {
     }
 
     /// Close the sink.
-    fn close<'a>(&'a mut self) -> Close<'a, Self>
+    fn close(&mut self) -> Close<'_, Self>
         where Self: Unpin,
     {
         Close::new(self)
@@ -183,7 +183,7 @@ pub trait SinkExt: Sink {
     ///
     /// This adapter is intended to be used when you want to stop sending to the sink
     /// until all current requests are processed.
-    fn flush<'a>(&'a mut self) -> Flush<'a, Self>
+    fn flush(&mut self) -> Flush<'_, Self>
         where Self: Unpin,
     {
         Flush::new(self)
@@ -195,7 +195,7 @@ pub trait SinkExt: Sink {
     /// Note that, **because of the flushing requirement, it is usually better
     /// to batch together items to send via `send_all`, rather than flushing
     /// between each item.**
-    fn send<'a>(&'a mut self, item: Self::SinkItem) -> Send<'a, Self>
+    fn send(&mut self, item: Self::SinkItem) -> Send<'_, Self>
         where Self: Unpin,
     {
         Send::new(self, item)
@@ -212,7 +212,7 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<'a, St>(
+    fn send_all<St>(
         &'a mut self,
         stream: &'a mut St
     ) -> SendAll<'a, Self, St>

@@ -160,9 +160,9 @@ impl LocalPool {
                 let mut main_cx = Context::new(local_waker, exec);
 
                 // if our main task is done, so are we
-                match future.reborrow().poll(&mut main_cx) {
-                    Poll::Ready(output) => return Poll::Ready(output),
-                    _ => {}
+                let result = future.reborrow().poll(&mut main_cx);
+                if let Poll::Ready(output) = result {
+                    return Poll::Ready(output);
                 }
             }
 
@@ -202,6 +202,12 @@ impl LocalPool {
                 _ => {}
             }
         }
+    }
+}
+
+impl Default for LocalPool {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
