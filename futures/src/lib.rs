@@ -52,6 +52,7 @@
 
 #[macro_use]
 mod macros;
+pub use futures_util::{join, select, pending, poll};
 
 #[cfg(feature = "std")]
 pub mod channel {

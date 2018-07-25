@@ -15,17 +15,20 @@ macro_rules! select {
         )*
         loop {
             $(
-                if let $crate::core_reexport::task::Poll::Ready(()) = poll!($name.reborrow()) {
+                if let $crate::core_reexport::task::Poll::Ready(()) =
+                    $crate::poll!($name.reborrow())
+                {
                     break;
                 }
             )*
-            pending!();
+            $crate::pending!();
         }
         if false {
             unreachable!()
         }
         $(
             else if let Some($name) = $name.take_output() {
+                let _ = $name; // suppress "unused" warning for binding name
                 $body
             }
         )*
@@ -33,20 +36,4 @@ macro_rules! select {
             unreachable!()
         }
     } };
-}
-
-async fn num() -> usize { 5 }
-
-#[allow(unused)]
-async fn test_select_compiles() -> usize {
-    let a = num();
-    let b = num();
-    pin_mut!(a, b);
-    select! {
-        a => {
-            let x = num();
-            a + await!(x)
-        },
-        b => b + 4,
-    }
 }
