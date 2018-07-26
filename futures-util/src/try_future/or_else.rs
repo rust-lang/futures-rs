@@ -3,10 +3,7 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Future for the `or_else` combinator, chaining a computation onto the end of
-/// a future which fails with an error.
-///
-/// This is created by the `Future::or_else` method.
+/// Future for the [`or_else`](super::TryFutureExt::or_else) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct OrElse<Fut1, Fut2, F> {

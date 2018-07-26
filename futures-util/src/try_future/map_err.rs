@@ -3,9 +3,7 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Future for the `map_err` combinator, changing the type of a future.
-///
-/// This is created by the `Future::map_err` method.
+/// Future for the [`map_err`](super::TryFutureExt::map_err) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct MapErr<Fut, F> {

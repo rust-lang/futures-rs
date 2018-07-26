@@ -2,7 +2,7 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Converts a `TryFuture` into a normal `Future`
+/// Future for the [`into_future`](super::TryFutureExt::into_future) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct IntoFuture<Fut> {

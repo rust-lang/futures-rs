@@ -3,10 +3,7 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Future for the `and_then` combinator, chaining a computation onto the end of
-/// another future which completes successfully.
-///
-/// This is created by the `Future::and_then` method.
+/// Future for the [`and_then`](super::TryFutureExt::and_then) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct AndThen<Fut1, Fut2, F> {

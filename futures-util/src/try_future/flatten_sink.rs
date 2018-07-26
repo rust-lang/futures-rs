@@ -12,10 +12,8 @@ enum State<Fut, Si> {
 }
 use self::State::*;
 
-/// Future for the `flatten_sink` combinator, flattening a
-/// future-of-a-sink to get just the result of the final sink as a sink.
-///
-/// This is created by the `Future::flatten_sink` method.
+/// Future for the [`flatten_sink`](super::TryFutureExt::flatten_sink)
+/// combinator.
 #[derive(Debug)]
 pub struct FlattenSink<Fut, Si>(State<Fut, Si>);
 
