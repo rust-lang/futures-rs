@@ -79,6 +79,19 @@ pub mod channel {
     pub use futures_channel::{oneshot, mpsc};
 }
 
+#[cfg(feature = "compat")]
+pub mod compat {
+    //! Interop between `futures` 0.1 and 0.3.
+    //!
+
+    pub use futures_util::compat::{
+        Compat, CompatExecutor,
+        ExecutorFuture01,
+        Executor01CompatExt,
+        Future01Ext,
+    }; 
+}
+
 #[cfg(feature = "std")]
 pub mod executor {
     //! Task execution.
