@@ -134,9 +134,10 @@ impl Wake for Current {
     }
 }
 
-/// Extension trait for futures 0.1.
+/// Extension trait for futures 0.1 Futures.
 pub trait Future01Ext: Future01 {
-    /// Converts the future into a futures 0.3 future.
+    /// Converts a futures 0.1 `Future<Item = T, Error = E>` into a 
+    /// futures 0.3 `Future<Output = Result<T, E>>`.
     fn compat(self) -> Compat<Self, ()> where Self: Sized {
         Compat {
             inner: self,

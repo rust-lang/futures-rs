@@ -23,7 +23,7 @@ pub type ExecutorFuture01 = Compat<NeverError<FutureObj<'static, ()>>, BoxedExec
 pub trait Executor01CompatExt: Executor01<ExecutorFuture01> 
     + Clone + Send + 'static
 {
-    /// Creates an exector compatable with futures 0.3.
+    /// Creates an `Executor` compatable with futures 0.3.
     fn compat(self) -> CompatExecutor<Self> 
         where Self: Sized;
 }
@@ -39,7 +39,7 @@ where E: Executor01<ExecutorFuture01>,
     }
 }
 
-/// Converts `futures 0.1` Executors into `futures 0.3` Executors
+/// Converts a futures 0.1 `Executor` into a futures 0.3 `Executor`.
 #[derive(Clone)]
 pub struct CompatExecutor<E> {
     exec: E
