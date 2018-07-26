@@ -133,3 +133,16 @@ impl Wake for Current {
         arc_self.0.notify();
     }
 }
+
+/// Extension trait for futures 0.1.
+pub trait Future01Ext: Future01 {
+    /// Converts the future into a futures 0.3 future.
+    fn compat(self) -> Compat<Self, ()> where Self: Sized {
+        Compat {
+            inner: self,
+            executor: None,
+        }
+    }
+}
+
+impl<T: Future01> Future01Ext for T {}

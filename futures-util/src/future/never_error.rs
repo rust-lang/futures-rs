@@ -29,11 +29,6 @@ impl<Fut, T> Future for NeverError<Fut>
     type Output = Result<T, ()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<T, ()>> {
-        match self.future().poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(output) => {
-                Poll::Ready(Ok(output))
-            }
-        }
+        self.future().poll(cx).map(Ok)
     }
 }

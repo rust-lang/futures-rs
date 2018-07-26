@@ -68,6 +68,8 @@ mod chain;
 crate use self::chain::Chain;
 
 if_std! {
+    use std::boxed::PinBox;
+
     mod abortable;
     pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
 
@@ -86,8 +88,6 @@ if_std! {
 
     mod shared;
     pub use self::shared::Shared;
-
-    use std::boxed::PinBox;
 }
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
