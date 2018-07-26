@@ -35,4 +35,5 @@ futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.2", de
 [features]
 nightly = ["futures-util-preview/nightly"]
 std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std"]
-default = ["std"]
+default = ["std", "either"]
+either = ["futures-core-preview/either", "futures-sink-preview/either", "futures-util-preview/either"]
