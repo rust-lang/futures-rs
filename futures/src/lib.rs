@@ -314,6 +314,7 @@ pub mod stream {
 
     pub use futures_util::try_stream::{
         TryStreamExt,
+        TryNext, TryForEach, ErrInto,
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
@@ -321,7 +322,7 @@ pub mod stream {
     pub use futures_util::try_stream::{
         // For TryStreamExt:
         TryCollect,
-        // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
+        // ToDo: AndThen, InspectErr, MapErr, OrElse
     };
 }
 

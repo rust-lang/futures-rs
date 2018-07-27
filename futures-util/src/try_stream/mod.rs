@@ -3,10 +3,20 @@
 //! This module contains a number of functions for working with `Streams`s
 //! that return `Result`s, allowing for short-circuiting computations.
 
+use core::marker::Unpin;
+use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;
 
+mod err_into;
+pub use self::err_into::ErrInto;
+
+mod try_next;
+pub use self::try_next::TryNext;
+
+mod try_for_each;
+pub use self::try_for_each::TryForEach;
+
 if_std! {
-    // combinators
     mod try_collect;
     pub use self::try_collect::TryCollect;
 }
@@ -15,6 +25,100 @@ impl<S: TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
 pub trait TryStreamExt: TryStream {
+    /// Wraps the current stream in a new stream which converts the error type
+    /// into the one provided.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{stream, TryStreamExt};
+    ///
+    /// let mut stream =
+    ///     stream::iter(vec![Ok(()), Err(5i32)])
+    ///         .err_into::<i64>();
+    ///
+    /// assert_eq!(await!(stream.try_next()), Ok(Some(())));
+    /// assert_eq!(await!(stream.try_next()), Err(5i64));
+    /// # })
+    /// ```
+    fn err_into<E>(self) -> ErrInto<Self, E>
+    where
+        Self: Sized,
+        Self::Error: Into<E>
+    {
+        ErrInto::new(self)
+    }
+
+    /// Creates a future that attempts to resolve the next item in the stream.
+    /// If an error is encountered before the next item, the error is returned
+    /// instead.
+    ///
+    /// This is similar to the `Stream::next` combinator, but returns a
+    /// `Result<Option<T>, E>` rather than an `Option<Result<T, E>>`, making
+    /// for easy use with the `?` operator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{stream, TryStreamExt};
+    ///
+    /// let mut stream = stream::iter(vec![Ok(()), Err(())]);
+    ///
+    /// assert_eq!(await!(stream.try_next()), Ok(Some(())));
+    /// assert_eq!(await!(stream.try_next()), Err(()));
+    /// # })
+    /// ```
+    fn try_next(&mut self) -> TryNext<'_, Self>
+        where Self: Sized + Unpin,
+    {
+        TryNext::new(self)
+    }
+
+    /// Attempts to run this stream to completion, executing the provided
+    /// asynchronous closure for each element on the stream.
+    ///
+    /// The provided closure will be called for each item this stream produces,
+    /// yielding a future. That future will then be executed to completion
+    /// before moving on to the next item.
+    ///
+    /// The returned value is a [`Future`](futures_core::Future) where the
+    /// [`Output`](futures_core::Future::Output) type is
+    /// `Result<(), Self::Error>`. If any of the intermediate
+    /// futures or the stream returns an error, this future will return
+    /// immediately with an error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{future, stream, TryStreamExt};
+    ///
+    /// let mut x = 0i32;
+    ///
+    /// {
+    ///     let fut = stream::repeat(Ok(1)).try_for_each(|item| {
+    ///         x += item;
+    ///         future::ready(if x == 3 { Err(()) } else { Ok(()) })
+    ///     });
+    ///     assert_eq!(await!(fut), Err(()));
+    /// }
+    ///
+    /// assert_eq!(x, 3);
+    /// # })
+    /// ```
+    fn try_for_each<Fut, F>(self, f: F) -> TryForEach<Self, Fut, F>
+        where F: FnMut(Self::Ok) -> Fut,
+              Fut: TryFuture<Ok = (), Error=Self::Error>,
+              Self: Sized
+    {
+        TryForEach::new(self, f)
+    }
+
     /// Attempt to Collect all of the values of this stream into a vector,
     /// returning a future representing the result of that computation.
     ///
