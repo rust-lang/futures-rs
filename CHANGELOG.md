@@ -1,3 +1,33 @@
+# 0.3.0-alpha.2 2018-07-30
+* The changelog is back!
+* Compatiblity with futures API in latest nightly
+* Code examples and doc improvements
+  - IO: Methods of traits `AsyncReadExt`, `AsyncWriteExt`
+  - Future:
+    - Methods of trait `TryFutureExt`
+    - Free functions `empty`, `lazy`, `maybe_done`, `poll_fn` and `ready`
+    - Type `FutureOption`
+    - Macros `join!`, `select!` and `pending!`
+  - Stream: Methods of trait `TryStreamExt`
+* Added `TryStreamExt` combinators `map_ok`, `map_err`, `err_into`, `try_next` and `try_for_each`
+* Added `Drain`, a sink that will discard all items given to it. Can be created using the `drain` function
+* Bugfix for the `write_all` combinator
+* `AsyncWrite` impl for `Cursor<T: AsMut<[u8]>>`
+* `FuturesUnordered` optimization: Since the context stores a `&LocalWaker` reference, it was possible to avoid cloning the `Arc` of the waker
+* Futures-rs now uses Clippy
+* We now use in-band lifetimes
+* The `join!` and `select!` macros are now exposed by the `futures-preview` crate
+* The project logo was added to the `README.md`
+* `sink::MapErr::get_pinned_mut` is now called `get_pin_mut`
+* We now use the unstable `use_extern_macros` feature for macro reexports
+* CI improvements: Named CI jobs, tests are now run on macOS and Linux, the docs are generated and Clippy needs to pass
+* `#[deny(warnings)]` was removed from all crates and is now only enforced in the CI
+* We now have a naming convention for type paramters: `Fut` future, `F` function, `St` stream, `Si` sink, `S` sink & stream, `R` reader, `W` writer, `T` value, `E` error
+* "Task" is now defined as our term for "lightweight thread". The code of the executors and `FuturesUnordered` was refactored to align with this definition.
+
+# 0.3.0-alpha.1 2018-07-19
+* Major changes: See [the announcement](https://rust-lang-nursery.github.io/futures-rs/blog/2018/07/19/futures-0.3.0-alpha.1.html) on our new blog for details. The changes are too numerous to be covered in this changelog because nearly every line of code was modified.
+
 # 0.1.17 - 2017-10-31
 
 * Add a `close` method on `sink::Wait`
