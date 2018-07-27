@@ -59,7 +59,7 @@ pub trait TryFutureExt: TryFuture {
     /// future is a [`Sink`].
     ///
     /// This can be useful when sink initialization is deferred, and it is
-    /// convenient to work with that sink as if sink was available at the
+    /// convenient to work with that sink as if the sink was available at the
     /// call site.
     ///
     /// Note that this function consumes this future and returns a wrapped
@@ -103,8 +103,8 @@ pub trait TryFutureExt: TryFuture {
     /// future has been resolved.
     ///
     /// The provided closure `f` will only be called if this future is resolved
-    /// to an [`Ok`]. If this future resolves to an [`Err`], panics, or is
-    /// dropped, then the provided closure will never be invoked.
+    /// to an [`Ok`]. If it resolves to an [`Err`], panics, or is dropped, then
+    /// the provided closure will never be invoked.
     ///
     /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
@@ -151,8 +151,8 @@ pub trait TryFutureExt: TryFuture {
     /// using [`select!`] or [`join!`].
     ///
     /// The provided closure `f` will only be called if this future is resolved
-    /// to an [`Err`]. If this future resolves to an [`Ok`], panics, or is
-    /// dropped, then the provided closure will never be invoked.
+    /// to an [`Err`]. If it resolves to an [`Ok`], panics, or is dropped, then
+    /// the provided closure will never be invoked.
     ///
     /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
@@ -191,7 +191,7 @@ pub trait TryFutureExt: TryFuture {
     }
 
     /// Maps this future's [`Error`](TryFuture::Error) to a new error type
-    /// using the `Into` trait.
+    /// using the [`Into`](std::convert::Into) trait.
     ///
     /// This method does for futures what the `?`-operator does for
     /// [`Result`]: It lets the compiler infer the type of the resulting
