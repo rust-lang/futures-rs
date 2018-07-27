@@ -3,9 +3,7 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Future for the `err_into` combinator, changing the error type of a future.
-///
-/// This is created by the `Future::err_into` method.
+/// Future for the [`err_into`](super::TryFutureExt::err_into) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct ErrInto<Fut, E> {

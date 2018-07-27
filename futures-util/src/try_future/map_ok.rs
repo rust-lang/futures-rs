@@ -3,9 +3,7 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Future for the `map_ok` combinator, changing the type of a future.
-///
-/// This is created by the `Future::map_ok` method.
+/// Future for the [`map_ok`](super::TryFutureExt::map_ok) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct MapOk<Fut, F> {

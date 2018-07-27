@@ -3,9 +3,8 @@ use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 
-/// Future for the `unwrap_or_else` combinator. It unwraps the result, returning
-/// the content of the `Ok` as `Output` or if the value is an `Err` then it
-/// calls `op` with its value.
+/// Future for the [`unwrap_or_else`](super::TryFutureExt::unwrap_or_else)
+/// combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct UnwrapOrElse<Fut, F> {

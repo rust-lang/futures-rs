@@ -51,19 +51,42 @@ pub use self::unwrap_or_else::UnwrapOrElse;
 mod try_chain;
 crate use self::try_chain::{TryChain, TryChainAction};
 
-impl<F: TryFuture> TryFutureExt for F {}
+impl<Fut: TryFuture> TryFutureExt for Fut {}
 
-/// Adapters specific to `Result`-returning futures
+/// Adapters specific to [`Result`]-returning futures
 pub trait TryFutureExt: TryFuture {
-    /// Flatten the execution of this future when the successful result of this
-    /// future is a sink.
+    /// Flattens the execution of this future when the successful result of this
+    /// future is a [`Sink`].
     ///
     /// This can be useful when sink initialization is deferred, and it is
-    /// convenient to work with that sink as if sink was available at the
+    /// convenient to work with that sink as if the sink was available at the
     /// call site.
     ///
     /// Note that this function consumes this future and returns a wrapped
     /// version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(futures_api)]
+    /// use futures::future::{Future, TryFutureExt};
+    /// use futures::sink::Sink;
+    /// # use futures::channel::mpsc::{self, SendError};
+    /// # type T = i32;
+    /// # type E = SendError;
+    ///
+    /// fn make_sink_async() -> impl Future<Output = Result<
+    ///     impl Sink<SinkItem = T, SinkError = E>,
+    ///     E,
+    /// >> { // ... }
+    /// # let (tx, _rx) = mpsc::unbounded::<i32>();
+    /// # futures::future::ready(Ok(tx))
+    /// # }
+    /// fn take_sink(sink: impl Sink<SinkItem = T, SinkError = E>) { /* ... */ }
+    ///
+    /// let fut = make_sink_async();
+    /// take_sink(fut.flatten_sink())
+    /// ```
     fn flatten_sink(self) -> FlattenSink<Self, Self::Ok>
     where
         Self::Ok: Sink<SinkError = Self::Error>,
@@ -72,45 +95,45 @@ pub trait TryFutureExt: TryFuture {
         FlattenSink::new(self)
     }
 
-    /// Map this future's result to a different type, returning a new future of
-    /// the resulting type.
+    /// Maps this future's success value to a different value.
     ///
-    /// This function is similar to the `Option::map` or `Iterator::map` where
-    /// it will change the type of the underlying future. This is useful to
-    /// chain along a computation once a future has been resolved.
+    /// This method can be used to change the [`Ok`](TryFuture::Ok) type of the
+    /// future into a different type. It is similar to the [`Result::map`]
+    /// method. You can use this method to chain along a computation once the
+    /// future has been resolved.
     ///
-    /// The closure provided will only be called if this future is resolved
-    /// successfully. If this future returns an error, panics, or is dropped,
-    /// then the closure provided will never be invoked.
+    /// The provided closure `f` will only be called if this future is resolved
+    /// to an [`Ok`]. If it resolves to an [`Err`], panics, or is dropped, then
+    /// the provided closure will never be invoked.
     ///
-    /// Note that this function consumes the receiving future and returns a
-    /// wrapped version of it, similar to the existing `map` methods in the
-    /// standard library.
+    /// Note that this method consumes the future it is called on and returns a
+    /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future = future::ready::<Result<i32, i32>>(Ok(1));
-    /// let new_future = future.map_ok(|x| x + 3);
-    /// assert_eq!(block_on(new_future), Ok(4));
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Ok::<i32, i32>(1));
+    /// let future = future.map_ok(|x| x + 3);
+    /// assert_eq!(await!(future), Ok(4));
+    /// # });
     /// ```
     ///
-    /// Calling `map_ok` on an errored `Future` has no effect:
+    /// Calling [`map_ok`](TryFutureExt::map_ok) on an errored future has no
+    /// effect:
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future = future::ready::<Result<i32, i32>>(Err(1));
-    /// let new_future = future.map_ok(|x| x + 3);
-    /// assert_eq!(block_on(new_future), Err(1));
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Err::<i32, i32>(1));
+    /// let future = future.map_ok(|x| x + 3);
+    /// assert_eq!(await!(future), Err(1));
+    /// # });
     /// ```
     fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
         where F: FnOnce(Self::Ok) -> T,
@@ -119,44 +142,46 @@ pub trait TryFutureExt: TryFuture {
         MapOk::new(self, f)
     }
 
-    /// Map this future's error to a different error, returning a new future.
+    /// Maps this future's error value to a different value.
     ///
-    /// This function is similar to the `Result::map_err` where it will change
-    /// the error type of the underlying future. This is useful for example to
-    /// ensure that futures have the same error type when used with combinators
-    /// like `select` and `join`.
+    /// This method can be used to change the [`Error`](TryFuture::Error) type
+    /// of the future into a different type. It is similar to the
+    /// [`Result::map_err`] method. You can use this method for example to
+    /// ensure that futures have the same [`Error`](TryFuture::Error) type when
+    /// using [`select!`] or [`join!`].
     ///
-    /// The closure provided will only be called if this future is resolved
-    /// with an error. If this future returns a success, panics, or is
-    /// dropped, then the closure provided will never be invoked.
+    /// The provided closure `f` will only be called if this future is resolved
+    /// to an [`Err`]. If it resolves to an [`Ok`], panics, or is dropped, then
+    /// the provided closure will never be invoked.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::future;
-    /// use futures::prelude::*;
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future = future::ready::<Result<i32, i32>>(Err(1));
-    /// let new_future = future.map_err(|x| x + 3);
-    /// assert_eq!(block_on(new_future), Err(4));
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Err::<i32, i32>(1));
+    /// let future = future.map_err(|x| x + 3);
+    /// assert_eq!(await!(future), Err(4));
+    /// # });
     /// ```
     ///
-    /// Calling `map_err` on a successful `Future` has no effect:
+    /// Calling [`map_err`](TryFutureExt::map_err) on a successful future has
+    /// no effect:
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::future;
-    /// use futures::prelude::*;
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future = future::ready::<Result<i32, i32>>(Ok(1));
-    /// let new_future = future.map_err(|x| x + 3);
-    /// assert_eq!(block_on(new_future), Ok(1));
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Ok::<i32, i32>(1));
+    /// let future = future.map_err(|x| x + 3);
+    /// assert_eq!(await!(future), Ok(1));
+    /// # });
     /// ```
     fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
         where F: FnOnce(Self::Error) -> E,
@@ -165,26 +190,28 @@ pub trait TryFutureExt: TryFuture {
         MapErr::new(self, f)
     }
 
-    /// Map this future's error to a new error type using the `Into` trait.
+    /// Maps this future's [`Error`](TryFuture::Error) to a new error type
+    /// using the [`Into`](std::convert::Into) trait.
     ///
-    /// This function does for futures what `try!` does for `Result`,
-    /// by letting the compiler infer the type of the resulting error.
-    /// Just as `map_err` above, this is useful for example to ensure
-    /// that futures have the same error type when used with
-    /// combinators like `select` and `join`.
+    /// This method does for futures what the `?`-operator does for
+    /// [`Result`]: It lets the compiler infer the type of the resulting
+    /// error. Just as [`map_err`](TryFutureExt::map_err), this is useful for
+    /// example to ensure that futures have the same [`Error`](TryFuture::Error)
+    /// type when using [`select!`] or [`join!`].
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future_with_err_u8 = future::ready::<Result<(), u8>>(Err(1));
-    /// let future_with_err_i32 = future_with_err_u8.err_into::<i32>();
+    /// # futures::executor::block_on(async {
+    /// let future_err_u8 = future::ready(Err::<(), u8>(1));
+    /// let future_err_i32 = future_err_u8.err_into::<i32>();
+    /// # });
     /// ```
     fn err_into<E>(self) -> ErrInto<Self, E>
         where Self: Sized,
@@ -193,39 +220,43 @@ pub trait TryFutureExt: TryFuture {
         ErrInto::new(self)
     }
 
-    /// Execute another future after this one has resolved successfully.
+    /// Executes another future after this one resolves successfully. The
+    /// success value is passed to a closure to create this subsequent future.
     ///
-    /// This function can be used to chain two futures together and ensure that
-    /// the final future isn't resolved until both have finished. The closure
-    /// provided is yielded the successful result of this future and returns
-    /// another value which can be converted into a future.
+    /// The provided closure `f` will only be called if this future is resolved
+    /// to an [`Ok`]. If this future resolves to an [`Err`], panics, or is
+    /// dropped, then the provided closure will never be invoked. The
+    /// [`Error`](TryFuture::Error) type of this future and the future
+    /// returned by `f` have to match.
     ///
-    /// Note that because `Result` implements the `IntoFuture` trait this method
-    /// can also be useful for chaining fallible and serial computations onto
-    /// the end of one future.
-    ///
-    /// If this future is dropped, panics, or completes with an error then the
-    /// provided closure `f` is never called.
-    ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future::{self, Ready};
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future_of_1 = future::ready::<Result<i32, i32>>(Ok(1));
-    /// let future_of_4 = future_of_1.and_then(|x| {
-    ///     future::ready(Ok(x + 3))
-    /// });
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Ok::<i32, i32>(1));
+    /// let future = future.and_then(|x| future::ready(Ok::<i32, i32>(x + 3)));
+    /// assert_eq!(await!(future), Ok(4));
+    /// # });
+    /// ```
     ///
-    /// let future_of_err_1 = future::ready::<Result<i32, i32>>(Err(1));
-    /// future_of_err_1.and_then(|_| -> Ready<Result<(), i32>> {
-    ///     panic!("should not be called in case of an error");
-    /// });
+    /// Calling [`and_then`](TryFutureExt::and_then) on an errored future has no
+    /// effect:
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Err::<i32, i32>(1));
+    /// let future = future.and_then(|x| future::ready(Err::<i32, i32>(x + 3)));
+    /// assert_eq!(await!(future), Err(1));
+    /// # });
     /// ```
     fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
         where F: FnOnce(Self::Ok) -> Fut,
@@ -235,39 +266,43 @@ pub trait TryFutureExt: TryFuture {
         AndThen::new(self, f)
     }
 
-    /// Execute another future if this one resolves with an error.
+    /// Executes another future if this one resolves to an error. The
+    /// error value is passed to a closure to create this subsequent future.
     ///
-    /// Return a future that passes along this future's value if it succeeds,
-    /// and otherwise passes the error to the closure `f` and waits for the
-    /// future it returns. The closure may also simply return a value that can
-    /// be converted into a future.
+    /// The provided closure `f` will only be called if this future is resolved
+    /// to an [`Err`]. If this future resolves to an [`Ok`], panics, or is
+    /// dropped, then the provided closure will never be invoked. The
+    /// [`Ok`](TryFuture::Ok) type of this future and the future returned by `f`
+    /// have to match.
     ///
-    /// Note that because `Result` implements the `IntoFuture` trait this method
-    /// can also be useful for chaining together fallback computations, where
-    /// when one fails, the next is attempted.
-    ///
-    /// If this future is dropped, panics, or completes successfully then the
-    /// provided closure `f` is never called.
-    ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future::{self, Ready};
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future_of_err_1 = future::ready::<Result<i32, i32>>(Err(1));
-    /// let future_of_4 = future_of_err_1.or_else(|x| {
-    ///     future::ready::<Result<i32, ()>>(Ok(x + 3))
-    /// });
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Err::<i32, i32>(1));
+    /// let future = future.or_else(|x| future::ready(Err::<i32, i32>(x + 3)));
+    /// assert_eq!(await!(future), Err(4));
+    /// # });
+    /// ```
     ///
-    /// let future_of_1 = future::ready::<Result<i32, i32>>(Ok(1));
-    /// future_of_1.or_else(|_| -> Ready<Result<i32, ()>> {
-    ///     panic!("should not be called in case of success");
-    /// });
+    /// Calling [`or_else`](TryFutureExt::or_else) on a successful future has
+    /// no effect:
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
+    ///
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Ok::<i32, i32>(1));
+    /// let future = future.or_else(|x| future::ready(Ok::<i32, i32>(x + 3)));
+    /// assert_eq!(await!(future), Ok(1));
+    /// # });
     /// ```
     fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
         where F: FnOnce(Self::Error) -> Fut,
@@ -332,7 +367,7 @@ pub trait TryFutureExt: TryFuture {
     /// an error then the other will be dropped and that error will be
     /// returned.
     ///
-    /// Note that this function consumes the receiving future and returns a
+    /// Note that this method consumes the future it is called on and returns a
     /// wrapped version of it.
     ///
     /// # Examples
@@ -409,23 +444,28 @@ pub trait TryFutureExt: TryFuture {
     }
 */
 
-    /// Handle errors generated by this future by converting them into
-    /// `Self::Item`.
+    /// Unwraps this future's ouput, producing a future with this future's
+    /// [`Ok`](TryFuture::Ok) type as its
+    /// [`Output`](std::future::Future::Output) type.
     ///
-    /// Because it can never produce an error, the returned `UnwrapOrElse` future can
-    /// conform to any specific `Error` type, including `Never`.
+    /// If this future is resolved successfully, the returned future will
+    /// contain the original future's success value as output. Otherwise, the
+    /// closure `f` is called with the error value to produce an alternate
+    /// success value.
+    ///
+    /// This method is similar to the [`Result::unwrap_or_else`] method.
     ///
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{self, TryFutureExt};
     ///
-    /// let future = future::ready::<Result<(), &str>>(Err("Boom!"));
-    /// let new_future = future.unwrap_or_else(|_| ());
-    /// assert_eq!(block_on(new_future), ());
+    /// # futures::executor::block_on(async {
+    /// let future = future::ready(Err::<(), &str>("Boom!"));
+    /// let future = future.unwrap_or_else(|_| ());
+    /// assert_eq!(await!(future), ());
+    /// # });
     /// ```
     fn unwrap_or_else<F>(self, f: F) -> UnwrapOrElse<Self, F>
         where Self: Sized,
@@ -434,9 +474,28 @@ pub trait TryFutureExt: TryFuture {
         UnwrapOrElse::new(self, f)
     }
 
-    /// Wraps a `TryFuture` so that it implements `Future`. `TryFuture`s
-    /// currently do not implement the `Future` trait due to limitations of
-    /// the compiler.
+    /// Wraps a [`TryFuture`] into a type that implements
+    /// [`Future`](std::future::Future).
+    ///
+    /// [`TryFuture`]s currently do not implement the
+    /// [`Future`](std::future::Future) trait due to limitations of the
+    /// compiler.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(futures_api)]
+    /// use futures::future::{Future, TryFuture, TryFutureExt};
+    ///
+    /// # type T = i32;
+    /// # type E = ();
+    /// fn make_try_future() -> impl TryFuture<Ok = T, Error = E> { // ... }
+    /// # futures::future::ready(Ok::<i32, ()>(1))
+    /// # }
+    /// fn take_future(future: impl Future<Output = Result<T, E>>) { /* ... */ }
+    ///
+    /// take_future(make_try_future().into_future());
+    /// ```
     fn into_future(self) -> IntoFuture<Self>
         where Self: Sized,
     {
