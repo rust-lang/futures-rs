@@ -262,7 +262,7 @@ pub mod sink {
 
     pub use futures_util::sink::{
         Close, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
-        SinkExt, Fanout,
+        SinkExt, Fanout, Drain, drain,
         // WithFlatMap,
     };
 

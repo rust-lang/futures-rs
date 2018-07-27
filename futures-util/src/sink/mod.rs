@@ -12,6 +12,9 @@ use futures_sink::Sink;
 mod close;
 pub use self::close::Close;
 
+mod drain;
+pub use self::drain::{drain, Drain};
+
 mod fanout;
 pub use self::fanout::Fanout;
 
