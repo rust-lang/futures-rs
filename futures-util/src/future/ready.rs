@@ -4,6 +4,8 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 
 /// A future that is immediately ready with a value
+///
+/// Created by the [`ready()`] function.
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Ready<T>(Option<T>);
@@ -20,6 +22,18 @@ impl<T> Future for Ready<T> {
 }
 
 /// Create a future that is immediately ready with a value.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future;
+///
+/// let a = future::ready(1);
+/// assert_eq!(await!(a), 1);
+/// # });
+/// ```
 pub fn ready<T>(t: T) -> Ready<T> {
     Ready(Some(t))
 }

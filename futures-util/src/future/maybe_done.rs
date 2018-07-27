@@ -5,24 +5,40 @@ use core::mem::{self, PinMut};
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 
-/// `MaybeDone`, a future that may have completed.
+/// A future that may have completed.
 ///
-/// This is created by the `maybe_done` function.
+/// This is created by the [`maybe_done()`] function.
 #[derive(Debug)]
 pub enum MaybeDone<Fut: Future> {
     /// A not-yet-completed future
     Future(Fut),
     /// The output of the completed future
     Done(Fut::Output),
-    /// The empty variant after the result of a `maybe_done` has been
-    /// taken using the `take_output` method.
+    /// The empty variant after the result of a [`MaybeDone`] has been
+    /// taken using the [`take_output`](MaybeDone::take_output) method.
     Gone,
 }
 
 // Safe because we never generate `PinMut<Fut::Output>`
 impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 
-/// Creates a new future from a closure.
+/// Wraps a future into a `MaybeDone`
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api, use_extern_macros, pin)]
+/// # futures::executor::block_on(async {
+/// use futures::{future, pin_mut};
+///
+/// let future = future::maybe_done(future::ready(5));
+/// pin_mut!(future);
+/// assert_eq!(future.reborrow().take_output(), None);
+/// let () = await!(future.reborrow());
+/// assert_eq!(future.reborrow().take_output(), Some(5));
+/// assert_eq!(future.reborrow().take_output(), None);
+/// # });
+/// ```
 pub fn maybe_done<Fut: Future>(future: Fut) -> MaybeDone<Fut> {
     MaybeDone::Future(future)
 }
