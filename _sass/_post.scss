@@ -19,14 +19,7 @@ article.post {
       color: #aaa;
 
       a.author-github {
-        text-decoration: none;
-        outline: none;
-        color: #aaa;
-      }
-
-      a.author-github:hover,
-      a.author-github:focus {
-        border-bottom: 2px solid #aaa;
+        @include underline-link(#aaa);
       }
     }
   }
@@ -40,16 +33,7 @@ article.post {
     }
 
     a {
-      text-decoration: none;
-      color: $primary-color;
-      outline: none;
-      font-weight: bold;
-      white-space: nowrap;
-
-      &:hover,
-      &:focus {
-        border-bottom: 2px solid $primary-color;
-      }
+      @include underline-link($primary-color);
 
       > code.highlighter-rouge,
       > code.highlighter-rouge {
@@ -73,6 +57,15 @@ article.post {
       dd {
         margin-bottom: 10px;
       }
+    }
+  }
+
+  .edit-link-container {
+    text-align: right;
+    margin: 30px 0;
+
+    a {
+      @include underline-link(#ccc);
     }
   }
 }

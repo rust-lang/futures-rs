@@ -1,0 +1,12 @@
+@mixin underline-link($color) {
+  text-decoration: none;
+  color: $color;
+  outline: none;
+  font-weight: bold;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus {
+    border-bottom: 2px solid $color;
+  }
+}

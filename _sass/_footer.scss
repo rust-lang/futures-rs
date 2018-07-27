@@ -10,15 +10,7 @@ footer.site-footer {
     color: #aaa;
 
     a {
-      text-decoration: none;
-      color: #777;
-      outline: none;
-      font-weight: bold;
-      white-space: nowrap;
-    }
-
-    a:hover, a:focus {
-      border-bottom: 2px solid #777;
+      @include underline-link(#777);
     }
   }
 }
