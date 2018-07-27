@@ -6,14 +6,21 @@ use core::mem::PinMut;
 
 /// A future representing a value which may or may not be present.
 ///
-/// Created by the `From` implementation for `std::option::Option`.
+/// Created by the [`From`] implementation for [`Option`](std::option::Option).
+///
+/// # Examples
 ///
 /// ```
-/// # extern crate futures;
-/// use futures::prelude::*;
-/// use futures::future::OptionFuture;
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future::{self, OptionFuture};
 ///
-/// let fut: OptionFuture<_> = Some(123).into();
+/// let mut a: OptionFuture<_> = Some(future::ready(123)).into();
+/// assert_eq!(await!(a), Some(123));
+///
+/// a = None.into();
+/// assert_eq!(await!(a), None);
+/// # });
 /// ```
 #[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless polled"]
