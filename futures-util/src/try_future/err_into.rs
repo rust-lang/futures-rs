@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::marker::{PhantomData, Unpin};
 use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
@@ -10,6 +10,8 @@ pub struct ErrInto<Fut, E> {
     future: Fut,
     _marker: PhantomData<E>,
 }
+
+impl<Fut: Unpin, E> Unpin for ErrInto<Fut, E> {}
 
 impl<Fut, E> ErrInto<Fut, E> {
     unsafe_pinned!(future: Fut);
@@ -32,11 +34,7 @@ impl<Fut, E> Future for ErrInto<Fut, E>
         mut self: PinMut<Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
-        match self.future().try_poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(output) => {
-                Poll::Ready(output.map_err(Into::into))
-            }
-        }
+        self.future().try_poll(cx)
+            .map(|res| res.map_err(Into::into))
     }
 }
