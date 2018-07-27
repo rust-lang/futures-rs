@@ -220,8 +220,8 @@ pub trait TryFutureExt: TryFuture {
         ErrInto::new(self)
     }
 
-    /// Chains on a computation returning another future with this future's
-    /// success value as input.
+    /// Executes another future after this one resolves successfully. The
+    /// success value is passed to a closure to create this subsequent future.
     ///
     /// The provided closure `f` will only be called if this future is resolved
     /// to an [`Ok`]. If this future resolves to an [`Err`], panics, or is
@@ -266,8 +266,8 @@ pub trait TryFutureExt: TryFuture {
         AndThen::new(self, f)
     }
 
-    /// Chains on a computation returning another future with this future's
-    /// error value as input.
+    /// Executes another future if this one resolves to an error. The
+    /// error value is passed to a closure to create this subsequent future.
     ///
     /// The provided closure `f` will only be called if this future is resolved
     /// to an [`Err`]. If this future resolves to an [`Ok`], panics, or is
@@ -445,13 +445,15 @@ pub trait TryFutureExt: TryFuture {
 */
 
     /// Unwraps this future's ouput, producing a future with this future's
-    /// [`Ok`](TryFuture::Ok) type as
+    /// [`Ok`](TryFuture::Ok) type as its
     /// [`Output`](std::future::Future::Output) type.
     ///
-    /// If this futures is resolved successfully, the returned future will
-    /// contain this future's success value as output. Otherwise, the closure
-    /// `f` is called with the error value to produce an alternate success
-    /// value.
+    /// If this future is resolved successfully, the returned future will
+    /// contain the original future's success value as output. Otherwise, the
+    /// closure `f` is called with the error value to produce an alternate
+    /// success value.
+    ///
+    /// This method is similar to the [`Result::unwrap_or_else`] method.
     ///
     /// # Examples
     ///
