@@ -27,9 +27,11 @@ layout: default
     {{ content }}
   </div>
 
-  {%- if site.disqus.shortname -%}
-    {%- include disqus_comments.html -%}
-  {%- endif -%}
+  <div class="edit-link-container">
+    <a href="https://github.com/rust-lang-nursery/futures-rs/blob/gh-pages/{{ page.path }}">
+      Edit on GitHub
+    </a>
+  </div>
 
   <a class="u-url" href="{{ page.url | relative_url }}" hidden></a>
 </article>
