@@ -8,7 +8,7 @@ Futures-rs is maintained by the Rust Networking Working Group.
 
 You can find us
 [on GitHub](https://github.com/rust-lang-nursery/net-wg). Or you can talk to
-us [on Discord](https://discordapp.com/invite/rust-lang) (channel "net wg").
+us [on Discord](https://discordapp.com/invite/rust-lang) (channel #wg-net).
 
 ## License
 The contents on this site are licensed under either the MIT license or the Apache License 2.0 at your option. Code from code examples may be used without restrictions (unless noted otherwise).
