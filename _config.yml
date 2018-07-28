@@ -16,6 +16,9 @@ kramdown:
 theme: minima
 plugins:
   - jekyll-feed
+exclude:
+  - target # From Rust
+  - doc # The futures-rs API docs
 
 # Exclude from processing.
 # The following items will not be processed, by default. Create a custom list
