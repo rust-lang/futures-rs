@@ -4,9 +4,19 @@
   outline: none;
   font-weight: bold;
   white-space: nowrap;
+  position: relative;
 
-  &:hover,
-  &:focus {
-    border-bottom: 2px solid $color;
+  &::after {
+    z-index: -1;
+		content: '';
+		position: absolute; left: 0; width: 100%; bottom: -2px; height: 2px;
+		background: $color;
+    transition: 0.1s ease-out;
+    transform: scaleX(0);
+  }
+
+  &:hover::after,
+  &:focus::after {
+    transform: scaleX(1);
   }
 }
