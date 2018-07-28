@@ -35,18 +35,17 @@ article.post {
     a {
       @include underline-link($primary-color);
 
-      > code.highlighter-rouge,
       > code.highlighter-rouge {
         position: relative;
         box-shadow: 0 3px 0 0px white; // Hide link underline (border)
         color: $primary-color;
+      }
 
-        &:hover,
-        &:focus {
-          color: white;
-          background: $primary-color;
-          border-color: $primary-color;
-        }
+      &:hover > code.highlighter-rouge,
+      &:focus > code.highlighter-rouge {
+        color: white;
+        background: $primary-color;
+        border-color: $primary-color;
       }
     }
 
