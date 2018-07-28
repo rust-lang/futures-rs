@@ -10,7 +10,7 @@ categories: blog
 
 ## Welcome!
 
-Futures-RS now has a website and a logo. We hope you like it! This site contains our brand new blog with which we plan to keep you up-to-date about the project.
+Futures-rs now has a website and a logo. We hope you like it! This site contains our brand new blog with which we plan to keep you up-to-date about the project.
 
 Enjoy reading!
 
