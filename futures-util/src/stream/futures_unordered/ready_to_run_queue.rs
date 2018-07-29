@@ -6,39 +6,39 @@ use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering::{Relaxed, Acquire, Release, AcqRel};
 
 use super::abort::abort;
-use super::node::Node;
+use super::task::Task;
 
 pub(super) enum Dequeue<Fut> {
-    Data(*const Node<Fut>),
+    Data(*const Task<Fut>),
     Empty,
     Inconsistent,
 }
 
 pub(super) struct ReadyToRunQueue<Fut> {
-    // The task using `FuturesUnordered`.
-    pub(super) parent: AtomicWaker,
+    // The waker of the task using `FuturesUnordered`.
+    pub(super) waker: AtomicWaker,
 
     // Head/tail of the readiness queue
-    pub(super) head: AtomicPtr<Node<Fut>>,
-    pub(super) tail: UnsafeCell<*const Node<Fut>>,
-    pub(super) stub: Arc<Node<Fut>>,
+    pub(super) head: AtomicPtr<Task<Fut>>,
+    pub(super) tail: UnsafeCell<*const Task<Fut>>,
+    pub(super) stub: Arc<Task<Fut>>,
 }
 
-/// An MPSC queue into which the nodes containing the futures are inserted
+/// An MPSC queue into which the tasks containing the futures are inserted
 /// whenever the future inside is scheduled for polling.
 impl<Fut> ReadyToRunQueue<Fut> {
     /// The enqueue function from the 1024cores intrusive MPSC queue algorithm.
-    pub(super) fn enqueue(&self, node: *const Node<Fut>) {
+    pub(super) fn enqueue(&self, task: *const Task<Fut>) {
         unsafe {
-            debug_assert!((*node).queued.load(Relaxed));
+            debug_assert!((*task).queued.load(Relaxed));
 
             // This action does not require any coordination
-            (*node).next_ready_to_run.store(ptr::null_mut(), Relaxed);
+            (*task).next_ready_to_run.store(ptr::null_mut(), Relaxed);
 
             // Note that these atomic orderings come from 1024cores
-            let node = node as *mut _;
-            let prev = self.head.swap(node, AcqRel);
-            (*prev).next_ready_to_run.store(node, Release);
+            let task = task as *mut _;
+            let prev = self.head.swap(task, AcqRel);
+            (*prev).next_ready_to_run.store(task, Release);
         }
     }
 
@@ -82,7 +82,7 @@ impl<Fut> ReadyToRunQueue<Fut> {
         Dequeue::Inconsistent
     }
 
-    pub(super) fn stub(&self) -> *const Node<Fut> {
+    pub(super) fn stub(&self) -> *const Task<Fut> {
         &*self.stub
     }
 }
@@ -90,12 +90,12 @@ impl<Fut> ReadyToRunQueue<Fut> {
 impl<Fut> Drop for ReadyToRunQueue<Fut> {
     fn drop(&mut self) {
         // Once we're in the destructor for `Inner<Fut>` we need to clear out
-        // the ready to run queue of nodes if there's anything left in there.
+        // the ready to run queue of tasks if there's anything left in there.
         //
-        // Note that each node has a strong reference count associated with it
-        // which is owned by the ready to run queue. All nodes should have had
+        // Note that each task has a strong reference count associated with it
+        // which is owned by the ready to run queue. All tasks should have had
         // their futures dropped already by the `FuturesUnordered` destructor
-        // above, so we're just pulling out nodes and dropping their refcounts.
+        // above, so we're just pulling out tasks and dropping their refcounts.
         unsafe {
             loop {
                 match self.dequeue() {

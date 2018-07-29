@@ -1,12 +1,12 @@
 use super::FuturesUnordered;
-use super::node::Node;
+use super::task::Task;
 use std::marker::{PhantomData, Unpin};
 use std::mem::PinMut;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
 pub struct IterPinMut<'a, Fut: 'a> {
-    pub(super) node: *const Node<Fut>,
+    pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
     pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>
 }
@@ -19,13 +19,13 @@ impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     type Item = PinMut<'a, Fut>;
 
     fn next(&mut self) -> Option<PinMut<'a, Fut>> {
-        if self.node.is_null() {
+        if self.task.is_null() {
             return None;
         }
         unsafe {
-            let future = (*(*self.node).future.get()).as_mut().unwrap();
-            let next = *(*self.node).next_all.get();
-            self.node = next;
+            let future = (*(*self.task).future.get()).as_mut().unwrap();
+            let next = *(*self.task).next_all.get();
+            self.task = next;
             self.len -= 1;
             Some(PinMut::new_unchecked(future))
         }

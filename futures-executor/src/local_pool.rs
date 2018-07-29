@@ -17,11 +17,11 @@ use std::thread::{self, Thread};
 use crate::enter;
 use crate::ThreadPool;
 
-/// A single-threaded task pool.
+/// A single-threaded task pool for polling futures to completion.
 ///
 /// This executor allows you to multiplex any number of tasks onto a single
-/// thread. It's appropriate for strictly I/O-bound tasks that do very little
-/// work in between I/O actions.
+/// thread. It's appropriate to poll strictly I/O-bound futures that do very
+/// little work in between I/O actions.
 ///
 /// To get a handle to the pool that implements
 /// [`Executor`](futures_core::task::Executor), use the
@@ -273,13 +273,13 @@ impl<S: Stream + Unpin> Iterator for BlockingStream<S> {
 impl Executor for LocalExecutor {
     fn spawn_obj(
         &mut self,
-        task: FutureObj<'static, ()>,
+        future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
-            incoming.borrow_mut().push(task.into());
+            incoming.borrow_mut().push(future.into());
             Ok(())
         } else {
-            Err(SpawnObjError{ task, kind: SpawnErrorKind::shutdown() })
+            Err(SpawnObjError{ task: future, kind: SpawnErrorKind::shutdown() })
         }
     }
 
@@ -296,13 +296,13 @@ impl LocalExecutor {
     /// Spawn a non-`Send` future onto the associated [`LocalPool`](LocalPool).
     pub fn spawn_local_obj(
         &mut self,
-        task: LocalFutureObj<'static, ()>,
+        future: LocalFutureObj<'static, ()>,
     ) -> Result<(), SpawnLocalObjError> {
         if let Some(incoming) = self.incoming.upgrade() {
-            incoming.borrow_mut().push(task);
+            incoming.borrow_mut().push(future);
             Ok(())
         } else {
-            Err(SpawnLocalObjError{ task, kind: SpawnErrorKind::shutdown() })
+            Err(SpawnLocalObjError{ task: future, kind: SpawnErrorKind::shutdown() })
         }
     }
 }
