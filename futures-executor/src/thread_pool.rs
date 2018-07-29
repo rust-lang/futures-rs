@@ -12,7 +12,8 @@ use std::sync::mpsc;
 use std::thread;
 use std::fmt;
 
-/// A general-purpose thread pool for scheduling asynchronous tasks.
+/// A general-purpose thread pool for scheduling tasks that poll futures to
+/// completion.
 ///
 /// The thread pool multiplexes any number of tasks onto a fixed number of
 /// worker threads.
@@ -60,7 +61,7 @@ impl fmt::Debug for ThreadPoolBuilder {
 }
 
 enum Message {
-    Run(TaskContainer),
+    Run(Task),
     Close,
 }
 
@@ -100,17 +101,17 @@ impl ThreadPool {
 impl Executor for ThreadPool {
     fn spawn_obj(
         &mut self,
-        task: FutureObj<'static, ()>,
+        future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnObjError> {
-        let task_container = TaskContainer {
-            task,
+        let task = Task {
+            future,
             wake_handle: Arc::new(WakeHandle {
                 exec: self.clone(),
                 mutex: UnparkMutex::new(),
             }),
             exec: self.clone(),
         };
-        self.state.send(Message::Run(task_container));
+        self.state.send(Message::Run(task));
         Ok(())
     }
 }
@@ -131,7 +132,7 @@ impl PoolState {
         loop {
             let msg = self.rx.lock().unwrap().recv().unwrap();
             match msg {
-                Message::Run(task_container) => task_container.run(),
+                Message::Run(task) => task.run(),
                 Message::Close => break,
             }
         }
@@ -271,26 +272,26 @@ impl Default for ThreadPoolBuilder {
     }
 }
 
-/// Units of work submitted to an `Executor`, currently only created
-/// internally.
-struct TaskContainer {
-    task: FutureObj<'static, ()>,
+/// A task responsible for polling a future to completion.
+struct Task {
+    future: FutureObj<'static, ()>,
     exec: ThreadPool,
     wake_handle: Arc<WakeHandle>,
 }
 
 struct WakeHandle {
-    mutex: UnparkMutex<TaskContainer>,
+    mutex: UnparkMutex<Task>,
     exec: ThreadPool,
 }
 
-impl TaskContainer {
-    /// Actually run the task (invoking `poll`) on the current thread.
+impl Task {
+    /// Actually run the task (invoking `poll` on the future) on the current
+    /// thread.
     pub fn run(self) {
-        let TaskContainer { mut task, wake_handle, mut exec } = self;
+        let Task { mut future, wake_handle, mut exec } = self;
         let local_waker = task::local_waker_from_nonlocal(wake_handle.clone());
 
-        // SAFETY: the ownership of this `TaskContainer` object is evidence that
+        // Safety: The ownership of this `Task` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
         unsafe {
             wake_handle.mutex.start_poll();
@@ -298,22 +299,22 @@ impl TaskContainer {
             loop {
                 let res = {
                     let mut cx = task::Context::new(&local_waker, &mut exec);
-                    task.poll_unpin(&mut cx)
+                    future.poll_unpin(&mut cx)
                 };
                 match res {
                     Poll::Pending => {}
                     Poll::Ready(()) => return wake_handle.mutex.complete(),
                 }
-                let task_container = TaskContainer {
-                    task,
+                let task = Task {
+                    future,
                     wake_handle: wake_handle.clone(),
                     exec,
                 };
-                match wake_handle.mutex.wait(task_container) {
+                match wake_handle.mutex.wait(task) {
                     Ok(()) => return, // we've waited
-                    Err(task_container) => { // someone's notified us
-                        task = task_container.task;
-                        exec = task_container.exec;
+                    Err(task) => { // someone's notified us
+                        future = task.future;
+                        exec = task.exec;
                     }
                 }
             }
@@ -321,7 +322,7 @@ impl TaskContainer {
     }
 }
 
-impl fmt::Debug for TaskContainer {
+impl fmt::Debug for Task {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Task")
             .field("contents", &"...")
