@@ -1,4 +1,4 @@
-# 0.3.0-alpha.2 2018-07-30
+# 0.3.0-alpha.2 - 2018-07-30
 * The changelog is back!
 * Compatiblity with futures API in latest nightly
 * Code examples and doc improvements
@@ -25,7 +25,7 @@
 * We now have a naming convention for type paramters: `Fut` future, `F` function, `St` stream, `Si` sink, `S` sink & stream, `R` reader, `W` writer, `T` value, `E` error
 * "Task" is now defined as our term for "lightweight thread". The code of the executors and `FuturesUnordered` was refactored to align with this definition.
 
-# 0.3.0-alpha.1 2018-07-19
+# 0.3.0-alpha.1 - 2018-07-19
 * Major changes: See [the announcement](https://rust-lang-nursery.github.io/futures-rs/blog/2018/07/19/futures-0.3.0-alpha.1.html) on our new blog for details. The changes are too numerous to be covered in this changelog because nearly every line of code was modified.
 
 # 0.1.17 - 2017-10-31
