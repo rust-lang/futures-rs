@@ -8,6 +8,11 @@ header.site-header {
     display: flex;
     align-items: center;
 
+    .header-link {
+      @include underline-link(white);
+      margin-right: 30px;
+    }
+
     .github-link {
       border: 2px solid white;
       padding: 5px 10px;
