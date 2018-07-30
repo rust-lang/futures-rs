@@ -57,6 +57,24 @@ article.post {
         margin-bottom: 10px;
       }
     }
+
+    blockquote {
+      color: #666;
+      font-style: italic;
+      margin: 0 0 0 30px;
+      position: relative;
+       &::before {
+        content: "";
+        display: block;
+        position: absolute; top: 0; left: -15px; bottom: 0; width: 3px;
+        border-radius: 1.5px;
+        background: $primary-color;
+      }
+    }
+
+    ul ul {
+      margin-bottom: 7px;
+    }
   }
 
   .edit-link-container {
