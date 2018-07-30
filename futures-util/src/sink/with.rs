@@ -121,7 +121,7 @@ impl<Si, U, Fut, F, E> With<Si, U, Fut, F>
     ) -> Poll<Result<(), E>> {
         let buffered = match self.state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
-            State::Process(mut fut) => Some(try_ready!(fut.poll(cx))),
+            State::Process(fut) => Some(try_ready!(fut.poll(cx))),
             State::Buffered(_) => None,
         };
         if let Some(buffered) = buffered {

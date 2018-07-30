@@ -362,7 +362,7 @@ if_std! {
         ) -> Poll<Result<usize>> {
             let position = self.position();
             let result = {
-                let mut out = self.get_mut().as_mut();
+                let out = self.get_mut().as_mut();
                 let pos = cmp::min(out.len() as u64, position) as usize;
                 StdIo::Write::write(&mut &mut out[pos..], buf)
             };
