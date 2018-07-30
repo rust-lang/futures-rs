@@ -10,6 +10,12 @@ use futures_core::stream::TryStream;
 mod err_into;
 pub use self::err_into::ErrInto;
 
+mod map_ok;
+pub use self::map_ok::MapOk;
+
+mod map_err;
+pub use self::map_err::MapErr;
+
 mod try_next;
 pub use self::try_next::TryNext;
 
@@ -49,6 +55,58 @@ pub trait TryStreamExt: TryStream {
         Self::Error: Into<E>
     {
         ErrInto::new(self)
+    }
+
+    /// Wraps the current stream in a new stream which maps the success value
+    /// using the provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{stream, TryStreamExt};
+    ///
+    /// let mut stream =
+    ///     stream::iter(vec![Ok(5), Err(0)])
+    ///         .map_ok(|x| x + 2);
+    ///
+    /// assert_eq!(await!(stream.try_next()), Ok(Some(7)));
+    /// assert_eq!(await!(stream.try_next()), Err(0));
+    /// # })
+    /// ```
+    fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(Self::Ok) -> T,
+    {
+        MapOk::new(self, f)
+    }
+
+    /// Wraps the current stream in a new stream which maps the error value
+    /// using the provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{stream, TryStreamExt};
+    ///
+    /// let mut stream =
+    ///     stream::iter(vec![Ok(5), Err(0)])
+    ///         .map_err(|x| x + 2);
+    ///
+    /// assert_eq!(await!(stream.try_next()), Ok(Some(5)));
+    /// assert_eq!(await!(stream.try_next()), Err(2));
+    /// # })
+    /// ```
+    fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
+    where
+        Self: Sized,
+        F: FnMut(Self::Error) -> E,
+    {
+        MapErr::new(self, f)
     }
 
     /// Creates a future that attempts to resolve the next item in the stream.
