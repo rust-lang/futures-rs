@@ -279,7 +279,7 @@ impl Executor for LocalExecutor {
             incoming.borrow_mut().push(future.into());
             Ok(())
         } else {
-            Err(SpawnObjError{ task: future, kind: SpawnErrorKind::shutdown() })
+            Err(SpawnObjError{ future, kind: SpawnErrorKind::shutdown() })
         }
     }
 
@@ -302,7 +302,7 @@ impl LocalExecutor {
             incoming.borrow_mut().push(future);
             Ok(())
         } else {
-            Err(SpawnLocalObjError{ task: future, kind: SpawnErrorKind::shutdown() })
+            Err(SpawnLocalObjError{ future, kind: SpawnErrorKind::shutdown() })
         }
     }
 }
