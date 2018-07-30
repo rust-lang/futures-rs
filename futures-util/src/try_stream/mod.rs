@@ -39,7 +39,7 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
-    /// use futures::{stream, TryStreamExt};
+    /// use futures::stream::{self, TryStreamExt};
     ///
     /// let mut stream =
     ///     stream::iter(vec![Ok(()), Err(5i32)])
@@ -65,7 +65,7 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
-    /// use futures::{stream, TryStreamExt};
+    /// use futures::stream::{self, TryStreamExt};
     ///
     /// let mut stream =
     ///     stream::iter(vec![Ok(5), Err(0)])
@@ -91,7 +91,7 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
-    /// use futures::{stream, TryStreamExt};
+    /// use futures::stream::{self, TryStreamExt};
     ///
     /// let mut stream =
     ///     stream::iter(vec![Ok(5), Err(0)])
@@ -122,7 +122,7 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
-    /// use futures::{stream, TryStreamExt};
+    /// use futures::stream::{self, TryStreamExt};
     ///
     /// let mut stream = stream::iter(vec![Ok(()), Err(())]);
     ///
@@ -154,7 +154,8 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
-    /// use futures::{future, stream, TryStreamExt};
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
     ///
     /// let mut x = 0i32;
     ///
@@ -192,12 +193,12 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use std::thread;
-    ///
-    /// use futures::prelude::*;
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::TryStreamExt;
+    /// use std::thread;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
     ///
@@ -208,8 +209,9 @@ pub trait TryStreamExt: TryStream {
     ///     tx.unbounded_send(Err(6)).unwrap();
     /// });
     ///
-    /// let output: Result<Vec<i32>, i32> = block_on(rx.try_collect());
+    /// let output: Result<Vec<i32>, i32> = await!(rx.try_collect());
     /// assert_eq!(output, Err(6));
+    /// # })
     /// ```
     #[cfg(feature = "std")]
     fn try_collect<C: Default + Extend<Self::Ok>>(self) -> TryCollect<Self, C>
