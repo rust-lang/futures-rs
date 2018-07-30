@@ -51,3 +51,27 @@ fn select() {
     });
     assert!(ran);
 }
+
+#[test]
+fn select_can_move_uncompleted_futures() {
+    let (tx1, mut rx1) = oneshot::channel::<i32>();
+    let (tx2, mut rx2) = oneshot::channel::<i32>();
+    tx1.send(1).unwrap();
+    tx2.send(2).unwrap();
+    let mut ran = false;
+    block_on(async {
+        select! {
+            rx1 => {
+                assert_eq!(Ok(1), rx1);
+                assert_eq!(Ok(2), await!(rx2));
+                ran = true;
+            },
+            rx2 => {
+                assert_eq!(Ok(2), rx2);
+                assert_eq!(Ok(1), await!(rx1));
+                ran = true;
+            },
+        }
+    });
+    assert!(ran);
+}
