@@ -3,11 +3,13 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 
 /// A macro which yields to the event loop once.
-/// This is similar to returning `Poll::Pending` from a `Future::poll` implementation.
-/// If `pending!` is used, the current task should be scheduled to receive a wakeup
-/// when it is ready to make progress.
+/// 
+/// This is equivalent to returning [`Poll::Pending`](futures_core::task::Poll) 
+/// from a [`Future::poll`](futures_core::future::Future::poll) implementation. 
+/// Similarly, when using this macro, it must be ensured that [`wake`](std::task::Waker::wake) 
+/// is called somewhere when further progress can be made.
 ///
-/// This macro is only usable inside of `async` functions, closures, and blocks.
+/// This macro is only usable inside of async functions, closures, and blocks.
 #[macro_export]
 macro_rules! pending {
     () => {

@@ -1,5 +1,30 @@
 //! The `select` macro.
 
+/// Polls multiple futures simultaneously, executing the branch for the future 
+/// that finishes first.
+/// 
+/// `select!` can select over futures with different output types, but each 
+/// branch has to have the same return type. Inside each branch, the respective 
+/// future's output is available via a variable with the same name as the future.
+/// 
+/// This macro is only usable inside of async functions, closures, and blocks.
+/// 
+/// # Examples
+/// 
+/// ```
+/// #![feature(pin, async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::{select, future};
+/// let mut a = future::ready(4);
+/// let mut b: future::Empty<()> = future::empty();
+/// 
+/// let res = select! {
+///     a => a + 1,
+///     b => 0,
+/// };
+/// assert_eq!(res, 5);
+/// # });
+/// ```
 #[macro_export]
 macro_rules! select {
     () => {
