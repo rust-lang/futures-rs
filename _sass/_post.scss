@@ -85,4 +85,25 @@ article.post {
       @include underline-link(#ccc);
     }
   }
+
+  .navigation-buttons {
+    display: flex;
+    margin: 30px 0;
+
+    .next, .previous {
+      flex: 1 0 0;
+
+      .label {
+        color: #555;
+      }
+
+      a {
+        @include underline-link($primary-color);
+      }
+    }
+
+    .next {
+      text-align: right;
+    }
+  }
 }

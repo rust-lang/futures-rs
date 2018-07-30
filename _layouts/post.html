@@ -33,5 +33,21 @@ layout: default
     </a>
   </div>
 
+  <div class="navigation-buttons">
+    {% if page.previous.url %}
+      <div class="previous">
+        <div class="label">Previous</div>
+        <a class="prev" href="{{page.previous.url | relative_url}}">{{page.previous.title}}</a>
+      </div>
+    {% endif %}
+
+    {% if page.next.url %}
+      <div class="next">
+        <div class="label">Next</div>
+        <a class="next" href="{{page.next.url | relative_url}}">{{page.next.title}}</a>
+      </div>
+    {% endif %}
+  </div>
+
   <a class="u-url" href="{{ page.url | relative_url }}" hidden></a>
 </article>
