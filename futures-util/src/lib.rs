@@ -9,7 +9,7 @@
 #![deny(bare_trait_objects)]
 #![allow(unknown_lints)]
 
-#![doc(html_root_url = "https://docs.rs/futures-util-preview/0.3.0-alpha.1")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_util")]
 
 #[macro_use]
 mod macros;

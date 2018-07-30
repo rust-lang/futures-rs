@@ -3,14 +3,14 @@ cargo-features = ["edition"]
 [package]
 name = "futures-preview"
 edition = "2018"
-version = "0.3.0-alpha.1"
+version = "0.3.0-alpha.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
 readme = "../README.md"
 keywords = ["futures", "async", "future"]
 repository = "https://github.com/rust-lang-nursery/futures-rs"
-homepage = "https://github.com/rust-lang-nursery/futures-rs"
-documentation = "https://docs.rs/futures-preview"
+homepage = "https://rust-lang-nursery.github.io/futures-rs"
+documentation = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
@@ -25,12 +25,12 @@ travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.1", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.1", default-features = false }
-futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.1", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.1", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.1", default-features = false }
-futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.1", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.2", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.2", default-features = false }
+futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.2", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.2", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.2", default-features = false }
+futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.2", default-features = false }
 
 [features]
 nightly = ["futures-util-preview/nightly"]

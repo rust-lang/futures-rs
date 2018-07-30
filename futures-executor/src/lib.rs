@@ -7,7 +7,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://docs.rs/futures-executor-preview/0.3.0-alpha.1")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_executor")]
 
 #[cfg(feature = "std")]
 #[macro_use]
