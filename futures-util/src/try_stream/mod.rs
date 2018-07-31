@@ -10,6 +10,9 @@ use futures_core::stream::TryStream;
 mod err_into;
 pub use self::err_into::ErrInto;
 
+mod into_stream;
+pub use self::into_stream::IntoStream;
+
 mod map_ok;
 pub use self::map_ok::MapOk;
 
@@ -110,6 +113,33 @@ pub trait TryStreamExt: TryStream {
         F: FnMut(Self::Error) -> E,
     {
         MapErr::new(self, f)
+    }
+
+    /// Wraps a [`TryStream`] into a type that implements
+    /// [`Stream`](futures_core::Stream)
+    ///
+    /// [`TryStream`]s currently do not implement the
+    /// [`Stream`](futures_core::Stream) trait because of limitations
+    /// of the compiler.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::stream::{Stream, TryStream, TryStreamExt};
+    ///
+    /// # type T = i32;
+    /// # type E = ();
+    /// fn make_try_stream() -> impl TryStream<Ok = T, Error = E> { // ... }
+    /// # futures::stream::empty()
+    /// # }
+    /// fn take_stream(stream: impl Stream<Item = Result<T, E>>) { /* ... */ }
+    ///
+    /// take_stream(make_try_stream().into_stream());
+    /// ```
+    fn into_stream(self) -> IntoStream<Self>
+        where Self: Sized,
+    {
+        IntoStream::new(self)
     }
 
     /// Creates a future that attempts to resolve the next item in the stream.
@@ -262,4 +292,5 @@ pub trait TryStreamExt: TryStream {
     {
         TryFilterMap::new(self, f)
     }
+
 }
