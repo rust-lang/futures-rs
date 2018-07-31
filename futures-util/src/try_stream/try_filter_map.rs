@@ -7,7 +7,8 @@ use futures_core::task::{self, Poll};
 /// A combinator that attempts to filter the results of a stream
 /// and simultaneously map them to a different type.
 ///
-/// This structure is returned by the `Stream::try_filter_map` method.
+/// This structure is returned by the
+/// [`try_filter_map`](super::TryStreamExt::try_filter_map) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryFilterMap<St, Fut, F> {

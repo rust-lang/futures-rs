@@ -240,6 +240,8 @@ pub trait TryStreamExt: TryStream {
     ///
     /// # Examples
     /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
     /// use futures::executor::block_on;
     /// use futures::prelude::*;
     ///
@@ -249,8 +251,9 @@ pub trait TryStreamExt: TryStream {
     ///     future::ready(Ok(ret))
     /// });
     ///
-    /// assert_eq!(Some(Ok(3)), block_on(halves.next()));
-    /// assert_eq!(Some(Err("error")), block_on(halves.next()));
+    /// assert_eq!(await!(halves.next()), Some(Ok(3)));
+    /// assert_eq!(await!(halves.next()), Some(Err("error")));
+    /// # })
     /// ```
     fn try_filter_map<Fut, F, T>(self, f: F) -> TryFilterMap<Self, Fut, F>
         where Fut: TryFuture<Ok = Option<T>, Error = Self::Error>,
