@@ -22,6 +22,9 @@ pub use self::try_next::TryNext;
 mod try_for_each;
 pub use self::try_for_each::TryForEach;
 
+mod try_filter_map;
+pub use self::try_filter_map::TryFilterMap;
+
 if_std! {
     mod try_collect;
     pub use self::try_collect::TryCollect;
@@ -218,5 +221,42 @@ pub trait TryStreamExt: TryStream {
         where Self: Sized
     {
         TryCollect::new(self)
+    }
+
+    /// Attempt to filter the values produced by this stream while
+    /// simultaneously mapping them to a different type according to the
+    /// provided asynchronous closure.
+    ///
+    /// As values of this stream are made available, the provided function will
+    /// be run on them. If the future returned by the predicate `f` resolves to
+    /// [`Some(item)`](Some) then the stream will yield the value `item`, but if
+    /// it resolves to [`None`] then the next value will be produced.
+    ///
+    /// All errors are passed through without filtering in this combinator.
+    ///
+    /// Note that this function consumes the stream passed into it and returns a
+    /// wrapped version of it, similar to the existing `filter_map` methods in
+    /// the standard library.
+    ///
+    /// # Examples
+    /// ```
+    /// use futures::executor::block_on;
+    /// use futures::prelude::*;
+    ///
+    /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
+    /// let mut halves = stream.try_filter_map(|x| {
+    ///     let ret = if x % 2 == 0 { Some(x / 2) } else { None };
+    ///     future::ready(Ok(ret))
+    /// });
+    ///
+    /// assert_eq!(Some(Ok(3)), block_on(halves.next()));
+    /// assert_eq!(Some(Err("error")), block_on(halves.next()));
+    /// ```
+    fn try_filter_map<Fut, F, T>(self, f: F) -> TryFilterMap<Self, Fut, F>
+        where Fut: TryFuture<Ok = Option<T>, Error = Self::Error>,
+              F: FnMut(Self::Ok) -> Fut,
+              Self: Sized
+    {
+        TryFilterMap::new(self, f)
     }
 }
