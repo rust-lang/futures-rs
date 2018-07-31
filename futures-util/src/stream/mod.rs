@@ -740,6 +740,30 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::prelude::*;
+    /// use futures::channel::oneshot;
+    ///
+    /// let (send_one, recv_one) = oneshot::channel();
+    /// let (send_two, recv_two) = oneshot::channel();
+    ///
+    /// let stream_of_futures = stream::iter(vec![recv_one, recv_two]);
+    /// let mut buffered = stream_of_futures.buffer_unordered(10);
+    ///
+    /// send_two.send(2i32);
+    /// assert_eq!(await!(buffered.next()), Some(Ok(2i32)));
+    ///
+    /// send_one.send(1i32);
+    /// assert_eq!(await!(buffered.next()), Some(Ok(1i32)));
+    ///
+    /// assert_eq!(await!(buffered.next()), None);
+    /// # })
+    /// ```
     #[cfg(feature = "std")]
     fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
         where Self::Item: Future,
