@@ -28,6 +28,9 @@ pub use self::try_for_each::TryForEach;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
+mod try_buffer_unordered;
+pub use self::try_buffer_unordered::TryBufferUnordered;
+
 if_std! {
     mod try_collect;
     pub use self::try_collect::TryCollect;
@@ -291,5 +294,69 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TryFilterMap::new(self, f)
+    }
+
+    /// Attempt to execute several futures from a stream concurrently.
+    ///
+    /// This stream's `Ok` type must be a [`TryFuture`] with an `Error` type
+    /// that matches the stream's `Error` type.
+    ///
+    /// This adaptor will buffer up to `n` futures and then return their
+    /// outputs in the order in which they complete. If the underlying stream
+    /// returns an error, it will be immediately propagated.
+    ///
+    /// The returned stream will be a stream of results, each containing either
+    /// an error or a future's output. An error can be produced either by the
+    /// underlying stream itself or by one of the futures it yielded.
+    ///
+    /// # Examples
+    ///
+    /// Results are returned in the order of completion:
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let (send_one, recv_one) = oneshot::channel();
+    /// let (send_two, recv_two) = oneshot::channel();
+    ///
+    /// let stream_of_futures = stream::iter(vec![Ok(recv_one), Ok(recv_two)]);
+    ///
+    /// let mut buffered = stream_of_futures.try_buffer_unordered(10);
+    ///
+    /// send_two.send(2i32);
+    /// assert_eq!(await!(buffered.next()), Some(Ok(2i32)));
+    ///
+    /// send_one.send(1i32);
+    /// assert_eq!(await!(buffered.next()), Some(Ok(1i32)));
+    ///
+    /// assert_eq!(await!(buffered.next()), None);
+    /// # })
+    /// ```
+    ///
+    /// Errors from the underlying stream itself are propagated:
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures::future;
+    /// use futures::stream::{StreamExt, TryStreamExt};
+    ///
+    /// let (sink, stream_of_futures) = mpsc::unbounded();
+    /// let mut buffered = stream_of_futures.try_buffer_unordered(10);
+    ///
+    /// sink.unbounded_send(Ok(future::ready(Ok(7i32))));
+    /// assert_eq!(await!(buffered.next()), Some(Ok(7i32)));
+    ///
+    /// sink.unbounded_send(Err("error in the stream"));
+    /// assert_eq!(await!(buffered.next()), Some(Err("error in the stream")));
+    /// # })
+    /// ```
+    fn try_buffer_unordered(self, n: usize) -> TryBufferUnordered<Self>
+        where Self::Ok: TryFuture<Error = Self::Error>,
+              Self: Sized
+    {
+        TryBufferUnordered::new(self, n)
     }
 }
