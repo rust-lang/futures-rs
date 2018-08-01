@@ -44,8 +44,24 @@ pub fn maybe_done<Fut: Future>(future: Fut) -> MaybeDone<Fut> {
 }
 
 impl<Fut: Future> MaybeDone<Fut> {
+    /// Returns an optional mutable reference to the output of the future.
+    /// The output of this method will be `Some` if and only if the inner
+    /// future has been completed and [`take_output`](MaybeDone::take_output)
+    /// has not yet been called.
+    #[inline]
+    pub fn output_mut<'a>(self: PinMut<'a, Self>) -> Option<&'a mut Fut::Output> {
+        unsafe {
+            let this = PinMut::get_mut_unchecked(self);
+            match this {
+                MaybeDone::Done(res) => Some(res),
+                _ => None,
+            }
+        }
+    }
+
     /// Attempt to take the output of a `MaybeDone` without driving it
     /// towards completion.
+    #[inline]
     pub fn take_output(self: PinMut<Self>) -> Option<Fut::Output> {
         unsafe {
             let this = PinMut::get_mut_unchecked(self);

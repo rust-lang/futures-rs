@@ -23,7 +23,7 @@ macro_rules! if_std {
 
 #[doc(hidden)]
 pub mod core_reexport {
-    pub use core::{mem, marker, future, task};
+    pub use core::*;
 }
 
 macro_rules! delegate_sink {

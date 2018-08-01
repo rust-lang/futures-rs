@@ -60,7 +60,7 @@ pub use futures_util::{
 #[cfg(feature = "std")]
 pub use futures_util::{
     // Async-await
-    join, select, pending, poll,
+    join, try_join, select, pending, poll,
 };
 
 #[cfg(feature = "std")]
