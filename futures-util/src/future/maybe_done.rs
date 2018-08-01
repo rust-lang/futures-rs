@@ -44,8 +44,8 @@ pub fn maybe_done<Fut: Future>(future: Fut) -> MaybeDone<Fut> {
 }
 
 impl<Fut: Future> MaybeDone<Fut> {
-    /// Returns an optional mutable reference to the output of the future.
-    /// The output of this method will be `Some` if and only if the inner
+    /// Returns an [`Option`] containing a mutable reference to the output of the future.
+    /// The output of this method will be [`Some`] if and only if the inner
     /// future has been completed and [`take_output`](MaybeDone::take_output)
     /// has not yet been called.
     #[inline]

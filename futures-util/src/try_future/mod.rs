@@ -518,8 +518,8 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// # Examples
     ///
-    /// When used on multiple futures that reutrn `Ok`, `try_join` will return
-    /// `Ok` of a tuple of the values:
+    /// When used on multiple futures that return [`Ok`], `try_join` will return
+    /// [`Ok`] of a tuple of the values:
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
@@ -568,10 +568,10 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// let a = future::ready(Ok::<i32, i32>(1));
     /// let b = future::ready(Ok::<i32, i32>(2));
-    /// let c = future::ready(Err::<i32, i32>(3));
+    /// let c = future::ready(Ok::<i32, i32>(3));
     /// let tuple = a.try_join3(b, c);
     ///
-    /// assert_eq!(await!(tuple), Err(3));
+    /// assert_eq!(await!(tuple), Ok((1, 2, 3)));
     /// # });
     /// ```
     fn try_join3<Fut2, Fut3>(

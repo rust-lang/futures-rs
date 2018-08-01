@@ -48,7 +48,7 @@ macro_rules! join {
     } }
 }
 
-/// Polls multiple futures simultaneously, returning a [`Result`] containing
+/// Polls multiple futures simultaneously, resolving to a [`Result`] containing
 /// either a tuple of the successful outputs or an error.
 ///
 /// `try_join!` is similar to [`join!`], but completes immediately if any of
