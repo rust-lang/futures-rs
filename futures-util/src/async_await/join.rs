@@ -48,15 +48,33 @@ macro_rules! join {
     } }
 }
 
-/// Attempts to poll multiple futures simultaneously, returning a `Result`
-/// of a tuple of all of the results once complete.
+/// Polls multiple futures simultaneously, returning a [`Result`] containing
+/// either a tuple of the successful outputs or an error.
 ///
-/// `try_join!` is similar to `join!`, but completes immediately if any of
+/// `try_join!` is similar to [`join!`], but completes immediately if any of
 /// the futures return an error.
 ///
 /// This macro is only usable inside of async functions, closures, and blocks.
 ///
 /// # Examples
+///
+/// When used on multiple futures that return `Ok`, `try_join!` will return
+/// `Ok` of a tuple of the values:
+///
+/// ```
+/// #![feature(pin, async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::{try_join, future};
+///
+/// let a = future::ready(Ok::<i32, i32>(1));
+/// let b = future::ready(Ok::<u64, i32>(2));
+///
+/// assert_eq!(try_join!(a, b), Ok((1, 2)));
+/// # });
+/// ```
+///
+/// If one of the futures resolves to an error, `try_join!` will return
+/// that error:
 ///
 /// ```
 /// #![feature(pin, async_await, await_macro, futures_api)]
@@ -67,11 +85,6 @@ macro_rules! join {
 /// let b = future::ready(Err::<u64, i32>(2));
 ///
 /// assert_eq!(try_join!(a, b), Err(2));
-///
-/// let a = future::ready(Ok::<i32, i32>(1));
-/// let b = future::ready(Ok::<u64, i32>(2));
-///
-/// assert_eq!(try_join!(a, b), Ok((1, 2)));
 /// # });
 /// ```
 #[macro_export]
