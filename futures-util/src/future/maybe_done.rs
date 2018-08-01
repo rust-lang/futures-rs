@@ -49,6 +49,7 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// future has been completed and [`take_output`](MaybeDone::take_output)
     /// has not yet been called.
     #[inline]
+    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn output_mut<'a>(self: PinMut<'a, Self>) -> Option<&'a mut Fut::Output> {
         unsafe {
             let this = PinMut::get_mut_unchecked(self);
