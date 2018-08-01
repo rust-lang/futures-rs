@@ -28,10 +28,10 @@ pub use self::try_for_each::TryForEach;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
-mod try_buffer_unordered;
-pub use self::try_buffer_unordered::TryBufferUnordered;
-
 if_std! {
+    mod try_buffer_unordered;
+    pub use self::try_buffer_unordered::TryBufferUnordered;
+
     mod try_collect;
     pub use self::try_collect::TryCollect;
 }
@@ -309,6 +309,9 @@ pub trait TryStreamExt: TryStream {
     /// an error or a future's output. An error can be produced either by the
     /// underlying stream itself or by one of the futures it yielded.
     ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
     /// # Examples
     ///
     /// Results are returned in the order of completion:
@@ -353,6 +356,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(await!(buffered.next()), Some(Err("error in the stream")));
     /// # })
     /// ```
+    #[cfg(feature = "std")]
     fn try_buffer_unordered(self, n: usize) -> TryBufferUnordered<Self>
         where Self::Ok: TryFuture<Error = Self::Error>,
               Self: Sized
