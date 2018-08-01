@@ -51,9 +51,7 @@ macro_rules! generate {
                     $($Fut: maybe_done(TryFutureExt::into_future($Fut))),*
                 }
             }
-        }
 
-        impl<Fut1: TryFuture, $($Fut: TryFuture),*> $Join<Fut1, $($Fut),*> {
             unsafe_pinned!(Fut1: MaybeDone<IntoFuture<Fut1>>);
             $(
                 unsafe_pinned!($Fut: MaybeDone<IntoFuture<$Fut>>);
