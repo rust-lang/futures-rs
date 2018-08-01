@@ -196,6 +196,7 @@ pub mod future {
         TryFutureExt,
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
         UnwrapOrElse,
+        TryJoin, TryJoin3, TryJoin4, TryJoin5,
     };
 }
 
