@@ -31,7 +31,7 @@ macro_rules! join {
         loop {
             let mut all_done = true;
             $(
-                if let $crate::core_reexport::task::Poll::Pending = $crate::poll!($fut.reborrow()) {
+                if $crate::poll!($fut.reborrow()).is_pending() {
                     all_done = false;
                 }
             )*
@@ -84,7 +84,7 @@ macro_rules! try_join {
         let res: $crate::core_reexport::result::Result<(), _> = loop {
             let mut all_done = true;
             $(
-                if let $crate::core_reexport::task::Poll::Pending = $crate::poll!($fut.reborrow()) {
+                if $crate::poll!($fut.reborrow()).is_pending() {
                     all_done = false;
                 } else if $fut.reborrow().output_mut().unwrap().is_err() {
                     // `.err().unwrap()` rather than `.unwrap_err()` so that we don't introduce
