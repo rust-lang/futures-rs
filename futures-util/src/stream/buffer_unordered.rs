@@ -126,9 +126,9 @@ where
 
         // If more values are still coming from the stream, we're not done yet
         if self.stream.is_done() {
-            Poll::Pending
-        } else {
             Poll::Ready(None)
+        } else {
+            Poll::Pending
         }
     }
 }
