@@ -511,7 +511,7 @@ pub trait TryFutureExt: TryFuture {
     /// This function will return a new future which awaits both this and the
     /// `other` future to complete. If successful, the returned future will
     /// finish with a tuple of both results. If unsuccesful, it will complete
-    /// with an error.
+    /// with the first error encountered.
     ///
     /// Note that this function consumes the receiving future and returns a
     /// wrapped version of it.
