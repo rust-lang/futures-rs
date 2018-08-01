@@ -746,8 +746,8 @@ pub trait StreamExt: Stream {
     /// ```
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
-    /// use futures::prelude::*;
     /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let (send_one, recv_one) = oneshot::channel();
     /// let (send_two, recv_two) = oneshot::channel();
