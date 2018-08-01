@@ -518,6 +518,25 @@ pub trait TryFutureExt: TryFuture {
     ///
     /// # Examples
     ///
+    /// When used on multiple futures that reutrn `Ok`, `try_join` will return
+    /// `Ok` of a tuple of the values:
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future::{self, TryFutureExt};
+    ///
+    /// let a = future::ready(Ok::<i32, i32>(1));
+    /// let b = future::ready(Ok::<i32, i32>(2));
+    /// let pair = a.try_join(b);
+    ///
+    /// assert_eq!(await!(pair), Ok((1, 2)));
+    /// # });
+    /// ```
+    ///
+    /// If one of the futures resolves to an error, `try_join` will return
+    /// that error:
+    ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
@@ -538,7 +557,7 @@ pub trait TryFutureExt: TryFuture {
         TryJoin::new(self, other)
     }
 
-    /// Same as `try_join`, but with more futures.
+    /// Same as [`try_join`](TryFutureExt::try_join), but with more futures.
     ///
     /// # Examples
     ///
@@ -568,7 +587,7 @@ pub trait TryFutureExt: TryFuture {
         TryJoin3::new(self, future2, future3)
     }
 
-    /// Same as `try_join`, but with more futures.
+    /// Same as [`try_join`](TryFutureExt::try_join), but with more futures.
     ///
     /// # Examples
     ///
@@ -601,7 +620,7 @@ pub trait TryFutureExt: TryFuture {
         TryJoin4::new(self, future2, future3, future4)
     }
 
-    /// Same as `try_join`, but with more futures.
+    /// Same as [`try_join`](TryFutureExt::try_join), but with more futures.
     ///
     /// # Examples
     ///
