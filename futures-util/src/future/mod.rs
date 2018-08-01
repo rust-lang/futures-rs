@@ -659,16 +659,31 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
+    /// #[macro_use] extern crate futures;
     /// # futures::executor::block_on(async {
-    /// use futures::executor::{spawn_with_handle, ThreadPool};
-    /// use futures::future::{self, FutureExt};
+    /// use futures::executor::ThreadPool;
+    /// use futures::future::FutureExt;
+    /// use std::thread;
+    /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
-    /// let pool = ThreadPool::new().expect("unable to create threadpool");
-    /// let future = spawn_with_handle(future::ready(3))
-    ///     .with_executor(pool)
-    ///     .flatten();
-    /// assert_eq!(await!(future), 3);
-    /// # });
+    /// let pool = ThreadPool::builder()
+    ///     .name_prefix("my-pool-")
+    ///     .pool_size(1)
+    ///     .create().unwrap();
+    ///
+    ///  let val = await!((async {
+    ///      assert_ne!(thread::current().name(), Some("my-pool-0"));
+    ///
+    ///      // Spawned task runs on the executor specified via `with_executor`
+    ///      let future = async {
+    ///          assert_eq!(thread::current().name(), Some("my-pool-0"));
+    ///          # tx.send("ran").unwrap();
+    ///      };
+    ///      spawn!(future).unwrap();
+    ///  }).with_executor(pool));
+    ///
+    ///  # assert_eq!(await!(rx), Ok("ran"))
+    ///  # })
     /// ```
     fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
         where Self: Sized,

@@ -33,7 +33,4 @@ if_std! {
 
     mod enter;
     pub use crate::enter::{enter, Enter, EnterError};
-
-    mod spawn;
-    pub use crate::spawn::{spawn, Spawn, spawn_with_handle, SpawnWithHandle, JoinHandle};
 }

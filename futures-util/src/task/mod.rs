@@ -1,7 +1,11 @@
 //! Task notification
 
-mod context;
-pub use self::context::ContextExt;
+mod executor;
+pub use self::executor::{ExecutorExt, SpawnError};
+
+if_std! {
+    pub use self::executor::JoinHandle;
+}
 
 #[cfg_attr(
     feature = "nightly",
