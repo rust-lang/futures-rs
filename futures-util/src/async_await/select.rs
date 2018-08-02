@@ -47,16 +47,18 @@ macro_rules! select {
             )*
         }
 
-        let __priv_res = loop {
+        let __priv_res = await!($crate::future::poll_fn(|cx| {
             $(
-                let poll_res = $crate::poll!($crate::core_reexport::mem::PinMut::new(
-                        &mut $name));
-                if let $crate::core_reexport::task::Poll::Ready(x) = poll_res {
-                    break __PrivResult::$name(x);
+                match $crate::future::Future::poll(
+                    $crate::core_reexport::mem::PinMut::new(&mut $name), cx)
+                {
+                    $crate::core_reexport::task::Poll::Ready(x) =>
+                        return $crate::core_reexport::task::Poll::Ready(__PrivResult::$name(x)),
+                    $crate::core_reexport::task::Poll::Pending => {},
                 }
             )*
-            $crate::pending!();
-        };
+            $crate::core_reexport::task::Poll::Pending
+        }));
         match __priv_res {
             $(
                 __PrivResult::$name($name) => {

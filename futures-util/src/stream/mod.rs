@@ -7,7 +7,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use either::Either;
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+pub use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 
