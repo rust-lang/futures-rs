@@ -15,8 +15,8 @@ pub struct TryNext<'a, St: 'a> {
 
 impl<'a, St: TryStream + Unpin> Unpin for TryNext<'a, St> {}
 
-impl<'b, St: TryStream + Unpin> TryNext<'b, St> {
-    pub(super) fn new(stream: &'b mut St) -> Self {
+impl<'a, St: TryStream + Unpin> TryNext<'a, St> {
+    pub(super) fn new(stream: &'a mut St) -> Self {
         TryNext { stream }
     }
 }
