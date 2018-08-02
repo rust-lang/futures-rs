@@ -57,6 +57,9 @@ pub use self::then::Then;
 mod inspect;
 pub use self::inspect::Inspect;
 
+mod unit_error;
+pub use self::unit_error::UnitError;
+
 mod with_executor;
 pub use self::with_executor::WithExecutor;
 
@@ -65,6 +68,8 @@ mod chain;
 crate use self::chain::Chain;
 
 if_std! {
+    use std::boxed::PinBox;
+
     mod abortable;
     pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
 
@@ -630,6 +635,21 @@ pub trait FutureExt: Future {
         where Self: Sized
     {
         Shared::new(self)
+    }
+
+    /// Wrap the future in a Box, pinning it.
+    #[cfg(feature = "std")]
+    fn boxed(self) -> PinBox<Self>
+        where Self: Sized
+    {
+        PinBox::new(self)
+    }
+
+    /// Turns a `Future` into a `TryFuture` with `Error = ()`.
+    fn unit_error(self) -> UnitError<Self>
+        where Self: Sized
+    {
+        UnitError::new(self)
     }
 
     /// Assigns the provided `Executor` to be used when spawning tasks
