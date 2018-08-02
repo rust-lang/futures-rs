@@ -28,7 +28,7 @@ macro_rules! join {
             let mut $fut = $crate::future::maybe_done($fut);
             $crate::pin_mut!($fut);
         )*
-        await!($crate::future::poll_fn(|cx| {
+        await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
                 if $crate::future::Future::poll($fut.reborrow(), cx).is_pending() {
@@ -36,15 +36,13 @@ macro_rules! join {
                 }
             )*
             if all_done {
-                $crate::core_reexport::task::Poll::Ready(())
+                $crate::core_reexport::task::Poll::Ready(($(
+                    $fut.reborrow().take_output().unwrap(),
+                )*))
             } else {
                 $crate::core_reexport::task::Poll::Pending
             }
-        }));
-
-        ($(
-            $fut.reborrow().take_output().unwrap(),
-        )*)
+        }))
     } }
 }
 
@@ -95,7 +93,7 @@ macro_rules! try_join {
             $crate::pin_mut!($fut);
         )*
 
-        let res: $crate::core_reexport::result::Result<(), _> = await!($crate::future::poll_fn(|cx| {
+        let res: $crate::core_reexport::result::Result<_, _> = await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
                 if $crate::future::Future::poll($fut.reborrow(), cx).is_pending() {
@@ -112,16 +110,16 @@ macro_rules! try_join {
             )*
             if all_done {
                 $crate::core_reexport::task::Poll::Ready(
-                    $crate::core_reexport::result::Result::Ok(()))
+                    $crate::core_reexport::result::Result::Ok(($(
+                    // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
+                    // an `E: Debug` bound.
+                    $fut.reborrow().take_output().unwrap().ok().unwrap(),
+                )*)))
             } else {
                 $crate::core_reexport::task::Poll::Pending
             }
         }));
 
-        res.map(|()| ($(
-            // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
-            // an `E: Debug` bound.
-            $fut.reborrow().take_output().unwrap().ok().unwrap(),
-        )*))
+        res
     } }
 }

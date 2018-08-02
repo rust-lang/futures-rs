@@ -103,14 +103,14 @@ fn join_size() {
         let ready = future::ready(0i32);
         join!(ready)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 48);
+    assert_eq!(::std::mem::size_of_val(&fut), 40);
 
     let fut = async {
         let ready1 = future::ready(0i32);
         let ready2 = future::ready(0i32);
         join!(ready1, ready2)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 72);
+    assert_eq!(::std::mem::size_of_val(&fut), 64);
 }
 
 #[test]
@@ -119,12 +119,12 @@ fn try_join_size() {
         let ready = future::ready(Ok::<i32, i32>(0));
         try_join!(ready)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 48);
+    assert_eq!(::std::mem::size_of_val(&fut), 40);
 
     let fut = async {
         let ready1 = future::ready(Ok::<i32, i32>(0));
         let ready2 = future::ready(Ok::<i32, i32>(0));
         try_join!(ready1, ready2)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 80);
+    assert_eq!(::std::mem::size_of_val(&fut), 64);
 }
