@@ -3,27 +3,27 @@ use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 
-/// Future for the `never_error` combinator, turning a `Future` into a `TryFuture`.
+/// Future for the `unit_error` combinator, turning a `Future` into a `TryFuture`.
 ///
-/// This is created by the `FutureExt::never_error` method.
+/// This is created by the `FutureExt::unit_error` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct NeverError<Fut> {
+pub struct UnitError<Fut> {
     future: Fut,
 }
 
-impl<Fut> NeverError<Fut> {
+impl<Fut> UnitError<Fut> {
     unsafe_pinned!(future: Fut);
 
-    /// Creates a new NeverError.
-    pub(super) fn new(future: Fut) -> NeverError<Fut> {
-        NeverError { future }
+    /// Creates a new UnitError.
+    pub(super) fn new(future: Fut) -> UnitError<Fut> {
+        UnitError { future }
     }
 }
 
-impl<Fut: Unpin> Unpin for NeverError<Fut> {}
+impl<Fut: Unpin> Unpin for UnitError<Fut> {}
 
-impl<Fut, T> Future for NeverError<Fut>
+impl<Fut, T> Future for UnitError<Fut>
     where Fut: Future<Output = T>,
 {
     type Output = Result<T, ()>;

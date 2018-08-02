@@ -1,6 +1,6 @@
 
 use super::Compat;
-use crate::{TryFutureExt, FutureExt, future::NeverError};
+use crate::{TryFutureExt, FutureExt, future::UnitError};
 use futures::future::Executor as Executor01;
 use futures_core::task::Executor as Executor03;
 use futures_core::task as task03;
@@ -18,7 +18,7 @@ impl Executor03 for BoxedExecutor03 {
 }
 
 /// A future that can run on a futures 0.1 executor.
-pub type Executor01Future = Compat<NeverError<FutureObj<'static, ()>>, BoxedExecutor03>;
+pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, BoxedExecutor03>;
 
 /// Extension trait for futures 0.1 Executors.
 pub trait Executor01CompatExt: Executor01<Executor01Future> +
@@ -53,7 +53,7 @@ where Ex: Executor01<Executor01Future>,
         &mut self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), task03::SpawnObjError> {
-        let future = future.never_error().compat(BoxedExecutor03(Box::new(self.clone())));
+        let future = future.unit_error().compat(BoxedExecutor03(Box::new(self.clone())));
 
         match self.executor01.execute(future) {
             Ok(()) => Ok(()),

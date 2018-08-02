@@ -57,8 +57,8 @@ pub use self::then::Then;
 mod inspect;
 pub use self::inspect::Inspect;
 
-mod never_error;
-pub use self::never_error::NeverError;
+mod unit_error;
+pub use self::unit_error::UnitError;
 
 mod with_executor;
 pub use self::with_executor::WithExecutor;
@@ -645,11 +645,11 @@ pub trait FutureExt: Future {
         PinBox::new(self)
     }
 
-    /// Turns a `Future` into a `TryFuture` that never errors
-    fn never_error(self) -> NeverError<Self>
+    /// Turns a `Future` into a `TryFuture` with `Error = ()`.
+    fn unit_error(self) -> UnitError<Self>
         where Self: Sized
     {
-        NeverError::new(self)
+        UnitError::new(self)
     }
 
     /// Assigns the provided `Executor` to be used when spawning tasks
