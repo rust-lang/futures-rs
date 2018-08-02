@@ -31,7 +31,7 @@ macro_rules! join {
         await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
-                if $crate::future::Future::poll($fut.reborrow(), cx).is_pending() {
+                if $crate::core_reexport::future::Future::poll($fut.reborrow(), cx).is_pending() {
                     all_done = false;
                 }
             )*
@@ -96,7 +96,7 @@ macro_rules! try_join {
         let res: $crate::core_reexport::result::Result<_, _> = await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
-                if $crate::future::Future::poll($fut.reborrow(), cx).is_pending() {
+                if $crate::core_reexport::future::Future::poll($fut.reborrow(), cx).is_pending() {
                     all_done = false;
                 } else if $fut.reborrow().output_mut().unwrap().is_err() {
                     // `.err().unwrap()` rather than `.unwrap_err()` so that we don't introduce
@@ -111,10 +111,11 @@ macro_rules! try_join {
             if all_done {
                 $crate::core_reexport::task::Poll::Ready(
                     $crate::core_reexport::result::Result::Ok(($(
-                    // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
-                    // an `E: Debug` bound.
-                    $fut.reborrow().take_output().unwrap().ok().unwrap(),
-                )*)))
+                        // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
+                        // an `E: Debug` bound.
+                        $fut.reborrow().take_output().unwrap().ok().unwrap(),
+                    )*))
+                )
             } else {
                 $crate::core_reexport::task::Poll::Pending
             }

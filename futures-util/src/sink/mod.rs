@@ -7,7 +7,7 @@ use core::marker::Unpin;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-pub use futures_sink::Sink;
+use futures_sink::Sink;
 
 mod close;
 pub use self::close::Close;
