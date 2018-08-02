@@ -25,19 +25,22 @@
 macro_rules! join {
     ($($fut:ident),*) => { {
         $(
+            // Move future into a local so that it is pinned in one place and
+            // is no longer accessible by the end user.
             let mut $fut = $crate::future::maybe_done($fut);
-            $crate::pin_mut!($fut);
         )*
         await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
-                if $crate::core_reexport::future::Future::poll($fut.reborrow(), cx).is_pending() {
+                if $crate::core_reexport::future::Future::poll(
+                    unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $fut) }, cx).is_pending()
+                {
                     all_done = false;
                 }
             )*
             if all_done {
                 $crate::core_reexport::task::Poll::Ready(($(
-                    $fut.reborrow().take_output().unwrap(),
+                    unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $fut) }.take_output().unwrap(),
                 )*))
             } else {
                 $crate::core_reexport::task::Poll::Pending
@@ -89,21 +92,24 @@ macro_rules! join {
 macro_rules! try_join {
     ($($fut:ident),*) => { {
         $(
+            // Move future into a local so that it is pinned in one place and
+            // is no longer accessible by the end user.
             let mut $fut = $crate::future::maybe_done($fut);
-            $crate::pin_mut!($fut);
         )*
 
         let res: $crate::core_reexport::result::Result<_, _> = await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
-                if $crate::core_reexport::future::Future::poll($fut.reborrow(), cx).is_pending() {
+                if $crate::core_reexport::future::Future::poll(
+                    unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $fut) }, cx).is_pending()
+                {
                     all_done = false;
-                } else if $fut.reborrow().output_mut().unwrap().is_err() {
+                } else if unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $fut) }.output_mut().unwrap().is_err() {
                     // `.err().unwrap()` rather than `.unwrap_err()` so that we don't introduce
                     // a `T: Debug` bound.
                     return $crate::core_reexport::task::Poll::Ready(
                         $crate::core_reexport::result::Result::Err(
-                            $fut.reborrow().take_output().unwrap().err().unwrap()
+                            unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $fut) }.take_output().unwrap().err().unwrap()
                         )
                     );
                 }
@@ -113,7 +119,7 @@ macro_rules! try_join {
                     $crate::core_reexport::result::Result::Ok(($(
                         // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
                         // an `E: Debug` bound.
-                        $fut.reborrow().take_output().unwrap().ok().unwrap(),
+                        unsafe { $crate::core_reexport::mem::PinMut::new_unchecked(&mut $fut) }.take_output().unwrap().ok().unwrap(),
                     )*))
                 )
             } else {
