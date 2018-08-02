@@ -49,7 +49,7 @@ macro_rules! select {
 
         let __priv_res = await!($crate::future::poll_fn(|cx| {
             $(
-                match $crate::future::Future::poll(
+                match $crate::core_reexport::future::Future::poll(
                     $crate::core_reexport::mem::PinMut::new(&mut $name), cx)
                 {
                     $crate::core_reexport::task::Poll::Ready(x) =>
