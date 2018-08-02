@@ -256,7 +256,7 @@ pub trait SinkExt: Sink {
     }
 
     /// Wraps a [`Sink`] into a sink compatible with libraries using
-    /// futures 0.1 `Sink`. Requires the `compat` feature to enable.
+    /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
     fn compat<E>(self, executor: E) -> Compat<Self, E>
         where Self: Sized + Unpin,

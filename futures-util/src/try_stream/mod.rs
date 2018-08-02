@@ -371,7 +371,7 @@ pub trait TryStreamExt: TryStream {
     }
 
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
-    /// futures 0.1 `Stream`. Requires the `compat` feature to enable.
+    /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
     fn compat<E>(self, executor: E) -> Compat<Self, E>
         where Self: Sized + Unpin,
