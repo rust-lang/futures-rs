@@ -9,6 +9,12 @@ use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_sink::Sink;
 
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+
+#[cfg(feature = "compat")]
+use futures_core::task::Executor;
+
 mod close;
 pub use self::close::Close;
 
@@ -247,5 +253,15 @@ pub trait SinkExt: Sink {
               Self: Sized
     {
         Either::Right(self)
+    }
+
+    /// Wraps a [`Sink`] into a sink compatible with libraries using
+    /// futures 0.1 `Sink`. Requires the `compat` feature to enable.
+    #[cfg(feature = "compat")]
+    fn compat<E>(self, executor: E) -> Compat<Self, E>
+        where Self: Sized + Unpin,
+              E: Executor,
+    {
+        Compat::new(self, Some(executor))
     }
 }
