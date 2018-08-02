@@ -31,9 +31,9 @@
 #[macro_export]
 macro_rules! unsafe_pinned {
     ($f:tt: $t:ty) => (
-        fn $f<'a>(
-            self: &'a mut $crate::core_reexport::mem::PinMut<Self>
-        ) -> $crate::core_reexport::mem::PinMut<'a, $t> {
+        fn $f<'__a>(
+            self: &'__a mut $crate::core_reexport::mem::PinMut<Self>
+        ) -> $crate::core_reexport::mem::PinMut<'__a, $t> {
             unsafe {
                 $crate::core_reexport::mem::PinMut::map_unchecked(
                     self.reborrow(), |x| &mut x.$f
@@ -70,9 +70,9 @@ macro_rules! unsafe_pinned {
 #[macro_export]
 macro_rules! unsafe_unpinned {
     ($f:tt: $t:ty) => (
-        fn $f<'a>(
-            self: &'a mut $crate::core_reexport::mem::PinMut<Self>
-        ) -> &'a mut $t {
+        fn $f<'__a>(
+            self: &'__a mut $crate::core_reexport::mem::PinMut<Self>
+        ) -> &'__a mut $t {
             unsafe {
                 &mut $crate::core_reexport::mem::PinMut::get_mut_unchecked(
                     self.reborrow()
