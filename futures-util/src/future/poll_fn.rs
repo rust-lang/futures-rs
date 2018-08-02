@@ -14,6 +14,8 @@ pub struct PollFn<F> {
     f: F,
 }
 
+impl<F> Unpin for PollFn<F> {}
+
 /// Creates a new future wrapping around a function returning [`Poll`].
 ///
 /// Polling the returned future delegates to the wrapped function.
@@ -35,13 +37,14 @@ pub struct PollFn<F> {
 /// # });
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
-    where F: Unpin + FnMut(&mut task::Context) -> Poll<T>
+where
+    F: FnMut(&mut task::Context) -> Poll<T>
 {
     PollFn { f }
 }
 
 impl<T, F> Future for PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T> + Unpin
+    where F: FnMut(&mut task::Context) -> Poll<T>,
 {
     type Output = T;
 
