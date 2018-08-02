@@ -85,11 +85,12 @@ pub mod compat {
     //!
 
     pub use futures_util::compat::{
-        Compat, CompatExecutor,
-        ExecutorFuture01,
+        Compat,
+        Executor01Future,
+        Executor01As03,
         Executor01CompatExt,
-        Future01Ext,
-    }; 
+        Future01CompatExt,
+    };
 }
 
 #[cfg(feature = "std")]
