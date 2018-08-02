@@ -1,9 +1,12 @@
 use super::Compat;
 use futures::{
-    task as task01, Async as Async01, AsyncSink as AsyncSink01, Future as Future01, Poll as Poll01,
-    Sink as Sink01, StartSend as StartSend01, Stream as Stream01,
+    task as task01, Async as Async01, AsyncSink as AsyncSink01,
+    Future as Future01, Poll as Poll01, Sink as Sink01,
+    StartSend as StartSend01, Stream as Stream01,
 };
-use futures_core::{task as task03, TryFuture as TryFuture03, TryStream as TryStream03};
+use futures_core::{
+    task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
+};
 use futures_sink::Sink as Sink03;
 use std::{marker::Unpin, mem::PinMut, sync::Arc};
 
@@ -50,10 +53,15 @@ where
     type SinkItem = T::SinkItem;
     type SinkError = T::SinkError;
 
-    fn start_send(&mut self, item: Self::SinkItem) -> StartSend01<Self::SinkItem, Self::SinkError> {
+    fn start_send(
+        &mut self,
+        item: Self::SinkItem,
+    ) -> StartSend01<Self::SinkItem, Self::SinkError> {
         with_context(self, |mut inner, cx| {
             match inner.reborrow().poll_ready(cx) {
-                task03::Poll::Ready(Ok(())) => inner.start_send(item).map(|()| AsyncSink01::Ready),
+                task03::Poll::Ready(Ok(())) => {
+                    inner.start_send(item).map(|()| AsyncSink01::Ready)
+                }
                 task03::Poll::Pending => Ok(AsyncSink01::NotReady(item)),
                 task03::Poll::Ready(Err(e)) => Err(e),
             }
@@ -97,6 +105,7 @@ where
     F: FnOnce(PinMut<T>, &mut task03::Context) -> R,
 {
     let waker = current_as_waker();
-    let mut cx = task03::Context::new(&waker, compat.executor.as_mut().unwrap());
+    let executor = compat.executor.as_mut().unwrap();
+    let mut cx = task03::Context::new(&waker, executor);
     f(PinMut::new(&mut compat.inner), &mut cx)
 }

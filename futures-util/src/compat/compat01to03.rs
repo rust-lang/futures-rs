@@ -12,7 +12,10 @@ use std::mem::PinMut;
 impl<Fut: Future01> Future03 for Compat<Fut, ()> {
     type Output = Result<Fut::Item, Fut::Error>;
 
-    fn poll(self: PinMut<Self>, cx: &mut task03::Context) -> task03::Poll<Self::Output> {
+    fn poll(
+        self: PinMut<Self>,
+        cx: &mut task03::Context,
+    ) -> task03::Poll<Self::Output> {
         let notify = &WakerToHandle(cx.waker());
 
         executor01::with_notify(notify, 0, move || {
@@ -28,7 +31,10 @@ impl<Fut: Future01> Future03 for Compat<Fut, ()> {
 impl<St: Stream01> Stream03 for Compat<St, ()> {
     type Item = Result<St::Item, St::Error>;
 
-    fn poll_next(self: PinMut<Self>, cx: &mut task03::Context) -> task03::Poll<Option<Self::Item>> {
+    fn poll_next(
+        self: PinMut<Self>,
+        cx: &mut task03::Context,
+    ) -> task03::Poll<Option<Self::Item>> {
         let notify = &WakerToHandle(cx.waker());
 
         executor01::with_notify(notify, 0, move || {
