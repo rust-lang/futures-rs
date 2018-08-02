@@ -13,3 +13,6 @@ mod compat03to01;
 
 mod future01ext;
 pub use self::future01ext::Future01CompatExt;
+
+mod stream01ext;
+pub use self::stream01ext::Stream01CompatExt;

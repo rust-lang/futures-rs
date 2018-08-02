@@ -35,6 +35,17 @@ matrix:
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
 
+    - name: cargo build --all-features
+      rust: nightly
+      script:
+        - cargo build --manifest-path futures/Cargo.toml --all-features
+        - cargo build --manifest-path futures-core/Cargo.toml --all-features
+        - cargo build --manifest-path futures-channel/Cargo.toml --all-features
+        - cargo build --manifest-path futures-executor/Cargo.toml --all-features
+        - cargo build --manifest-path futures-io/Cargo.toml --all-features
+        - cargo build --manifest-path futures-sink/Cargo.toml --all-features
+        - cargo build --manifest-path futures-util/Cargo.toml --all-features
+
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
       install:

@@ -9,7 +9,7 @@ pub trait Future01CompatExt: Future01 {
     /// futures 0.3 `Future<Output = Result<T, E>>`.
     fn compat(self) -> Compat<Self, ()> where Self: Sized {
         Compat {
-            future: self,
+            inner: self,
             executor: None,
         }
     }
