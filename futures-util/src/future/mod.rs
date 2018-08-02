@@ -675,11 +675,10 @@ pub trait FutureExt: Future {
     ///      assert_ne!(thread::current().name(), Some("my-pool-0"));
     ///
     ///      // Spawned task runs on the executor specified via `with_executor`
-    ///      let future = async {
+    ///      spawn!(async {
     ///          assert_eq!(thread::current().name(), Some("my-pool-0"));
     ///          # tx.send("ran").unwrap();
-    ///      };
-    ///      spawn!(future).unwrap();
+    ///      }).unwrap();
     ///  }).with_executor(pool));
     ///
     ///  # assert_eq!(await!(rx), Ok("ran"))
