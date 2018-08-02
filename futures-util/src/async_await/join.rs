@@ -28,19 +28,19 @@ macro_rules! join {
             let mut $fut = $crate::future::maybe_done($fut);
             $crate::pin_mut!($fut);
         )*
-        loop {
+        await!($crate::future::poll_fn(|cx| {
             let mut all_done = true;
             $(
-                if $crate::poll!($fut.reborrow()).is_pending() {
+                if $crate::future::Future::poll($fut.reborrow(), cx).is_pending() {
                     all_done = false;
                 }
             )*
             if all_done {
-                break;
+                $crate::core_reexport::task::Poll::Ready(())
             } else {
-                $crate::pending!();
+                $crate::core_reexport::task::Poll::Pending
             }
-        }
+        }));
 
         ($(
             $fut.reborrow().take_output().unwrap(),
@@ -94,25 +94,29 @@ macro_rules! try_join {
             let mut $fut = $crate::future::maybe_done($fut);
             $crate::pin_mut!($fut);
         )*
-        let res: $crate::core_reexport::result::Result<(), _> = loop {
+
+        let res: $crate::core_reexport::result::Result<(), _> = await!($crate::future::poll_fn(|cx| {
             let mut all_done = true;
             $(
-                if $crate::poll!($fut.reborrow()).is_pending() {
+                if $crate::future::Future::poll($fut.reborrow(), cx).is_pending() {
                     all_done = false;
                 } else if $fut.reborrow().output_mut().unwrap().is_err() {
                     // `.err().unwrap()` rather than `.unwrap_err()` so that we don't introduce
                     // a `T: Debug` bound.
-                    break $crate::core_reexport::result::Result::Err(
-                        $fut.reborrow().take_output().unwrap().err().unwrap()
+                    return $crate::core_reexport::task::Poll::Ready(
+                        $crate::core_reexport::result::Result::Err(
+                            $fut.reborrow().take_output().unwrap().err().unwrap()
+                        )
                     );
                 }
             )*
             if all_done {
-                break $crate::core_reexport::result::Result::Ok(());
+                $crate::core_reexport::task::Poll::Ready(
+                    $crate::core_reexport::result::Result::Ok(()))
             } else {
-                $crate::pending!();
+                $crate::core_reexport::task::Poll::Pending
             }
-        };
+        }));
 
         res.map(|()| ($(
             // `.ok().unwrap()` rather than `.unwrap()` so that we don't introduce
