@@ -20,6 +20,9 @@ mod join;
 // Primary export is a macro
 mod select;
 
+// Primary export is a macro
+mod spawn;
+
 #[doc(hidden)]
 #[inline(always)]
 pub fn assert_unpin<T: Future + Unpin>(_: &T) {}

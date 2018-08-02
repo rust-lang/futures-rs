@@ -60,7 +60,7 @@ pub use futures_util::{
 #[cfg(feature = "std")]
 pub use futures_util::{
     // Async-await
-    join, try_join, select, pending, poll,
+    join, try_join, select, pending, poll, spawn, spawn_with_handle,
 };
 
 #[cfg(feature = "std")]
@@ -160,9 +160,8 @@ pub mod executor {
         BlockingStream,
         Enter, EnterError,
         LocalExecutor, LocalPool,
-        Spawn, SpawnWithHandle,
-        ThreadPool, ThreadPoolBuilder, JoinHandle,
-        block_on, block_on_stream, enter, spawn, spawn_with_handle
+        ThreadPool, ThreadPoolBuilder,
+        block_on, block_on_stream, enter,
     };
 }
 
@@ -257,7 +256,7 @@ pub mod prelude {
 
     pub use crate::future::{self, Future, TryFuture, FutureExt, TryFutureExt};
     pub use crate::stream::{self, Stream, TryStream, StreamExt, TryStreamExt};
-    pub use crate::task::{self, Poll, ContextExt};
+    pub use crate::task::{self, Poll, ExecutorExt};
     pub use crate::sink::{self, Sink, SinkExt};
 
     #[cfg(feature = "std")]
@@ -364,16 +363,19 @@ pub mod task {
         SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
     };
 
-    pub use futures_util::task::ContextExt;
+    #[cfg(feature = "std")]
+    pub use futures_core::task::{
+        Wake, local_waker, local_waker_from_nonlocal
+    };
+
+    pub use futures_util::task::{ExecutorExt, SpawnError};
+
+    #[cfg(feature = "std")]
+    pub use futures_util::task::JoinHandle;
 
     #[cfg_attr(
         feature = "nightly",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     pub use futures_util::task::AtomicWaker;
-
-    #[cfg(feature = "std")]
-    pub use futures_core::task::{
-        Wake, local_waker, local_waker_from_nonlocal
-    };
 }
