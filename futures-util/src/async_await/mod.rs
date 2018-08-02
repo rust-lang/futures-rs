@@ -21,4 +21,5 @@ mod join;
 mod select;
 
 #[doc(hidden)]
+#[inline(always)]
 pub fn assert_unpin<T: Future + Unpin>(_: &T) {}
