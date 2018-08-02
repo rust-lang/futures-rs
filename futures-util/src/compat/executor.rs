@@ -6,19 +6,8 @@ use futures_core::task::Executor as Executor03;
 use futures_core::task as task03;
 use futures_core::future::FutureObj;
 
-pub struct BoxedExecutor03(Box<dyn Executor03 + Send>);
-
-impl Executor03 for BoxedExecutor03 {
-    fn spawn_obj(
-        &mut self,
-        future: FutureObj<'static, ()>,
-    ) -> Result<(), task03::SpawnObjError> {
-        (&mut *self.0).spawn_obj(future)
-    }
-}
-
 /// A future that can run on a futures 0.1 executor.
-pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, BoxedExecutor03>;
+pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, Box<dyn Executor03 + Send>>;
 
 /// Extension trait for futures 0.1 Executors.
 pub trait Executor01CompatExt: Executor01<Executor01Future> +
@@ -53,7 +42,8 @@ where Ex: Executor01<Executor01Future>,
         &mut self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), task03::SpawnObjError> {
-        let future = future.unit_error().compat(BoxedExecutor03(Box::new(self.clone())));
+        let exec: Box<dyn Executor03 + Send> = Box::new(self.clone());
+        let future = future.unit_error().compat(exec);
 
         match self.executor01.execute(future) {
             Ok(()) => Ok(()),
