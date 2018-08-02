@@ -90,6 +90,7 @@ pub mod compat {
         Executor01As03,
         Executor01CompatExt,
         Future01CompatExt,
+        Stream01CompatExt,
     };
 }
 

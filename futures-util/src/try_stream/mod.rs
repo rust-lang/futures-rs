@@ -7,6 +7,12 @@ use core::marker::Unpin;
 use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;
 
+#[cfg(feature = "compat")]
+use crate::compat::Compat;
+
+#[cfg(feature = "compat")]
+use futures_core::task::Executor;
+
 mod err_into;
 pub use self::err_into::ErrInto;
 
@@ -362,5 +368,15 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TryBufferUnordered::new(self, n)
+    }
+
+    /// Wraps a [`TryStream`] into a stream compatible with libraries using
+    /// futures 0.1 `Stream`. Requires the `compat` feature to enable.
+    #[cfg(feature = "compat")]
+    fn compat<E>(self, executor: E) -> Compat<Self, E>
+        where Self: Sized + Unpin,
+              E: Executor,
+    {
+        Compat::new(self, Some(executor))
     }
 }
