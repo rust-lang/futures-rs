@@ -11,14 +11,20 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_util")]
 
-#[macro_use]
-mod macros;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
         $i
     )*)
+}
+
+#[macro_use]
+mod macros;
+
+if_std! {
+    // FIXME: currently async/await is only available with std
+    #[macro_use]
+    pub mod async_await;
 }
 
 #[doc(hidden)]
@@ -79,9 +85,6 @@ pub mod task;
 pub mod compat;
 
 if_std! {
-    // FIXME: currently async/await is only available with std
-    pub mod async_await;
-
     pub mod io;
     #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 

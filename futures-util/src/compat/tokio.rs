@@ -1,8 +1,6 @@
 use crate::{future::FutureExt, try_future::TryFutureExt};
-use std::{
-    future::FutureObj,
-    task::{Executor, SpawnErrorKind, SpawnObjError},
-};
+use futures_core::future::FutureObj;
+use futures_core::task::{Executor, SpawnErrorKind, SpawnObjError};
 use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 
 /// An executor that delegates to `tokio`'s
@@ -16,39 +14,33 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 /// # Examples
 ///
 /// ```ignore
-/// #![feature(async_await, await_macro, futures_api, pin, use_extern_macros)]
-///
-/// use std::thread;
-/// use std::boxed::PinBox;
-///
+/// #![feature(async_await, await_macro, futures_api, pin)]
+/// #[macro_use] extern crate futures;
 /// use futures::channel::oneshot;
 /// use futures::compat::TokioDefaultExecutor;
+/// use futures::executor::block_on;
 /// use futures::future::{FutureExt, TryFutureExt};
-/// use futures::spawn;
+/// use std::thread;
 ///
 /// let (sender, receiver) = oneshot::channel::<i32>();
-///
-/// let handle = thread::spawn(move || {
-///     futures::executor::block_on(async move {
-///         await!(receiver).expect("the sender will send us something")
-///     })
-/// });
 ///
 /// thread::spawn(move || {
 ///     let future = async move {
 ///         spawn!(async move {
-///             sender.send(5).expect("the receiver is still waiting");
-///         }).expect("can spawn on the executor")
+///             sender.send(5).unwrap()
+///         }).unwrap();
+///
 ///     };
 ///
-///     let compat_future = PinBox::new(future)
+///     let compat_future = future
+///         .boxed()
 ///         .unit_error()
 ///         .compat(TokioDefaultExecutor);
 ///
 ///     tokio::run(compat_future);
 /// }).join().unwrap();
 ///
-/// assert_eq!(handle.join().unwrap(), 5);
+/// assert_eq!(block_on(receiver).unwrap(), 5);
 /// ```
 #[derive(Debug, Copy, Clone)]
 pub struct TokioDefaultExecutor;
@@ -68,11 +60,14 @@ impl Executor for TokioDefaultExecutor {
     }
 
     fn status(&self) -> Result<(), SpawnErrorKind> {
-        DefaultExecutor::current().status().map_err(|e| {
-            if e.is_shutdown() {
+        DefaultExecutor::current().status().map_err(|err| {
+            if err.is_shutdown() {
                 SpawnErrorKind::shutdown()
             } else {
-                panic!("tokio executor failed for non-shutdown reason: {:?}", e)
+                panic!(
+                    "tokio executor failed for non-shutdown reason: {:?}",
+                    err
+                )
             }
         })
     }
