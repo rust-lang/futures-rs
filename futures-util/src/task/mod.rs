@@ -5,6 +5,9 @@ pub use self::executor::{ExecutorExt, SpawnError};
 
 if_std! {
     pub use self::executor::JoinHandle;
+
+    mod local_waker_ref;
+    pub use self::local_waker_ref::{local_waker_ref, local_waker_ref_from_nonlocal, LocalWakerRef};
 }
 
 #[cfg_attr(

@@ -19,7 +19,7 @@ impl CounterWaker {
 }
 
 pub fn with_counter_waker_context<F, R>(f: F) -> R
-    where F: FnOnce(&mut task::Context, Arc<CounterWaker>) -> R
+    where F: FnOnce(&mut task::Context, &Arc<CounterWaker>) -> R
 {
     impl Wake for CounterWaker {
         fn wake(arc_self: &Arc<Self>) {
@@ -28,9 +28,9 @@ pub fn with_counter_waker_context<F, R>(f: F) -> R
     }
 
     let counter_arc = Arc::new(CounterWaker(AtomicUsize::new(0)));
-    let counter_waker = unsafe { task::local_waker(counter_arc.clone()) };
+    let counter_waker = unsafe { task::local_waker_ref(&counter_arc) };
     let exec = &mut PanicExecutor;
 
     let cx = &mut task::Context::new(&counter_waker, exec);
-    f(cx, counter_arc)
+    f(cx, &counter_arc)
 }

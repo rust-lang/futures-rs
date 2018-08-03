@@ -371,7 +371,9 @@ pub mod task {
     pub use futures_util::task::{ExecutorExt, SpawnError};
 
     #[cfg(feature = "std")]
-    pub use futures_util::task::JoinHandle;
+    pub use futures_util::task::{
+        LocalWakerRef, local_waker_ref, local_waker_ref_from_nonlocal, JoinHandle
+    };
 
     #[cfg_attr(
         feature = "nightly",
