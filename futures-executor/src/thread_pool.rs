@@ -3,6 +3,7 @@ use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
 use futures_core::task::{self, Poll, Wake, Executor, SpawnObjError};
 use futures_util::future::FutureExt;
+use futures_util::task::local_waker_ref_from_nonlocal;
 use num_cpus;
 use std::io;
 use std::prelude::v1::*;
@@ -289,7 +290,7 @@ impl Task {
     /// thread.
     pub fn run(self) {
         let Task { mut future, wake_handle, mut exec } = self;
-        let local_waker = task::local_waker_from_nonlocal(wake_handle.clone());
+        let local_waker = local_waker_ref_from_nonlocal(&wake_handle);
 
         // Safety: The ownership of this `Task` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
