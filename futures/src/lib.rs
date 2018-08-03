@@ -92,6 +92,9 @@ pub mod compat {
         Future01CompatExt,
         Stream01CompatExt,
     };
+
+    #[cfg(feature = "tokio-compat")]
+    pub use futures_util::compat::TokioDefaultExecutor;
 }
 
 #[cfg(feature = "std")]

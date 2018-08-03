@@ -16,3 +16,8 @@ pub use self::future01ext::Future01CompatExt;
 
 mod stream01ext;
 pub use self::stream01ext::Stream01CompatExt;
+
+#[cfg(feature = "tokio-compat")]
+mod tokio;
+#[cfg(feature = "tokio-compat")]
+pub use self::tokio::TokioDefaultExecutor;

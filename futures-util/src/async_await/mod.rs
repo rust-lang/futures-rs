@@ -15,12 +15,15 @@ mod pending;
 pub use self::pending::*;
 
 // Primary export is a macro
+#[macro_use]
 mod join;
 
 // Primary export is a macro
+#[macro_use]
 mod select;
 
 // Primary export is a macro
+#[macro_use]
 mod spawn;
 
 #[doc(hidden)]
