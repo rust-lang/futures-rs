@@ -1,7 +1,6 @@
 use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::mem;
-use std::ops::Deref;
 use std::ptr::{self, NonNull};
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
@@ -9,6 +8,7 @@ use std::sync::atomic::Ordering::SeqCst;
 
 use futures_core::task::{UnsafeWake, Waker, LocalWaker};
 
+use crate::task::LocalWakerRef;
 use super::ReadyToRunQueue;
 use super::abort::abort;
 
@@ -30,19 +30,6 @@ pub(super) struct Task<Fut> {
 
     // Whether or not this task is currently in the ready to run queue
     pub(super) queued: AtomicBool,
-}
-
-pub(super) struct LocalWakerRef<'a> {
-    local_waker: LocalWaker,
-    _marker: PhantomData<&'a ()>,
-}
-
-impl<'a> Deref for LocalWakerRef<'a> {
-    type Target = LocalWaker;
-
-    fn deref(&self) -> &LocalWaker {
-        &self.local_waker
-    }
 }
 
 impl<Fut> Task<Fut> {
@@ -114,10 +101,7 @@ impl<Fut> Task<Fut> {
         unsafe {
             let ptr = mem::transmute::<NonNull<dyn UnsafeWake>,
                                        NonNull<dyn UnsafeWake>>(ptr);
-            LocalWakerRef {
-                local_waker: LocalWaker::new(ptr),
-                _marker: PhantomData,
-            }
+            LocalWakerRef::new(LocalWaker::new(ptr))
         }
     }
 }
