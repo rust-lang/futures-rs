@@ -2,6 +2,7 @@ language: rust
 rust:
   - nightly
 sudo: false
+cache: cargo
 
 matrix:
   include:
