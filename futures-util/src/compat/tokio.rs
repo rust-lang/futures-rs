@@ -9,6 +9,10 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 /// [`DefaultExecutor`][tokio_executor::DefaultExecutor], will panic if used in
 /// the context of a task that is not running on `tokio`'s executor.
 ///
+/// *NOTE* The future of this struct in `futures` is uncertain. It may be
+/// deprecated before or soon after the initial 0.3 release and moved to a
+/// feature in `tokio` instead.
+///
 /// # Examples
 ///
 /// ```ignore
