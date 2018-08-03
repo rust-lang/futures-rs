@@ -2,11 +2,9 @@
 
 use futures::channel::oneshot;
 use futures::future::{FutureExt, TryFutureExt};
+use futures_test::future::FutureTestExt;
 use std::sync::mpsc;
 use std::thread;
-
-mod support;
-use self::support::RunInBackgroundExt;
 
 #[test]
 fn oneshot_send1() {

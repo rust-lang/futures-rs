@@ -1,0 +1,55 @@
+use futures_core::future::FutureObj;
+use futures_core::task::{Spawn, SpawnObjError};
+use std::cell::UnsafeCell;
+
+/// An implementation of [`Spawn`][futures_core::task::Spawn] that
+/// discards spawned futures when used.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, futures_api)]
+/// use futures::task::SpawnExt;
+/// use futures_test::task::{panic_context, spawn};
+///
+/// let mut cx = panic_context();
+/// let mut spawn = spawn::Noop::new();
+/// let cx = &mut cx.with_spawner(&mut spawn);
+///
+/// cx.spawner().spawn(async { });
+/// ```
+#[derive(Debug)]
+pub struct Noop {
+    _reserved: (),
+}
+
+impl Noop {
+    /// Create a new instance
+    pub fn new() -> Self {
+        Self { _reserved: () }
+    }
+
+    /// Get a thread local reference to a singleton instance of [`Noop`] as a
+    /// [`Spawn`].
+    pub fn spawn_mut() -> &'static mut dyn Spawn {
+        thread_local! {
+            static INSTANCE: UnsafeCell<Noop> = UnsafeCell::new(Noop { _reserved: () });
+        }
+        INSTANCE.with(|i| unsafe { &mut *i.get() })
+    }
+}
+
+impl Spawn for Noop {
+    fn spawn_obj(
+        &mut self,
+        _future: FutureObj<'static, ()>,
+    ) -> Result<(), SpawnObjError> {
+        Ok(())
+    }
+}
+
+impl Default for Noop {
+    fn default() -> Self {
+        Self::new()
+    }
+}

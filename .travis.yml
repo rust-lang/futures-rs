@@ -52,6 +52,7 @@ matrix:
         - cargo build --manifest-path futures-io/Cargo.toml --all-features
         - cargo build --manifest-path futures-sink/Cargo.toml --all-features
         - cargo build --manifest-path futures-util/Cargo.toml --all-features
+        - cargo build --manifest-path futures-test/Cargo.toml --all-features
 
     - name: cargo build --all-features (with minimal versions)
       rust: nightly
@@ -81,6 +82,7 @@ matrix:
         - RUSTDOCFLAGS=-Dwarnings cargo doc --all
             --exclude futures-preview
             --exclude futures-executor-preview
+            --exclude futures-test-preview
         - cargo doc
 
 script:

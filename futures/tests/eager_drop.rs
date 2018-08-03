@@ -3,12 +3,10 @@
 use futures::channel::oneshot;
 use futures::future::{self, Future, FutureExt, TryFutureExt};
 use futures::task::{self, Poll};
+use futures_test::future::FutureTestExt;
 use pin_utils::unsafe_pinned;
 use std::mem::PinMut;
 use std::sync::mpsc;
-
-mod support;
-use self::support::RunInBackgroundExt;
 
 #[test]
 fn map_ok() {

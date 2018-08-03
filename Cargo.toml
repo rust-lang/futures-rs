@@ -7,4 +7,5 @@ members = [
   "futures-io",
   "futures-sink",
   "futures-util",
+  "futures-test",
 ]

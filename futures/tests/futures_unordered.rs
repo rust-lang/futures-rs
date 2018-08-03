@@ -5,9 +5,8 @@ use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureExt, FutureObj};
 use futures::stream::{StreamExt, futures_unordered, FuturesUnordered};
 use futures::task::Poll;
+use futures_test::task::no_spawn_context;
 use std::boxed::Box;
-
-mod support;
 
 #[test]
 fn works_1() {
@@ -40,12 +39,12 @@ fn works_2() {
 
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
-    support::with_noop_waker_context(|cx| {
-        assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(9))));
-        c_tx.send(20).unwrap();
-        assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(30))));
-        assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(None));
-    })
+
+    let cx = &mut no_spawn_context();
+    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(9))));
+    c_tx.send(20).unwrap();
+    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(30))));
+    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(None));
 }
 
 #[test]
