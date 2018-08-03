@@ -1,5 +1,7 @@
-/// Converts a futures 0.3 `TryFuture`, `TryStream` or `Sink` into a futures 0.1
-/// `Future` and vice versa.
+/// Converts a futures 0.3 [`TryFuture`][futures_core::future::TryFuture],
+/// [`TryStream`][futures_core::stream::TryStream] or
+/// [`Sink`][futures_sink::Sink] into a futures 0.1 [`Future`][futures::Future],
+/// [`Stream`][futures::Stream] or [`Sink`][futures::Sink] and vice versa.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Compat<T, Ex> {
@@ -13,7 +15,7 @@ impl<T, Ex> Compat<T, Ex> {
         self.inner
     }
 
-    /// Creates a new `Compat`.
+    /// Creates a new [`Compat`].
     crate fn new(inner: T, executor: Option<Ex>) -> Compat<T, Ex> {
         Compat { inner, executor }
     }
