@@ -313,7 +313,7 @@ pub mod stream {
         unfold, Unfold,
 
         StreamExt,
-        Chain, Concat, Filter, FilterMap, Flatten, Fold, Forward, ForEach, Fuse,
+        Chain, Concat, EagerSelect, Filter, FilterMap, Flatten, Fold, Forward, ForEach, Fuse,
         StreamFuture, Inspect, Map, Next, Peekable, Select, Skip, SkipWhile,
         Take, TakeWhile, Then, Zip
     };
