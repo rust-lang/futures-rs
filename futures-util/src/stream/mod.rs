@@ -868,12 +868,16 @@ pub trait StreamExt: Stream {
         Chunks::new(self, capacity)
     }
 
-    /// Creates a stream that selects the next element from either this stream
-    /// or the provided one, whichever is ready first.
-    ///
     /// This combinator will attempt to pull items from both streams. Each
     /// stream will be polled in a round-robin fashion, and whenever a stream is
     /// ready to yield an item that item is yielded.
+    ///
+    /// After one of the two input stream completes, the remaining one will be
+    /// polled exclusively. The returned stream completes when both input
+    /// streams have completed.
+    ///
+    /// Note that this method consumes both streams and returns a wrapped
+    /// version of them.
     fn select<St>(self, other: St) -> Select<Self, St>
         where St: Stream<Item = Self::Item>,
               Self: Sized,
