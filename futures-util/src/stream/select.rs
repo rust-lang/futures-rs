@@ -8,6 +8,9 @@ use futures_core::task::{self, Poll};
 ///
 /// The merged stream produces items from either of the underlying streams as
 /// they become available, and the streams are polled in a round-robin fashion.
+///
+/// When either this stream or the provided one ends, the remaining stream will be polled to
+/// completion or error. The stream that ended will no longer be polled.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Select<St1, St2> {

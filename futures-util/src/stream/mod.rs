@@ -868,6 +868,9 @@ pub trait StreamExt: Stream {
     /// This combinator will attempt to pull items from both streams. Each
     /// stream will be polled in a round-robin fashion, and whenever a stream is
     /// ready to yield an item that item is yielded.
+    ///
+    /// When either this stream or the provided one ends, the remaining stream will be polled to
+    /// completion or error. The stream that ended will no longer be polled.
     fn select<St>(self, other: St) -> Select<Self, St>
         where St: Stream<Item = Self::Item>,
               Self: Sized,
