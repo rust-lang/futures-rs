@@ -43,8 +43,8 @@ use futures::future::Future;
 
 ### Feature `std`
 
-`futures-rs` works without the standard library, such as in bare metal environments.
-However, it has a significantly reduced API surface. To use `futures-rs` in
+Futures-rs works without the standard library, such as in bare metal environments.
+However, it has a significantly reduced API surface. To use futures-rs in
 a `#[no_std]` environment, use:
 
 ```toml
@@ -66,5 +66,5 @@ at your option.
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in Futures by you, as defined in the Apache-2.0 license, shall be
+for inclusion in futures-rs by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
