@@ -12,7 +12,7 @@
   </a>
 
   <a href="https://crates.io/crates/futures-preview">
-    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures-preview.svg?maxAge=2592000">
+    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures-preview.svg">
   </a>
 </p>
 
