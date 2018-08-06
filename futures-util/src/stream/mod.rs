@@ -948,8 +948,8 @@ pub trait StreamExt: Stream {
         Either::Right(self)
     }
 
-    /// A convenience for calling [`Stream::poll_next`] on [`Unpin`] stream
-    /// types.
+    /// A convenience method for calling [`Stream::poll_next`] on [`Unpin`]
+    /// stream types.
     fn poll_next_unpin(
         &mut self,
         cx: &mut task::Context
