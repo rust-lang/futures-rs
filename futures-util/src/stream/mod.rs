@@ -870,7 +870,7 @@ pub trait StreamExt: Stream {
     /// ready to yield an item that item is yielded.
     ///
     /// When either this stream or the provided one ends, the remaining stream will be polled to
-    /// completion or error. The stream that ended will no longer be polled.
+    /// completion. The stream that ended will no longer be polled.
     fn select<St>(self, other: St) -> Select<Self, St>
         where St: Stream<Item = Self::Item>,
               Self: Sized,
