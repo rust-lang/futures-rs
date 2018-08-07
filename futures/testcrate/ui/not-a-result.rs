@@ -1,7 +1,5 @@
 #![feature(proc_macro, generators, pin)]
 
-use futures::prelude::*;
-
 #[async]
 fn foo() -> u32 {
     3

@@ -1,22 +1,3 @@
-//! Definition of the Shared combinator, a future that is cloneable,
-//! and can be polled in multiple threads.
-//!
-//! # Examples
-//!
-//! ```
-//! use futures::prelude::*;
-//! use futures::future;
-//! use futures::executor::block_on;
-//!
-//! # fn main() {
-//! let future = future::ready(6);
-//! let shared1 = future.shared();
-//! let shared2 = shared1.clone();
-//! assert_eq!(6, *block_on(shared1));
-//! assert_eq!(6, *block_on(shared2));
-//! # }
-//! ```
-
 use futures_core::future::Future;
 use futures_core::task::{self, Poll, Wake, Waker};
 use slab::Slab;

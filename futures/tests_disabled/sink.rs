@@ -1,4 +1,3 @@
-use futures::prelude::*;
 use futures::future::ok;
 use futures::stream;
 use futures::channel::{oneshot, mpsc};

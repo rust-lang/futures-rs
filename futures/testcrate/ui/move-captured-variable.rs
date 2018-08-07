@@ -1,7 +1,5 @@
 #![feature(proc_macro, generators, pin)]
 
-use futures::prelude::*;
-
 fn foo<F: FnMut()>(_f: F) {}
 
 fn main() {

@@ -1,9 +1,11 @@
 #![feature(futures_api, async_await, await_macro, pin)]
 
-use futures::future::poll_fn;
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
-use futures::prelude::*;
+use futures::future::{FutureExt, poll_fn};
+use futures::stream::{Stream, StreamExt};
+use futures::sink::{Sink, SinkExt};
+use futures::task::Poll;
 use pin_utils::pin_mut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};

@@ -3,8 +3,9 @@
 use futures::ready;
 use futures::channel::mpsc::{self, Sender, UnboundedSender};
 use futures::executor::LocalPool;
-use futures::prelude::*;
-use futures::task::{self, Wake, LocalWaker};
+use futures::stream::{Stream, StreamExt};
+use futures::sink::Sink;
+use futures::task::{self, Poll, Wake, LocalWaker};
 use std::mem::PinMut;
 use std::sync::Arc;
 use test::Bencher;

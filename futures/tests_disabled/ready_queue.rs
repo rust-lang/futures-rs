@@ -1,5 +1,3 @@
-
-use futures::prelude::*;
 use futures::executor::{block_on, block_on_stream};
 use futures::Async::*;
 use futures::future;

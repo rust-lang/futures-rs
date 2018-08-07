@@ -25,14 +25,12 @@ pub struct EnterError {
 /// execute a tasks, and drop the returned [`Enter`](Enter) value after
 /// completing task execution:
 ///
-/// ```rust
-/// # use futures::executor::enter;
+/// ```
+/// use futures::executor::enter;
 ///
-/// # fn main() {
 /// let enter = enter().expect("...");
 /// /* run task */
 /// drop(enter);
-/// # }
 /// ```
 ///
 /// Doing so ensures that executors aren't

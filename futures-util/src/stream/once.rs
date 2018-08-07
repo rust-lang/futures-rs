@@ -7,11 +7,10 @@ use pin_utils::unsafe_pinned;
 
 /// Creates a stream of single element
 ///
-/// ```rust
-/// use futures::prelude::*;
+/// ```
 /// use futures::future;
 /// use futures::executor::block_on;
-/// use futures::stream;
+/// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::once(future::ready(17));
 /// let collected = block_on(stream.collect::<Vec<i32>>());

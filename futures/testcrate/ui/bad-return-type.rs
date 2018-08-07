@@ -1,7 +1,5 @@
 #![feature(proc_macro, generators, pin)]
 
-use futures::prelude::*;
-
 #[async]
 fn foobar() -> Result<Option<i32>, ()> {
     let val = Some(42);

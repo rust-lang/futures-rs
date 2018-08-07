@@ -1,4 +1,3 @@
-use futures::future::*;
 use futures::future;
 use futures::executor::block_on;
 use futures::channel::oneshot::{self, Canceled};

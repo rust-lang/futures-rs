@@ -1,4 +1,3 @@
-use futures::prelude::*;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{err, ok};
 use futures::stream::{empty, iter_ok, poll_fn, Peekable};

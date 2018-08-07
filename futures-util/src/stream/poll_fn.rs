@@ -23,9 +23,9 @@ impl<F> Unpin for PollFn<F> {}
 /// # Examples
 ///
 /// ```
-/// # #![feature(futures_api)]
-/// use futures::prelude::*;
+/// #![feature(futures_api)]
 /// use futures::stream::poll_fn;
+/// use futures::task::Poll;
 ///
 /// let mut counter = 1usize;
 ///

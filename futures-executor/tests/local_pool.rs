@@ -2,9 +2,8 @@
 
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
-use futures::future::lazy;
-use futures::task::{self, Executor};
-use futures::prelude::*;
+use futures::future::{Future, lazy};
+use futures::task::{self, Poll, Executor};
 use std::boxed::PinBox;
 use std::cell::{Cell, RefCell};
 use std::mem::PinMut;

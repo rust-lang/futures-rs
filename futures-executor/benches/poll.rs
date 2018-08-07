@@ -1,8 +1,8 @@
 #![feature(test, pin, arbitrary_self_types, futures_api)]
 
 use futures::executor::LocalPool;
-use futures::task::{self, Waker, LocalWaker, Wake, local_waker_from_nonlocal};
-use futures::prelude::*;
+use futures::future::{Future, FutureExt};
+use futures::task::{self, Poll, Waker, LocalWaker, Wake};
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -15,7 +15,7 @@ fn notify_noop() -> LocalWaker {
         fn wake(_: &Arc<Self>) {}
     }
 
-    local_waker_from_nonlocal(Arc::new(Noop))
+    task::local_waker_from_nonlocal(Arc::new(Noop))
 }
 
 #[bench]

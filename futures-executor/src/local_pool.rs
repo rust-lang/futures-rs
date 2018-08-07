@@ -125,7 +125,7 @@ impl LocalPool {
     /// the `LocalPool` by using its executor handle:
     ///
     /// ```
-    /// # #![feature(pin, arbitrary_self_types, futures_api)]
+    /// #![feature(pin, arbitrary_self_types, futures_api)]
     /// use futures::executor::LocalPool;
     /// use futures::future::ready;
     ///

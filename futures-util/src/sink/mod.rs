@@ -90,12 +90,12 @@ pub trait SinkExt: Sink {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::sink::SinkExt;
+    /// use futures::stream::StreamExt;
     /// use std::collections::VecDeque;
     ///
-    /// # fn main() {
     /// let (mut tx, rx) = mpsc::channel(5);
     ///
     /// let mut tx = tx.with_flat_map(|x| {
@@ -106,7 +106,6 @@ pub trait SinkExt: Sink {
     /// drop(tx);
     /// let received: Vec<i32> = block_on(rx.collect());
     /// assert_eq!(received, vec![42, 42, 42, 42, 42]);
-    /// # }
     /// ```
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
         where F: FnMut(U) -> St,

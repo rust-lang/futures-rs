@@ -2,9 +2,9 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureObj};
-use futures::stream::{futures_unordered, FuturesUnordered};
-use futures::prelude::*;
+use futures::future::{self, FutureExt, FutureObj};
+use futures::stream::{StreamExt, futures_unordered, FuturesUnordered};
+use futures::task::Poll;
 use std::boxed::Box;
 
 mod support;

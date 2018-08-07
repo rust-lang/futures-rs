@@ -1,4 +1,3 @@
-use futures::prelude::*;
 use futures::task;
 use futures::stream;
 use futures::future;

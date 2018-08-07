@@ -3,8 +3,9 @@
 use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::future::poll_fn;
-use futures::prelude::*;
-use std::sync::atomic::*;
+use futures::stream::StreamExt;
+use futures::sink::SinkExt;
+use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT, Ordering};
 use std::thread;
 
 #[test]

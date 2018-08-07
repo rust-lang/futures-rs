@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
-use futures::task::Wake;
-use futures::prelude::*;
-
 use super::panic_executor::PanicExecutor;
+use futures::task::{self, Wake};
+use std::sync::Arc;
 
 pub fn with_panic_waker_context<F, R>(f: F) -> R
     where F: FnOnce(&mut task::Context) -> R

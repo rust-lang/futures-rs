@@ -1,6 +1,5 @@
 use futures::channel::oneshot;
 use futures::future::{ok, err};
-use futures::prelude::*;
 use std::sync::mpsc;
 use std::thread;
 

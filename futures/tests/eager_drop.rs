@@ -1,8 +1,8 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 use futures::channel::oneshot;
-use futures::future;
-use futures::prelude::*;
+use futures::future::{self, Future, FutureExt, TryFutureExt};
+use futures::task::{self, Poll};
 use pin_utils::unsafe_pinned;
 use std::mem::PinMut;
 use std::sync::mpsc;

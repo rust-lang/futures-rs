@@ -30,11 +30,10 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 ///
 /// # Example
 ///
-/// ```rust
-/// use futures::prelude::*;
-/// use futures::stream;
-/// use futures::future;
+/// ```
 /// use futures::executor::block_on;
+/// use futures::future;
+/// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::unfold(0, |state| {
 ///     if state <= 2 {

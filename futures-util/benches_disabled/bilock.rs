@@ -2,7 +2,6 @@
 
 #[cfg(feature = "bench")]
 mod bench {
-use futures::prelude::*;
 use futures::task::{self, Wake, Waker};
 use futures::executor::LocalPool;
 use futures_util::lock::BiLock;

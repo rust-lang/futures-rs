@@ -1,7 +1,6 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-use futures::future;
-use futures::prelude::*;
+use futures::future::{self, FutureExt};
 
 mod support;
 

@@ -1,5 +1,5 @@
-use futures::prelude::*;
 use futures::executor::block_on;
+use futures::future::Future;
 use std::thread;
 
 pub trait RunInBackgroundExt {

@@ -115,7 +115,7 @@ pub mod executor {
     //! can then spawn further tasks back onto the pool to complete its work:
     //!
     //! ```
-    //! # #![feature(pin, arbitrary_self_types, futures_api)]
+    //! #![feature(pin, arbitrary_self_types, futures_api)]
     //! use futures::executor::ThreadPool;
     //! # use futures::future::{Future, lazy};
     //! # let my_app = lazy(|_| 42);

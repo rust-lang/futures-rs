@@ -1,6 +1,5 @@
 
 use futures::executor::block_on_stream;
-use futures::prelude::*;
 use futures::future::{ok, err};
 use futures::stream;
 use core::marker;

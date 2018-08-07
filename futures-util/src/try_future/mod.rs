@@ -342,7 +342,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
     /// // A poor-man's join implemented on top of select
@@ -384,7 +383,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::executor::block_on;
     ///
@@ -400,9 +398,8 @@ pub trait TryFutureExt: TryFuture {
     /// `Future` will be errored:
     ///
     /// ```
-    /// use futures::prelude::*;
-    /// use futures::future;
     /// use futures::executor::block_on;
+    /// use futures::future::{self, FutureExt};
     ///
     /// let a = future::ok::<i32, i32>(1);
     /// let b = future::err::<i32, i32>(2);

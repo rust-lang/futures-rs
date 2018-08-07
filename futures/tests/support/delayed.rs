@@ -1,4 +1,5 @@
-use futures::prelude::*;
+use futures::future::Future;
+use futures::task::{self, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::mem::PinMut;
 

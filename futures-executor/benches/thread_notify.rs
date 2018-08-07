@@ -1,8 +1,8 @@
 #![feature(test, futures_api, pin, arbitrary_self_types)]
 
 use futures::executor::block_on;
-use futures::task::{self, Waker};
-use futures::prelude::*;
+use futures::future::Future;
+use futures::task::{self, Poll, Waker};
 use std::marker::Unpin;
 use std::mem::PinMut;
 use test::Bencher;
