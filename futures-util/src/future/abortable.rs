@@ -1,6 +1,7 @@
+use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
-use crate::task::AtomicWaker;
+use pin_utils::unsafe_pinned;
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -29,7 +30,6 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     /// Example:
     ///
     /// ```rust
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
     /// use futures::executor::block_on;
@@ -72,7 +72,6 @@ impl AbortHandle {
     /// Example:
     ///
     /// ```rust
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
     /// use futures::executor::block_on;

@@ -90,7 +90,6 @@ pub trait SinkExt: Sink {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;

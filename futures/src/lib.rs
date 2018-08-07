@@ -52,8 +52,6 @@
 
 // Macro reexports
 pub use futures_util::{
-    // Pinning
-    pin_mut, unsafe_pinned, unsafe_unpinned,
     // Error/readiness propagation
     try_ready, try_poll, ready,
 };

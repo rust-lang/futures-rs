@@ -2,6 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Future for the `unit_error` combinator, turning a `Future` into a `TryFuture`.
 ///

@@ -1,10 +1,8 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::future;
 use futures::stream;
+use pin_utils::pin_mut;
 
 mod support;
 use self::support::assert::*;

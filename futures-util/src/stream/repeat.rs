@@ -19,7 +19,6 @@ pub struct Repeat<T> {
 /// available memory as it tries to just fill up all RAM.
 ///
 /// ```rust
-/// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::stream;
 /// use futures::executor::block_on;

@@ -142,7 +142,6 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # #![feature(pin)]
-    /// #[macro_use] extern crate futures;
     /// use futures::executor::block_on;
     /// use futures::prelude::*;
     ///
@@ -175,7 +174,6 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # #![feature(pin)]
-    /// #[macro_use] extern crate futures;
     /// use futures::executor::block_on;
     /// use futures::prelude::*;
     ///
@@ -607,7 +605,6 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// # #![feature(futures_api)]
-    /// #[macro_use] extern crate futures;
     /// use futures::executor::block_on_stream;
     /// use futures::prelude::*;
     ///

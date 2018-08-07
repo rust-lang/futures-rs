@@ -4,7 +4,6 @@
 //! # Examples
 //!
 //! ```
-//! # extern crate futures;
 //! use futures::prelude::*;
 //! use futures::future;
 //! use futures::executor::block_on;

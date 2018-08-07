@@ -1,8 +1,5 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureObj};

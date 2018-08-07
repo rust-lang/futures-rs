@@ -1,12 +1,8 @@
 #![feature(test, pin, arbitrary_self_types, futures_api)]
 
-extern crate futures;
-extern crate test;
-
-use futures::prelude::*;
-use futures::task::{self, Waker, LocalWaker, Wake, local_waker_from_nonlocal};
 use futures::executor::LocalPool;
-
+use futures::task::{self, Waker, LocalWaker, Wake, local_waker_from_nonlocal};
+use futures::prelude::*;
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::sync::Arc;

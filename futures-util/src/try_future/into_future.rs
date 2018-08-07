@@ -1,6 +1,7 @@
 use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Future for the [`into_future`](super::TryFutureExt::into_future) combinator.
 #[derive(Debug)]

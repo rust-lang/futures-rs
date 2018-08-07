@@ -342,7 +342,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
@@ -385,7 +384,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::executor::block_on;
@@ -402,7 +400,6 @@ pub trait TryFutureExt: TryFuture {
     /// `Future` will be errored:
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::executor::block_on;
@@ -488,9 +485,9 @@ pub trait TryFutureExt: TryFuture {
 
     /// Wraps a [`TryFuture`] into a future compatable with libraries using
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
-    /// 
+    ///
     #[cfg(feature = "compat")]
-    fn compat<E>(self, executor: E) -> Compat<Self, E> 
+    fn compat<E>(self, executor: E) -> Compat<Self, E>
         where Self: Sized + Unpin,
               E: Executor,
     {
@@ -518,7 +515,7 @@ pub trait TryFutureExt: TryFuture {
     /// fn take_future(future: impl Future<Output = Result<T, E>>) { /* ... */ }
     ///
     /// take_future(make_try_future().into_future());
-    /// ```    
+    /// ```
     fn into_future(self) -> IntoFuture<Self>
         where Self: Sized,
     {

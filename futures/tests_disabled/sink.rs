@@ -1,12 +1,3 @@
-#[macro_use] extern crate futures;
-
-use std::mem;
-use std::sync::Arc;
-use std::rc::Rc;
-use std::cell::{Cell, RefCell};
-use std::sync::atomic::{Ordering, AtomicBool};
-use std::collections::VecDeque;
-
 use futures::prelude::*;
 use futures::future::ok;
 use futures::stream;
@@ -14,6 +5,12 @@ use futures::channel::{oneshot, mpsc};
 use futures::task::{self, Wake, Waker};
 use futures::executor::block_on;
 use futures::sink::SinkErrInto;
+use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
+use std::mem;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{Ordering, AtomicBool};
 
 mod support;
 use support::*;

@@ -2,6 +2,7 @@ use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::mem::PinMut;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::unsafe_pinned;
 
 /// Sink that clones incoming items and forwards them to two sinks at the same time.
 ///

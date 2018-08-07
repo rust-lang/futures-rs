@@ -32,6 +32,9 @@ futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.2", defaul
 futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.2", default-features = false }
 futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.2", default-features = false }
 
+[dev-dependencies]
+pin-utils = "0.1.0-alpha.1"
+
 [features]
 nightly = ["futures-util-preview/nightly"]
 std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std"]

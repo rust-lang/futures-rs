@@ -1,10 +1,5 @@
 #![feature(test, futures_api)]
 
-extern crate futures;
-extern crate futures_channel;
-extern crate futures_executor;
-extern crate test;
-
 use futures::prelude::*;
 use futures::future;
 use futures::stream::FuturesUnordered;

@@ -1,16 +1,13 @@
 #![feature(futures_api, arbitrary_self_types, pin)]
 
-extern crate futures;
-
+use futures::channel::oneshot::*;
+use futures::executor::block_on;
+use futures::future::poll_fn;
+use futures::task;
+use futures::prelude::*;
 use std::mem::PinMut;
 use std::sync::mpsc;
 use std::thread;
-
-use futures::future::poll_fn;
-use futures::prelude::*;
-use futures::task;
-use futures::channel::oneshot::*;
-use futures::executor::block_on;
 
 #[test]
 fn smoke_poll() {

@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate futures;
-
 use futures::prelude::*;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{err, ok};

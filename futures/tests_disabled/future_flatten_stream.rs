@@ -1,12 +1,9 @@
-extern crate core;
-extern crate futures;
-
-use core::marker;
 
 use futures::executor::block_on_stream;
 use futures::prelude::*;
 use futures::future::{ok, err};
 use futures::stream;
+use core::marker;
 
 #[test]
 fn successful_future() {

@@ -176,7 +176,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
@@ -349,7 +348,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::executor::block_on;
     /// use futures::future::*;
     ///
@@ -380,7 +378,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::executor::block_on;
     /// use futures::future::*;
     ///
@@ -659,8 +656,8 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
-    /// #[macro_use] extern crate futures;
     /// # futures::executor::block_on(async {
+    /// use futures::spawn;
     /// use futures::executor::ThreadPool;
     /// use futures::future::FutureExt;
     /// use std::thread;

@@ -24,7 +24,6 @@ impl<F> Unpin for PollFn<F> {}
 ///
 /// ```
 /// # #![feature(futures_api)]
-/// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::stream::poll_fn;
 ///

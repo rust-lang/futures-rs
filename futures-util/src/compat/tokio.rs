@@ -15,7 +15,7 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 ///
 /// ```ignore
 /// #![feature(async_await, await_macro, futures_api, pin)]
-/// #[macro_use] extern crate futures;
+/// use futures::spawn;
 /// use futures::channel::oneshot;
 /// use futures::compat::TokioDefaultExecutor;
 /// use futures::executor::block_on;

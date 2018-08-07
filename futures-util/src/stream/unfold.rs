@@ -3,6 +3,7 @@ use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
 ///
@@ -30,8 +31,6 @@ use futures_core::task::{self, Poll};
 /// # Example
 ///
 /// ```rust
-/// # extern crate futures;
-///
 /// use futures::prelude::*;
 /// use futures::stream;
 /// use futures::future;

@@ -1,10 +1,7 @@
-extern crate futures;
-
-use std::thread;
-
-use futures::prelude::*;
 use futures::channel::mpsc::*;
 use futures::executor::block_on;
+use futures::prelude::*;
+use std::thread;
 
 #[test]
 fn smoke() {

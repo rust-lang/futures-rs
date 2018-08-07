@@ -49,7 +49,6 @@ impl<F> fmt::Debug for JoinAll<F>
 /// # Examples
 ///
 /// ```
-/// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::future::{join_all, ok, err};
 ///

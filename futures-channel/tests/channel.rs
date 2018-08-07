@@ -1,14 +1,11 @@
 #![feature(async_await, await_macro, futures_api)]
 
-extern crate futures;
-
+use futures::channel::mpsc;
+use futures::executor::block_on;
+use futures::future::poll_fn;
+use futures::prelude::*;
 use std::sync::atomic::*;
 use std::thread;
-
-use futures::prelude::*;
-use futures::future::poll_fn;
-use futures::executor::block_on;
-use futures::channel::mpsc;
 
 #[test]
 fn sequence() {

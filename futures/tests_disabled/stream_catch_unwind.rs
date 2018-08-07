@@ -1,5 +1,3 @@
-extern crate futures;
-
 use futures::executor::block_on_stream;
 use futures::stream;
 use futures::prelude::*;

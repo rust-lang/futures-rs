@@ -3,11 +3,11 @@ use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Creates a stream of single element
 ///
 /// ```rust
-/// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::future;
 /// use futures::executor::block_on;

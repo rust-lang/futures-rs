@@ -1,23 +1,14 @@
-#![allow(unused_imports)]
-
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-extern crate futures;
-extern crate futures_executor;
-extern crate futures_channel;
-
+use futures::channel::oneshot;
+use futures::executor::LocalPool;
+use futures::future::lazy;
+use futures::task::{self, Executor};
+use futures::prelude::*;
 use std::boxed::PinBox;
 use std::cell::{Cell, RefCell};
 use std::mem::PinMut;
 use std::rc::Rc;
-use std::thread;
-use std::time::Duration;
-
-use futures::future::lazy;
-use futures::prelude::*;
-use futures::task::{self, Executor};
-use futures_executor::*;
-use futures_channel::oneshot;
 
 struct Pending(Rc<()>);
 

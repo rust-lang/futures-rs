@@ -21,7 +21,6 @@ impl<I> Unpin for Iter<I> {}
 /// simply always calls `iter.next()` and returns that.
 ///
 /// ```rust
-/// # extern crate futures;
 /// use futures::prelude::*;
 /// use futures::stream;
 /// use futures::executor::block_on;

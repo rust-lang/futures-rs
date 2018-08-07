@@ -1,4 +1,5 @@
 use futures::prelude::*;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::mem::PinMut;
 
 pub struct Delayed<F> {

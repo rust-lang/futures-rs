@@ -26,7 +26,6 @@ pub struct EnterError {
 /// completing task execution:
 ///
 /// ```rust
-/// # extern crate futures;
 /// # use futures::executor::enter;
 ///
 /// # fn main() {

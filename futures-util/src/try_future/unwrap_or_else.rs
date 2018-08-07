@@ -2,6 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`unwrap_or_else`](super::TryFutureExt::unwrap_or_else)
 /// combinator.

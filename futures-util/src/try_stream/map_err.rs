@@ -2,6 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`map_err`](super::TryStreamExt::map_err) combinator.
 #[derive(Debug)]

@@ -1,6 +1,3 @@
-extern crate futures;
-
-use std::panic::{self, AssertUnwindSafe};
 
 use futures::prelude::*;
 use futures::executor::{block_on, block_on_stream};
@@ -8,6 +5,7 @@ use futures::Async::*;
 use futures::future;
 use futures::stream::FuturesUnordered;
 use futures::channel::oneshot;
+use std::panic::{self, AssertUnwindSafe};
 
 mod support;
 

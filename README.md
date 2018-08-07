@@ -26,19 +26,17 @@
 
 ## Usage
 
-First, add this to your `Cargo.toml`:
+Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 futures-preview = "0.3.0-alpha.2"
 ```
 
-Next, add this to your crate:
+Now, you can use futures-rs:
 
 ```rust
-extern crate futures; // Note: It's not `futures_preview`
-
-use futures::future::Future;
+use futures::future::Future; // Note: It's not `futures_preview`
 ```
 
 ### Feature `std`
