@@ -1,4 +1,5 @@
-use futures::prelude::*;
+use futures::stream::Stream;
+use futures::task::Poll;
 use std::fmt;
 use std::mem::PinMut;
 

@@ -1,12 +1,8 @@
-extern crate futures;
-
-use std::thread;
-
-use futures::prelude::*;
 use futures::task;
 use futures::stream;
 use futures::future;
 use futures_util::lock::BiLock;
+use std::thread;
 
 mod support;
 use support::*;

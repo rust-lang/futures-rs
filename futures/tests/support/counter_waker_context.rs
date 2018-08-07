@@ -1,10 +1,7 @@
+use super::panic_executor::PanicExecutor;
+use futures::task::{self, Wake};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-
-use futures::task::Wake;
-use futures::prelude::*;
-
-use super::panic_executor::PanicExecutor;
 
 pub struct CounterWaker(AtomicUsize);
 

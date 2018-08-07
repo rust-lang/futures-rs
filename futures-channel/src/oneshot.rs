@@ -84,24 +84,22 @@ struct Inner<T> {
 ///
 /// ```
 /// use futures::channel::oneshot;
-/// use futures::prelude::*;
+/// use futures::future::FutureExt;
 /// use std::thread;
 ///
-/// fn main() {
-///     let (sender, receiver) = oneshot::channel::<i32>();
+/// let (sender, receiver) = oneshot::channel::<i32>();
 ///
 /// # let t =
-///     thread::spawn(|| {
-///         let future = receiver.map(|i| {
-///             println!("got: {:?}", i);
-///         });
-///         // ...
-/// # return future;
+/// thread::spawn(|| {
+///     let future = receiver.map(|i| {
+///         println!("got: {:?}", i);
 ///     });
+///     // ...
+/// # return future;
+/// });
 ///
-///     sender.send(3).unwrap();
+/// sender.send(3).unwrap();
 /// # futures::executor::block_on(t.join().unwrap());
-/// }
 /// ```
 pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
     let inner = Arc::new(Inner::new());

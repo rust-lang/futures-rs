@@ -141,10 +141,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # #![feature(pin)]
-    /// #[macro_use] extern crate futures;
+    /// #![feature(pin)]
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..=3);
     ///
@@ -174,10 +173,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # #![feature(pin)]
-    /// #[macro_use] extern crate futures;
+    /// #![feature(pin)]
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     ///
@@ -208,7 +206,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     /// let stream = stream.map(|x| x + 3);
@@ -239,7 +237,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     /// let evens = stream.filter(|x| future::ready(x % 2 == 0));
@@ -269,7 +268,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     /// let evens = stream.filter_map(|x| {
@@ -301,7 +301,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     /// let stream = stream.then(|x| future::ready(x + 3));
@@ -327,9 +328,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -363,9 +364,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -401,8 +402,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let number_stream = stream::iter(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ready(acc + x));
@@ -421,9 +423,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
     /// let (tx1, rx1) = mpsc::unbounded();
@@ -464,8 +466,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     ///
@@ -491,8 +494,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     ///
@@ -525,7 +529,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut x = 0;
     ///
@@ -556,7 +561,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10).take(3);
     ///
@@ -577,7 +582,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10).skip(5);
     ///
@@ -606,10 +611,10 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # #![feature(futures_api)]
-    /// #[macro_use] extern crate futures;
+    /// #![feature(futures_api)]
     /// use futures::executor::block_on_stream;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
+    /// use futures::task::Poll;
     ///
     /// let mut x = 0;
     /// let stream = stream::poll_fn(|_| {
@@ -642,8 +647,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..5);
     ///
@@ -683,9 +689,9 @@ pub trait StreamExt: Stream {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(vec![Some(10), None, Some(11)]);
     /// // Panic on second element
@@ -781,8 +787,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream1 = stream::iter(1..=3);
     /// let mut stream2 = stream::iter(5..=10);
@@ -804,9 +810,9 @@ pub trait StreamExt: Stream {
     /// The resulting stream emits elements from the first stream, and when
     /// first stream reaches the end, emits the elements from the second stream.
     ///
-    /// ```rust
+    /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
     /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);

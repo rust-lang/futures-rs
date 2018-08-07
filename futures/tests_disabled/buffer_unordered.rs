@@ -1,13 +1,10 @@
-extern crate futures;
-
-use std::sync::mpsc as std_mpsc;
-use std::thread;
-
 use futures::SinkExt;
 use futures::executor::{block_on, block_on_stream};
 use futures::stream::StreamExt;
 use futures::channel::oneshot;
 use futures::channel::mpsc;
+use std::sync::mpsc as std_mpsc;
+use std::thread;
 
 #[test]
 fn works() {

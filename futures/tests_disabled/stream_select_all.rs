@@ -1,10 +1,7 @@
-extern crate futures;
-
-use std::mem;
-
 use futures::executor::block_on_stream;
 use futures::channel::mpsc;
 use futures::stream::select_all;
+use std::mem;
 
 mod support;
 

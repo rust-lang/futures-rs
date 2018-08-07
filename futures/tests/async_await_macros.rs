@@ -1,8 +1,9 @@
 #![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
-use futures::{Poll, future, pending, poll, pin_mut, join, try_join, select};
+use futures::{Poll, future, pending, poll, join, try_join, select};
 use futures::channel::oneshot;
 use futures::executor::block_on;
+use pin_utils::pin_mut;
 
 #[test]
 fn poll_and_pending() {

@@ -5,6 +5,7 @@ use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 const INVALID_POLL: &str = "polled `Forward` after completion";
 

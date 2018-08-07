@@ -282,7 +282,8 @@ pub trait TryStreamExt: TryStream {
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
     ///
     /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
     /// let mut halves = stream.try_filter_map(|x| {

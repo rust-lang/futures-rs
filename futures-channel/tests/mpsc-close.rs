@@ -1,14 +1,12 @@
-extern crate futures;
-
-use std::thread;
-
-use futures::prelude::*;
-use futures::channel::mpsc::*;
+use futures::channel::mpsc;
 use futures::executor::block_on;
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
+use std::thread;
 
 #[test]
 fn smoke() {
-    let (mut sender, receiver) = channel(1);
+    let (mut sender, receiver) = mpsc::channel(1);
 
     let t = thread::spawn(move || {
         while let Ok(()) = block_on(sender.send(42)) {}

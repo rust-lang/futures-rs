@@ -1,13 +1,9 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureObj};
-use futures::prelude::*;
-use futures::stream::{futures_ordered, FuturesOrdered};
+use futures::future::{self, FutureExt, FutureObj};
+use futures::stream::{StreamExt, futures_ordered, FuturesOrdered};
 
 mod support;
 

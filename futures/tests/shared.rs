@@ -2,8 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
-use futures::future::{self, LocalFutureObj};
-use futures::prelude::*;
+use futures::future::{self, FutureExt, LocalFutureObj};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;

@@ -1,6 +1,7 @@
+use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
-use crate::task::AtomicWaker;
+use pin_utils::unsafe_pinned;
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::sync::Arc;
@@ -28,18 +29,14 @@ impl<Fut> Abortable<Fut> where Fut: Future {
     ///
     /// Example:
     ///
-    /// ```rust
-    /// # extern crate futures;
-    /// use futures::prelude::*;
+    /// ```
     /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
     /// use futures::executor::block_on;
     ///
-    /// # fn main() {
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
     /// let future = Abortable::new(ready(2), abort_registration);
     /// abort_handle.abort();
     /// assert_eq!(block_on(future), Err(Aborted));
-    /// # }
     /// ```
     pub fn new(future: Fut, reg: AbortRegistration) -> Self {
         Abortable {
@@ -71,18 +68,14 @@ impl AbortHandle {
     ///
     /// Example:
     ///
-    /// ```rust
-    /// # extern crate futures;
-    /// use futures::prelude::*;
+    /// ```
     /// use futures::future::{ready, Abortable, AbortHandle, Aborted};
     /// use futures::executor::block_on;
     ///
-    /// # fn main() {
     /// let (abort_handle, abort_registration) = AbortHandle::new_pair();
     /// let future = Abortable::new(ready(2), abort_registration);
     /// abort_handle.abort();
     /// assert_eq!(block_on(future), Err(Aborted));
-    /// # }
     pub fn new_pair() -> (Self, AbortRegistration) {
         let inner = Arc::new(AbortInner {
             waker: AtomicWaker::new(),

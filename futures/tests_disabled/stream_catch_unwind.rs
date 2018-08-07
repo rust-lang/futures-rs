@@ -1,8 +1,5 @@
-extern crate futures;
-
 use futures::executor::block_on_stream;
 use futures::stream;
-use futures::prelude::*;
 
 #[test]
 fn panic_in_the_middle_of_the_stream() {

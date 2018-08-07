@@ -1,6 +1,7 @@
 use crate::stream::Fuse;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
 use std::mem::{self, PinMut};
 use std::prelude::v1::*;

@@ -3,6 +3,7 @@ use super::SpawnError;
 use futures_channel::oneshot::{self, Sender, Receiver};
 use futures_core::future::Future;
 use futures_core::task::{self, Poll, Executor, SpawnObjError};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
 use std::mem::PinMut;
 use std::panic::{self, AssertUnwindSafe};

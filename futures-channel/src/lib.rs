@@ -12,11 +12,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_channel")]
 
-#[cfg(feature = "std")]
-extern crate std;
-
-extern crate futures_core;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]

@@ -1,14 +1,11 @@
-extern crate futures;
+use futures::channel::oneshot;
+use futures::future::{ok, err};
+use std::sync::mpsc;
+use std::thread;
 
 mod support;
 use support::*;
 
-use std::sync::mpsc;
-use std::thread;
-
-use futures::prelude::*;
-use futures::future::{ok, err};
-use futures::channel::oneshot;
 
 #[test]
 fn join1() {

@@ -1,17 +1,15 @@
 #![feature(futures_api, async_await, await_macro, pin)]
 
-#[macro_use]
-extern crate futures;
-
-use std::thread;
+use futures::channel::{mpsc, oneshot};
+use futures::executor::{block_on, block_on_stream};
+use futures::future::{FutureExt, poll_fn};
+use futures::stream::{Stream, StreamExt};
+use futures::sink::{Sink, SinkExt};
+use futures::task::Poll;
+use pin_utils::pin_mut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
-
-use futures::prelude::*;
-use futures::future::poll_fn;
-use futures::channel::mpsc;
-use futures::channel::oneshot;
-use futures::executor::{block_on, block_on_stream};
+use std::thread;
 
 trait AssertSend: Send {}
 impl AssertSend for mpsc::Sender<i32> {}

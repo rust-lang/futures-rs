@@ -1,3 +1,4 @@
+use crate::{enter, ThreadPool};
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{Stream};
 use futures_core::task::{
@@ -6,6 +7,8 @@ use futures_core::task::{
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
+use lazy_static::lazy_static;
+use pin_utils::pin_mut;
 use std::cell::{RefCell};
 use std::marker::Unpin;
 use std::ops::{Deref, DerefMut};
@@ -13,9 +16,6 @@ use std::prelude::v1::*;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::thread::{self, Thread};
-
-use crate::enter;
-use crate::ThreadPool;
 
 /// A single-threaded task pool for polling futures to completion.
 ///
@@ -101,10 +101,8 @@ impl LocalPool {
     /// the `LocalPool` by using its executor handle:
     ///
     /// ```
-    /// # extern crate futures;
-    /// # use futures::executor::LocalPool;
+    /// use futures::executor::LocalPool;
     ///
-    /// # fn main() {
     /// let mut pool = LocalPool::new();
     /// let mut exec = pool.executor();
     ///
@@ -112,7 +110,6 @@ impl LocalPool {
     ///
     /// // run *all* tasks in the pool to completion, including any newly-spawned ones.
     /// pool.run(&mut exec);
-    /// # }
     /// ```
     ///
     /// The function will block the calling thread until *all* tasks in the pool
@@ -128,12 +125,10 @@ impl LocalPool {
     /// the `LocalPool` by using its executor handle:
     ///
     /// ```
-    /// # #![feature(pin, arbitrary_self_types, futures_api)]
-    /// # extern crate futures;
-    /// # use futures::executor::LocalPool;
-    /// # use futures::future::ready;
+    /// #![feature(pin, arbitrary_self_types, futures_api)]
+    /// use futures::executor::LocalPool;
+    /// use futures::future::ready;
     ///
-    /// # fn main() {
     /// let mut pool = LocalPool::new();
     /// let mut exec = pool.executor();
     /// # let my_app  = ready(());
@@ -141,7 +136,6 @@ impl LocalPool {
     /// // run tasks in the pool until `my_app` completes, by default spawning
     /// // further tasks back onto the pool
     /// pool.run_until(my_app, &mut exec);
-    /// # }
     /// ```
     ///
     /// The function will block the calling thread *only* until the future `f`

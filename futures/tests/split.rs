@@ -1,11 +1,10 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::executor::block_on;
-use futures::prelude::*;
-use futures::stream;
+use futures::sink::{Sink, SinkExt};
+use futures::stream::{self, Stream, StreamExt};
+use futures::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 use std::mem::PinMut;
 
 struct Join<T, U> {

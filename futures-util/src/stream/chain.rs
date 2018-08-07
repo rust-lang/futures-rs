@@ -1,6 +1,7 @@
 use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// An adapter for chaining the output of two streams.
 ///

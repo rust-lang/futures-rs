@@ -3,6 +3,7 @@ use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the `Sink::with_flat_map` combinator, chaining a computation that
 /// returns an iterator to run prior to pushing a value into the underlying

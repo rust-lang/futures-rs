@@ -9,13 +9,6 @@
 
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[cfg(feature = "std")]
-extern crate std;
-
-extern crate futures_core;
-#[cfg(feature = "std")]
-extern crate futures_channel;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
@@ -242,8 +235,6 @@ if_std! {
     }
 }
 
-#[cfg(feature = "either")]
-extern crate either;
 #[cfg(feature = "either")]
 use either::Either;
 #[cfg(feature = "either")]

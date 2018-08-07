@@ -1,10 +1,7 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::channel::oneshot;
-use futures::prelude::*;
+use futures::future::{FutureExt, TryFutureExt};
 use std::sync::mpsc;
 use std::thread;
 

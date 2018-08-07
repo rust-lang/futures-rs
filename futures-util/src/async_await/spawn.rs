@@ -10,8 +10,8 @@
 ///
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
-/// #[macro_use] extern crate futures;
 /// # futures::executor::block_on(async {
+/// use futures::spawn;
 ///
 /// let future = async { /* ... */ };
 /// spawn!(future).unwrap();
@@ -41,9 +41,8 @@ macro_rules! spawn {
 ///
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
-/// #[macro_use] extern crate futures;
 /// # futures::executor::block_on(async {
-/// use futures::future;
+/// use futures::{future, spawn_with_handle};
 ///
 /// let future = future::ready(1);
 /// let join_handle = spawn_with_handle!(future).unwrap();

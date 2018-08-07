@@ -176,8 +176,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
     /// // A poor-man's join implemented on top of select
@@ -196,7 +194,6 @@ pub trait FutureExt: Future {
     ///         }
     ///     }))
     /// }
-    /// # fn main() {}
     /// ```
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture, Self: Sized
@@ -349,11 +346,8 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::executor::block_on;
-    /// use futures::future::*;
     ///
-    /// # fn main() {
     /// let x = 6;
     /// let future = if x < 10 {
     ///     ready(true).left_future()
@@ -362,7 +356,6 @@ pub trait FutureExt: Future {
     /// };
     ///
     /// assert_eq!(true, block_on(future));
-    /// # }
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
         where B: Future<Output = Self::Output>,
@@ -380,11 +373,8 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::executor::block_on;
-    /// use futures::future::*;
     ///
-    /// # fn main() {
     /// let x = 6;
     /// let future = if x < 10 {
     ///     ready(true).left_future()
@@ -393,7 +383,7 @@ pub trait FutureExt: Future {
     /// };
     ///
     /// assert_eq!(false, block_on(future));
-    /// # }
+    /// ```
     fn right_future<A>(self) -> Either<A, Self>
         where A: Future<Output = Self::Output>,
               Self: Sized,
@@ -561,7 +551,7 @@ pub trait FutureExt: Future {
     ///
     // TODO: minimize and open rust-lang/rust ticket, currently errors:
     //       'assertion failed: !value.has_escaping_regions()'
-    /// ```rust,ignore
+    /// ```ignore
     /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};
@@ -616,8 +606,7 @@ pub trait FutureExt: Future {
     /// // synchronous function to better illustrate the cross-thread aspect of
     /// // the `shared` combinator.
     ///
-    /// use futures::prelude::*;
-    /// use futures::future;
+    /// use futures::future::{self, FutureExt};
     /// use futures::executor::block_on;
     /// use std::thread;
     ///
@@ -659,8 +648,8 @@ pub trait FutureExt: Future {
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
-    /// #[macro_use] extern crate futures;
     /// # futures::executor::block_on(async {
+    /// use futures::spawn;
     /// use futures::executor::ThreadPool;
     /// use futures::future::FutureExt;
     /// use std::thread;

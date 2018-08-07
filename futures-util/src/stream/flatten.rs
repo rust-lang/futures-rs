@@ -2,6 +2,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.

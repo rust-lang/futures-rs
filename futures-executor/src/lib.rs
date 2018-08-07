@@ -9,10 +9,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_executor")]
 
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate futures_util;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
@@ -21,9 +17,6 @@ macro_rules! if_std {
 }
 
 if_std! {
-    #[macro_use]
-    extern crate lazy_static;
-
     mod local_pool;
     pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
 
