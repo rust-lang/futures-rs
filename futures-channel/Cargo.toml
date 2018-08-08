@@ -8,7 +8,7 @@ authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_channel"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.2/futures_channel"
 description = """
 Channels for asynchronous communication using futures-rs.
 """
