@@ -331,13 +331,14 @@ pub mod stream {
     pub use futures_util::try_stream::{
         TryStreamExt,
         TryNext, TryForEach, ErrInto,
+        TryFold,
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
-        TryCollect,
+        TryCollect, TryBufferUnordered,
         // ToDo: AndThen, InspectErr, MapErr, OrElse
     };
 }
