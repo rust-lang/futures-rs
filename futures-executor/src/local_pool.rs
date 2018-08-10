@@ -7,7 +7,11 @@ use futures_core::task::{
 };
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
-use lazy_static::lazy_static;
+use lazy_static::{
+    lazy_static,
+    __lazy_static_internal,
+    __lazy_static_create,
+};
 use pin_utils::pin_mut;
 use std::cell::{RefCell};
 use std::marker::Unpin;
