@@ -29,7 +29,7 @@ matrix:
       rust: nightly
       script:
         - cargo bench --all
-        - cargo bench -p futures-util-preview --features=bench
+        - cargo bench --manifest-path futures-util/Cargo.toml --features=bench
 
     - name: cargo build --no-default-features
       rust: nightly
