@@ -12,6 +12,12 @@ matrix:
     - name: cargo test
       os: linux
 
+    - name: cargo test (with minimal versions)
+      os: linux
+      script:
+        - cargo update -Zminimal-versions
+        - cargo test
+
     - name: cargo clippy
       rust: nightly
       install:
@@ -39,6 +45,18 @@ matrix:
     - name: cargo build --all-features
       rust: nightly
       script:
+        - cargo build --manifest-path futures/Cargo.toml --all-features
+        - cargo build --manifest-path futures-core/Cargo.toml --all-features
+        - cargo build --manifest-path futures-channel/Cargo.toml --all-features
+        - cargo build --manifest-path futures-executor/Cargo.toml --all-features
+        - cargo build --manifest-path futures-io/Cargo.toml --all-features
+        - cargo build --manifest-path futures-sink/Cargo.toml --all-features
+        - cargo build --manifest-path futures-util/Cargo.toml --all-features
+
+    - name: cargo build --all-features (with minimal versions)
+      rust: nightly
+      script:
+        - cargo update -Zminimal-versions
         - cargo build --manifest-path futures/Cargo.toml --all-features
         - cargo build --manifest-path futures-core/Cargo.toml --all-features
         - cargo build --manifest-path futures-channel/Cargo.toml --all-features
