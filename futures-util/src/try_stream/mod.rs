@@ -34,6 +34,9 @@ pub use self::try_for_each::TryForEach;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
+mod try_fold;
+pub use self::try_fold::TryFold;
+
 if_std! {
     mod try_buffer_unordered;
     pub use self::try_buffer_unordered::TryBufferUnordered;
@@ -301,6 +304,44 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TryFilterMap::new(self, f)
+    }
+
+    /// Attempt to execute an accumulating asynchronous computation over a
+    /// stream, collecting all the values into one final result.
+    ///
+    /// This combinator will accumulate all values returned by this stream
+    /// according to the closure provided. The initial state is also provided to
+    /// this method and then is returned again by each execution of the closure.
+    /// Once the entire stream has been exhausted the returned future will
+    /// resolve to this value.
+    ///
+    /// This method is similar to [`fold`](super::StreamExt::fold), but will
+    /// exit early if an error is encountered in either the stream or the
+    /// provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let number_stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2)]);
+    /// let sum = number_stream.try_fold(0, |acc, x| future::ready(Ok(acc + x)));
+    /// assert_eq!(await!(sum), Ok(3));
+    ///
+    /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(1)]);
+    /// let sum = number_stream_with_err.try_fold(0, |acc, x| future::ready(Ok(acc + x)));
+    /// assert_eq!(await!(sum), Err(2));
+    /// # })
+    /// ```
+    fn try_fold<T, Fut, F>(self, init: T, f: F) -> TryFold<Self, Fut, T, F>
+        where F: FnMut(T, Self::Ok) -> Fut,
+              Fut: TryFuture<Ok = T, Error = Self::Error>,
+              Self: Sized,
+    {
+        TryFold::new(self, f, init)
     }
 
     /// Attempt to execute several futures from a stream concurrently.
