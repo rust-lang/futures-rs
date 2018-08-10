@@ -37,6 +37,9 @@ pub use self::try_filter_map::TryFilterMap;
 mod try_fold;
 pub use self::try_fold::TryFold;
 
+mod try_skip_while;
+pub use self::try_skip_while::TrySkipWhile;
+
 if_std! {
     mod try_buffer_unordered;
     pub use self::try_buffer_unordered::TryBufferUnordered;
@@ -223,6 +226,35 @@ pub trait TryStreamExt: TryStream {
         TryForEach::new(self, f)
     }
 
+    /// Skip elements on this stream while the provided asynchronous predicate
+    /// resolves to `true`.
+    ///
+    /// This function is similar to [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while)
+    /// but exits early if an error occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(3), Ok(2)]);
+    /// let mut stream = stream.try_skip_while(|x| future::ready(Ok(*x < 3)));
+    ///
+    /// let output: Result<Vec<i32>, i32> = await!(stream.try_collect());
+    /// assert_eq!(output, Ok(vec![3, 2]));
+    /// # })
+    /// ```
+    fn try_skip_while<Fut, F>(self, f: F) -> TrySkipWhile<Self, Fut, F>
+        where F: FnMut(&Self::Ok) -> Fut,
+              Fut: TryFuture<Ok = bool, Error = Self::Error>,
+              Self: Sized
+    {
+        TrySkipWhile::new(self, f)
+    }
+
     /// Attempt to Collect all of the values of this stream into a vector,
     /// returning a future representing the result of that computation.
     ///
@@ -305,6 +337,7 @@ pub trait TryStreamExt: TryStream {
     {
         TryFilterMap::new(self, f)
     }
+
 
     /// Attempt to execute an accumulating asynchronous computation over a
     /// stream, collecting all the values into one final result.

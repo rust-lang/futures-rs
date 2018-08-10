@@ -331,7 +331,7 @@ pub mod stream {
     pub use futures_util::try_stream::{
         TryStreamExt,
         TryNext, TryForEach, ErrInto,
-        TryFold,
+        TryFold, TrySkipWhile,
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
