@@ -46,6 +46,10 @@ if_std! {
 
     mod try_collect;
     pub use self::try_collect::TryCollect;
+
+    mod try_for_each_concurrent;
+    pub use self::try_for_each_concurrent::TryForEachConcurrent;
+    use futures_core::future::Future;
 }
 
 impl<S: TryStream> TryStreamExt for S {}
@@ -253,6 +257,61 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TrySkipWhile::new(self, f)
+    }
+
+    /// Attempts to run this stream to completion, executing the provided asynchronous
+    /// closure for each element on the stream concurrently as elements become
+    /// available, exiting as soon as an error occurs.
+    ///
+    /// This is similar to
+    /// [`StreamExt::for_each_concurrent`](super::StreamExt::for_each_concurrent),
+    /// but will resolve to an error immediately if the underlying stream or the provided
+    /// closure return an error.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (_tx3, rx3) = oneshot::channel();
+    ///
+    /// let stream = stream::iter(vec![rx1, rx2, rx3]);
+    /// let fut = stream.map(Ok).try_for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     async move |rx| {
+    ///         let res: Result<(), oneshot::Canceled> = await!(rx);
+    ///         res
+    ///     }
+    /// );
+    ///
+    /// tx1.send(()).unwrap();
+    /// // Drop the second sender so that `rx2` resolves to `Canceled`.
+    /// drop(tx2);
+    ///
+    /// // The final result is an error because the second future
+    /// // resulted in an error.
+    /// assert_eq!(Err(oneshot::Canceled), await!(fut));
+    /// # })
+    /// ```
+    #[cfg(feature = "std")]
+    fn try_for_each_concurrent<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> TryForEachConcurrent<Self, Fut, F>
+        where F: FnMut(Self::Ok) -> Fut,
+              Fut: Future<Output = Result<(), Self::Error>>,
+              Self: Sized,
+    {
+        TryForEachConcurrent::new(self, limit.into(), f)
     }
 
     /// Attempt to Collect all of the values of this stream into a vector,

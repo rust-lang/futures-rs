@@ -111,6 +111,9 @@ if_std! {
     mod collect;
     pub use self::collect::Collect;
 
+    mod for_each_concurrent;
+    pub use self::for_each_concurrent::ForEachConcurrent;
+
     mod futures_ordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
@@ -550,6 +553,65 @@ pub trait StreamExt: Stream {
               Self: Sized
     {
         ForEach::new(self, f)
+    }
+
+    /// Runs this stream to completion, executing the provided asynchronous
+    /// closure for each element on the stream concurrently as elements become
+    /// available.
+    ///
+    /// This is similar to [`StreamExt::for_each`], but the futures
+    /// produced by the closure are run concurrently (but not in parallel--
+    /// this combinator does not introduce any threads).
+    ///
+    /// The closure provided will be called for each item this stream produces,
+    /// yielding a future. That future will then be executed to completion
+    /// concurrently with the other futures produced by the closure.
+    ///
+    /// The first argument is an optional limit on the number of concurrent
+    /// futures. If this limit is not `None`, no more than `limit` futures
+    /// will be run concurrently. The `limit` argument is of type
+    /// `Into<Option<usize>>`, and so can be provided as either `None`,
+    /// `Some(10)`, or just `10`. Note: a limit of zero is interpreted as
+    /// no limit at all, and will have the same result as passing in `None`.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (tx3, rx3) = oneshot::channel();
+    ///
+    /// let fut = stream::iter(vec![rx1, rx2, rx3]).for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     async move |rx| {
+    ///         await!(rx).unwrap();
+    ///     }
+    /// );
+    /// tx1.send(()).unwrap();
+    /// tx2.send(()).unwrap();
+    /// tx3.send(()).unwrap();
+    /// await!(fut);
+    /// # })
+    /// ```
+    #[cfg(feature = "std")]
+    fn for_each_concurrent<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> ForEachConcurrent<Self, Fut, F>
+        where F: FnMut(Self::Item) -> Fut,
+              Fut: Future<Output = ()>,
+              Self: Sized,
+    {
+        ForEachConcurrent::new(self, limit.into(), f)
     }
 
     /// Creates a new stream of at most `n` items of the underlying stream.
