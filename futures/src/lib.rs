@@ -332,6 +332,7 @@ pub mod stream {
         TryStreamExt,
         TryNext, TryForEach, ErrInto,
         TryFold, TrySkipWhile,
+        IntoStream,
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
