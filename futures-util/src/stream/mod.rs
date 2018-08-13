@@ -71,6 +71,9 @@ pub use self::poll_fn::{poll_fn, PollFn};
 mod select;
 pub use self::select::Select;
 
+mod eager_select;
+pub use self::eager_select::EagerSelect;
+
 mod skip;
 pub use self::skip::Skip;
 
@@ -883,6 +886,21 @@ pub trait StreamExt: Stream {
               Self: Sized,
     {
         Select::new(self, other)
+    }
+
+    /// Creates a stream that selects the next element from either this stream
+    /// or the provided one, whichever is ready first.
+    ///
+    /// This combinator will attempt to pull items from both streams. Each
+    /// stream will be polled in a round-robin fashion, and whenever a stream is
+    /// ready to yield an item that item is yielded.
+    ///
+    /// This will complete once one of the streams completes
+    fn eager_select<St>(self, other: St) -> EagerSelect<Self, St>
+        where St: Stream<Item = Self::Item>,
+              Self: Sized,
+    {
+        EagerSelect::new(self, other)
     }
 
     /// A future that completes after the given stream has been fully processed
