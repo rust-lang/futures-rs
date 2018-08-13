@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.2/futures/">
+  <a href="https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures/">
     Documentation
   </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
     Website
