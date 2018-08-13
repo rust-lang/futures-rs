@@ -189,7 +189,7 @@ pub mod future {
         lazy, Lazy,
         maybe_done, MaybeDone,
         poll_fn, PollFn,
-        ready, Ready,
+        ready, ok, err, Ready,
 
         OptionFuture,
 
