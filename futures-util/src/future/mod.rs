@@ -26,7 +26,7 @@ mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
 mod ready;
-pub use self::ready::{ready, Ready};
+pub use self::ready::{ready, ok, err, Ready};
 
 // Combinators
 mod flatten;
