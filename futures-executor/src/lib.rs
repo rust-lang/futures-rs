@@ -18,7 +18,7 @@ macro_rules! if_std {
 
 if_std! {
     mod local_pool;
-    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalExecutor};
+    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawn};
 
     mod unpark_mutex;
     mod thread_pool;

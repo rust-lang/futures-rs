@@ -20,4 +20,4 @@ pub use self::stream01ext::Stream01CompatExt;
 #[cfg(feature = "tokio-compat")]
 mod tokio;
 #[cfg(feature = "tokio-compat")]
-pub use self::tokio::TokioDefaultExecutor;
+pub use self::tokio::TokioDefaultSpawn;

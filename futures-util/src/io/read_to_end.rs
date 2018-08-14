@@ -19,20 +19,17 @@ pub struct ReadToEnd<'a, R: ?Sized + 'a> {
 }
 
 // We never project pinning to fields
-impl<'a, R: ?Sized> Unpin for ReadToEnd<'a, R> {}
+impl<R: ?Sized> Unpin for ReadToEnd<'_, R> {}
 
-impl<R: AsyncRead + ?Sized> ReadToEnd<'a, R> {
-    pub(super) fn new(
-        reader: &'a mut R,
-        buf: &'a mut Vec<u8>
-    ) -> ReadToEnd<'a, R> {
+impl<'a, R: AsyncRead + ?Sized> ReadToEnd<'a, R> {
+    pub(super) fn new(reader: &'a mut R, buf: &'a mut Vec<u8>) -> Self {
         ReadToEnd { reader, buf }
     }
 }
 
 struct Guard<'a> { buf: &'a mut Vec<u8>, len: usize }
 
-impl<'a> Drop for Guard<'a> {
+impl Drop for Guard<'_> {
     fn drop(&mut self) {
         unsafe { self.buf.set_len(self.len); }
     }
@@ -81,7 +78,7 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(
     ret
 }
 
-impl<'a, A> Future for ReadToEnd<'a, A>
+impl<A> Future for ReadToEnd<'_, A>
     where A: AsyncRead + ?Sized,
 {
     type Output = io::Result<()>;

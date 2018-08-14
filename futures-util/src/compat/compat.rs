@@ -4,19 +4,19 @@
 /// [`Stream`][futures::Stream] or [`Sink`][futures::Sink] and vice versa.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Compat<T, Ex> {
+pub struct Compat<T, Sp> {
     crate inner: T,
-    crate executor: Option<Ex>,
+    crate spawn: Option<Sp>,
 }
 
-impl<T, Ex> Compat<T, Ex> {
+impl<T, Sp> Compat<T, Sp> {
     /// Returns the inner item.
     pub fn into_inner(self) -> T {
         self.inner
     }
 
     /// Creates a new [`Compat`].
-    crate fn new(inner: T, executor: Option<Ex>) -> Compat<T, Ex> {
-        Compat { inner, executor }
+    crate fn new(inner: T, spawn: Option<Sp>) -> Compat<T, Sp> {
+        Compat { inner, spawn }
     }
 }

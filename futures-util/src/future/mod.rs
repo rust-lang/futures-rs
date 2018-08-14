@@ -7,7 +7,7 @@ use core::marker::Unpin;
 use core::mem::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll, Executor};
+use futures_core::task::{self, Poll, Spawn};
 
 // Primitive futures
 mod empty;
@@ -60,8 +60,8 @@ pub use self::inspect::Inspect;
 mod unit_error;
 pub use self::unit_error::UnitError;
 
-mod with_executor;
-pub use self::with_executor::WithExecutor;
+mod with_spawner;
+pub use self::with_spawner::WithSpawner;
 
 // Implementation details
 mod chain;
@@ -641,7 +641,7 @@ pub trait FutureExt: Future {
         UnitError::new(self)
     }
 
-    /// Assigns the provided `Executor` to be used when spawning tasks
+    /// Assigns the provided `Spawn` to be used when spawning tasks
     /// from within the future.
     ///
     /// # Examples
@@ -663,21 +663,21 @@ pub trait FutureExt: Future {
     ///  let val = await!((async {
     ///      assert_ne!(thread::current().name(), Some("my-pool-0"));
     ///
-    ///      // Spawned task runs on the executor specified via `with_executor`
+    ///      // Spawned task runs on the executor specified via `with_spawner`
     ///      spawn!(async {
     ///          assert_eq!(thread::current().name(), Some("my-pool-0"));
     ///          # tx.send("ran").unwrap();
     ///      }).unwrap();
-    ///  }).with_executor(pool));
+    ///  }).with_spawner(pool));
     ///
     ///  # assert_eq!(await!(rx), Ok("ran"))
     ///  # })
     /// ```
-    fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
+    fn with_spawner<Sp>(self, spawner: Sp) -> WithSpawner<Self, Sp>
         where Self: Sized,
-              E: Executor
+              Sp: Spawn
     {
-        WithExecutor::new(self, executor)
+        WithSpawner::new(self, spawner)
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.

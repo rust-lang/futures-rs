@@ -14,15 +14,15 @@ pub struct Read<'a, R: ?Sized + 'a> {
 }
 
 // Pinning is never projected to fields
-impl<'a, R: ?Sized> Unpin for Read<'a, R> {}
+impl<R: ?Sized> Unpin for Read<'_, R> {}
 
 impl<'a, R: AsyncRead + ?Sized> Read<'a, R> {
-    pub(super) fn new(reader: &'a mut R, buf: &'a mut [u8]) -> Read<'a, R> {
+    pub(super) fn new(reader: &'a mut R, buf: &'a mut [u8]) -> Self {
         Read { reader, buf }
     }
 }
 
-impl<'a, R: AsyncRead + ?Sized> Future for Read<'a, R> {
+impl<R: AsyncRead + ?Sized> Future for Read<'_, R> {
     type Output = io::Result<usize>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {

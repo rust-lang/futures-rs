@@ -1,9 +1,9 @@
 use crate::{future::FutureExt, try_future::TryFutureExt};
 use futures_core::future::FutureObj;
-use futures_core::task::{Executor, SpawnErrorKind, SpawnObjError};
+use futures_core::task::{Spawn, SpawnErrorKind, SpawnObjError};
 use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 
-/// An executor that delegates to `tokio`'s
+/// A spawner that delegates to `tokio`'s
 /// [`DefaultExecutor`][tokio_executor::DefaultExecutor], will panic if used in
 /// the context of a task that is not running on `tokio`'s executor.
 ///
@@ -17,7 +17,7 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 /// #![feature(async_await, await_macro, futures_api, pin)]
 /// use futures::spawn;
 /// use futures::channel::oneshot;
-/// use futures::compat::TokioDefaultExecutor;
+/// use futures::compat::TokioDefaultSpawn;
 /// use futures::executor::block_on;
 /// use futures::future::{FutureExt, TryFutureExt};
 /// use std::thread;
@@ -35,7 +35,7 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 ///     let compat_future = future
 ///         .boxed()
 ///         .unit_error()
-///         .compat(TokioDefaultExecutor);
+///         .compat(TokioDefaultSpawn);
 ///
 ///     tokio::run(compat_future);
 /// }).join().unwrap();
@@ -43,9 +43,9 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 /// assert_eq!(block_on(receiver).unwrap(), 5);
 /// ```
 #[derive(Debug, Copy, Clone)]
-pub struct TokioDefaultExecutor;
+pub struct TokioDefaultSpawn;
 
-impl Executor for TokioDefaultExecutor {
+impl Spawn for TokioDefaultSpawn {
     fn spawn_obj(
         &mut self,
         task: FutureObj<'static, ()>,

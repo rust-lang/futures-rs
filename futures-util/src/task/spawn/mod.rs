@@ -1,39 +1,40 @@
-use futures_core::future::Future;
-use futures_core::task::Executor;
+use futures_core::task::Spawn;
 
 mod spawn_error;
 pub use self::spawn_error::SpawnError;
 
 if_std! {
+    use futures_core::future::Future;
+
     mod spawn_with_handle;
     use self::spawn_with_handle::spawn_with_handle;
     pub use self::spawn_with_handle::JoinHandle;
 }
 
-impl<Ex: ?Sized> ExecutorExt for Ex where Ex: Executor {}
+impl<Sp: ?Sized> SpawnExt for Sp where Sp: Spawn {}
 
-/// Extension trait for `Executor`
-pub trait ExecutorExt: Executor {
+/// Extension trait for `Spawn`
+pub trait SpawnExt: Spawn {
     /// Spawns a task that polls the given future with output `()` to
     /// completion.
     ///
     /// This method returns a [`Result`] that contains a [`SpawnError`] if
     /// spawning fails.
     ///
-    /// You can use [`spawn_with_handle`](ExecutorExt::spawn_with_handle) if
+    /// You can use [`spawn_with_handle`](SpawnExt::spawn_with_handle) if
     /// you want to spawn a future with output other than `()` or if you want
     /// to be able to await its completion.
     ///
     /// Note this method will eventually be replaced with the upcoming
-    /// `Executor::spawn` method which will take a `dyn Future` as input.
-    /// Technical limitations prevent `Executor::spawn` from being implemented
+    /// `Spawn::spawn` method which will take a `dyn Future` as input.
+    /// Technical limitations prevent `Spawn::spawn` from being implemented
     /// today. Feel free to use this method in the meantime.
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::executor::ThreadPool;
-    /// use futures::task::ExecutorExt;
+    /// use futures::task::SpawnExt;
     ///
     /// let mut executor = ThreadPool::new().unwrap();
     ///
@@ -61,7 +62,7 @@ pub trait ExecutorExt: Executor {
     /// # futures::executor::block_on(async {
     /// use futures::executor::ThreadPool;
     /// use futures::future;
-    /// use futures::task::ExecutorExt;
+    /// use futures::task::SpawnExt;
     ///
     /// let mut executor = ThreadPool::new().unwrap();
     ///

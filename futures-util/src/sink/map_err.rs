@@ -35,7 +35,7 @@ impl<Si, F> SinkMapErr<Si, F> {
 
     /// Get a pinned reference to the inner sink.
     #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
+    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
         unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
     }
 

@@ -17,13 +17,10 @@ pub struct ReadExact<'a, R: ?Sized + 'a> {
     buf: &'a mut [u8],
 }
 
-impl<'a, R: ?Sized> Unpin for ReadExact<'a, R> {}
+impl<R: ?Sized> Unpin for ReadExact<'_, R> {}
 
 impl<'a, R: AsyncRead + ?Sized> ReadExact<'a, R> {
-    pub(super) fn new(
-        reader: &'a mut R,
-        buf: &'a mut [u8]
-    ) -> ReadExact<'a, R> {
+    pub(super) fn new(reader: &'a mut R, buf: &'a mut [u8]) -> Self {
         ReadExact { reader, buf }
     }
 }
@@ -32,7 +29,7 @@ fn eof() -> io::Error {
     io::Error::new(io::ErrorKind::UnexpectedEof, "early eof")
 }
 
-impl<'a, R: AsyncRead + ?Sized> Future for ReadExact<'a, R> {
+impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
     type Output = io::Result<()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
