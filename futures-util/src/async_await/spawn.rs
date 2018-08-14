@@ -21,8 +21,7 @@
 macro_rules! spawn {
     ($future:expr) => {
         await!($crate::future::lazy(|cx| {
-            use $crate::task::ExecutorExt;
-            cx.executor().spawn($future)
+            $crate::task::SpawnExt::spawn(cx.spawner(), $future)
         }))
     }
 }
@@ -53,8 +52,7 @@ macro_rules! spawn {
 macro_rules! spawn_with_handle {
     ($future:expr) => {
         await!($crate::future::lazy(|cx| {
-            use $crate::task::ExecutorExt;
-            cx.executor().spawn_with_handle($future)
+            $crate::task::SpawnExt::spawn_with_handle(cx.spawner(), $future)
         }))
     }
 }
