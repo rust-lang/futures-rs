@@ -13,7 +13,7 @@ pub struct Flush<'a, Si: 'a + Unpin + ?Sized> {
 }
 
 // Pin is never projected to a field.
-impl<'a, Si: Unpin + ?Sized> Unpin for Flush<'a, Si> {}
+impl<Si: Unpin + ?Sized> Unpin for Flush<'_, Si> {}
 
 /// A future that completes when the sink has finished processing all
 /// pending requests.
@@ -22,12 +22,12 @@ impl<'a, Si: Unpin + ?Sized> Unpin for Flush<'a, Si> {}
 /// intended to be used when you want to stop sending to the sink until
 /// all current requests are processed.
 impl<'a, Si: Sink + Unpin + ?Sized> Flush<'a, Si> {
-    pub(super) fn new(sink: &'a mut Si) -> Flush<'a, Si> {
+    pub(super) fn new(sink: &'a mut Si) -> Self {
         Flush { sink }
     }
 }
 
-impl<'a, Si: Sink + Unpin + ?Sized> Future for Flush<'a, Si> {
+impl<Si: Sink + Unpin + ?Sized> Future for Flush<'_, Si> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(

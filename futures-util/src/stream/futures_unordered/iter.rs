@@ -13,7 +13,7 @@ pub struct IterPinMut<'a, Fut: 'a> {
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterMut<'a, Fut: 'a + Unpin> (pub(super) IterPinMut<'a, Fut>);
+pub struct IterMut<'a, Fut: Unpin + 'a> (pub(super) IterPinMut<'a, Fut>);
 
 impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     type Item = PinMut<'a, Fut>;
@@ -36,7 +36,7 @@ impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     }
 }
 
-impl<'a, Fut> ExactSizeIterator for IterPinMut<'a, Fut> {}
+impl<Fut> ExactSizeIterator for IterPinMut<'_, Fut> {}
 
 impl<'a, Fut: Unpin> Iterator for IterMut<'a, Fut> {
     type Item = &'a mut Fut;
@@ -50,4 +50,4 @@ impl<'a, Fut: Unpin> Iterator for IterMut<'a, Fut> {
     }
 }
 
-impl<'a, Fut: Unpin> ExactSizeIterator for IterMut<'a, Fut> {}
+impl<Fut: Unpin> ExactSizeIterator for IterMut<'_, Fut> {}

@@ -1,7 +1,7 @@
 //! Task notification.
 
 pub use core::task::{
-    Context, Poll, Executor,
+    Context, Poll, Spawn,
     Waker, LocalWaker, UnsafeWake,
     SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
 };

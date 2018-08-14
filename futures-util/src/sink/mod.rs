@@ -219,7 +219,7 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<St>(
+    fn send_all<'a, St>(
         &'a mut self,
         stream: &'a mut St
     ) -> SendAll<'a, Self, St>

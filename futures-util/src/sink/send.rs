@@ -14,10 +14,10 @@ pub struct Send<'a, Si: Sink + Unpin + 'a + ?Sized> {
 }
 
 // Pinning is never projected to children
-impl<'a, Si: Sink + Unpin + ?Sized> Unpin for Send<'a, Si> {}
+impl<Si: Sink + Unpin + ?Sized> Unpin for Send<'_, Si> {}
 
 impl<'a, Si: Sink + Unpin + ?Sized> Send<'a, Si> {
-    pub(super) fn new(sink: &'a mut Si, item: Si::SinkItem) -> Send<'a, Si> {
+    pub(super) fn new(sink: &'a mut Si, item: Si::SinkItem) -> Self {
         Send {
             sink,
             item: Some(item),
@@ -25,7 +25,7 @@ impl<'a, Si: Sink + Unpin + ?Sized> Send<'a, Si> {
     }
 }
 
-impl<'a, Si: Sink + Unpin + ?Sized> Future for Send<'a, Si> {
+impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(

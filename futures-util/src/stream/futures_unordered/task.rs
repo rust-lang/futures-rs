@@ -83,7 +83,7 @@ impl<Fut> Task<Fut> {
     }
 
     /// Returns a local waker for this task without cloning the Arc.
-    pub(super) fn local_waker(self: &'a Arc<Task<Fut>>) -> LocalWakerRef<'a> {
+    pub(super) fn local_waker<'a>(self: &'a Arc<Task<Fut>>) -> LocalWakerRef<'a> {
         // Safety: This is safe because an `Arc` is a struct which contains
         // a single field that is a pointer.
         let ptr = unsafe {

@@ -281,7 +281,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
-    fn write_all(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
+    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
         WriteAll::new(self, buf)
     }
 }

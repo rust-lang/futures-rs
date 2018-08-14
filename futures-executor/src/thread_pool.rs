@@ -1,7 +1,7 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{self, Poll, Wake, Executor, SpawnObjError};
+use futures_core::task::{self, Poll, Wake, Spawn, SpawnObjError};
 use futures_util::future::FutureExt;
 use futures_util::task::local_waker_ref_from_nonlocal;
 use num_cpus;
@@ -85,12 +85,12 @@ impl ThreadPool {
         ThreadPoolBuilder::new()
     }
 
-    /// Runs the given future with this thread pool as the default executor for
+    /// Runs the given future with this thread pool as the default spawner for
     /// spawning tasks.
     ///
     /// **This function will block the calling thread** until the given future
     /// is complete. While executing that future, any tasks spawned onto the
-    /// default executor will be routed to this thread pool.
+    /// default spawner will be routed to this thread pool.
     ///
     /// Note that the function will return when the provided future completes,
     /// even if some of the tasks it spawned are still running.
@@ -99,7 +99,7 @@ impl ThreadPool {
     }
 }
 
-impl Executor for ThreadPool {
+impl Spawn for ThreadPool {
     fn spawn_obj(
         &mut self,
         future: FutureObj<'static, ()>,

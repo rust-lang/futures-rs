@@ -9,11 +9,11 @@ use core::mem::PinMut;
 /// This future is created by the `Stream::try_collect` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TryNext<'a, St: 'a> {
+pub struct TryNext<'a, St: Unpin + 'a> {
     stream: &'a mut St,
 }
 
-impl<'a, St: TryStream + Unpin> Unpin for TryNext<'a, St> {}
+impl<St: Unpin> Unpin for TryNext<'_, St> {}
 
 impl<'a, St: TryStream + Unpin> TryNext<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {
@@ -21,7 +21,7 @@ impl<'a, St: TryStream + Unpin> TryNext<'a, St> {
     }
 }
 
-impl<'a, St: TryStream + Unpin> Future for TryNext<'a, St> {
+impl<St: TryStream + Unpin> Future for TryNext<'_, St> {
     type Output = Result<Option<St::Ok>, St::Error>;
 
     fn poll(
