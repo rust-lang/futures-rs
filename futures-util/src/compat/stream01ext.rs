@@ -8,13 +8,7 @@ pub trait Stream01CompatExt: Stream01 {
     /// Converts a futures 0.1 [`Stream<Item = T, Error = E>`][futures::Stream]
     /// into a futures 0.3 [`Stream<Item = Result<T,
     /// E>>`][futures_core::Stream].
-    fn compat(self) -> Compat<Self, ()>
-    where
-        Self: Sized,
-    {
-        Compat {
-            inner: self,
-            executor: None,
-        }
+    fn compat(self) -> Compat<Self, ()> where Self: Sized {
+        Compat::new(self, None)
     }
 }

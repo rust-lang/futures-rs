@@ -10,7 +10,7 @@ use futures_sink::Sink;
 use crate::compat::Compat;
 
 #[cfg(feature = "compat")]
-use futures_core::task::Executor;
+use futures_core::task::Spawn;
 
 #[cfg(feature = "compat")]
 use core::marker::Unpin;
@@ -484,11 +484,11 @@ pub trait TryFutureExt: TryFuture {
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
     ///
     #[cfg(feature = "compat")]
-    fn compat<E>(self, executor: E) -> Compat<Self, E>
+    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
         where Self: Sized + Unpin,
-              E: Executor,
+              Sp: Spawn,
     {
-        Compat::new(self, Some(executor))
+        Compat::new(self, Some(spawn))
     }
 
     /// Wraps a [`TryFuture`] into a type that implements

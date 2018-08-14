@@ -22,9 +22,9 @@ fn notify_noop() -> LocalWaker {
 
 fn noop_cx(f: impl FnOnce(&mut task::Context)) {
     let pool = LocalPool::new();
-    let mut exec = pool.executor();
+    let mut spawn = pool.spawner();
     let waker = notify_noop();
-    let cx = &mut task::Context::new(&waker, &mut exec);
+    let cx = &mut task::Context::new(&waker, &mut spawn);
     f(cx)
 }
 

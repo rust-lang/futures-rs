@@ -1,10 +1,11 @@
-use futures_core::future::Future;
 use futures_core::task::Spawn;
 
 mod spawn_error;
 pub use self::spawn_error::SpawnError;
 
 if_std! {
+    use futures_core::future::Future;
+
     mod spawn_with_handle;
     use self::spawn_with_handle::spawn_with_handle;
     pub use self::spawn_with_handle::JoinHandle;

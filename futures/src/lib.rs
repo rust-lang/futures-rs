@@ -31,7 +31,6 @@
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.2/futures")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
-#![cfg_attr(feature = "nightly", feature(use_extern_macros))]
 
 #[doc(hidden)] pub use futures_util::core_reexport;
 
@@ -92,7 +91,7 @@ pub mod compat {
     };
 
     #[cfg(feature = "tokio-compat")]
-    pub use futures_util::compat::TokioDefaultExecutor;
+    pub use futures_util::compat::TokioDefaultSpawn;
 }
 
 #[cfg(feature = "std")]

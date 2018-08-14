@@ -13,7 +13,7 @@ use futures_sink::Sink;
 use crate::compat::Compat;
 
 #[cfg(feature = "compat")]
-use futures_core::task::Executor;
+use futures_core::task::Spawn;
 
 mod close;
 pub use self::close::Close;
@@ -256,10 +256,10 @@ pub trait SinkExt: Sink {
     /// Wraps a [`Sink`] into a sink compatible with libraries using
     /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
-    fn compat<E>(self, executor: E) -> Compat<Self, E>
+    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
         where Self: Sized + Unpin,
-              E: Executor,
+              Sp: Spawn,
     {
-        Compat::new(self, Some(executor))
+        Compat::new(self, Some(spawn))
     }
 }
