@@ -1,3 +1,21 @@
+# 0.3.0-alpha.3 - 2018-08-15
+* Compatibilty with newest nightly
+* Futures 0.1 compatibility layer including Tokio compatibility
+* Added `spawn!` and `spawn_with_handle!` macros
+* Added `SpawnExt` methods `spawn` and `spawn_with_handle`
+* Extracted pin macros into `pin_utils` crate
+* Added `FutureExt` combinators `boxed` and `unit_error`
+* Remove prelude from all doc examples (The prelude is still recommended for usage in playground examples. However, for doc examples we determined that fully expanded imports are more helpful)
+* Improvements to `select!` and `join!` macros
+* Added `try_join!` macro
+* Added `StreamExt` combinator methods `try_join` and `for_each_concurrent`
+* Added `TryStreamExt` combinator methdos `into_stream`, `try_filter_map`, `try_skip_while`, `try_for_each_concurrent` and `try_buffer_unordered`
+* Fix stream termination bug in `StreamExt::buffered` and `StreamExt::buffer_unordered`
+* Added docs for `StreamExt::buffered`, `StreamExt::buffer_unordered`
+* Added `task::local_waker_ref_from_nonlocal` and `task::local_waker_ref` functions
+* CI improvements
+* Doc improvements to `StreamExt::select`
+
 # 0.3.0-alpha.2 - 2018-07-30
 * The changelog is back!
 * Compatiblity with futures API in latest nightly
