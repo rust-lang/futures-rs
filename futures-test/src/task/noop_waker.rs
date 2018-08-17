@@ -10,36 +10,36 @@ use std::sync::Arc;
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures_test::task::{panic_context, wake};
+/// use futures_test::task::{panic_context, noop_local_waker_ref};
 ///
 /// let mut cx = panic_context();
-/// let cx = &mut cx.with_waker(wake::noop_local_waker_ref());
+/// let cx = &mut cx.with_waker(noop_local_waker_ref());
 ///
 /// cx.waker().wake();
 /// ```
 #[derive(Debug)]
-pub struct Noop {
+pub struct NoopWake {
     _reserved: (),
 }
 
-impl Noop {
+impl NoopWake {
     /// Create a new instance
     pub fn new() -> Self {
         Self { _reserved: () }
     }
 }
 
-impl Default for Noop {
+impl Default for NoopWake {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Wake for Noop {
+impl Wake for NoopWake {
     fn wake(_arc_self: &Arc<Self>) {}
 }
 
-unsafe impl UnsafeWake for Noop {
+unsafe impl UnsafeWake for NoopWake {
     unsafe fn clone_raw(&self) -> Waker {
         noop_waker()
     }
@@ -50,7 +50,7 @@ unsafe impl UnsafeWake for Noop {
 }
 
 fn noop_unsafe_wake() -> NonNull<dyn UnsafeWake> {
-    static mut INSTANCE: Noop = Noop { _reserved: () };
+    static mut INSTANCE: NoopWake = NoopWake { _reserved: () };
     unsafe { NonNull::new_unchecked(&mut INSTANCE as *mut dyn UnsafeWake) }
 }
 
@@ -59,14 +59,29 @@ fn noop_waker() -> Waker {
 }
 
 /// Create a new [`LocalWaker`](futures_core::task::LocalWaker) referencing a
-/// singleton instance of [`Noop`].
+/// singleton instance of [`NoopWake`].
 pub fn noop_local_waker() -> LocalWaker {
     unsafe { LocalWaker::new(noop_unsafe_wake()) }
 }
 
 /// Get a thread local reference to a
 /// [`LocalWaker`](futures_core::task::LocalWaker) referencing a singleton
-/// instance of [`Noop`].
+/// instance of [`NoopWake`].
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, futures_api)]
+/// use futures::task;
+/// use futures_test::task::{noop_local_waker_ref, noop_spawner_mut};
+///
+/// let mut cx = task::Context::new(
+///     noop_local_waker_ref(),
+///     noop_spawner_mut(),
+/// );
+///
+/// cx.waker().wake();
+/// ```
 pub fn noop_local_waker_ref() -> &'static LocalWaker {
     thread_local! {
         static LOCAL_WAKER_INSTANCE: UnsafeCell<LocalWaker> =

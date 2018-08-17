@@ -4,7 +4,7 @@ use futures::channel::oneshot;
 use futures::executor::block_on;
 use futures::future::{abortable, Aborted, FutureExt};
 use futures::task::Poll;
-use futures_test::task::{panic_context, wake};
+use futures_test::task::{panic_context, WakeCounter};
 
 #[test]
 fn abortable_works() {
@@ -20,7 +20,7 @@ fn abortable_awakens() {
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (mut abortable_rx, abort_handle) = abortable(a_rx);
 
-    let wake_counter = wake::Counter::new();
+    let wake_counter = WakeCounter::new();
     let mut cx = panic_context();
     let cx = &mut cx.with_waker(wake_counter.local_waker());
     assert_eq!(0, wake_counter.count());
