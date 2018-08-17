@@ -1,6 +1,7 @@
 use futures_core::future::FutureObj;
 use futures_core::task::{Spawn, SpawnObjError};
 use std::cell::UnsafeCell;
+use std::marker::PhantomData;
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that
 /// discards spawned futures when used.
@@ -20,13 +21,14 @@ use std::cell::UnsafeCell;
 /// ```
 #[derive(Debug)]
 pub struct Noop {
-    _reserved: (),
+    // Required because we unsafely create references to thread locals
+    _not_sync: PhantomData<*const ()>,
 }
 
 impl Noop {
     /// Create a new instance
     pub fn new() -> Self {
-        Self { _reserved: () }
+        Self { _not_sync: PhantomData }
     }
 }
 
@@ -49,7 +51,7 @@ impl Default for Noop {
 pub fn noop_mut() -> &'static mut Noop {
     thread_local! {
         static INSTANCE: UnsafeCell<Noop> =
-            UnsafeCell::new(Noop { _reserved: () });
+            UnsafeCell::new(Noop { _not_sync: PhantomData });
     }
     INSTANCE.with(|i| unsafe { &mut *i.get() })
 }
