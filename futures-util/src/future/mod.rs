@@ -578,10 +578,6 @@ pub trait FutureExt: Future {
     /// The shared() method provides a method to convert any future into a
     /// cloneable future. It enables a future to be polled by multiple threads.
     ///
-    /// The returned `Shared` future resolves with `Arc<Self::Output>`,
-    /// which implements `Deref` to allow shared access to the underlying
-    /// result. Ownership of the underlying value cannot currently be reclaimed.
-    ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
@@ -596,8 +592,8 @@ pub trait FutureExt: Future {
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     ///
-    /// assert_eq!(6, *await!(shared1));
-    /// assert_eq!(6, *await!(shared2));
+    /// assert_eq!(6, await!(shared1));
+    /// assert_eq!(6, await!(shared2));
     /// # });
     /// ```
     ///
@@ -614,14 +610,15 @@ pub trait FutureExt: Future {
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     /// let join_handle = thread::spawn(move || {
-    ///     assert_eq!(6, *block_on(shared2));
+    ///     assert_eq!(6, block_on(shared2));
     /// });
-    /// assert_eq!(6, *block_on(shared1));
+    /// assert_eq!(6, block_on(shared1));
     /// join_handle.join().unwrap();
     /// ```
     #[cfg(feature = "std")]
     fn shared(self) -> Shared<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Shared::new(self)
     }
