@@ -9,7 +9,7 @@ use std::thread;
 
 /// Additional combinators for testing futures.
 pub trait FutureTestExt: Future {
-    /// Introduces one [`Poll::Pending`][futures_core::task::Poll::Pending]
+    /// Introduces one [`Poll::Pending`](futures_core::task::Poll::Pending)
     /// before polling the given future
     ///
     /// # Examples

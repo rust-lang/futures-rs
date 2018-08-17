@@ -1,4 +1,4 @@
-//! Utilities to make testing [`Future`s][futures_core::Future] easier
+//! Utilities to make testing [`Future`s](futures_core::Future) easier
 
 #![feature(
     arbitrary_self_types,
@@ -18,9 +18,6 @@ pub use std as std_reexport;
 
 #[doc(hidden)]
 pub extern crate futures_core as futures_core_reexport;
-
-#[macro_use]
-extern crate pin_utils;
 
 #[macro_use]
 #[doc(hidden)]

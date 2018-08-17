@@ -2,7 +2,7 @@ use futures_core::future::FutureObj;
 use futures_core::task::{Spawn, SpawnObjError};
 use std::cell::UnsafeCell;
 
-/// An implementation of [`Spawn`][futures_core::task::Spawn] that
+/// An implementation of [`Spawn`](futures_core::task::Spawn) that
 /// discards spawned futures when used.
 ///
 /// # Examples
@@ -28,15 +28,6 @@ impl Noop {
     pub fn new() -> Self {
         Self { _reserved: () }
     }
-
-    /// Get a thread local reference to a singleton instance of [`Noop`] as a
-    /// [`Spawn`].
-    pub fn spawn_mut() -> &'static mut dyn Spawn {
-        thread_local! {
-            static INSTANCE: UnsafeCell<Noop> = UnsafeCell::new(Noop { _reserved: () });
-        }
-        INSTANCE.with(|i| unsafe { &mut *i.get() })
-    }
 }
 
 impl Spawn for Noop {
@@ -52,4 +43,13 @@ impl Default for Noop {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Get a thread local reference to a singleton instance of [`Noop`].
+pub fn noop_mut() -> &'static mut Noop {
+    thread_local! {
+        static INSTANCE: UnsafeCell<Noop> =
+            UnsafeCell::new(Noop { _reserved: () });
+    }
+    INSTANCE.with(|i| unsafe { &mut *i.get() })
 }

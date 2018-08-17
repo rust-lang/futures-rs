@@ -1,11 +1,12 @@
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use std::mem::PinMut;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Combinator that guarantees one [`Poll::Pending`] before polling its inner
 /// future.
 ///
-/// This is created by the [`FutureTestExt::delay`][super::FutureTestExt::delay]
+/// This is created by the [`FutureTestExt::delay`](super::FutureTestExt::delay)
 /// method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]

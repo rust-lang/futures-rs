@@ -1,8 +1,8 @@
 use futures_core::future::FutureObj;
 use futures_core::task::{Spawn, SpawnObjError};
 
-/// An implementation of [`Spawn`][futures_core::task::Spawn] that records
-/// any [`Future`][futures_core::future::Future]s spawned on it.
+/// An implementation of [`Spawn`](futures_core::task::Spawn) that records
+/// any [`Future`](futures_core::future::Future)s spawned on it.
 ///
 /// # Examples
 ///

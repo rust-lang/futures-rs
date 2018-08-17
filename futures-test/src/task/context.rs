@@ -1,9 +1,9 @@
 use crate::task::{spawn, wake};
 use futures_core::task::Context;
 
-/// Create a new [`task::Context`][futures_core::task::Context] where both
-/// the [`waker`][futures_core::task::Context::waker] and
-/// [`spawner`][futures_core::task::Context::spawner] will both panic if used.
+/// Create a new [`task::Context`](futures_core::task::Context) where both
+/// the [`waker`](futures_core::task::Context::waker) and
+/// [`spawner`](futures_core::task::Context::spawner) will panic if used.
 ///
 /// # Examples
 ///
@@ -15,12 +15,12 @@ use futures_core::task::Context;
 /// cx.waker().wake(); // Will panic
 /// ```
 pub fn panic_context() -> Context<'static> {
-    Context::new(wake::Panic::local_waker_ref(), spawn::Panic::spawn_mut())
+    Context::new(wake::panic_local_waker_ref(), spawn::panic_mut())
 }
 
-/// Create a new [`task::Context`][futures_core::task::Context] where the
-/// [`waker`][futures_core::task::Context::waker] will ignore any calls to
-/// `wake` while the [`spawner`][futures_core::task::Context::spawner] will
+/// Create a new [`task::Context`](futures_core::task::Context) where the
+/// [`waker`](futures_core::task::Context::waker) will ignore any calls to
+/// `wake` while the [`spawner`](futures_core::task::Context::spawner) will
 /// panic if used.
 ///
 /// # Examples
@@ -38,12 +38,12 @@ pub fn panic_context() -> Context<'static> {
 /// assert_eq!(future.poll(&mut no_spawn_context()), Poll::Ready(5));
 /// ```
 pub fn no_spawn_context() -> Context<'static> {
-    Context::new(wake::Noop::local_waker_ref(), spawn::Panic::spawn_mut())
+    Context::new(wake::noop_local_waker_ref(), spawn::panic_mut())
 }
 
-/// Create a new [`task::Context`][futures_core::task::Context] where the
-/// [`waker`][futures_core::task::Context::waker] and
-/// [`spawner`][futures_core::task::Context::spawner] will both ignore any
+/// Create a new [`task::Context`](futures_core::task::Context) where the
+/// [`waker`](futures_core::task::Context::waker) and
+/// [`spawner`](futures_core::task::Context::spawner) will both ignore any
 /// uses.
 ///
 /// # Examples
@@ -61,5 +61,5 @@ pub fn no_spawn_context() -> Context<'static> {
 /// assert_eq!(future.poll(&mut noop_context()), Poll::Ready(5));
 /// ```
 pub fn noop_context() -> Context<'static> {
-    Context::new(wake::Noop::local_waker_ref(), spawn::Noop::spawn_mut())
+    Context::new(wake::noop_local_waker_ref(), spawn::noop_mut())
 }

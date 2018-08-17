@@ -20,9 +20,9 @@ fn abortable_awakens() {
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (mut abortable_rx, abort_handle) = abortable(a_rx);
 
-    let (wake_counter, local_waker) = wake::Counter::new();
+    let wake_counter = wake::Counter::new();
     let mut cx = panic_context();
-    let cx = &mut cx.with_waker(&local_waker);
+    let cx = &mut cx.with_waker(wake_counter.local_waker());
     assert_eq!(0, wake_counter.count());
     assert_eq!(Poll::Pending, abortable_rx.poll_unpin(cx));
     assert_eq!(0, wake_counter.count());
