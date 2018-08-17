@@ -46,7 +46,5 @@ impl Default for Noop {
 
 /// Get a thread local reference to a singleton instance of [`Noop`].
 pub fn noop_mut() -> &'static mut Noop {
-    static mut INSTANCE: Noop = Noop { _reserved: () };
-    // Safety: This is safe because `Noop` is a ZST
-    unsafe { &mut INSTANCE }
+    Box::leak(Box::new(Noop::new()))
 }

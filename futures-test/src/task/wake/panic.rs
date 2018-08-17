@@ -76,5 +76,5 @@ pub fn panic_local_waker_ref() -> &'static LocalWaker {
         static LOCAL_WAKER_INSTANCE: UnsafeCell<LocalWaker> =
             UnsafeCell::new(panic_local_waker());
     }
-    LOCAL_WAKER_INSTANCE.with(|l| unsafe { &mut *l.get() })
+    LOCAL_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }

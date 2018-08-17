@@ -46,7 +46,5 @@ impl Default for Panic {
 
 /// Get a thread local reference to a singleton instance of [`Panic`].
 pub fn panic_mut() -> &'static mut Panic {
-    static mut INSTANCE: Panic = Panic { _reserved: () };
-    // Safety: This is safe because `Panic` is a ZST
-    unsafe { &mut INSTANCE }
+    Box::leak(Box::new(Panic::new()))
 }
