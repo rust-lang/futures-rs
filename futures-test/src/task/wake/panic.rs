@@ -18,14 +18,12 @@ use std::sync::Arc;
 /// cx.waker().wake(); // Will panic
 /// ```
 #[derive(Debug)]
-pub struct Panic {
-    _reserved: (),
-}
+pub struct Panic {}
 
 impl Panic {
     /// Create a new instance
     pub fn new() -> Self {
-        Self { _reserved: () }
+        Self {}
     }
 }
 
@@ -54,7 +52,7 @@ unsafe impl UnsafeWake for Panic {
 }
 
 fn panic_unsafe_wake() -> NonNull<dyn UnsafeWake> {
-    static mut INSTANCE: Panic = Panic { _reserved: () };
+    static mut INSTANCE: Panic = Panic {};
     unsafe { NonNull::new_unchecked(&mut INSTANCE as *mut dyn UnsafeWake) }
 }
 
