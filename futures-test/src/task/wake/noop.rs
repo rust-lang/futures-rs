@@ -18,14 +18,12 @@ use std::sync::Arc;
 /// cx.waker().wake();
 /// ```
 #[derive(Debug)]
-pub struct Noop {
-    _reserved: (),
-}
+pub struct Noop {}
 
 impl Noop {
     /// Create a new instance
     pub fn new() -> Self {
-        Self { _reserved: () }
+        Self {}
     }
 }
 
@@ -50,7 +48,7 @@ unsafe impl UnsafeWake for Noop {
 }
 
 fn noop_unsafe_wake() -> NonNull<dyn UnsafeWake> {
-    static mut INSTANCE: Noop = Noop { _reserved: () };
+    static mut INSTANCE: Noop = Noop {};
     unsafe { NonNull::new_unchecked(&mut INSTANCE as *mut dyn UnsafeWake) }
 }
 
