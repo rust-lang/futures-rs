@@ -4,7 +4,7 @@ use futures_core::task::{Spawn, SpawnErrorKind, SpawnObjError};
 use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 
 /// A spawner that delegates to `tokio`'s
-/// [`DefaultExecutor`][tokio_executor::DefaultExecutor], will panic if used in
+/// [`DefaultExecutor`](tokio_executor::DefaultExecutor), will panic if used in
 /// the context of a task that is not running on `tokio`'s executor.
 ///
 /// *NOTE* The future of this struct in `futures` is uncertain. It may be

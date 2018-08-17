@@ -1,0 +1,26 @@
+cargo-features = ["edition"]
+
+[package]
+name = "futures-test-preview"
+edition = "2018"
+version = "0.3.0-alpha.3"
+authors = ["Wim Looman <wim@nemo157.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+homepage = "https://rust-lang-nursery.github.io/futures-rs"
+documentation = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.3/futures_test"
+description = """
+Common utilities for testing components built off futures-rs.
+"""
+
+[lib]
+name = "futures_test"
+
+[dependencies]
+futures-core-preview = { version = "0.3.0-alpha.2", path = "../futures-core", default-features = false }
+futures-util-preview = { version = "0.3.0-alpha.2", path = "../futures-util", default-features = false }
+futures-executor-preview = { version = "0.3.0-alpha.2", path = "../futures-executor", default-features = false }
+pin-utils = { version = "0.1.0-alpha.1", default-features = false }
+
+[dev-dependencies]
+futures-preview = { version = "0.3.0-alpha.2", path = "../futures", default-features = false, features = ["std"] }
