@@ -1,6 +1,5 @@
 use futures_core::future::FutureObj;
 use futures_core::task::{Spawn, SpawnObjError};
-use std::cell::UnsafeCell;
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that panics
 /// when used.
@@ -47,9 +46,7 @@ impl Default for Panic {
 
 /// Get a thread local reference to a singleton instance of [`Panic`].
 pub fn panic_mut() -> &'static mut Panic {
-    thread_local! {
-        static INSTANCE: UnsafeCell<Panic> =
-            UnsafeCell::new(Panic { _reserved: () });
-    }
-    INSTANCE.with(|i| unsafe { &mut *i.get() })
+    static mut INSTANCE: Panic = Panic { _reserved: () };
+    // Safety: This is safe because `Panic` is a ZST
+    unsafe { &mut INSTANCE }
 }

@@ -1,6 +1,5 @@
 use futures_core::future::FutureObj;
 use futures_core::task::{Spawn, SpawnObjError};
-use std::cell::UnsafeCell;
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that
 /// discards spawned futures when used.
@@ -47,9 +46,7 @@ impl Default for Noop {
 
 /// Get a thread local reference to a singleton instance of [`Noop`].
 pub fn noop_mut() -> &'static mut Noop {
-    thread_local! {
-        static INSTANCE: UnsafeCell<Noop> =
-            UnsafeCell::new(Noop { _reserved: () });
-    }
-    INSTANCE.with(|i| unsafe { &mut *i.get() })
+    static mut INSTANCE: Noop = Noop { _reserved: () };
+    // Safety: This is safe because `Noop` is a ZST
+    unsafe { &mut INSTANCE }
 }
