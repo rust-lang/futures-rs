@@ -21,13 +21,26 @@
     padding: 0;
 
     li {
+      margin: 25px 0;
       list-style-type: none;
 
       h3 {
-        margin-top: 5px;
+        margin: 2px 0;
 
         a {
           @include underline-link($primary_color);
+          p { display: inline; margin: 0; }
+        }
+      }
+
+      .post-description {
+        color: #aaa;
+        font-style: italic;
+
+        p { display: inline; margin: 0; }
+
+        code.highlighter-rouge {
+          color: #999;
         }
       }
     }
