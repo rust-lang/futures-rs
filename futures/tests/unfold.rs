@@ -12,9 +12,9 @@ use futures_test::future::FutureTestExt;
 fn unfold1() {
     let mut stream = stream::unfold(0, |state| {
         if state <= 2 {
-            future::ready(Some((state * 2, state + 1))).delay()
+            future::ready(Some((state * 2, state + 1))).pending_once()
         } else {
-            future::ready(None).delay()
+            future::ready(None).pending_once()
         }
     });
 
