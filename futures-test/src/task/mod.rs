@@ -1,19 +1,53 @@
-//! Task related utilities.
+//! Task related testing utilities.
 //!
-//! In the majority of use cases you can use the functions exported below to
-//! create a [`Context`](futures_core::task::Context) appropriate to use in your
-//! tests.
+//! This module provides utilities for creating test
+//! [`task::Context`](futures_core::task::Context)s,
+//! [`LocalWaker`](futures_core::task::LocalWaker)s and
+//! [`Spawn`](futures_core::task::Spawn) implementations.
 //!
-//! For more complex test cases you can take a `Context` from one of these
-//! functions and then use the
-//! [`Context::with_waker`](futures_core::task::Context::with_waker) and
-//! [`Context::with_spawner`](futures_core::task::Context::with_spawner)
-//! methods to change the implementations used. See the examples on
-//! the provided implementations in [`wake`] and
-//! [`spawn`] for more details.
-
-pub mod spawn;
-pub mod wake;
+//! Commonly needed [`task::Context`](futures_core::task::Context)s can be
+//! created via the functions [`no_spawn_context`],
+//! [`noop_context`] and [`panic_context`]. For more advanced use cases, you
+//! can create your own task context via
+//! [`task::Context::new`](futures_core::task::Context::new) and make use
+//! of the various provided test wakers and spawners:
+//!
+//! Test wakers:
+//! - [`noop_local_waker`] creates a waker that ignores calls to
+//!   [`wake`](futures_core::task::LocalWaker).
+//! - [`panic_local_waker`] creates a waker that panics when
+//!   [`wake`](futures_core::task::LocalWaker) is called.
+//! - [`WakeCounter::local_waker`] creates a waker that increments
+//!   a counter whenever [`wake`](futures_core::task::LocalWaker) is called.
+//!
+//! Test spawners:
+//! - [`NoopSpawner`] ignores calls to
+//!   [`spawn`](futures_core::task::Spawn::spawn)
+//! - [`PanicSpawner`] panics if [`spawn`](futures_core::task::Spawn::spawn) is
+//!   called.
+//! - [`RecordSpawner`] records the spawned futures.
+//!
+//! For convenience there additionally exist various functions that directly
+//! return waker/spawner references: [`noop_local_waker_ref`],
+//! [`panic_local_waker_ref`], [`noop_spawner_mut`] and [`panic_spawner_mut`].
 
 mod context;
 pub use self::context::{no_spawn_context, noop_context, panic_context};
+
+mod noop_spawner;
+pub use self::noop_spawner::{noop_spawner_mut, NoopSpawner};
+
+mod noop_waker;
+pub use self::noop_waker::{noop_local_waker, noop_local_waker_ref, NoopWake};
+
+mod panic_spawner;
+pub use self::panic_spawner::{panic_spawner_mut, PanicSpawner};
+
+mod panic_waker;
+pub use self::panic_waker::{panic_local_waker, panic_local_waker_ref, PanicWake};
+
+mod record_spawner;
+pub use self::record_spawner::RecordSpawner;
+
+mod wake_counter;
+pub use self::wake_counter::WakeCounter;
