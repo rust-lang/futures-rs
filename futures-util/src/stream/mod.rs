@@ -94,6 +94,7 @@ pub use self::zip::Zip;
 
 if_std! {
     use std;
+    use std::boxed::PinBox;
     use std::iter::Extend;
 
     mod buffer_unordered;
@@ -774,6 +775,14 @@ pub trait StreamExt: Stream {
         where Self: Sized + std::panic::UnwindSafe
     {
         CatchUnwind::new(self)
+    }
+
+    /// Wrap the stream in a Box, pinning it.
+    #[cfg(feature = "std")]
+    fn boxed(self) -> PinBox<Self>
+        where Self: Sized
+    {
+        PinBox::new(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
