@@ -123,6 +123,9 @@ if_std! {
     mod split;
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
 
+    mod shared;
+    pub use self::shared::Shared;
+
     // ToDo
     // mod select_all;
     // pub use self::select_all::{select_all, SelectAll};
@@ -774,6 +777,70 @@ pub trait StreamExt: Stream {
         where Self: Sized + std::panic::UnwindSafe
     {
         CatchUnwind::new(self)
+    }
+
+    /// Create a cloneable handle to this stream where all handles will resolve
+    /// to the same result.
+    ///
+    /// The shared() method provides a method to convert any stream into a
+    /// cloneable stream. It enables a stream to be polled by multiple threads.
+    ///
+    /// This method is only available when the `std` feature of this library is
+    /// activiated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::executor::block_on;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let mut shared1 = stream.shared();
+    /// let mut shared2 = shared1.clone();
+    ///
+    /// assert_eq!(vec![1,2,3], block_on(shared1.collect::<Vec<_>>()));
+    /// assert_eq!(vec![1,2,3], block_on(shared2.collect::<Vec<_>>()));
+    /// ```
+    ///
+    /// ```
+    /// use futures::executor::block_on;
+    /// use futures::stream::{self, StreamExt};
+    /// use std::thread;
+    ///
+    /// let stream = stream::iter(1..=3);
+    /// let mut shared1 = stream.shared();
+    /// let mut shared2 = shared1.clone();
+    /// let join_handle = thread::spawn(move || {
+    ///     assert_eq!(vec![1,2,3], block_on(shared2.collect::<Vec<_>>()));
+    /// });
+    /// assert_eq!(vec![1,2,3], block_on(shared1.collect::<Vec<_>>()));
+    /// join_handle.join().unwrap();
+    /// ```
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(vec![1,2,3]);
+    /// let mut shared1 = stream.shared();
+    ///
+    /// assert_eq!(Some(1), await!(shared1.next()));
+    ///
+    /// let mut shared2 = shared1.clone();
+    /// assert_eq!(Some(2), await!(shared2.next()));
+    /// assert_eq!(Some(3), await!(shared2.next()));
+    /// assert_eq!(vec![2,3], await!(shared1.collect::<Vec<_>>()));
+    /// assert_eq!(None, await!(shared2.next()));
+    /// # });
+    /// ```
+    #[cfg(feature = "std")]
+    fn shared(self) -> Shared<Self>
+    where
+        Self: Sized + Unpin,
+        Self::Item: Clone,
+    {
+        Shared::new(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
