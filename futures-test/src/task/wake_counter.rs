@@ -9,9 +9,9 @@ use std::sync::Arc;
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures_test::task::{panic_context, wake};
+/// use futures_test::task::{panic_context, WakeCounter};
 ///
-/// let wake_counter = wake::Counter::new();
+/// let wake_counter = WakeCounter::new();
 /// let mut cx = panic_context();
 /// let cx = &mut cx.with_waker(wake_counter.local_waker());
 ///
@@ -23,7 +23,7 @@ use std::sync::Arc;
 /// assert_eq!(wake_counter.count(), 2);
 /// ```
 #[derive(Debug)]
-pub struct Counter {
+pub struct WakeCounter {
     inner: Arc<Inner>,
     local_waker: LocalWaker,
 }
@@ -33,13 +33,13 @@ struct Inner {
     count: AtomicUsize,
 }
 
-impl Counter {
-    /// Create a new [`Counter`]
-    pub fn new() -> Counter {
+impl WakeCounter {
+    /// Create a new [`WakeCounter`]
+    pub fn new() -> WakeCounter {
         let inner = Arc::new(Inner {
             count: AtomicUsize::new(0),
         });
-        Counter {
+        WakeCounter {
             local_waker: task::local_waker_from_nonlocal(inner.clone()),
             inner,
         }
@@ -52,13 +52,13 @@ impl Counter {
         &self.local_waker
     }
 
-    /// Get the number of times this [`Counter`] has been woken
+    /// Get the number of times this [`WakeCounter`] has been woken
     pub fn count(&self) -> usize {
         self.inner.count.load(Ordering::SeqCst)
     }
 }
 
-impl Default for Counter {
+impl Default for WakeCounter {
     fn default() -> Self {
         Self::new()
     }

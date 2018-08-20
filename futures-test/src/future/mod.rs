@@ -1,8 +1,8 @@
 //! Additional combinators for testing futures.
 
-mod delay;
+mod pending_once;
 
-use self::delay::Delayed;
+use self::pending_once::PendingOnce;
 use futures_core::future::Future;
 use futures_executor;
 use std::thread;
@@ -10,7 +10,7 @@ use std::thread;
 /// Additional combinators for testing futures.
 pub trait FutureTestExt: Future {
     /// Introduces one [`Poll::Pending`](futures_core::task::Poll::Pending)
-    /// before polling the given future
+    /// before polling the given future.
     ///
     /// # Examples
     ///
@@ -22,7 +22,7 @@ pub trait FutureTestExt: Future {
     /// use futures_test::future::FutureTestExt;
     /// use pin_utils::pin_mut;
     ///
-    /// let future = (async { 5 }).delay();
+    /// let future = (async { 5 }).pending_once();
     /// pin_mut!(future);
     ///
     /// let cx = &mut task::no_spawn_context();
@@ -30,11 +30,11 @@ pub trait FutureTestExt: Future {
     /// assert_eq!(future.poll_unpin(cx), Poll::Pending);
     /// assert_eq!(future.poll_unpin(cx), Poll::Ready(5));
     /// ```
-    fn delay(self) -> Delayed<Self>
+    fn pending_once(self) -> PendingOnce<Self>
     where
         Self: Sized,
     {
-        delay::Delayed::new(self)
+        pending_once::PendingOnce::new(self)
     }
 
     /// Runs this future on a dedicated executor running in a background thread.

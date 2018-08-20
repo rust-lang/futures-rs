@@ -10,38 +10,38 @@ use std::sync::Arc;
 ///
 /// ```should_panic
 /// #![feature(futures_api)]
-/// use futures_test::task::{noop_context, wake};
+/// use futures_test::task::{noop_context, panic_local_waker_ref};
 ///
 /// let mut cx = noop_context();
-/// let cx = &mut cx.with_waker(wake::panic_local_waker_ref());
+/// let cx = &mut cx.with_waker(panic_local_waker_ref());
 ///
 /// cx.waker().wake(); // Will panic
 /// ```
 #[derive(Debug)]
-pub struct Panic {
+pub struct PanicWake {
     _reserved: (),
 }
 
-impl Panic {
+impl PanicWake {
     /// Create a new instance
     pub fn new() -> Self {
         Self { _reserved: () }
     }
 }
 
-impl Default for Panic {
+impl Default for PanicWake {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Wake for Panic {
+impl Wake for PanicWake {
     fn wake(_arc_self: &Arc<Self>) {
         panic!("should not be woken")
     }
 }
 
-unsafe impl UnsafeWake for Panic {
+unsafe impl UnsafeWake for PanicWake {
     unsafe fn clone_raw(&self) -> Waker {
         panic_waker()
     }
@@ -54,7 +54,7 @@ unsafe impl UnsafeWake for Panic {
 }
 
 fn panic_unsafe_wake() -> NonNull<dyn UnsafeWake> {
-    static mut INSTANCE: Panic = Panic { _reserved: () };
+    static mut INSTANCE: PanicWake = PanicWake { _reserved: () };
     unsafe { NonNull::new_unchecked(&mut INSTANCE as *mut dyn UnsafeWake) }
 }
 
@@ -63,18 +63,33 @@ fn panic_waker() -> Waker {
 }
 
 /// Create a new [`LocalWaker`](futures_core::task::LocalWaker) referencing
-/// a singleton instance of [`Panic`].
+/// a singleton instance of [`PanicWake`].
 pub fn panic_local_waker() -> LocalWaker {
     unsafe { LocalWaker::new(panic_unsafe_wake()) }
 }
 
 /// Get a thread local reference to a
 /// [`LocalWaker`](futures_core::task::LocalWaker) referencing a singleton
-/// instance of [`Panic`].
+/// instance of [`PanicWake`].
+///
+/// # Examples
+///
+/// ```should_panic
+/// #![feature(async_await, futures_api)]
+/// use futures::task;
+/// use futures_test::task::{panic_local_waker_ref, panic_spawner_mut};
+///
+/// let mut cx = task::Context::new(
+///     panic_local_waker_ref(),
+///     panic_spawner_mut(),
+/// );
+///
+/// cx.waker().wake(); // Will panic
+/// ```
 pub fn panic_local_waker_ref() -> &'static LocalWaker {
     thread_local! {
         static LOCAL_WAKER_INSTANCE: UnsafeCell<LocalWaker> =
             UnsafeCell::new(panic_local_waker());
     }
-    LOCAL_WAKER_INSTANCE.with(|l| unsafe { &mut *l.get() })
+    LOCAL_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }

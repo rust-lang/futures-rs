@@ -6,16 +6,17 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Combinator that guarantees one [`Poll::Pending`] before polling its inner
 /// future.
 ///
-/// This is created by the [`FutureTestExt::delay`](super::FutureTestExt::delay)
+/// This is created by the
+/// [`FutureTestExt::pending_once`](super::FutureTestExt::pending_once)
 /// method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Delayed<Fut: Future> {
+pub struct PendingOnce<Fut: Future> {
     future: Fut,
     polled_before: bool,
 }
 
-impl<Fut: Future> Delayed<Fut> {
+impl<Fut: Future> PendingOnce<Fut> {
     unsafe_pinned!(future: Fut);
     unsafe_unpinned!(polled_before: bool);
 
@@ -27,7 +28,7 @@ impl<Fut: Future> Delayed<Fut> {
     }
 }
 
-impl<Fut: Future> Future for Delayed<Fut> {
+impl<Fut: Future> Future for PendingOnce<Fut> {
     type Output = Fut::Output;
 
     fn poll(

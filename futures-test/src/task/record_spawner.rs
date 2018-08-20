@@ -9,9 +9,9 @@ use futures_core::task::{Spawn, SpawnObjError};
 /// ```
 /// #![feature(async_await, futures_api)]
 /// use futures::task::SpawnExt;
-/// use futures_test::task::{panic_context, spawn};
+/// use futures_test::task::{panic_context, RecordSpawner};
 ///
-/// let mut recorder = spawn::Record::new();
+/// let mut recorder = RecordSpawner::new();
 ///
 /// {
 ///     let mut cx = panic_context();
@@ -22,11 +22,11 @@ use futures_core::task::{Spawn, SpawnObjError};
 /// assert_eq!(recorder.spawned().len(), 1);
 /// ```
 #[derive(Debug)]
-pub struct Record {
+pub struct RecordSpawner {
     spawned: Vec<FutureObj<'static, ()>>,
 }
 
-impl Record {
+impl RecordSpawner {
     /// Create a new instance
     pub fn new() -> Self {
         Self {
@@ -40,7 +40,7 @@ impl Record {
     }
 }
 
-impl Spawn for Record {
+impl Spawn for RecordSpawner {
     fn spawn_obj(
         &mut self,
         future: FutureObj<'static, ()>,
@@ -50,7 +50,7 @@ impl Spawn for Record {
     }
 }
 
-impl Default for Record {
+impl Default for RecordSpawner {
     fn default() -> Self {
         Self::new()
     }
