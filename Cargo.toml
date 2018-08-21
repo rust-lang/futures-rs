@@ -10,4 +10,6 @@ members = [
   "futures-task",
   "futures-util",
   "futures-test",
+  "futures/examples/functional",
+  "futures/examples/imperative"
 ]
