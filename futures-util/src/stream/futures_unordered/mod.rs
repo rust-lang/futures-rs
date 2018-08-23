@@ -189,7 +189,9 @@ impl<Fut> FuturesUnordered<Fut> {
         // `FuturesUnordered`, which correctly tracks `Fut`'s lifetimes and
         // such.
         unsafe {
-            drop((*task.future.get()).take());
+            // Set to `None` rather than `take()`ing to prevent moving the
+            // future.
+            *task.future.get() = None;
         }
 
         // If the queued flag was previously set, then it means that this task
