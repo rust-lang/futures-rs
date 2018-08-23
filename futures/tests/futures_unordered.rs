@@ -2,11 +2,14 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureExt, FutureObj};
+use futures::future::{self, Future, FutureExt, FutureObj};
 use futures::stream::{StreamExt, futures_unordered, FuturesUnordered};
-use futures::task::Poll;
+use futures::task::{self, Poll};
 use futures_test::task::no_spawn_context;
 use std::boxed::Box;
+use std::marker::Pinned;
+use std::mem::PinMut;
+use std::ptr;
 
 #[test]
 fn works_1() {
@@ -124,4 +127,44 @@ fn iter_mut_len() {
     assert!(iter_mut.next().is_some());
     assert_eq!(iter_mut.len(), 0);
     assert!(iter_mut.next().is_none());
+}
+
+#[test]
+fn futures_not_moved_after_poll() {
+    struct DontMoveMe {
+        this: *const DontMoveMe,
+        _pinned: Pinned,
+    }
+
+    impl Future for DontMoveMe {
+        type Output = ();
+        fn poll(self: PinMut<Self>, cx: &mut task::Context)
+            -> Poll<Self::Output>
+        {
+            let cur_this = &*self as *const DontMoveMe;
+            if self.this == ptr::null() {
+                // First time being polled.
+                cx.local_waker().wake();
+                unsafe { PinMut::get_mut_unchecked(self).this = cur_this };
+                Poll::Pending
+            } else {
+                assert_eq!(self.this, cur_this, "Future moved between poll calls");
+                Poll::Ready(())
+            }
+        }
+    }
+
+    impl Drop for DontMoveMe {
+        fn drop(&mut self) {
+            let cur_this = &*self as *const DontMoveMe;
+            assert_eq!(self.this, cur_this, "Future moved before drop");
+        }
+    }
+
+    let dmm = || DontMoveMe { this: ptr::null(), _pinned: Pinned };
+    let mut stream = block_on_stream(futures_unordered(vec![dmm(), dmm(), dmm()]));
+    assert_eq!(Some(()), stream.next());
+    assert_eq!(Some(()), stream.next());
+    assert_eq!(Some(()), stream.next());
+    assert_eq!(None, stream.next());
 }
