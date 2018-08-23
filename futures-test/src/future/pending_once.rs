@@ -9,7 +9,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// This is created by the
 /// [`FutureTestExt::pending_once`](super::FutureTestExt::pending_once)
 /// method.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[must_use = "futures do nothing unless polled"]
 pub struct PendingOnce<Fut: Future> {
     future: Fut,
