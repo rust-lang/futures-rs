@@ -1,14 +1,32 @@
 //! Additional combinators for testing futures.
 
-mod pending_once;
+mod assert_unmoved;
+use self::assert_unmoved::AssertUnmoved;
 
+mod pending_once;
 use self::pending_once::PendingOnce;
+
 use futures_core::future::Future;
 use futures_executor;
 use std::thread;
 
 /// Additional combinators for testing futures.
 pub trait FutureTestExt: Future {
+    /// Asserts that the given is not moved after being polled.
+    ///
+    /// A check for movement is performed each time the future is polled
+    /// and when `Drop` is called.
+    ///
+    /// Aside from keeping track of the location at which the future was first
+    /// polled and providing assertions, this future adds no runtime behavior
+    /// and simply delegates to the child future.
+    fn assert_unmoved(self) -> AssertUnmoved<Self>
+    where
+        Self: Sized,
+    {
+        AssertUnmoved::new(self)
+    }
+
     /// Introduces one [`Poll::Pending`](futures_core::task::Poll::Pending)
     /// before polling the given future.
     ///
