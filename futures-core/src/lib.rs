@@ -28,6 +28,4 @@ pub mod future;
 
 pub mod stream;
 
-pub mod stream_obj;
-
 pub mod task;
