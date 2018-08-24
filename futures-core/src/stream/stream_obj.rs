@@ -181,3 +181,68 @@ unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for PinMut<'a, F>
 
     unsafe fn drop(_ptr: *mut ()) {}
 }
+
+if_std! {
+    use std::boxed::{Box,PinBox};
+
+
+    unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for Box<F>
+        where F: Stream<Item = T> + 'a
+    {
+        fn into_raw(self) -> *mut () {
+            Box::into_raw(self) as *mut ()
+        }
+
+        unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+            let ptr = ptr as *mut F;
+            let pin: PinMut<F> = PinMut::new_unchecked(&mut *ptr);
+            pin.poll_next(cx)
+        }
+
+        unsafe fn drop(ptr: *mut ()) {
+            drop(Box::from_raw(ptr as *mut F))
+        }
+    }
+
+    unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for PinBox<F>
+        where F: Stream<Item = T> + 'a
+    {
+        fn into_raw(self) -> *mut () {
+            PinBox::into_raw(self) as *mut ()
+        }
+
+        unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+            let ptr = ptr as *mut F;
+            let pin: PinMut<F> = PinMut::new_unchecked(&mut *ptr);
+            pin.poll_next(cx)
+        }
+
+        unsafe fn drop(ptr: *mut ()) {
+            drop(PinBox::from_raw(ptr as *mut F))
+        }
+    }
+
+    impl<'a, F: Stream<Item = ()> + Send + 'a> From<PinBox<F>> for StreamObj<'a, ()> {
+        fn from(boxed: PinBox<F>) -> Self {
+            StreamObj::new(boxed)
+        }
+    }
+
+    impl<'a, F: Stream<Item = ()> + Send + 'a> From<Box<F>> for StreamObj<'a, ()> {
+        fn from(boxed: Box<F>) -> Self {
+            StreamObj::new(boxed)
+        }
+    }
+
+    impl<'a, F: Stream<Item = ()> + 'a> From<PinBox<F>> for LocalStreamObj<'a, ()> {
+        fn from(boxed: PinBox<F>) -> Self {
+            LocalStreamObj::new(boxed)
+        }
+    }
+
+    impl<'a, F: Stream<Item = ()> + 'a> From<Box<F>> for LocalStreamObj<'a, ()> {
+        fn from(boxed: Box<F>) -> Self {
+            LocalStreamObj::new(boxed)
+        }
+    }
+}
