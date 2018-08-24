@@ -1,5 +1,5 @@
 use crate::task::{self, Poll};
-use std::fmt;
+use core::fmt;
 use std::marker::{PhantomData,Unpin};
 use core::mem::PinMut;
 
