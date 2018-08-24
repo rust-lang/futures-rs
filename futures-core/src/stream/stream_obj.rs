@@ -167,3 +167,17 @@ unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for &'a mut F
 
     unsafe fn drop(_ptr: *mut ()) {}
 }
+
+unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for PinMut<'a, F>
+    where F: Stream<Item = T> + 'a
+{
+    fn into_raw(self) -> *mut () {
+        unsafe { PinMut::get_mut_unchecked(self) as *mut F as *mut () }
+    }
+
+    unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+        PinMut::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
+    }
+
+    unsafe fn drop(_ptr: *mut ()) {}
+}
