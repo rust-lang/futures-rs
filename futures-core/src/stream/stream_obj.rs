@@ -1,11 +1,10 @@
+use super::Stream;
 use crate::task::{self, Poll};
 use core::fmt;
-use core::marker::{PhantomData,Unpin};
+use core::marker::{PhantomData, Unpin};
 use core::mem::PinMut;
 
-use crate::stream::Stream;
-
-/// A custom trait object for polling futures, roughly akin to
+/// A custom trait object for polling streams, roughly akin to
 /// `Box<dyn Stream<Item = T> + 'a>`.
 ///
 /// This custom trait object was introduced for two reasons:
@@ -49,8 +48,7 @@ impl<'a, T> LocalStreamObj<'a, T> {
 
 impl<'a, T> fmt::Debug for LocalStreamObj<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("LocalStreamObj")
-            .finish()
+        f.debug_struct("LocalStreamObj").finish()
     }
 }
 
@@ -65,22 +63,21 @@ impl<'a, T> Stream for LocalStreamObj<'a, T> {
     type Item = T;
 
     #[inline]
-    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
-        unsafe {
-            (self.poll_next_fn)(self.ptr, cx)
-        }
+    fn poll_next(
+        self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
+        unsafe { (self.poll_next_fn)(self.ptr, cx) }
     }
 }
 
 impl<'a, T> Drop for LocalStreamObj<'a, T> {
     fn drop(&mut self) {
-        unsafe {
-            (self.drop_fn)(self.ptr)
-        }
+        unsafe { (self.drop_fn)(self.ptr) }
     }
 }
 
-/// A custom trait object for polling futures, roughly akin to
+/// A custom trait object for polling streams, roughly akin to
 /// `Box<dyn Stream<Item = T> + Send + 'a>`.
 ///
 /// This custom trait object was introduced for two reasons:
@@ -106,8 +103,7 @@ impl<'a, T> StreamObj<'a, T> {
 
 impl<'a, T> fmt::Debug for StreamObj<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("StreamObj")
-            .finish()
+        f.debug_struct("StreamObj").finish()
     }
 }
 
@@ -115,53 +111,63 @@ impl<'a, T> Stream for StreamObj<'a, T> {
     type Item = T;
 
     #[inline]
-    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(
+        self: PinMut<Self>,
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
         let pinned_field = unsafe { PinMut::map_unchecked(self, |x| &mut x.0) };
         pinned_field.poll_next(cx)
     }
 }
 
-/// A custom implementation of a future trait object for `StreamObj`, providing
+/// A custom implementation of a stream trait object for `StreamObj`, providing
 /// a hand-rolled vtable.
 ///
 /// This custom representation is typically used only in `no_std` contexts,
 /// where the default `Box`-based implementation is not available.
 ///
-/// The implementor must guarantee that it is safe to call `poll` repeatedly (in
-/// a non-concurrent fashion) with the result of `into_raw` until `drop` is
-/// called.
+/// The implementor must guarantee that it is safe to call `poll_next`
+/// repeatedly (in a non-concurrent fashion) with the result of `into_raw` until
+/// `drop` is called.
 pub unsafe trait UnsafeStreamObj<'a, T>: 'a {
     /// Convert an owned instance into a (conceptually owned) void pointer.
     fn into_raw(self) -> *mut ();
 
-    /// Poll the future represented by the given void pointer.
+    /// Poll the stream represented by the given void pointer.
     ///
     /// # Safety
     ///
     /// The trait implementor must guarantee that it is safe to repeatedly call
-    /// `poll` with the result of `into_raw` until `drop` is called; such calls
-    /// are not, however, allowed to race with each other or with calls to
+    /// `poll_next` with the result of `into_raw` until `drop` is called; such
+    /// calls are not, however, allowed to race with each other or with calls to
     /// `drop`.
-    unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>>;
+    unsafe fn poll_next(
+        ptr: *mut (),
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>>;
 
-    /// Drops the future represented by the given void pointer.
+    /// Drops the stream represented by the given void pointer.
     ///
     /// # Safety
     ///
     /// The trait implementor must guarantee that it is safe to call this
     /// function once per `into_raw` invocation; that call cannot race with
-    /// other calls to `drop` or `poll`.
+    /// other calls to `drop` or `poll_next`.
     unsafe fn drop(ptr: *mut ());
 }
 
 unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for &'a mut F
-    where F: Stream<Item = T> + Unpin + 'a
+where
+    F: Stream<Item = T> + Unpin + 'a,
 {
     fn into_raw(self) -> *mut () {
         self as *mut F as *mut ()
     }
 
-    unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+    unsafe fn poll_next(
+        ptr: *mut (),
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
         PinMut::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
     }
 
@@ -169,13 +175,17 @@ unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for &'a mut F
 }
 
 unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for PinMut<'a, F>
-    where F: Stream<Item = T> + 'a
+where
+    F: Stream<Item = T> + 'a,
 {
     fn into_raw(self) -> *mut () {
         unsafe { PinMut::get_mut_unchecked(self) as *mut F as *mut () }
     }
 
-    unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+    unsafe fn poll_next(
+        ptr: *mut (),
+        cx: &mut task::Context,
+    ) -> Poll<Option<T>> {
         PinMut::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
     }
 
@@ -183,8 +193,7 @@ unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for PinMut<'a, F>
 }
 
 if_std! {
-    use std::boxed::{Box,PinBox};
-
+    use std::boxed::{Box, PinBox};
 
     unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for Box<F>
         where F: Stream<Item = T> + 'a
