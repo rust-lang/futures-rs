@@ -114,7 +114,7 @@ fn peek() {
     spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
     local_pool.run();
     for _ in 0..2 {
-        assert_eq!(f2.peek().unwrap(), Ok(42));
+        assert_eq!(*f2.peek().unwrap(), Ok(42));
     }
 }
 
