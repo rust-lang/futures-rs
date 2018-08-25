@@ -11,7 +11,7 @@ use std::sync::atomic::Ordering::SeqCst;
 use std::task::local_waker_from_nonlocal;
 
 /// A future that is cloneable and can be polled in multiple threads.
-/// Use `Future::shared()` method to convert any future into a `Shared` future.
+/// Use [`FutureExt::shared()`](crate::FutureExt::shared) method to convert any future into a `Shared` future.
 #[must_use = "futures do nothing unless polled"]
 pub struct Shared<Fut: Future> {
     inner: Option<Arc<Inner<Fut>>>,
@@ -93,9 +93,9 @@ where
     Fut: Future,
     Fut::Output: Clone,
 {
-    /// Returns Some containing a reference to this `Shared`'s output if it has
-    /// already been computed by a clone or `None` if it hasn't been computed yet
-    /// or if this `Shared` already returned its output from poll.
+    /// Returns Some containing a reference to this [`Shared`](crate::future::Shared)'s output if it has
+    /// already been computed by a clone or [`None`](std::option::Option::None) if it hasn't been computed yet
+    /// or if this [`Shared`](std::option::Option::Some) already returned its output from poll.
     pub fn peek(&self) -> Option<&Fut::Output> {
         match self.inner.as_ref().map(|inner| inner.notifier.state.load(SeqCst)) {
             Some(COMPLETE) => unsafe { Some(self.inner().get_output()) },
