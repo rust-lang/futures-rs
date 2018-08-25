@@ -244,7 +244,7 @@ where
             }
         };
 
-        if let Some(_) = Arc::get_mut(&mut this.inner) {
+        if Arc::get_mut(&mut this.inner).is_some() {
             unsafe {
                 *this.inner.future_or_output.get() = FutureOrOutput::Done;
             }
