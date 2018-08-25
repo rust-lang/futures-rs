@@ -97,9 +97,9 @@ where
     /// clone of this `Shared` alive then, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.
-    pub fn peek(&self) -> Option<Fut::Output> {
+    pub fn peek(&self) -> Option<&Fut::Output> {
         match self.inner.as_ref().map(|inner| inner.notifier.state.load(SeqCst)) {
-            Some(COMPLETE) => unsafe { Some(self.inner().clone_output()) },
+            Some(COMPLETE) => unsafe { Some(self.inner().get_output()) },
             Some(POISONED) => panic!("inner future panicked during poll"),
             _ => None,
         }
@@ -152,7 +152,7 @@ where
                     FutureOrOutput::Future(_) => unreachable!(),
                 }
             }
-            Err(inner) => inner.clone_output(),
+            Err(inner) => inner.get_output().clone(),
         }
     }
 
@@ -166,9 +166,9 @@ where
 {
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
-    unsafe fn clone_output(&self) -> Fut::Output {
+    unsafe fn get_output(&self) -> &Fut::Output {
         match &*self.future_or_output.get() {
-            FutureOrOutput::Output(item) => item.clone(),
+            FutureOrOutput::Output(ref item) => &item,
             FutureOrOutput::Future(_) => unreachable!(),
         }
     }
