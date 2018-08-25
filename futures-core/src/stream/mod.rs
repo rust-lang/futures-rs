@@ -7,6 +7,9 @@ use core::mem::PinMut;
 #[cfg(feature = "either")]
 use either::Either;
 
+mod stream_obj;
+pub use self::stream_obj::{StreamObj,LocalStreamObj,UnsafeStreamObj};
+
 /// A stream of values produced asynchronously.
 ///
 /// If `Future<Output = T>` is an asynchronous version of `T`, then `Stream<Item
