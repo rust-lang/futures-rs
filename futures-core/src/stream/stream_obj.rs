@@ -1,6 +1,6 @@
 use crate::task::{self, Poll};
 use core::fmt;
-use std::marker::{PhantomData,Unpin};
+use core::marker::{PhantomData,Unpin};
 use core::mem::PinMut;
 
 use crate::stream::Stream;
