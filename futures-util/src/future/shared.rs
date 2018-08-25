@@ -93,10 +93,9 @@ where
     Fut: Future,
     Fut::Output: Clone,
 {
-    /// If any clone of this `Shared` has completed execution and there are still at least one
-    /// clone of this `Shared` alive then, returns its result immediately
-    /// without blocking. Otherwise, returns None without triggering the work represented by
-    /// this `Shared`.
+    /// Returns Some containing a reference to this `Shared`'s output if it has
+    /// already been computed by a clone or `None` if it hasn't been computed yet
+    /// or if this `Shared` already returned its output from poll.
     pub fn peek(&self) -> Option<&Fut::Output> {
         match self.inner.as_ref().map(|inner| inner.notifier.state.load(SeqCst)) {
             Some(COMPLETE) => unsafe { Some(self.inner().get_output()) },
