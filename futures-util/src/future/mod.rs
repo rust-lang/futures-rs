@@ -586,8 +586,9 @@ pub trait FutureExt: Future {
     /// Create a cloneable handle to this future where all handles will resolve
     /// to the same result.
     ///
-    /// The shared() method provides a method to convert any future into a
-    /// cloneable future. It enables a future to be polled by multiple threads.
+    /// The `shared` combinator method provides a method to convert any future
+    /// into a cloneable future. It enables a future to be polled by multiple
+    /// threads.
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
