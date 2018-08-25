@@ -95,12 +95,13 @@ where
     Fut: Future,
     Fut::Output: Clone,
 {
-    /// If any clone of this `Shared` has completed execution, returns its result immediately
+    /// If any clone of this `Shared` has completed execution and there are still at least one
+    /// clone of this `Shared` alive then, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.
     pub fn peek(&self) -> Option<Fut::Output> {
         match self.inner.notifier.state.load(SeqCst) {
-            COMPLETE => Some(unsafe { self.clone_output() }),
+            COMPLETE => unsafe { self.clone_output() },
             POISONED => panic!("inner future panicked during poll"),
             _ => None,
         }
@@ -148,14 +149,15 @@ where
             }
         }
         self.clone_output()
+            .unwrap_or_else(|| panic!("Shared future polled again after completion"))
     }
 
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
-    unsafe fn clone_output(&self) -> Fut::Output {
+    unsafe fn clone_output(&self) -> Option<Fut::Output> {
         match &*self.inner.future_or_output.get() {
-            FutureOrOutput::Output(item) => item.clone(),
-            FutureOrOutput::Done => panic!("Shared future polled again after completion"),
+            FutureOrOutput::Output(item) => Some(item.clone()),
+            FutureOrOutput::Done => None,
             FutureOrOutput::Future(_) => unreachable!(),
         }
     }
