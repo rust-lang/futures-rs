@@ -7,14 +7,14 @@ use futures_core::task as task03;
 use futures_core::future::FutureObj;
 
 /// A future that can run on a futures 0.1
-/// [`Executor`](futures::future::Executor).
+/// [`Executor`](futures01::future::Executor).
 pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, Box<dyn Spawn03 + Send>>;
 
-/// Extension trait for futures 0.1 [`Executor`](futures::future::Executor).
+/// Extension trait for futures 0.1 [`Executor`](futures01::future::Executor).
 pub trait Executor01CompatExt: Executor01<Executor01Future> +
                                Clone + Send + 'static
 {
-    /// Converts a futures 0.1 [`Executor`](futures::future::Executor) into a
+    /// Converts a futures 0.1 [`Executor`](futures01::future::Executor) into a
     /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
     ///
     /// ```
@@ -57,7 +57,7 @@ where Ex: Executor01<Executor01Future> + Clone + Send + 'static
     }
 }
 
-/// Converts a futures 0.1 [`Executor`](futures::future::Executor) into a
+/// Converts a futures 0.1 [`Executor`](futures01::future::Executor) into a
 /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
 #[derive(Clone)]
 pub struct Executor01As03<Ex> {
