@@ -13,11 +13,11 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// #![feature(async_await, await_macro, futures_api, pin)]
 /// use futures::spawn;
 /// use futures::channel::oneshot;
-/// use futures::compat::TokioDefaultSpawn;
+/// use futures::compat::TokioDefaultSpawner;
 /// use futures::executor::block_on;
 /// use futures::future::{FutureExt, TryFutureExt};
 /// use std::thread;
@@ -35,7 +35,7 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 ///     let compat_future = future
 ///         .boxed()
 ///         .unit_error()
-///         .compat(TokioDefaultSpawn);
+///         .compat(TokioDefaultSpawner);
 ///
 ///     tokio::run(compat_future);
 /// }).join().unwrap();
@@ -43,14 +43,14 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 /// assert_eq!(block_on(receiver).unwrap(), 5);
 /// ```
 #[derive(Debug, Copy, Clone)]
-pub struct TokioDefaultSpawn;
+pub struct TokioDefaultSpawner;
 
-impl Spawn for TokioDefaultSpawn {
+impl Spawn for TokioDefaultSpawner {
     fn spawn_obj(
         &mut self,
-        task: FutureObj<'static, ()>,
+        future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnObjError> {
-        let fut = Box::new(task.unit_error().compat(*self));
+        let fut = Box::new(future.unit_error().compat(*self));
         DefaultExecutor::current().spawn(fut).map_err(|err| {
             panic!(
                 "tokio failed to spawn and doesn't return the future: {:?}",

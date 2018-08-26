@@ -1,11 +1,9 @@
 use super::Compat;
-use futures::{
-    executor::{
-        self as executor01, Notify as Notify01, NotifyHandle as NotifyHandle01,
-        UnsafeNotify as UnsafeNotify01,
-    },
-    Async as Async01, Future as Future01, Stream as Stream01,
+use futures01::executor::{
+    self as executor01, UnsafeNotify as UnsafeNotify01,
+    Notify as Notify01, NotifyHandle as NotifyHandle01,
 };
+use futures01::{Async as Async01, Future as Future01, Stream as Stream01};
 use futures_core::{task as task03, Future as Future03, Stream as Stream03};
 use std::mem::PinMut;
 

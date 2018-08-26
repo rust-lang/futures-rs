@@ -1,7 +1,7 @@
 
 use super::Compat;
 use crate::{TryFutureExt, FutureExt, future::UnitError};
-use futures::future::Executor as Executor01;
+use futures01::future::Executor as Executor01;
 use futures_core::task::Spawn as Spawn03;
 use futures_core::task as task03;
 use futures_core::future::FutureObj;
