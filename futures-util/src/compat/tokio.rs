@@ -14,33 +14,27 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api, pin)]
-/// use futures::spawn;
-/// use futures::channel::oneshot;
-/// use futures::compat::TokioDefaultSpawner;
-/// use futures::executor::block_on;
+/// #![feature(async_await, await_macro, futures_api)]
 /// use futures::future::{FutureExt, TryFutureExt};
-/// use std::thread;
+/// use futures::spawn;
+/// use futures::compat::TokioDefaultSpawner;
+/// # let (tx, rx) = futures::channel::oneshot::channel();
 ///
-/// let (sender, receiver) = oneshot::channel::<i32>();
+/// let future03 = async {
+///     println!("Running on the pool");
+///     spawn!(async {
+///         println!("Spawned!");
+///         # tx.send(42).unwrap();
+///     }).unwrap();
+/// };
 ///
-/// thread::spawn(move || {
-///     let future = async move {
-///         spawn!(async move {
-///             sender.send(5).unwrap()
-///         }).unwrap();
+/// let future01 = future03
+///     .unit_error() // Make it a TryFuture
+///     .boxed()  // Make it Unpin
+///     .compat(TokioDefaultSpawner);
 ///
-///     };
-///
-///     let compat_future = future
-///         .boxed()
-///         .unit_error()
-///         .compat(TokioDefaultSpawner);
-///
-///     tokio::run(compat_future);
-/// }).join().unwrap();
-///
-/// assert_eq!(block_on(receiver).unwrap(), 5);
+/// tokio::run(future01);
+/// # futures::executor::block_on(rx).unwrap();
 /// ```
 #[derive(Debug, Copy, Clone)]
 pub struct TokioDefaultSpawner;

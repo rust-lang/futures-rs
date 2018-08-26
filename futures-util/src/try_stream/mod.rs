@@ -506,6 +506,29 @@ pub trait TryStreamExt: TryStream {
 
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
     /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{FutureExt, TryFutureExt};
+    /// use futures::spawn;
+    /// use futures::compat::TokioDefaultSpawner;
+    /// # let (tx, rx) = futures::channel::oneshot::channel();
+    ///
+    /// let future03 = async {
+    ///     println!("Running on the pool");
+    ///     spawn!(async {
+    ///         println!("Spawned!");
+    ///         # tx.send(42).unwrap();
+    ///     }).unwrap();
+    /// };
+    ///
+    /// let future01 = future03
+    ///     .unit_error() // Make it a TryFuture
+    ///     .boxed()  // Make it Unpin
+    ///     .compat(TokioDefaultSpawner);
+    ///
+    /// tokio::run(future01);
+    /// # futures::executor::block_on(rx).unwrap();
+    /// ```
     #[cfg(feature = "compat")]
     fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
         where Self: Sized + Unpin,
