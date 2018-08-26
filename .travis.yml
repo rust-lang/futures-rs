@@ -12,18 +12,18 @@ matrix:
     - name: cargo test
       os: linux
 
-    - name: cargo test (with minimal versions)
-      os: linux
-      script:
-        - cargo update -Zminimal-versions
-        - cargo test
+    # - name: cargo test (with minimal versions)
+    #   os: linux
+    #   script:
+    #     - cargo update -Zminimal-versions
+    #     - cargo test --all --all-features
 
     - name: cargo clippy
       rust: nightly
       install:
         - rustup component add clippy-preview
       script:
-        - cargo clippy --all -- -Dwarnings
+        - cargo clippy --all --all-features -- -Dwarnings
 
     - name: cargo bench
       rust: nightly
@@ -42,29 +42,10 @@ matrix:
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
 
-    - name: cargo build --all-features
+    - name: cargo build (default features)
       rust: nightly
       script:
-        - cargo build --manifest-path futures/Cargo.toml --all-features
-        - cargo build --manifest-path futures-core/Cargo.toml --all-features
-        - cargo build --manifest-path futures-channel/Cargo.toml --all-features
-        - cargo build --manifest-path futures-executor/Cargo.toml --all-features
-        - cargo build --manifest-path futures-io/Cargo.toml --all-features
-        - cargo build --manifest-path futures-sink/Cargo.toml --all-features
-        - cargo build --manifest-path futures-util/Cargo.toml --all-features
-        - cargo build --manifest-path futures-test/Cargo.toml --all-features
-
-    - name: cargo build --all-features (with minimal versions)
-      rust: nightly
-      script:
-        - cargo update -Zminimal-versions
-        - cargo build --manifest-path futures/Cargo.toml --all-features
-        - cargo build --manifest-path futures-core/Cargo.toml --all-features
-        - cargo build --manifest-path futures-channel/Cargo.toml --all-features
-        - cargo build --manifest-path futures-executor/Cargo.toml --all-features
-        - cargo build --manifest-path futures-io/Cargo.toml --all-features
-        - cargo build --manifest-path futures-sink/Cargo.toml --all-features
-        - cargo build --manifest-path futures-util/Cargo.toml --all-features
+        - cargo build --all
 
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
@@ -86,9 +67,8 @@ matrix:
         - cargo doc
 
 script:
-  - cargo build --all
-  - cargo test --all
-  - cargo test --all --release
+  - cargo test --all --all-features
+  - cargo test --all --all-features --release
 
 env:
   global:

@@ -79,7 +79,6 @@ pub mod channel {
 #[cfg(feature = "compat")]
 pub mod compat {
     //! Interop between `futures` 0.1 and 0.3.
-    //!
 
     pub use futures_util::compat::{
         Compat,
@@ -91,7 +90,7 @@ pub mod compat {
     };
 
     #[cfg(feature = "tokio-compat")]
-    pub use futures_util::compat::TokioDefaultSpawn;
+    pub use futures_util::compat::TokioDefaultSpawner;
 }
 
 #[cfg(feature = "std")]

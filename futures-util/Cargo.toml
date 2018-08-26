@@ -1,4 +1,4 @@
-cargo-features = ["edition"]
+cargo-features = ["edition", "rename-dependency"]
 
 [package]
 name = "futures-util-preview"
@@ -19,7 +19,7 @@ name = "futures_util"
 [features]
 std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "either/use_std", "slab"]
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
-compat = ["std", "futures"]
+compat = ["std", "futures01"]
 tokio-compat = ["compat", "tokio-executor"]
 bench = []
 nightly = []
@@ -31,11 +31,12 @@ futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.3", defaul
 futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.3", default-features = false}
 either = { version = "1.4", default-features = false }
 slab = { version = "0.4", optional = true }
-futures = { version = "0.1", optional = true }
+futures01 = { package = "futures", version = "0.1", optional = true }
 tokio-executor = { version = "0.1.2", optional = true }
 pin-utils = "0.1.0-alpha.1"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "0.3.0-alpha.3" }
+futures-preview = { path = "../futures", version = "0.3.0-alpha.3", features = ["tokio-compat"] }
 futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.3" }
-# futures-channel = { path = "../futures-channel", version = "0.2.0" }
+tokio = "0.1.8"
+tokio-threadpool = "0.1.6"

@@ -13,44 +13,38 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 ///
 /// # Examples
 ///
-/// ```ignore
-/// #![feature(async_await, await_macro, futures_api, pin)]
-/// use futures::spawn;
-/// use futures::channel::oneshot;
-/// use futures::compat::TokioDefaultSpawn;
-/// use futures::executor::block_on;
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
 /// use futures::future::{FutureExt, TryFutureExt};
-/// use std::thread;
+/// use futures::spawn;
+/// use futures::compat::TokioDefaultSpawner;
+/// # let (tx, rx) = futures::channel::oneshot::channel();
 ///
-/// let (sender, receiver) = oneshot::channel::<i32>();
+/// let future03 = async {
+///     println!("Running on the pool");
+///     spawn!(async {
+///         println!("Spawned!");
+///         # tx.send(42).unwrap();
+///     }).unwrap();
+/// };
 ///
-/// thread::spawn(move || {
-///     let future = async move {
-///         spawn!(async move {
-///             sender.send(5).unwrap()
-///         }).unwrap();
+/// let future01 = future03
+///     .unit_error() // Make it a TryFuture
+///     .boxed()  // Make it Unpin
+///     .compat(TokioDefaultSpawner);
 ///
-///     };
-///
-///     let compat_future = future
-///         .boxed()
-///         .unit_error()
-///         .compat(TokioDefaultSpawn);
-///
-///     tokio::run(compat_future);
-/// }).join().unwrap();
-///
-/// assert_eq!(block_on(receiver).unwrap(), 5);
+/// tokio::run(future01);
+/// # futures::executor::block_on(rx).unwrap();
 /// ```
 #[derive(Debug, Copy, Clone)]
-pub struct TokioDefaultSpawn;
+pub struct TokioDefaultSpawner;
 
-impl Spawn for TokioDefaultSpawn {
+impl Spawn for TokioDefaultSpawner {
     fn spawn_obj(
         &mut self,
-        task: FutureObj<'static, ()>,
+        future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnObjError> {
-        let fut = Box::new(task.unit_error().compat(*self));
+        let fut = Box::new(future.unit_error().compat(*self));
         DefaultExecutor::current().spawn(fut).map_err(|err| {
             panic!(
                 "tokio failed to spawn and doesn't return the future: {:?}",
