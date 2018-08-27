@@ -33,8 +33,81 @@ futures01 = { package = "futures", version = "0.1", optional = true }
 **Note: Renaming the crate is only required if you specify it as a dependency. If your project depends on Tokio and thus only indirectly on `futures@0.1`, then no renaming is required.**
 
 ## Async functions on 0.1 executors
-- TryFutureExt::compat: needs to be TryFuture => .unit_error(), needs to be Unpin => .boxed()
-- TokioDefaultSpawner and briefly mention Executor01CompatExt::compat
+
+The compatibility layer makes it possible to run 0.3 futures on executors built for 0.1. This makes it for instance possible to run futures created via `async`/`await` on Tokio's executor. Here's how this looks like:
+
+```rust
+#![feature(async_await, await_macro, futures_api)]
+use futures::future::{FutureExt, TryFutureExt};
+use futures::compat::TokioDefaultSpawner;
+
+let future03 = async {
+    println!("Running on the pool");
+};
+
+let future01 = future03
+    .unit_error()
+    .boxed()
+    .compat(TokioDefaultSpawner);
+
+tokio::run(future01);
+```
+
+To turn a 0.3 future into a 0.1 future requires three steps:
+- First, the future needs to be a `TryFuture`, i.e. a future with `Output = Result<T, E>`. If your future isn't a `TryFuture` yet, you can quickly make it one using the `unit_error` combinator which wraps the output into a `Result<T, ()>`.
+- Next, the future needs to be `Unpin`. If your future isn't `Unpin` yet, you can use the `boxed` combinator which wraps the future in a `PinBox`.
+- The final step is to call the `compat` combinator which converts it into a future that can run both on 0.1 and 0.3 executors. This method requires a `spawner` parameter because the 0.1 futures don't get passed a context that knows how to spwan. If you use Tokios default exeuctor, you can do it like in the example above. Otherwise, take a look at the code example for `Executor01CompatExt::compat` if you want to specify a custom spawner.
 
 ## 0.1 futures in async functions
-- `Future01CompatExt::compat`
+
+The conversion from a 0.1 future to a 0.3 also works via a `compat` combinator method:
+
+```rust
+use futures::compat::Futures01CompatExt;
+
+let future03 = future01.compat();
+```
+
+It converts a 0.1 `Future<Item = T, Error = E>` into a 0.3 `Future<Output = Result<T, E>>`.
+
+## Streams
+
+Converting between 0.1 and 0.3 streams is possible via the `TryStreamExt::compat` and `Stream01CompatExt::compat` methods. Both combinators work analogously to their future equivalents.
+
+## Conclusion
+
+The compatiblity layer offers conversions in both directions and thus enables gradual migrations and experiments with futures 0.3. With that it manages to bridge the gap between the futures 0.1 and futures 0.3 ecosystems.
+
+And finally a self contained example that shows how to fetch a website from a server:
+
+```rust
+#![feature(pin, async_await, await_macro)]
+use futures::compat::{Future01CompatExt, Stream01CompatExt, TokioDefaultSpawner};
+use futures::stream::{StreamExt};
+use futures::future::{TryFutureExt, FutureExt};
+use hyper::Client;
+use pin_utils::pin_mut;
+use std::io::{self, Write};
+
+fn main() {
+    let future03 = async {
+        let url = "http://httpbin.org/ip".parse().unwrap();
+
+        let client = Client::new();
+        let res = await!(client.get(url).compat()).unwrap();
+        println!("{}", res.status());
+
+        let body = res.into_body().compat();
+        pin_mut!(body);
+        while let Some(Ok(chunk)) = await!(body.next()) {
+            io::stdout()
+                .write_all(&chunk)
+                .expect("example expects stdout is open");
+        }
+    };
+
+    tokio::run(future03.unit_error().boxed().compat(TokioDefaultSpawner))
+}
+```
+
+Special thanks goes to [@tinaun](https://www.github.com/tinaun) and [@Nemo157](https://www.github.com/Nemo157) for developing the compatibility layer.
