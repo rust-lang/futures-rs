@@ -298,7 +298,10 @@ pub mod stream {
     //!   [`futures_unordered`](crate::stream::futures_unordered()), which
     //!   constructs a stream from a collection of futures.
 
-    pub use futures_core::stream::{Stream, TryStream};
+    pub use futures_core::stream::{
+        Stream, TryStream,
+        StreamObj, LocalStreamObj, UnsafeStreamObj
+    };
 
     pub use futures_util::stream::{
         iter, Iter,
