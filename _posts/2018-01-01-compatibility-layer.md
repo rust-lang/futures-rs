@@ -4,7 +4,7 @@ title:  "Compatibility Layer"
 subtitle: "0.1 ❤ 0.3"
 author: "Josef Brandl"
 author_github: "MajorBreakfast"
-date:   2018-08-15
+date:   2018-01-01
 categories: blog
 ---
 
@@ -53,14 +53,14 @@ let future01 = future03
 tokio::run(future01);
 ```
 
-To turn a 0.3 future into a 0.1 future requires three steps:
-- First, the future needs to be a `TryFuture`, i.e. a future with `Output = Result<T, E>`. If your future isn't a `TryFuture` yet, you can quickly make it one using the `unit_error` combinator which wraps the output into a `Result<T, ()>`.
+Turning a 0.3 future into a 0.1 future requires three steps:
+- First, the future needs to be a `TryFuture`, i.e. a future with `Output = Result<T, E>`. If your future isn't a `TryFuture` yet, you can quickly make it one using the `unit_error` combinator which wraps the output in a `Result<T, ()>`.
 - Next, the future needs to be `Unpin`. If your future isn't `Unpin` yet, you can use the `boxed` combinator which wraps the future in a `PinBox`.
-- The final step is to call the `compat` combinator which converts it into a future that can run both on 0.1 and 0.3 executors. This method requires a `spawner` parameter because the 0.1 futures don't get passed a context that knows how to spwan. If you use Tokios default exeuctor, you can do it like in the example above. Otherwise, take a look at the code example for `Executor01CompatExt::compat` if you want to specify a custom spawner.
+- The final step is to call the `compat` combinator which converts it into a future that can run both on 0.1 and 0.3 executors. This method requires a `spawner` parameter because 0.1 futures don't get passed a context that contains a spawner. If you use Tokio's default executor, you can do it like in the example above. Otherwise, take a look at the code example for `Executor01CompatExt::compat` if you want to specify a custom spawner.
 
 ## 0.1 futures in async functions
 
-The conversion from a 0.1 future to a 0.3 also works via a `compat` combinator method:
+The conversion from a 0.1 future to a 0.3 future also works via a `compat` combinator method:
 
 ```rust
 use futures::compat::Futures01CompatExt;
@@ -78,7 +78,7 @@ Converting between 0.1 and 0.3 streams is possible via the `TryStreamExt::compat
 
 The compatiblity layer offers conversions in both directions and thus enables gradual migrations and experiments with futures 0.3. With that it manages to bridge the gap between the futures 0.1 and futures 0.3 ecosystems.
 
-And finally a self contained example that shows how to fetch a website from a server:
+Finally a self contained example that shows how to fetch a website from a server:
 
 ```rust
 #![feature(pin, async_await, await_macro)]
