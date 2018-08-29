@@ -5,7 +5,7 @@ use futures01::executor::{
 };
 use futures01::{Async as Async01, Future as Future01, Stream as Stream01};
 use futures_core::{task as task03, Future as Future03, Stream as Stream03};
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 impl<Fut: Future01> Future03 for Compat<Fut, ()> {
     type Output = Result<Fut::Item, Fut::Error>;

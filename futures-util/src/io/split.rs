@@ -2,7 +2,7 @@ use crate::lock::BiLock;
 use futures_core::task::{self, Poll};
 use futures_io::{AsyncRead, AsyncWrite, IoVec};
 use std::io;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// The readable half of an object returned from `AsyncRead::split`.
 #[derive(Debug)]

@@ -4,9 +4,8 @@ use futures::channel::oneshot;
 use futures::executor::LocalPool;
 use futures::future::{Future, lazy};
 use futures::task::{self, Poll, Spawn};
-use std::boxed::PinBox;
 use std::cell::{Cell, RefCell};
-use std::mem::PinMut;
+use std::pin::{PinBox, PinMut};
 use std::rc::Rc;
 
 struct Pending(Rc<()>);

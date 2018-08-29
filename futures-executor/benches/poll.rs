@@ -4,7 +4,7 @@ use futures::executor::LocalPool;
 use futures::future::{Future, FutureExt};
 use futures::task::{self, Poll, Waker, LocalWaker, Wake};
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::sync::Arc;
 use test::Bencher;
 

@@ -2,7 +2,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
 use std::any::Any;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 use std::prelude::v1::*;
 
