@@ -1,6 +1,6 @@
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
-use std::mem::PinMut;
+use std::pin::PinMut;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Combinator that guarantees one [`Poll::Pending`] before polling its inner

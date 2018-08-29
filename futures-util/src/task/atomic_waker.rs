@@ -174,7 +174,7 @@ impl AtomicWaker {
     /// use futures::task::{self, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
     /// use std::sync::atomic::Ordering::SeqCst;
-    /// use std::mem::PinMut;
+    /// use std::pin::PinMut;
     ///
     /// struct Flag {
     ///     waker: AtomicWaker,

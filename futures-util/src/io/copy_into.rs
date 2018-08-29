@@ -4,7 +4,7 @@ use futures_io::{AsyncRead, AsyncWrite};
 use std::boxed::Box;
 use std::io;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// A future which will copy all data from a reader into a writer.
 ///

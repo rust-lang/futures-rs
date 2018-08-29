@@ -3,7 +3,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use std::io;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// A future which can be used to easily read available number of bytes to fill
 /// a buffer.

@@ -4,7 +4,7 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -94,8 +94,8 @@ pub use self::zip::Zip;
 
 if_std! {
     use std;
-    use std::boxed::PinBox;
     use std::iter::Extend;
+    use std::pin::PinBox;
 
     mod buffer_unordered;
     pub use self::buffer_unordered::BufferUnordered;
@@ -139,7 +139,7 @@ pub trait StreamExt: Stream {
     /// Note that because `next` doesn't take ownership over the stream,
     /// the [`Stream`] type must be [`Unpin`]. If you want to use `next` with a
     /// [`!Unpin`](Unpin) stream, you'll first have to pin the stream. This can
-    /// be done by wrapping the stream in a [`PinBox`](std::boxed::PinBox) or
+    /// be done by wrapping the stream in a [`PinBox`](std::pin::PinBox) or
     /// pinning it to the stack using the `pin_mut!` macro.
     ///
     /// # Examples
@@ -171,7 +171,7 @@ pub trait StreamExt: Stream {
     /// Note that because `into_future` moves the stream, the [`Stream`] type
     /// must be [`Unpin`]. If you want to use `into_future` with a
     /// [`!Unpin`](Unpin) stream, you'll first have to pin the stream. This can
-    /// be done by wrapping the stream in a [`PinBox`](std::boxed::PinBox) or
+    /// be done by wrapping the stream in a [`PinBox`](std::pin::PinBox) or
     /// pinning it to the stack using the `pin_mut!` macro.
     ///
     /// # Examples

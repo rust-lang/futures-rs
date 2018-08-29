@@ -6,7 +6,7 @@ use futures::executor::LocalPool;
 use futures::stream::{Stream, StreamExt};
 use futures::sink::Sink;
 use futures::task::{self, Poll, Wake, LocalWaker};
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::sync::Arc;
 use test::Bencher;
 

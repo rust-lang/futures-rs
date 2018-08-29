@@ -1,7 +1,8 @@
 //! Definition of the MaybeDone combinator
 
 use core::marker::Unpin;
-use core::mem::{self, PinMut};
+use core::mem;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 

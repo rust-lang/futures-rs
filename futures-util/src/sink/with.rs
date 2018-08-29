@@ -1,5 +1,6 @@
 use core::marker::{Unpin, PhantomData};
-use core::mem::{self, PinMut};
+use core::mem;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};

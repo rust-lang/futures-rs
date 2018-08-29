@@ -30,7 +30,7 @@ macro_rules! assert_stream_pending {
     ($stream:expr) => {{
         let mut stream = &mut $stream;
         $crate::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::std_reexport::mem::PinMut::new(stream);
+        let stream = $crate::std_reexport::pin::PinMut::new(stream);
         let cx = &mut $crate::task::no_spawn_context();
         let poll = $crate::futures_core_reexport::stream::Stream::poll_next(
             stream, cx,
@@ -67,7 +67,7 @@ macro_rules! assert_stream_next {
     ($stream:expr, $item:expr) => {{
         let mut stream = &mut $stream;
         $crate::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::std_reexport::mem::PinMut::new(stream);
+        let stream = $crate::std_reexport::pin::PinMut::new(stream);
         let cx = &mut $crate::task::no_spawn_context();
         match $crate::futures_core_reexport::stream::Stream::poll_next(stream, cx) {
             $crate::futures_core_reexport::task::Poll::Ready(Some(x)) => {
@@ -110,7 +110,7 @@ macro_rules! assert_stream_done {
     ($stream:expr) => {{
         let mut stream = &mut $stream;
         $crate::assert::assert_is_unpin_stream(stream);
-        let stream = $crate::std_reexport::mem::PinMut::new(stream);
+        let stream = $crate::std_reexport::pin::PinMut::new(stream);
         let cx = &mut $crate::task::no_spawn_context();
         match $crate::futures_core_reexport::stream::Stream::poll_next(stream, cx) {
             $crate::futures_core_reexport::task::Poll::Ready(Some(_)) => {
