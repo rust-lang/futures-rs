@@ -3,7 +3,8 @@ use futures_core::task::{self, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::marker::Unpin;
-use std::mem::{self, PinMut};
+use std::mem;
+use std::pin::PinMut;
 
 /// A future used to write the entire contents of some data to a stream.
 ///

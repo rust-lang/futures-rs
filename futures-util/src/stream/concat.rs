@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use core::default::Default;
 use futures_core::future::Future;
 use futures_core::stream::Stream;

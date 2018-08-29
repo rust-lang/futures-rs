@@ -4,7 +4,7 @@ use futures::executor::block_on;
 use futures::future::Future;
 use futures::task::{self, Poll, Waker};
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use test::Bencher;
 
 #[bench]

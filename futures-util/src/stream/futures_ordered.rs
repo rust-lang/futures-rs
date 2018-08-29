@@ -8,7 +8,7 @@ use std::collections::binary_heap::{BinaryHeap, PeekMut};
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]

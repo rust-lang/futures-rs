@@ -1,4 +1,4 @@
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::TryFuture;
 use futures_core::task::{self, Poll};
 

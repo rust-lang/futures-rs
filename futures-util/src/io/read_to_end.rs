@@ -3,7 +3,7 @@ use futures_core::task::{self, Poll};
 use futures_io::AsyncRead;
 use std::io;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::vec::Vec;
 
 /// A future which can be used to easily read the entire contents of a stream

@@ -1,6 +1,6 @@
 use core::fmt;
 use core::marker::PhantomData;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 

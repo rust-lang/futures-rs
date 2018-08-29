@@ -4,7 +4,7 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -94,8 +94,8 @@ pub use self::zip::Zip;
 
 if_std! {
     use std;
-    use std::boxed::PinBox;
     use std::iter::Extend;
+    use std::pin::PinBox;
 
     mod buffer_unordered;
     pub use self::buffer_unordered::BufferUnordered;

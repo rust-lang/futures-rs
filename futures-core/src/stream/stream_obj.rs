@@ -2,7 +2,7 @@ use super::Stream;
 use crate::task::{self, Poll};
 use core::fmt;
 use core::marker::{PhantomData, Unpin};
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 /// A custom trait object for polling streams, roughly akin to
 /// `Box<dyn Stream<Item = T> + 'a>`.
@@ -193,7 +193,8 @@ where
 }
 
 if_std! {
-    use std::boxed::{Box, PinBox};
+    use std::boxed::Box;
+    use std::pin::PinBox;
 
     unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for Box<F>
         where F: Stream<Item = T> + 'a

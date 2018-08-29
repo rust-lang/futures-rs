@@ -3,7 +3,7 @@
 use futures_core::future::Future;
 use futures_core::task::{self, Poll, Waker};
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;

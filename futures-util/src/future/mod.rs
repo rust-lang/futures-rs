@@ -4,7 +4,7 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll, Spawn};
@@ -68,7 +68,7 @@ mod chain;
 crate use self::chain::Chain;
 
 if_std! {
-    use std::boxed::PinBox;
+    use std::pin::PinBox;
 
     mod abortable;
     pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};

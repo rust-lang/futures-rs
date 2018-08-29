@@ -6,7 +6,7 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible.

@@ -4,7 +4,7 @@ use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt, poll_fn};
 use futures::task::{self, Poll};
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::sync::mpsc;
 use std::thread;
 
