@@ -76,8 +76,8 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 /// is stored in `TaskSet`, there already is an entry. Then, when the first
 /// handle is dropped, this entry is cleared, resulting in a dead lock.
 ///
-/// See [here](https://github.com/alexcrichton/futures-rs/issues/670) for more
-/// discussion.
+/// See [here](https://github.com/rust-lang-nursery/futures-rs/issues/670) for
+/// more discussion.
 ///
 #[derive(Clone)]
 pub struct Task {
