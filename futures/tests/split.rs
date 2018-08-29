@@ -5,7 +5,7 @@ use futures::sink::{Sink, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
 use futures::task::{self, Poll};
 use pin_utils::unsafe_pinned;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 struct Join<T, U> {
     stream: T,

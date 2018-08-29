@@ -2,7 +2,7 @@
 
 use crate::task::{self, Poll};
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 #[cfg(feature = "either")]
 use either::Either;
@@ -128,7 +128,8 @@ impl<S, T, E> TryStream for S
 }
 
 if_std! {
-    use std::boxed::{Box, PinBox};
+    use std::boxed::Box;
+    use std::pin::PinBox;
 
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
         type Item = S::Item;

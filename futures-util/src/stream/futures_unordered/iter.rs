@@ -1,7 +1,7 @@
 use super::FuturesUnordered;
 use super::task::Task;
 use std::marker::{PhantomData, Unpin};
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.

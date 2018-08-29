@@ -2,7 +2,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use std::io;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 use futures_io::AsyncWrite;
 

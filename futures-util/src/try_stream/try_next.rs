@@ -2,7 +2,7 @@ use futures_core::future::Future;
 use futures_core::stream::TryStream;
 use futures_core::task::{self, Poll};
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 /// A future which attempts to collect all of the values of a stream.
 ///

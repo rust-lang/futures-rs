@@ -3,7 +3,7 @@ use futures_core::task::{self, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// A future used to fully close an I/O object.
 ///

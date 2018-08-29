@@ -3,7 +3,7 @@
 use crate::future::{MaybeDone, maybe_done};
 use crate::try_future::{TryFutureExt, IntoFuture};
 use core::fmt;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;

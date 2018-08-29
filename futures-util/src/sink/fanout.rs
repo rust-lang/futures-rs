@@ -1,5 +1,5 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
