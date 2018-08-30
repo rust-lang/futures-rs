@@ -8,6 +8,7 @@
 //! [online]: https://tokio.rs/docs/going-deeper-futures/tasks/
 
 #[allow(deprecated)]
+#[doc(hidden)]
 #[cfg(feature = "use_std")]
 pub use task_impl::{Unpark, Executor, Run};
 

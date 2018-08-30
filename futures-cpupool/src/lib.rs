@@ -50,6 +50,7 @@ use std::fmt;
 use futures::{IntoFuture, Future, Poll, Async};
 use futures::future::{lazy, Executor, ExecuteError};
 use futures::sync::oneshot::{channel, Sender, Receiver};
+#[allow(deprecated)]
 use futures::executor::{self, Run, Executor as OldExecutor};
 
 /// A thread pool intended to run CPU intensive work.
@@ -132,6 +133,7 @@ pub struct CpuFuture<T, E> {
 }
 
 enum Message {
+    #[allow(deprecated)]
     Run(Run),
     Close,
 }
@@ -211,6 +213,7 @@ impl CpuPool {
             tx: Some(tx),
             keep_running_flag: keep_running_flag.clone(),
         };
+        #[allow(deprecated)]
         executor::spawn(sender).execute(self.inner.clone());
         CpuFuture { inner: rx , keep_running_flag: keep_running_flag.clone() }
     }
@@ -239,6 +242,7 @@ impl<F> Executor<F> for CpuPool
     where F: Future<Item = (), Error = ()> + Send + 'static,
 {
     fn execute(&self, future: F) -> Result<(), ExecuteError<F>> {
+        #[allow(deprecated)]
         executor::spawn(future).execute(self.inner.clone());
         Ok(())
     }
@@ -279,6 +283,7 @@ impl Drop for CpuPool {
     }
 }
 
+#[allow(deprecated)]
 impl OldExecutor for Inner {
     fn execute(&self, run: Run) {
         self.send(Message::Run(run))

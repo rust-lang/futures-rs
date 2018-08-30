@@ -211,19 +211,7 @@ impl TaskUnpark {
 }
 
 impl<F: Future> Spawn<F> {
-    /// Polls the internal future, scheduling notifications to be sent to the
-    /// `unpark` argument.
-    ///
-    /// This method will poll the internal future, testing if it's completed
-    /// yet. The `unpark` argument is used as a sink for notifications sent to
-    /// this future. That is, while the future is being polled, any call to
-    /// `task::park()` will return a handle that contains the `unpark`
-    /// specified.
-    ///
-    /// If this function returns `NotReady`, then the `unpark` should have been
-    /// scheduled to receive a notification when poll can be called again.
-    /// Otherwise if `Ready` or `Err` is returned, the `Spawn` task can be
-    /// safely destroyed.
+    #[doc(hidden)]
     #[deprecated(note = "recommended to use `poll_future_notify` instead")]
     #[allow(deprecated)]
     pub fn poll_future(&mut self, unpark: Arc<Unpark>) -> Poll<F::Item, F::Error> {
@@ -248,25 +236,10 @@ impl<F: Future> Spawn<F> {
         })
     }
 
-    /// A specialized function to request running a future to completion on the
-    /// specified executor.
-    ///
-    /// This function only works for futures whose item and error types are `()`
-    /// and also implement the `Send` and `'static` bounds. This will submit
-    /// units of work (instances of `Run`) to the `exec` argument provided
-    /// necessary to drive the future to completion.
-    ///
-    /// When the future would block, it's arranged that when the future is again
-    /// ready it will submit another unit of work to the `exec` provided. This
-    /// will happen in a loop until the future has completed.
-    ///
-    /// This method is not appropriate for all futures, and other kinds of
-    /// executors typically provide a similar function with perhaps relaxed
-    /// bounds as well.
-    ///
-    /// Note that this method is likely to be deprecated in favor of the
-    /// `futures::Executor` trait and `execute` method, but if this'd cause
-    /// difficulty for you please let us know!
+
+    #[doc(hidden)]
+    #[deprecated]
+    #[allow(deprecated)]
     pub fn execute(self, exec: Arc<Executor>)
         where F: Future<Item=(), Error=()> + Send + 'static,
     {
@@ -285,9 +258,9 @@ impl<F: Future> Spawn<F> {
 }
 
 impl<S: Stream> Spawn<S> {
-    /// Like `poll_future`, except polls the underlying stream.
     #[deprecated(note = "recommended to use `poll_stream_notify` instead")]
     #[allow(deprecated)]
+    #[doc(hidden)]
     pub fn poll_stream(&mut self, unpark: Arc<Unpark>)
                        -> Poll<Option<S::Item>, S::Error> {
         self.enter(BorrowedUnpark::Old(&unpark), |s| s.poll())
@@ -311,11 +284,7 @@ impl<S: Stream> Spawn<S> {
 }
 
 impl<S: Sink> Spawn<S> {
-    /// Invokes the underlying `start_send` method with this task in place.
-    ///
-    /// If the underlying operation returns `NotReady` then the `unpark` value
-    /// passed in will receive a notification when the operation is ready to be
-    /// attempted again.
+    #[doc(hidden)]
     #[deprecated(note = "recommended to use `start_send_notify` instead")]
     #[allow(deprecated)]
     pub fn start_send(&mut self, value: S::SinkItem, unpark: &Arc<Unpark>)
@@ -323,13 +292,9 @@ impl<S: Sink> Spawn<S> {
         self.enter(BorrowedUnpark::Old(unpark), |s| s.start_send(value))
     }
 
-    /// Invokes the underlying `poll_complete` method with this task in place.
-    ///
-    /// If the underlying operation returns `NotReady` then the `unpark` value
-    /// passed in will receive a notification when the operation is ready to be
-    /// attempted again.
     #[deprecated(note = "recommended to use `poll_flush_notify` instead")]
     #[allow(deprecated)]
+    #[doc(hidden)]
     pub fn poll_flush(&mut self, unpark: &Arc<Unpark>)
                        -> Poll<(), S::SinkError> {
         self.enter(BorrowedUnpark::Old(unpark), |s| s.poll_complete())
@@ -418,6 +383,8 @@ pub trait Unpark: Send + Sync {
 /// Note that this trait is likely to be deprecated and/or renamed to avoid
 /// clashing with the `future::Executor` trait. If you've got a use case for
 /// this or would like to comment on the name please let us know!
+#[deprecated]
+#[allow(deprecated)]
 pub trait Executor: Send + Sync + 'static {
     /// Requests that `Run` is executed soon on the given executor.
     fn execute(&self, r: Run);
@@ -425,16 +392,19 @@ pub trait Executor: Send + Sync + 'static {
 
 /// Units of work submitted to an `Executor`, currently only created
 /// internally.
+#[deprecated]
 pub struct Run {
     spawn: Spawn<Box<Future<Item = (), Error = ()> + Send>>,
     inner: Arc<RunInner>,
 }
 
+#[allow(deprecated)]
 struct RunInner {
     mutex: UnparkMutex<Run>,
     exec: Arc<Executor>,
 }
 
+#[allow(deprecated)]
 impl Run {
     /// Actually run the task (invoking `poll` on its future) on the current
     /// thread.
@@ -462,6 +432,7 @@ impl Run {
     }
 }
 
+#[allow(deprecated)]
 impl fmt::Debug for Run {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Run")
@@ -470,6 +441,7 @@ impl fmt::Debug for Run {
     }
 }
 
+#[allow(deprecated)]
 impl Notify for RunInner {
     fn notify(&self, _id: usize) {
         match self.mutex.notify() {
