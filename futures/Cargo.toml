@@ -33,7 +33,7 @@ futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.3", de
 futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.3", default-features = false }
 
 [dev-dependencies]
-pin-utils = "0.1.0-alpha.1"
+pin-utils = "0.1.0-alpha.2"
 futures-test-preview = { path = "../futures-test", version = "0.3.0-alpha.3", default-features = false }
 
 [features]
