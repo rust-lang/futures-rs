@@ -21,6 +21,7 @@ appveyor = { repository = "rust-lang-nursery/futures-rs" }
 [dependencies]
 
 [features]
+nightly = []
 use_std = []
 with-deprecated = []
 default = ["use_std", "with-deprecated"]
