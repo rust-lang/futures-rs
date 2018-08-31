@@ -649,7 +649,14 @@ impl<T> Sink for Sender<T> {
     }
 
     fn poll_complete(&mut self) -> Poll<(), SendError<T>> {
-        Ok(Async::Ready(()))
+        self.poll_ready()
+            // At this point, the value cannot be returned and `SendError`
+            // cannot be created with a `T` without breaking backwards
+            // comptibility. This means we cannot return an error.
+            //
+            // That said, there is also no guarantee that a `poll_complete`
+            // returning `Ok` implies the receiver sees the message.
+            .or_else(|_| Ok(().into()))
     }
 
     fn close(&mut self) -> Poll<(), SendError<T>> {
