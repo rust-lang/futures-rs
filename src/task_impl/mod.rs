@@ -68,12 +68,12 @@ fn with<F: FnOnce(&BorrowedTask) -> R, R>(f: F) -> R {
 ///
 /// In this case, the idea is that whenever a `start_send` is called on one of
 /// the channel's send handles, if the channel is at capacity, the current task
-/// is stored in a `TaskSet`. Then, when capacity is available, a task is
-/// removed from the task set and notified.
+/// is stored in a set. Then, when capacity is available, a task is removed from
+/// the set and notified.
 ///
 /// The problem with this strategy is that multiple `Sender` handles can be used
 /// on the same task. In this case, when the second handle is used and the task
-/// is stored in `TaskSet`, there already is an entry. Then, when the first
+/// is stored in a set, there already is an entry. Then, when the first
 /// handle is dropped, this entry is cleared, resulting in a dead lock.
 ///
 /// See [here](https://github.com/rust-lang-nursery/futures-rs/issues/670) for
