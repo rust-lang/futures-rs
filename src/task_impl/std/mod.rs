@@ -700,3 +700,11 @@ impl<T> From<Arc<T>> for NotifyHandle
         }
     }
 }
+
+#[cfg(feature = "nightly")]
+mod nightly {
+    use super::TaskUnpark;
+    use core::marker::Unpin;
+
+    impl Unpin for TaskUnpark {}
+}
