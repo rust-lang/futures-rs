@@ -37,8 +37,8 @@ fn stress_try_send_as_receiver_closes() {
     // When we detect that a successfully sent item is still in the
     // queue after a disconnect, we spin for up to 100ms to confirm that
     // it is a persistent condition and not a concurrency illusion.
-    const SPIN_TIMEOUT: Duration = Duration::from_secs(10);
-    const SPIN_SLEEP: Duration = Duration::from_millis(10);
+    const SPIN_TIMEOUT_S: u64 = 10;
+    const SPIN_SLEEP_MS: u64 = 10;
     struct TestRx {
         rx: Receiver<Arc<()>>,
         // The number of times to query `rx` before dropping it.
@@ -128,13 +128,13 @@ fn stress_try_send_as_receiver_closes() {
                                 if prev_weak.upgrade().is_none() {
                                     break;
                                 }
-                                assert!(t0.elapsed() < SPIN_TIMEOUT,
+                                assert!(t0.elapsed() < Duration::from_secs(SPIN_TIMEOUT_S),
                                     "item not dropped on iteration {} after \
                                      {} sends ({} successful). spin=({})",
                                     i, attempted_sends, successful_sends, spins
                                 );
                                 spins += 1;
-                                thread::sleep(SPIN_SLEEP);
+                                thread::sleep(Duration::from_millis(SPIN_SLEEP_MS));
                             }
                         }
                     }
