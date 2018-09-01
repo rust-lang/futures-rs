@@ -55,7 +55,7 @@ fn stress_try_send_as_receiver_closes() {
             let (command_tx, command_rx) = channel::<TestRx>(0);
             (
                 TestTask {
-                    command_rx,
+                    command_rx: command_rx,
                     test_rx: None,
                     countdown: 0, // 0 means no countdown is in progress.
                 },
@@ -98,7 +98,7 @@ fn stress_try_send_as_receiver_closes() {
     for i in 0..AMT {
         let (mut test_tx, rx) = channel(0);
         let poll_count = i % MAX_COUNTDOWN;
-        cmd_tx.try_send(TestRx { rx, poll_count }).unwrap();
+        cmd_tx.try_send(TestRx { rx: rx, poll_count: poll_count }).unwrap();
         let mut prev_weak: Option<Weak<()>> = None;
         let mut attempted_sends = 0;
         let mut successful_sends = 0;
