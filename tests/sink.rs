@@ -392,6 +392,12 @@ fn fanout_backpressure() {
     let (item, right_recv) = right_recv.into_future().wait().unwrap();
     assert_eq!(item, Some(1));
     assert!(flag.get());
+    let (item, left_recv) = left_recv.into_future().wait().unwrap();
+    assert_eq!(item, Some(2));
+    assert!(flag.get());
+    assert!(task.poll_future_notify(&flag, 0).unwrap().is_not_ready());
+    let (item, right_recv) = right_recv.into_future().wait().unwrap();
+    assert_eq!(item, Some(2));
     match task.poll_future_notify(&flag, 0).unwrap() {
         Async::Ready(_) => {
         },
