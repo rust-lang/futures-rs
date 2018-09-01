@@ -712,3 +712,11 @@ impl<T: Notify> From<&'static T> for NotifyHandle {
         unsafe { NotifyHandle::new(src as *const _ as *mut StaticRef<T>) }
     }
 }
+
+#[cfg(feature = "nightly")]
+mod nightly {
+    use super::NotifyHandle;
+    use core::marker::Unpin;
+
+    impl Unpin for NotifyHandle {}
+}
