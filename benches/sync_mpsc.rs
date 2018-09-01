@@ -1,5 +1,6 @@
 #![feature(test)]
 
+#[macro_use]
 extern crate futures;
 extern crate test;
 
@@ -106,7 +107,6 @@ impl Stream for TestSender {
             Err(_) => panic!(),
             Ok(AsyncSink::Ready) => {
                 self.last += 1;
-                assert_eq!(Ok(Async::Ready(())), self.tx.poll_complete());
                 Ok(Async::Ready(Some(self.last)))
             }
             Ok(AsyncSink::NotReady(_)) => {
