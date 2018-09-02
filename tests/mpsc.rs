@@ -548,3 +548,19 @@ fn try_send_fail() {
     assert_eq!(rx.next(), Some(Ok("goodbye")));
     assert!(rx.next().is_none());
 }
+
+#[test]
+fn bounded_is_really_bounded() {
+    use futures::Async::*;
+    let (mut tx, mut rx) = mpsc::channel(0);
+    lazy(|| {
+        assert!(tx.start_send(1).unwrap().is_ready());
+        // Not ready until we receive
+        assert!(!tx.poll_complete().unwrap().is_ready());
+        // Receive the value
+        assert_eq!(rx.poll().unwrap(), Ready(Some(1)));
+        // Now the sender is ready
+        assert!(tx.poll_complete().unwrap().is_ready());
+        Ok::<_, ()>(())
+    }).wait().unwrap();
+}
