@@ -1,3 +1,14 @@
+# 0.3.0-alpha.4 - 2018-09-02
+* `future::ok` and `future:err` to create result wrapping futures (similar to `future::ready`)
+* `futures-test` crate with testing utilities
+* `StreamExt::boxed` combinator
+* Unsoundness fix for `FuturesUnordered`
+* `StreamObj` (similar to `FutureObj`)
+* Code examples for compatiblity layer functions
+* Use cargo create renaming feature to import `futures@0.1` for compatiblily layer
+* Import pinning APIs from `core::pin`
+* Run Clippy in CI only when it is available
+
 # 0.3.0-alpha.3 - 2018-08-15
 * Compatibilty with newest nightly
 * Futures 0.1 compatibility layer including Tokio compatibility
