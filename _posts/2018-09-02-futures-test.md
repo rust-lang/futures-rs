@@ -176,7 +176,7 @@ assert_stream_done!(stream);
 
 The work on this crate is not done. We already have some ideas for other useful
 testing utilities. If you have existing utilities that you're using in your
-project or ideas of what would be useful to you [please let us know][#1169].
+project or ideas about what would be useful to you [please let us know][#1169].
 
 ## Further changes
 
