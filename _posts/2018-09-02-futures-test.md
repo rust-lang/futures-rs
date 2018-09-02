@@ -8,6 +8,11 @@ date:   2018-09-02
 categories: blog
 ---
 
+`0.3.0-alpha.4` requires a recent nightly (2018-08-31 or newer):
+```sh
+$ rustup update
+```
+
 ## `futures-test`
 
 With `futures 0.3.0-alpha.4` we're releasing a new independent crate called
