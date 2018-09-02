@@ -3,12 +3,12 @@ cargo-features = ["edition"]
 [package]
 name = "futures-test-preview"
 edition = "2018"
-version = "0.3.0-alpha.3"
+version = "0.3.0-alpha.4"
 authors = ["Wim Looman <wim@nemo157.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.3/futures_test"
+documentation = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.4/futures_test"
 description = """
 Common utilities for testing components built off futures-rs.
 """
