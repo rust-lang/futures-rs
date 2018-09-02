@@ -1,25 +1,35 @@
+---
+layout: post
+title:  "Futures 0.3.0-alpha.4"
+subtitle: "Testing utilities"
+author: "Wim Looman"
+author_github: "Nemo157"
+date:   2018-09-02
+categories: blog
+---
+
 ## `futures-test`
 
-With `futures 0.3.0-alpha.4` we're releasing a new independent crate
-`futures-test` (under the package [`futures-test-preview` on
-crates.io](https://crates.io/crates/futures-test-preview)), this will not be
-available as part of the `futures` facade, instead it's intended to be used as a
-dev dependency when implementing custom futures.
-
-This initial release includes one major capability (along with a couple of
-smaller utilities). There are some ideas for other utilities that will be
-useful, if you have existing utilities or ideas of what would be useful for you
-[please let us know][#1169].
+With `futures 0.3.0-alpha.4` we're releasing a new independent crate called
+`futures-test` (under the name [`futures-test-preview`]
+(https://crates.io/crates/futures-test-preview) on crates.io).
+The crate contains various testing utilities that were previously only used
+internally in the futures crate. We polished them and made them more ergonomic
+to use and are now releasing them as a public standalone crate. What's a little
+different compared to the other crates that comprise futures-rs is that this
+one is meant to be used as a dev dependency when implementing custom futures.
+So, unlike the other crates, its content is not reexported from the `futures`
+facade.
 
 ### Testing without `futures-test`
 
 Before getting into the details of `futures-test`, it's useful to go over a
-basic technique for testing that may not be known to everyone. A lot of the time
-you don't care about all the details of how some async operation executes, just
-that it does what it's meant to do. In these cases you can normally setup a test
-that doesn't need all the utilities here, you simply use an async block run via
-[`futures::executor::block_on`][] and have all your assertions in there.
-Here's a quick example I prepared earlier:
+basic technique for testing asynchronous code that may not be known to everyone.
+
+A lot of the time you don't care about all the details of how some async
+operation executes, just that it performs a certain task. In these cases you
+can simply use an async block run via [`futures::executor::block_on`][] and
+have all your assertions in there. Here's a quick example:
 
 ```rust
 async fn some_operation<F: FnMut(usize)>(callback: F) -> io::Result<usize> {
@@ -44,22 +54,22 @@ fn test_some_operation() {
 
 ### Test `Context`s
 
-While you can get a long way by just defining and running async tests, sometimes
-you need to be able to introspect on exactly what is happening, e.g. when
-testing [`FutureExt::fuse`][] we want to check that calling `poll` after it
-completes correctly returns `Poll::Pending`. However, to call `poll` we need to
-somehow acquire a `task::Context`. This is where the main capability of
-`futures-test` comes in, it can provide you with all sorts of useful contexts
-depending on what you are testing. You have two choices to make when you want a
-context:
+While you can get a long way by just defining and running async tests via
+`block_on`, sometimes you need to be able to inspect what is happening more
+precisely. E.g. when testing [`FutureExt::fuse`][] we want to check that after
+it completes, `poll` correctly returns `Poll::Pending` on subsequent calls.
+However, to call `poll` we need to somehow acquire a `task::Context`.
+`futures-test` makes this easy. It provides you with all sorts of useful contexts
+depending on what you are testing. You have two choices to make when you want to
+create a context:
 
  1. What should happen when a future calls `cx.waker().wake()`?
  2. What should happen when a future calls `cx.spawner().spawn()`?
 
 For both of these there are two very basic implementations provided: panicking
-and noop. Sometimes this is all you need, so for example when testing
-`FutureExt::fuse` we use [`futures_test::task::panic_context`][] which gives a
-context that will panic on either operation:
+and noop (short for "no operation"). Sometimes this is all you need. For example
+when testing `FutureExt::fuse` we use [`futures_test::task::panic_context`][]
+which gives a context that will panic on either operation:
 
 ```rust
 #![feature(pin, arbitrary_self_types, futures_api)]
@@ -78,11 +88,11 @@ fn fuse() {
 
 #### [`WakeCounter`][]
 
-One slightly more specialized `Wake` implementation provided is to count how
+One slightly more specialized `Wake` implementation is to count how
 many times a task has been woken. This has been used to check that
 [`AbortHandle`][] correctly awakens a waiting task when it is aborted. You can
 see from this example that setting up a context with this implementation is
-slightly more work, you start with a basic `panic_context`, then swap out the
+slightly more work. We start with a basic `panic_context`, then swap out the
 waker with one provided by the `WakeCounter`:
 
 ```rust
@@ -118,30 +128,31 @@ There are some other implementations provided, take a look in the
 ### [`FutureTestExt`][]
 
 Along with the context utilities there are some more test specific combinators
-provided, these come on an additional `FutureTestExt` trait. For now there are
-three provided: 
+provided. These come on an additional `FutureTestExt` trait. For now there are
+three provided:
 
 [`assert_unmoved`][]
-: When you're writing custom futures that wrap over futures you want to be sure
-  you don't accidentally move them. This combinator will assert this for you
-  automatically as it is used to easily detect accidental moves.
+: When writing custom futures that wrap other futures you want to be sure that
+  they're not accidentally moved after they were polled because that's not
+  allowed. This combinator can create a future that can detect such accidental
+  moves.
 
 [`pending_once`][]
-: A lot of the time when testing you will be working with instantly ready
-  futures like `future::ready(5)` or `async { 6 }`, other times you need to
+: When testing, a lot of the time you will be working with instantly ready
+  futures like `future::ready(5)` or `async { 6 }`. Frequently you need to
   have a future that actually acts like a future. This combinator will return
-  `Poll::Pending` once and instantly wake its task up to emulate a real async
+  `Poll::Pending` once and instantly wake its task to emulate a real async
   operation.
 
 [`run_in_background`][]
-: Sometimes you just don't want to be bothered running some future to
-  completion. This will spin up a dedicated executor on a background thread to
-  run it to completion for you.
+: Sometimes you just want to run some future to completion and not care
+  about the details. This will spin up a dedicated executor on a background
+  thread to run it to completion for you.
 
 ### [`assert_stream_*!`][]
 
-The final minor utility are a trilogy of macros for working with streams, these
-macros all together allow you to poll a stream one poll at a time and ensure it
+The final testing utility is trio of macros for working with streams. Together,
+these macros allow you to poll a stream one poll at a time and ensure it
 behaves exactly as you imagined:
 
 ```rust
@@ -160,6 +171,16 @@ assert_stream_pending!(stream);
 assert_stream_next!(stream, 5);
 assert_stream_done!(stream);
 ```
+
+### Improvements to come
+
+The work on this crate is not done. We already have some ideas for other useful
+testing utilities. If you have existing utilities that you're using in your
+project or ideas of what would be useful to you [please let us know][#1169].
+
+## Further changes
+
+A complete list of changes can be found in our [changelog](https://github.com/rust-lang-nursery/futures-rs/blob/master/CHANGELOG.md).
 
 [`futures::executor::block_on`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures/executor/fn.block_on.html
 [`FutureExt::fuse`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures/future/trait.FutureExt.html#method.fuse
