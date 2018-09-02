@@ -16,8 +16,7 @@ $ rustup update
 ## `futures-test`
 
 With `futures 0.3.0-alpha.4` we're releasing a new independent crate called
-`futures-test` (under the name [`futures-test-preview`]
-(https://crates.io/crates/futures-test-preview) on crates.io).
+`futures-test` (under the name [`futures-test-preview`][] on crates.io).
 The crate contains various testing utilities that were previously only used
 internally in the futures crate. We polished them and made them more ergonomic
 to use and are now releasing them as a public standalone crate. What's a little
@@ -187,6 +186,7 @@ project or ideas about what would be useful to you [please let us know][#1169].
 
 A complete list of changes can be found in our [changelog](https://github.com/rust-lang-nursery/futures-rs/blob/master/CHANGELOG.md).
 
+[`futures-test-preview`]: https://crates.io/crates/futures-test-preview
 [`futures::executor::block_on`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures/executor/fn.block_on.html
 [`FutureExt::fuse`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures/future/trait.FutureExt.html#method.fuse
 [`futures_test::task::panic_context`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures_test/task/fn.panic_context.html
