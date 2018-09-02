@@ -10,7 +10,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 #![doc(
-    html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.3/futures_test"
+    html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.4/futures_test"
 )]
 
 #[doc(hidden)]
