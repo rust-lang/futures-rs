@@ -16,14 +16,14 @@ matrix:
     #   os: linux
     #   script:
     #     - cargo update -Zminimal-versions
-    #     - cargo test --all --all-features
+    #     - cargo test --all
 
     - name: cargo clippy
       rust: nightly
       script:
         - if rustup component add clippy-preview;
           then
-            cargo clippy --all --all-features -- -Dwarnings;
+            cargo clippy --all -- -Dwarnings;
           else
             echo 'Skipping clippy';
           fi
@@ -70,8 +70,8 @@ matrix:
         - cargo doc
 
 script:
-  - cargo test --all --all-features
-  - cargo test --all --all-features --release
+  - cargo test --all
+  - cargo test --all --release
 
 env:
   global:

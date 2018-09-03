@@ -13,7 +13,7 @@ use tokio_executor::{DefaultExecutor, Executor as TokioExecutor};
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// #![feature(async_await, await_macro, futures_api)]
 /// use futures::future::{FutureExt, TryFutureExt};
 /// use futures::spawn;
