@@ -1,4 +1,4 @@
-#![allow(cast_ptr_alignment)] // clippy is too strict here
+#![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
 
 use std::marker::PhantomData;
 use std::ops::Deref;

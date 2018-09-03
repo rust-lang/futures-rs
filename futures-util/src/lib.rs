@@ -2,13 +2,13 @@
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![feature(async_await, pin, arbitrary_self_types, futures_api)]
+#![feature(tool_lints)]
 #![cfg_attr(feature = "std", feature(await_macro))]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
-#![allow(unknown_lints)]
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_util")]
 
