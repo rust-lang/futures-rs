@@ -10,7 +10,7 @@
 #![deny(bare_trait_objects)]
 #![allow(unknown_lints)]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures_util")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_util")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(

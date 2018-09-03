@@ -5,7 +5,7 @@
 
 #![no_std]
 #![warn(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.4/futures_sink")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_sink")]
 
 #![feature(pin, arbitrary_self_types, futures_api)]
 

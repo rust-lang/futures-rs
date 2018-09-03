@@ -1,4 +1,9 @@
+# 0.3.0-alpha.5 - 2018-09-03
+* Revert usage of cargo crate renaming feature
+
 # 0.3.0-alpha.4 - 2018-09-02
+**Note: This release does not work, use `0.3.0-alpha.5` instead**
+
 * `future::ok` and `future:err` to create result wrapping futures (similar to `future::ready`)
 * `futures-test` crate with testing utilities
 * `StreamExt::boxed` combinator

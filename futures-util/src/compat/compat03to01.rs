@@ -1,5 +1,5 @@
 use super::Compat;
-use futures01::{
+use futures::{
     task as task01, Async as Async01, AsyncSink as AsyncSink01,
     Future as Future01, Poll as Poll01, Sink as Sink01,
     StartSend as StartSend01, Stream as Stream01,
