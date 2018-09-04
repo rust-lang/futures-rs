@@ -162,7 +162,7 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, Fut> {
         IterPinMut {
             task: self.head_all,

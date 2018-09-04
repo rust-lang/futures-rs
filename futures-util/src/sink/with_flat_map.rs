@@ -61,7 +61,7 @@ where
     }
 
     /// Get a pinned mutable reference to the inner sink.
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
         unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
     }

@@ -56,7 +56,7 @@ impl<St: Stream> Fuse<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, St> {
         unsafe { PinMut::map_unchecked(self, |x| x.get_mut()) }
     }
