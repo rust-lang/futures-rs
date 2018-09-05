@@ -600,6 +600,11 @@ impl<T> Sender<T> {
         Ok(self.poll_unparked(true))
     }
 
+    /// Returns whether this channel is closed without needing a context.
+    pub fn is_closed(&self) -> bool {
+        !decode_state(self.inner.state.load(SeqCst)).is_open
+    }
+
     fn poll_unparked(&mut self, do_park: bool) -> Async<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
@@ -665,6 +670,11 @@ impl<T> Sink for Sender<T> {
 }
 
 impl<T> UnboundedSender<T> {
+    /// Returns whether this channel is closed without needing a context.
+    pub fn is_closed(&self) -> bool {
+        self.0.is_closed()
+    }
+
     /// Sends the provided message along this channel.
     ///
     /// This is an unbounded sender, so this function differs from `Sink::send`
