@@ -65,7 +65,7 @@ pub use self::with_spawner::WithSpawner;
 
 // Implementation details
 mod chain;
-crate use self::chain::Chain;
+pub(crate) use self::chain::Chain;
 
 if_std! {
     use std::pin::PinBox;

@@ -56,7 +56,7 @@ pub use self::unwrap_or_else::UnwrapOrElse;
 
 // Implementation details
 mod try_chain;
-crate use self::try_chain::{TryChain, TryChainAction};
+pub(crate) use self::try_chain::{TryChain, TryChainAction};
 
 impl<Fut: TryFuture> TryFutureExt for Fut {}
 

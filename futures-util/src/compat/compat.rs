@@ -7,8 +7,8 @@
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Compat<T, Sp> {
-    crate inner: T,
-    crate spawn: Option<Sp>,
+    pub(crate) inner: T,
+    pub(crate) spawn: Option<Sp>,
 }
 
 impl<T, Sp> Compat<T, Sp> {
@@ -18,7 +18,7 @@ impl<T, Sp> Compat<T, Sp> {
     }
 
     /// Creates a new [`Compat`].
-    crate fn new(inner: T, spawn: Option<Sp>) -> Compat<T, Sp> {
+    pub(crate) fn new(inner: T, spawn: Option<Sp>) -> Compat<T, Sp> {
         Compat { inner, spawn }
     }
 }
