@@ -1,3 +1,7 @@
+# 0.3.0-alpha.6 - 2018-0910
+* Replace usage of `crate` visibility with `pub(crate)` now that `crate` visibility is no longer included in the 2018 edition
+* Remove newly-stabilized "edition" feature in Cargo.toml files
+
 # 0.3.0-alpha.5 - 2018-09-03
 * Revert usage of cargo crate renaming feature
 
