@@ -1,7 +1,7 @@
 [package]
 name = "futures-util-preview"
 edition = "2018"
-version = "0.3.0-alpha.5"
+version = "0.3.0-alpha.6"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
@@ -23,10 +23,10 @@ bench = []
 nightly = []
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.5", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.5", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.5", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.5", default-features = false}
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.6", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.6", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.6", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.6", default-features = false}
 either = { version = "1.4", default-features = false }
 slab = { version = "0.4", optional = true }
 futures = { version = "0.1", optional = true }
@@ -34,5 +34,5 @@ tokio-executor = { version = "0.1.2", optional = true }
 pin-utils = "0.1.0-alpha.2"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "0.3.0-alpha.5" }
-futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.5" }
+futures-preview = { path = "../futures", version = "0.3.0-alpha.6" }
+futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.6" }
