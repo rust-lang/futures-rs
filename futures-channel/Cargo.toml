@@ -1,5 +1,3 @@
-cargo-features = ["edition"]
-
 [package]
 name = "futures-channel-preview"
 edition = "2018"
