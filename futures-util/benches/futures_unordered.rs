@@ -9,7 +9,7 @@ use futures::stream::{StreamExt, FuturesUnordered};
 use futures::task::Poll;
 use std::collections::VecDeque;
 use std::thread;
-use test::Bencher;
+use self::test::Bencher;
 
 #[bench]
 fn oneshots(b: &mut Bencher) {
