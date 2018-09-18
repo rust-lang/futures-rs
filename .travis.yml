@@ -68,11 +68,7 @@ matrix:
     - name: cargo doc
       rust: nightly
       script:
-        - RUSTDOCFLAGS=-Dwarnings cargo doc --all
-            --exclude futures-preview
-            --exclude futures-executor-preview
-            --exclude futures-test-preview
-        - cargo doc
+        - cargo doc --all
 
 script:
   - cargo test --all
