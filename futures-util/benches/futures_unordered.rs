@@ -1,5 +1,7 @@
 #![feature(test, futures_api)]
 
+extern crate test;
+
 use futures::channel::oneshot;
 use futures::executor::block_on;
 use futures::future;
