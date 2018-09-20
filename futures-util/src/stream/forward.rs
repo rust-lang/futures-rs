@@ -1,6 +1,6 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -45,14 +45,14 @@ where
 }
 
     fn try_start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered_item.is_none());
         {
             let mut sink = self.sink().as_pin_mut().unwrap();
-            if try_poll!(sink.reborrow().poll_ready(cx)).is_ready() {
+            if try_poll!(sink.as_mut().poll_ready(cx)).is_ready() {
                 return Poll::Ready(sink.start_send(item));
             }
         }
@@ -69,19 +69,19 @@ where
     type Output = Result<Si, Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered_item().take() {
-            try_ready!(self.reborrow().try_start_send(cx, item));
+            try_ready!(self.as_mut().try_start_send(cx, item));
         }
 
         loop {
             match self.stream().poll_next(cx) {
                 Poll::Ready(Some(Ok(item))) =>
-                   try_ready!(self.reborrow().try_start_send(cx, item)),
+                   try_ready!(self.as_mut().try_start_send(cx, item)),
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
                 Poll::Ready(None) => {
                     try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)

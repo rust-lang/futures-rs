@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll, Spawn};
 
@@ -28,9 +28,9 @@ impl<Fut, Sp> Future for WithSpawner<Fut, Sp>
 {
     type Output = Fut::Output;
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
-        let fut = unsafe { PinMut::new_unchecked(&mut this.future) };
+    fn poll(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
+        let this = unsafe { Pin::get_mut_unchecked(self) };
+        let fut = unsafe { Pin::new_unchecked(&mut this.future) };
         let spawner = &mut this.spawner;
         fut.poll(&mut cx.with_spawner(spawner))
     }

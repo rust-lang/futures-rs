@@ -1,6 +1,6 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use core::num::NonZeroUsize;
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
@@ -55,7 +55,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
 {
     type Output = Result<(), St::Error>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         loop {
             let mut made_progress_this_iter = false;
 
@@ -80,7 +80,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
                     None
                 };
                 if stream_completed {
-                    PinMut::set(self.stream(), None);
+                    Pin::set(self.stream(), None);
                 }
                 if let Some(elem) = elem {
                     let next_future = (self.f())(elem);

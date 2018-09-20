@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{TryFuture};
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
@@ -63,7 +63,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
     type Item = Result<T, St::Error>;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
@@ -74,11 +74,11 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(item);
-                PinMut::set(self.pending(), Some(fut));
+                Pin::set(self.pending(), Some(fut));
             }
 
             let result = ready!(self.pending().as_pin_mut().unwrap().try_poll(cx));
-            PinMut::set(self.pending(), None);
+            Pin::set(self.pending(), None);
             match result {
                 Ok(Some(x)) => return Poll::Ready(Some(Ok(x))),
                 Err(e) => return Poll::Ready(Some(Err(e))),

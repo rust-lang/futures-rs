@@ -9,7 +9,7 @@ use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::{PhantomData, Unpin};
 use std::mem;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicPtr, AtomicBool};
@@ -158,12 +158,12 @@ impl<Fut> FuturesUnordered<Fut> {
 
     /// Returns an iterator that allows modifying each future in the set.
     pub fn iter_mut(&mut self) -> IterMut<Fut> where Fut: Unpin {
-        IterMut(PinMut::new(self).iter_pin_mut())
+        IterMut(Pin::new(self).iter_pin_mut())
     }
 
     /// Returns an iterator that allows modifying each future in the set.
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, Fut> {
+    pub fn iter_pin_mut<'a>(self: Pin<&'a mut Self>) -> IterPinMut<'a, Fut> {
         IterPinMut {
             task: self.head_all,
             len: self.len,
@@ -254,7 +254,7 @@ impl<Fut> FuturesUnordered<Fut> {
 impl<Fut: Future> Stream for FuturesUnordered<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut core_task::Context)
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut core_task::Context)
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.
@@ -370,7 +370,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                 let mut cx = cx.with_waker(&*local_waker);
 
                 // Safety: We won't move the future ever again
-                let future = unsafe { PinMut::new_unchecked(future) };
+                let future = unsafe { Pin::new_unchecked(future) };
 
                 future.poll(&mut cx)
             };

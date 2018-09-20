@@ -1,4 +1,4 @@
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::task::{self, Poll};
 
@@ -26,7 +26,7 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
     }
 
     pub(crate) fn poll<F>(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context,
         f: F,
     ) -> Poll<Result<Fut2::Ok, Fut2::Error>>
@@ -35,20 +35,20 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
         let mut f = Some(f);
 
         // Safe to call `get_mut_unchecked` because we won't move the futures.
-        let this = unsafe { PinMut::get_mut_unchecked(self) };
+        let this = unsafe { Pin::get_mut_unchecked(self) };
 
         loop {
             let (output, data) = match this {
                 TryChain::First(fut1, data) => {
                     // Poll the first future
-                    match unsafe { PinMut::new_unchecked(fut1) }.try_poll(cx) {
+                    match unsafe { Pin::new_unchecked(fut1) }.try_poll(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(output) => (output, data.take().unwrap()),
                     }
                 }
                 TryChain::Second(fut2) => {
                     // Poll the second future
-                    return unsafe { PinMut::new_unchecked(fut2) }.try_poll(cx)
+                    return unsafe { Pin::new_unchecked(fut2) }.try_poll(cx)
                 }
                 TryChain::Empty => {
                     panic!("future must not be polled after it returned `Poll::Ready`");

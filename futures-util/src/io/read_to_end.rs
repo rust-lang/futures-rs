@@ -3,7 +3,7 @@ use futures_core::task::{self, Poll};
 use futures_io::AsyncRead;
 use std::io;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::vec::Vec;
 
 /// A future which can be used to easily read the entire contents of a stream
@@ -83,7 +83,7 @@ impl<A> Future for ReadToEnd<'_, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         read_to_end_internal(this.reader, cx, this.buf)
     }

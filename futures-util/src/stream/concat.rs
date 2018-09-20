@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use core::default::Default;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -54,7 +54,7 @@ where St: Stream,
     type Output = St::Item;
 
     fn poll(
-        mut self: PinMut<Self>, cx: &mut task::Context
+        mut self: Pin<&mut Self>, cx: &mut task::Context
     ) -> Poll<Self::Output> {
         loop {
             match self.stream().poll_next(cx) {

@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
@@ -29,15 +29,15 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {
-            let mut sink = PinMut::new(this.sink);
-            match sink.reborrow().poll_ready(cx) {
+            let mut sink = Pin::new(&mut this.sink);
+            match sink.as_mut().poll_ready(cx) {
                 Poll::Ready(Ok(())) => {
-                    if let Err(e) = sink.reborrow().start_send(item) {
+                    if let Err(e) = sink.as_mut().start_send(item) {
                         return Poll::Ready(Err(e));
                     }
                 }
@@ -51,7 +51,7 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        try_ready!(PinMut::new(this.sink).poll_flush(cx));
+        try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
 
         Poll::Ready(Ok(()))
     }

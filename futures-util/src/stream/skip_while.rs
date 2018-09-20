@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -74,7 +74,7 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
     type Item = St::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<St::Item>> {
         if *self.done_skipping() {
@@ -88,13 +88,13 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(&item);
-                PinMut::set(self.pending_fut(), Some(fut));
+                Pin::set(self.pending_fut(), Some(fut));
                 *self.pending_item() = Some(item);
             }
 
             let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
             let item = self.pending_item().take().unwrap();
-            PinMut::set(self.pending_fut(), None);
+            Pin::set(self.pending_fut(), None);
 
             if !skipped {
                 *self.done_skipping() = true;

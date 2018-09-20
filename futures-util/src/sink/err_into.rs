@@ -1,5 +1,5 @@
 use crate::sink::{SinkExt, SinkMapErr};
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::{Sink};
@@ -62,7 +62,7 @@ impl<S, E> Stream for SinkErrInto<S, E>
     type Item = S::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)

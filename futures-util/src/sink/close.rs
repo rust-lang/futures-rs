@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
@@ -25,9 +25,9 @@ impl<Si: Sink + Unpin + ?Sized> Future for Close<'_, Si> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
-        PinMut::new(&mut self.sink).poll_close(cx)
+        Pin::new(&mut self.sink).poll_close(cx)
     }
 }

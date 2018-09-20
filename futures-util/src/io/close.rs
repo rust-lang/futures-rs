@@ -3,7 +3,7 @@ use futures_core::task::{self, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// A future used to fully close an I/O object.
 ///
@@ -27,7 +27,7 @@ impl<'a, W: AsyncWrite + ?Sized> Close<'a, W> {
 impl<W: AsyncWrite + ?Sized> Future for Close<'_, W> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.writer.poll_close(cx)
     }
 }

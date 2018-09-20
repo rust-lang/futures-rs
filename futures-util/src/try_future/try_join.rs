@@ -3,7 +3,7 @@
 use crate::future::{MaybeDone, maybe_done};
 use crate::try_future::{TryFutureExt, IntoFuture};
 use core::fmt;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -70,7 +70,7 @@ macro_rules! generate {
 
             #[allow(clippy::useless_let_if_seq)]
             fn poll(
-                mut self: PinMut<Self>, cx: &mut task::Context
+                mut self: Pin<&mut Self>, cx: &mut task::Context
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 if self.Fut1().poll(cx).is_pending() {

@@ -58,7 +58,7 @@ where
         item: Self::SinkItem,
     ) -> StartSend01<Self::SinkItem, Self::SinkError> {
         with_context(self, |mut inner, cx| {
-            match inner.reborrow().poll_ready(cx) {
+            match inner.as_mut().poll_ready(cx) {
                 task03::Poll::Ready(Ok(())) => {
                     inner.start_send(item).map(|()| AsyncSink01::Ready)
                 }
@@ -102,10 +102,10 @@ fn with_context<T, E, R, F>(compat: &mut Compat<T, E>, f: F) -> R
 where
     T: Unpin,
     E: task03::Spawn,
-    F: FnOnce(PinMut<T>, &mut task03::Context) -> R,
+    F: FnOnce(Pin<&mut T>, &mut task03::Context) -> R,
 {
     let waker = current_as_waker();
     let spawn = compat.spawn.as_mut().unwrap();
     let mut cx = task03::Context::new(&waker, spawn);
-    f(PinMut::new(&mut compat.inner), &mut cx)
+    f(Pin::new(&mut compat.inner), &mut cx)
 }
