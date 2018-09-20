@@ -1,5 +1,7 @@
 #![feature(test, futures_api, pin, arbitrary_self_types)]
 
+extern crate test;
+
 use futures::ready;
 use futures::channel::mpsc::{self, Sender, UnboundedSender};
 use futures::executor::LocalPool;
@@ -8,7 +10,7 @@ use futures::sink::Sink;
 use futures::task::{self, Poll, Wake, LocalWaker};
 use std::pin::Pin;
 use std::sync::Arc;
-use test::Bencher;
+use self::test::Bencher;
 
 fn notify_noop() -> LocalWaker {
     struct Noop;

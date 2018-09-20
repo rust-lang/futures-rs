@@ -1,12 +1,14 @@
 #![feature(test, pin, arbitrary_self_types, futures_api)]
 
+extern crate test;
+
 use futures::executor::LocalPool;
 use futures::future::{Future, FutureExt};
 use futures::task::{self, Poll, Waker, LocalWaker, Wake};
 use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
-use test::Bencher;
+use self::test::Bencher;
 
 fn notify_noop() -> LocalWaker {
     struct Noop;

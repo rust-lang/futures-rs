@@ -148,7 +148,7 @@ if_std! {
             mut self: Pin<&mut Self>,
             cx: &mut task::Context,
         ) -> Poll<Option<Self::Item>> {
-            self.as_mut().poll_next(cx)
+            S::poll_next((*self).as_mut(), cx)
         }
     }
 
