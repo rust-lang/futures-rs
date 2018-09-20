@@ -1,4 +1,4 @@
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -41,7 +41,7 @@ impl<St: TryStream> Stream for IntoStream<St> {
 
     #[inline]
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         self.stream().try_poll_next(cx)

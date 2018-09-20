@@ -1,7 +1,7 @@
 use super::FuturesUnordered;
 use super::task::Task;
 use std::marker::{PhantomData, Unpin};
-use std::pin::PinMut;
+use std::pin::Pin;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
@@ -16,9 +16,9 @@ pub struct IterPinMut<'a, Fut: 'a> {
 pub struct IterMut<'a, Fut: Unpin + 'a> (pub(super) IterPinMut<'a, Fut>);
 
 impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
-    type Item = PinMut<'a, Fut>;
+    type Item = Pin<&'a mut Fut>;
 
-    fn next(&mut self) -> Option<PinMut<'a, Fut>> {
+    fn next(&mut self) -> Option<Pin<&'a mut Fut>> {
         if self.task.is_null() {
             return None;
         }
@@ -27,7 +27,7 @@ impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
             let next = *(*self.task).next_all.get();
             self.task = next;
             self.len -= 1;
-            Some(PinMut::new_unchecked(future))
+            Some(Pin::new_unchecked(future))
         }
     }
 
@@ -42,7 +42,7 @@ impl<'a, Fut: Unpin> Iterator for IterMut<'a, Fut> {
     type Item = &'a mut Fut;
 
     fn next(&mut self) -> Option<&'a mut Fut> {
-        self.0.next().map(PinMut::get_mut)
+        self.0.next().map(Pin::get_mut)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

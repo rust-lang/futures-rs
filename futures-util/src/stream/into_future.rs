@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -62,12 +62,12 @@ impl<St: Stream + Unpin> Future for StreamFuture<St> {
     type Output = (Option<St::Item>, St);
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context
     ) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            ready!(PinMut::new(s).poll_next(cx))
+            ready!(Pin::new(s).poll_next(cx))
         };
         let stream = self.stream.take().unwrap();
         Poll::Ready((item, stream))

@@ -9,3 +9,6 @@ members = [
   "futures-util",
   "futures-test",
 ]
+
+[patch.crates-io]
+pin-utils = { git = "https://github.com/Kroisse/pin-utils.git", branch = "pin" }

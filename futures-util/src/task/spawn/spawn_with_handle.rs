@@ -5,7 +5,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll, Spawn, SpawnObjError};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,7 +33,7 @@ impl<T> JoinHandle<T> {
 impl<T: Send + 'static> Future for JoinHandle<T> {
     type Output = T;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<T> {
         match self.rx.poll_unpin(cx) {
             Poll::Ready(Ok(Ok(output))) => Poll::Ready(output),
             Poll::Ready(Ok(Err(e))) => panic::resume_unwind(e),
@@ -60,7 +60,7 @@ impl<Fut: Future> Wrapped<Fut> {
 impl<Fut: Future> Future for Wrapped<Fut> {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<()> {
         if let Poll::Ready(_) = self.tx().as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running().load(Ordering::SeqCst) {
                 // Cancelled, bail out

@@ -1,4 +1,4 @@
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -29,7 +29,7 @@ impl<Fut: Future> Fuse<Fut> {
 impl<Fut: Future> Future for Fuse<Fut> {
     type Output = Fut::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
         // safety: we use this &mut only for matching, not for movement
         let v = match self.future().as_pin_mut() {
             Some(fut) => {
@@ -42,7 +42,7 @@ impl<Fut: Future> Future for Fuse<Fut> {
             None => return Poll::Pending,
         };
 
-        PinMut::set(self.future(), None);
+        Pin::set(self.future(), None);
         Poll::Ready(v)
     }
 }

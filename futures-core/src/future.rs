@@ -1,7 +1,7 @@
 //! Futures.
 
 use crate::task::{self, Poll};
-use core::pin::PinMut;
+use core::pin::Pin;
 
 pub use core::future::{Future, FutureObj, LocalFutureObj, UnsafeFutureObj};
 
@@ -20,7 +20,7 @@ pub trait TryFuture {
     /// directly inheriting from the `Future` trait; in the future it won't be
     /// needed.
     fn try_poll(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<Self::Ok, Self::Error>>;
 }
@@ -32,7 +32,7 @@ impl<F, T, E> TryFuture for F
     type Error = E;
 
     #[inline]
-    fn try_poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+    fn try_poll(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<F::Output> {
         self.poll(cx)
     }
 }

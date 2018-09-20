@@ -32,30 +32,30 @@ fn send_recv_no_buffer() {
         let (tx, rx) = mpsc::channel::<i32>(0);
         pin_mut!(tx, rx);
 
-        assert!(tx.reborrow().poll_flush(cx).is_ready());
-        assert!(tx.reborrow().poll_ready(cx).is_ready());
+        assert!(tx.as_mut().poll_flush(cx).is_ready());
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
 
         // Send first message
-        assert!(tx.reborrow().start_send(1).is_ok());
-        assert!(tx.reborrow().poll_ready(cx).is_pending());
+        assert!(tx.as_mut().start_send(1).is_ok());
+        assert!(tx.as_mut().poll_ready(cx).is_pending());
 
         // poll_ready said Pending, so no room in buffer, therefore new sends
         // should get rejected with is_full.
-        assert!(tx.reborrow().start_send(0).unwrap_err().is_full());
-        assert!(tx.reborrow().poll_ready(cx).is_pending());
+        assert!(tx.as_mut().start_send(0).unwrap_err().is_full());
+        assert!(tx.as_mut().poll_ready(cx).is_pending());
 
         // Take the value
-        assert_eq!(rx.reborrow().poll_next(cx), Poll::Ready(Some(1)));
-        assert!(tx.reborrow().poll_ready(cx).is_ready());
+        assert_eq!(rx.as_mut().poll_next(cx), Poll::Ready(Some(1)));
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
 
         // Send second message
-        assert!(tx.reborrow().poll_ready(cx).is_ready());
-        assert!(tx.reborrow().start_send(2).is_ok());
-        assert!(tx.reborrow().poll_ready(cx).is_pending());
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
+        assert!(tx.as_mut().start_send(2).is_ok());
+        assert!(tx.as_mut().poll_ready(cx).is_pending());
 
         // Take the value
-        assert_eq!(rx.reborrow().poll_next(cx), Poll::Ready(Some(2)));
-        assert!(tx.reborrow().poll_ready(cx).is_ready());
+        assert_eq!(rx.as_mut().poll_next(cx), Poll::Ready(Some(2)));
+        assert!(tx.as_mut().poll_ready(cx).is_ready());
 
         Poll::Ready(())
     }));

@@ -2,7 +2,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use std::io;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 use futures_io::AsyncWrite;
 
@@ -32,7 +32,7 @@ impl<W> Future for Flush<'_, W>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.writer.poll_flush(cx)
     }
 }

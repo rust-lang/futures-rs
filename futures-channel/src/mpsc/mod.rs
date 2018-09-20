@@ -84,7 +84,7 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -113,7 +113,7 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
-// We never project PinMut<Sender> to `PinMut<T>`
+// We never project Pin<&mut Sender> to `Pin<&mut T>`
 impl<T> Unpin for Sender<T> {}
 
 /// The transmission end of an unbounded mpsc channel.
@@ -139,7 +139,7 @@ pub struct Receiver<T> {
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-// `PinMut<UnboundedReceiver<T>>` is never projected to `PinMut<T>`
+// `PinMut<UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
 impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
@@ -960,7 +960,7 @@ impl<T> Stream for Receiver<T> {
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<T>> {
         loop {
@@ -1030,10 +1030,10 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<T>> {
-        PinMut::new(&mut self.0).poll_next(cx)
+        Pin::new(&mut self.0).poll_next(cx)
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -49,9 +49,9 @@ where
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
-        match PinMut::new(self.sink).poll_ready(cx) {
+        match Pin::new(&mut self.sink).poll_ready(cx) {
             Poll::Ready(Ok(())) => {
-                Poll::Ready(PinMut::new(self.sink).start_send(item))
+                Poll::Ready(Pin::new(&mut self.sink).start_send(item))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
@@ -70,7 +70,7 @@ where
     type Output = Result<(), Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
@@ -86,11 +86,11 @@ where
                     try_ready!(this.try_start_send(cx, item))
                 }
                 Poll::Ready(None) => {
-                    try_ready!(PinMut::new(this.sink).poll_flush(cx));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(PinMut::new(this.sink).poll_flush(cx));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
                     return Poll::Pending
                 }
             }

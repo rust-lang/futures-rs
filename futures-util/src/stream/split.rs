@@ -5,7 +5,7 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 use crate::lock::BiLock;
 
@@ -28,7 +28,7 @@ impl<S: Sink + Unpin> SplitStream<S> {
 impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
 
-    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         match self.0.poll_lock(cx) {
             Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(cx),
             Poll::Pending => Poll::Pending,
@@ -68,21 +68,21 @@ impl<S: Sink> Sink for SplitSink<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
         loop {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
             }
-            try_ready!(self.reborrow().poll_flush(cx));
+            try_ready!(self.as_mut().poll_flush(cx));
         }
     }
 
-    fn start_send(mut self: PinMut<Self>, item: S::SinkItem) -> Result<(), S::SinkError> {
+    fn start_send(mut self: Pin<&mut Self>, item: S::SinkItem) -> Result<(), S::SinkError> {
         self.slot = Some(item);
         Ok(())
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
         match this.lock.poll_lock(cx) {
             Poll::Ready(mut inner) => {
@@ -98,7 +98,7 @@ impl<S: Sink> Sink for SplitSink<S> {
         }
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
         match this.lock.poll_lock(cx) {
             Poll::Ready(mut inner) => {

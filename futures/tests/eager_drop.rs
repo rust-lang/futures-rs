@@ -5,7 +5,7 @@ use futures::future::{self, Future, FutureExt, TryFutureExt};
 use futures::task::{self, Poll};
 use futures_test::future::FutureTestExt;
 use pin_utils::unsafe_pinned;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::mpsc;
 
 #[test]
@@ -56,7 +56,7 @@ impl<F, T> FutureData<F, T> {
 impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Output = F::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<F::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<F::Output> {
         self.future().poll(cx)
     }
 }
