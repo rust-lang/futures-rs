@@ -1,5 +1,5 @@
 use super::{TryChain, TryChainAction};
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -32,7 +32,7 @@ impl<Fut1, Fut2, F> Future for AndThen<Fut1, Fut2, F>
 {
     type Output = Result<Fut2::Ok, Fut2::Error>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.try_chain().poll(cx, |result, async_op| {
             match result {
                 Ok(ok) => TryChainAction::Future(async_op(ok)),

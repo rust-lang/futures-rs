@@ -4,7 +4,7 @@ use futures_io::{AsyncRead, AsyncWrite};
 use std::boxed::Box;
 use std::io;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// A future which will copy all data from a reader into a writer.
 ///
@@ -23,7 +23,7 @@ pub struct CopyInto<'a, R: ?Sized + 'a, W: ?Sized + 'a> {
     buf: Box<[u8]>,
 }
 
-// No projections of PinMut<CopyInto> into PinMut<Field> are ever done.
+// No projections of Pin<&mut CopyInto> into Pin<&mut Field> are ever done.
 impl<R: ?Sized, W: ?Sized> Unpin for CopyInto<'_, R, W> {}
 
 impl<'a, R: ?Sized, W: ?Sized> CopyInto<'a, R, W> {
@@ -46,7 +46,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
 {
     type Output = io::Result<u64>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         loop {
             // If our buffer is empty, then we need to read some data to

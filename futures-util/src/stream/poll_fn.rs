@@ -1,7 +1,7 @@
 //! Definition of the `PollFn` combinator
 
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 
@@ -48,7 +48,7 @@ where
 {
     type Item = T;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<T>> {
         (&mut self.f)(cx)
     }
 }

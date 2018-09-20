@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -46,13 +46,13 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
 {
     type Output = T;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<T> {
         loop {
             // we're currently processing a future to produce a new accum value
             if self.accum().is_none() {
                 let accum = ready!(self.future().as_pin_mut().unwrap().poll(cx));
                 *self.accum() = Some(accum);
-                PinMut::set(self.future(), None);
+                Pin::set(self.future(), None);
             }
 
             let item = ready!(self.stream().poll_next(cx));
@@ -61,7 +61,7 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
 
             if let Some(e) = item {
                 let future = (self.f())(accum, e);
-                PinMut::set(self.future(), Some(future));
+                Pin::set(self.future(), Some(future));
             } else {
                 return Poll::Ready(accum)
             }

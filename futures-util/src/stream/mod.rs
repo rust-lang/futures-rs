@@ -4,7 +4,7 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -95,7 +95,6 @@ pub use self::zip::Zip;
 if_std! {
     use std;
     use std::iter::Extend;
-    use std::pin::PinBox;
 
     mod buffer_unordered;
     pub use self::buffer_unordered::BufferUnordered;
@@ -779,10 +778,10 @@ pub trait StreamExt: Stream {
 
     /// Wrap the stream in a Box, pinning it.
     #[cfg(feature = "std")]
-    fn boxed(self) -> PinBox<Self>
+    fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
-        PinBox::new(self)
+        Box::pinned(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
@@ -1037,6 +1036,6 @@ pub trait StreamExt: Stream {
     ) -> Poll<Option<Self::Item>>
     where Self: Unpin + Sized
     {
-        PinMut::new(self).poll_next(cx)
+        Pin::new(self).poll_next(cx)
     }
 }

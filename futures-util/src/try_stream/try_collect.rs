@@ -4,7 +4,7 @@ use futures_core::task::{self, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
 use std::mem;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::prelude::v1::*;
 
 /// A future which attempts to collect all of the values of a stream.
@@ -28,7 +28,7 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
         }
     }
 
-    fn finish(mut self: PinMut<Self>) -> C {
+    fn finish(mut self: Pin<&mut Self>) -> C {
         mem::replace(self.items(), Default::default())
     }
 }
@@ -41,7 +41,7 @@ impl<St, C> Future for TryCollect<St, C>
     type Output = Result<C, St::Error>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
         loop {

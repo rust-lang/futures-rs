@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -64,13 +64,13 @@ impl<St> Stream for Flatten<St>
     type Item = <St::Item as Stream>::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         loop {
             if self.next().as_pin_mut().is_none() {
                 match ready!(self.stream().poll_next(cx)) {
-                    Some(e) => PinMut::set(self.next(), Some(e)),
+                    Some(e) => Pin::set(self.next(), Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
@@ -78,7 +78,7 @@ impl<St> Stream for Flatten<St>
             if item.is_some() {
                 return Poll::Ready(item);
             } else {
-                PinMut::set(self.next(), None);
+                Pin::set(self.next(), None);
             }
         }
     }

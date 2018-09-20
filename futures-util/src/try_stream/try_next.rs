@@ -2,7 +2,7 @@ use futures_core::future::Future;
 use futures_core::stream::TryStream;
 use futures_core::task::{self, Poll};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 
 /// A future which attempts to collect all of the values of a stream.
 ///
@@ -25,10 +25,10 @@ impl<St: TryStream + Unpin> Future for TryNext<'_, St> {
     type Output = Result<Option<St::Ok>, St::Error>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
-        match PinMut::new(&mut *self.stream).try_poll_next(cx) {
+        match Pin::new(&mut *self.stream).try_poll_next(cx) {
             Poll::Ready(Some(Ok(x))) => Poll::Ready(Ok(Some(x))),
             Poll::Ready(Some(Err(e))) => Poll::Ready(Err(e)),
             Poll::Ready(None) => Poll::Ready(Ok(None)),

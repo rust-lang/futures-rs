@@ -4,7 +4,7 @@ use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -150,7 +150,7 @@ where
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
 
         this.set_waker(cx);
@@ -193,7 +193,7 @@ where
             // Poll the future
             let res = unsafe {
                 if let FutureOrOutput::Future(future) = &mut *this.inner.future_or_output.get() {
-                    PinMut::new_unchecked(future).poll(&mut cx)
+                    Pin::new_unchecked(future).poll(&mut cx)
                 } else {
                     unreachable!()
                 }

@@ -4,7 +4,7 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll, Spawn};
@@ -68,8 +68,6 @@ mod chain;
 pub(crate) use self::chain::Chain;
 
 if_std! {
-    use std::pin::PinBox;
-
     mod abortable;
     pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
 
@@ -625,10 +623,10 @@ pub trait FutureExt: Future {
 
     /// Wrap the future in a Box, pinning it.
     #[cfg(feature = "std")]
-    fn boxed(self) -> PinBox<Self>
+    fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
-        PinBox::new(self)
+        Box::pinned(self)
     }
 
     /// Turns a `Future` into a `TryFuture` with `Error = ()`.
@@ -681,7 +679,7 @@ pub trait FutureExt: Future {
     fn poll_unpin(&mut self, cx: &mut task::Context) -> Poll<Self::Output>
         where Self: Unpin + Sized
     {
-        PinMut::new(self).poll(cx)
+        Pin::new(self).poll(cx)
     }
 }
 

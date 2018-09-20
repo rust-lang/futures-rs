@@ -1,5 +1,5 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
@@ -51,7 +51,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
     type SinkError = Si1::SinkError;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         let sink1_ready = try_poll!(self.sink1().poll_ready(cx)).is_ready();
@@ -61,7 +61,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         self.sink1().start_send(item.clone())?;
@@ -70,7 +70,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         let sink1_ready = try_poll!(self.sink1().poll_flush(cx)).is_ready();
@@ -80,7 +80,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         let sink1_ready = try_poll!(self.sink1().poll_close(cx)).is_ready();
