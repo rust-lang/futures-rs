@@ -14,7 +14,7 @@ pub struct Chain<St1, St2> {
     second: St2,
 }
 
-// All interactions with `PinMut<Chain<..>>` happen through these methods
+// All interactions with `Pin<&mut Chain<..>>` happen through these methods
 impl<St1, St2> Chain<St1, St2>
 where St1: Stream,
       St2: Stream<Item = St1::Item>,

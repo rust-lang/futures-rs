@@ -20,7 +20,7 @@ pub enum MaybeDone<Fut: Future> {
     Gone,
 }
 
-// Safe because we never generate `PinMut<Fut::Output>`
+// Safe because we never generate `Pin<&mut Fut::Output>`
 impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 
 /// Wraps a future into a `MaybeDone`
