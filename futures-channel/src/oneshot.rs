@@ -29,7 +29,7 @@ pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
 
-// The channels do not ever project PinMut to the inner T
+// The channels do not ever project Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
 impl<T> Unpin for Sender<T> {}
 

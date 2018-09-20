@@ -15,7 +15,7 @@ pub struct Close<'a, W: ?Sized + 'a> {
     writer: &'a mut W,
 }
 
-// PinMut is never projected to fields
+// Pin is never projected to fields
 impl<W: ?Sized> Unpin for Close<'_, W> {}
 
 impl<'a, W: AsyncWrite + ?Sized> Close<'a, W> {

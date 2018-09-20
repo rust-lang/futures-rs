@@ -55,9 +55,9 @@ impl<T> BiLock<T> {
     /// that will ever be available to the lock. These can then be sent to separate
     /// tasks to be managed there.
     ///
-    /// The data behind the bilock is considered to be pinned, which allows `PinMut`
+    /// The data behind the bilock is considered to be pinned, which allows `Pin`
     /// references to locked data. However, this means that the locked value
-    /// will only be available through `PinMut` (not `&mut`) unless `T` is `Unpin`.
+    /// will only be available through `Pin<&mut T>` (not `&mut T`) unless `T` is `Unpin`.
     /// Similarly, reuniting the lock and extracting the inner value is only
     /// possible when `T` is `Unpin`.
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {

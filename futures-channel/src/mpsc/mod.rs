@@ -139,7 +139,7 @@ pub struct Receiver<T> {
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-// `PinMut<UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
+// `Pin<&mut UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
 impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
@@ -953,7 +953,7 @@ impl<T> Receiver<T> {
     }
 }
 
-// The receiver does not ever take a PinMut to the inner T
+// The receiver does not ever take a Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
 
 impl<T> Stream for Receiver<T> {
