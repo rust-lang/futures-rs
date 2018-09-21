@@ -213,38 +213,28 @@ impl AtomicWaker {
                     // is what we jut set it to.
                     let mut curr = REGISTERING;
 
-                    // If a task has to be woken, the waker will be set here.
-                    let mut wake_now: Option<Waker> = None;
+                    let res = self.state.compare_exchange(
+                        curr, WAITING, AcqRel, Acquire);
 
-                    loop {
-                        let res = self.state.compare_exchange(
-                            curr, WAITING, AcqRel, Acquire);
+                    match res {
+                        Ok(_) => {}
+                        Err(actual) => {
+                            // This branch can only be reached if a
+                            // concurrent thread called `wake`. In this
+                            // case, `actual` **must** be `REGISTERING |
+                            // `WAKING`.
+                            debug_assert_eq!(actual, REGISTERING | WAKING);
 
-                        match res {
-                            Ok(_) => {
-                                // The atomic exchange was successful, now
-                                // wake the task (if set) and return.
-                                if let Some(waker) = wake_now {
-                                    waker.wake();
-                                }
-
-                                return;
-                            }
-                            Err(actual) => {
-                                // This branch can only be reached if a
-                                // concurrent thread called `wake`. In this
-                                // case, `actual` **must** be `REGISTERING |
-                                // `WAKING`.
-                                debug_assert_eq!(actual, REGISTERING | WAKING);
-
-                                // Take the waker to wake once the atomic operation has
-                                // completed.
-                                wake_now = (*self.waker.get()).take();
-
-                                // Update `curr` for the next iteration of the
-                                // loop
-                                curr = actual;
-                            }
+                            // Take the waker to wake once the atomic operation has
+                            // completed.
+                            let waker = (*self.waker.get()).take().unwrap;
+                            
+                            // Just swap, because no one could change state while stat == `REGISTERING` | `WAKING`.
+                            self.state.swap(WAITING, AcqRel);
+                            
+                            // The atomic swap was complete, now
+                            // wake the task and return.
+                            waker.wake();
                         }
                     }
                 }
