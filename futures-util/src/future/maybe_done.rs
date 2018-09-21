@@ -2,7 +2,7 @@
 
 use core::marker::Unpin;
 use core::mem;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 
@@ -20,7 +20,7 @@ pub enum MaybeDone<Fut: Future> {
     Gone,
 }
 
-// Safe because we never generate `PinMut<Fut::Output>`
+// Safe because we never generate `Pin<&mut Fut::Output>`
 impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 
 /// Wraps a future into a `MaybeDone`
@@ -35,10 +35,10 @@ impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 ///
 /// let future = future::maybe_done(future::ready(5));
 /// pin_mut!(future);
-/// assert_eq!(future.reborrow().take_output(), None);
-/// let () = await!(future.reborrow());
-/// assert_eq!(future.reborrow().take_output(), Some(5));
-/// assert_eq!(future.reborrow().take_output(), None);
+/// assert_eq!(future.as_mut().take_output(), None);
+/// let () = await!(future.as_mut());
+/// assert_eq!(future.as_mut().take_output(), Some(5));
+/// assert_eq!(future.as_mut().take_output(), None);
 /// # });
 /// ```
 pub fn maybe_done<Fut: Future>(future: Fut) -> MaybeDone<Fut> {
@@ -52,9 +52,9 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// has not yet been called.
     #[inline]
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn output_mut<'a>(self: PinMut<'a, Self>) -> Option<&'a mut Fut::Output> {
+    pub fn output_mut<'a>(self: Pin<&'a mut Self>) -> Option<&'a mut Fut::Output> {
         unsafe {
-            let this = PinMut::get_mut_unchecked(self);
+            let this = Pin::get_mut_unchecked(self);
             match this {
                 MaybeDone::Done(res) => Some(res),
                 _ => None,
@@ -65,9 +65,9 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// Attempt to take the output of a `MaybeDone` without driving it
     /// towards completion.
     #[inline]
-    pub fn take_output(self: PinMut<Self>) -> Option<Fut::Output> {
+    pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Output> {
         unsafe {
-            let this = PinMut::get_mut_unchecked(self);
+            let this = Pin::get_mut_unchecked(self);
             match this {
                 MaybeDone::Done(_) => {},
                 MaybeDone::Future(_) | MaybeDone::Gone => return None,
@@ -84,11 +84,11 @@ impl<Fut: Future> MaybeDone<Fut> {
 impl<Fut: Future> Future for MaybeDone<Fut> {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let res = unsafe {
-            match PinMut::get_mut_unchecked(self.reborrow()) {
+            match Pin::get_mut_unchecked(self.as_mut()) {
                 MaybeDone::Future(a) => {
-                    if let Poll::Ready(res) = PinMut::new_unchecked(a).poll(cx) {
+                    if let Poll::Ready(res) = Pin::new_unchecked(a).poll(cx) {
                         res
                     } else {
                         return Poll::Pending
@@ -98,7 +98,7 @@ impl<Fut: Future> Future for MaybeDone<Fut> {
                 MaybeDone::Gone => panic!("MaybeDone polled after value taken"),
             }
         };
-        PinMut::set(self, MaybeDone::Done(res));
+        Pin::set(self, MaybeDone::Done(res));
         Poll::Ready(())
     }
 }

@@ -5,7 +5,7 @@ use futures::sink::{Sink, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
 use futures::task::{self, Poll};
 use pin_utils::unsafe_pinned;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 struct Join<T, U> {
     stream: T,
@@ -21,7 +21,7 @@ impl<T: Stream, U> Stream for Join<T, U> {
     type Item = T::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<T::Item>> {
         self.stream().poll_next(cx)
@@ -33,28 +33,28 @@ impl<T, U: Sink> Sink for Join<T, U> {
     type SinkError = U::SinkError;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_ready(cx)
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         self.sink().start_send(item)
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_flush(cx)
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_close(cx)

@@ -4,7 +4,7 @@ use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt, poll_fn};
 use futures::task::{self, Poll};
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::mpsc;
 use std::thread;
 
@@ -42,7 +42,7 @@ struct WaitForCancel {
 impl Future for WaitForCancel {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.tx.poll_cancel(cx)
     }
 }

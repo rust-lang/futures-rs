@@ -4,7 +4,7 @@ use futures_core::task::{self, Poll};
 use std::io;
 use std::marker::Unpin;
 use std::mem;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// A future which can be used to easily read exactly enough bytes to fill
 /// a buffer.
@@ -33,7 +33,7 @@ fn eof() -> io::Error {
 impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
         while !this.buf.is_empty() {
             let n = try_ready!(this.reader.poll_read(cx, this.buf));

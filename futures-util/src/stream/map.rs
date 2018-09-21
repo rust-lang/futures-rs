@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -59,7 +59,7 @@ impl<St, F, T> Stream for Map<St, F>
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context
     ) -> Poll<Option<T>> {
         let option = ready!(self.stream().poll_next(cx));

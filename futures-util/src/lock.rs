@@ -11,7 +11,7 @@ use std::fmt;
 use std::marker::Unpin;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -55,9 +55,9 @@ impl<T> BiLock<T> {
     /// that will ever be available to the lock. These can then be sent to separate
     /// tasks to be managed there.
     ///
-    /// The data behind the bilock is considered to be pinned, which allows `PinMut`
+    /// The data behind the bilock is considered to be pinned, which allows `Pin`
     /// references to locked data. However, this means that the locked value
-    /// will only be available through `PinMut` (not `&mut`) unless `T` is `Unpin`.
+    /// will only be available through `Pin<&mut T>` (not `&mut T`) unless `T` is `Unpin`.
     /// Similarly, reuniting the lock and extracting the inner value is only
     /// possible when `T` is `Unpin`.
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
@@ -242,10 +242,10 @@ impl<'a, T: Unpin> DerefMut for BiLockGuard<'a, T> {
 
 impl<'a, T> BiLockGuard<'a, T> {
     /// Get a mutable pinned reference to the locked value.
-    pub fn as_pin_mut(&mut self) -> PinMut<'_, T> {
+    pub fn as_pin_mut(&mut self) -> Pin<&mut T> {
         // Safety: we never allow moving a !Unpin value out of a bilock, nor
         // allow mutable access to it
-        unsafe { PinMut::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
+        unsafe { Pin::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
     }
 }
 
@@ -269,7 +269,7 @@ impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
 impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         self.bilock.poll_lock(cx)
     }
 }

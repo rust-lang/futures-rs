@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
@@ -30,12 +30,12 @@ where
 
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     fn project_pin<'a>(
-        self: PinMut<'a, Self>
-    ) -> State<PinMut<'a, Fut>, PinMut<'a, Si>> {
+        self: Pin<&'a mut Self>
+    ) -> State<Pin<&'a mut Fut>, Pin<&'a mut Si>> {
         unsafe {
-            match &mut PinMut::get_mut_unchecked(self).0 {
-                Waiting(f) => Waiting(PinMut::new_unchecked(f)),
-                Ready(s) => Ready(PinMut::new_unchecked(s)),
+            match &mut Pin::get_mut_unchecked(self).0 {
+                Waiting(f) => Waiting(Pin::new_unchecked(f)),
+                Ready(s) => Ready(Pin::new_unchecked(s)),
                 Closed => Closed,
             }
         }
@@ -51,15 +51,15 @@ where
     type SinkError = Si::SinkError;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let resolved_stream = match self.reborrow().project_pin() {
+        let resolved_stream = match self.as_mut().project_pin() {
             Ready(s) => return s.poll_ready(cx),
             Waiting(f) => try_ready!(f.try_poll(cx)),
             Closed => panic!("poll_ready called after eof"),
         };
-        PinMut::set(self.reborrow(), FlattenSink(Ready(resolved_stream)));
+        Pin::set(self.as_mut(), FlattenSink(Ready(resolved_stream)));
         if let Ready(resolved_stream) = self.project_pin() {
             resolved_stream.poll_ready(cx)
         } else {
@@ -68,7 +68,7 @@ where
     }
 
     fn start_send(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         match self.project_pin() {
@@ -79,7 +79,7 @@ where
     }
 
     fn poll_flush(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         match self.project_pin() {
@@ -91,15 +91,15 @@ where
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let res = match self.reborrow().project_pin() {
+        let res = match self.as_mut().project_pin() {
             Ready(s) => s.poll_close(cx),
             Waiting(_) | Closed => Poll::Ready(Ok(())),
         };
         if res.is_ready() {
-            PinMut::set(self, FlattenSink(Closed));
+            Pin::set(self, FlattenSink(Closed));
         }
         res
     }

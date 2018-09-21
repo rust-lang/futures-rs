@@ -2,7 +2,7 @@ use crate::lock::BiLock;
 use futures_core::task::{self, Poll};
 use futures_io::{AsyncRead, AsyncWrite, IoVec};
 use std::io;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// The readable half of an object returned from `AsyncRead::split`.
 #[derive(Debug)]
@@ -25,8 +25,8 @@ fn lock_and_then<T, U, E, F>(
 {
     match lock.poll_lock(cx) {
         // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
-        // as a `PinMut` anywhere other than here as a way to get to `&mut`.
-        Poll::Ready(mut l) => f(unsafe { PinMut::get_mut_unchecked(l.as_pin_mut()) }, cx),
+        // as a `Pin<&mut T>` anywhere other than here as a way to get to `&mut T`.
+        Poll::Ready(mut l) => f(unsafe { Pin::get_mut_unchecked(l.as_pin_mut()) }, cx),
         Poll::Pending => Poll::Pending,
     }
 }

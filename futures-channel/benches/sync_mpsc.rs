@@ -1,14 +1,16 @@
 #![feature(test, futures_api, pin, arbitrary_self_types)]
 
+extern crate test;
+
 use futures::ready;
 use futures::channel::mpsc::{self, Sender, UnboundedSender};
 use futures::executor::LocalPool;
 use futures::stream::{Stream, StreamExt};
 use futures::sink::Sink;
 use futures::task::{self, Poll, Wake, LocalWaker};
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::Arc;
-use test::Bencher;
+use self::test::Bencher;
 
 fn notify_noop() -> LocalWaker {
     struct Noop;
@@ -100,16 +102,16 @@ struct TestSender {
 impl Stream for TestSender {
     type Item = u32;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context)
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context)
         -> Poll<Option<Self::Item>>
     {
         let this = &mut *self;
-        let mut tx = PinMut::new(&mut this.tx);
+        let mut tx = Pin::new(&mut this.tx);
 
-        ready!(tx.reborrow().poll_ready(cx)).unwrap();
-        tx.reborrow().start_send(this.last + 1).unwrap();
+        ready!(tx.as_mut().poll_ready(cx)).unwrap();
+        tx.as_mut().start_send(this.last + 1).unwrap();
         this.last += 1;
-        assert_eq!(Poll::Ready(Ok(())), tx.reborrow().poll_flush(cx));
+        assert_eq!(Poll::Ready(Ok(())), tx.as_mut().poll_flush(cx));
         Poll::Ready(Some(this.last))
     }
 }

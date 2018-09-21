@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -72,7 +72,7 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<T>> {
         loop {
@@ -82,11 +82,11 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(item);
-                PinMut::set(self.pending(), Some(fut));
+                Pin::set(self.pending(), Some(fut));
             }
 
             let item = ready!(self.pending().as_pin_mut().unwrap().poll(cx));
-            PinMut::set(self.pending(), None);
+            Pin::set(self.pending(), None);
             if item.is_some() {
                 return Poll::Ready(item);
             }

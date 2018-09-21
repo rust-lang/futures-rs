@@ -4,7 +4,7 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::collections::VecDeque;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.
@@ -40,7 +40,7 @@ impl<Si: Sink> Buffer<Si> {
     }
 
     fn try_empty_buffer(
-        self: &mut PinMut<Self>,
+        self: &mut Pin<&mut Self>,
         cx: &mut task::Context
     ) -> Poll<Result<(), Si::SinkError>> {
         try_ready!(self.sink().poll_ready(cx));
@@ -60,7 +60,7 @@ impl<Si: Sink> Buffer<Si> {
 impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }
@@ -70,7 +70,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
     type SinkError = Si::SinkError;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         if *self.capacity() == 0 {
@@ -89,7 +89,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         if *self.capacity() == 0 {
@@ -101,7 +101,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
@@ -110,7 +110,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));

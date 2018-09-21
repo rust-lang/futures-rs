@@ -1,6 +1,6 @@
 //! Definition of the `Option` (optional step) combinator
 
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -37,7 +37,7 @@ impl<F: Future> Future for OptionFuture<F> {
     type Output = Option<F::Output>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context
     ) -> Poll<Self::Output> {
         match self.option().as_pin_mut() {

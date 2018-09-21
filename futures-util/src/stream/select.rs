@@ -1,6 +1,6 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 
@@ -43,13 +43,13 @@ impl<St1, St2> Stream for Select<St1, St2>
     type Item = St1::Item;
 
     fn poll_next(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context
     ) -> Poll<Option<St1::Item>> {
         let Select { flag, stream1, stream2 } =
-            unsafe { PinMut::get_mut_unchecked(self) };
-        let stream1 = unsafe { PinMut::new_unchecked(stream1) };
-        let stream2 = unsafe { PinMut::new_unchecked(stream2) };
+            unsafe { Pin::get_mut_unchecked(self) };
+        let stream1 = unsafe { Pin::new_unchecked(stream1) };
+        let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
         if *flag {
             poll_inner(flag, stream1, stream2, cx)
@@ -61,8 +61,8 @@ impl<St1, St2> Stream for Select<St1, St2>
 
 fn poll_inner<St1, St2>(
     flag: &mut bool,
-    a: PinMut<St1>,
-    b: PinMut<St2>,
+    a: Pin<&mut St1>,
+    b: Pin<&mut St2>,
     cx: &mut task::Context
 ) -> Poll<Option<St1::Item>>
     where St1: Stream, St2: Stream<Item = St1::Item>

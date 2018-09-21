@@ -1,4 +1,4 @@
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
@@ -14,7 +14,7 @@ pub struct Chain<St1, St2> {
     second: St2,
 }
 
-// All interactions with `PinMut<Chain<..>>` happen through these methods
+// All interactions with `Pin<&mut Chain<..>>` happen through these methods
 impl<St1, St2> Chain<St1, St2>
 where St1: Stream,
       St2: Stream<Item = St1::Item>,
@@ -37,7 +37,7 @@ where St1: Stream,
     type Item = St1::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.first().as_pin_mut() {
@@ -45,7 +45,7 @@ where St1: Stream,
                 return Poll::Ready(Some(item))
             }
         }
-        PinMut::set(self.first(), None);
+        Pin::set(self.first(), None);
         self.second().poll_next(cx)
     }
 }

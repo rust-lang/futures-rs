@@ -2,7 +2,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::any::Any;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 use std::prelude::v1::*;
 
@@ -30,7 +30,7 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
     type Item = Result<St::Item, Box<dyn Any + Send>>;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<Self::Item>> {
         if *self.caught_unwind() {

@@ -3,7 +3,7 @@
 use futures_core::future::Future;
 use futures_core::task::{self, Poll, Waker};
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
@@ -29,7 +29,7 @@ pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
 
-// The channels do not ever project PinMut to the inner T
+// The channels do not ever project Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
 impl<T> Unpin for Sender<T> {}
 
@@ -419,7 +419,7 @@ impl<T> Future for Receiver<T> {
     type Output = Result<T, Canceled>;
 
     fn poll(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)

@@ -1,5 +1,5 @@
 use core::marker::{Unpin, PhantomData};
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
@@ -62,8 +62,8 @@ where
 
     /// Get a pinned mutable reference to the inner sink.
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
-        unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
+        unsafe { Pin::map_unchecked_mut(self, |x| &mut x.sink) }
     }
 
     /// Consumes this combinator, returning the underlying sink.
@@ -75,25 +75,25 @@ where
     }
 
     fn try_empty_stream(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Si::SinkError>> {
         let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { PinMut::get_mut_unchecked(self) };
-        let mut sink = unsafe { PinMut::new_unchecked(sink) };
-        let mut stream = unsafe { PinMut::new_unchecked(stream) };
+            unsafe { Pin::get_mut_unchecked(self) };
+        let mut sink = unsafe { Pin::new_unchecked(sink) };
+        let mut stream = unsafe { Pin::new_unchecked(stream) };
 
         if buffer.is_some() {
-            try_ready!(sink.reborrow().poll_ready(cx));
+            try_ready!(sink.as_mut().poll_ready(cx));
             let item = buffer.take().unwrap();
-            try_ready!(Poll::Ready(sink.reborrow().start_send(item)));
+            try_ready!(Poll::Ready(sink.as_mut().start_send(item)));
         }
-        if let Some(mut some_stream) = stream.reborrow().as_pin_mut() {
-            while let Some(x) = ready!(some_stream.reborrow().poll_next(cx)) {
+        if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
+            while let Some(x) = ready!(some_stream.as_mut().poll_next(cx)) {
                 let item = try_ready!(Poll::Ready(x));
-                match try_poll!(sink.reborrow().poll_ready(cx)) {
+                match try_poll!(sink.as_mut().poll_ready(cx)) {
                     Poll::Ready(()) => {
-                        try_poll!(Poll::Ready(sink.reborrow().start_send(item)))
+                        try_poll!(Poll::Ready(sink.as_mut().start_send(item)))
                     }
                     Poll::Pending => {
                         *buffer = Some(item);
@@ -102,7 +102,7 @@ where
                 };
             }
         }
-        PinMut::set(stream, None);
+        Pin::set(stream, None);
         Poll::Ready(Ok(()))
     }
 }
@@ -115,7 +115,7 @@ where
 {
     type Item = S::Item;
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
@@ -132,27 +132,27 @@ where
     type SinkError = Si::SinkError;
 
     fn poll_ready(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.try_empty_stream(cx)
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         assert!(self.stream().is_none());
         let stream = (self.f())(item);
-        PinMut::set(self.stream(), Some(stream));
+        Pin::set(self.stream(), Some(stream));
         Ok(())
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.reborrow().try_empty_stream(cx) {
+        match self.as_mut().try_empty_stream(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => self.sink().poll_flush(cx),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
@@ -160,10 +160,10 @@ where
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.reborrow().try_empty_stream(cx) {
+        match self.as_mut().try_empty_stream(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(())) => self.sink().poll_close(cx),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),

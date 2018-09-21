@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::{Sink};
@@ -35,8 +35,8 @@ impl<Si, F> SinkMapErr<Si, F> {
 
     /// Get a pinned reference to the inner sink.
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
-        unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
+        unsafe { Pin::map_unchecked_mut(self, |x| &mut x.sink) }
     }
 
     /// Consumes this combinator, returning the underlying sink.
@@ -47,7 +47,7 @@ impl<Si, F> SinkMapErr<Si, F> {
         self.sink
     }
 
-    fn take_f(mut self: PinMut<Self>) -> F {
+    fn take_f(mut self: Pin<&mut Self>) -> F {
         self.f().take().expect("polled MapErr after completion")
     }
 }
@@ -60,7 +60,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
     type SinkError = E;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
@@ -68,7 +68,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
@@ -76,7 +76,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
@@ -84,7 +84,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
@@ -96,7 +96,7 @@ impl<S: Stream, F> Stream for SinkMapErr<S, F> {
     type Item = S::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)

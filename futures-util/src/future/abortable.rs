@@ -3,7 +3,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use pin_utils::unsafe_pinned;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -122,7 +122,7 @@ pub struct Aborted;
 impl<Fut> Future for Abortable<Fut> where Fut: Future {
     type Output = Result<Fut::Output, Aborted>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         // Check if the future has been aborted
         if self.inner.cancel.load(Ordering::Relaxed) {
             return Poll::Ready(Err(Aborted))

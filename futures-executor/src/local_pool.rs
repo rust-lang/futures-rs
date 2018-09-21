@@ -154,7 +154,7 @@ impl LocalPool {
                 let mut main_cx = Context::new(local_waker, spawn);
 
                 // if our main task is done, so are we
-                let result = future.reborrow().poll(&mut main_cx);
+                let result = future.as_mut().poll(&mut main_cx);
                 if let Poll::Ready(output) = result {
                     return Poll::Ready(output);
                 }

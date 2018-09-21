@@ -8,7 +8,7 @@ use std::collections::binary_heap::{BinaryHeap, PeekMut};
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
@@ -48,7 +48,7 @@ impl<T> Future for OrderWrapper<T>
     type Output = OrderWrapper<T::Output>;
 
     fn poll(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context,
     ) -> Poll<Self::Output> {
         self.data().poll(cx)
@@ -171,7 +171,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
     type Item = Fut::Output;
 
     fn poll_next(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut task::Context
     ) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
@@ -185,7 +185,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
         }
 
         loop {
-            match PinMut::new(&mut this.in_progress_queue).poll_next(cx) {
+            match Pin::new(&mut this.in_progress_queue).poll_next(cx) {
                 Poll::Ready(Some(output)) => {
                     if output.index == this.next_outgoing_index {
                         this.next_outgoing_index += 1;

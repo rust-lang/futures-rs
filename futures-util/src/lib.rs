@@ -36,28 +36,28 @@ pub mod core_reexport {
 macro_rules! delegate_sink {
     ($field:ident) => {
         fn poll_ready(
-            mut self: PinMut<Self>,
+            mut self: Pin<&mut Self>,
             cx: &mut $crate::core_reexport::task::Context,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_ready(cx)
         }
 
         fn start_send(
-            mut self: PinMut<Self>,
+            mut self: Pin<&mut Self>,
             item: Self::SinkItem
         ) -> Result<(), Self::SinkError> {
             self.$field().start_send(item)
         }
 
         fn poll_flush(
-            mut self: PinMut<Self>,
+            mut self: Pin<&mut Self>,
             cx: &mut $crate::core_reexport::task::Context
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_flush(cx)
         }
 
         fn poll_close(
-            mut self: PinMut<Self>,
+            mut self: Pin<&mut Self>,
             cx: &mut $crate::core_reexport::task::Context
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_close(cx)
