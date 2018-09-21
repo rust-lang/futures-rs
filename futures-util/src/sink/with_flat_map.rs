@@ -1,8 +1,9 @@
 use core::marker::{Unpin, PhantomData};
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the `Sink::with_flat_map` combinator, chaining a computation that
 /// returns an iterator to run prior to pushing a value into the underlying
@@ -60,8 +61,8 @@ where
     }
 
     /// Get a pinned mutable reference to the inner sink.
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, Si> {
         unsafe { PinMut::map_unchecked(self, |x| &mut x.sink) }
     }
 

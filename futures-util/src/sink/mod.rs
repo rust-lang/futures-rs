@@ -13,7 +13,7 @@ use futures_sink::Sink;
 use crate::compat::Compat;
 
 #[cfg(feature = "compat")]
-use futures_core::task::Executor;
+use futures_core::task::Spawn;
 
 mod close;
 pub use self::close::Close;
@@ -90,13 +90,12 @@ pub trait SinkExt: Sink {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::sink::SinkExt;
+    /// use futures::stream::StreamExt;
     /// use std::collections::VecDeque;
     ///
-    /// # fn main() {
     /// let (mut tx, rx) = mpsc::channel(5);
     ///
     /// let mut tx = tx.with_flat_map(|x| {
@@ -107,7 +106,6 @@ pub trait SinkExt: Sink {
     /// drop(tx);
     /// let received: Vec<i32> = block_on(rx.collect());
     /// assert_eq!(received, vec![42, 42, 42, 42, 42]);
-    /// # }
     /// ```
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
         where F: FnMut(U) -> St,
@@ -221,7 +219,7 @@ pub trait SinkExt: Sink {
     /// Doing `sink.send_all(stream)` is roughly equivalent to
     /// `stream.forward(sink)`. The returned future will exhaust all items from
     /// `stream` and send them to `self`.
-    fn send_all<St>(
+    fn send_all<'a, St>(
         &'a mut self,
         stream: &'a mut St
     ) -> SendAll<'a, Self, St>
@@ -258,10 +256,10 @@ pub trait SinkExt: Sink {
     /// Wraps a [`Sink`] into a sink compatible with libraries using
     /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
-    fn compat<E>(self, executor: E) -> Compat<Self, E>
+    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
         where Self: Sized + Unpin,
-              E: Executor,
+              Sp: Spawn,
     {
-        Compat::new(self, Some(executor))
+        Compat::new(self, Some(spawn))
     }
 }

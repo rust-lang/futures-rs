@@ -4,7 +4,7 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -95,6 +95,7 @@ pub use self::zip::Zip;
 if_std! {
     use std;
     use std::iter::Extend;
+    use std::pin::PinBox;
 
     mod buffer_unordered;
     pub use self::buffer_unordered::BufferUnordered;
@@ -110,6 +111,9 @@ if_std! {
 
     mod collect;
     pub use self::collect::Collect;
+
+    mod for_each_concurrent;
+    pub use self::for_each_concurrent::ForEachConcurrent;
 
     mod futures_ordered;
     pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
@@ -141,10 +145,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # #![feature(pin)]
-    /// #[macro_use] extern crate futures;
+    /// #![feature(pin)]
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..=3);
     ///
@@ -174,10 +177,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # #![feature(pin)]
-    /// #[macro_use] extern crate futures;
+    /// #![feature(pin)]
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     ///
@@ -208,7 +210,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     /// let stream = stream.map(|x| x + 3);
@@ -239,7 +241,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     /// let evens = stream.filter(|x| future::ready(x % 2 == 0));
@@ -269,7 +272,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     /// let evens = stream.filter_map(|x| {
@@ -301,7 +305,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     /// let stream = stream.then(|x| future::ready(x + 3));
@@ -327,9 +332,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -363,9 +368,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
     /// let (mut tx, rx) = mpsc::unbounded();
@@ -401,8 +406,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let number_stream = stream::iter(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ready(acc + x));
@@ -421,9 +427,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
+    /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
     /// let (tx1, rx1) = mpsc::unbounded();
@@ -464,8 +470,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     ///
@@ -491,8 +498,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     ///
@@ -525,7 +533,8 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut x = 0;
     ///
@@ -547,6 +556,65 @@ pub trait StreamExt: Stream {
         ForEach::new(self, f)
     }
 
+    /// Runs this stream to completion, executing the provided asynchronous
+    /// closure for each element on the stream concurrently as elements become
+    /// available.
+    ///
+    /// This is similar to [`StreamExt::for_each`], but the futures
+    /// produced by the closure are run concurrently (but not in parallel--
+    /// this combinator does not introduce any threads).
+    ///
+    /// The closure provided will be called for each item this stream produces,
+    /// yielding a future. That future will then be executed to completion
+    /// concurrently with the other futures produced by the closure.
+    ///
+    /// The first argument is an optional limit on the number of concurrent
+    /// futures. If this limit is not `None`, no more than `limit` futures
+    /// will be run concurrently. The `limit` argument is of type
+    /// `Into<Option<usize>>`, and so can be provided as either `None`,
+    /// `Some(10)`, or just `10`. Note: a limit of zero is interpreted as
+    /// no limit at all, and will have the same result as passing in `None`.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (tx3, rx3) = oneshot::channel();
+    ///
+    /// let fut = stream::iter(vec![rx1, rx2, rx3]).for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     async move |rx| {
+    ///         await!(rx).unwrap();
+    ///     }
+    /// );
+    /// tx1.send(()).unwrap();
+    /// tx2.send(()).unwrap();
+    /// tx3.send(()).unwrap();
+    /// await!(fut);
+    /// # })
+    /// ```
+    #[cfg(feature = "std")]
+    fn for_each_concurrent<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> ForEachConcurrent<Self, Fut, F>
+        where F: FnMut(Self::Item) -> Fut,
+              Fut: Future<Output = ()>,
+              Self: Sized,
+    {
+        ForEachConcurrent::new(self, limit.into(), f)
+    }
+
     /// Creates a new stream of at most `n` items of the underlying stream.
     ///
     /// Once `n` items have been yielded from this stream then it will always
@@ -556,7 +624,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10).take(3);
     ///
@@ -577,7 +645,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10).skip(5);
     ///
@@ -606,10 +674,10 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// # #![feature(futures_api)]
-    /// #[macro_use] extern crate futures;
+    /// #![feature(futures_api)]
     /// use futures::executor::block_on_stream;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
+    /// use futures::task::Poll;
     ///
     /// let mut x = 0;
     /// let stream = stream::poll_fn(|_| {
@@ -642,8 +710,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..5);
     ///
@@ -683,9 +752,9 @@ pub trait StreamExt: Stream {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(vec![Some(10), None, Some(11)]);
     /// // Panic on second element
@@ -706,6 +775,14 @@ pub trait StreamExt: Stream {
         where Self: Sized + std::panic::UnwindSafe
     {
         CatchUnwind::new(self)
+    }
+
+    /// Wrap the stream in a Box, pinning it.
+    #[cfg(feature = "std")]
+    fn boxed(self) -> PinBox<Self>
+        where Self: Sized
+    {
+        PinBox::new(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
@@ -781,8 +858,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::prelude::*;
     /// use futures::executor::block_on;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream1 = stream::iter(1..=3);
     /// let mut stream2 = stream::iter(5..=10);
@@ -804,9 +881,9 @@ pub trait StreamExt: Stream {
     /// The resulting stream emits elements from the first stream, and when
     /// first stream reaches the end, emits the elements from the second stream.
     ///
-    /// ```rust
+    /// ```
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::stream::{self, StreamExt};
     ///
     /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
     /// let stream2 = stream::iter(vec![Err(true), Ok(20)]);
@@ -862,12 +939,16 @@ pub trait StreamExt: Stream {
         Chunks::new(self, capacity)
     }
 
-    /// Creates a stream that selects the next element from either this stream
-    /// or the provided one, whichever is ready first.
-    ///
     /// This combinator will attempt to pull items from both streams. Each
     /// stream will be polled in a round-robin fashion, and whenever a stream is
     /// ready to yield an item that item is yielded.
+    ///
+    /// After one of the two input stream completes, the remaining one will be
+    /// polled exclusively. The returned stream completes when both input
+    /// streams have completed.
+    ///
+    /// Note that this method consumes both streams and returns a wrapped
+    /// version of them.
     fn select<St>(self, other: St) -> Select<Self, St>
         where St: Stream<Item = Self::Item>,
               Self: Sized,
@@ -948,8 +1029,8 @@ pub trait StreamExt: Stream {
         Either::Right(self)
     }
 
-    /// A convenience for calling [`Stream::poll_next`] on [`Unpin`] stream
-    /// types.
+    /// A convenience method for calling [`Stream::poll_next`] on [`Unpin`]
+    /// stream types.
     fn poll_next_unpin(
         &mut self,
         cx: &mut task::Context

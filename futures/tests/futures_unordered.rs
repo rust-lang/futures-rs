@@ -1,16 +1,14 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureObj};
-use futures::stream::{futures_unordered, FuturesUnordered};
-use futures::prelude::*;
+use futures::future::{self, FutureExt, FutureObj};
+use futures::stream::{StreamExt, futures_unordered, FuturesUnordered};
+use futures::task::Poll;
+use futures_test::{assert_stream_done, assert_stream_next};
+use futures_test::future::FutureTestExt;
+use futures_test::task::no_spawn_context;
 use std::boxed::Box;
-
-mod support;
 
 #[test]
 fn works_1() {
@@ -43,12 +41,12 @@ fn works_2() {
 
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
-    support::with_noop_waker_context(|cx| {
-        assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(9))));
-        c_tx.send(20).unwrap();
-        assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(30))));
-        assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(None));
-    })
+
+    let cx = &mut no_spawn_context();
+    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(9))));
+    c_tx.send(20).unwrap();
+    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(30))));
+    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(None));
 }
 
 #[test]
@@ -128,4 +126,16 @@ fn iter_mut_len() {
     assert!(iter_mut.next().is_some());
     assert_eq!(iter_mut.len(), 0);
     assert!(iter_mut.next().is_none());
+}
+
+#[test]
+fn futures_not_moved_after_poll() {
+    // Future that will be ready after being polled twice,
+    // asserting that it does not move.
+    let fut = future::ready(()).pending_once().assert_unmoved();
+    let mut stream = futures_unordered(vec![fut; 3]);
+    assert_stream_next!(stream, ());
+    assert_stream_next!(stream, ());
+    assert_stream_next!(stream, ());
+    assert_stream_done!(stream);
 }

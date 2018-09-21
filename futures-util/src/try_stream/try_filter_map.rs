@@ -1,8 +1,9 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::{TryFuture};
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A combinator that attempts to filter the results of a stream
 /// and simultaneously map them to a different type.

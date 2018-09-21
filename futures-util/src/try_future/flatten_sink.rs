@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::TryFuture;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
@@ -28,8 +28,8 @@ where
         FlattenSink(Waiting(future))
     }
 
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    fn project_pin(
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    fn project_pin<'a>(
         self: PinMut<'a, Self>
     ) -> State<PinMut<'a, Fut>, PinMut<'a, Si>> {
         unsafe {

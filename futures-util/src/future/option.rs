@@ -1,8 +1,9 @@
 //! Definition of the `Option` (optional step) combinator
 
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
-use core::mem::PinMut;
+use pin_utils::unsafe_pinned;
 
 /// A future representing a value which may or may not be present.
 ///

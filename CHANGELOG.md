@@ -1,3 +1,41 @@
+# 0.3.0-alpha.6 - 2018-0910
+* Replace usage of `crate` visibility with `pub(crate)` now that `crate` visibility is no longer included in the 2018 edition
+* Remove newly-stabilized "edition" feature in Cargo.toml files
+
+# 0.3.0-alpha.5 - 2018-09-03
+* Revert usage of cargo crate renaming feature
+
+# 0.3.0-alpha.4 - 2018-09-02
+**Note: This release does not work, use `0.3.0-alpha.5` instead**
+
+* `future::ok` and `future:err` to create result wrapping futures (similar to `future::ready`)
+* `futures-test` crate with testing utilities
+* `StreamExt::boxed` combinator
+* Unsoundness fix for `FuturesUnordered`
+* `StreamObj` (similar to `FutureObj`)
+* Code examples for compatiblity layer functions
+* Use cargo create renaming feature to import `futures@0.1` for compatiblily layer
+* Import pinning APIs from `core::pin`
+* Run Clippy in CI only when it is available
+
+# 0.3.0-alpha.3 - 2018-08-15
+* Compatibilty with newest nightly
+* Futures 0.1 compatibility layer including Tokio compatibility
+* Added `spawn!` and `spawn_with_handle!` macros
+* Added `SpawnExt` methods `spawn` and `spawn_with_handle`
+* Extracted pin macros into `pin_utils` crate
+* Added `FutureExt` combinators `boxed` and `unit_error`
+* Remove prelude from all doc examples (The prelude is still recommended for usage in playground examples. However, for doc examples we determined that fully expanded imports are more helpful)
+* Improvements to `select!` and `join!` macros
+* Added `try_join!` macro
+* Added `StreamExt` combinator methods `try_join` and `for_each_concurrent`
+* Added `TryStreamExt` combinator methdos `into_stream`, `try_filter_map`, `try_skip_while`, `try_for_each_concurrent` and `try_buffer_unordered`
+* Fix stream termination bug in `StreamExt::buffered` and `StreamExt::buffer_unordered`
+* Added docs for `StreamExt::buffered`, `StreamExt::buffer_unordered`
+* Added `task::local_waker_ref_from_nonlocal` and `task::local_waker_ref` functions
+* CI improvements
+* Doc improvements to `StreamExt::select`
+
 # 0.3.0-alpha.2 - 2018-07-30
 * The changelog is back!
 * Compatiblity with futures API in latest nightly

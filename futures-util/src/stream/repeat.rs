@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 
@@ -18,11 +18,9 @@ pub struct Repeat<T> {
 /// usage of `collect` or such on the returned stream as it will exhaust
 /// available memory as it tries to just fill up all RAM.
 ///
-/// ```rust
-/// # extern crate futures;
-/// use futures::prelude::*;
-/// use futures::stream;
+/// ```
 /// use futures::executor::block_on;
+/// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::repeat(9);
 /// assert_eq!(vec![9, 9, 9], block_on(stream.take(3).collect::<Vec<i32>>()));

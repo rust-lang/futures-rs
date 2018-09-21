@@ -1,7 +1,8 @@
 use core::marker::{PhantomData, Unpin};
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Stream for the [`err_into`](super::TryStreamExt::err_into) combinator.
 #[derive(Debug)]

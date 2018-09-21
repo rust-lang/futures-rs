@@ -1,8 +1,9 @@
 #![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
-use futures::{Poll, future, pending, poll, pin_mut, join, try_join, select};
+use futures::{Poll, future, pending, poll, join, try_join, select};
 use futures::channel::oneshot;
 use futures::executor::block_on;
+use pin_utils::pin_mut;
 
 #[test]
 fn poll_and_pending() {
@@ -84,7 +85,7 @@ fn select_size() {
             ready => {},
         }
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 40);
+    assert_eq!(::std::mem::size_of_val(&fut), 24);
 
     let fut = async {
         let mut ready1 = future::ready(0i32);
@@ -94,7 +95,7 @@ fn select_size() {
             ready2 => {},
         }
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 56);
+    assert_eq!(::std::mem::size_of_val(&fut), 40);
 }
 
 #[test]
@@ -103,14 +104,14 @@ fn join_size() {
         let ready = future::ready(0i32);
         join!(ready)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 32);
+    assert_eq!(::std::mem::size_of_val(&fut), 16);
 
     let fut = async {
         let ready1 = future::ready(0i32);
         let ready2 = future::ready(0i32);
         join!(ready1, ready2)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 64);
+    assert_eq!(::std::mem::size_of_val(&fut), 44);
 }
 
 #[test]
@@ -119,14 +120,14 @@ fn try_join_size() {
         let ready = future::ready(Ok::<i32, i32>(0));
         try_join!(ready)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 32);
+    assert_eq!(::std::mem::size_of_val(&fut), 16);
 
     let fut = async {
         let ready1 = future::ready(Ok::<i32, i32>(0));
         let ready2 = future::ready(Ok::<i32, i32>(0));
         try_join!(ready1, ready2)
     };
-    assert_eq!(::std::mem::size_of_val(&fut), 64);
+    assert_eq!(::std::mem::size_of_val(&fut), 44);
 }
 
 

@@ -4,10 +4,10 @@
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll, Executor};
+use futures_core::task::{self, Poll, Spawn};
 
 // Primitive futures
 mod empty;
@@ -26,7 +26,7 @@ mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
 mod ready;
-pub use self::ready::{ready, Ready};
+pub use self::ready::{ready, ok, err, Ready};
 
 // Combinators
 mod flatten;
@@ -60,15 +60,15 @@ pub use self::inspect::Inspect;
 mod unit_error;
 pub use self::unit_error::UnitError;
 
-mod with_executor;
-pub use self::with_executor::WithExecutor;
+mod with_spawner;
+pub use self::with_spawner::WithSpawner;
 
 // Implementation details
 mod chain;
-crate use self::chain::Chain;
+pub(crate) use self::chain::Chain;
 
 if_std! {
-    use std::boxed::PinBox;
+    use std::pin::PinBox;
 
     mod abortable;
     pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
@@ -176,8 +176,6 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
     /// // A poor-man's join implemented on top of select
@@ -196,7 +194,6 @@ pub trait FutureExt: Future {
     ///         }
     ///     }))
     /// }
-    /// # fn main() {}
     /// ```
     fn select<B>(self, other: B) -> Select<Self, B::Future>
         where B: IntoFuture, Self: Sized
@@ -349,11 +346,8 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::executor::block_on;
-    /// use futures::future::*;
     ///
-    /// # fn main() {
     /// let x = 6;
     /// let future = if x < 10 {
     ///     ready(true).left_future()
@@ -362,7 +356,6 @@ pub trait FutureExt: Future {
     /// };
     ///
     /// assert_eq!(true, block_on(future));
-    /// # }
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
         where B: Future<Output = Self::Output>,
@@ -380,11 +373,8 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
     /// use futures::executor::block_on;
-    /// use futures::future::*;
     ///
-    /// # fn main() {
     /// let x = 6;
     /// let future = if x < 10 {
     ///     ready(true).left_future()
@@ -393,7 +383,7 @@ pub trait FutureExt: Future {
     /// };
     ///
     /// assert_eq!(false, block_on(future));
-    /// # }
+    /// ```
     fn right_future<A>(self) -> Either<A, Self>
         where A: Future<Output = Self::Output>,
               Self: Sized,
@@ -561,7 +551,7 @@ pub trait FutureExt: Future {
     ///
     // TODO: minimize and open rust-lang/rust ticket, currently errors:
     //       'assertion failed: !value.has_escaping_regions()'
-    /// ```rust,ignore
+    /// ```ignore
     /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};
@@ -588,10 +578,6 @@ pub trait FutureExt: Future {
     /// The shared() method provides a method to convert any future into a
     /// cloneable future. It enables a future to be polled by multiple threads.
     ///
-    /// The returned `Shared` future resolves with `Arc<Self::Output>`,
-    /// which implements `Deref` to allow shared access to the underlying
-    /// result. Ownership of the underlying value cannot currently be reclaimed.
-    ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     ///
@@ -606,8 +592,8 @@ pub trait FutureExt: Future {
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     ///
-    /// assert_eq!(6, *await!(shared1));
-    /// assert_eq!(6, *await!(shared2));
+    /// assert_eq!(6, await!(shared1));
+    /// assert_eq!(6, await!(shared2));
     /// # });
     /// ```
     ///
@@ -616,8 +602,7 @@ pub trait FutureExt: Future {
     /// // synchronous function to better illustrate the cross-thread aspect of
     /// // the `shared` combinator.
     ///
-    /// use futures::prelude::*;
-    /// use futures::future;
+    /// use futures::future::{self, FutureExt};
     /// use futures::executor::block_on;
     /// use std::thread;
     ///
@@ -625,14 +610,15 @@ pub trait FutureExt: Future {
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     /// let join_handle = thread::spawn(move || {
-    ///     assert_eq!(6, *block_on(shared2));
+    ///     assert_eq!(6, block_on(shared2));
     /// });
-    /// assert_eq!(6, *block_on(shared1));
+    /// assert_eq!(6, block_on(shared1));
     /// join_handle.join().unwrap();
     /// ```
     #[cfg(feature = "std")]
     fn shared(self) -> Shared<Self>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         Shared::new(self)
     }
@@ -652,15 +638,15 @@ pub trait FutureExt: Future {
         UnitError::new(self)
     }
 
-    /// Assigns the provided `Executor` to be used when spawning tasks
+    /// Assigns the provided `Spawn` to be used when spawning tasks
     /// from within the future.
     ///
     /// # Examples
     ///
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
-    /// #[macro_use] extern crate futures;
     /// # futures::executor::block_on(async {
+    /// use futures::spawn;
     /// use futures::executor::ThreadPool;
     /// use futures::future::FutureExt;
     /// use std::thread;
@@ -674,21 +660,21 @@ pub trait FutureExt: Future {
     ///  let val = await!((async {
     ///      assert_ne!(thread::current().name(), Some("my-pool-0"));
     ///
-    ///      // Spawned task runs on the executor specified via `with_executor`
+    ///      // Spawned task runs on the executor specified via `with_spawner`
     ///      spawn!(async {
     ///          assert_eq!(thread::current().name(), Some("my-pool-0"));
     ///          # tx.send("ran").unwrap();
     ///      }).unwrap();
-    ///  }).with_executor(pool));
+    ///  }).with_spawner(pool));
     ///
     ///  # assert_eq!(await!(rx), Ok("ran"))
     ///  # })
     /// ```
-    fn with_executor<E>(self, executor: E) -> WithExecutor<Self, E>
+    fn with_spawner<Sp>(self, spawner: Sp) -> WithSpawner<Self, Sp>
         where Self: Sized,
-              E: Executor
+              Sp: Spawn
     {
-        WithExecutor::new(self, executor)
+        WithSpawner::new(self, spawner)
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.

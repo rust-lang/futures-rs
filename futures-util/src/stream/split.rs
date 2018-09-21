@@ -5,7 +5,7 @@ use std::any::Any;
 use std::error::Error;
 use std::fmt;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 use crate::lock::BiLock;
 

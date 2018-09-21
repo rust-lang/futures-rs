@@ -11,7 +11,7 @@ use futures_core::stream::TryStream;
 use crate::compat::Compat;
 
 #[cfg(feature = "compat")]
-use futures_core::task::Executor;
+use futures_core::task::Spawn;
 
 mod err_into;
 pub use self::err_into::ErrInto;
@@ -34,12 +34,22 @@ pub use self::try_for_each::TryForEach;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
+mod try_fold;
+pub use self::try_fold::TryFold;
+
+mod try_skip_while;
+pub use self::try_skip_while::TrySkipWhile;
+
 if_std! {
     mod try_buffer_unordered;
     pub use self::try_buffer_unordered::TryBufferUnordered;
 
     mod try_collect;
     pub use self::try_collect::TryCollect;
+
+    mod try_for_each_concurrent;
+    pub use self::try_for_each_concurrent::TryForEachConcurrent;
+    use futures_core::future::Future;
 }
 
 impl<S: TryStream> TryStreamExt for S {}
@@ -220,6 +230,90 @@ pub trait TryStreamExt: TryStream {
         TryForEach::new(self, f)
     }
 
+    /// Skip elements on this stream while the provided asynchronous predicate
+    /// resolves to `true`.
+    ///
+    /// This function is similar to [`StreamExt::skip_while`](crate::stream::StreamExt::skip_while)
+    /// but exits early if an error occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(3), Ok(2)]);
+    /// let mut stream = stream.try_skip_while(|x| future::ready(Ok(*x < 3)));
+    ///
+    /// let output: Result<Vec<i32>, i32> = await!(stream.try_collect());
+    /// assert_eq!(output, Ok(vec![3, 2]));
+    /// # })
+    /// ```
+    fn try_skip_while<Fut, F>(self, f: F) -> TrySkipWhile<Self, Fut, F>
+        where F: FnMut(&Self::Ok) -> Fut,
+              Fut: TryFuture<Ok = bool, Error = Self::Error>,
+              Self: Sized
+    {
+        TrySkipWhile::new(self, f)
+    }
+
+    /// Attempts to run this stream to completion, executing the provided asynchronous
+    /// closure for each element on the stream concurrently as elements become
+    /// available, exiting as soon as an error occurs.
+    ///
+    /// This is similar to
+    /// [`StreamExt::for_each_concurrent`](super::StreamExt::for_each_concurrent),
+    /// but will resolve to an error immediately if the underlying stream or the provided
+    /// closure return an error.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::oneshot;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (_tx3, rx3) = oneshot::channel();
+    ///
+    /// let stream = stream::iter(vec![rx1, rx2, rx3]);
+    /// let fut = stream.map(Ok).try_for_each_concurrent(
+    ///     /* limit */ 2,
+    ///     async move |rx| {
+    ///         let res: Result<(), oneshot::Canceled> = await!(rx);
+    ///         res
+    ///     }
+    /// );
+    ///
+    /// tx1.send(()).unwrap();
+    /// // Drop the second sender so that `rx2` resolves to `Canceled`.
+    /// drop(tx2);
+    ///
+    /// // The final result is an error because the second future
+    /// // resulted in an error.
+    /// assert_eq!(Err(oneshot::Canceled), await!(fut));
+    /// # })
+    /// ```
+    #[cfg(feature = "std")]
+    fn try_for_each_concurrent<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> TryForEachConcurrent<Self, Fut, F>
+        where F: FnMut(Self::Ok) -> Fut,
+              Fut: Future<Output = Result<(), Self::Error>>,
+              Self: Sized,
+    {
+        TryForEachConcurrent::new(self, limit.into(), f)
+    }
+
     /// Attempt to Collect all of the values of this stream into a vector,
     /// returning a future representing the result of that computation.
     ///
@@ -282,7 +376,8 @@ pub trait TryStreamExt: TryStream {
     /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::executor::block_on;
-    /// use futures::prelude::*;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
     ///
     /// let stream = stream::iter(vec![Ok(1i32), Ok(6i32), Err("error")]);
     /// let mut halves = stream.try_filter_map(|x| {
@@ -300,6 +395,45 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TryFilterMap::new(self, f)
+    }
+
+
+    /// Attempt to execute an accumulating asynchronous computation over a
+    /// stream, collecting all the values into one final result.
+    ///
+    /// This combinator will accumulate all values returned by this stream
+    /// according to the closure provided. The initial state is also provided to
+    /// this method and then is returned again by each execution of the closure.
+    /// Once the entire stream has been exhausted the returned future will
+    /// resolve to this value.
+    ///
+    /// This method is similar to [`fold`](super::StreamExt::fold), but will
+    /// exit early if an error is encountered in either the stream or the
+    /// provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future;
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let number_stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(2)]);
+    /// let sum = number_stream.try_fold(0, |acc, x| future::ready(Ok(acc + x)));
+    /// assert_eq!(await!(sum), Ok(3));
+    ///
+    /// let number_stream_with_err = stream::iter(vec![Ok::<i32, i32>(1), Err(2), Ok(1)]);
+    /// let sum = number_stream_with_err.try_fold(0, |acc, x| future::ready(Ok(acc + x)));
+    /// assert_eq!(await!(sum), Err(2));
+    /// # })
+    /// ```
+    fn try_fold<T, Fut, F>(self, init: T, f: F) -> TryFold<Self, Fut, T, F>
+        where F: FnMut(T, Self::Ok) -> Fut,
+              Fut: TryFuture<Ok = T, Error = Self::Error>,
+              Self: Sized,
+    {
+        TryFold::new(self, f, init)
     }
 
     /// Attempt to execute several futures from a stream concurrently.
@@ -372,11 +506,34 @@ pub trait TryStreamExt: TryStream {
 
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
     /// futures 0.1 `Stream`. Requires the `compat` feature to be enabled.
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::future::{FutureExt, TryFutureExt};
+    /// use futures::spawn;
+    /// use futures::compat::TokioDefaultSpawner;
+    /// # let (tx, rx) = futures::channel::oneshot::channel();
+    ///
+    /// let future03 = async {
+    ///     println!("Running on the pool");
+    ///     spawn!(async {
+    ///         println!("Spawned!");
+    ///         # tx.send(42).unwrap();
+    ///     }).unwrap();
+    /// };
+    ///
+    /// let future01 = future03
+    ///     .unit_error() // Make it a TryFuture
+    ///     .boxed()  // Make it Unpin
+    ///     .compat(TokioDefaultSpawner);
+    ///
+    /// tokio::run(future01);
+    /// # futures::executor::block_on(rx).unwrap();
+    /// ```
     #[cfg(feature = "compat")]
-    fn compat<E>(self, executor: E) -> Compat<Self, E>
+    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
         where Self: Sized + Unpin,
-              E: Executor,
+              Sp: Spawn,
     {
-        Compat::new(self, Some(executor))
+        Compat::new(self, Some(spawn))
     }
 }

@@ -1,16 +1,12 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::channel::oneshot;
-use futures::future;
-use futures::prelude::*;
-use std::mem::PinMut;
+use futures::future::{self, Future, FutureExt, TryFutureExt};
+use futures::task::{self, Poll};
+use futures_test::future::FutureTestExt;
+use pin_utils::unsafe_pinned;
+use std::pin::PinMut;
 use std::sync::mpsc;
-
-mod support;
-use self::support::RunInBackgroundExt;
 
 #[test]
 fn map_ok() {

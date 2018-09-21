@@ -1,8 +1,10 @@
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
-use std::mem::{self, PinMut};
+use std::mem;
+use std::pin::PinMut;
 use std::prelude::v1::*;
 
 /// A future which attempts to collect all of the values of a stream.

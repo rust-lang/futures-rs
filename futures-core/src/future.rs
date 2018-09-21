@@ -1,7 +1,7 @@
 //! Futures.
 
 use crate::task::{self, Poll};
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 pub use core::future::{Future, FutureObj, LocalFutureObj, UnsafeFutureObj};
 

@@ -1,23 +1,12 @@
-#![allow(unused_imports)]
-
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-extern crate futures;
-extern crate futures_executor;
-extern crate futures_channel;
-
-use std::boxed::PinBox;
+use futures::channel::oneshot;
+use futures::executor::LocalPool;
+use futures::future::{Future, lazy};
+use futures::task::{self, Poll, Spawn};
 use std::cell::{Cell, RefCell};
-use std::mem::PinMut;
+use std::pin::{PinBox, PinMut};
 use std::rc::Rc;
-use std::thread;
-use std::time::Duration;
-
-use futures::future::lazy;
-use futures::prelude::*;
-use futures::task::{self, Executor};
-use futures_executor::*;
-use futures_channel::oneshot;
 
 struct Pending(Rc<()>);
 
@@ -39,12 +28,12 @@ fn run_until_single_future() {
 
     {
         let mut pool = LocalPool::new();
-        let mut exec = pool.executor();
+        let mut spawn = pool.spawner();
         let fut = lazy(|_| {
             cnt += 1;
             ()
         });
-        assert_eq!(pool.run_until(fut, &mut exec), ());
+        assert_eq!(pool.run_until(fut, &mut spawn), ());
     }
 
     assert_eq!(cnt, 1);
@@ -53,21 +42,21 @@ fn run_until_single_future() {
 #[test]
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
-    exec.spawn_local_obj(PinBox::new(pending()).into()).unwrap();
-    assert_eq!(pool.run_until(lazy(|_| ()), &mut exec), ());
+    let mut spawn = pool.spawner();
+    spawn.spawn_local_obj(PinBox::new(pending()).into()).unwrap();
+    assert_eq!(pool.run_until(lazy(|_| ()), &mut spawn), ());
 }
 
 #[test]
 fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
-    exec.spawn_local_obj(PinBox::new(lazy(move |_| {
+    let mut spawn = pool.spawner();
+    spawn.spawn_local_obj(PinBox::new(lazy(move |_| {
         tx.send(()).unwrap();
         ()
     })).into()).unwrap();
-    pool.run_until(rx, &mut exec).unwrap();
+    pool.run_until(rx, &mut spawn).unwrap();
 }
 
 #[test]
@@ -76,18 +65,18 @@ fn run_executes_spawned() {
     let cnt2 = cnt.clone();
 
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
-    let mut exec2 = pool.executor();
+    let mut spawn = pool.spawner();
+    let mut spawn2 = pool.spawner();
 
-    exec.spawn_local_obj(PinBox::new(lazy(move |_| {
-        exec2.spawn_local_obj(PinBox::new(lazy(move |_| {
+    spawn.spawn_local_obj(PinBox::new(lazy(move |_| {
+        spawn2.spawn_local_obj(PinBox::new(lazy(move |_| {
             cnt2.set(cnt2.get() + 1);
             ()
         })).into()).unwrap();
         ()
     })).into()).unwrap();
 
-    pool.run(&mut exec);
+    pool.run(&mut spawn);
 
     assert_eq!(cnt.get(), 1);
 }
@@ -100,17 +89,17 @@ fn run_spawn_many() {
     let cnt = Rc::new(Cell::new(0));
 
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
+    let mut spawn = pool.spawner();
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
-        exec.spawn_local_obj(PinBox::new(lazy(move |_| {
+        spawn.spawn_local_obj(PinBox::new(lazy(move |_| {
             cnt.set(cnt.get() + 1);
             ()
         })).into()).unwrap();
     }
 
-    pool.run(&mut exec);
+    pool.run(&mut spawn);
 
     assert_eq!(cnt.get(), ITER);
 }
@@ -119,14 +108,14 @@ fn run_spawn_many() {
 #[should_panic]
 fn nesting_run() {
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
+    let mut spawn = pool.spawner();
 
-    exec.spawn_obj(PinBox::new(lazy(|_| {
+    spawn.spawn_obj(PinBox::new(lazy(|_| {
         let mut pool = LocalPool::new();
-        let mut exec = pool.executor();
-        pool.run(&mut exec);
+        let mut spawn = pool.spawner();
+        pool.run(&mut spawn);
     })).into()).unwrap();
-    pool.run(&mut exec);
+    pool.run(&mut spawn);
 }
 
 #[test]
@@ -166,18 +155,18 @@ fn tasks_are_scheduled_fairly() {
     }
 
     let mut pool = LocalPool::new();
-    let mut exec = pool.executor();
+    let mut spawn = pool.spawner();
 
-    exec.spawn_local_obj(PinBox::new(Spin {
+    spawn.spawn_local_obj(PinBox::new(Spin {
         state: state.clone(),
         idx: 0,
     }).into()).unwrap();
 
-    exec.spawn_local_obj(PinBox::new(Spin {
+    spawn.spawn_local_obj(PinBox::new(Spin {
         state: state,
         idx: 1,
     }).into()).unwrap();
 
-    pool.run(&mut exec);
+    pool.run(&mut spawn);
 }
 

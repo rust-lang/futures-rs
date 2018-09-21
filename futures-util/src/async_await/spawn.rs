@@ -10,8 +10,8 @@
 ///
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
-/// #[macro_use] extern crate futures;
 /// # futures::executor::block_on(async {
+/// use futures::spawn;
 ///
 /// let future = async { /* ... */ };
 /// spawn!(future).unwrap();
@@ -21,8 +21,7 @@
 macro_rules! spawn {
     ($future:expr) => {
         await!($crate::future::lazy(|cx| {
-            use $crate::task::ExecutorExt;
-            cx.executor().spawn($future)
+            $crate::task::SpawnExt::spawn(cx.spawner(), $future)
         }))
     }
 }
@@ -41,9 +40,8 @@ macro_rules! spawn {
 ///
 /// ```
 /// #![feature(async_await, await_macro, futures_api)]
-/// #[macro_use] extern crate futures;
 /// # futures::executor::block_on(async {
-/// use futures::future;
+/// use futures::{future, spawn_with_handle};
 ///
 /// let future = future::ready(1);
 /// let join_handle = spawn_with_handle!(future).unwrap();
@@ -54,8 +52,7 @@ macro_rules! spawn {
 macro_rules! spawn_with_handle {
     ($future:expr) => {
         await!($crate::future::lazy(|cx| {
-            use $crate::task::ExecutorExt;
-            cx.executor().spawn_with_handle($future)
+            $crate::task::SpawnExt::spawn_with_handle(cx.spawner(), $future)
         }))
     }
 }

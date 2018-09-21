@@ -6,14 +6,9 @@
 use futures_core::future::TryFuture;
 use futures_sink::Sink;
 
-#[cfg(feature = "compat")]
-use crate::compat::Compat;
-
-#[cfg(feature = "compat")]
-use futures_core::task::Executor;
-
-#[cfg(feature = "compat")]
-use core::marker::Unpin;
+#[cfg(feature = "compat")] use crate::compat::Compat;
+#[cfg(feature = "compat")] use core::marker::Unpin;
+#[cfg(feature = "compat")] use futures_core::task::Spawn;
 
 /* TODO
 mod join;
@@ -61,7 +56,7 @@ pub use self::unwrap_or_else::UnwrapOrElse;
 
 // Implementation details
 mod try_chain;
-crate use self::try_chain::{TryChain, TryChainAction};
+pub(crate) use self::try_chain::{TryChain, TryChainAction};
 
 impl<Fut: TryFuture> TryFutureExt for Fut {}
 
@@ -342,8 +337,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
     /// use futures::future::{self, Either};
     ///
     /// // A poor-man's join implemented on top of select
@@ -385,8 +378,6 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
     /// use futures::future;
     /// use futures::executor::block_on;
     ///
@@ -402,10 +393,8 @@ pub trait TryFutureExt: TryFuture {
     /// `Future` will be errored:
     ///
     /// ```
-    /// # extern crate futures;
-    /// use futures::prelude::*;
-    /// use futures::future;
     /// use futures::executor::block_on;
+    /// use futures::future::{self, FutureExt};
     ///
     /// let a = future::ok::<i32, i32>(1);
     /// let b = future::err::<i32, i32>(2);
@@ -488,13 +477,12 @@ pub trait TryFutureExt: TryFuture {
 
     /// Wraps a [`TryFuture`] into a future compatable with libraries using
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
-    /// 
     #[cfg(feature = "compat")]
-    fn compat<E>(self, executor: E) -> Compat<Self, E> 
+    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
         where Self: Sized + Unpin,
-              E: Executor,
+              Sp: Spawn,
     {
-        Compat::new(self, Some(executor))
+        Compat::new(self, Some(spawn))
     }
 
     /// Wraps a [`TryFuture`] into a type that implements
@@ -518,7 +506,7 @@ pub trait TryFutureExt: TryFuture {
     /// fn take_future(future: impl Future<Output = Result<T, E>>) { /* ... */ }
     ///
     /// take_future(make_try_future().into_future());
-    /// ```    
+    /// ```
     fn into_future(self) -> IntoFuture<Self>
         where Self: Sized,
     {

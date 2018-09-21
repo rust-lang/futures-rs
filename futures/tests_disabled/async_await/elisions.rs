@@ -1,5 +1,4 @@
 use futures::stable::block_on_stable;
-use futures::prelude::*;
 
 struct Ref<'a, T: 'a>(&'a T);
 

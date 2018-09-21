@@ -12,12 +12,12 @@
   </a>
 
   <a href="https://crates.io/crates/futures-preview">
-    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures-preview.svg?maxAge=2592000">
+    <img alt="Crates.io" src="https://img.shields.io/crates/v/futures-preview.svg">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures/">
+  <a href="https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures/">
     Documentation
   </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
     Website
@@ -26,30 +26,28 @@
 
 ## Usage
 
-First, add this to your `Cargo.toml`:
+Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "0.3.0-alpha.2"
+futures-preview = "0.3.0-alpha.5"
 ```
 
-Next, add this to your crate:
+Now, you can use futures-rs:
 
 ```rust
-extern crate futures; // Note: It's not `futures_preview`
-
-use futures::future::Future;
+use futures::future::Future; // Note: It's not `futures_preview`
 ```
 
 ### Feature `std`
 
-`futures-rs` works without the standard library, such as in bare metal environments.
-However, it has a significantly reduced API surface. To use `futures-rs` in
+Futures-rs works without the standard library, such as in bare metal environments.
+However, it has a significantly reduced API surface. To use futures-rs in
 a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "0.3.0-alpha.2", default-features = false }
+futures-preview = { version = "0.3.0-alpha.6", default-features = false }
 ```
 
 # License
@@ -66,5 +64,5 @@ at your option.
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in Futures by you, as defined in the Apache-2.0 license, shall be
+for inclusion in futures-rs by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.

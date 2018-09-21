@@ -1,7 +1,8 @@
 use super::{TryChain, TryChainAction};
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Future for the [`or_else`](super::TryFutureExt::or_else) combinator.
 #[derive(Debug)]

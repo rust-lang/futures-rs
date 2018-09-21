@@ -1,7 +1,8 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`map_ok`](super::TryFutureExt::map_ok) combinator.
 #[derive(Debug)]

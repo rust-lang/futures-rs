@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 
@@ -20,11 +20,9 @@ impl<I> Unpin for Iter<I> {}
 /// Iterators in Rust don't express the ability to block, so this adapter
 /// simply always calls `iter.next()` and returns that.
 ///
-/// ```rust
-/// # extern crate futures;
-/// use futures::prelude::*;
-/// use futures::stream;
+/// ```
 /// use futures::executor::block_on;
+/// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::iter(vec![17, 19]);
 /// assert_eq!(vec![17, 19], block_on(stream.collect::<Vec<i32>>()));

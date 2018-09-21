@@ -1,5 +1,5 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
@@ -16,12 +16,12 @@ pub struct Close<'a, Si: 'a + Unpin + ?Sized> {
 ///
 /// The sink itself is returned after closeing is complete.
 impl<'a, Si: Sink + Unpin + ?Sized> Close<'a, Si> {
-    pub(super) fn new(sink: &'a mut Si) -> Close<'a, Si> {
+    pub(super) fn new(sink: &'a mut Si) -> Self {
         Close { sink }
     }
 }
 
-impl<'a, Si: Sink + Unpin + ?Sized> Future for Close<'a, Si> {
+impl<Si: Sink + Unpin + ?Sized> Future for Close<'_, Si> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(

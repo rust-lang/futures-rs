@@ -49,12 +49,8 @@ impl<F> fmt::Debug for JoinAll<F>
 /// # Examples
 ///
 /// ```
-/// # extern crate futures;
-/// use futures::prelude::*;
 /// use futures::future::{join_all, ok, err};
 ///
-/// # fn main() {
-/// #
 /// let f = join_all(vec![
 ///     ok::<u32, u32>(1),
 ///     ok::<u32, u32>(2),
@@ -73,7 +69,6 @@ impl<F> fmt::Debug for JoinAll<F>
 ///     assert_eq!(x, Err(2));
 ///     x
 /// });
-/// # }
 /// ```
 pub fn join_all<I>(i: I) -> JoinAll<<I::Item as IntoFuture>::Future>
     where I: IntoIterator,

@@ -1,16 +1,16 @@
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::TryFuture;
 use futures_core::task::{self, Poll};
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
-crate enum TryChain<Fut1, Fut2, Data> {
+pub(crate) enum TryChain<Fut1, Fut2, Data> {
     First(Fut1, Option<Data>),
     Second(Fut2),
     Empty,
 }
 
-crate enum TryChainAction<Fut2>
+pub(crate) enum TryChainAction<Fut2>
     where Fut2: TryFuture,
 {
     Future(Fut2),
@@ -21,11 +21,11 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
     where Fut1: TryFuture,
           Fut2: TryFuture,
 {
-    crate fn new(fut1: Fut1, data: Data) -> TryChain<Fut1, Fut2, Data> {
+    pub(crate) fn new(fut1: Fut1, data: Data) -> TryChain<Fut1, Fut2, Data> {
         TryChain::First(fut1, Some(data))
     }
 
-    crate fn poll<F>(
+    pub(crate) fn poll<F>(
         self: PinMut<Self>,
         cx: &mut task::Context,
         f: F,

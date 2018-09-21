@@ -1,15 +1,10 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use] extern crate futures;
-
-use futures::FutureExt;
 use futures::channel::oneshot;
 use futures::executor::block_on;
-use futures::future::{abortable, Aborted};
+use futures::future::{abortable, Aborted, FutureExt};
 use futures::task::Poll;
-
-mod support;
-use self::support::with_counter_waker_context;
+use futures_test::task::{panic_context, WakeCounter};
 
 #[test]
 fn abortable_works() {
@@ -25,14 +20,15 @@ fn abortable_awakens() {
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (mut abortable_rx, abort_handle) = abortable(a_rx);
 
-    with_counter_waker_context(|cx, counter| {
-        assert_eq!(0, counter.get());
-        assert_eq!(Poll::Pending, abortable_rx.poll_unpin(cx));
-        assert_eq!(0, counter.get());
-        abort_handle.abort();
-        assert_eq!(1, counter.get());
-        assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(cx));
-    })
+    let wake_counter = WakeCounter::new();
+    let mut cx = panic_context();
+    let cx = &mut cx.with_waker(wake_counter.local_waker());
+    assert_eq!(0, wake_counter.count());
+    assert_eq!(Poll::Pending, abortable_rx.poll_unpin(cx));
+    assert_eq!(0, wake_counter.count());
+    abort_handle.abort();
+    assert_eq!(1, wake_counter.count());
+    assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(cx));
 }
 
 #[test]

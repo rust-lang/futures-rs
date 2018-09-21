@@ -1,7 +1,7 @@
 //! Definition of the `PollFn` combinator
 
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 
@@ -23,10 +23,9 @@ impl<F> Unpin for PollFn<F> {}
 /// # Examples
 ///
 /// ```
-/// # #![feature(futures_api)]
-/// # extern crate futures;
-/// use futures::prelude::*;
+/// #![feature(futures_api)]
 /// use futures::stream::poll_fn;
+/// use futures::task::Poll;
 ///
 /// let mut counter = 1usize;
 ///

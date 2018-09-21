@@ -1,9 +1,11 @@
 use core::marker::{Unpin, PhantomData};
-use core::mem::{self, PinMut};
+use core::mem;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the `Sink::with` combinator, chaining a computation to run *prior*
 /// to pushing a value into the underlying sink.
@@ -58,8 +60,9 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
-    #[allow(needless_lifetimes, wrong_self_convention)] // https://github.com/rust-lang/rust/issues/52675
-    fn as_pin_mut(
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    #[allow(clippy::wrong_self_convention)]
+    fn as_pin_mut<'a>(
         self: PinMut<'a, Self>,
     ) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
         unsafe {

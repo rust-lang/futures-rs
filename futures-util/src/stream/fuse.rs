@@ -1,8 +1,9 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream which "fuse"s a stream once it's terminated.
 ///
@@ -55,8 +56,8 @@ impl<St: Stream> Fuse<St> {
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut(self: PinMut<'a, Self>) -> PinMut<'a, St> {
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, St> {
         unsafe { PinMut::map_unchecked(self, |x| x.get_mut()) }
     }
 

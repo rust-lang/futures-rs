@@ -1,17 +1,16 @@
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Creates a stream of single element
 ///
-/// ```rust
-/// # extern crate futures;
-/// use futures::prelude::*;
+/// ```
 /// use futures::future;
 /// use futures::executor::block_on;
-/// use futures::stream;
+/// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::once(future::ready(17));
 /// let collected = block_on(stream.collect::<Vec<i32>>());

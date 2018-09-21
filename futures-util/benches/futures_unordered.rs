@@ -1,20 +1,13 @@
 #![feature(test, futures_api)]
 
-extern crate futures;
-extern crate futures_channel;
-extern crate futures_executor;
-extern crate test;
-
-use futures::prelude::*;
+use futures::channel::oneshot;
+use futures::executor::block_on;
 use futures::future;
-use futures::stream::FuturesUnordered;
-use futures_channel::oneshot;
-use futures_executor::block_on;
-
-use test::Bencher;
-
+use futures::stream::{StreamExt, FuturesUnordered};
+use futures::task::Poll;
 use std::collections::VecDeque;
 use std::thread;
+use test::Bencher;
 
 #[bench]
 fn oneshots(b: &mut Bencher) {

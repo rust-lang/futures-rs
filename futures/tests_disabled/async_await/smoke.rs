@@ -11,7 +11,6 @@ use std::io;
 
 use futures::Never;
 use futures::future::poll_fn;
-use futures::prelude::*;
 
 #[async]
 fn foo() -> Result<i32, i32> {

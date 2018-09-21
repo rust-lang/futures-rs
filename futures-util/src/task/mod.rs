@@ -1,10 +1,13 @@
 //! Task notification
 
-mod executor;
-pub use self::executor::{ExecutorExt, SpawnError};
+mod spawn;
+pub use self::spawn::{SpawnExt, SpawnError};
 
 if_std! {
-    pub use self::executor::JoinHandle;
+    pub use self::spawn::JoinHandle;
+
+    mod local_waker_ref;
+    pub use self::local_waker_ref::{local_waker_ref, local_waker_ref_from_nonlocal, LocalWakerRef};
 }
 
 #[cfg_attr(

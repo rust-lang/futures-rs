@@ -3,7 +3,8 @@ use futures_core::task::{self, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::marker::Unpin;
-use std::mem::{self, PinMut};
+use std::mem;
+use std::pin::PinMut;
 
 /// A future used to write the entire contents of some data to a stream.
 ///
@@ -17,10 +18,10 @@ pub struct WriteAll<'a, W: ?Sized + 'a> {
 }
 
 // Pinning is never projected to fields
-impl<'a, W: ?Sized> Unpin for WriteAll<'a, W> {}
+impl<W: ?Sized> Unpin for WriteAll<'_, W> {}
 
 impl<'a, W: AsyncWrite + ?Sized> WriteAll<'a, W> {
-    pub(super) fn new(writer: &'a mut W, buf: &'a [u8]) -> WriteAll<'a, W> {
+    pub(super) fn new(writer: &'a mut W, buf: &'a [u8]) -> Self {
         WriteAll { writer, buf }
     }
 }
@@ -29,7 +30,7 @@ fn zero_write() -> io::Error {
     io::Error::new(io::ErrorKind::WriteZero, "zero-length write")
 }
 
-impl<'a, W: AsyncWrite + ?Sized> Future for WriteAll<'a, W> {
+impl<W: AsyncWrite + ?Sized> Future for WriteAll<'_, W> {
     type Output = io::Result<()>;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<io::Result<()>> {

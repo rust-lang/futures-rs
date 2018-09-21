@@ -1,7 +1,8 @@
 //! Definition of the MaybeDone combinator
 
 use core::marker::Unpin;
-use core::mem::{self, PinMut};
+use core::mem;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 
@@ -29,7 +30,8 @@ impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 /// ```
 /// #![feature(async_await, await_macro, futures_api, use_extern_macros, pin)]
 /// # futures::executor::block_on(async {
-/// use futures::{future, pin_mut};
+/// use futures::future;
+/// use pin_utils::pin_mut;
 ///
 /// let future = future::maybe_done(future::ready(5));
 /// pin_mut!(future);
@@ -49,7 +51,7 @@ impl<Fut: Future> MaybeDone<Fut> {
     /// future has been completed and [`take_output`](MaybeDone::take_output)
     /// has not yet been called.
     #[inline]
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn output_mut<'a>(self: PinMut<'a, Self>) -> Option<&'a mut Fut::Output> {
         unsafe {
             let this = PinMut::get_mut_unchecked(self);

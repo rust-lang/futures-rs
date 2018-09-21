@@ -3,9 +3,10 @@
 use crate::future::{MaybeDone, maybe_done};
 use crate::try_future::{TryFutureExt, IntoFuture};
 use core::fmt;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::{Future, TryFuture};
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 macro_rules! generate {
     ($(
@@ -67,7 +68,7 @@ macro_rules! generate {
         {
             type Output = Result<(Fut1::Ok, $($Fut::Ok),*), Fut1::Error>;
 
-            #[allow(useless_let_if_seq)]
+            #[allow(clippy::useless_let_if_seq)]
             fn poll(
                 mut self: PinMut<Self>, cx: &mut task::Context
             ) -> Poll<Self::Output> {

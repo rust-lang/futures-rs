@@ -1,6 +1,6 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
@@ -12,8 +12,8 @@ use futures_sink::Sink;
 #[must_use = "futures do nothing unless polled"]
 pub struct SendAll<'a, Si, St>
 where
-    Si: Sink + Unpin + 'a + ?Sized,
-    St: Stream + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + ?Sized + 'a,
+    St: Stream + Unpin + ?Sized + 'a,
 {
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,
@@ -21,16 +21,16 @@ where
 }
 
 // Pinning is never projected to any fields
-impl<'a, Si, St> Unpin for SendAll<'a, Si, St>
+impl<Si, St> Unpin for SendAll<'_, Si, St>
 where
-    Si: Sink + Unpin + 'a + ?Sized,
-    St: Stream + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + ?Sized,
+    St: Stream + Unpin + ?Sized,
 {}
 
 impl<'a, Si, St> SendAll<'a, Si, St>
 where
-    Si: Sink + Unpin + 'a + ?Sized,
-    St: Stream<Item = Si::SinkItem> + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + ?Sized,
+    St: Stream<Item = Si::SinkItem> + Unpin + ?Sized,
 {
     pub(super) fn new(
         sink: &'a mut Si,
@@ -62,10 +62,10 @@ where
     }
 }
 
-impl<'a, Si, St> Future for SendAll<'a, Si, St>
+impl<Si, St> Future for SendAll<'_, Si, St>
 where
-    Si: Sink + Unpin + 'a + ?Sized,
-    St: Stream<Item = Si::SinkItem> + Unpin + 'a + ?Sized,
+    Si: Sink + Unpin + ?Sized,
+    St: Stream<Item = Si::SinkItem> + Unpin + ?Sized,
 {
     type Output = Result<(), Si::SinkError>;
 

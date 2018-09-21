@@ -1,15 +1,10 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
 use futures::channel::oneshot;
-use futures::prelude::*;
+use futures::future::{FutureExt, TryFutureExt};
+use futures_test::future::FutureTestExt;
 use std::sync::mpsc;
 use std::thread;
-
-mod support;
-use self::support::RunInBackgroundExt;
 
 #[test]
 fn oneshot_send1() {

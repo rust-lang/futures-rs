@@ -8,7 +8,8 @@ use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::{PhantomData, Unpin};
-use std::mem::{self, PinMut};
+use std::mem;
+use std::pin::PinMut;
 use std::ptr;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicPtr, AtomicBool};
@@ -161,8 +162,8 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    #[allow(needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn iter_pin_mut(self: PinMut<'a, Self>) -> IterPinMut<'a, Fut> {
+    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
+    pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, Fut> {
         IterPinMut {
             task: self.head_all,
             len: self.len,
@@ -189,7 +190,9 @@ impl<Fut> FuturesUnordered<Fut> {
         // `FuturesUnordered`, which correctly tracks `Fut`'s lifetimes and
         // such.
         unsafe {
-            drop((*task.future.get()).take());
+            // Set to `None` rather than `take()`ing to prevent moving the
+            // future.
+            *task.future.get() = None;
         }
 
         // If the queued flag was previously set, then it means that this task

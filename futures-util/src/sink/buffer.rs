@@ -1,9 +1,10 @@
 use futures_core::stream::Stream;
 use futures_core::task::{self, Poll};
 use futures_sink::Sink;
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::collections::VecDeque;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.

@@ -2,16 +2,17 @@ use crate::future::FutureExt;
 use super::SpawnError;
 use futures_channel::oneshot::{self, Sender, Receiver};
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Executor, SpawnObjError};
+use futures_core::task::{self, Poll, Spawn, SpawnObjError};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 /// The join handle returned by
-/// [`spawn_with_handle`](crate::task::ExecutorExt::spawn_with_handle).
+/// [`spawn_with_handle`](crate::task::SpawnExt::spawn_with_handle).
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct JoinHandle<T> {
@@ -79,11 +80,11 @@ impl<Fut: Future> Future for Wrapped<Fut> {
     }
 }
 
-pub(super) fn spawn_with_handle<Ex, Fut>(
-    executor: &mut Ex,
+pub(super) fn spawn_with_handle<Sp, Fut>(
+    executor: &mut Sp,
     future: Fut,
 ) -> Result<JoinHandle<Fut::Output>, SpawnError>
-where Ex: Executor + ?Sized,
+where Sp: Spawn + ?Sized,
       Fut: Future + Send + 'static,
       Fut::Output: Send,
 {

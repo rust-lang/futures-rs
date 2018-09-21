@@ -1,11 +1,7 @@
-extern crate futures;
-
-use std::sync::mpsc::{channel, TryRecvError};
-
-use futures::future::*;
 use futures::future;
 use futures::executor::block_on;
 use futures::channel::oneshot::{self, Canceled};
+use std::sync::mpsc::{channel, TryRecvError};
 
 mod support;
 use support::*;

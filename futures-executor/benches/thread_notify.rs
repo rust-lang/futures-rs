@@ -1,15 +1,10 @@
 #![feature(test, futures_api, pin, arbitrary_self_types)]
 
-extern crate futures;
-extern crate test;
-
-use std::marker::Unpin;
-use std::mem::PinMut;
-
-use futures::prelude::*;
-use futures::task::{self, Waker};
 use futures::executor::block_on;
-
+use futures::future::Future;
+use futures::task::{self, Poll, Waker};
+use std::marker::Unpin;
+use std::pin::PinMut;
 use test::Bencher;
 
 #[bench]

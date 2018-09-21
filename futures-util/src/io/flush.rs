@@ -2,7 +2,7 @@ use futures_core::future::Future;
 use futures_core::task::{self, Poll};
 use std::io;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 use futures_io::AsyncWrite;
 
@@ -19,15 +19,15 @@ pub struct Flush<'a, W: ?Sized + 'a> {
 }
 
 // Pinning is never projected to fields
-impl<'a, W: ?Sized> Unpin for Flush<'a, W> {}
+impl<W: ?Sized> Unpin for Flush<'_, W> {}
 
-impl<W: AsyncWrite + ?Sized> Flush<'a, W> {
-    pub(super) fn new(writer: &'a mut W) -> Flush<'a, W> {
+impl<'a, W: AsyncWrite + ?Sized> Flush<'a, W> {
+    pub(super) fn new(writer: &'a mut W) -> Self {
         Flush { writer }
     }
 }
 
-impl<'a, W> Future for Flush<'a, W>
+impl<W> Future for Flush<'_, W>
     where W: AsyncWrite + ?Sized,
 {
     type Output = io::Result<()>;

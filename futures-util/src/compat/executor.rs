@@ -2,18 +2,47 @@
 use super::Compat;
 use crate::{TryFutureExt, FutureExt, future::UnitError};
 use futures::future::Executor as Executor01;
-use futures_core::task::Executor as Executor03;
+use futures_core::task::Spawn as Spawn03;
 use futures_core::task as task03;
 use futures_core::future::FutureObj;
 
-/// A future that can run on a futures 0.1 executor.
-pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, Box<dyn Executor03 + Send>>;
+/// A future that can run on a futures 0.1
+/// [`Executor`](futures::future::Executor).
+pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, Box<dyn Spawn03 + Send>>;
 
-/// Extension trait for futures 0.1 Executors.
+/// Extension trait for futures 0.1 [`Executor`](futures::future::Executor).
 pub trait Executor01CompatExt: Executor01<Executor01Future> +
                                Clone + Send + 'static
 {
-    /// Creates an `Executor` compatable with futures 0.3.
+    /// Converts a futures 0.1 [`Executor`](futures::future::Executor) into a
+    /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
+    ///
+    /// ```ignore
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// use futures::Future;
+    /// use futures::future::{FutureExt, TryFutureExt};
+    /// use futures::compat::Executor01CompatExt;
+    /// use futures::spawn;
+    /// use tokio_threadpool::ThreadPool;
+    ///
+    /// let pool01 = ThreadPool::new();
+    /// let spawner03 = pool01.sender().clone().compat();
+    /// # let (tx, rx) = futures::channel::oneshot::channel();
+    ///
+    /// let future03 = async {
+    ///     println!("Running on the pool");
+    ///     spawn!(async {
+    ///         println!("Spawned!");
+    ///         # tx.send(42).unwrap();
+    ///     }).unwrap();
+    /// };
+    ///
+    /// let future01 = future03.unit_error().boxed().compat(spawner03);
+    ///
+    /// pool01.spawn(future01);
+    /// pool01.shutdown_on_idle().wait().unwrap();
+    /// # futures::executor::block_on(rx).unwrap();
+    /// ```
     fn compat(self) -> Executor01As03<Self>
         where Self: Sized;
 }
@@ -28,13 +57,14 @@ where Ex: Executor01<Executor01Future> + Clone + Send + 'static
     }
 }
 
-/// Converts a futures 0.1 `Executor` into a futures 0.3 `Executor`.
+/// Converts a futures 0.1 [`Executor`](futures::future::Executor) into a
+/// futures 0.3 [`Spawn`](futures_core::task::Spawn).
 #[derive(Clone)]
 pub struct Executor01As03<Ex> {
     executor01: Ex
 }
 
-impl<Ex> Executor03 for Executor01As03<Ex>
+impl<Ex> Spawn03 for Executor01As03<Ex>
 where Ex: Executor01<Executor01Future>,
       Ex: Clone + Send + 'static,
 {
@@ -42,7 +72,7 @@ where Ex: Executor01<Executor01Future>,
         &mut self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), task03::SpawnObjError> {
-        let exec: Box<dyn Executor03 + Send> = Box::new(self.clone());
+        let exec: Box<dyn Spawn03 + Send> = Box::new(self.clone());
         let future = future.unit_error().compat(exec);
 
         match self.executor01.execute(future) {

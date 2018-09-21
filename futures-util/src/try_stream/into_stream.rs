@@ -1,6 +1,7 @@
-use core::mem::PinMut;
+use core::pin::PinMut;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
+use pin_utils::unsafe_pinned;
 
 /// Stream for the [`into_stream`](super::TryStreamExt::into_stream) combinator.
 #[derive(Debug)]

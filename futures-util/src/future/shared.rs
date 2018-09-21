@@ -1,30 +1,10 @@
-//! Definition of the Shared combinator, a future that is cloneable,
-//! and can be polled in multiple threads.
-//!
-//! # Examples
-//!
-//! ```
-//! # extern crate futures;
-//! use futures::prelude::*;
-//! use futures::future;
-//! use futures::executor::block_on;
-//!
-//! # fn main() {
-//! let future = future::ready(6);
-//! let shared1 = future.shared();
-//! let shared2 = shared1.clone();
-//! assert_eq!(6, *block_on(shared1));
-//! assert_eq!(6, *block_on(shared2));
-//! # }
-//! ```
-
 use futures_core::future::Future;
 use futures_core::task::{self, Poll, Wake, Waker};
 use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -70,7 +50,7 @@ impl<Fut: Future> fmt::Debug for Inner<Fut> {
 
 enum FutureOrOutput<Fut: Future> {
     Future(Fut),
-    Output(Arc<Fut::Output>),
+    Output(Fut::Output),
 }
 
 unsafe impl<Fut> Send for Inner<Fut>
@@ -108,15 +88,17 @@ impl<Fut: Future> Shared<Fut> {
     }
 }
 
-impl<Fut> Shared<Fut> where Fut: Future {
+impl<Fut> Shared<Fut>
+where
+    Fut: Future,
+    Fut::Output: Clone,
+{
     /// If any clone of this `Shared` has completed execution, returns its result immediately
     /// without blocking. Otherwise, returns None without triggering the work represented by
     /// this `Shared`.
-    pub fn peek(&self) -> Option<Arc<Fut::Output>> {
+    pub fn peek(&self) -> Option<Fut::Output> {
         match self.inner.notifier.state.load(SeqCst) {
-            COMPLETE => {
-                Some(unsafe { self.clone_output() })
-            }
+            COMPLETE => Some(unsafe { self.clone_output() }),
             POISONED => panic!("inner future panicked during poll"),
             _ => None,
         }
@@ -153,7 +135,7 @@ impl<Fut> Shared<Fut> where Fut: Future {
 
     /// Safety: callers must first ensure that `self.inner.state`
     /// is `COMPLETE`
-    unsafe fn clone_output(&self) -> Arc<Fut::Output> {
+    unsafe fn clone_output(&self) -> Fut::Output {
         if let FutureOrOutput::Output(item) = &*self.inner.future_or_output.get() {
             item.clone()
         } else {
@@ -162,8 +144,11 @@ impl<Fut> Shared<Fut> where Fut: Future {
     }
 }
 
-impl<Fut: Future> Future for Shared<Fut> {
-    type Output = Arc<Fut::Output>;
+impl<Fut: Future> Future for Shared<Fut>
+where
+    Fut::Output: Clone,
+{
+    type Output = Fut::Output;
 
     fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
         let this = &mut *self;
@@ -230,7 +215,6 @@ impl<Fut: Future> Future for Shared<Fut> {
                     }
                 }
                 Poll::Ready(output) => {
-                    let output = Arc::new(output);
                     unsafe {
                         *this.inner.future_or_output.get() =
                             FutureOrOutput::Output(output.clone());
@@ -252,7 +236,10 @@ impl<Fut: Future> Future for Shared<Fut> {
     }
 }
 
-impl<Fut> Clone for Shared<Fut> where Fut: Future {
+impl<Fut> Clone for Shared<Fut>
+where
+    Fut: Future,
+{
     fn clone(&self) -> Self {
         Shared {
             inner: self.inner.clone(),
@@ -261,7 +248,10 @@ impl<Fut> Clone for Shared<Fut> where Fut: Future {
     }
 }
 
-impl<Fut> Drop for Shared<Fut> where Fut: Future {
+impl<Fut> Drop for Shared<Fut>
+where
+    Fut: Future,
+{
     fn drop(&mut self) {
         if self.waker_key != NULL_WAKER_KEY {
             if let Ok(mut wakers) = self.inner.notifier.wakers.lock() {

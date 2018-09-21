@@ -1,9 +1,5 @@
 #![feature(proc_macro, generators, pin)]
 
-extern crate futures;
-
-use futures::prelude::*;
-
 #[async]
 fn foo() -> u32 {
     3

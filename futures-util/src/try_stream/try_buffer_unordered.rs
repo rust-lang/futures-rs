@@ -4,8 +4,9 @@ use crate::try_stream::IntoStream;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{self, Poll};
+use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 
 /// A stream returned by the
 /// [`try_buffer_unordered`](super::TryStreamExt::try_buffer_unordered) method

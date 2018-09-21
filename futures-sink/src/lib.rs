@@ -5,16 +5,9 @@
 
 #![no_std]
 #![warn(missing_docs, missing_debug_implementations)]
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_sink")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_sink")]
 
 #![feature(pin, arbitrary_self_types, futures_api)]
-
-#[cfg(feature = "std")]
-extern crate std;
-
-extern crate futures_core;
-#[cfg(feature = "std")]
-extern crate futures_channel;
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -25,7 +18,7 @@ macro_rules! if_std {
 
 use futures_core::task::{self, Poll};
 use core::marker::Unpin;
-use core::mem::PinMut;
+use core::pin::PinMut;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
 ///
@@ -242,8 +235,6 @@ if_std! {
     }
 }
 
-#[cfg(feature = "either")]
-extern crate either;
 #[cfg(feature = "either")]
 use either::Either;
 #[cfg(feature = "either")]

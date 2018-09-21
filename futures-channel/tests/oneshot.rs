@@ -1,20 +1,16 @@
 #![feature(futures_api, arbitrary_self_types, pin)]
 
-extern crate futures;
-
-use std::mem::PinMut;
+use futures::channel::oneshot::{self, Sender};
+use futures::executor::block_on;
+use futures::future::{Future, FutureExt, poll_fn};
+use futures::task::{self, Poll};
+use std::pin::PinMut;
 use std::sync::mpsc;
 use std::thread;
 
-use futures::future::poll_fn;
-use futures::prelude::*;
-use futures::task;
-use futures::channel::oneshot::*;
-use futures::executor::block_on;
-
 #[test]
 fn smoke_poll() {
-    let (mut tx, rx) = channel::<u32>();
+    let (mut tx, rx) = oneshot::channel::<u32>();
     let mut rx = Some(rx);
     let f = poll_fn(|cx| {
         assert!(tx.poll_cancel(cx).is_pending());
@@ -30,7 +26,7 @@ fn smoke_poll() {
 
 #[test]
 fn cancel_notifies() {
-    let (tx, rx) = channel::<u32>();
+    let (tx, rx) = oneshot::channel::<u32>();
 
     let t = thread::spawn(|| {
         block_on(WaitForCancel { tx: tx });
@@ -62,7 +58,7 @@ fn cancel_lots() {
     });
 
     for _ in 0..20000 {
-        let (otx, orx) = channel::<u32>();
+        let (otx, orx) = oneshot::channel::<u32>();
         let (tx2, rx2) = mpsc::channel();
         tx.send((otx, tx2)).unwrap();
         drop(orx);
@@ -75,7 +71,7 @@ fn cancel_lots() {
 
 #[test]
 fn close() {
-    let (mut tx, mut rx) = channel::<u32>();
+    let (mut tx, mut rx) = oneshot::channel::<u32>();
     rx.close();
     block_on(poll_fn(|cx| {
         match rx.poll_unpin(cx) {
@@ -89,7 +85,7 @@ fn close() {
 
 #[test]
 fn close_wakes() {
-    let (tx, mut rx) = channel::<u32>();
+    let (tx, mut rx) = oneshot::channel::<u32>();
     let (tx2, rx2) = mpsc::channel();
     let t = thread::spawn(move || {
         rx.close();
@@ -102,7 +98,7 @@ fn close_wakes() {
 
 #[test]
 fn is_canceled() {
-    let (tx, rx) = channel::<u32>();
+    let (tx, rx) = oneshot::channel::<u32>();
     assert!(!tx.is_canceled());
     drop(rx);
     assert!(tx.is_canceled());
@@ -118,7 +114,7 @@ fn cancel_sends() {
     });
 
     for _ in 0..20000 {
-        let (otx, mut orx) = channel::<u32>();
+        let (otx, mut orx) = oneshot::channel::<u32>();
         tx.send(otx).unwrap();
 
         orx.close();

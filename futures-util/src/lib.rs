@@ -1,24 +1,31 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
+#![feature(async_await, pin, arbitrary_self_types, futures_api)]
+#![feature(tool_lints)]
+#![cfg_attr(feature = "std", feature(await_macro))]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
-#![allow(unknown_lints)]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.2/futures_util")]
-
-#[macro_use]
-mod macros;
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_util")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
         $i
     )*)
+}
+
+#[macro_use]
+mod macros;
+
+if_std! {
+    // FIXME: currently async/await is only available with std
+    #[macro_use]
+    pub mod async_await;
 }
 
 #[doc(hidden)]
@@ -79,9 +86,6 @@ pub mod task;
 pub mod compat;
 
 if_std! {
-    // FIXME: currently async/await is only available with std
-    pub mod async_await;
-
     pub mod io;
     #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 

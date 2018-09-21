@@ -1,8 +1,7 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
 use futures::executor::block_on;
-use futures::future;
-use futures::prelude::*;
+use futures::future::{self, FutureExt};
 
 #[test]
 fn smoke() {

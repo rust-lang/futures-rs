@@ -1,14 +1,10 @@
 #![feature(test, pin, arbitrary_self_types, futures_api)]
 
-extern crate futures;
-extern crate test;
-
-use futures::prelude::*;
-use futures::task::{self, Waker, LocalWaker, Wake, local_waker_from_nonlocal};
 use futures::executor::LocalPool;
-
+use futures::future::{Future, FutureExt};
+use futures::task::{self, Poll, Waker, LocalWaker, Wake};
 use std::marker::Unpin;
-use std::mem::PinMut;
+use std::pin::PinMut;
 use std::sync::Arc;
 use test::Bencher;
 
@@ -19,7 +15,7 @@ fn notify_noop() -> LocalWaker {
         fn wake(_: &Arc<Self>) {}
     }
 
-    local_waker_from_nonlocal(Arc::new(Noop))
+    task::local_waker_from_nonlocal(Arc::new(Noop))
 }
 
 #[bench]
@@ -61,9 +57,9 @@ fn task_init(b: &mut Bencher) {
     };
 
     let pool = LocalPool::new();
-    let mut exec = pool.executor();
+    let mut spawn = pool.spawner();
     let waker = notify_noop();
-    let mut cx = task::Context::new(&waker, &mut exec);
+    let mut cx = task::Context::new(&waker, &mut spawn);
 
     b.iter(|| {
         fut.num = 0;

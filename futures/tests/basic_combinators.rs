@@ -1,14 +1,8 @@
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#[macro_use]
-extern crate futures;
-
-use futures::future;
-use futures::prelude::*;
+use futures::future::{self, FutureExt, TryFutureExt};
+use futures_test::future::FutureTestExt;
 use std::sync::mpsc;
-
-mod support;
-use self::support::RunInBackgroundExt;
 
 #[test]
 fn basic_future_combinators() {
