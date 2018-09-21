@@ -52,6 +52,18 @@ fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
+    spawn.spawn_local_obj(Box::new(lazy(move |_| {
+        tx.send(()).unwrap();
+        ()
+    })).into()).unwrap();
+    pool.run_until(rx, &mut spawn).unwrap();
+}
+
+#[test]
+fn run_until_executes_spawned_pinned() {
+    let (tx, rx) = oneshot::channel();
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
         tx.send(()).unwrap();
         ()
@@ -84,6 +96,28 @@ fn run_executes_spawned() {
 
 #[test]
 fn run_spawn_many() {
+    const ITER: usize = 200;
+
+    let cnt = Rc::new(Cell::new(0));
+
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+
+    for _ in 0..ITER {
+        let cnt = cnt.clone();
+        spawn.spawn_local_obj(Box::new(lazy(move |_| {
+            cnt.set(cnt.get() + 1);
+            ()
+        })).into()).unwrap();
+    }
+
+    pool.run(&mut spawn);
+
+    assert_eq!(cnt.get(), ITER);
+}
+
+#[test]
+fn run_spawn_many_pinned() {
     const ITER: usize = 200;
 
     let cnt = Rc::new(Cell::new(0));
@@ -163,10 +197,15 @@ fn tasks_are_scheduled_fairly() {
     }).into()).unwrap();
 
     spawn.spawn_local_obj(Box::pinned(Spin {
-        state: state,
+        state: state.clone(),
         idx: 1,
     }).into()).unwrap();
 
     pool.run(&mut spawn);
-}
 
+    {
+        let state = state.borrow();
+        assert_eq!(state[0], 50);
+        assert_eq!(state[1], 100);
+    }
+}
