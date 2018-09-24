@@ -44,7 +44,7 @@ impl<St1, St2> Stream for Zip<St1, St2>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<Self::Item>> {
         if self.queued1().is_none() {
             match self.stream1().poll_next(cx) {

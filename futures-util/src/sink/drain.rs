@@ -43,7 +43,7 @@ impl<T> Sink for Drain<T> {
 
     fn poll_ready(
         self: Pin<&mut Self>,
-        _cx: &mut task::Context,
+        _lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
@@ -57,14 +57,14 @@ impl<T> Sink for Drain<T> {
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        _cx: &mut task::Context,
+        _lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
         self: Pin<&mut Self>,
-        _cx: &mut task::Context,
+        _lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }

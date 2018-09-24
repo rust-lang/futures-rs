@@ -41,7 +41,7 @@ where St: Stream,
 {
     type Output = C;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<C> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<C> {
         loop {
             match ready!(self.stream().poll_next(cx)) {
                 Some(e) => self.collection().extend(Some(e)),

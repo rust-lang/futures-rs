@@ -98,14 +98,14 @@ impl Wake for Flag {
 }
 
 fn flag_cx<F, R>(f: F) -> R
-    where F: FnOnce(Arc<Flag>, &mut task::Context) -> R
+    where F: FnOnce(Arc<Flag>, &LocalWaker) -> R
 {
     let flag = Flag::new();
     let map = &mut task::LocalMap::new();
     let waker = Waker::from(flag.clone());
     let exec = &mut support::PanicExec;
 
-    let cx = &mut task::Context::new(map, &waker, exec);
+    let cx = &LocalWaker::new(map, &waker, exec);
     f(flag, cx)
 }
 
@@ -122,7 +122,7 @@ impl<S: Sink> Future for StartSendFut<S> {
     type Item = S;
     type Error = S::SinkError;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
+    fn poll(&mut self, lw: &LocalWaker) -> Poll<S, S::SinkError> {
         {
             let inner = self.0.as_mut().unwrap();
             try_ready!(inner.poll_ready(cx));
@@ -222,7 +222,7 @@ impl<T> Sink for ManualFlush<T> {
     type SinkItem = Option<T>; // Pass None to flush
     type SinkError = ();
 
-    fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(&mut self, _: &LocalWaker) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 
@@ -235,7 +235,7 @@ impl<T> Sink for ManualFlush<T> {
         Ok(())
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<(), Self::SinkError> {
         if self.data.is_empty() {
             Ok(Async::Ready(()))
         } else {
@@ -244,7 +244,7 @@ impl<T> Sink for ManualFlush<T> {
         }
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<(), Self::SinkError> {
         self.poll_flush(cx)
     }
 }
@@ -317,7 +317,7 @@ impl Allow {
         }
     }
 
-    fn check(&self, cx: &mut task::Context) -> bool {
+    fn check(&self, lw: &LocalWaker) -> bool {
         if self.flag.get() {
             true
         } else {
@@ -339,7 +339,7 @@ impl<T> Sink for ManualAllow<T> {
     type SinkItem = T;
     type SinkError = Never;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(&mut self, lw: &LocalWaker) -> Poll<(), Self::SinkError> {
         if self.allow.check(cx) {
             Ok(Async::Ready(()))
         } else {
@@ -352,11 +352,11 @@ impl<T> Sink for ManualAllow<T> {
         Ok(())
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_flush(&mut self, _: &LocalWaker) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 
-    fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, _: &LocalWaker) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }

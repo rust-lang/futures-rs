@@ -30,7 +30,7 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {

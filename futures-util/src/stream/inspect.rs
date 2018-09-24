@@ -59,7 +59,7 @@ impl<St, F> Stream for Inspect<St, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<St::Item>> {
         let item = ready!(self.stream().poll_next(cx));
         Poll::Ready(item.map(|e| {

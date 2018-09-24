@@ -18,7 +18,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
     impl Future for Yield {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
             if self.rem == 0 {
                 Poll::Ready(())
             } else {
@@ -46,7 +46,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
     impl Future for Yield {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
             if self.rem == 0 {
                 Poll::Ready(())
             } else {
@@ -83,7 +83,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
     impl Future for Yield {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
             if self.rem == 0 {
                 Poll::Ready(())
             } else {

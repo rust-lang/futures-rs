@@ -75,7 +75,7 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
         if *self.done_taking() {
             return Poll::Ready(None);

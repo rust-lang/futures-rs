@@ -25,7 +25,7 @@ impl<'a, R: AsyncRead + ?Sized> Read<'a, R> {
 impl<R: AsyncRead + ?Sized> Future for Read<'_, R> {
     type Output = io::Result<usize>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
         this.reader.poll_read(cx, this.buf)
     }

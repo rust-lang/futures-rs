@@ -122,7 +122,7 @@ pub struct Aborted;
 impl<Fut> Future for Abortable<Fut> where Fut: Future {
     type Output = Result<Fut::Output, Aborted>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         // Check if the future has been aborted
         if self.inner.cancel.load(Ordering::Relaxed) {
             return Poll::Ready(Err(Aborted))

@@ -1032,7 +1032,7 @@ pub trait StreamExt: Stream {
     /// stream types.
     fn poll_next_unpin(
         &mut self,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<Self::Item>>
     where Self: Unpin + Sized
     {

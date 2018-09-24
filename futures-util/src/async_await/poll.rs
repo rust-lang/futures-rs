@@ -27,7 +27,7 @@ pub struct PollOnce<F: Future + Unpin> {
 
 impl<F: Future + Unpin> Future for PollOnce<F> {
     type Output = Poll<F::Output>;
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         Poll::Ready(Pin::new(&mut self.future).poll(cx))
     }
 }

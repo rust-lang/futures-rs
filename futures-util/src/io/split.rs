@@ -18,10 +18,10 @@ pub struct WriteHalf<T> {
 
 fn lock_and_then<T, U, E, F>(
     lock: &BiLock<T>,
-    cx: &mut task::Context,
+    lw: &LocalWaker,
     f: F
 ) -> Poll<Result<U, E>>
-    where F: FnOnce(&mut T, &mut task::Context) -> Poll<Result<U, E>>
+    where F: FnOnce(&mut T, &LocalWaker) -> Poll<Result<U, E>>
 {
     match lock.poll_lock(cx) {
         // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
@@ -37,13 +37,13 @@ pub fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {
 }
 
 impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
-    fn poll_read(&mut self, cx: &mut task::Context, buf: &mut [u8])
+    fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8])
         -> Poll<io::Result<usize>>
     {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_read(cx, buf))
     }
 
-    fn poll_vectored_read(&mut self, cx: &mut task::Context, vec: &mut [&mut IoVec])
+    fn poll_vectored_read(&mut self, lw: &LocalWaker, vec: &mut [&mut IoVec])
         -> Poll<io::Result<usize>>
     {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_read(cx, vec))
@@ -51,23 +51,23 @@ impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
 }
 
 impl<W: AsyncWrite> AsyncWrite for WriteHalf<W> {
-    fn poll_write(&mut self, cx: &mut task::Context, buf: &[u8])
+    fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8])
         -> Poll<io::Result<usize>>
     {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_write(cx, buf))
     }
 
-    fn poll_vectored_write(&mut self, cx: &mut task::Context, vec: &[&IoVec])
+    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec])
         -> Poll<io::Result<usize>>
     {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_write(cx, vec))
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<io::Result<()>> {
+    fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_flush(cx))
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<io::Result<()>> {
+    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_close(cx))
     }
 }

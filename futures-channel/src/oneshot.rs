@@ -155,7 +155,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<()> {
+    fn poll_cancel(&self, lw: &LocalWaker) -> Poll<()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -250,7 +250,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
+    fn recv(&self, lw: &LocalWaker) -> Poll<Result<T, Canceled>> {
         // Check to see if some data has arrived. If it hasn't then we need to
         // block our task.
         //
@@ -349,7 +349,7 @@ impl<T> Sender<T> {
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
-    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<()> {
+    pub fn poll_cancel(&mut self, lw: &LocalWaker) -> Poll<()> {
         self.inner.poll_cancel(cx)
     }
 
@@ -420,7 +420,7 @@ impl<T> Future for Receiver<T> {
 
     fn poll(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<T, Canceled>> {
         self.inner.recv(cx)
     }

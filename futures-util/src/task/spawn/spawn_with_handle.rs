@@ -33,7 +33,7 @@ impl<T> JoinHandle<T> {
 impl<T: Send + 'static> Future for JoinHandle<T> {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
         match self.rx.poll_unpin(cx) {
             Poll::Ready(Ok(Ok(output))) => Poll::Ready(output),
             Poll::Ready(Ok(Err(e))) => panic::resume_unwind(e),
@@ -60,7 +60,7 @@ impl<Fut: Future> Wrapped<Fut> {
 impl<Fut: Future> Future for Wrapped<Fut> {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
         if let Poll::Ready(_) = self.tx().as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running().load(Ordering::SeqCst) {
                 // Cancelled, bail out

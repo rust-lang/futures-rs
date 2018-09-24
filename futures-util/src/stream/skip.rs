@@ -56,7 +56,7 @@ impl<St: Stream> Stream for Skip<St> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
         while *self.remaining() > 0 {
             match ready!(self.stream().poll_next(cx)) {

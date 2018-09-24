@@ -28,7 +28,7 @@ impl<F> Unpin for PollFn<F> {}
 /// use futures::future::poll_fn;
 /// use futures::task::{self, Poll};
 ///
-/// fn read_line(cx: &mut task::Context) -> Poll<String> {
+/// fn read_line(lw: &LocalWaker) -> Poll<String> {
 ///     Poll::Ready("Hello, World!".into())
 /// }
 ///
@@ -38,17 +38,17 @@ impl<F> Unpin for PollFn<F> {}
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&mut task::Context) -> Poll<T>
+    F: FnMut(&LocalWaker) -> Poll<T>
 {
     PollFn { f }
 }
 
 impl<T, F> Future for PollFn<F>
-    where F: FnMut(&mut task::Context) -> Poll<T>,
+    where F: FnMut(&LocalWaker) -> Poll<T>,
 {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
         (&mut self.f)(cx)
     }
 }

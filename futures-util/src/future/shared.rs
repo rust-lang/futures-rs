@@ -105,7 +105,7 @@ where
     }
 
     /// Registers the current task to receive a wakeup when `Inner` is awoken.
-    fn set_waker(&mut self, cx: &mut task::Context) {
+    fn set_waker(&mut self, lw: &LocalWaker) {
         // Acquire the lock first before checking COMPLETE to ensure there
         // isn't a race.
         let mut wakers = self.inner.notifier.wakers.lock().unwrap();
@@ -150,7 +150,7 @@ where
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
 
         this.set_waker(cx);

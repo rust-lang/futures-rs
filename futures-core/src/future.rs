@@ -21,7 +21,7 @@ pub trait TryFuture {
     /// needed.
     fn try_poll(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<Self::Ok, Self::Error>>;
 }
 
@@ -32,7 +32,7 @@ impl<F, T, E> TryFuture for F
     type Error = E;
 
     #[inline]
-    fn try_poll(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<F::Output> {
+    fn try_poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<F::Output> {
         self.poll(cx)
     }
 }

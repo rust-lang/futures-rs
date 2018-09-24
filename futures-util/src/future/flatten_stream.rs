@@ -46,7 +46,7 @@ impl<Fut> Stream for FlattenStream<Fut>
 {
     type Item = <Fut::Output as Stream>::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
         loop {
             // safety: data is never moved via the resulting &mut reference
             let stream = match &mut unsafe { Pin::get_mut_unchecked(self.as_mut()) }.state {

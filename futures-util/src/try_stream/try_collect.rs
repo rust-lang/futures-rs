@@ -42,7 +42,7 @@ impl<St, C> Future for TryCollect<St, C>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         loop {
             match ready!(self.stream().try_poll_next(cx)) {

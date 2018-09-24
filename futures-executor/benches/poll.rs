@@ -31,7 +31,7 @@ fn task_init(b: &mut Bencher) {
     impl Future for MyFuture {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
             if self.num == NUM {
                 Poll::Ready(())
             } else {

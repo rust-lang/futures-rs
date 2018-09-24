@@ -36,7 +36,7 @@ pub fn empty<T>() -> Empty<T> {
 impl<T> Future for Empty<T> {
     type Output = T;
 
-    fn poll(self: Pin<&mut Self>, _: &mut task::Context) -> Poll<T> {
+    fn poll(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<T> {
         Poll::Pending
     }
 }

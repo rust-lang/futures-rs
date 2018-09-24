@@ -68,7 +68,7 @@ impl<St: Stream> Stream for Chunks<St> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {

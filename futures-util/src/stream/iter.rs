@@ -40,7 +40,7 @@ impl<I> Stream for Iter<I>
 {
     type Item = I::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, _: &mut task::Context) -> Poll<Option<I::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Option<I::Item>> {
         Poll::Ready(self.iter.next())
     }
 }

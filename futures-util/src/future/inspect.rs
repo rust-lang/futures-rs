@@ -34,7 +34,7 @@ impl<Fut, F> Future for Inspect<Fut, F>
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut::Output> {
         let e = match self.future().poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,

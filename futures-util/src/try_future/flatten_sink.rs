@@ -52,7 +52,7 @@ where
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let resolved_stream = match self.as_mut().project_pin() {
             Ready(s) => return s.poll_ready(cx),
@@ -80,7 +80,7 @@ where
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         match self.project_pin() {
             Ready(s) => s.poll_flush(cx),
@@ -92,7 +92,7 @@ where
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let res = match self.as_mut().project_pin() {
             Ready(s) => s.poll_close(cx),

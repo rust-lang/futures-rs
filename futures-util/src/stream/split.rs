@@ -28,7 +28,7 @@ impl<S: Sink + Unpin> SplitStream<S> {
 impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
         match self.0.poll_lock(cx) {
             Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(cx),
             Poll::Pending => Poll::Pending,
@@ -68,7 +68,7 @@ impl<S: Sink> Sink for SplitSink<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         loop {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
@@ -82,7 +82,7 @@ impl<S: Sink> Sink for SplitSink<S> {
         Ok(())
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
         match this.lock.poll_lock(cx) {
             Poll::Ready(mut inner) => {
@@ -98,7 +98,7 @@ impl<S: Sink> Sink for SplitSink<S> {
         }
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
         match this.lock.poll_lock(cx) {
             Poll::Ready(mut inner) => {

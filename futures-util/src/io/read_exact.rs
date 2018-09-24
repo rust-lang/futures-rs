@@ -29,7 +29,7 @@ impl<'a, R: AsyncRead + ?Sized> ReadExact<'a, R> {
 impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
         while !this.buf.is_empty() {
             let n = try_ready!(this.reader.poll_read(cx, this.buf));

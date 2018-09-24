@@ -45,7 +45,7 @@ impl Stream for LockStream {
     type Item = BiLockAcquired<u32>;
     type Error = ();
 
-    fn poll_next(&mut self, cx: &mut task::Context) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, lw: &LocalWaker) -> Poll<Option<Self::Item>, Self::Error> {
         self.lock.poll(cx).map(|a| match a {
             Async::Ready(a) => Async::Ready(Some(a)),
             Async::Pending => Async::Pending,

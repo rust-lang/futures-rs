@@ -55,7 +55,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
 {
     type Output = Result<(), St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         loop {
             let mut made_progress_this_iter = false;
 

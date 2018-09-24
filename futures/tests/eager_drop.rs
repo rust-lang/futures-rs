@@ -56,7 +56,7 @@ impl<F, T> FutureData<F, T> {
 impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Output = F::Output;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<F::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<F::Output> {
         self.future().poll(cx)
     }
 }

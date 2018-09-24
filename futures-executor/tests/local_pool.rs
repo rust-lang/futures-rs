@@ -13,7 +13,7 @@ struct Pending(Rc<()>);
 impl Future for Pending {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, _cx: &mut task::Context) -> Poll<()> {
+    fn poll(self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<()> {
         Poll::Pending
     }
 }
@@ -130,7 +130,7 @@ fn tasks_are_scheduled_fairly() {
     impl Future for Spin {
         type Output = ();
 
-        fn poll(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<()> {
+        fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {

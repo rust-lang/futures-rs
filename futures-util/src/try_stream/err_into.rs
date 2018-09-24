@@ -31,7 +31,7 @@ where
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         self.stream().try_poll_next(cx)
             .map(|res| res.map(|some| some.map_err(Into::into)))

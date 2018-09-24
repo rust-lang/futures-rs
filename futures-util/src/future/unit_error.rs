@@ -29,7 +29,7 @@ impl<Fut, T> Future for UnitError<Fut>
 {
     type Output = Result<T, ()>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Result<T, ()>> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<T, ()>> {
         self.future().poll(cx).map(Ok)
     }
 }

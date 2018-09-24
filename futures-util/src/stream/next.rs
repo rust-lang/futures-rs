@@ -24,7 +24,7 @@ impl<St: Stream + Unpin> Future for Next<'_, St> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         Pin::new(&mut *self.stream).poll_next(cx)
     }

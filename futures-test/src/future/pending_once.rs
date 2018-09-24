@@ -33,7 +33,7 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         if *self.polled_before() {
             self.future().poll(cx)

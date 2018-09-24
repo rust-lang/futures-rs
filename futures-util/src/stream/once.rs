@@ -40,7 +40,7 @@ impl<Fut: Future> Stream for Once<Fut> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Fut::Output>> {
         let val = if let Some(f) = self.future().as_pin_mut() {
             ready!(f.poll(cx))

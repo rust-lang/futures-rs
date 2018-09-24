@@ -45,7 +45,7 @@ where
 
     fn try_start_send(
         &mut self,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
@@ -71,7 +71,7 @@ where
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the

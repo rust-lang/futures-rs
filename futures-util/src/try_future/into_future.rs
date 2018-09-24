@@ -25,7 +25,7 @@ impl<Fut: TryFuture> Future for IntoFuture<Fut> {
     #[inline]
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         self.future().try_poll(cx)
     }

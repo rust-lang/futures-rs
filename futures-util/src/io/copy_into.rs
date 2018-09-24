@@ -46,7 +46,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
 {
     type Output = io::Result<u64>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
         loop {
             // If our buffer is empty, then we need to read some data to

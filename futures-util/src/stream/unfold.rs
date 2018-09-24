@@ -86,7 +86,7 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<It>> {
         if let Some(state) = self.state().take() {
             let fut = (self.f())(state);
