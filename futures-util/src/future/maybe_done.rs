@@ -84,7 +84,7 @@ impl<Fut: Future> MaybeDone<Fut> {
 impl<Fut: Future> Future for MaybeDone<Fut> {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let res = unsafe {
             match Pin::get_mut_unchecked(self.as_mut()) {
                 MaybeDone::Future(a) => {

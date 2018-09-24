@@ -44,7 +44,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
 {
     type Output = Result<T, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         loop {
             // we're currently processing a future to produce a new accum value
             if self.accum().is_none() {

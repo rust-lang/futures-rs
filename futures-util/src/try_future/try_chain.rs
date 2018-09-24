@@ -27,7 +27,7 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
 
     pub(crate) fn poll<F>(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
         f: F,
     ) -> Poll<Result<Fut2::Ok, Fut2::Error>>
         where F: FnOnce(Result<Fut1::Ok, Fut1::Error>, Data) -> TryChainAction<Fut2>,

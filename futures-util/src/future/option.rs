@@ -38,7 +38,7 @@ impl<F: Future> Future for OptionFuture<F> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Self::Output> {
         match self.option().as_pin_mut() {
             Some(x) => x.poll(cx).map(Some),

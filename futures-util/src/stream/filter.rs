@@ -80,7 +80,7 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
         loop {
             if self.pending_fut().as_pin_mut().is_none() {

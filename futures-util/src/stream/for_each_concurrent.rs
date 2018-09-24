@@ -55,7 +55,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
         loop {
             let mut made_progress_this_iter = false;
 

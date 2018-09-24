@@ -29,7 +29,7 @@ impl<Fut: Future> Fuse<Fut> {
 impl<Fut: Future> Future for Fuse<Fut> {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut::Output> {
         // safety: we use this &mut only for matching, not for movement
         let v = match self.future().as_pin_mut() {
             Some(fut) => {

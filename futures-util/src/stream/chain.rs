@@ -38,7 +38,7 @@ where St1: Stream,
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.first().as_pin_mut() {
             if let Some(item) = ready!(first.poll_next(cx)) {

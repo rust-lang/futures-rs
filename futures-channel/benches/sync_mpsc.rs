@@ -20,11 +20,11 @@ fn notify_noop() -> LocalWaker {
     task::local_waker_from_nonlocal(Arc::new(Noop))
 }
 
-fn noop_cx(f: impl FnOnce(&mut task::Context)) {
+fn noop_cx(f: impl FnOnce(&LocalWaker)) {
     let pool = LocalPool::new();
     let mut spawn = pool.spawner();
     let waker = notify_noop();
-    let cx = &mut task::Context::new(&waker, &mut spawn);
+    let cx = &LocalWaker::new(&waker, &mut spawn);
     f(cx)
 }
 
@@ -100,7 +100,7 @@ struct TestSender {
 impl Stream for TestSender {
     type Item = u32;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context)
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker)
         -> Poll<Option<Self::Item>>
     {
         let this = &mut *self;

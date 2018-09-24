@@ -16,7 +16,7 @@ impl<T> Future for Ready<T> {
     type Output = T;
 
     #[inline]
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<T> {
         Poll::Ready(self.0.take().unwrap())
     }
 }

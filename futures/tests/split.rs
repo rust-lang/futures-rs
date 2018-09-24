@@ -22,7 +22,7 @@ impl<T: Stream, U> Stream for Join<T, U> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T::Item>> {
         self.stream().poll_next(cx)
     }
@@ -34,7 +34,7 @@ impl<T, U: Sink> Sink for Join<T, U> {
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_ready(cx)
     }
@@ -48,14 +48,14 @@ impl<T, U: Sink> Sink for Join<T, U> {
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_flush(cx)
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_close(cx)
     }

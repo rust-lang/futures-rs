@@ -26,7 +26,7 @@ impl<St: TryStream + Unpin> Future for TryNext<'_, St> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         match Pin::new(&mut *self.stream).try_poll_next(cx) {
             Poll::Ready(Some(Ok(x))) => Poll::Ready(Ok(Some(x))),

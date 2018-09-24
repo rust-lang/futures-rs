@@ -32,7 +32,7 @@ impl<W> Future for Flush<'_, W>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         self.writer.poll_flush(cx)
     }
 }

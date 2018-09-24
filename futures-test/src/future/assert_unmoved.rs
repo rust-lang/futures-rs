@@ -34,7 +34,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {

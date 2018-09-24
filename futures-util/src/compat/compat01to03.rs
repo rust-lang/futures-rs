@@ -12,7 +12,7 @@ impl<Fut: Future01> Future03 for Compat<Fut, ()> {
 
     fn poll(
         self: Pin<&mut Self>,
-        cx: &mut task03::Context,
+        lw: &mut task03::Context,
     ) -> task03::Poll<Self::Output> {
         let notify = &WakerToHandle(cx.waker());
 
@@ -31,7 +31,7 @@ impl<St: Stream01> Stream03 for Compat<St, ()> {
 
     fn poll_next(
         self: Pin<&mut Self>,
-        cx: &mut task03::Context,
+        lw: &mut task03::Context,
     ) -> task03::Poll<Option<Self::Item>> {
         let notify = &WakerToHandle(cx.waker());
 

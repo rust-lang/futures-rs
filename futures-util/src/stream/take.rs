@@ -58,7 +58,7 @@ impl<St> Stream for Take<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<St::Item>> {
         if *self.remaining() == 0 {
             Poll::Ready(None)

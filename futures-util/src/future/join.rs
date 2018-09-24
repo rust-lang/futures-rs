@@ -48,7 +48,7 @@ macro_rules! generate {
 
             #[allow(clippy::useless_let_if_seq)]
             fn poll(
-                mut self: Pin<&mut Self>, cx: &mut task::Context
+                mut self: Pin<&mut Self>, lw: &LocalWaker
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 $(

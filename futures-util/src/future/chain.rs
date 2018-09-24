@@ -20,7 +20,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
 
     pub(crate) fn poll<F>(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
         f: F,
     ) -> Poll<Fut2::Output>
         where F: FnOnce(Fut1::Output, Data) -> Fut2,

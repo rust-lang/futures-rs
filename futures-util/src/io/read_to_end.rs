@@ -46,7 +46,7 @@ impl Drop for Guard<'_> {
 // readers, we need to make sure to truncate that if any of this panics.
 fn read_to_end_internal<R: AsyncRead + ?Sized>(
     rd: &mut R,
-    cx: &mut task::Context,
+    lw: &LocalWaker,
     buf: &mut Vec<u8>,
 ) -> Poll<io::Result<()>> {
     let mut g = Guard { len: buf.len(), buf };
@@ -83,7 +83,7 @@ impl<A> Future for ReadToEnd<'_, A>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
         read_to_end_internal(this.reader, cx, this.buf)
     }

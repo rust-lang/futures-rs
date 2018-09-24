@@ -52,7 +52,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let sink1_ready = try_poll!(self.sink1().poll_ready(cx)).is_ready();
         let sink2_ready = try_poll!(self.sink2().poll_ready(cx)).is_ready();
@@ -71,7 +71,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let sink1_ready = try_poll!(self.sink1().poll_flush(cx)).is_ready();
         let sink2_ready = try_poll!(self.sink2().poll_flush(cx)).is_ready();
@@ -81,7 +81,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let sink1_ready = try_poll!(self.sink1().poll_close(cx)).is_ready();
         let sink2_ready = try_poll!(self.sink2().poll_close(cx)).is_ready();

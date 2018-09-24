@@ -451,7 +451,7 @@ impl<T> Sender<T> {
 
     // Do the send without failing
     // None means close
-    fn do_send(&mut self, cx: Option<&mut task::Context>, msg: T)
+    fn do_send(&mut self, lw: Option<&LocalWaker>, msg: T)
         -> Result<(), TrySendError<T>>
     {
         // Anyone callig do_send *should* make sure there is room first,
@@ -616,7 +616,7 @@ impl<T> Sender<T> {
         }
     }
 
-    fn park(&mut self, cx: Option<&mut task::Context>) {
+    fn park(&mut self, lw: Option<&LocalWaker>) {
         // TODO: clean up internal state if the task::current will fail
 
         let task = cx.map(|cx| cx.waker().clone());
@@ -651,7 +651,7 @@ impl<T> Sender<T> {
     /// - `Err(SendError)` if the receiver has been dropped.
     pub fn poll_ready(
         &mut self,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Result<(), SendError>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
@@ -677,7 +677,7 @@ impl<T> Sender<T> {
         let _ = self.do_send_nb(None);
     }
 
-    fn poll_unparked(&mut self, cx: Option<&mut task::Context>) -> Poll<()> {
+    fn poll_unparked(&mut self, lw: Option<&LocalWaker>) -> Poll<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -708,7 +708,7 @@ impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
     pub fn poll_ready(
         &self,
-        _: &mut task::Context,
+        _: &LocalWaker,
     ) -> Poll<Result<(), SendError>> {
         self.0.poll_ready_nb()
     }
@@ -914,7 +914,7 @@ impl<T> Receiver<T> {
     }
 
     // Try to park the receiver task
-    fn try_park(&self, cx: &mut task::Context) -> TryPark {
+    fn try_park(&self, lw: &LocalWaker) -> TryPark {
         let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
@@ -961,7 +961,7 @@ impl<T> Stream for Receiver<T> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         loop {
             // Try to read a message off of the message queue.
@@ -1031,7 +1031,7 @@ impl<T> Stream for UnboundedReceiver<T> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         Pin::new(&mut self.0).poll_next(cx)
     }

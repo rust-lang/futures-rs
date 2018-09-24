@@ -73,18 +73,18 @@ impl<T> io::Write for AllowStdIo<T> where T: io::Write {
 }
 
 impl<T> AsyncWrite for AllowStdIo<T> where T: io::Write {
-    fn poll_write(&mut self, _: &mut task::Context, buf: &[u8])
+    fn poll_write(&mut self, _: &LocalWaker, buf: &[u8])
         -> Poll<io::Result<usize>>
     {
         Poll::Ready(Ok(try_with_interrupt!(io::Write::write(&mut self.0, buf))))
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<io::Result<()>> {
+    fn poll_flush(&mut self, _: &LocalWaker) -> Poll<io::Result<()>> {
         try_with_interrupt!(io::Write::flush(self));
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<io::Result<()>> {
+    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
         self.poll_flush(cx)
     }
 }
@@ -107,7 +107,7 @@ impl<T> io::Read for AllowStdIo<T> where T: io::Read {
 }
 
 impl<T> AsyncRead for AllowStdIo<T> where T: io::Read {
-    fn poll_read(&mut self, _: &mut task::Context, buf: &mut [u8])
+    fn poll_read(&mut self, _: &LocalWaker, buf: &mut [u8])
         -> Poll<io::Result<usize>>
     {
         Poll::Ready(Ok(try_with_interrupt!(io::Read::read(&mut self.0, buf))))

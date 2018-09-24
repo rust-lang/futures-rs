@@ -25,7 +25,7 @@ impl<I, T, E> Stream for Iter<I>
     type Item = T;
     type Error = E;
 
-    fn poll_next(&mut self, _: &mut task::Context) -> Poll<Option<T>, E> {
+    fn poll_next(&mut self, _: &LocalWaker) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Ok(Async::Ready(Some(e))),
             Some(Err(e)) => Err(e),
@@ -288,7 +288,7 @@ fn peek() {
         type Item = ();
         type Error = u32;
 
-        fn poll(&mut self, cx: &mut task::Context) -> Poll<(), u32> {
+        fn poll(&mut self, lw: &LocalWaker) -> Poll<(), u32> {
             {
                 let res = try_ready!(self.inner.peek(cx));
                 assert_eq!(res, Some(&1));

@@ -23,7 +23,7 @@ impl<A, B> Future for Select<A, B> where A: Future, B: Future {
     type Item = Either<(A::Item, B), (B::Item, A)>;
     type Error = Either<(A::Error, B), (B::Error, A)>;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, lw: &LocalWaker) -> Poll<Self::Item, Self::Error> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
         match a.poll(cx) {
             Err(e) => Err(Either::Left((e, b))),

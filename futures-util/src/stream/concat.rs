@@ -54,7 +54,7 @@ where St: Stream,
     type Output = St::Item;
 
     fn poll(
-        mut self: Pin<&mut Self>, cx: &mut task::Context
+        mut self: Pin<&mut Self>, lw: &LocalWaker
     ) -> Poll<Self::Output> {
         loop {
             match self.stream().poll_next(cx) {

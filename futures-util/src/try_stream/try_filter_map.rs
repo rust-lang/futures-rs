@@ -64,7 +64,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending().as_pin_mut().is_none() {

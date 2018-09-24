@@ -37,18 +37,18 @@ impl<F> Unpin for PollFn<F> {}
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&mut task::Context) -> Poll<Option<T>>,
+    F: FnMut(&LocalWaker) -> Poll<Option<T>>,
 {
     PollFn { f }
 }
 
 impl<T, F> Stream for PollFn<F>
 where
-    F: FnMut(&mut task::Context) -> Poll<Option<T>>,
+    F: FnMut(&LocalWaker) -> Poll<Option<T>>,
 {
     type Item = T;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<T>> {
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<T>> {
         (&mut self.f)(cx)
     }
 }

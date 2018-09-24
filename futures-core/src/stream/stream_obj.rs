@@ -17,7 +17,7 @@ use core::pin::Pin;
 ///   information #44874)
 pub struct LocalStreamObj<'a, T> {
     ptr: *mut (),
-    poll_next_fn: unsafe fn(*mut (), &mut task::Context) -> Poll<Option<T>>,
+    poll_next_fn: unsafe fn(*mut (), &LocalWaker) -> Poll<Option<T>>,
     drop_fn: unsafe fn(*mut ()),
     _marker: PhantomData<&'a ()>,
 }
@@ -65,7 +65,7 @@ impl<'a, T> Stream for LocalStreamObj<'a, T> {
     #[inline]
     fn poll_next(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         unsafe { (self.poll_next_fn)(self.ptr, cx) }
     }
@@ -113,7 +113,7 @@ impl<'a, T> Stream for StreamObj<'a, T> {
     #[inline]
     fn poll_next(
         self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         let pinned_field = unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) };
         pinned_field.poll_next(cx)
@@ -143,7 +143,7 @@ pub unsafe trait UnsafeStreamObj<'a, T>: 'a {
     /// `drop`.
     unsafe fn poll_next(
         ptr: *mut (),
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>>;
 
     /// Drops the stream represented by the given void pointer.
@@ -166,7 +166,7 @@ where
 
     unsafe fn poll_next(
         ptr: *mut (),
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         Pin::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
     }
@@ -184,7 +184,7 @@ where
 
     unsafe fn poll_next(
         ptr: *mut (),
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         Pin::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
     }
@@ -202,7 +202,7 @@ if_std! {
             Box::into_raw(self) as *mut ()
         }
 
-        unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+        unsafe fn poll_next(ptr: *mut (), lw: &LocalWaker) -> Poll<Option<T>> {
             let ptr = ptr as *mut F;
             let pin: Pin<&mut F> = Pin::new_unchecked(&mut *ptr);
             pin.poll_next(cx)
@@ -220,7 +220,7 @@ if_std! {
             unsafe { Pin::get_mut_unchecked(Pin::as_mut(&mut self)) as *mut F as *mut () }
         }
 
-        unsafe fn poll_next(ptr: *mut (), cx: &mut task::Context) -> Poll<Option<T>> {
+        unsafe fn poll_next(ptr: *mut (), lw: &LocalWaker) -> Poll<Option<T>> {
             let ptr = ptr as *mut F;
             let pin: Pin<&mut F> = Pin::new_unchecked(&mut *ptr);
             pin.poll_next(cx)

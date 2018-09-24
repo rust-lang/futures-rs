@@ -69,7 +69,7 @@ impl<St: Stream> Stream for SelectAll<St> {
 
     fn poll_next(
         &mut self,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>, Self::Error> {
         match self.inner.poll_next(cx).map_err(|(err, _)| err)? {
             Async::Pending => Ok(Async::Pending),

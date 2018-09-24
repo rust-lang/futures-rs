@@ -44,7 +44,7 @@ impl<St1, St2> Stream for Select<St1, St2>
 
     fn poll_next(
         self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<St1::Item>> {
         let Select { flag, stream1, stream2 } =
             unsafe { Pin::get_mut_unchecked(self) };
@@ -63,7 +63,7 @@ fn poll_inner<St1, St2>(
     flag: &mut bool,
     a: Pin<&mut St1>,
     b: Pin<&mut St2>,
-    cx: &mut task::Context
+    lw: &LocalWaker
 ) -> Poll<Option<St1::Item>>
     where St1: Stream, St2: Stream<Item = St1::Item>
 {

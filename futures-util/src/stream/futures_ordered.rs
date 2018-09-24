@@ -49,7 +49,7 @@ impl<T> Future for OrderWrapper<T>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         self.data().poll(cx)
             .map(|output| OrderWrapper { data: output, index: self.index })
@@ -172,7 +172,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
 

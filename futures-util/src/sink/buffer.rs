@@ -41,7 +41,7 @@ impl<Si: Sink> Buffer<Si> {
 
     fn try_empty_buffer(
         self: &mut Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Result<(), Si::SinkError>> {
         try_ready!(self.sink().poll_ready(cx));
         while let Some(item) = self.buf().pop_front() {
@@ -60,7 +60,7 @@ impl<Si: Sink> Buffer<Si> {
 impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
         self.sink().poll_next(cx)
     }
 }
@@ -71,7 +71,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         if *self.capacity() == 0 {
             return self.sink().poll_ready(cx);
@@ -102,7 +102,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf().is_empty());
@@ -111,7 +111,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         try_ready!(self.try_empty_buffer(cx));
         debug_assert!(self.buf().is_empty());

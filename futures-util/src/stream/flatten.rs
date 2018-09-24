@@ -65,7 +65,7 @@ impl<St> Stream for Flatten<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         loop {
             if self.next().as_pin_mut().is_none() {

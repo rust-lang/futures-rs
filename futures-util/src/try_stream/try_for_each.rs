@@ -44,7 +44,7 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
 {
     type Output = Result<(), St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         loop {
             if let Some(future) = self.future().as_pin_mut() {
                 try_ready!(future.try_poll(cx));

@@ -26,7 +26,7 @@ impl<T> Unpin for Empty<T> {}
 impl<T> Stream for Empty<T> {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Option<Self::Item>> {
         Poll::Ready(None)
     }
 }

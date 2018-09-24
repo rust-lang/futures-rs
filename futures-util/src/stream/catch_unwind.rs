@@ -31,7 +31,7 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         if *self.caught_unwind() {
             Poll::Ready(None)

@@ -48,7 +48,7 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
         loop {
             if let Some(future) = self.future().as_pin_mut() {
                 ready!(future.poll(cx));

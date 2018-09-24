@@ -38,7 +38,7 @@ impl<T> Stream for Repeat<T>
 {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Option<Self::Item>> {
         Poll::Ready(Some(self.item.clone()))
     }
 }

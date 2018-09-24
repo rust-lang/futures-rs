@@ -34,7 +34,7 @@ where
     #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         match self.stream().try_poll_next(cx) {
             Poll::Pending => Poll::Pending,

@@ -30,7 +30,7 @@ pub struct PendingOnce {
 
 impl Future for PendingOnce {
     type Output = ();
-    fn poll(mut self: Pin<&mut Self>, _: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Self::Output> {
         if self.is_ready {
             Poll::Ready(())
         } else {

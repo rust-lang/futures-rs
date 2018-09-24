@@ -104,7 +104,7 @@ where
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         // Try to spawn off as many futures as possible by filling up
         // our in_progress_queue of futures.

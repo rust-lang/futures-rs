@@ -42,7 +42,7 @@ struct WaitForCancel {
 impl Future for WaitForCancel {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         self.tx.poll_cancel(cx)
     }
 }

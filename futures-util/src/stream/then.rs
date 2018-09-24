@@ -45,7 +45,7 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Option<Fut::Output>> {
         if self.future().as_pin_mut().is_none() {
             let item = match ready!(self.stream().poll_next(cx)) {

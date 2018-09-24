@@ -254,7 +254,7 @@ impl<Fut> FuturesUnordered<Fut> {
 impl<Fut: Future> Stream for FuturesUnordered<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut core_task::Context)
+    fn poll_next(mut self: Pin<&mut Self>, lw: &mut core_task::Context)
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.

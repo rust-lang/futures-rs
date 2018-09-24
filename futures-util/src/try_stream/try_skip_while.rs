@@ -77,7 +77,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         if *self.done_skipping() {
             return self.stream().try_poll_next(cx);

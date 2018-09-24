@@ -36,17 +36,17 @@ impl<F> Unpin for Lazy<F> {}
 /// # });
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F>
-    where F: FnOnce(&mut task::Context) -> R,
+    where F: FnOnce(&LocalWaker) -> R,
 {
     Lazy { f: Some(f) }
 }
 
 impl<R, F> Future for Lazy<F>
-    where F: FnOnce(&mut task::Context) -> R,
+    where F: FnOnce(&LocalWaker) -> R,
 {
     type Output = R;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<R> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<R> {
         Poll::Ready((self.f.take().unwrap())(cx))
     }
 }

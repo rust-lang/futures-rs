@@ -75,7 +75,7 @@ impl<S: Stream> Stream for Fuse<S> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
         if *self.done() {
             return Poll::Ready(None);

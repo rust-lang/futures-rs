@@ -28,7 +28,7 @@ impl<Fut, Sp> Future for WithSpawner<Fut, Sp>
 {
     type Output = Fut::Output;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut task::Context) -> Poll<Fut::Output> {
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut::Output> {
         let this = unsafe { Pin::get_mut_unchecked(self) };
         let fut = unsafe { Pin::new_unchecked(&mut this.future) };
         let spawner = &mut this.spawner;
