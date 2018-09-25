@@ -1,9 +1,12 @@
 //! Futures.
 
-use crate::task::{self, Poll};
+use crate::task::{LocalWaker, Poll};
 use core::pin::Pin;
 
-pub use core::future::{Future, FutureObj, LocalFutureObj, UnsafeFutureObj};
+pub use core::future::Future;
+
+mod future_obj;
+pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
@@ -33,6 +36,6 @@ impl<F, T, E> TryFuture for F
 
     #[inline]
     fn try_poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<F::Output> {
-        self.poll(cx)
+        self.poll(lw)
     }
 }
