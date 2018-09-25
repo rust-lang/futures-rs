@@ -51,7 +51,7 @@ impl<A> Future for SelectAll<A>
 
     fn poll(&mut self, lw: &LocalWaker) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-            match f.poll(cx) {
+            match f.poll(lw) {
                 Ok(Async::Pending) => None,
                 Ok(Async::Ready(e)) => Some((i, Ok(e))),
                 Err(e) => Some((i, Err(e))),

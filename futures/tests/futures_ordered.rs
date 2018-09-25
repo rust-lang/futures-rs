@@ -38,13 +38,13 @@ fn works_2() {
         FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
     ]);
 
-    let cx = &mut no_spawn_context();
+    let lw = &mut no_spawn_context();
     a_tx.send(33).unwrap();
     b_tx.send(33).unwrap();
-    assert!(stream.poll_next_unpin(cx).is_ready());
-    assert!(stream.poll_next_unpin(cx).is_pending());
+    assert!(stream.poll_next_unpin(lw).is_ready());
+    assert!(stream.poll_next_unpin(lw).is_pending());
     c_tx.send(33).unwrap();
-    assert!(stream.poll_next_unpin(cx).is_ready());
+    assert!(stream.poll_next_unpin(lw).is_ready());
 }
 
 #[test]
@@ -70,15 +70,15 @@ fn queue_never_unblocked() {
         Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))) as _,
     ]);
 
-    with_no_spawn_context(|cx| {
+    with_no_spawn_context(|lw| {
         for _ in 0..10 {
-            assert!(stream.poll_next(cx).unwrap().is_pending());
+            assert!(stream.poll_next(lw).unwrap().is_pending());
         }
 
         b_tx.send(Box::new(())).unwrap();
-        assert!(stream.poll_next(cx).unwrap().is_pending());
+        assert!(stream.poll_next(lw).unwrap().is_pending());
         c_tx.send(Box::new(())).unwrap();
-        assert!(stream.poll_next(cx).unwrap().is_pending());
-        assert!(stream.poll_next(cx).unwrap().is_pending());
+        assert!(stream.poll_next(lw).unwrap().is_pending());
+        assert!(stream.poll_next(lw).unwrap().is_pending());
     })
 }*/

@@ -36,7 +36,7 @@ impl<Fut1, Fut2, F> Future for OrElse<Fut1, Fut2, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        self.try_chain().poll(cx, |result, async_op| {
+        self.try_chain().poll(lw, |result, async_op| {
             match result {
                 Ok(ok) => TryChainAction::Output(Ok(ok)),
                 Err(err) => TryChainAction::Future(async_op(err)),

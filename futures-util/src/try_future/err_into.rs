@@ -35,7 +35,7 @@ impl<Fut, E> Future for ErrInto<Fut, E>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        self.future().try_poll(cx)
+        self.future().try_poll(lw)
             .map(|res| res.map_err(Into::into))
     }
 }

@@ -34,6 +34,6 @@ impl<Si: Sink + Unpin + ?Sized> Future for Flush<'_, Si> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        Pin::new(&mut self.sink).poll_flush(cx)
+        Pin::new(&mut self.sink).poll_flush(lw)
     }
 }

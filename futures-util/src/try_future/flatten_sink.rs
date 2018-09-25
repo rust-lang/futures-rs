@@ -55,13 +55,13 @@ where
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let resolved_stream = match self.as_mut().project_pin() {
-            Ready(s) => return s.poll_ready(cx),
-            Waiting(f) => try_ready!(f.try_poll(cx)),
+            Ready(s) => return s.poll_ready(lw),
+            Waiting(f) => try_ready!(f.try_poll(lw)),
             Closed => panic!("poll_ready called after eof"),
         };
         Pin::set(self.as_mut(), FlattenSink(Ready(resolved_stream)));
         if let Ready(resolved_stream) = self.project_pin() {
-            resolved_stream.poll_ready(cx)
+            resolved_stream.poll_ready(lw)
         } else {
             unreachable!()
         }
@@ -83,7 +83,7 @@ where
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         match self.project_pin() {
-            Ready(s) => s.poll_flush(cx),
+            Ready(s) => s.poll_flush(lw),
             // if sink not yet resolved, nothing written ==> everything flushed
             Waiting(_) => Poll::Ready(Ok(())),
             Closed => panic!("poll_flush called after eof"),
@@ -95,7 +95,7 @@ where
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         let res = match self.as_mut().project_pin() {
-            Ready(s) => s.poll_close(cx),
+            Ready(s) => s.poll_close(lw),
             Waiting(_) | Closed => Poll::Ready(Ok(())),
         };
         if res.is_ready() {

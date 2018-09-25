@@ -23,7 +23,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                cx.waker().wake();
+                lw.waker().wake();
                 Poll::Pending
             }
         }
@@ -51,7 +51,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                cx.waker().wake();
+                lw.waker().wake();
                 Poll::Pending
             }
         }
@@ -88,7 +88,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                self.tx.send(cx.waker().clone()).unwrap();
+                self.tx.send(lw.waker().clone()).unwrap();
                 Poll::Pending
             }
         }

@@ -12,10 +12,10 @@ use std::sync::Arc;
 /// #![feature(futures_api)]
 /// use futures_test::task::{noop_context, panic_local_waker_ref};
 ///
-/// let mut cx = noop_context();
-/// let cx = &mut cx.with_waker(panic_local_waker_ref());
+/// let mut lw = noop_context();
+/// let lw = &mut lw.with_waker(panic_local_waker_ref());
 ///
-/// cx.waker().wake(); // Will panic
+/// lw.waker().wake(); // Will panic
 /// ```
 #[derive(Debug)]
 pub struct PanicWake {
@@ -79,12 +79,12 @@ pub fn panic_local_waker() -> LocalWaker {
 /// use futures::task;
 /// use futures_test::task::{panic_local_waker_ref, panic_spawner_mut};
 ///
-/// let mut cx = task::Context::new(
+/// let mut lw = task::Context::new(
 ///     panic_local_waker_ref(),
 ///     panic_spawner_mut(),
 /// );
 ///
-/// cx.waker().wake(); // Will panic
+/// lw.waker().wake(); // Will panic
 /// ```
 pub fn panic_local_waker_ref() -> &'static LocalWaker {
     thread_local! {

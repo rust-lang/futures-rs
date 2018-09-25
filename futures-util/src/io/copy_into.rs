@@ -52,7 +52,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             // If our buffer is empty, then we need to read some data to
             // continue.
             if this.pos == this.cap && !this.read_done {
-                let n = try_ready!(this.reader.poll_read(cx, &mut this.buf));
+                let n = try_ready!(this.reader.poll_read(lw, &mut this.buf));
                 if n == 0 {
                     this.read_done = true;
                 } else {
@@ -63,7 +63,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
 
             // If our buffer has some data, let's write it out!
             while this.pos < this.cap {
-                let i = try_ready!(this.writer.poll_write(cx, &this.buf[this.pos..this.cap]));
+                let i = try_ready!(this.writer.poll_write(lw, &this.buf[this.pos..this.cap]));
                 if i == 0 {
                     return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
                 } else {
@@ -76,7 +76,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             // data and finish the transfer.
             // done with the entire transfer.
             if this.pos == this.cap && this.read_done {
-                try_ready!(this.writer.poll_flush(cx));
+                try_ready!(this.writer.poll_flush(lw));
                 return Poll::Ready(Ok(this.amt));
             }
         }

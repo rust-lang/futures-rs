@@ -47,13 +47,13 @@ impl<St1, St2> Stream for Zip<St1, St2>
         lw: &LocalWaker
     ) -> Poll<Option<Self::Item>> {
         if self.queued1().is_none() {
-            match self.stream1().poll_next(cx) {
+            match self.stream1().poll_next(lw) {
                 Poll::Ready(Some(item1)) => *self.queued1() = Some(item1),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
         if self.queued2().is_none() {
-            match self.stream2().poll_next(cx) {
+            match self.stream2().poll_next(lw) {
                 Poll::Ready(Some(item2)) => *self.queued2() = Some(item2),
                 Poll::Ready(None) | Poll::Pending => {}
             }

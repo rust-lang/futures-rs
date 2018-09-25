@@ -33,13 +33,13 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
         loop {
             let (output, data) = match this {
                 Chain::First(fut1, data) => {
-                    match unsafe { Pin::new_unchecked(fut1) }.poll(cx) {
+                    match unsafe { Pin::new_unchecked(fut1) }.poll(lw) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(output) => (output, data.take().unwrap()),
                     }
                 }
                 Chain::Second(fut2) => {
-                    return unsafe { Pin::new_unchecked(fut2) }.poll(cx);
+                    return unsafe { Pin::new_unchecked(fut2) }.poll(lw);
                 }
                 Chain::Empty => unreachable!()
             };

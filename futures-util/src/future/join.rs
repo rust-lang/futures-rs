@@ -52,7 +52,7 @@ macro_rules! generate {
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 $(
-                    if self.$Fut().poll(cx).is_pending() {
+                    if self.$Fut().poll(lw).is_pending() {
                         all_done = false;
                     }
                 )*

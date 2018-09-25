@@ -37,7 +37,7 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
             Poll::Ready(None)
         } else {
             let res = catch_unwind(AssertUnwindSafe(|| {
-                self.stream().poll_next(cx)
+                self.stream().poll_next(lw)
             }));
 
             match res {

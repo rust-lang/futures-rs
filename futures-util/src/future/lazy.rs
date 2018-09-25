@@ -47,6 +47,6 @@ impl<R, F> Future for Lazy<F>
     type Output = R;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<R> {
-        Poll::Ready((self.f.take().unwrap())(cx))
+        Poll::Ready((self.f.take().unwrap())(lw))
     }
 }

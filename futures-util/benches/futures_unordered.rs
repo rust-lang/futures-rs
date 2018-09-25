@@ -29,9 +29,9 @@ fn oneshots(b: &mut Bencher) {
             }
         });
 
-        block_on(future::poll_fn(move |cx| {
+        block_on(future::poll_fn(move |lw| {
             loop {
-                if let Poll::Ready(None) = rxs.poll_next_unpin(cx) {
+                if let Poll::Ready(None) = rxs.poll_next_unpin(lw) {
                     break
                 }
             }

@@ -41,7 +41,7 @@ impl<F: Future> Future for OptionFuture<F> {
         lw: &LocalWaker
     ) -> Poll<Self::Output> {
         match self.option().as_pin_mut() {
-            Some(x) => x.poll(cx).map(Some),
+            Some(x) => x.poll(lw).map(Some),
             None => Poll::Ready(None),
         }
     }

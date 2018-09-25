@@ -93,7 +93,7 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
             Pin::set(self.fut(), Some(fut));
         }
 
-        let step = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
+        let step = ready!(self.fut().as_pin_mut().unwrap().poll(lw));
         Pin::set(self.fut(), None);
 
         if let Some((item, next_state)) = step {

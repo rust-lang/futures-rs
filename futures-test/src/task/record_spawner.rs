@@ -14,9 +14,9 @@ use futures_core::task::{Spawn, SpawnObjError};
 /// let mut recorder = RecordSpawner::new();
 ///
 /// {
-///     let mut cx = panic_context();
-///     let cx = &mut cx.with_spawner(&mut recorder);
-///     cx.spawner().spawn(async { });
+///     let mut lw = panic_context();
+///     let lw = &mut lw.with_spawner(&mut recorder);
+///     lw.spawner().spawn(async { });
 /// }
 ///
 /// assert_eq!(recorder.spawned().len(), 1);

@@ -65,7 +65,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
             if self.limit().map(|limit| limit.get() > current_len).unwrap_or(true) {
                 let mut stream_completed = false;
                 let elem = if let Some(stream) = self.stream().as_pin_mut() {
-                    match stream.poll_next(cx) {
+                    match stream.poll_next(lw) {
                         Poll::Ready(Some(elem)) => {
                             made_progress_this_iter = true;
                             Some(elem)
@@ -88,7 +88,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
                 }
             }
 
-            match self.futures().poll_next_unpin(cx) {
+            match self.futures().poll_next_unpin(lw) {
                 Poll::Ready(Some(())) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
                     if self.stream().is_none() {

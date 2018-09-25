@@ -31,9 +31,9 @@ macro_rules! assert_stream_pending {
         let mut stream = &mut $stream;
         $crate::assert::assert_is_unpin_stream(stream);
         let stream = $crate::std_reexport::pin::Pin::new(stream);
-        let cx = &mut $crate::task::no_spawn_context();
+        let lw = &mut $crate::task::no_spawn_context();
         let poll = $crate::futures_core_reexport::stream::Stream::poll_next(
-            stream, cx,
+            stream, lw,
         );
         if poll.is_ready() {
             panic!("assertion failed: stream is not pending");
@@ -68,8 +68,8 @@ macro_rules! assert_stream_next {
         let mut stream = &mut $stream;
         $crate::assert::assert_is_unpin_stream(stream);
         let stream = $crate::std_reexport::pin::Pin::new(stream);
-        let cx = &mut $crate::task::no_spawn_context();
-        match $crate::futures_core_reexport::stream::Stream::poll_next(stream, cx) {
+        let lw = &mut $crate::task::no_spawn_context();
+        match $crate::futures_core_reexport::stream::Stream::poll_next(stream, lw) {
             $crate::futures_core_reexport::task::Poll::Ready(Some(x)) => {
                 assert_eq!(x, $item);
             }
@@ -111,8 +111,8 @@ macro_rules! assert_stream_done {
         let mut stream = &mut $stream;
         $crate::assert::assert_is_unpin_stream(stream);
         let stream = $crate::std_reexport::pin::Pin::new(stream);
-        let cx = &mut $crate::task::no_spawn_context();
-        match $crate::futures_core_reexport::stream::Stream::poll_next(stream, cx) {
+        let lw = &mut $crate::task::no_spawn_context();
+        match $crate::futures_core_reexport::stream::Stream::poll_next(stream, lw) {
             $crate::futures_core_reexport::task::Poll::Ready(Some(_)) => {
                 panic!("assertion failed: expected stream to be done but had more elements");
             }

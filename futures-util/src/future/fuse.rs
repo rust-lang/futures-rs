@@ -34,7 +34,7 @@ impl<Fut: Future> Future for Fuse<Fut> {
         let v = match self.future().as_pin_mut() {
             Some(fut) => {
                 // safety: this re-pinned future will never move before being dropped
-                match fut.poll(cx) {
+                match fut.poll(lw) {
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(v) => v
                 }

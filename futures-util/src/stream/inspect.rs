@@ -61,7 +61,7 @@ impl<St, F> Stream for Inspect<St, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<St::Item>> {
-        let item = ready!(self.stream().poll_next(cx));
+        let item = ready!(self.stream().poll_next(lw));
         Poll::Ready(item.map(|e| {
             (self.f())(&e);
             e

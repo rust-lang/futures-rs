@@ -29,8 +29,8 @@ impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
 
     fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
-        match self.0.poll_lock(cx) {
-            Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(cx),
+        match self.0.poll_lock(lw) {
+            Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(lw),
             Poll::Pending => Poll::Pending,
         }
     }
@@ -73,7 +73,7 @@ impl<S: Sink> Sink for SplitSink<S> {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
             }
-            try_ready!(self.as_mut().poll_flush(cx));
+            try_ready!(self.as_mut().poll_flush(lw));
         }
     }
 
@@ -84,15 +84,15 @@ impl<S: Sink> Sink for SplitSink<S> {
 
     fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
-        match this.lock.poll_lock(cx) {
+        match this.lock.poll_lock(lw) {
             Poll::Ready(mut inner) => {
                 if this.slot.is_some() {
-                    try_ready!(inner.as_pin_mut().poll_ready(cx));
+                    try_ready!(inner.as_pin_mut().poll_ready(lw));
                     if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
                         return Poll::Ready(Err(e));
                     }
                 }
-                inner.as_pin_mut().poll_flush(cx)
+                inner.as_pin_mut().poll_flush(lw)
             }
             Poll::Pending => Poll::Pending,
         }
@@ -100,15 +100,15 @@ impl<S: Sink> Sink for SplitSink<S> {
 
     fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
-        match this.lock.poll_lock(cx) {
+        match this.lock.poll_lock(lw) {
             Poll::Ready(mut inner) => {
                 if this.slot.is_some() {
-                    try_ready!(inner.as_pin_mut().poll_ready(cx));
+                    try_ready!(inner.as_pin_mut().poll_ready(lw));
                     if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
                         return Poll::Ready(Err(e));
                     }
                 }
-                inner.as_pin_mut().poll_close(cx)
+                inner.as_pin_mut().poll_close(lw)
             }
             Poll::Pending => Poll::Pending,
         }

@@ -84,14 +84,14 @@ where
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 
         if buffer.is_some() {
-            try_ready!(sink.as_mut().poll_ready(cx));
+            try_ready!(sink.as_mut().poll_ready(lw));
             let item = buffer.take().unwrap();
             try_ready!(Poll::Ready(sink.as_mut().start_send(item)));
         }
         if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
-            while let Some(x) = ready!(some_stream.as_mut().poll_next(cx)) {
+            while let Some(x) = ready!(some_stream.as_mut().poll_next(lw)) {
                 let item = try_ready!(Poll::Ready(x));
-                match try_poll!(sink.as_mut().poll_ready(cx)) {
+                match try_poll!(sink.as_mut().poll_ready(lw)) {
                     Poll::Ready(()) => {
                         try_poll!(Poll::Ready(sink.as_mut().start_send(item)))
                     }
@@ -118,7 +118,7 @@ where
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+        self.sink().poll_next(lw)
     }
 }
 
@@ -135,7 +135,7 @@ where
         self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        self.try_empty_stream(cx)
+        self.try_empty_stream(lw)
     }
 
     fn start_send(
@@ -152,9 +152,9 @@ where
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(cx) {
+        match self.as_mut().try_empty_stream(lw) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.sink().poll_flush(cx),
+            Poll::Ready(Ok(())) => self.sink().poll_flush(lw),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
     }
@@ -163,9 +163,9 @@ where
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(cx) {
+        match self.as_mut().try_empty_stream(lw) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.sink().poll_close(cx),
+            Poll::Ready(Ok(())) => self.sink().poll_close(lw),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
     }

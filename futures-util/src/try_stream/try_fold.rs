@@ -48,12 +48,12 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
         loop {
             // we're currently processing a future to produce a new accum value
             if self.accum().is_none() {
-                let accum = ready!(self.future().as_pin_mut().unwrap().try_poll(cx)?);
+                let accum = ready!(self.future().as_pin_mut().unwrap().try_poll(lw)?);
                 *self.accum() = Some(accum);
                 Pin::set(self.future(), None);
             }
 
-            let item = ready!(self.stream().try_poll_next(cx)?);
+            let item = ready!(self.stream().try_poll_next(lw)?);
             let accum = self.accum().take()
                 .expect("TryFold polled after completion");
 

@@ -49,7 +49,7 @@ where
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
-        match Pin::new(&mut self.sink).poll_ready(cx) {
+        match Pin::new(&mut self.sink).poll_ready(lw) {
             Poll::Ready(Ok(())) => {
                 Poll::Ready(Pin::new(&mut self.sink).start_send(item))
             }
@@ -77,20 +77,20 @@ where
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = this.buffered.take() {
-            try_ready!(this.try_start_send(cx, item))
+            try_ready!(this.try_start_send(lw, item))
         }
 
         loop {
-            match this.stream.poll_next_unpin(cx) {
+            match this.stream.poll_next_unpin(lw) {
                 Poll::Ready(Some(item)) => {
-                    try_ready!(this.try_start_send(cx, item))
+                    try_ready!(this.try_start_send(lw, item))
                 }
                 Poll::Ready(None) => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
                     return Poll::Pending
                 }
             }

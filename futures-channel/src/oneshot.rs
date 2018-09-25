@@ -177,7 +177,7 @@ impl<T> Inner<T> {
         // `Receiver` may have been dropped. The first thing it does is set the
         // flag, and if it fails to acquire the lock it assumes that we'll see
         // the flag later on. So... we then try to see the flag later on!
-        let handle = cx.waker().clone();
+        let handle = lw.waker().clone();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Poll::Ready(()),
@@ -261,7 +261,7 @@ impl<T> Inner<T> {
         let done = if self.complete.load(SeqCst) {
             true
         } else {
-            let task = cx.waker().clone();
+            let task = lw.waker().clone();
             match self.rx_task.try_lock() {
                 Some(mut slot) => { *slot = Some(task); false },
                 None => true,
@@ -350,7 +350,7 @@ impl<T> Sender<T> {
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
     pub fn poll_cancel(&mut self, lw: &LocalWaker) -> Poll<()> {
-        self.inner.poll_cancel(cx)
+        self.inner.poll_cancel(lw)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
@@ -422,7 +422,7 @@ impl<T> Future for Receiver<T> {
         self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<T, Canceled>> {
-        self.inner.recv(cx)
+        self.inner.recv(lw)
     }
 }
 

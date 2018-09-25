@@ -62,7 +62,7 @@ impl<St, F, T> Stream for Map<St, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<T>> {
-        let option = ready!(self.stream().poll_next(cx));
+        let option = ready!(self.stream().poll_next(lw));
         Poll::Ready(option.map(self.f()))
     }
 }

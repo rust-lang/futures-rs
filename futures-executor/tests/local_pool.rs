@@ -149,7 +149,7 @@ fn tasks_are_scheduled_fairly() {
                 return Poll::Ready(());
             }
 
-            cx.waker().wake();
+            lw.waker().wake();
             Poll::Pending
         }
     }

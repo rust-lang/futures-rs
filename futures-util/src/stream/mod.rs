@@ -1036,6 +1036,6 @@ pub trait StreamExt: Stream {
     ) -> Poll<Option<Self::Item>>
     where Self: Unpin + Sized
     {
-        Pin::new(self).poll_next(cx)
+        Pin::new(self).poll_next(lw)
     }
 }

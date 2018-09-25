@@ -36,10 +36,10 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         if *self.polled_before() {
-            self.future().poll(cx)
+            self.future().poll(lw)
         } else {
             *self.polled_before() = true;
-            cx.waker().wake();
+            lw.waker().wake();
             Poll::Pending
         }
     }

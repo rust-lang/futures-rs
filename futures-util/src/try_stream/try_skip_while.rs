@@ -80,12 +80,12 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         if *self.done_skipping() {
-            return self.stream().try_poll_next(cx);
+            return self.stream().try_poll_next(lw);
         }
 
         loop {
             if self.pending_item().is_none() {
-                let item = match ready!(self.stream().try_poll_next(cx)?) {
+                let item = match ready!(self.stream().try_poll_next(lw)?) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
@@ -94,7 +94,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
                 *self.pending_item() = Some(item);
             }
 
-            let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().try_poll(cx)?);
+            let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().try_poll(lw)?);
             let item = self.pending_item().take().unwrap();
             Pin::set(self.pending_fut(), None);
 

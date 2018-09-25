@@ -81,7 +81,7 @@ impl<S: Stream> Stream for Fuse<S> {
             return Poll::Ready(None);
         }
 
-        let item = ready!(self.stream().poll_next(cx));
+        let item = ready!(self.stream().poll_next(lw));
         if item.is_none() {
             *self.done() = true;
         }

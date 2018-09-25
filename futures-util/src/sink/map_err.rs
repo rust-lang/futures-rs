@@ -64,7 +64,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().poll_ready(cx).map_err(|e| self.take_f()(e))
+        self.sink().poll_ready(lw).map_err(|e| self.take_f()(e))
     }
 
     fn start_send(
@@ -80,7 +80,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().poll_flush(cx).map_err(|e| self.take_f()(e))
+        self.sink().poll_flush(lw).map_err(|e| self.take_f()(e))
     }
 
     fn poll_close(
@@ -88,7 +88,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().poll_close(cx).map_err(|e| self.take_f()(e))
+        self.sink().poll_close(lw).map_err(|e| self.take_f()(e))
     }
 }
 
@@ -99,6 +99,6 @@ impl<S: Stream, F> Stream for SinkMapErr<S, F> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+        self.sink().poll_next(lw)
     }
 }

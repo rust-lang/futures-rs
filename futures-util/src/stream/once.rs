@@ -43,7 +43,7 @@ impl<Fut: Future> Stream for Once<Fut> {
         lw: &LocalWaker,
     ) -> Poll<Option<Fut::Output>> {
         let val = if let Some(f) = self.future().as_pin_mut() {
-            ready!(f.poll(cx))
+            ready!(f.poll(lw))
         } else {
             return Poll::Ready(None)
         };

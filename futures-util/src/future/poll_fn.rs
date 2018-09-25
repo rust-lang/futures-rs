@@ -49,6 +49,6 @@ impl<T, F> Future for PollFn<F>
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
-        (&mut self.f)(cx)
+        (&mut self.f)(lw)
     }
 }

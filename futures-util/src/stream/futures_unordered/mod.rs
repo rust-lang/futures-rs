@@ -258,7 +258,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.
-        self.ready_to_run_queue.waker.register(cx.waker());
+        self.ready_to_run_queue.waker.register(lw.waker());
 
         loop {
             // Safety: &mut self guarantees the mutual exclusion `dequeue`
@@ -275,7 +275,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    cx.local_waker().wake();
+                    lw.local_waker().wake();
                     return Poll::Pending;
                 }
                 Dequeue::Data(task) => task,
@@ -367,12 +367,12 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // deallocating the task if need be.
             let res = {
                 let local_waker = bomb.task.as_ref().unwrap().local_waker();
-                let mut cx = cx.with_waker(&*local_waker);
+                let mut lw = lw.with_waker(&*local_waker);
 
                 // Safety: We won't move the future ever again
                 let future = unsafe { Pin::new_unchecked(future) };
 
-                future.poll(&mut cx)
+                future.poll(&mut lw)
             };
 
             match res {

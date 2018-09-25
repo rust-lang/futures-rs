@@ -33,7 +33,7 @@ impl<Fut, F, T> Future for Map<Fut, F>
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
-        match self.future().poll(cx) {
+        match self.future().poll(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(output) => {
                 let f = self.f().take()

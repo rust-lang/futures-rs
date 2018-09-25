@@ -43,10 +43,10 @@ pub trait FutureTestExt: Future {
     /// let future = (async { 5 }).pending_once();
     /// pin_mut!(future);
     ///
-    /// let cx = &mut task::no_spawn_context();
+    /// let lw = &mut task::no_spawn_context();
     ///
-    /// assert_eq!(future.poll_unpin(cx), Poll::Pending);
-    /// assert_eq!(future.poll_unpin(cx), Poll::Ready(5));
+    /// assert_eq!(future.poll_unpin(lw), Poll::Pending);
+    /// assert_eq!(future.poll_unpin(lw), Poll::Ready(5));
     /// ```
     fn pending_once(self) -> PendingOnce<Self>
     where

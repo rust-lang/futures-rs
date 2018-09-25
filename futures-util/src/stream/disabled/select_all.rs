@@ -71,7 +71,7 @@ impl<St: Stream> Stream for SelectAll<St> {
         &mut self,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.inner.poll_next(cx).map_err(|(err, _)| err)? {
+        match self.inner.poll_next(lw).map_err(|(err, _)| err)? {
             Async::Pending => Ok(Async::Pending),
             Async::Ready(Some((Some(item), remaining))) => {
                 self.push(remaining);

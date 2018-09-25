@@ -483,7 +483,7 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(cx);
+            self.park(lw);
         }
 
         self.queue_push_and_signal(Some(msg));
@@ -619,7 +619,7 @@ impl<T> Sender<T> {
     fn park(&mut self, lw: Option<&LocalWaker>) {
         // TODO: clean up internal state if the task::current will fail
 
-        let task = cx.map(|cx| cx.waker().clone());
+        let task = lw.map(|lw| lw.waker().clone());
 
         {
             let mut sender = self.sender_task.lock().unwrap();
@@ -660,7 +660,7 @@ impl<T> Sender<T> {
             }));
         }
 
-        self.poll_unparked(Some(cx)).map(Ok)
+        self.poll_unparked(Some(lw)).map(Ok)
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -695,7 +695,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = cx.map(|cx| cx.waker().clone());
+            task.task = lw.map(|lw| lw.waker().clone());
 
             Poll::Pending
         } else {
@@ -932,7 +932,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(cx.waker().clone());
+        recv_task.task = Some(lw.waker().clone());
         TryPark::Parked
     }
 
@@ -971,7 +971,7 @@ impl<T> Stream for Receiver<T> {
                     // There are no messages to read, in this case, attempt to
                     // park. The act of parking will verify that the channel is
                     // still empty after the park operation has completed.
-                    match self.try_park(cx) {
+                    match self.try_park(lw) {
                         TryPark::Parked => {
                             // The task was parked, and the channel is still
                             // empty, return Pending.
@@ -1033,7 +1033,7 @@ impl<T> Stream for UnboundedReceiver<T> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(cx)
+        Pin::new(&mut self.0).poll_next(lw)
     }
 }
 
