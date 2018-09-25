@@ -2,7 +2,7 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.

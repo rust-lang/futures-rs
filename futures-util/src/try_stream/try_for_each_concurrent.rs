@@ -4,7 +4,7 @@ use core::pin::Pin;
 use core::num::NonZeroUsize;
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which executes a unit closure over each item on a

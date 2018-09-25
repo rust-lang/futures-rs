@@ -3,7 +3,7 @@
 use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A future which wraps a function returning [`Poll`].
 ///
@@ -26,7 +26,7 @@ impl<F> Unpin for PollFn<F> {}
 /// #![feature(async_await, await_macro, futures_api)]
 /// # futures::executor::block_on(async {
 /// use futures::future::poll_fn;
-/// use futures::task::{self, Poll};
+/// use futures::task::{LocalWaker, Poll};
 ///
 /// fn read_line(lw: &LocalWaker) -> Poll<String> {
 ///     Poll::Ready("Hello, World!".into())

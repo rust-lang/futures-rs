@@ -1,7 +1,7 @@
 //! A channel for sending a single message between asynchronous tasks.
 
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Waker};
+use futures_core::task::{LocalWaker, Poll, Waker};
 use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -177,7 +177,7 @@ impl<T> Inner<T> {
         // `Receiver` may have been dropped. The first thing it does is set the
         // flag, and if it fails to acquire the lock it assumes that we'll see
         // the flag later on. So... we then try to see the flag later on!
-        let handle = lw.waker().clone();
+        let handle = lw.clone().into_waker();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Poll::Ready(()),
@@ -261,7 +261,7 @@ impl<T> Inner<T> {
         let done = if self.complete.load(SeqCst) {
             true
         } else {
-            let task = lw.waker().clone();
+            let task = lw.clone().into_waker();
             match self.rx_task.try_lock() {
                 Some(mut slot) => { *slot = Some(task); false },
                 None => true,

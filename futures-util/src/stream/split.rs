@@ -1,5 +1,5 @@
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use std::any::Any;
 use std::error::Error;

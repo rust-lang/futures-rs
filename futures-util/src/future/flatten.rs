@@ -2,7 +2,7 @@ use super::chain::Chain;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the `flatten` combinator.

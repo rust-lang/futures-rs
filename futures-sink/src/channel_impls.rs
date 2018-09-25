@@ -1,5 +1,5 @@
 use crate::{Sink, Poll};
-use futures_core::task;
+use futures_core::task::LocalWaker;
 use futures_channel::mpsc::{Sender, SendError, UnboundedSender};
 use std::pin::Pin;
 

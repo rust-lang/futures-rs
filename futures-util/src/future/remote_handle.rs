@@ -1,26 +1,35 @@
-use crate::future::FutureExt;
-use super::SpawnError;
-use futures_channel::oneshot::{self, Sender, Receiver};
-use futures_core::future::Future;
-use futures_core::task::{self, Poll, Spawn, SpawnObjError};
-use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::marker::Unpin;
-use std::pin::Pin;
-use std::panic::{self, AssertUnwindSafe};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
+use {
+    crate::future::{CatchUnwind, FutureExt},
+    futures_channel::oneshot::{self, Sender, Receiver},
+    futures_core::{
+        future::Future,
+        task::{LocalWaker, Poll},
+    },
+    pin_utils::{unsafe_pinned, unsafe_unpinned},
+    std::{
+        any::Any,
+        fmt,
+        marker::Unpin,
+        panic::{self, AssertUnwindSafe},
+        pin::Pin,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        thread,
+    },
+};
 
-/// The join handle returned by
-/// [`spawn_with_handle`](crate::task::SpawnExt::spawn_with_handle).
+/// The handle to a remote future returned by
+/// [`remote_handle`](crate::future::FutureExt::remote_handle).
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
-pub struct JoinHandle<T> {
+pub struct RemoteHandle<T> {
     rx: Receiver<thread::Result<T>>,
     keep_running: Arc<AtomicBool>,
 }
 
-impl<T> JoinHandle<T> {
+impl<T> RemoteHandle<T> {
     /// Drops this handle *without* canceling the underlying future.
     ///
     /// This method can be used if you want to drop the handle, but let the
@@ -30,7 +39,7 @@ impl<T> JoinHandle<T> {
     }
 }
 
-impl<T: Send + 'static> Future for JoinHandle<T> {
+impl<T: Send + 'static> Future for RemoteHandle<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
@@ -43,21 +52,34 @@ impl<T: Send + 'static> Future for JoinHandle<T> {
     }
 }
 
-struct Wrapped<Fut: Future> {
-    tx: Option<Sender<Fut::Output>>,
+type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'static)>>;
+
+/// A future which sends its output to the corresponding `RemoteHandle`.
+/// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
+#[must_use = "futures do nothing unless polled"]
+pub struct Remote<Fut: Future> {
+    tx: Option<Sender<SendMsg<Fut>>>,
     keep_running: Arc<AtomicBool>,
-    future: Fut,
+    future: CatchUnwind<AssertUnwindSafe<Fut>>,
 }
 
-impl<Fut: Future + Unpin> Unpin for Wrapped<Fut> {}
+impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("Remote")
+            .field(&self.future)
+            .finish()
+    }
+}
 
-impl<Fut: Future> Wrapped<Fut> {
-    unsafe_pinned!(future: Fut);
-    unsafe_unpinned!(tx: Option<Sender<Fut::Output>>);
+impl<Fut: Future + Unpin> Unpin for Remote<Fut> {}
+
+impl<Fut: Future> Remote<Fut> {
+    unsafe_pinned!(future: CatchUnwind<AssertUnwindSafe<Fut>>);
+    unsafe_unpinned!(tx: Option<Sender<SendMsg<Fut>>>);
     unsafe_unpinned!(keep_running: Arc<AtomicBool>);
 }
 
-impl<Fut: Future> Future for Wrapped<Fut> {
+impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
@@ -80,29 +102,18 @@ impl<Fut: Future> Future for Wrapped<Fut> {
     }
 }
 
-pub(super) fn spawn_with_handle<Sp, Fut>(
-    executor: &mut Sp,
-    future: Fut,
-) -> Result<JoinHandle<Fut::Output>, SpawnError>
-where Sp: Spawn + ?Sized,
-      Fut: Future + Send + 'static,
-      Fut::Output: Send,
-{
+pub(super) fn remote_handle<Fut: Future>(future: Fut) -> (Remote<Fut>, RemoteHandle<Fut::Output>) {
     let (tx, rx) = oneshot::channel();
     let keep_running = Arc::new(AtomicBool::new(false));
 
     // AssertUnwindSafe is used here because `Send + 'static` is basically
     // an alias for an implementation of the `UnwindSafe` trait but we can't
     // express that in the standard library right now.
-    let wrapped = Wrapped {
+    let wrapped = Remote {
         future: AssertUnwindSafe(future).catch_unwind(),
         tx: Some(tx),
         keep_running: keep_running.clone(),
     };
 
-    let res = executor.spawn_obj(Box::new(wrapped).into());
-    match res {
-        Ok(()) => Ok(JoinHandle { rx, keep_running }),
-        Err(SpawnObjError { kind, .. }) => Err(SpawnError { kind }),
-    }
+    (wrapped, RemoteHandle { rx, keep_running })
 }

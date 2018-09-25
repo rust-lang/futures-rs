@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`map_ok`](super::TryStreamExt::map_ok) combinator.

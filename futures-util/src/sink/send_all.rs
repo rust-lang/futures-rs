@@ -3,7 +3,7 @@ use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 
 /// Future for the `Sink::send_all` combinator, which sends a stream of values

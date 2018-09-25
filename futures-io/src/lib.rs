@@ -21,7 +21,7 @@ macro_rules! if_std {
 }
 
 if_std! {
-    use futures_core::task::{self, Poll};
+    use futures_core::task::{LocalWaker, Poll};
     use std::boxed::Box;
     use std::cmp;
     use std::io as StdIo;

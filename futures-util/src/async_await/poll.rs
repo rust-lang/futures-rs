@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A macro which returns the result of polling a future once within the
 /// current `async` context.

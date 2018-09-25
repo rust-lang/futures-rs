@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::stream::TryStream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which attempts to execute an async closure over each

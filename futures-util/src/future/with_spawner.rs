@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Spawn};
+use futures_core::task::{LocalWaker, Poll, Spawn};
 
 /// Future for the `with_spawner` combinator, assigning a [`Spawn`]
 /// to be used when spawning other futures.
