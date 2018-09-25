@@ -1,6 +1,6 @@
 use crate::task::AtomicWaker;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 use std::marker::Unpin;
 use std::pin::Pin;
@@ -134,7 +134,7 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
         }
 
         // Register to receive a wakeup if the future is aborted in the... future
-        self.inner.waker.register(lw.waker());
+        self.inner.waker.register(lw);
 
         // Check to see if the future was aborted between the first check and
         // registration.

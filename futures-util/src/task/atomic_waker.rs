@@ -2,7 +2,7 @@ use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
-use futures_core::task::Waker;
+use futures_core::task::{LocalWaker, Waker};
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -171,7 +171,7 @@ impl AtomicWaker {
     /// ```
     /// #![feature(pin, arbitrary_self_types, futures_api)]
     /// use futures::future::Future;
-    /// use futures::task::{self, Poll, AtomicWaker};
+    /// use futures::task::{LocalWaker, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
     /// use std::sync::atomic::Ordering::SeqCst;
     /// use std::pin::Pin;
@@ -197,12 +197,12 @@ impl AtomicWaker {
     ///     }
     /// }
     /// ```
-    pub fn register(&self, waker: &Waker) {
+    pub fn register(&self, lw: &LocalWaker) {
         match self.state.compare_and_swap(WAITING, REGISTERING, Acquire) {
             WAITING => {
                 unsafe {
                     // Locked acquired, update the waker cell
-                    *self.waker.get() = Some(waker.clone());
+                    *self.waker.get() = Some(lw.clone().into_waker());
 
                     // Release the lock. If the state transitioned to include
                     // the `WAKING` bit, this means that a wake has been
@@ -253,7 +253,7 @@ impl AtomicWaker {
                 // Currently in the process of waking the task, i.e.,
                 // `wake` is currently being called on the old task handle.
                 // So, we call wake on the new waker
-                waker.wake();
+                lw.wake();
             }
             state => {
                 // In this case, a concurrent thread is holding the

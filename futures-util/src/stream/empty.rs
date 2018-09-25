@@ -1,7 +1,7 @@
 use core::marker::{Unpin, PhantomData};
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A stream which contains no elements.
 ///

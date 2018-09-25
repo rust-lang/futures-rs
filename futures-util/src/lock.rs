@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Waker};
+use futures_core::task::{LocalWaker, Poll, Waker};
 use std::any::Any;
 use std::boxed::Box;
 use std::cell::UnsafeCell;
@@ -104,7 +104,7 @@ impl<T> BiLock<T> {
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = Box::new(lw.waker().clone());
+            let me: Box<Waker> = Box::new(lw.clone().into_waker());
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {

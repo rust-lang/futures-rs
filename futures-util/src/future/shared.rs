@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Wake, Waker};
+use futures_core::task::{LocalWaker, Poll, Wake, Waker};
 use slab::Slab;
 use std::fmt;
 use std::cell::UnsafeCell;
@@ -116,18 +116,18 @@ where
             return
         };
         if self.waker_key == NULL_WAKER_KEY {
-            self.waker_key = wakers.insert(Some(lw.waker().clone()));
+            self.waker_key = wakers.insert(Some(lw.clone().into_waker()));
         } else {
             let waker_slot = &mut wakers[self.waker_key];
             let needs_replacement = if let Some(old_waker) = waker_slot {
                 // If there's still an unwoken waker in the slot, only replace
                 // if the current one wouldn't wake the same task.
-                !old_waker.will_wake(lw.waker())
+                !lw.will_wake_nonlocal(old_waker)
             } else {
                 true
             };
             if needs_replacement {
-                *waker_slot = Some(lw.waker().clone());
+                *waker_slot = Some(lw.clone().into_waker());
             }
         }
         debug_assert!(self.waker_key != NULL_WAKER_KEY);
@@ -173,7 +173,7 @@ where
         }
 
         let waker = local_waker_from_nonlocal(this.inner.notifier.clone());
-        let mut lw = lw.with_waker(&waker);
+        let lw = &waker;
 
         loop {
             struct Reset<'a>(&'a AtomicUsize);
@@ -193,7 +193,7 @@ where
             // Poll the future
             let res = unsafe {
                 if let FutureOrOutput::Future(future) = &mut *this.inner.future_or_output.get() {
-                    Pin::new_unchecked(future).poll(&mut lw)
+                    Pin::new_unchecked(future).poll(lw)
                 } else {
                     unreachable!()
                 }

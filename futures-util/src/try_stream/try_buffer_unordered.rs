@@ -3,7 +3,7 @@ use crate::try_future::{IntoFuture, TryFutureExt};
 use crate::try_stream::IntoStream;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
 use std::pin::Pin;

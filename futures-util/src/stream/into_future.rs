@@ -2,7 +2,7 @@ use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A combinator used to temporarily convert a stream into a future.
 ///

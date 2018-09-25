@@ -1,6 +1,6 @@
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use core::marker::Unpin;
 use core::pin::Pin;
 

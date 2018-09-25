@@ -7,7 +7,7 @@ use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll, Spawn};
+use futures_core::task::{LocalWaker, Poll};
 
 // Primitive futures
 mod empty;
@@ -60,9 +60,6 @@ pub use self::inspect::Inspect;
 mod unit_error;
 pub use self::unit_error::UnitError;
 
-mod with_spawner;
-pub use self::with_spawner::WithSpawner;
-
 // Implementation details
 mod chain;
 pub(crate) use self::chain::Chain;
@@ -73,6 +70,9 @@ if_std! {
 
     mod catch_unwind;
     pub use self::catch_unwind::CatchUnwind;
+
+    mod remote_handle;
+    pub use self::remote_handle::{Remote, RemoteHandle};
 
     // ToDo
     // mod join_all;
@@ -621,6 +621,18 @@ pub trait FutureExt: Future {
         Shared::new(self)
     }
 
+    /// Turn this future into a future that yields `()` on completion and sends
+    /// its output to another future on a separate task.
+    ///
+    /// This can be used with spawning executors to easily retrieve the result
+    /// of a future executing on a separate task or thread.
+    fn remote_handle(self) -> (Remote<Self>, RemoteHandle<Self::Output>)
+    where
+        Self: Sized,
+    {
+        remote_handle::remote_handle(self)
+    }
+
     /// Wrap the future in a Box, pinning it.
     #[cfg(feature = "std")]
     fn boxed(self) -> Pin<Box<Self>>
@@ -634,45 +646,6 @@ pub trait FutureExt: Future {
         where Self: Sized
     {
         UnitError::new(self)
-    }
-
-    /// Assigns the provided `Spawn` to be used when spawning tasks
-    /// from within the future.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// # futures::executor::block_on(async {
-    /// use futures::spawn;
-    /// use futures::executor::ThreadPool;
-    /// use futures::future::FutureExt;
-    /// use std::thread;
-    /// # let (tx, rx) = futures::channel::oneshot::channel();
-    ///
-    /// let pool = ThreadPool::builder()
-    ///     .name_prefix("my-pool-")
-    ///     .pool_size(1)
-    ///     .create().unwrap();
-    ///
-    ///  let val = await!((async {
-    ///      assert_ne!(thread::current().name(), Some("my-pool-0"));
-    ///
-    ///      // Spawned task runs on the executor specified via `with_spawner`
-    ///      spawn!(async {
-    ///          assert_eq!(thread::current().name(), Some("my-pool-0"));
-    ///          # tx.send("ran").unwrap();
-    ///      }).unwrap();
-    ///  }).with_spawner(pool));
-    ///
-    ///  # assert_eq!(await!(rx), Ok("ran"))
-    ///  # })
-    /// ```
-    fn with_spawner<Sp>(self, spawner: Sp) -> WithSpawner<Self, Sp>
-        where Self: Sized,
-              Sp: Spawn
-    {
-        WithSpawner::new(self, spawner)
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.

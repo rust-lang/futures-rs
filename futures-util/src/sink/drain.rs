@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 
 /// A sink that will discard all items given to it.

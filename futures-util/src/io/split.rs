@@ -1,5 +1,5 @@
 use crate::lock::BiLock;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_io::{AsyncRead, AsyncWrite, IoVec};
 use std::io;
 use std::pin::Pin;

@@ -79,7 +79,7 @@
 // by the queue structure.
 
 use futures_core::stream::Stream;
-use futures_core::task::{self, Waker, Poll};
+use futures_core::task::{LocalWaker, Waker, Poll};
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
@@ -619,7 +619,7 @@ impl<T> Sender<T> {
     fn park(&mut self, lw: Option<&LocalWaker>) {
         // TODO: clean up internal state if the task::current will fail
 
-        let task = lw.map(|lw| lw.waker().clone());
+        let task = lw.map(|lw| lw.clone().into_waker());
 
         {
             let mut sender = self.sender_task.lock().unwrap();
@@ -695,7 +695,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = lw.map(|lw| lw.waker().clone());
+            task.task = lw.map(|lw| lw.clone().into_waker());
 
             Poll::Pending
         } else {
@@ -932,7 +932,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(lw.waker().clone());
+        recv_task.task = Some(lw.clone().into_waker());
         TryPark::Parked
     }
 
