@@ -12,8 +12,8 @@ use futures_core::task::Context;
 /// #![feature(futures_api)]
 /// use futures_test::task;
 ///
-/// let cx = task::panic_context();
-/// cx.waker().wake(); // Will panic
+/// let lw = task::panic_context();
+/// lw.waker().wake(); // Will panic
 /// ```
 pub fn panic_context() -> Context<'static> {
     Context::new(panic_local_waker_ref(), panic_spawner_mut())

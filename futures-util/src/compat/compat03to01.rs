@@ -19,7 +19,7 @@ where
     type Error = Fut::Error;
 
     fn poll(&mut self) -> Poll01<Self::Item, Self::Error> {
-        with_context(self, |inner, cx| match inner.try_poll(cx) {
+        with_context(self, |inner, lw| match inner.try_poll(lw) {
             task03::Poll::Ready(Ok(t)) => Ok(Async01::Ready(t)),
             task03::Poll::Pending => Ok(Async01::NotReady),
             task03::Poll::Ready(Err(e)) => Err(e),
@@ -36,7 +36,7 @@ where
     type Error = St::Error;
 
     fn poll(&mut self) -> Poll01<Option<Self::Item>, Self::Error> {
-        with_context(self, |inner, cx| match inner.try_poll_next(cx) {
+        with_context(self, |inner, lw| match inner.try_poll_next(lw) {
             task03::Poll::Ready(None) => Ok(Async01::Ready(None)),
             task03::Poll::Ready(Some(Ok(t))) => Ok(Async01::Ready(Some(t))),
             task03::Poll::Pending => Ok(Async01::NotReady),
@@ -57,8 +57,8 @@ where
         &mut self,
         item: Self::SinkItem,
     ) -> StartSend01<Self::SinkItem, Self::SinkError> {
-        with_context(self, |mut inner, cx| {
-            match inner.as_mut().poll_ready(cx) {
+        with_context(self, |mut inner, lw| {
+            match inner.as_mut().poll_ready(lw) {
                 task03::Poll::Ready(Ok(())) => {
                     inner.start_send(item).map(|()| AsyncSink01::Ready)
                 }
@@ -69,7 +69,7 @@ where
     }
 
     fn poll_complete(&mut self) -> Poll01<(), Self::SinkError> {
-        with_context(self, |inner, cx| match inner.poll_flush(cx) {
+        with_context(self, |inner, lw| match inner.poll_flush(lw) {
             task03::Poll::Ready(Ok(())) => Ok(Async01::Ready(())),
             task03::Poll::Pending => Ok(Async01::NotReady),
             task03::Poll::Ready(Err(e)) => Err(e),
@@ -77,7 +77,7 @@ where
     }
 
     fn close(&mut self) -> Poll01<(), Self::SinkError> {
-        with_context(self, |inner, cx| match inner.poll_close(cx) {
+        with_context(self, |inner, lw| match inner.poll_close(lw) {
             task03::Poll::Ready(Ok(())) => Ok(Async01::Ready(())),
             task03::Poll::Pending => Ok(Async01::NotReady),
             task03::Poll::Ready(Err(e)) => Err(e),
@@ -124,6 +124,6 @@ where
 {
     let waker = current_ref_as_waker();
     let spawn = compat.spawn.as_mut().unwrap();
-    let mut cx = task03::Context::new(&waker, spawn);
-    f(Pin::new(&mut compat.inner), &mut cx)
+    let mut lw = task03::Context::new(&waker, spawn);
+    f(Pin::new(&mut compat.inner), &mut lw)
 }

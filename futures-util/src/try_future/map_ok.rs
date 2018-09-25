@@ -34,7 +34,7 @@ impl<Fut, F, T> Future for MapOk<Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        match self.future().try_poll(cx) {
+        match self.future().try_poll(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
                 let op = self.f().take()

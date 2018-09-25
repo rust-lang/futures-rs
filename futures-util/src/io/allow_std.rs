@@ -85,7 +85,7 @@ impl<T> AsyncWrite for AllowStdIo<T> where T: io::Write {
     }
 
     fn poll_close(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
-        self.poll_flush(cx)
+        self.poll_flush(lw)
     }
 }
 

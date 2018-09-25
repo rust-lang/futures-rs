@@ -42,7 +42,7 @@ fn task_init(b: &mut Bencher) {
                     return Poll::Pending;
                 }
 
-                let t = cx.waker().clone();
+                let t = lw.waker().clone();
                 t.wake();
                 self.task = Some(t);
 
@@ -59,10 +59,10 @@ fn task_init(b: &mut Bencher) {
     let pool = LocalPool::new();
     let mut spawn = pool.spawner();
     let waker = notify_noop();
-    let mut cx = task::Context::new(&waker, &mut spawn);
+    let mut lw = task::Context::new(&waker, &mut spawn);
 
     b.iter(|| {
         fut.num = 0;
-        while let Poll::Pending = fut.poll_unpin(&mut cx) {}
+        while let Poll::Pending = fut.poll_unpin(&mut lw) {}
     });
 }

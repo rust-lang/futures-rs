@@ -35,7 +35,7 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {
             let mut sink = Pin::new(&mut this.sink);
-            match sink.as_mut().poll_ready(cx) {
+            match sink.as_mut().poll_ready(lw) {
                 Poll::Ready(Ok(())) => {
                     if let Err(e) = sink.as_mut().start_send(item) {
                         return Poll::Ready(Err(e));
@@ -51,7 +51,7 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
+        try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
 
         Poll::Ready(Ok(()))
     }

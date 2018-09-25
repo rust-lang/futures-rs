@@ -53,7 +53,7 @@ impl<Fut> Stream for FlattenStream<Fut>
                 State::Future(f) => {
                     // safety: the future we're re-pinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    match unsafe { Pin::new_unchecked(f) }.poll(cx) {
+                    match unsafe { Pin::new_unchecked(f) }.poll(lw) {
                         Poll::Pending => {
                             // State is not changed, early return.
                             return Poll::Pending
@@ -69,7 +69,7 @@ impl<Fut> Stream for FlattenStream<Fut>
                 State::Stream(s) => {
                     // safety: the stream we're repinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    return unsafe { Pin::new_unchecked(s) }.poll_next(cx);
+                    return unsafe { Pin::new_unchecked(s) }.poll_next(lw);
                 }
             };
 

@@ -69,12 +69,12 @@ impl<St> Stream for Flatten<St>
     ) -> Poll<Option<Self::Item>> {
         loop {
             if self.next().as_pin_mut().is_none() {
-                match ready!(self.stream().poll_next(cx)) {
+                match ready!(self.stream().poll_next(lw)) {
                     Some(e) => Pin::set(self.next(), Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
-            let item = ready!(self.next().as_pin_mut().unwrap().poll_next(cx));
+            let item = ready!(self.next().as_pin_mut().unwrap().poll_next(lw));
             if item.is_some() {
                 return Poll::Ready(item);
             } else {

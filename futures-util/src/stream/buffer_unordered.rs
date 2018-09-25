@@ -113,14 +113,14 @@ where
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.in_progress_queue.len() < self.max {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Ready(Some(fut)) => self.in_progress_queue().push(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        match Pin::new(self.in_progress_queue()).poll_next(cx) {
+        match Pin::new(self.in_progress_queue()).poll_next(lw) {
             x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
             Poll::Ready(None) => {}
         }

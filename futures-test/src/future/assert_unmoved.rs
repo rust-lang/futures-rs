@@ -43,7 +43,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
         } else {
             assert_eq!(self.this_ptr, cur_this, "Future moved between poll calls");
         }
-        self.future().poll(cx)
+        self.future().poll(lw)
     }
 }
 

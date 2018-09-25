@@ -82,7 +82,7 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
         }
 
         if self.pending_item().is_none() {
-            let item = match ready!(self.stream().poll_next(cx)) {
+            let item = match ready!(self.stream().poll_next(lw)) {
                 Some(e) => e,
                 None => return Poll::Ready(None),
             };
@@ -91,7 +91,7 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
             *self.pending_item() = Some(item);
         }
 
-        let take = ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
+        let take = ready!(self.pending_fut().as_pin_mut().unwrap().poll(lw));
         Pin::set(self.pending_fut(), None);
         let item = self.pending_item().take().unwrap();
 

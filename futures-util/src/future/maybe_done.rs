@@ -88,7 +88,7 @@ impl<Fut: Future> Future for MaybeDone<Fut> {
         let res = unsafe {
             match Pin::get_mut_unchecked(self.as_mut()) {
                 MaybeDone::Future(a) => {
-                    if let Poll::Ready(res) = Pin::new_unchecked(a).poll(cx) {
+                    if let Poll::Ready(res) = Pin::new_unchecked(a).poll(lw) {
                         res
                     } else {
                         return Poll::Pending

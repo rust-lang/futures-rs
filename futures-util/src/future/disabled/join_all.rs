@@ -93,7 +93,7 @@ impl<F> Future for JoinAll<F>
         for idx in 0 .. self.elems.len() {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
-                    match t.poll(cx) {
+                    match t.poll(lw) {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::Pending) => {
                             all_done = false;

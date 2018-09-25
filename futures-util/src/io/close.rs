@@ -28,6 +28,6 @@ impl<W: AsyncWrite + ?Sized> Future for Close<'_, W> {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        self.writer.poll_close(cx)
+        self.writer.poll_close(lw)
     }
 }

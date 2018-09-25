@@ -32,6 +32,6 @@ impl<Fut, Sp> Future for WithSpawner<Fut, Sp>
         let this = unsafe { Pin::get_mut_unchecked(self) };
         let fut = unsafe { Pin::new_unchecked(&mut this.future) };
         let spawner = &mut this.spawner;
-        fut.poll(&mut cx.with_spawner(spawner))
+        fut.poll(&mut lw.with_spawner(spawner))
     }
 }

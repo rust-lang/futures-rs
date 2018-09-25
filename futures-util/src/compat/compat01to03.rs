@@ -14,7 +14,7 @@ impl<Fut: Future01> Future03 for Compat<Fut, ()> {
         self: Pin<&mut Self>,
         lw: &mut task03::Context,
     ) -> task03::Poll<Self::Output> {
-        let notify = &WakerToHandle(cx.waker());
+        let notify = &WakerToHandle(lw.waker());
 
         executor01::with_notify(notify, 0, move || {
             match unsafe { Pin::get_mut_unchecked(self) }.inner.poll() {
@@ -33,7 +33,7 @@ impl<St: Stream01> Stream03 for Compat<St, ()> {
         self: Pin<&mut Self>,
         lw: &mut task03::Context,
     ) -> task03::Poll<Option<Self::Item>> {
-        let notify = &WakerToHandle(cx.waker());
+        let notify = &WakerToHandle(lw.waker());
 
         executor01::with_notify(notify, 0, move || {
             match unsafe { Pin::get_mut_unchecked(self) }.inner.poll() {

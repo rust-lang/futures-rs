@@ -52,7 +52,7 @@ where
         debug_assert!(self.buffered_item.is_none());
         {
             let mut sink = self.sink().as_pin_mut().unwrap();
-            if try_poll!(sink.as_mut().poll_ready(cx)).is_ready() {
+            if try_poll!(sink.as_mut().poll_ready(lw)).is_ready() {
                 return Poll::Ready(sink.start_send(item));
             }
         }
@@ -75,22 +75,22 @@ where
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered_item().take() {
-            try_ready!(self.as_mut().try_start_send(cx, item));
+            try_ready!(self.as_mut().try_start_send(lw, item));
         }
 
         loop {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Ready(Some(Ok(item))) =>
-                   try_ready!(self.as_mut().try_start_send(cx, item)),
+                   try_ready!(self.as_mut().try_start_send(lw, item)),
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
                 Poll::Ready(None) => {
                     try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)
-                                   .poll_close(cx));
+                                   .poll_close(lw));
                     return Poll::Ready(Ok(self.sink().take().unwrap()))
                 }
                 Poll::Pending => {
                     try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)
-                                   .poll_flush(cx));
+                                   .poll_flush(lw));
                     return Poll::Pending
                 }
             }

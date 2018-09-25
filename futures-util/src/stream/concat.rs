@@ -57,7 +57,7 @@ where St: Stream,
         mut self: Pin<&mut Self>, lw: &LocalWaker
     ) -> Poll<Self::Output> {
         loop {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
                     return Poll::Ready(self.accum().take().unwrap_or_default())

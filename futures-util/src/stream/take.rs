@@ -63,7 +63,7 @@ impl<St> Stream for Take<St>
         if *self.remaining() == 0 {
             Poll::Ready(None)
         } else {
-            let next = ready!(self.stream().poll_next(cx));
+            let next = ready!(self.stream().poll_next(lw));
             match next {
                 Some(_) => *self.remaining() -= 1,
                 None => *self.remaining() = 0,

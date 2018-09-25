@@ -290,11 +290,11 @@ fn peek() {
 
         fn poll(&mut self, lw: &LocalWaker) -> Poll<(), u32> {
             {
-                let res = try_ready!(self.inner.peek(cx));
+                let res = try_ready!(self.inner.peek(lw));
                 assert_eq!(res, Some(&1));
             }
-            assert_eq!(self.inner.peek(cx).unwrap(), Some(&1).into());
-            assert_eq!(self.inner.poll_next(cx).unwrap(), Some(1).into());
+            assert_eq!(self.inner.peek(lw).unwrap(), Some(&1).into());
+            assert_eq!(self.inner.poll_next(lw).unwrap(), Some(1).into());
             Ok(Async::Ready(()))
         }
     }

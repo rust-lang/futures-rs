@@ -129,12 +129,12 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
         }
 
         // attempt to complete the future
-        if let Poll::Ready(x) = self.future().poll(cx) {
+        if let Poll::Ready(x) = self.future().poll(lw) {
             return Poll::Ready(Ok(x))
         }
 
         // Register to receive a wakeup if the future is aborted in the... future
-        self.inner.waker.register(cx.waker());
+        self.inner.waker.register(lw.waker());
 
         // Check to see if the future was aborted between the first check and
         // registration.

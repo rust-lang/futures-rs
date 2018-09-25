@@ -12,13 +12,13 @@ use std::sync::Arc;
 /// use futures_test::task::{panic_context, WakeCounter};
 ///
 /// let wake_counter = WakeCounter::new();
-/// let mut cx = panic_context();
-/// let cx = &mut cx.with_waker(wake_counter.local_waker());
+/// let mut lw = panic_context();
+/// let lw = &mut lw.with_waker(wake_counter.local_waker());
 ///
 /// assert_eq!(wake_counter.count(), 0);
 ///
-/// cx.waker().wake();
-/// cx.waker().wake();
+/// lw.waker().wake();
+/// lw.waker().wake();
 ///
 /// assert_eq!(wake_counter.count(), 2);
 /// ```

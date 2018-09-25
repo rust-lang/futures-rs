@@ -49,6 +49,6 @@ where
     type Item = T;
 
     fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<T>> {
-        (&mut self.f)(cx)
+        (&mut self.f)(lw)
     }
 }

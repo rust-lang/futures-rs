@@ -68,7 +68,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
-                let item = match ready!(self.stream().try_poll_next(cx)) {
+                let item = match ready!(self.stream().try_poll_next(lw)) {
                     Some(Ok(x)) => x,
                     Some(Err(e)) => return Poll::Ready(Some(Err(e))),
                     None => return Poll::Ready(None),
@@ -77,7 +77,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
                 Pin::set(self.pending(), Some(fut));
             }
 
-            let result = ready!(self.pending().as_pin_mut().unwrap().try_poll(cx));
+            let result = ready!(self.pending().as_pin_mut().unwrap().try_poll(lw));
             Pin::set(self.pending(), None);
             match result {
                 Ok(Some(x)) => return Poll::Ready(Some(Ok(x))),

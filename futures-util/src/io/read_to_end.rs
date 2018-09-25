@@ -61,7 +61,7 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(
             }
         }
 
-        match rd.poll_read(cx, &mut g.buf[g.len..]) {
+        match rd.poll_read(lw, &mut g.buf[g.len..]) {
             Poll::Ready(Ok(0)) => {
                 ret = Poll::Ready(Ok(()));
                 break;
@@ -85,6 +85,6 @@ impl<A> Future for ReadToEnd<'_, A>
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
-        read_to_end_internal(this.reader, cx, this.buf)
+        read_to_end_internal(this.reader, lw, this.buf)
     }
 }

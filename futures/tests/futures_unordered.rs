@@ -42,11 +42,11 @@ fn works_2() {
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
 
-    let cx = &mut no_spawn_context();
-    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(9))));
+    let lw = &mut no_spawn_context();
+    assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(Some(Ok(9))));
     c_tx.send(20).unwrap();
-    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(Some(Ok(30))));
-    assert_eq!(stream.poll_next_unpin(cx), Poll::Ready(None));
+    assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(Some(Ok(30))));
+    assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(None));
 }
 
 #[test]
@@ -72,16 +72,16 @@ fn finished_future() {
         //FutureObj::new(Box::new(b_rx.select(c_rx))),
     ]);
 
-    support::with_noop_waker_context(f)(|cx| {
+    support::with_noop_waker_context(f)(|lw| {
         for _ in 0..10 {
-            assert!(stream.poll_next_unpin(cx).is_pending());
+            assert!(stream.poll_next_unpin(lw).is_pending());
         }
 
         b_tx.send(12).unwrap();
-        assert!(stream.poll_next_unpin(cx).is_ready());
+        assert!(stream.poll_next_unpin(lw).is_ready());
         c_tx.send(3).unwrap();
-        assert!(stream.poll_next_unpin(cx).is_pending());
-        assert!(stream.poll_next_unpin(cx).is_pending());
+        assert!(stream.poll_next_unpin(lw).is_pending());
+        assert!(stream.poll_next_unpin(lw).is_pending());
     })
 }*/
 

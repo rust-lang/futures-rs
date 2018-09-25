@@ -679,7 +679,7 @@ pub trait FutureExt: Future {
     fn poll_unpin(&mut self, lw: &LocalWaker) -> Poll<Self::Output>
         where Self: Unpin + Sized
     {
-        Pin::new(self).poll(cx)
+        Pin::new(self).poll(lw)
     }
 }
 

@@ -51,7 +51,7 @@ impl<T> Future for OrderWrapper<T>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        self.data().poll(cx)
+        self.data().poll(lw)
             .map(|output| OrderWrapper { data: output, index: self.index })
     }
 }
@@ -185,7 +185,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
         }
 
         loop {
-            match Pin::new(&mut this.in_progress_queue).poll_next(cx) {
+            match Pin::new(&mut this.in_progress_queue).poll_next(lw) {
                 Poll::Ready(Some(output)) => {
                     if output.index == this.next_outgoing_index {
                         this.next_outgoing_index += 1;

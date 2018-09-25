@@ -49,7 +49,7 @@ impl<A> Future for SelectOk<A> where A: Future {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-                match f.poll(cx) {
+                match f.poll(lw) {
                     Ok(Async::Pending) => None,
                     Ok(Async::Ready(e)) => Some((i, Ok(e))),
                     Err(e) => Some((i, Err(e))),

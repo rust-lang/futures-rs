@@ -116,18 +116,18 @@ where
             return
         };
         if self.waker_key == NULL_WAKER_KEY {
-            self.waker_key = wakers.insert(Some(cx.waker().clone()));
+            self.waker_key = wakers.insert(Some(lw.waker().clone()));
         } else {
             let waker_slot = &mut wakers[self.waker_key];
             let needs_replacement = if let Some(old_waker) = waker_slot {
                 // If there's still an unwoken waker in the slot, only replace
                 // if the current one wouldn't wake the same task.
-                !old_waker.will_wake(cx.waker())
+                !old_waker.will_wake(lw.waker())
             } else {
                 true
             };
             if needs_replacement {
-                *waker_slot = Some(cx.waker().clone());
+                *waker_slot = Some(lw.waker().clone());
             }
         }
         debug_assert!(self.waker_key != NULL_WAKER_KEY);
@@ -153,7 +153,7 @@ where
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
 
-        this.set_waker(cx);
+        this.set_waker(lw);
 
         match this.inner.notifier.state.compare_and_swap(IDLE, POLLING, SeqCst) {
             IDLE => {
@@ -173,7 +173,7 @@ where
         }
 
         let waker = local_waker_from_nonlocal(this.inner.notifier.clone());
-        let mut cx = cx.with_waker(&waker);
+        let mut lw = lw.with_waker(&waker);
 
         loop {
             struct Reset<'a>(&'a AtomicUsize);
@@ -193,7 +193,7 @@ where
             // Poll the future
             let res = unsafe {
                 if let FutureOrOutput::Future(future) = &mut *this.inner.future_or_output.get() {
-                    Pin::new_unchecked(future).poll(&mut cx)
+                    Pin::new_unchecked(future).poll(&mut lw)
                 } else {
                     unreachable!()
                 }

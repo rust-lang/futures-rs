@@ -77,7 +77,7 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
     ) -> Poll<Option<T>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
-                let item = match ready!(self.stream().poll_next(cx)) {
+                let item = match ready!(self.stream().poll_next(lw)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
@@ -85,7 +85,7 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
                 Pin::set(self.pending(), Some(fut));
             }
 
-            let item = ready!(self.pending().as_pin_mut().unwrap().poll(cx));
+            let item = ready!(self.pending().as_pin_mut().unwrap().poll(lw));
             Pin::set(self.pending(), None);
             if item.is_some() {
                 return Poll::Ready(item);

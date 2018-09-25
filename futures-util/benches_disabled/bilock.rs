@@ -46,7 +46,7 @@ impl Stream for LockStream {
     type Error = ();
 
     fn poll_next(&mut self, lw: &LocalWaker) -> Poll<Option<Self::Item>, Self::Error> {
-        self.lock.poll(cx).map(|a| match a {
+        self.lock.poll(lw).map(|a| match a {
             Async::Ready(a) => Async::Ready(Some(a)),
             Async::Pending => Async::Pending,
         })
@@ -60,7 +60,7 @@ fn contended(b: &mut Bencher) {
     let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
+    let mut lw = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (x, y) = BiLock::new(1);
@@ -69,20 +69,20 @@ fn contended(b: &mut Bencher) {
         let mut y = LockStream::new(y);
 
         for _ in 0..1000 {
-            let x_guard = match x.poll_next(&mut cx) {
+            let x_guard = match x.poll_next(&mut lw) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             // Try poll second lock while first lock still holds the lock
-            match y.poll_next(&mut cx) {
+            match y.poll_next(&mut lw) {
                 Ok(Async::Pending) => (),
                 _ => panic!(),
             };
 
             x.release_lock(x_guard);
 
-            let y_guard = match y.poll_next(&mut cx) {
+            let y_guard = match y.poll_next(&mut lw) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
@@ -99,7 +99,7 @@ fn lock_unlock(b: &mut Bencher) {
     let mut exec = pool.executor();
     let waker = notify_noop();
     let mut map = task::LocalMap::new();
-    let mut cx = task::Context::new(&mut map, &waker, &mut exec);
+    let mut lw = task::Context::new(&mut map, &waker, &mut exec);
 
     b.iter(|| {
         let (x, y) = BiLock::new(1);
@@ -108,14 +108,14 @@ fn lock_unlock(b: &mut Bencher) {
         let mut y = LockStream::new(y);
 
         for _ in 0..1000 {
-            let x_guard = match x.poll_next(&mut cx) {
+            let x_guard = match x.poll_next(&mut lw) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             x.release_lock(x_guard);
 
-            let y_guard = match y.poll_next(&mut cx) {
+            let y_guard = match y.poll_next(&mut lw) {
                 Ok(Async::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };

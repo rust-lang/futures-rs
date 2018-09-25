@@ -39,7 +39,7 @@ macro_rules! delegate_sink {
             mut self: Pin<&mut Self>,
             lw: &mut $crate::core_reexport::task::Context,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_ready(cx)
+            self.$field().poll_ready(lw)
         }
 
         fn start_send(
@@ -53,14 +53,14 @@ macro_rules! delegate_sink {
             mut self: Pin<&mut Self>,
             lw: &mut $crate::core_reexport::task::Context
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_flush(cx)
+            self.$field().poll_flush(lw)
         }
 
         fn poll_close(
             mut self: Pin<&mut Self>,
             lw: &mut $crate::core_reexport::task::Context
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_close(cx)
+            self.$field().poll_close(lw)
         }
     }
 }

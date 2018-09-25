@@ -8,7 +8,7 @@ impl<T> Sink for Sender<T> {
     type SinkError = SendError;
 
     fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        (*self).poll_ready(cx)
+        (*self).poll_ready(lw)
     }
 
     fn start_send(mut self: Pin<&mut Self>, msg: T) -> Result<(), Self::SinkError> {
@@ -30,7 +30,7 @@ impl<T> Sink for UnboundedSender<T> {
     type SinkError = SendError;
 
     fn poll_ready(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        UnboundedSender::poll_ready(&*self, cx)
+        UnboundedSender::poll_ready(&*self, lw)
     }
 
     fn start_send(mut self: Pin<&mut Self>, msg: T) -> Result<(), Self::SinkError> {
@@ -52,7 +52,7 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
     type SinkError = SendError;
 
     fn poll_ready(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        UnboundedSender::poll_ready(*self, cx)
+        UnboundedSender::poll_ready(*self, lw)
     }
 
     fn start_send(self: Pin<&mut Self>, msg: T) -> Result<(), Self::SinkError> {

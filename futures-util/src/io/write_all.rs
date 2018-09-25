@@ -32,7 +32,7 @@ impl<W: AsyncWrite + ?Sized> Future for WriteAll<'_, W> {
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.writer.poll_write(cx, this.buf));
+            let n = try_ready!(this.writer.poll_write(lw, this.buf));
             {
                 let (_, rest) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;

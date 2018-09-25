@@ -43,13 +43,13 @@ impl<Si: Sink> Buffer<Si> {
         self: &mut Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Result<(), Si::SinkError>> {
-        try_ready!(self.sink().poll_ready(cx));
+        try_ready!(self.sink().poll_ready(lw));
         while let Some(item) = self.buf().pop_front() {
             if let Err(e) = self.sink().start_send(item) {
                 return Poll::Ready(Err(e));
             }
             if !self.buf.is_empty() {
-                try_ready!(self.sink().poll_ready(cx));
+                try_ready!(self.sink().poll_ready(lw));
             }
         }
         Poll::Ready(Ok(()))
@@ -61,7 +61,7 @@ impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
 
     fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+        self.sink().poll_next(lw)
     }
 }
 
@@ -74,10 +74,10 @@ impl<Si: Sink> Sink for Buffer<Si> {
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         if *self.capacity() == 0 {
-            return self.sink().poll_ready(cx);
+            return self.sink().poll_ready(lw);
         }
 
-        if let Poll::Ready(Err(e)) = self.try_empty_buffer(cx) {
+        if let Poll::Ready(Err(e)) = self.try_empty_buffer(lw) {
             return Poll::Ready(Err(e));
         }
 
@@ -104,17 +104,17 @@ impl<Si: Sink> Sink for Buffer<Si> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.try_empty_buffer(cx));
+        try_ready!(self.try_empty_buffer(lw));
         debug_assert!(self.buf().is_empty());
-        self.sink().poll_flush(cx)
+        self.sink().poll_flush(lw)
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.try_empty_buffer(cx));
+        try_ready!(self.try_empty_buffer(lw));
         debug_assert!(self.buf().is_empty());
-        self.sink().poll_close(cx)
+        self.sink().poll_close(lw)
     }
 }

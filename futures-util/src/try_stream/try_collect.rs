@@ -45,7 +45,7 @@ impl<St, C> Future for TryCollect<St, C>
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         loop {
-            match ready!(self.stream().try_poll_next(cx)) {
+            match ready!(self.stream().try_poll_next(lw)) {
                 Some(Ok(x)) => self.items().extend(Some(x)),
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(self.finish())),

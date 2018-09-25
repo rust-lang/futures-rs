@@ -26,6 +26,6 @@ impl<St: Stream + Unpin> Future for Next<'_, St> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        Pin::new(&mut *self.stream).poll_next(cx)
+        Pin::new(&mut *self.stream).poll_next(lw)
     }
 }

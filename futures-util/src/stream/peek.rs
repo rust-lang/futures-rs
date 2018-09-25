@@ -41,7 +41,7 @@ impl<St: Stream> Peekable<St> {
         if self.peeked().is_some() {
             return Poll::Ready(self.peeked().as_ref())
         }
-        match ready!(self.stream().poll_next(cx)) {
+        match ready!(self.stream().poll_next(lw)) {
             None => Poll::Ready(None),
             Some(item) => {
                 *self.peeked() = Some(item);
@@ -61,7 +61,7 @@ impl<S: Stream> Stream for Peekable<S> {
         if let Some(item) = self.peeked().take() {
             return Poll::Ready(Some(item))
         }
-        self.stream().poll_next(cx)
+        self.stream().poll_next(lw)
     }
 }
 

@@ -32,7 +32,7 @@ impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.reader.poll_read(cx, this.buf));
+            let n = try_ready!(this.reader.poll_read(lw, this.buf));
             {
                 let (_, rest) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);
                 this.buf = rest;

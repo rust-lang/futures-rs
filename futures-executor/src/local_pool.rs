@@ -151,10 +151,10 @@ impl LocalPool {
 
         run_executor(|local_waker| {
             {
-                let mut main_cx = Context::new(local_waker, spawn);
+                let mut main_lw = Context::new(local_waker, spawn);
 
                 // if our main task is done, so are we
-                let result = future.as_mut().poll(&mut main_cx);
+                let result = future.as_mut().poll(&mut main_lw);
                 if let Poll::Ready(output) = result {
                     return Poll::Ready(output);
                 }
@@ -172,7 +172,7 @@ impl LocalPool {
         where Sp: Spawn + Sized
     {
         // state for the FuturesUnordered, which will never be used
-        let mut pool_cx = Context::new(local_waker, spawn);
+        let mut pool_lw = Context::new(local_waker, spawn);
 
         loop {
             // empty the incoming queue of newly-spawned tasks
@@ -183,7 +183,7 @@ impl LocalPool {
                 }
             }
 
-            let ret = self.pool.poll_next_unpin(&mut pool_cx);
+            let ret = self.pool.poll_next_unpin(&mut pool_lw);
             // we queued up some new tasks; add them and poll again
             if !self.incoming.borrow().is_empty() {
                 continue;

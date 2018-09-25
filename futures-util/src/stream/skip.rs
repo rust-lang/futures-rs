@@ -59,13 +59,13 @@ impl<St: Stream> Stream for Skip<St> {
         lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
         while *self.remaining() > 0 {
-            match ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(lw)) {
                 Some(_) => *self.remaining() -= 1,
                 None => return Poll::Ready(None),
             }
         }
 
-        self.stream().poll_next(cx)
+        self.stream().poll_next(lw)
     }
 }
 

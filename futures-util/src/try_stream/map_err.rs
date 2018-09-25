@@ -36,7 +36,7 @@ where
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
-        match self.stream().try_poll_next(cx) {
+        match self.stream().try_poll_next(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(opt) =>
                 Poll::Ready(opt.map(|res| res.map_err(|e| self.f()(e)))),

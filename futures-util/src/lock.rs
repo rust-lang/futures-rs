@@ -104,7 +104,7 @@ impl<T> BiLock<T> {
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = Box::new(cx.waker().clone());
+            let me: Box<Waker> = Box::new(lw.waker().clone());
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -270,6 +270,6 @@ impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;
 
     fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        self.bilock.poll_lock(cx)
+        self.bilock.poll_lock(lw)
     }
 }

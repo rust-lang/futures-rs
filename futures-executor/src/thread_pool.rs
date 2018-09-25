@@ -299,8 +299,8 @@ impl Task {
 
             loop {
                 let res = {
-                    let mut cx = task::Context::new(&local_waker, &mut exec);
-                    future.poll_unpin(&mut cx)
+                    let mut lw = task::Context::new(&local_waker, &mut exec);
+                    future.poll_unpin(&mut lw)
                 };
                 match res {
                     Poll::Pending => {}

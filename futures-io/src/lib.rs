@@ -106,7 +106,7 @@ if_std! {
         ///
         /// If no data is available for reading, the method returns
         /// `Ok(Async::Pending)` and arranges for the current task (via
-        /// `cx.waker()`) to receive a notification when the object becomes
+        /// `lw.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// # Implementation
@@ -128,7 +128,7 @@ if_std! {
         ///
         /// If no data is available for reading, the method returns
         /// `Ok(Async::Pending)` and arranges for the current task (via
-        /// `cx.waker()`) to receive a notification when the object becomes
+        /// `lw.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
         /// buffer in `vec`. Objects which support vectored IO should override
@@ -144,7 +144,7 @@ if_std! {
             -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
-                self.poll_read(cx, first_iovec)
+                self.poll_read(lw, first_iovec)
             } else {
                 // `vec` is empty.
                 Poll::Ready(Ok(0))
@@ -166,7 +166,7 @@ if_std! {
         ///
         /// If the object is not ready for writing, the method returns
         /// `Ok(Async::Pending)` and arranges for the current task (via
-        /// `cx.waker()`) to receive a notification when the object becomes
+        /// `lw.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// # Implementation
@@ -188,7 +188,7 @@ if_std! {
         ///
         /// If the object is not ready for writing, the method returns
         /// `Ok(Async::Pending)` and arranges for the current task (via
-        /// `cx.waker()`) to receive a notification when the object becomes
+        /// `lw.waker()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// By default, this method delegates to using `poll_write` on the first
@@ -205,7 +205,7 @@ if_std! {
             -> Poll<Result<usize>>
         {
             if let Some(ref first_iovec) = vec.get(0) {
-                self.poll_write(cx, &*first_iovec)
+                self.poll_write(lw, &*first_iovec)
             } else {
                 // `vec` is empty.
                 Poll::Ready(Ok(0))
@@ -219,7 +219,7 @@ if_std! {
         ///
         /// If flushing cannot immediately complete, this method returns
         /// `Ok(Async::Pending)` and arranges for the current task (via
-        /// `cx.waker()`) to receive a notification when the object can make
+        /// `lw.waker()`) to receive a notification when the object can make
         /// progress towards flushing.
         ///
         /// # Implementation
@@ -236,7 +236,7 @@ if_std! {
         ///
         /// If closing cannot immediately complete, this function returns
         /// `Ok(Async::Pending)` and arranges for the current task (via
-        /// `cx.waker()`) to receive a notification when the object can make
+        /// `lw.waker()`) to receive a notification when the object can make
         /// progress towards closing.
         ///
         /// # Implementation
@@ -257,13 +257,13 @@ if_std! {
             fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8])
                 -> Poll<Result<usize>>
             {
-                (**self).poll_read(cx, buf)
+                (**self).poll_read(lw, buf)
             }
 
             fn poll_vectored_read(&mut self, lw: &LocalWaker, vec: &mut [&mut IoVec])
                 -> Poll<Result<usize>>
             {
-                (**self).poll_vectored_read(cx, vec)
+                (**self).poll_vectored_read(lw, vec)
             }
         }
     }
@@ -309,21 +309,21 @@ if_std! {
             fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8])
                 -> Poll<Result<usize>>
             {
-                (**self).poll_write(cx, buf)
+                (**self).poll_write(lw, buf)
             }
 
             fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec])
                 -> Poll<Result<usize>>
             {
-                (**self).poll_vectored_write(cx, vec)
+                (**self).poll_vectored_write(lw, vec)
             }
 
             fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<Result<()>> {
-                (**self).poll_flush(cx)
+                (**self).poll_flush(lw)
             }
 
             fn poll_close(&mut self, lw: &LocalWaker) -> Poll<Result<()>> {
-                (**self).poll_close(cx)
+                (**self).poll_close(lw)
             }
         }
     }
@@ -349,7 +349,7 @@ if_std! {
             }
 
             fn poll_close(&mut self, lw: &LocalWaker) -> Poll<Result<()>> {
-                self.poll_flush(cx)
+                self.poll_flush(lw)
             }
         }
     }
@@ -377,7 +377,7 @@ if_std! {
         }
 
         fn poll_close(&mut self, lw: &LocalWaker) -> Poll<Result<()>> {
-            self.poll_flush(cx)
+            self.poll_flush(lw)
         }
     }
 

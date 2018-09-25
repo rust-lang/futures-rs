@@ -43,7 +43,7 @@ where St: Stream,
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<C> {
         loop {
-            match ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(lw)) {
                 Some(e) => self.collection().extend(Some(e)),
                 None => return Poll::Ready(self.finish()),
             }
