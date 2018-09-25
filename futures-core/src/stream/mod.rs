@@ -1,7 +1,8 @@
 //! Asynchronous streams.
 
-use crate::task::{self, Poll};
+use crate::task::{LocalWaker, Poll};
 use core::marker::Unpin;
+use core::ops;
 use core::pin::Pin;
 
 #[cfg(feature = "either")]
@@ -64,18 +65,22 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
-        S::poll_next(Pin::new(&mut **self), cx)
+        S::poll_next(Pin::new(&mut **self), lw)
     }
 }
 
-impl<'a, S: ?Sized + Stream> Stream for Pin<&'a mut S> {
-    type Item = S::Item;
+impl<P> Stream for Pin<P>
+where
+    P: ops::DerefMut,
+    P::Target: Stream,
+{
+    type Item = <P::Target as Stream>::Item;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
-        S::poll_next((*self).as_mut(), cx)
+        Pin::get_mut(self).as_mut().poll_next(lw)
     }
 }
 
@@ -89,8 +94,8 @@ impl<A, B> Stream for Either<A, B>
     fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<A::Item>> {
         unsafe {
             match Pin::get_mut_unchecked(self) {
-                Either::Left(a) => Pin::new_unchecked(a).poll_next(cx),
-                Either::Right(b) => Pin::new_unchecked(b).poll_next(cx),
+                Either::Left(a) => Pin::new_unchecked(a).poll_next(lw),
+                Either::Right(b) => Pin::new_unchecked(b).poll_next(lw),
             }
         }
     }
@@ -123,7 +128,7 @@ impl<S, T, E> TryStream for S
     fn try_poll_next(self: Pin<&mut Self>, lw: &LocalWaker)
         -> Poll<Option<Result<Self::Ok, Self::Error>>>
     {
-        self.poll_next(cx)
+        self.poll_next(lw)
     }
 }
 
@@ -137,18 +142,7 @@ if_std! {
             mut self: Pin<&mut Self>,
             lw: &LocalWaker,
         ) -> Poll<Option<Self::Item>> {
-            Pin::new(&mut **self).poll_next(cx)
-        }
-    }
-
-    impl<S: ?Sized + Stream> Stream for Pin<Box<S>> {
-        type Item = S::Item;
-
-        fn poll_next(
-            mut self: Pin<&mut Self>,
-            lw: &LocalWaker,
-        ) -> Poll<Option<Self::Item>> {
-            self.as_mut().poll_next(cx)
+            Pin::new(&mut **self).poll_next(lw)
         }
     }
 
@@ -159,7 +153,7 @@ if_std! {
             self: Pin<&mut Self>,
             lw: &LocalWaker,
         ) -> Poll<Option<S::Item>> {
-            unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) }.poll_next(cx)
+            unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) }.poll_next(lw)
         }
     }
 

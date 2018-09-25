@@ -1,5 +1,5 @@
 use super::Stream;
-use crate::task::{self, Poll};
+use crate::task::{LocalWaker, Poll};
 use core::fmt;
 use core::marker::{PhantomData, Unpin};
 use core::pin::Pin;
@@ -67,7 +67,7 @@ impl<'a, T> Stream for LocalStreamObj<'a, T> {
         self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<T>> {
-        unsafe { (self.poll_next_fn)(self.ptr, cx) }
+        unsafe { (self.poll_next_fn)(self.ptr, lw) }
     }
 }
 
@@ -116,7 +116,7 @@ impl<'a, T> Stream for StreamObj<'a, T> {
         lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         let pinned_field = unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) };
-        pinned_field.poll_next(cx)
+        pinned_field.poll_next(lw)
     }
 }
 
@@ -168,7 +168,7 @@ where
         ptr: *mut (),
         lw: &LocalWaker,
     ) -> Poll<Option<T>> {
-        Pin::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
+        Pin::new_unchecked(&mut *(ptr as *mut F)).poll_next(lw)
     }
 
     unsafe fn drop(_ptr: *mut ()) {}
@@ -186,7 +186,7 @@ where
         ptr: *mut (),
         lw: &LocalWaker,
     ) -> Poll<Option<T>> {
-        Pin::new_unchecked(&mut *(ptr as *mut F)).poll_next(cx)
+        Pin::new_unchecked(&mut *(ptr as *mut F)).poll_next(lw)
     }
 
     unsafe fn drop(_ptr: *mut ()) {}
@@ -205,7 +205,7 @@ if_std! {
         unsafe fn poll_next(ptr: *mut (), lw: &LocalWaker) -> Poll<Option<T>> {
             let ptr = ptr as *mut F;
             let pin: Pin<&mut F> = Pin::new_unchecked(&mut *ptr);
-            pin.poll_next(cx)
+            pin.poll_next(lw)
         }
 
         unsafe fn drop(ptr: *mut ()) {
@@ -223,7 +223,7 @@ if_std! {
         unsafe fn poll_next(ptr: *mut (), lw: &LocalWaker) -> Poll<Option<T>> {
             let ptr = ptr as *mut F;
             let pin: Pin<&mut F> = Pin::new_unchecked(&mut *ptr);
-            pin.poll_next(cx)
+            pin.poll_next(lw)
         }
 
         unsafe fn drop(ptr: *mut ()) {
