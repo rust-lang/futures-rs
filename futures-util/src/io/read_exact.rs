@@ -26,10 +26,6 @@ impl<'a, R: AsyncRead + ?Sized> ReadExact<'a, R> {
     }
 }
 
-fn eof() -> io::Error {
-    io::Error::new(io::ErrorKind::UnexpectedEof, "early eof")
-}
-
 impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
     type Output = io::Result<()>;
 
@@ -42,7 +38,7 @@ impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
                 this.buf = rest;
             }
             if n == 0 {
-                return Poll::Ready(Err(eof()))
+                return Poll::Ready(Err(io::ErrorKind::UnexpectedEof.into()))
             }
         }
         Poll::Ready(Ok(()))

@@ -65,9 +65,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             while this.pos < this.cap {
                 let i = try_ready!(this.writer.poll_write(cx, &this.buf[this.pos..this.cap]));
                 if i == 0 {
-                    return Poll::Ready(Err(
-                        io::Error::new(
-                            io::ErrorKind::WriteZero, "write zero byte into writer")));
+                    return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
                 } else {
                     this.pos += i;
                     this.amt += i as u64;

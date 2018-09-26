@@ -26,10 +26,6 @@ impl<'a, W: AsyncWrite + ?Sized> WriteAll<'a, W> {
     }
 }
 
-fn zero_write() -> io::Error {
-    io::Error::new(io::ErrorKind::WriteZero, "zero-length write")
-}
-
 impl<W: AsyncWrite + ?Sized> Future for WriteAll<'_, W> {
     type Output = io::Result<()>;
 
@@ -42,7 +38,7 @@ impl<W: AsyncWrite + ?Sized> Future for WriteAll<'_, W> {
                 this.buf = rest;
             }
             if n == 0 {
-                return Poll::Ready(Err(zero_write()))
+                return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
             }
         }
 
