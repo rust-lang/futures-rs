@@ -2,7 +2,7 @@
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
 #![no_std]
-#![deny(missing_docs, missing_debug_implementations, warnings)]
+#![deny(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://docs.rs/futures/0.1")]
 
 #[cfg(test)]
