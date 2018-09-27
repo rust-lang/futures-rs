@@ -37,3 +37,6 @@ futures-macro-await-preview = { path = "../futures-macro-await", version = "0.2.
 nightly = ["futures-core-preview/nightly", "futures-stable-preview/nightly", "futures-async-runtime-preview/nightly", "futures-macro-async-preview", "futures-macro-await-preview", "futures-macro-async-preview/nightly"]
 std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-stable-preview/std", "futures-util-preview/std", "futures-async-runtime-preview/std"]
 default = ["std"]
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--html-in-header", "yanked-redirect.html"]
