@@ -7,7 +7,6 @@ matrix:
     - rust: stable
     - rust: beta
     - rust: nightly
-      script: cargo bench --all && cd futures-util && cargo bench --features=bench
     - rust: stable
       script:
         - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
@@ -16,29 +15,11 @@ matrix:
         - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
-    - rust: nightly
-      script:
-        - cargo build --manifest-path futures-core/Cargo.toml --features nightly
-        - cargo build --manifest-path futures-stable/Cargo.toml --features nightly
-        - cargo build --manifest-path futures-async-runtime/Cargo.toml --features nightly
-        - cargo build --manifest-path futures-macro-async/Cargo.toml --features nightly
-        - cargo build --manifest-path futures/Cargo.toml --features nightly
-        - cargo test --manifest-path futures-macro-await/Cargo.toml --features nightly
-        - cargo test --manifest-path futures-core/Cargo.toml --features nightly
-        - cargo test --manifest-path futures/Cargo.toml --features nightly
-    - rust: nightly
-      script:
-        - rustup target add thumbv6m-none-eabi
-        - cargo build --manifest-path futures/Cargo.toml --target thumbv6m-none-eabi --no-default-features --features nightly
     - rust: 1.20.0
       script: cargo test --all
-    - rust: nightly
-      script:
-        - cargo test --manifest-path futures/testcrate/Cargo.toml
 
 script:
   - cargo test --all
-  - cargo test --all --release
 
 env:
   global:
