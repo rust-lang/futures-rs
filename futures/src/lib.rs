@@ -57,7 +57,7 @@ pub use futures_util::{
 #[cfg(feature = "std")]
 pub use futures_util::{
     // Async-await
-    join, try_join, select, pending, poll, spawn, spawn_with_handle,
+    join, try_join, select, pending, poll,
 };
 
 #[cfg(feature = "std")]
@@ -128,16 +128,11 @@ pub mod executor {
     //!
     //! # Spawning additional tasks
     //!
-    //! There are two ways to spawn a task:
-    //!
-    //! - Spawn onto a "default" spawner by calling the top-level
-    //!   [`spawn`](crate::executor::spawn) function or [pulling the spawner
-    //!   from the task context](crate::task::Context::spawner).
-    //! - Spawn onto a specific spawner by calling its
-    //!   [`spawn_obj`](crate::executor::Spawn::spawn_obj) method directly.
-    //!
-    //! Every task always has an associated default spawner, which is usually
-    //! the executor on which the task is running.
+    //! Tasks can be spawned onto a spawner by calling its
+    //! [`spawn_obj`](crate::task::Spawn::spawn_obj) method directly.
+    //! In the case of `!Send` futures,
+    //! [`spawn_local_obj`](crate::task::LocalSpawn::spawn_local_obj)
+    //! can be used instead.
     //!
     //! # Single-threaded execution
     //!
@@ -158,7 +153,7 @@ pub mod executor {
     pub use futures_executor::{
         BlockingStream,
         Enter, EnterError,
-        LocalSpawn, LocalPool,
+        LocalSpawner, LocalPool,
         ThreadPool, ThreadPoolBuilder,
         block_on, block_on_stream, enter,
     };
@@ -193,14 +188,15 @@ pub mod future {
 
         FutureExt,
         FlattenStream, Flatten, Fuse, Inspect, IntoStream, Join, Join3, Join4,
-        Join5, Map, Then, WithSpawner,
+        Join5, Map, Then,
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::future::{
         abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
+        Remote, RemoteHandle,
         // For FutureExt:
-        CatchUnwind, Shared
+        CatchUnwind, Shared,
 
         // ToDo: JoinAll, SelectAll, SelectOk, join_all, select_all, select_ok
     };
@@ -255,7 +251,6 @@ pub mod prelude {
 
     pub use crate::future::{self, Future, TryFuture, FutureExt, TryFutureExt};
     pub use crate::stream::{self, Stream, TryStream, StreamExt, TryStreamExt};
-    pub use crate::task::{self, Poll, SpawnExt};
     pub use crate::sink::{self, Sink, SinkExt};
 
     #[cfg(feature = "std")]
@@ -362,9 +357,8 @@ pub mod task {
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Context, Poll, Spawn,
+        Poll, Spawn, LocalSpawn, SpawnError,
         Waker, LocalWaker, UnsafeWake,
-        SpawnErrorKind, SpawnObjError, SpawnLocalObjError,
     };
 
     #[cfg(feature = "std")]
@@ -372,11 +366,9 @@ pub mod task {
         Wake, local_waker, local_waker_from_nonlocal
     };
 
-    pub use futures_util::task::{SpawnExt, SpawnError};
-
     #[cfg(feature = "std")]
     pub use futures_util::task::{
-        LocalWakerRef, local_waker_ref, local_waker_ref_from_nonlocal, JoinHandle
+        LocalWakerRef, local_waker_ref, local_waker_ref_from_nonlocal,
     };
 
     #[cfg_attr(

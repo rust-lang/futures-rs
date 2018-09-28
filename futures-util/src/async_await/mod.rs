@@ -22,10 +22,6 @@ mod join;
 #[macro_use]
 mod select;
 
-// Primary export is a macro
-#[macro_use]
-mod spawn;
-
 #[doc(hidden)]
 #[inline(always)]
 pub fn assert_unpin<T: Future + Unpin>(_: &T) {}
