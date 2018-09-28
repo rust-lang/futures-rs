@@ -1,9 +1,9 @@
 //! An unbounded set of futures.
 
 use crate::task::AtomicWaker;
-use futures_core::future::Future;
+use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{LocalWaker, Poll, Spawn, LocalSpawn, SpawnError};
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
@@ -54,6 +54,24 @@ pub struct FuturesUnordered<Fut> {
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
 unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
 impl<Fut> Unpin for FuturesUnordered<Fut> {}
+
+impl<'a> Spawn for FuturesUnordered<FutureObj<'a, ()>> {
+    fn spawn_obj(&mut self, future_obj: FutureObj<'static, ()>)
+        -> Result<(), SpawnError>
+    {
+        self.push(future_obj);
+        Ok(())
+    }
+}
+
+impl<'a> LocalSpawn for FuturesUnordered<LocalFutureObj<'a, ()>> {
+    fn spawn_local_obj(&mut self, future_obj: LocalFutureObj<'static, ()>)
+        -> Result<(), SpawnError>
+    {
+        self.push(future_obj);
+        Ok(())
+    }
+}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
