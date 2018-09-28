@@ -1,5 +1,5 @@
 use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnObjError};
+use futures_core::task::{Spawn, SpawnError};
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that panics
 /// when used.
@@ -33,7 +33,7 @@ impl Spawn for PanicSpawner {
     fn spawn_obj(
         &mut self,
         _future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnObjError> {
+    ) -> Result<(), SpawnError> {
         panic!("should not spawn")
     }
 }

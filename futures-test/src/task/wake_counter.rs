@@ -9,16 +9,15 @@ use std::sync::Arc;
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures_test::task::{panic_context, WakeCounter};
+/// use futures_test::task::WakeCounter;
 ///
 /// let wake_counter = WakeCounter::new();
-/// let mut lw = panic_context();
-/// let lw = &mut lw.with_waker(wake_counter.local_waker());
+/// let lw = wake_counter.local_waker();
 ///
 /// assert_eq!(wake_counter.count(), 0);
 ///
-/// lw.waker().wake();
-/// lw.waker().wake();
+/// lw.wake();
+/// lw.wake();
 ///
 /// assert_eq!(wake_counter.count(), 2);
 /// ```

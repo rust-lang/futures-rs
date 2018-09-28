@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use std::pin::Pin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -39,7 +39,7 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
             self.future().poll(lw)
         } else {
             *self.polled_before() = true;
-            lw.waker().wake();
+            lw.wake();
             Poll::Pending
         }
     }

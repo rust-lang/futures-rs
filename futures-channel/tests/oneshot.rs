@@ -3,7 +3,7 @@
 use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt, poll_fn};
-use futures::task::{self, Poll};
+use futures::task::{LocalWaker, Poll};
 use std::pin::Pin;
 use std::sync::mpsc;
 use std::thread;

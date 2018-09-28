@@ -3,7 +3,7 @@
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
 use futures::future::{Future, lazy};
-use futures::task::{self, Poll, Spawn};
+use futures::task::{LocalWaker, Poll, Spawn, LocalSpawn};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
 use std::rc::Rc;
@@ -28,12 +28,11 @@ fn run_until_single_future() {
 
     {
         let mut pool = LocalPool::new();
-        let mut spawn = pool.spawner();
         let fut = lazy(|_| {
             cnt += 1;
             ()
         });
-        assert_eq!(pool.run_until(fut, &mut spawn), ());
+        assert_eq!(pool.run_until(fut), ());
     }
 
     assert_eq!(cnt, 1);
@@ -44,7 +43,7 @@ fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
     spawn.spawn_local_obj(Box::pinned(pending()).into()).unwrap();
-    assert_eq!(pool.run_until(lazy(|_| ()), &mut spawn), ());
+    assert_eq!(pool.run_until(lazy(|_| ())), ());
 }
 
 #[test]
@@ -56,7 +55,7 @@ fn run_until_executes_spawned() {
         tx.send(()).unwrap();
         ()
     })).into()).unwrap();
-    pool.run_until(rx, &mut spawn).unwrap();
+    pool.run_until(rx).unwrap();
 }
 
 #[test]
@@ -76,7 +75,7 @@ fn run_executes_spawned() {
         ()
     })).into()).unwrap();
 
-    pool.run(&mut spawn);
+    pool.run();
 
     assert_eq!(cnt.get(), 1);
 }
@@ -99,7 +98,7 @@ fn run_spawn_many() {
         })).into()).unwrap();
     }
 
-    pool.run(&mut spawn);
+    pool.run();
 
     assert_eq!(cnt.get(), ITER);
 }
@@ -112,10 +111,9 @@ fn nesting_run() {
 
     spawn.spawn_obj(Box::pinned(lazy(|_| {
         let mut pool = LocalPool::new();
-        let mut spawn = pool.spawner();
-        pool.run(&mut spawn);
+        pool.run();
     })).into()).unwrap();
-    pool.run(&mut spawn);
+    pool.run();
 }
 
 #[test]
@@ -149,7 +147,7 @@ fn tasks_are_scheduled_fairly() {
                 return Poll::Ready(());
             }
 
-            lw.waker().wake();
+            lw.wake();
             Poll::Pending
         }
     }
@@ -167,6 +165,6 @@ fn tasks_are_scheduled_fairly() {
         idx: 1,
     }).into()).unwrap();
 
-    pool.run(&mut spawn);
+    pool.run();
 }
 
