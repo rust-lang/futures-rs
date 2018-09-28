@@ -43,7 +43,7 @@ pub trait FutureTestExt: Future {
     /// let future = (async { 5 }).pending_once();
     /// pin_mut!(future);
     ///
-    /// let lw = &mut task::no_spawn_context();
+    /// let lw = &task::noop_local_waker_ref();
     ///
     /// assert_eq!(future.poll_unpin(lw), Poll::Pending);
     /// assert_eq!(future.poll_unpin(lw), Poll::Ready(5));

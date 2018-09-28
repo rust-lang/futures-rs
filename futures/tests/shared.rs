@@ -3,6 +3,7 @@
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
 use futures::future::{self, FutureExt, LocalFutureObj};
+use futures::task::LocalSpawn;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
@@ -109,7 +110,7 @@ fn peek() {
 
     // Once the Shared has been polled, the value is peekable on the clone.
     spawn.spawn_local_obj(LocalFutureObj::new(Box::new(f1.map(|_| ())))).unwrap();
-    local_pool.run(spawn);
+    local_pool.run();
     for _ in 0..2 {
         assert_eq!(f2.peek().unwrap(), Ok(42));
     }

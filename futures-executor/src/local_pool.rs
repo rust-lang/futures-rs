@@ -104,12 +104,11 @@ impl LocalPool {
     /// use futures::executor::LocalPool;
     ///
     /// let mut pool = LocalPool::new();
-    /// let mut spawn = pool.spawner();
     ///
     /// // ... spawn some initial tasks using `spawn.spawn()` or `spawn.spawn_local()`
     ///
     /// // run *all* tasks in the pool to completion, including any newly-spawned ones.
-    /// pool.run(&mut spawn);
+    /// pool.run();
     /// ```
     ///
     /// The function will block the calling thread until *all* tasks in the pool
@@ -130,12 +129,11 @@ impl LocalPool {
     /// use futures::future::ready;
     ///
     /// let mut pool = LocalPool::new();
-    /// let mut spawn = pool.spawner();
     /// # let my_app  = ready(());
     ///
     /// // run tasks in the pool until `my_app` completes, by default spawning
     /// // further tasks back onto the pool
-    /// pool.run_until(my_app, &mut spawn);
+    /// pool.run_until(my_app);
     /// ```
     ///
     /// The function will block the calling thread *only* until the future `f`

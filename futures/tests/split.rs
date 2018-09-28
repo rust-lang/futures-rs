@@ -3,7 +3,7 @@
 use futures::executor::block_on;
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{self, Stream, StreamExt};
-use futures::task::{self, Poll};
+use futures::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 use std::pin::Pin;
 

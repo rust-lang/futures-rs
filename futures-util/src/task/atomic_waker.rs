@@ -187,7 +187,7 @@ impl AtomicWaker {
     ///     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
     ///         // Register **before** checking `set` to avoid a race condition
     ///         // that would result in lost notifications.
-    ///         self.waker.register(lw.waker());
+    ///         self.waker.register(lw);
     ///
     ///         if self.set.load(SeqCst) {
     ///             Poll::Ready(())

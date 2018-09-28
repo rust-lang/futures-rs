@@ -2,7 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::future::{self, Future, FutureExt, TryFutureExt};
-use futures::task::{self, Poll};
+use futures::task::{LocalWaker, Poll};
 use futures_test::future::FutureTestExt;
 use pin_utils::unsafe_pinned;
 use std::pin::Pin;
