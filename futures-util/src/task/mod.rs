@@ -1,5 +1,8 @@
 //! Task notification
 
+mod spawn;
+pub use self::spawn::{SpawnExt, LocalSpawnExt};
+
 if_std! {
     mod local_waker_ref;
     pub use self::local_waker_ref::{local_waker_ref, local_waker_ref_from_nonlocal, LocalWakerRef};

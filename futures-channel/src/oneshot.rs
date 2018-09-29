@@ -401,9 +401,6 @@ impl<T> Receiver<T> {
 
     /// Attempts to receive a message outside of the context of a task.
     ///
-    /// Useful when a [`Context`](task::Context) is not available
-    /// such as within a `Drop` impl.
-    ///
     /// Does not schedule a task wakeup or have any other side effects.
     ///
     /// A return value of `None` must be considered immediately stale (out of

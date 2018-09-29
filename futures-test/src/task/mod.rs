@@ -1,7 +1,6 @@
 //! Task related testing utilities.
 //!
 //! This module provides utilities for creating test
-//! [`task::Context`](futures_core::task::Context)s,
 //! [`LocalWaker`](futures_core::task::LocalWaker)s and
 //! [`Spawn`](futures_core::task::Spawn) implementations.
 //!

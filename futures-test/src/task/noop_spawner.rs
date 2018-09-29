@@ -9,13 +9,10 @@ use futures_core::task::{Spawn, SpawnError};
 /// ```
 /// #![feature(async_await, futures_api)]
 /// use futures::task::SpawnExt;
-/// use futures_test::task::{panic_context, NoopSpawner};
+/// use futures_test::task::NoopSpawner;
 ///
-/// let mut lw = panic_context();
-/// let mut spawn = NoopSpawner::new();
-/// let lw = &mut lw.with_spawner(&mut spawn);
-///
-/// lw.spawner().spawn(async { });
+/// let mut spawner = NoopSpawner::new();
+/// spawner.spawn(async { });
 /// ```
 #[derive(Debug)]
 pub struct NoopSpawner {
@@ -50,15 +47,11 @@ impl Default for NoopSpawner {
 ///
 /// ```
 /// #![feature(async_await, futures_api)]
-/// use futures::task::{self, SpawnExt};
-/// use futures_test::task::{noop_local_waker_ref, noop_spawner_mut};
+/// use futures::task::SpawnExt;
+/// use futures_test::task::noop_spawner_mut;
 ///
-/// let mut lw = task::Context::new(
-///     noop_local_waker_ref(),
-///     noop_spawner_mut(),
-/// );
-///
-/// lw.spawner().spawn(async { });
+/// let spawner = noop_spawner_mut();
+/// spawner.spawn(async { });
 /// ```
 pub fn noop_spawner_mut() -> &'static mut NoopSpawner {
     Box::leak(Box::new(NoopSpawner::new()))
