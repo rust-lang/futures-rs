@@ -345,13 +345,8 @@ pub mod task {
     //!
     //! This module contains:
     //!
-    //! - [`Context`](crate::task::Context), which provides contextual data
-    //!   present for every task, including a handle for waking up the task.
+    //! - [`Spawn`](crate::task::Spawn), a trait for spawning new tasks.
     //! - [`Waker`](crate::task::Waker), a handle for waking up a task.
-    //!
-    //! Tasks themselves are generally created by spawning a future onto [an
-    //! executor](crate::executor). However, you can manually construct a task
-    //! by creating your own `Context` instance, and polling a future with it.
     //!
     //! The remaining types and traits in the module are used for implementing
     //! executors or dealing with synchronization issues around task wakeup.
@@ -369,6 +364,7 @@ pub mod task {
     #[cfg(feature = "std")]
     pub use futures_util::task::{
         LocalWakerRef, local_waker_ref, local_waker_ref_from_nonlocal,
+        SpawnExt, LocalSpawnExt,
     };
 
     #[cfg_attr(

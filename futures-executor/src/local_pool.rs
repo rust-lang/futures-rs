@@ -286,4 +286,12 @@ impl LocalSpawn for LocalSpawner {
             Err(SpawnError::shutdown())
         }
     }
+
+    fn status_local(&self) -> Result<(), SpawnError> {
+        if self.incoming.upgrade().is_some() {
+            Ok(())
+        } else {
+            Err(SpawnError::shutdown())
+        }
+    }
 }
