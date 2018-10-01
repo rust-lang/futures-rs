@@ -229,6 +229,7 @@ if_std! {
         }
 
         unsafe fn drop(ptr: *mut ()) {
+            #[allow(clippy::cast_ptr_alignment)]
             drop(Box::from_raw(ptr as *mut Pin<Box<T>>));
         }
     }

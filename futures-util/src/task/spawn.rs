@@ -47,8 +47,8 @@ pub trait SpawnExt: Spawn {
     /// Spawns a task that polls the given future to completion and returns a
     /// future that resolves to the spawned future's output.
     ///
-    /// This method returns a [`Result`] that contains a [`JoinHandle`], or, if
-    /// spawning fails, a [`SpawnError`]. [`JoinHandle`] is a future that
+    /// This method returns a [`Result`] that contains a [`RemoteHandle`], or, if
+    /// spawning fails, a [`SpawnError`]. [`RemoteHandle`] is a future that
     /// resolves to the output of the spawned future.
     ///
     /// ```
@@ -117,8 +117,8 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// Spawns a task that polls the given future to completion and returns a
     /// future that resolves to the spawned future's output.
     ///
-    /// This method returns a [`Result`] that contains a [`JoinHandle`], or, if
-    /// spawning fails, a [`SpawnError`]. [`JoinHandle`] is a future that
+    /// This method returns a [`Result`] that contains a [`RemoteHandle`], or, if
+    /// spawning fails, a [`SpawnError`]. [`RemoteHandle`] is a future that
     /// resolves to the output of the spawned future.
     ///
     /// ```
