@@ -1,11 +1,13 @@
 #![feature(test, futures_api, pin, arbitrary_self_types)]
 
+extern crate test;
+
 use futures::executor::block_on;
 use futures::future::Future;
 use futures::task::{self, Poll, Waker};
 use std::marker::Unpin;
 use std::pin::PinMut;
-use test::Bencher;
+use self::test::Bencher;
 
 #[bench]
 fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
