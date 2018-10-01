@@ -10,10 +10,9 @@ use futures_core::{
 use futures_sink::Sink as Sink03;
 use std::{marker::Unpin, pin::PinMut, ptr::NonNull, sync::Arc};
 
-impl<Fut, Sp> Future01 for Compat<Fut, Sp>
+impl<Fut> Future01 for Compat<Fut>
 where
     Fut: TryFuture03 + Unpin,
-    Sp: task03::Spawn,
 {
     type Item = Fut::Ok;
     type Error = Fut::Error;
@@ -27,10 +26,9 @@ where
     }
 }
 
-impl<St, Sp> Stream01 for Compat<St, Sp>
+impl<St> Stream01 for Compat<St>
 where
     St: TryStream03 + Unpin,
-    Sp: task03::Spawn,
 {
     type Item = St::Ok;
     type Error = St::Error;
@@ -45,10 +43,9 @@ where
     }
 }
 
-impl<T, E> Sink01 for Compat<T, E>
+impl<T> Sink01 for Compat<T>
 where
     T: Sink03 + Unpin,
-    E: task03::Spawn,
 {
     type SinkItem = T::SinkItem;
     type SinkError = T::SinkError;
@@ -116,14 +113,11 @@ impl task03::Wake for CurrentOwned {
     }
 }
 
-fn with_context<T, E, R, F>(compat: &mut Compat<T, E>, f: F) -> R
+fn with_context<T, R, F>(compat: &mut Compat<T>, f: F) -> R
 where
     T: Unpin,
-    E: task03::Spawn,
-    F: FnOnce(Pin<&mut T>, &mut task03::Context) -> R,
+    F: FnOnce(Pin<&mut T>, &task03::LocalWaker) -> R,
 {
-    let waker = current_ref_as_waker();
-    let spawn = compat.spawn.as_mut().unwrap();
-    let mut lw = task03::Context::new(&waker, spawn);
-    f(Pin::new(&mut compat.inner), &mut lw)
+    let lw = current_ref_as_waker();
+    f(Pin::new(&mut compat.inner), &lw)
 }

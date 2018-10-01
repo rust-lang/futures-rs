@@ -2,13 +2,12 @@
 use super::Compat;
 use crate::{TryFutureExt, FutureExt, future::UnitError};
 use futures::future::Executor as Executor01;
-use futures_core::task::Spawn as Spawn03;
-use futures_core::task as task03;
+use futures_core::task::{Spawn as Spawn03, SpawnError as SpawnError03};
 use futures_core::future::FutureObj;
 
 /// A future that can run on a futures 0.1
 /// [`Executor`](futures::future::Executor).
-pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>, Box<dyn Spawn03 + Send>>;
+pub type Executor01Future = Compat<UnitError<FutureObj<'static, ()>>>;
 
 /// Extension trait for futures 0.1 [`Executor`](futures::future::Executor).
 pub trait Executor01CompatExt: Executor01<Executor01Future> +
@@ -26,7 +25,6 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
     /// use tokio_threadpool::ThreadPool;
     ///
     /// let pool01 = ThreadPool::new();
-    /// let spawner03 = pool01.sender().clone().compat();
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
     /// let future03 = async {
@@ -37,7 +35,7 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
     ///     }).unwrap();
     /// };
     ///
-    /// let future01 = future03.unit_error().boxed().compat(spawner03);
+    /// let future01 = future03.unit_error().boxed().compat();
     ///
     /// pool01.spawn(future01);
     /// pool01.shutdown_on_idle().wait().unwrap();
@@ -71,21 +69,11 @@ where Ex: Executor01<Executor01Future>,
     fn spawn_obj(
         &mut self,
         future: FutureObj<'static, ()>,
-    ) -> Result<(), task03::SpawnObjError> {
-        let exec: Box<dyn Spawn03 + Send> = Box::new(self.clone());
-        let future = future.unit_error().compat(exec);
+    ) -> Result<(), SpawnError03> {
+        let future = future.unit_error().compat();
 
-        match self.executor01.execute(future) {
-            Ok(()) => Ok(()),
-            Err(err) => {
-                use futures_core::task::{SpawnObjError, SpawnErrorKind};
-
-                let fut = err.into_future().into_inner().unwrap_or_else(|_| ());
-                Err(SpawnObjError {
-                    kind: SpawnErrorKind::shutdown(),
-                    future: Box::new(fut).into(),
-                })
-            }
-        }
+        self.executor01.execute(future).map_err(|_|
+            SpawnError03::shutdown()
+        )
     }
 }
