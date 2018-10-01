@@ -10,9 +10,6 @@ use futures_core::stream::TryStream;
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
 
-#[cfg(feature = "compat")]
-use futures_core::task::Spawn;
-
 mod err_into;
 pub use self::err_into::ErrInto;
 
@@ -510,7 +507,6 @@ pub trait TryStreamExt: TryStream {
     /// #![feature(async_await, await_macro, futures_api)]
     /// use futures::future::{FutureExt, TryFutureExt};
     /// use futures::spawn;
-    /// use futures::compat::TokioDefaultSpawner;
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
     /// let future03 = async {
@@ -524,16 +520,15 @@ pub trait TryStreamExt: TryStream {
     /// let future01 = future03
     ///     .unit_error() // Make it a TryFuture
     ///     .boxed()  // Make it Unpin
-    ///     .compat(TokioDefaultSpawner);
+    ///     .compat();
     ///
     /// tokio::run(future01);
     /// # futures::executor::block_on(rx).unwrap();
     /// ```
     #[cfg(feature = "compat")]
-    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
+    fn compat(self) -> Compat<Self>
         where Self: Sized + Unpin,
-              Sp: Spawn,
     {
-        Compat::new(self, Some(spawn))
+        Compat::new(self)
     }
 }
