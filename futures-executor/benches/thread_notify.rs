@@ -1,11 +1,13 @@
 #![feature(test, futures_api, pin, arbitrary_self_types)]
 
+extern crate test;
+use crate::test::Bencher;
+
 use futures::executor::block_on;
 use futures::future::Future;
-use futures::task::{self, Poll, Waker};
+use futures::task::{Poll, LocalWaker, Waker};
 use std::marker::Unpin;
 use std::pin::Pin;
-use test::Bencher;
 
 #[bench]
 fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
@@ -23,7 +25,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                lw.waker().wake();
+                lw.wake();
                 Poll::Pending
             }
         }
@@ -51,7 +53,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                lw.waker().wake();
+                lw.wake();
                 Poll::Pending
             }
         }
@@ -88,7 +90,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                self.tx.send(lw.waker().clone()).unwrap();
+                self.tx.send(lw.clone().into_waker()).unwrap();
                 Poll::Pending
             }
         }
