@@ -8,7 +8,7 @@ use futures_core::{
     task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
 };
 use futures_sink::Sink as Sink03;
-use std::{marker::Unpin, pin::PinMut, sync::Arc};
+use std::{marker::Unpin, pin::PinMut, ptr::NonNull, sync::Arc};
 
 impl<Fut, Sp> Future01 for Compat<Fut, Sp>
 where
@@ -85,14 +85,32 @@ where
     }
 }
 
-fn current_as_waker() -> task03::LocalWaker {
-    let arc_waker = Arc::new(Current(task01::current()));
-    task03::local_waker_from_nonlocal(arc_waker)
+fn current_ref_as_waker() -> task03::LocalWaker {
+    unsafe {
+        task03::LocalWaker::new(NonNull::<CurrentRef>::dangling())
+    }
 }
 
-struct Current(task01::Task);
+struct CurrentRef;
 
-impl task03::Wake for Current {
+struct CurrentOwned(task01::Task);
+
+unsafe impl task03::UnsafeWake for CurrentRef {
+    #[inline]
+    unsafe fn clone_raw(&self) -> task03::Waker {
+        task03::Waker::from(Arc::new(CurrentOwned(task01::current())))
+    }
+
+    #[inline]
+    unsafe fn drop_raw(&self) {} // Does nothing
+
+    #[inline]
+    unsafe fn wake(&self) {
+        task01::current().notify();
+    }
+}
+
+impl task03::Wake for CurrentOwned {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.0.notify();
     }
@@ -104,7 +122,7 @@ where
     E: task03::Spawn,
     F: FnOnce(PinMut<T>, &mut task03::Context) -> R,
 {
-    let waker = current_as_waker();
+    let waker = current_ref_as_waker();
     let spawn = compat.spawn.as_mut().unwrap();
     let mut cx = task03::Context::new(&waker, spawn);
     f(PinMut::new(&mut compat.inner), &mut cx)
