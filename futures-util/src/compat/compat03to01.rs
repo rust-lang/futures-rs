@@ -8,7 +8,7 @@ use futures_core::{
     task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
 };
 use futures_sink::Sink as Sink03;
-use std::{marker::Unpin, pin::PinMut, ptr::NonNull, sync::Arc};
+use std::{marker::Unpin, pin::Pin, ptr::NonNull, sync::Arc};
 
 impl<Fut> Future01 for Compat<Fut>
 where
