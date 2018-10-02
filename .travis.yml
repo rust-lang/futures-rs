@@ -12,11 +12,11 @@ matrix:
     - name: cargo test
       os: linux
 
-    # - name: cargo test (with minimal versions)
-    #   os: linux
-    #   script:
-    #     - cargo update -Zminimal-versions
-    #     - cargo test --all
+    - name: cargo test (with minimal versions)
+      os: linux
+      script:
+        - cargo update -Zminimal-versions
+        - cargo test --all
 
     - name: cargo clippy
       rust: nightly
