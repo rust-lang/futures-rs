@@ -1,4 +1,8 @@
-# 0.3.0-alpha.6 - 2018-0910
+# 0.3.0-alpha.7 - 2018-10-01
+* Update to new nightly which removes `Spawn` from `task::Context` and replaces `Context` with `LocalWaker`.
+* Add `Spawn` and `LocalSpawn` traits and `FutureObj` and `LocalFutureObj` types to `futures-core`.
+
+# 0.3.0-alpha.6 - 2018-09-10
 * Replace usage of `crate` visibility with `pub(crate)` now that `crate` visibility is no longer included in the 2018 edition
 * Remove newly-stabilized "edition" feature in Cargo.toml files
 
