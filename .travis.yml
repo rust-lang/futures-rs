@@ -53,7 +53,7 @@ matrix:
     - name: cargo build (compat feature)
       rust: nightly
       script:
-        - cargo build --manifest-path futures/Cargo.toml --features tokio-compat
+        - cargo build --manifest-path futures/Cargo.toml --features tokio-compat,io-compat
 
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
