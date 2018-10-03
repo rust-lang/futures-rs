@@ -1,7 +1,12 @@
 
-use super::Compat;
-use crate::{TryFutureExt, FutureExt, future::UnitError};
-use futures::future::Executor as Executor01;
+use super::{Compat, Future01CompatExt};
+use crate::{
+    future::{FutureExt, UnitError},
+    try_future::TryFutureExt,
+    task::SpawnExt,
+};
+use futures::Future as Future01;
+use futures::future::{Executor as Executor01, ExecuteError as ExecuteError01};
 use futures_core::task::{Spawn as Spawn03, SpawnError as SpawnError03};
 use futures_core::future::FutureObj;
 
@@ -75,5 +80,17 @@ where Ex: Executor01<Executor01Future>,
         self.executor01.execute(future).map_err(|_|
             SpawnError03::shutdown()
         )
+    }
+}
+
+impl<Sp, Fut> Executor01<Fut> for Compat<Sp>
+where
+    for<'a> &'a Sp: Spawn03,
+    Fut: Future01<Item = (), Error = ()> + Send + 'static,
+{
+    fn execute(&self, future: Fut) -> Result<(), ExecuteError01<Fut>> {
+        (&self.inner).spawn(future.compat().map(|_| ()))
+            .expect("unable to spawn future from Compat executor");
+        Ok(())
     }
 }
