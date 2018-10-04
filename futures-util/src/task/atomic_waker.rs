@@ -211,10 +211,8 @@ impl AtomicWaker {
                     //
                     // Start by assuming that the state is `REGISTERING` as this
                     // is what we jut set it to.
-                    let mut curr = REGISTERING;
-
                     let res = self.state.compare_exchange(
-                        curr, WAITING, AcqRel, Acquire);
+                        REGISTERING, WAITING, AcqRel, Acquire);
 
                     match res {
                         Ok(_) => {}
