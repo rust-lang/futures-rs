@@ -227,7 +227,7 @@ impl AtomicWaker {
 
                             // Take the waker to wake once the atomic operation has
                             // completed.
-                            let waker = (*self.waker.get()).take().unwrap;
+                            let waker = (*self.waker.get()).take().unwrap();
                             
                             // Just swap, because no one could change state while state == `REGISTERING` | `WAKING`.
                             self.state.swap(WAITING, AcqRel);
