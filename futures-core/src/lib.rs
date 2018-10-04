@@ -1,13 +1,14 @@
 //! Core traits and types for asynchronous operations in Rust.
 
 #![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(tool_lints)] // to allow clippy lints
 
 #![no_std]
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_core")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.7/futures_core")]
 
 #[doc(hidden)] pub use crate::future::Future;
 #[doc(hidden)] pub use crate::future::TryFuture;

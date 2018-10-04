@@ -1,11 +1,11 @@
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 use crate::lock::BiLock;
 
@@ -28,9 +28,9 @@ impl<S: Sink + Unpin> SplitStream<S> {
 impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
 
-    fn poll_next(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
-        match self.0.poll_lock(cx) {
-            Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(cx),
+    fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
+        match self.0.poll_lock(lw) {
+            Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(lw),
             Poll::Pending => Poll::Pending,
         }
     }
@@ -68,47 +68,47 @@ impl<S: Sink> Sink for SplitSink<S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         loop {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
             }
-            try_ready!(self.reborrow().poll_flush(cx));
+            try_ready!(self.as_mut().poll_flush(lw));
         }
     }
 
-    fn start_send(mut self: PinMut<Self>, item: S::SinkItem) -> Result<(), S::SinkError> {
+    fn start_send(mut self: Pin<&mut Self>, item: S::SinkItem) -> Result<(), S::SinkError> {
         self.slot = Some(item);
         Ok(())
     }
 
-    fn poll_flush(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
-        match this.lock.poll_lock(cx) {
+        match this.lock.poll_lock(lw) {
             Poll::Ready(mut inner) => {
                 if this.slot.is_some() {
-                    try_ready!(inner.as_pin_mut().poll_ready(cx));
+                    try_ready!(inner.as_pin_mut().poll_ready(lw));
                     if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
                         return Poll::Ready(Err(e));
                     }
                 }
-                inner.as_pin_mut().poll_flush(cx)
+                inner.as_pin_mut().poll_flush(lw)
             }
             Poll::Pending => Poll::Pending,
         }
     }
 
-    fn poll_close(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Result<(), S::SinkError>> {
+    fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
-        match this.lock.poll_lock(cx) {
+        match this.lock.poll_lock(lw) {
             Poll::Ready(mut inner) => {
                 if this.slot.is_some() {
-                    try_ready!(inner.as_pin_mut().poll_ready(cx));
+                    try_ready!(inner.as_pin_mut().poll_ready(lw));
                     if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
                         return Poll::Ready(Err(e));
                     }
                 }
-                inner.as_pin_mut().poll_close(cx)
+                inner.as_pin_mut().poll_close(lw)
             }
             Poll::Pending => Poll::Pending,
         }

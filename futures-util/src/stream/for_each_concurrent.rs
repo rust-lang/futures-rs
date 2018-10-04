@@ -1,10 +1,10 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use core::num::NonZeroUsize;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -55,7 +55,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
         loop {
             let mut made_progress_this_iter = false;
 
@@ -65,7 +65,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
             if self.limit().map(|limit| limit.get() > current_len).unwrap_or(true) {
                 let mut stream_completed = false;
                 let elem = if let Some(stream) = self.stream().as_pin_mut() {
-                    match stream.poll_next(cx) {
+                    match stream.poll_next(lw) {
                         Poll::Ready(Some(elem)) => {
                             made_progress_this_iter = true;
                             Some(elem)
@@ -80,7 +80,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
                     None
                 };
                 if stream_completed {
-                    PinMut::set(self.stream(), None);
+                    Pin::set(self.stream(), None);
                 }
                 if let Some(elem) = elem {
                     let next_future = (self.f())(elem);
@@ -88,7 +88,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
                 }
             }
 
-            match self.futures().poll_next_unpin(cx) {
+            match self.futures().poll_next_unpin(lw) {
                 Poll::Ready(Some(())) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
                     if self.stream().is_none() {

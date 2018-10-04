@@ -1,15 +1,15 @@
 //! An unbounded set of futures.
 
 use crate::task::AtomicWaker;
-use futures_core::future::Future;
+use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::Stream;
-use futures_core::task::{self as core_task, Poll};
+use futures_core::task::{LocalWaker, Poll, Spawn, LocalSpawn, SpawnError};
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
 use std::marker::{PhantomData, Unpin};
 use std::mem;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::ptr;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicPtr, AtomicBool};
@@ -54,6 +54,24 @@ pub struct FuturesUnordered<Fut> {
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
 unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
 impl<Fut> Unpin for FuturesUnordered<Fut> {}
+
+impl<'a> Spawn for FuturesUnordered<FutureObj<'a, ()>> {
+    fn spawn_obj(&mut self, future_obj: FutureObj<'static, ()>)
+        -> Result<(), SpawnError>
+    {
+        self.push(future_obj);
+        Ok(())
+    }
+}
+
+impl<'a> LocalSpawn for FuturesUnordered<LocalFutureObj<'a, ()>> {
+    fn spawn_local_obj(&mut self, future_obj: LocalFutureObj<'static, ()>)
+        -> Result<(), SpawnError>
+    {
+        self.push(future_obj);
+        Ok(())
+    }
+}
 
 // FuturesUnordered is implemented using two linked lists. One which links all
 // futures managed by a `FuturesUnordered` and one that tracks futures that have
@@ -158,12 +176,12 @@ impl<Fut> FuturesUnordered<Fut> {
 
     /// Returns an iterator that allows modifying each future in the set.
     pub fn iter_mut(&mut self) -> IterMut<Fut> where Fut: Unpin {
-        IterMut(PinMut::new(self).iter_pin_mut())
+        IterMut(Pin::new(self).iter_pin_mut())
     }
 
     /// Returns an iterator that allows modifying each future in the set.
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn iter_pin_mut<'a>(self: PinMut<'a, Self>) -> IterPinMut<'a, Fut> {
+    pub fn iter_pin_mut<'a>(self: Pin<&'a mut Self>) -> IterPinMut<'a, Fut> {
         IterPinMut {
             task: self.head_all,
             len: self.len,
@@ -254,11 +272,11 @@ impl<Fut> FuturesUnordered<Fut> {
 impl<Fut: Future> Stream for FuturesUnordered<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut core_task::Context)
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker)
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.
-        self.ready_to_run_queue.waker.register(cx.waker());
+        self.ready_to_run_queue.waker.register(lw);
 
         loop {
             // Safety: &mut self guarantees the mutual exclusion `dequeue`
@@ -275,7 +293,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    cx.local_waker().wake();
+                    lw.wake();
                     return Poll::Pending;
                 }
                 Dequeue::Data(task) => task,
@@ -366,13 +384,12 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // the internal allocation, appropriately accessing fields and
             // deallocating the task if need be.
             let res = {
-                let local_waker = bomb.task.as_ref().unwrap().local_waker();
-                let mut cx = cx.with_waker(&*local_waker);
+                let lw = bomb.task.as_ref().unwrap().local_waker();
 
                 // Safety: We won't move the future ever again
-                let future = unsafe { PinMut::new_unchecked(future) };
+                let future = unsafe { Pin::new_unchecked(future) };
 
-                future.poll(&mut cx)
+                future.poll(&lw)
             };
 
             match res {

@@ -1,7 +1,7 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{self, Poll, Wake, Spawn, SpawnObjError};
+use futures_core::task::{Poll, Wake, Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use futures_util::task::local_waker_ref_from_nonlocal;
 use num_cpus;
@@ -95,7 +95,7 @@ impl ThreadPool {
     /// Note that the function will return when the provided future completes,
     /// even if some of the tasks it spawned are still running.
     pub fn run<F: Future>(&mut self, f: F) -> F::Output {
-        crate::LocalPool::new().run_until(f, self)
+        crate::LocalPool::new().run_until(f)
     }
 }
 
@@ -103,7 +103,7 @@ impl Spawn for ThreadPool {
     fn spawn_obj(
         &mut self,
         future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnObjError> {
+    ) -> Result<(), SpawnError> {
         let task = Task {
             future,
             wake_handle: Arc::new(WakeHandle {
@@ -298,10 +298,7 @@ impl Task {
             wake_handle.mutex.start_poll();
 
             loop {
-                let res = {
-                    let mut cx = task::Context::new(&local_waker, &mut exec);
-                    future.poll_unpin(&mut cx)
-                };
+                let res = future.poll_unpin(&local_waker);
                 match res {
                     Poll::Pending => {}
                     Poll::Ready(()) => return wake_handle.mutex.complete(),

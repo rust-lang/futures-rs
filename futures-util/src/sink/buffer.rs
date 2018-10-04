@@ -1,10 +1,10 @@
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::collections::VecDeque;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.
@@ -40,16 +40,16 @@ impl<Si: Sink> Buffer<Si> {
     }
 
     fn try_empty_buffer(
-        self: &mut PinMut<Self>,
-        cx: &mut task::Context
+        self: &mut Pin<&mut Self>,
+        lw: &LocalWaker
     ) -> Poll<Result<(), Si::SinkError>> {
-        try_ready!(self.sink().poll_ready(cx));
+        try_ready!(self.sink().poll_ready(lw));
         while let Some(item) = self.buf().pop_front() {
             if let Err(e) = self.sink().start_send(item) {
                 return Poll::Ready(Err(e));
             }
             if !self.buf.is_empty() {
-                try_ready!(self.sink().poll_ready(cx));
+                try_ready!(self.sink().poll_ready(lw));
             }
         }
         Poll::Ready(Ok(()))
@@ -60,8 +60,8 @@ impl<Si: Sink> Buffer<Si> {
 impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
+        self.sink().poll_next(lw)
     }
 }
 
@@ -70,14 +70,14 @@ impl<Si: Sink> Sink for Buffer<Si> {
     type SinkError = Si::SinkError;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         if *self.capacity() == 0 {
-            return self.sink().poll_ready(cx);
+            return self.sink().poll_ready(lw);
         }
 
-        if let Poll::Ready(Err(e)) = self.try_empty_buffer(cx) {
+        if let Poll::Ready(Err(e)) = self.try_empty_buffer(lw) {
             return Poll::Ready(Err(e));
         }
 
@@ -89,7 +89,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         if *self.capacity() == 0 {
@@ -101,20 +101,20 @@ impl<Si: Sink> Sink for Buffer<Si> {
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.try_empty_buffer(cx));
+        try_ready!(self.try_empty_buffer(lw));
         debug_assert!(self.buf().is_empty());
-        self.sink().poll_flush(cx)
+        self.sink().poll_flush(lw)
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.try_empty_buffer(cx));
+        try_ready!(self.try_empty_buffer(lw));
         debug_assert!(self.buf().is_empty());
-        self.sink().poll_close(cx)
+        self.sink().poll_close(lw)
     }
 }

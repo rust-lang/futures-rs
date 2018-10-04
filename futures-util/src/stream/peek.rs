@@ -1,8 +1,8 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A `Stream` that implements a `peek` method.
@@ -35,13 +35,13 @@ impl<St: Stream> Peekable<St> {
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
     pub fn peek<'a>(
-        self: &'a mut PinMut<Self>,
-        cx: &mut task::Context,
+        self: &'a mut Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<&'a St::Item>> {
         if self.peeked().is_some() {
             return Poll::Ready(self.peeked().as_ref())
         }
-        match ready!(self.stream().poll_next(cx)) {
+        match ready!(self.stream().poll_next(lw)) {
             None => Poll::Ready(None),
             Some(item) => {
                 *self.peeked() = Some(item);
@@ -55,13 +55,13 @@ impl<S: Stream> Stream for Peekable<S> {
     type Item = S::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker
     ) -> Poll<Option<Self::Item>> {
         if let Some(item) = self.peeked().take() {
             return Poll::Ready(Some(item))
         }
-        self.stream().poll_next(cx)
+        self.stream().poll_next(lw)
     }
 }
 

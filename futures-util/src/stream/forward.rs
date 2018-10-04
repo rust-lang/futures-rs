@@ -1,9 +1,9 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -45,14 +45,14 @@ where
 }
 
     fn try_start_send(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered_item.is_none());
         {
             let mut sink = self.sink().as_pin_mut().unwrap();
-            if try_poll!(sink.reborrow().poll_ready(cx)).is_ready() {
+            if try_poll!(sink.as_mut().poll_ready(lw)).is_ready() {
                 return Poll::Ready(sink.start_send(item));
             }
         }
@@ -69,28 +69,28 @@ where
     type Output = Result<Si, Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.buffered_item().take() {
-            try_ready!(self.reborrow().try_start_send(cx, item));
+            try_ready!(self.as_mut().try_start_send(lw, item));
         }
 
         loop {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Ready(Some(Ok(item))) =>
-                   try_ready!(self.reborrow().try_start_send(cx, item)),
+                   try_ready!(self.as_mut().try_start_send(lw, item)),
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
                 Poll::Ready(None) => {
                     try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)
-                                   .poll_close(cx));
+                                   .poll_close(lw));
                     return Poll::Ready(Ok(self.sink().take().unwrap()))
                 }
                 Poll::Pending => {
                     try_ready!(self.sink().as_pin_mut().expect(INVALID_POLL)
-                                   .poll_flush(cx));
+                                   .poll_flush(lw));
                     return Poll::Pending
                 }
             }

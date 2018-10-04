@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 
 /// Future for the `flush` combinator, which polls the sink until all data
@@ -31,9 +31,9 @@ impl<Si: Sink + Unpin + ?Sized> Future for Flush<'_, Si> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        PinMut::new(&mut self.sink).poll_flush(cx)
+        Pin::new(&mut self.sink).poll_flush(lw)
     }
 }

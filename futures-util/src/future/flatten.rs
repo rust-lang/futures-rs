@@ -1,8 +1,8 @@
 use super::chain::Chain;
 use core::fmt;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the `flatten` combinator.
@@ -48,7 +48,7 @@ impl<Fut> Future for Flatten<Fut>
 {
     type Output = <Fut::Output as Future>::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.state().poll(cx, |a, ()| a)
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        self.state().poll(lw, |a, ()| a)
     }
 }

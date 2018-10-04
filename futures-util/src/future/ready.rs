@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A future that is immediately ready with a value
 ///
@@ -16,7 +16,7 @@ impl<T> Future for Ready<T> {
     type Output = T;
 
     #[inline]
-    fn poll(mut self: PinMut<Self>, _cx: &mut task::Context) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<T> {
         Poll::Ready(self.0.take().unwrap())
     }
 }

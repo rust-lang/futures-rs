@@ -1,8 +1,8 @@
 //! Definition of the `Option` (optional step) combinator
 
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// A future representing a value which may or may not be present.
@@ -37,11 +37,11 @@ impl<F: Future> Future for OptionFuture<F> {
     type Output = Option<F::Output>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker
     ) -> Poll<Self::Output> {
         match self.option().as_pin_mut() {
-            Some(x) => x.poll(cx).map(Some),
+            Some(x) => x.poll(lw).map(Some),
             None => Poll::Ready(None),
         }
     }

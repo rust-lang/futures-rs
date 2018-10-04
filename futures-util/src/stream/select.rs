@@ -1,8 +1,8 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// An adapter for merging the output of two streams.
 ///
@@ -43,37 +43,37 @@ impl<St1, St2> Stream for Select<St1, St2>
     type Item = St1::Item;
 
     fn poll_next(
-        self: PinMut<Self>,
-        cx: &mut task::Context
+        self: Pin<&mut Self>,
+        lw: &LocalWaker
     ) -> Poll<Option<St1::Item>> {
         let Select { flag, stream1, stream2 } =
-            unsafe { PinMut::get_mut_unchecked(self) };
-        let stream1 = unsafe { PinMut::new_unchecked(stream1) };
-        let stream2 = unsafe { PinMut::new_unchecked(stream2) };
+            unsafe { Pin::get_mut_unchecked(self) };
+        let stream1 = unsafe { Pin::new_unchecked(stream1) };
+        let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
         if *flag {
-            poll_inner(flag, stream1, stream2, cx)
+            poll_inner(flag, stream1, stream2, lw)
         } else {
-            poll_inner(flag, stream2, stream1, cx)
+            poll_inner(flag, stream2, stream1, lw)
         }
     }
 }
 
 fn poll_inner<St1, St2>(
     flag: &mut bool,
-    a: PinMut<St1>,
-    b: PinMut<St2>,
-    cx: &mut task::Context
+    a: Pin<&mut St1>,
+    b: Pin<&mut St2>,
+    lw: &LocalWaker
 ) -> Poll<Option<St1::Item>>
     where St1: Stream, St2: Stream<Item = St1::Item>
 {
-    let a_done = match a.poll_next(cx) {
+    let a_done = match a.poll_next(lw) {
         Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
         Poll::Ready(None) => true,
         Poll::Pending => false,
     };
 
-    match b.poll_next(cx) {
+    match b.poll_next(lw) {
         Poll::Ready(Some(item)) => {
             // If the other stream isn't finished yet, give them a chance to
             // go first next time as we pulled something off `b`.

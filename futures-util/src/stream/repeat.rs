@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// Stream that produces the same element repeatedly.
 ///
@@ -38,7 +38,7 @@ impl<T> Stream for Repeat<T>
 {
     type Item = T;
 
-    fn poll_next(self: PinMut<Self>, _: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Option<Self::Item>> {
         Poll::Ready(Some(self.item.clone()))
     }
 }

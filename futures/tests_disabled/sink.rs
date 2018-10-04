@@ -97,16 +97,16 @@ impl Wake for Flag {
     }
 }
 
-fn flag_cx<F, R>(f: F) -> R
-    where F: FnOnce(Arc<Flag>, &mut task::Context) -> R
+fn flag_lw<F, R>(f: F) -> R
+    where F: FnOnce(Arc<Flag>, &LocalWaker) -> R
 {
     let flag = Flag::new();
     let map = &mut task::LocalMap::new();
     let waker = Waker::from(flag.clone());
     let exec = &mut support::PanicExec;
 
-    let cx = &mut task::Context::new(map, &waker, exec);
-    f(flag, cx)
+    let lw = &LocalWaker::new(map, &waker, exec);
+    f(flag, lw)
 }
 
 // Sends a value on an i32 channel sink
@@ -122,10 +122,10 @@ impl<S: Sink> Future for StartSendFut<S> {
     type Item = S;
     type Error = S::SinkError;
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<S, S::SinkError> {
+    fn poll(&mut self, lw: &LocalWaker) -> Poll<S, S::SinkError> {
         {
             let inner = self.0.as_mut().unwrap();
-            try_ready!(inner.poll_ready(cx));
+            try_ready!(inner.poll_ready(lw));
             inner.start_send(self.1.take().unwrap())?;
         }
         Ok(Async::Ready(self.0.take().unwrap()))
@@ -141,15 +141,15 @@ fn mpsc_blocking_start_send() {
     block_on(futures::future::lazy(|_| {
         tx.start_send(0).unwrap();
 
-        flag_cx(|flag, cx| {
+        flag_lw(|flag, lw| {
             let mut task = StartSendFut::new(tx, 1);
 
-            assert!(task.poll(cx).unwrap().is_pending());
+            assert!(task.poll(lw).unwrap().is_pending());
             assert!(!flag.get());
             sassert_next(&mut rx, 0);
             assert!(flag.get());
             flag.set(false);
-            assert!(task.poll(cx).unwrap().is_ready());
+            assert!(task.poll(lw).unwrap().is_ready());
             assert!(!flag.get());
             sassert_next(&mut rx, 1);
 
@@ -171,13 +171,13 @@ fn with_flush() {
 
     assert_eq!(sink.start_send(0), Ok(()));
 
-    flag_cx(|flag, cx| {
+    flag_lw(|flag, lw| {
         let mut task = sink.flush();
-        assert!(task.poll(cx).unwrap().is_pending());
+        assert!(task.poll(lw).unwrap().is_pending());
         tx.send(()).unwrap();
         assert!(flag.get());
 
-        let sink = match task.poll(cx).unwrap() {
+        let sink = match task.poll(lw).unwrap() {
             Async::Ready(sink) => sink,
             _ => panic!()
         };
@@ -222,7 +222,7 @@ impl<T> Sink for ManualFlush<T> {
     type SinkItem = Option<T>; // Pass None to flush
     type SinkError = ();
 
-    fn poll_ready(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_ready(&mut self, _: &LocalWaker) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 
@@ -235,17 +235,17 @@ impl<T> Sink for ManualFlush<T> {
         Ok(())
     }
 
-    fn poll_flush(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<(), Self::SinkError> {
         if self.data.is_empty() {
             Ok(Async::Ready(()))
         } else {
-            self.waiting_tasks.push(cx.waker().clone());
+            self.waiting_tasks.push(lw.waker().clone());
             Ok(Async::Pending)
         }
     }
 
-    fn poll_close(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        self.poll_flush(cx)
+    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<(), Self::SinkError> {
+        self.poll_flush(lw)
     }
 }
 
@@ -270,18 +270,18 @@ impl<T> ManualFlush<T> {
 // but doesn't claim to be flushed until the underlying sink is
 fn with_flush_propagate() {
     let mut sink = ManualFlush::new().with(|x| -> Result<Option<i32>, ()> { Ok(x) });
-    flag_cx(|flag, cx| {
-        assert!(sink.poll_ready(cx).unwrap().is_ready());
+    flag_lw(|flag, lw| {
+        assert!(sink.poll_ready(lw).unwrap().is_ready());
         sink.start_send(Some(0)).unwrap();
-        assert!(sink.poll_ready(cx).unwrap().is_ready());
+        assert!(sink.poll_ready(lw).unwrap().is_ready());
         sink.start_send(Some(1)).unwrap();
 
         let mut task = sink.flush();
-        assert!(task.poll(cx).unwrap().is_pending());
+        assert!(task.poll(lw).unwrap().is_pending());
         assert!(!flag.get());
         assert_eq!(task.get_mut().unwrap().get_mut().force_flush(), vec![0, 1]);
         assert!(flag.get());
-        assert!(task.poll(cx).unwrap().is_ready());
+        assert!(task.poll(lw).unwrap().is_ready());
     })
 }
 
@@ -317,11 +317,11 @@ impl Allow {
         }
     }
 
-    fn check(&self, cx: &mut task::Context) -> bool {
+    fn check(&self, lw: &LocalWaker) -> bool {
         if self.flag.get() {
             true
         } else {
-            self.tasks.borrow_mut().push(cx.waker().clone());
+            self.tasks.borrow_mut().push(lw.waker().clone());
             false
         }
     }
@@ -339,8 +339,8 @@ impl<T> Sink for ManualAllow<T> {
     type SinkItem = T;
     type SinkError = Never;
 
-    fn poll_ready(&mut self, cx: &mut task::Context) -> Poll<(), Self::SinkError> {
-        if self.allow.check(cx) {
+    fn poll_ready(&mut self, lw: &LocalWaker) -> Poll<(), Self::SinkError> {
+        if self.allow.check(lw) {
             Ok(Async::Ready(()))
         } else {
             Ok(Async::Pending)
@@ -352,11 +352,11 @@ impl<T> Sink for ManualAllow<T> {
         Ok(())
     }
 
-    fn poll_flush(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_flush(&mut self, _: &LocalWaker) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 
-    fn poll_close(&mut self, _: &mut task::Context) -> Poll<(), Self::SinkError> {
+    fn poll_close(&mut self, _: &LocalWaker) -> Poll<(), Self::SinkError> {
         Ok(Async::Ready(()))
     }
 }
@@ -380,13 +380,13 @@ fn buffer() {
     let sink = block_on(StartSendFut::new(sink, 0)).unwrap();
     let sink = block_on(StartSendFut::new(sink, 1)).unwrap();
 
-    flag_cx(|flag, cx| {
+    flag_lw(|flag, lw| {
         let mut task = sink.send(2);
-        assert!(task.poll(cx).unwrap().is_pending());
+        assert!(task.poll(lw).unwrap().is_pending());
         assert!(!flag.get());
         allow.start();
         assert!(flag.get());
-        match task.poll(cx).unwrap() {
+        match task.poll(lw).unwrap() {
             Async::Ready(sink) => {
                 assert_eq!(sink.get_ref().data, vec![0, 1, 2]);
             }
@@ -415,18 +415,18 @@ fn fanout_backpressure() {
 
     let sink = block_on(StartSendFut::new(sink, 0)).unwrap();
 
-    flag_cx(|flag, cx| {
+    flag_lw(|flag, lw| {
         let mut task = sink.send(2);
         assert!(!flag.get());
-        assert!(task.poll(cx).unwrap().is_pending());
+        assert!(task.poll(lw).unwrap().is_pending());
         let (item, left_recv) = block_on(left_recv.next()).unwrap();
         assert_eq!(item, Some(0));
         assert!(flag.get());
-        assert!(task.poll(cx).unwrap().is_pending());
+        assert!(task.poll(lw).unwrap().is_pending());
         let (item, right_recv) = block_on(right_recv.next()).unwrap();
         assert_eq!(item, Some(0));
         assert!(flag.get());
-        assert!(task.poll(cx).unwrap().is_ready());
+        assert!(task.poll(lw).unwrap().is_ready());
         // make sure receivers live until end of test to prevent send errors
         drop(left_recv);
         drop(right_recv);
@@ -435,11 +435,11 @@ fn fanout_backpressure() {
 
 #[test]
 fn map_err() {
-    panic_waker_cx(|cx| {
+    panic_waker_lw(|lw| {
         let (tx, _rx) = mpsc::channel(1);
         let mut tx = tx.sink_map_err(|_| ());
         assert_eq!(tx.start_send(()), Ok(()));
-        assert_eq!(tx.poll_flush(cx), Ok(Async::Ready(())));
+        assert_eq!(tx.poll_flush(lw), Ok(Async::Ready(())));
     });
 
     let tx = mpsc::channel(0).0;
@@ -457,11 +457,11 @@ impl From<mpsc::SendError> for FromErrTest {
 
 #[test]
 fn from_err() {
-    panic_waker_cx(|cx| {
+    panic_waker_lw(|lw| {
         let (tx, _rx) = mpsc::channel(1);
         let mut tx: SinkErrInto<mpsc::Sender<()>, FromErrTest> = tx.sink_err_into();
         assert_eq!(tx.start_send(()), Ok(()));
-        assert_eq!(tx.poll_flush(cx), Ok(Async::Ready(())));
+        assert_eq!(tx.poll_flush(lw), Ok(Async::Ready(())));
     });
 
     let tx = mpsc::channel(0).0;

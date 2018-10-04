@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Creates a `Stream` from a seed and a closure returning a `Future`.
@@ -85,16 +85,16 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
     type Item = It;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker
     ) -> Poll<Option<It>> {
         if let Some(state) = self.state().take() {
             let fut = (self.f())(state);
-            PinMut::set(self.fut(), Some(fut));
+            Pin::set(self.fut(), Some(fut));
         }
 
-        let step = ready!(self.fut().as_pin_mut().unwrap().poll(cx));
-        PinMut::set(self.fut(), None);
+        let step = ready!(self.fut().as_pin_mut().unwrap().poll(lw));
+        Pin::set(self.fut(), None);
 
         if let Some((item, next_state)) = step {
             *self.state() = Some(next_state);

@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A future of the next element of a stream.
 #[derive(Debug)]
@@ -23,9 +23,9 @@ impl<St: Stream + Unpin> Future for Next<'_, St> {
     type Output = Option<St::Item>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        PinMut::new(&mut *self.stream).poll_next(cx)
+        Pin::new(&mut *self.stream).poll_next(lw)
     }
 }

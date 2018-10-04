@@ -3,9 +3,9 @@
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
 use futures::future::{Future, lazy};
-use futures::task::{self, Poll, Spawn};
+use futures::task::{LocalWaker, Poll, Spawn, LocalSpawn};
 use std::cell::{Cell, RefCell};
-use std::pin::{PinBox, PinMut};
+use std::pin::Pin;
 use std::rc::Rc;
 
 struct Pending(Rc<()>);
@@ -13,7 +13,7 @@ struct Pending(Rc<()>);
 impl Future for Pending {
     type Output = ();
 
-    fn poll(self: PinMut<Self>, _cx: &mut task::Context) -> Poll<()> {
+    fn poll(self: Pin<&mut Self>, _lw: &LocalWaker) -> Poll<()> {
         Poll::Pending
     }
 }
@@ -28,12 +28,11 @@ fn run_until_single_future() {
 
     {
         let mut pool = LocalPool::new();
-        let mut spawn = pool.spawner();
         let fut = lazy(|_| {
             cnt += 1;
             ()
         });
-        assert_eq!(pool.run_until(fut, &mut spawn), ());
+        assert_eq!(pool.run_until(fut), ());
     }
 
     assert_eq!(cnt, 1);
@@ -43,8 +42,8 @@ fn run_until_single_future() {
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
-    spawn.spawn_local_obj(PinBox::new(pending()).into()).unwrap();
-    assert_eq!(pool.run_until(lazy(|_| ()), &mut spawn), ());
+    spawn.spawn_local_obj(Box::pinned(pending()).into()).unwrap();
+    assert_eq!(pool.run_until(lazy(|_| ())), ());
 }
 
 #[test]
@@ -52,11 +51,11 @@ fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
-    spawn.spawn_local_obj(PinBox::new(lazy(move |_| {
+    spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
         tx.send(()).unwrap();
         ()
     })).into()).unwrap();
-    pool.run_until(rx, &mut spawn).unwrap();
+    pool.run_until(rx).unwrap();
 }
 
 #[test]
@@ -68,15 +67,15 @@ fn run_executes_spawned() {
     let mut spawn = pool.spawner();
     let mut spawn2 = pool.spawner();
 
-    spawn.spawn_local_obj(PinBox::new(lazy(move |_| {
-        spawn2.spawn_local_obj(PinBox::new(lazy(move |_| {
+    spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
+        spawn2.spawn_local_obj(Box::pinned(lazy(move |_| {
             cnt2.set(cnt2.get() + 1);
             ()
         })).into()).unwrap();
         ()
     })).into()).unwrap();
 
-    pool.run(&mut spawn);
+    pool.run();
 
     assert_eq!(cnt.get(), 1);
 }
@@ -93,13 +92,13 @@ fn run_spawn_many() {
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
-        spawn.spawn_local_obj(PinBox::new(lazy(move |_| {
+        spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
             cnt.set(cnt.get() + 1);
             ()
         })).into()).unwrap();
     }
 
-    pool.run(&mut spawn);
+    pool.run();
 
     assert_eq!(cnt.get(), ITER);
 }
@@ -110,12 +109,11 @@ fn nesting_run() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
 
-    spawn.spawn_obj(PinBox::new(lazy(|_| {
+    spawn.spawn_obj(Box::pinned(lazy(|_| {
         let mut pool = LocalPool::new();
-        let mut spawn = pool.spawner();
-        pool.run(&mut spawn);
+        pool.run();
     })).into()).unwrap();
-    pool.run(&mut spawn);
+    pool.run();
 }
 
 #[test]
@@ -130,7 +128,7 @@ fn tasks_are_scheduled_fairly() {
     impl Future for Spin {
         type Output = ();
 
-        fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
+        fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {
@@ -149,7 +147,7 @@ fn tasks_are_scheduled_fairly() {
                 return Poll::Ready(());
             }
 
-            cx.waker().wake();
+            lw.wake();
             Poll::Pending
         }
     }
@@ -157,16 +155,16 @@ fn tasks_are_scheduled_fairly() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
 
-    spawn.spawn_local_obj(PinBox::new(Spin {
+    spawn.spawn_local_obj(Box::pinned(Spin {
         state: state.clone(),
         idx: 0,
     }).into()).unwrap();
 
-    spawn.spawn_local_obj(PinBox::new(Spin {
+    spawn.spawn_local_obj(Box::pinned(Spin {
         state: state,
         idx: 1,
     }).into()).unwrap();
 
-    pool.run(&mut spawn);
+    pool.run();
 }
 

@@ -1,9 +1,9 @@
 //! A channel for sending a single message between asynchronous tasks.
 
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Waker};
+use futures_core::task::{LocalWaker, Poll, Waker};
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::SeqCst;
@@ -29,7 +29,7 @@ pub struct Sender<T> {
     inner: Arc<Inner<T>>,
 }
 
-// The channels do not ever project PinMut to the inner T
+// The channels do not ever project Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
 impl<T> Unpin for Sender<T> {}
 
@@ -155,7 +155,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, cx: &mut task::Context) -> Poll<()> {
+    fn poll_cancel(&self, lw: &LocalWaker) -> Poll<()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -177,7 +177,7 @@ impl<T> Inner<T> {
         // `Receiver` may have been dropped. The first thing it does is set the
         // flag, and if it fails to acquire the lock it assumes that we'll see
         // the flag later on. So... we then try to see the flag later on!
-        let handle = cx.waker().clone();
+        let handle = lw.clone().into_waker();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Poll::Ready(()),
@@ -250,7 +250,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, cx: &mut task::Context) -> Poll<Result<T, Canceled>> {
+    fn recv(&self, lw: &LocalWaker) -> Poll<Result<T, Canceled>> {
         // Check to see if some data has arrived. If it hasn't then we need to
         // block our task.
         //
@@ -261,7 +261,7 @@ impl<T> Inner<T> {
         let done = if self.complete.load(SeqCst) {
             true
         } else {
-            let task = cx.waker().clone();
+            let task = lw.clone().into_waker();
             match self.rx_task.try_lock() {
                 Some(mut slot) => { *slot = Some(task); false },
                 None => true,
@@ -349,8 +349,8 @@ impl<T> Sender<T> {
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
-    pub fn poll_cancel(&mut self, cx: &mut task::Context) -> Poll<()> {
-        self.inner.poll_cancel(cx)
+    pub fn poll_cancel(&mut self, lw: &LocalWaker) -> Poll<()> {
+        self.inner.poll_cancel(lw)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
@@ -401,9 +401,6 @@ impl<T> Receiver<T> {
 
     /// Attempts to receive a message outside of the context of a task.
     ///
-    /// Useful when a [`Context`](task::Context) is not available
-    /// such as within a `Drop` impl.
-    ///
     /// Does not schedule a task wakeup or have any other side effects.
     ///
     /// A return value of `None` must be considered immediately stale (out of
@@ -419,10 +416,10 @@ impl<T> Future for Receiver<T> {
     type Output = Result<T, Canceled>;
 
     fn poll(
-        self: PinMut<Self>,
-        cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<T, Canceled>> {
-        self.inner.recv(cx)
+        self.inner.recv(lw)
     }
 }
 

@@ -1,8 +1,8 @@
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::any::Any;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 use std::prelude::v1::*;
 
@@ -30,14 +30,14 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
     type Item = Result<St::Item, Box<dyn Any + Send>>;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         if *self.caught_unwind() {
             Poll::Ready(None)
         } else {
             let res = catch_unwind(AssertUnwindSafe(|| {
-                self.stream().poll_next(cx)
+                self.stream().poll_next(lw)
             }));
 
             match res {

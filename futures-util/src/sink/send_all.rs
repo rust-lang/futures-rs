@@ -1,9 +1,9 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 
 /// Future for the `Sink::send_all` combinator, which sends a stream of values
@@ -45,13 +45,13 @@ where
 
     fn try_start_send(
         &mut self,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
-        match PinMut::new(self.sink).poll_ready(cx) {
+        match Pin::new(&mut self.sink).poll_ready(lw) {
             Poll::Ready(Ok(())) => {
-                Poll::Ready(PinMut::new(self.sink).start_send(item))
+                Poll::Ready(Pin::new(&mut self.sink).start_send(item))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
@@ -70,27 +70,27 @@ where
     type Output = Result<(), Si::SinkError>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = this.buffered.take() {
-            try_ready!(this.try_start_send(cx, item))
+            try_ready!(this.try_start_send(lw, item))
         }
 
         loop {
-            match this.stream.poll_next_unpin(cx) {
+            match this.stream.poll_next_unpin(lw) {
                 Poll::Ready(Some(item)) => {
-                    try_ready!(this.try_start_send(cx, item))
+                    try_ready!(this.try_start_send(lw, item))
                 }
                 Poll::Ready(None) => {
-                    try_ready!(PinMut::new(this.sink).poll_flush(cx));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(PinMut::new(this.sink).poll_flush(cx));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
                     return Poll::Pending
                 }
             }

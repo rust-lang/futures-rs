@@ -1,12 +1,12 @@
 [package]
 name = "futures-util-preview"
 edition = "2018"
-version = "0.3.0-alpha.6"
+version = "0.3.0-alpha.7"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_util"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.7/futures_util"
 description = """
 Common utilities and extension traits for the futures-rs library.
 """
@@ -23,16 +23,16 @@ bench = []
 nightly = []
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.6", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.6", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.6", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.6", default-features = false}
+futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.7", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.7", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.7", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.7", default-features = false}
 either = { version = "1.4", default-features = false }
 slab = { version = "0.4", optional = true }
 futures = { version = "0.1", optional = true }
 tokio-executor = { version = "0.1.2", optional = true }
-pin-utils = "0.1.0-alpha.2"
+pin-utils = "0.1.0-alpha.3"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "0.3.0-alpha.6" }
-futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.6" }
+futures-preview = { path = "../futures", version = "0.3.0-alpha.7" }
+futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.7" }

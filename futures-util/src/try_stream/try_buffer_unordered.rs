@@ -3,10 +3,10 @@ use crate::try_future::{IntoFuture, TryFutureExt};
 use crate::try_stream::IntoStream;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// A stream returned by the
 /// [`try_buffer_unordered`](super::TryStreamExt::try_buffer_unordered) method
@@ -70,13 +70,13 @@ impl<St> Stream for TryBufferUnordered<St>
     type Item = Result<<St::Ok as TryFuture>::Ok, St::Error>;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures. Propagate errors from the stream immediately.
         while self.in_progress_queue.len() < self.max {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Ready(Some(Ok(fut))) => self.in_progress_queue().push(fut.into_future()),
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
                 Poll::Ready(None) | Poll::Pending => break,
@@ -84,7 +84,7 @@ impl<St> Stream for TryBufferUnordered<St>
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        match PinMut::new(self.in_progress_queue()).poll_next(cx) {
+        match Pin::new(self.in_progress_queue()).poll_next(lw) {
             x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
             Poll::Ready(None) => {}
         }

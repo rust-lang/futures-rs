@@ -10,7 +10,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_util")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.7/futures_util")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -36,31 +36,31 @@ pub mod core_reexport {
 macro_rules! delegate_sink {
     ($field:ident) => {
         fn poll_ready(
-            mut self: PinMut<Self>,
-            cx: &mut $crate::core_reexport::task::Context,
+            mut self: Pin<&mut Self>,
+            lw: &$crate::core_reexport::task::LocalWaker,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_ready(cx)
+            self.$field().poll_ready(lw)
         }
 
         fn start_send(
-            mut self: PinMut<Self>,
+            mut self: Pin<&mut Self>,
             item: Self::SinkItem
         ) -> Result<(), Self::SinkError> {
             self.$field().start_send(item)
         }
 
         fn poll_flush(
-            mut self: PinMut<Self>,
-            cx: &mut $crate::core_reexport::task::Context
+            mut self: Pin<&mut Self>,
+            lw: &$crate::core_reexport::task::LocalWaker
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_flush(cx)
+            self.$field().poll_flush(lw)
         }
 
         fn poll_close(
-            mut self: PinMut<Self>,
-            cx: &mut $crate::core_reexport::task::Context
+            mut self: Pin<&mut Self>,
+            lw: &$crate::core_reexport::task::LocalWaker
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_close(cx)
+            self.$field().poll_close(lw)
         }
     }
 }

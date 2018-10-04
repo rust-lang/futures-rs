@@ -1,7 +1,7 @@
 use super::Chain;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the `then` combinator, chaining computations on the end of
@@ -35,7 +35,7 @@ impl<Fut1, Fut2, F> Future for Then<Fut1, Fut2, F>
 {
     type Output = Fut2::Output;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Fut2::Output> {
-        self.chain().poll(cx, |output, f| f(output))
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut2::Output> {
+        self.chain().poll(lw, |output, f| f(output))
     }
 }

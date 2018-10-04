@@ -1,12 +1,12 @@
 use crate::stream::{Fuse, FuturesUnordered};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible, delivering results as they become available.
@@ -86,8 +86,8 @@ where
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, St> {
-        unsafe { PinMut::map_unchecked(self, |x| x.get_mut()) }
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
+        unsafe { Pin::map_unchecked_mut(self, |x| x.get_mut()) }
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -107,20 +107,20 @@ where
     type Item = <St::Item as Future>::Output;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         // First up, try to spawn off as many futures as possible by filling up
         // our slab of futures.
         while self.in_progress_queue.len() < self.max {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Ready(Some(fut)) => self.in_progress_queue().push(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        match PinMut::new(self.in_progress_queue()).poll_next(cx) {
+        match Pin::new(self.in_progress_queue()).poll_next(lw) {
             x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
             Poll::Ready(None) => {}
         }

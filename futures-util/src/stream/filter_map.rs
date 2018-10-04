@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A combinator used to filter the results of a stream and simultaneously map
@@ -72,21 +72,21 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
-                let item = match ready!(self.stream().poll_next(cx)) {
+                let item = match ready!(self.stream().poll_next(lw)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(item);
-                PinMut::set(self.pending(), Some(fut));
+                Pin::set(self.pending(), Some(fut));
             }
 
-            let item = ready!(self.pending().as_pin_mut().unwrap().poll(cx));
-            PinMut::set(self.pending(), None);
+            let item = ready!(self.pending().as_pin_mut().unwrap().poll(lw));
+            Pin::set(self.pending(), None);
             if item.is_some() {
                 return Poll::Ready(item);
             }

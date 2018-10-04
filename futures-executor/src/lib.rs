@@ -7,7 +7,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.5/futures_executor")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.7/futures_executor")]
 
 macro_rules! if_std {
     ($($i:item)*) => ($(
@@ -18,7 +18,7 @@ macro_rules! if_std {
 
 if_std! {
     mod local_pool;
-    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawn};
+    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
 
     mod unpark_mutex;
     mod thread_pool;

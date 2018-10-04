@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
-use core::pin::PinMut;
-use futures_core::task::{self, Poll};
+use core::pin::Pin;
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
@@ -51,17 +51,17 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
     type SinkError = Si1::SinkError;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.sink1().poll_ready(cx)).is_ready();
-        let sink2_ready = try_poll!(self.sink2().poll_ready(cx)).is_ready();
+        let sink1_ready = try_poll!(self.sink1().poll_ready(lw)).is_ready();
+        let sink2_ready = try_poll!(self.sink2().poll_ready(lw)).is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         self.sink1().start_send(item.clone())?;
@@ -70,21 +70,21 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.sink1().poll_flush(cx)).is_ready();
-        let sink2_ready = try_poll!(self.sink2().poll_flush(cx)).is_ready();
+        let sink1_ready = try_poll!(self.sink1().poll_flush(lw)).is_ready();
+        let sink2_ready = try_poll!(self.sink2().poll_flush(lw)).is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.sink1().poll_close(cx)).is_ready();
-        let sink2_ready = try_poll!(self.sink2().poll_close(cx)).is_ready();
+        let sink1_ready = try_poll!(self.sink1().poll_close(lw)).is_ready();
+        let sink2_ready = try_poll!(self.sink2().poll_close(lw)).is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }

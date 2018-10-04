@@ -1,7 +1,7 @@
 use crate::sink::{SinkExt, SinkMapErr};
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::{Sink};
 use pin_utils::unsafe_pinned;
 
@@ -62,9 +62,9 @@ impl<S, E> Stream for SinkErrInto<S, E>
     type Item = S::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+        self.sink().poll_next(lw)
     }
 }

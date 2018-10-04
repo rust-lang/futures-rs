@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A stream which is just a shim over an underlying instance of `Iterator`.
 ///
@@ -40,7 +40,7 @@ impl<I> Stream for Iter<I>
 {
     type Item = I::Item;
 
-    fn poll_next(mut self: PinMut<Self>, _: &mut task::Context) -> Poll<Option<I::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Option<I::Item>> {
         Poll::Ready(self.iter.next())
     }
 }

@@ -1,11 +1,9 @@
 //! Task notification
 
 mod spawn;
-pub use self::spawn::{SpawnExt, SpawnError};
+pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
 if_std! {
-    pub use self::spawn::JoinHandle;
-
     mod local_waker_ref;
     pub use self::local_waker_ref::{local_waker_ref, local_waker_ref_from_nonlocal, LocalWakerRef};
 }

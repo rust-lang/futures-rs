@@ -1,10 +1,10 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use core::default::Default;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator to concatenate the results of a stream into the first
@@ -54,10 +54,10 @@ where St: Stream,
     type Output = St::Item;
 
     fn poll(
-        mut self: PinMut<Self>, cx: &mut task::Context
+        mut self: Pin<&mut Self>, lw: &LocalWaker
     ) -> Poll<Self::Output> {
         loop {
-            match self.stream().poll_next(cx) {
+            match self.stream().poll_next(lw) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
                     return Poll::Ready(self.accum().take().unwrap_or_default())

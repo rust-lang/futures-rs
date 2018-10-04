@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -48,17 +48,17 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
         loop {
             if let Some(future) = self.future().as_pin_mut() {
-                ready!(future.poll(cx));
+                ready!(future.poll(lw));
             }
-            PinMut::set(self.future(), None);
+            Pin::set(self.future(), None);
 
-            match ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(lw)) {
                 Some(e) => {
                     let future = (self.f())(e);
-                    PinMut::set(self.future(), Some(future));
+                    Pin::set(self.future(), Some(future));
                 }
                 None => {
                     return Poll::Ready(());

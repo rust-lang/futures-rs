@@ -1,5 +1,5 @@
 use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnObjError};
+use futures_core::task::{Spawn, SpawnError};
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that panics
 /// when used.
@@ -9,13 +9,10 @@ use futures_core::task::{Spawn, SpawnObjError};
 /// ```should_panic
 /// #![feature(async_await, futures_api)]
 /// use futures::task::SpawnExt;
-/// use futures_test::task::{noop_context, PanicSpawner};
+/// use futures_test::task::PanicSpawner;
 ///
-/// let mut cx = noop_context();
 /// let mut spawn = PanicSpawner::new();
-/// let cx = &mut cx.with_spawner(&mut spawn);
-///
-/// cx.spawner().spawn(async { }); // Will panic
+/// spawn.spawn(async { }); // Will panic
 /// ```
 #[derive(Debug)]
 pub struct PanicSpawner {
@@ -33,7 +30,7 @@ impl Spawn for PanicSpawner {
     fn spawn_obj(
         &mut self,
         _future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnObjError> {
+    ) -> Result<(), SpawnError> {
         panic!("should not spawn")
     }
 }
@@ -50,15 +47,11 @@ impl Default for PanicSpawner {
 ///
 /// ```should_panic
 /// #![feature(async_await, futures_api)]
-/// use futures::task::{self, SpawnExt};
-/// use futures_test::task::{panic_local_waker_ref, panic_spawner_mut};
+/// use futures::task::SpawnExt;
+/// use futures_test::task::panic_spawner_mut;
 ///
-/// let mut cx = task::Context::new(
-///     panic_local_waker_ref(),
-///     panic_spawner_mut(),
-/// );
-///
-/// cx.spawner().spawn(async { }); // Will panic
+/// let spawner = panic_spawner_mut();
+/// spawner.spawn(async { }); // Will panic
 /// ```
 pub fn panic_spawner_mut() -> &'static mut PanicSpawner {
     Box::leak(Box::new(PanicSpawner::new()))

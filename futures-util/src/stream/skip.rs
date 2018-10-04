@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which skips a number of elements before continuing.
@@ -55,17 +55,17 @@ impl<St: Stream> Stream for Skip<St> {
     type Item = St::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
         while *self.remaining() > 0 {
-            match ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(lw)) {
                 Some(_) => *self.remaining() -= 1,
                 None => return Poll::Ready(None),
             }
         }
 
-        self.stream().poll_next(cx)
+        self.stream().poll_next(lw)
     }
 }
 

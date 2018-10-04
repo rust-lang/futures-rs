@@ -8,7 +8,6 @@ use futures_sink::Sink;
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
 #[cfg(feature = "compat")] use core::marker::Unpin;
-#[cfg(feature = "compat")] use futures_core::task::Spawn;
 
 /* TODO
 mod join;
@@ -478,11 +477,10 @@ pub trait TryFutureExt: TryFuture {
     /// Wraps a [`TryFuture`] into a future compatable with libraries using
     /// futures 0.1 future definitons. Requires the `compat` feature to enable.
     #[cfg(feature = "compat")]
-    fn compat<Sp>(self, spawn: Sp) -> Compat<Self, Sp>
+    fn compat(self) -> Compat<Self>
         where Self: Sized + Unpin,
-              Sp: Spawn,
     {
-        Compat::new(self, Some(spawn))
+        Compat::new(self)
     }
 
     /// Wraps a [`TryFuture`] into a type that implements

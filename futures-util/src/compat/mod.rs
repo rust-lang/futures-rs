@@ -5,7 +5,7 @@
 mod executor;
 pub use self::executor::{Executor01CompatExt, Executor01Future, Executor01As03};
 
-#[allow(module_inception)] mod compat;
+mod compat;
 pub use self::compat::Compat;
 
 mod compat01to03;

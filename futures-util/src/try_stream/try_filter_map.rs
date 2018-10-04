@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{TryFuture};
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A combinator that attempts to filter the results of a stream
@@ -63,22 +63,22 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
     type Item = Result<T, St::Error>;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending().as_pin_mut().is_none() {
-                let item = match ready!(self.stream().try_poll_next(cx)) {
+                let item = match ready!(self.stream().try_poll_next(lw)) {
                     Some(Ok(x)) => x,
                     Some(Err(e)) => return Poll::Ready(Some(Err(e))),
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(item);
-                PinMut::set(self.pending(), Some(fut));
+                Pin::set(self.pending(), Some(fut));
             }
 
-            let result = ready!(self.pending().as_pin_mut().unwrap().try_poll(cx));
-            PinMut::set(self.pending(), None);
+            let result = ready!(self.pending().as_pin_mut().unwrap().try_poll(lw));
+            Pin::set(self.pending(), None);
             match result {
                 Ok(Some(x)) => return Poll::Ready(Some(Ok(x))),
                 Err(e) => return Poll::Ready(Some(Err(e))),

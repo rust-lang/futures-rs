@@ -1,9 +1,9 @@
 use core::marker::{Unpin, PhantomData};
 use core::mem;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -63,16 +63,16 @@ impl<Fut, T> State<Fut, T> {
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     #[allow(clippy::wrong_self_convention)]
     fn as_pin_mut<'a>(
-        self: PinMut<'a, Self>,
-    ) -> State<PinMut<'a, Fut>, PinMut<'a, T>> {
+        self: Pin<&'a mut Self>,
+    ) -> State<Pin<&'a mut Fut>, Pin<&'a mut T>> {
         unsafe {
-            match PinMut::get_mut_unchecked(self) {
+            match Pin::get_mut_unchecked(self) {
                 State::Empty =>
                     State::Empty,
                 State::Process(fut) =>
-                    State::Process(PinMut::new_unchecked(fut)),
+                    State::Process(Pin::new_unchecked(fut)),
                 State::Buffered(item) =>
-                    State::Buffered(PinMut::new_unchecked(item)),
+                    State::Buffered(Pin::new_unchecked(item)),
             }
         }
     }
@@ -87,10 +87,10 @@ impl<S, U, Fut, F> Stream for With<S, U, Fut, F>
     type Item = S::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(cx)
+        self.sink().poll_next(lw)
     }
 }
 
@@ -119,18 +119,18 @@ impl<Si, U, Fut, F, E> With<Si, U, Fut, F>
     }
 
     fn poll(
-        self: &mut PinMut<Self>,
-        cx: &mut task::Context,
+        self: &mut Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), E>> {
         let buffered = match self.state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
-            State::Process(fut) => Some(try_ready!(fut.poll(cx))),
+            State::Process(fut) => Some(try_ready!(fut.poll(lw))),
             State::Buffered(_) => None,
         };
         if let Some(buffered) = buffered {
-            PinMut::set(self.state(), State::Buffered(buffered));
+            Pin::set(self.state(), State::Buffered(buffered));
         }
-        if let State::Buffered(item) = unsafe { mem::replace(PinMut::get_mut_unchecked(self.state()), State::Empty) } {
+        if let State::Buffered(item) = unsafe { mem::replace(Pin::get_mut_unchecked(self.state()), State::Empty) } {
             Poll::Ready(self.sink().start_send(item).map_err(Into::into))
         } else {
             unreachable!()
@@ -148,36 +148,36 @@ impl<Si, U, Fut, F, E> Sink for With<Si, U, Fut, F>
     type SinkError = E;
 
     fn poll_ready(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        self.poll(cx)
+        self.poll(lw)
     }
 
     fn start_send(
-        mut self: PinMut<Self>,
+        mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         let item = (self.f())(item);
-        PinMut::set(self.state(), State::Process(item));
+        Pin::set(self.state(), State::Process(item));
         Ok(())
     }
 
     fn poll_flush(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.poll(cx));
-        try_ready!(self.sink().poll_flush(cx));
+        try_ready!(self.poll(lw));
+        try_ready!(self.sink().poll_flush(lw));
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.poll(cx));
-        try_ready!(self.sink().poll_close(cx));
+        try_ready!(self.poll(lw));
+        try_ready!(self.sink().poll_close(lw));
         Poll::Ready(Ok(()))
     }
 }

@@ -1,8 +1,8 @@
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Pinned;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::ptr;
 
 /// Combinator for the
@@ -33,8 +33,8 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
     type Output = Fut::Output;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
@@ -43,7 +43,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
         } else {
             assert_eq!(self.this_ptr, cur_this, "Future moved between poll calls");
         }
-        self.future().poll(cx)
+        self.future().poll(lw)
     }
 }
 

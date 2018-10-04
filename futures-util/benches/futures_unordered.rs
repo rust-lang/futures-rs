@@ -1,5 +1,8 @@
 #![feature(test, futures_api)]
 
+extern crate test;
+use crate::test::Bencher;
+
 use futures::channel::oneshot;
 use futures::executor::block_on;
 use futures::future;
@@ -7,7 +10,6 @@ use futures::stream::{StreamExt, FuturesUnordered};
 use futures::task::Poll;
 use std::collections::VecDeque;
 use std::thread;
-use test::Bencher;
 
 #[bench]
 fn oneshots(b: &mut Bencher) {
@@ -29,9 +31,9 @@ fn oneshots(b: &mut Bencher) {
             }
         });
 
-        block_on(future::poll_fn(move |cx| {
+        block_on(future::poll_fn(move |lw| {
             loop {
-                if let Poll::Ready(None) = rxs.poll_next_unpin(cx) {
+                if let Poll::Ready(None) = rxs.poll_next_unpin(lw) {
                     break
                 }
             }

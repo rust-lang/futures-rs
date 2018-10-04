@@ -1,7 +1,7 @@
 use core::marker;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A future which is never resolved.
 ///
@@ -36,7 +36,7 @@ pub fn empty<T>() -> Empty<T> {
 impl<T> Future for Empty<T> {
     type Output = T;
 
-    fn poll(self: PinMut<Self>, _: &mut task::Context) -> Poll<T> {
+    fn poll(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<T> {
         Poll::Pending
     }
 }

@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -74,27 +74,27 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
     type Item = St::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
         if *self.done_skipping() {
-            return self.stream().poll_next(cx);
+            return self.stream().poll_next(lw);
         }
 
         loop {
             if self.pending_item().is_none() {
-                let item = match ready!(self.stream().poll_next(cx)) {
+                let item = match ready!(self.stream().poll_next(lw)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
                 let fut = (self.f())(&item);
-                PinMut::set(self.pending_fut(), Some(fut));
+                Pin::set(self.pending_fut(), Some(fut));
                 *self.pending_item() = Some(item);
             }
 
-            let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().poll(cx));
+            let skipped = ready!(self.pending_fut().as_pin_mut().unwrap().poll(lw));
             let item = self.pending_item().take().unwrap();
-            PinMut::set(self.pending_fut(), None);
+            Pin::set(self.pending_fut(), None);
 
             if !skipped {
                 *self.done_skipping() = true;

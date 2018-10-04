@@ -87,13 +87,13 @@ impl<F> Future for JoinAll<F>
     type Error = F::Error;
 
 
-    fn poll(&mut self, cx: &mut task::Context) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, lw: &LocalWaker) -> Poll<Self::Item, Self::Error> {
         let mut all_done = true;
 
         for idx in 0 .. self.elems.len() {
             let done_val = match self.elems[idx] {
                 ElemState::Pending(ref mut t) => {
-                    match t.poll(cx) {
+                    match t.poll(lw) {
                         Ok(Async::Ready(v)) => Ok(v),
                         Ok(Async::Pending) => {
                             all_done = false;

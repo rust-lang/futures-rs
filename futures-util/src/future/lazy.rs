@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A future which, when polled, invokes a closure and yields its result.
 ///
@@ -12,7 +12,7 @@ pub struct Lazy<F> {
     f: Option<F>
 }
 
-// safe because we never generate `PinMut<F>`
+// safe because we never generate `Pin<&mut F>`
 impl<F> Unpin for Lazy<F> {}
 
 /// Creates a new future that allows delayed execution of a closure.
@@ -36,17 +36,17 @@ impl<F> Unpin for Lazy<F> {}
 /// # });
 /// ```
 pub fn lazy<F, R>(f: F) -> Lazy<F>
-    where F: FnOnce(&mut task::Context) -> R,
+    where F: FnOnce(&LocalWaker) -> R,
 {
     Lazy { f: Some(f) }
 }
 
 impl<R, F> Future for Lazy<F>
-    where F: FnOnce(&mut task::Context) -> R,
+    where F: FnOnce(&LocalWaker) -> R,
 {
     type Output = R;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<R> {
-        Poll::Ready((self.f.take().unwrap())(cx))
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<R> {
+        Poll::Ready((self.f.take().unwrap())(lw))
     }
 }

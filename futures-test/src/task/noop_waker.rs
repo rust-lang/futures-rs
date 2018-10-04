@@ -10,12 +10,9 @@ use std::sync::Arc;
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures_test::task::{panic_context, noop_local_waker_ref};
-///
-/// let mut cx = panic_context();
-/// let cx = &mut cx.with_waker(noop_local_waker_ref());
-///
-/// cx.waker().wake();
+/// use futures_test::task::noop_local_waker_ref;
+/// let lw = noop_local_waker_ref();
+/// lw.wake();
 /// ```
 #[derive(Debug)]
 pub struct NoopWake {
@@ -71,16 +68,10 @@ pub fn noop_local_waker() -> LocalWaker {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api)]
-/// use futures::task;
-/// use futures_test::task::{noop_local_waker_ref, noop_spawner_mut};
-///
-/// let mut cx = task::Context::new(
-///     noop_local_waker_ref(),
-///     noop_spawner_mut(),
-/// );
-///
-/// cx.waker().wake();
+/// #![feature(futures_api)]
+/// use futures_test::task::noop_local_waker_ref;
+/// let lw = noop_local_waker_ref();
+/// lw.wake();
 /// ```
 pub fn noop_local_waker_ref() -> &'static LocalWaker {
     thread_local! {

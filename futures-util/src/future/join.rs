@@ -2,9 +2,9 @@
 
 use crate::future::{MaybeDone, maybe_done};
 use core::fmt;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 macro_rules! generate {
@@ -48,11 +48,11 @@ macro_rules! generate {
 
             #[allow(clippy::useless_let_if_seq)]
             fn poll(
-                mut self: PinMut<Self>, cx: &mut task::Context
+                mut self: Pin<&mut Self>, lw: &LocalWaker
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 $(
-                    if self.$Fut().poll(cx).is_pending() {
+                    if self.$Fut().poll(lw).is_pending() {
                         all_done = false;
                     }
                 )*

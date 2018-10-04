@@ -1,5 +1,5 @@
 use futures_core::future::FutureObj;
-use futures_core::task::{Spawn, SpawnObjError};
+use futures_core::task::{Spawn, SpawnError};
 
 /// An implementation of [`Spawn`](futures_core::task::Spawn) that records
 /// any [`Future`](futures_core::future::Future)s spawned on it.
@@ -9,16 +9,10 @@ use futures_core::task::{Spawn, SpawnObjError};
 /// ```
 /// #![feature(async_await, futures_api)]
 /// use futures::task::SpawnExt;
-/// use futures_test::task::{panic_context, RecordSpawner};
+/// use futures_test::task::RecordSpawner;
 ///
 /// let mut recorder = RecordSpawner::new();
-///
-/// {
-///     let mut cx = panic_context();
-///     let cx = &mut cx.with_spawner(&mut recorder);
-///     cx.spawner().spawn(async { });
-/// }
-///
+/// recorder.spawn(async { });
 /// assert_eq!(recorder.spawned().len(), 1);
 /// ```
 #[derive(Debug)]
@@ -44,7 +38,7 @@ impl Spawn for RecordSpawner {
     fn spawn_obj(
         &mut self,
         future: FutureObj<'static, ()>,
-    ) -> Result<(), SpawnObjError> {
+    ) -> Result<(), SpawnError> {
         self.spawned.push(future);
         Ok(())
     }

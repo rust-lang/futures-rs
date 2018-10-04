@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
-use core::pin::PinMut;
-use futures_core::task::{self, Poll};
+use core::pin::Pin;
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 
 /// A sink that will discard all items given to it.
@@ -42,29 +42,29 @@ impl<T> Sink for Drain<T> {
     type SinkError = DrainError;
 
     fn poll_ready(
-        self: PinMut<Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
     fn start_send(
-        self: PinMut<Self>,
+        self: Pin<&mut Self>,
         _item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         Ok(())
     }
 
     fn poll_flush(
-        self: PinMut<Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
-        self: PinMut<Self>,
-        _cx: &mut task::Context,
+        self: Pin<&mut Self>,
+        _lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
     }

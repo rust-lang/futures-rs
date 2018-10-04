@@ -3,8 +3,8 @@
 use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt, poll_fn};
-use futures::task::{self, Poll};
-use std::pin::PinMut;
+use futures::task::{LocalWaker, Poll};
+use std::pin::Pin;
 use std::sync::mpsc;
 use std::thread;
 
@@ -12,12 +12,12 @@ use std::thread;
 fn smoke_poll() {
     let (mut tx, rx) = oneshot::channel::<u32>();
     let mut rx = Some(rx);
-    let f = poll_fn(|cx| {
-        assert!(tx.poll_cancel(cx).is_pending());
-        assert!(tx.poll_cancel(cx).is_pending());
+    let f = poll_fn(|lw| {
+        assert!(tx.poll_cancel(lw).is_pending());
+        assert!(tx.poll_cancel(lw).is_pending());
         drop(rx.take());
-        assert!(tx.poll_cancel(cx).is_ready());
-        assert!(tx.poll_cancel(cx).is_ready());
+        assert!(tx.poll_cancel(lw).is_ready());
+        assert!(tx.poll_cancel(lw).is_ready());
         Poll::Ready(())
     });
 
@@ -42,8 +42,8 @@ struct WaitForCancel {
 impl Future for WaitForCancel {
     type Output = ();
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.tx.poll_cancel(cx)
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        self.tx.poll_cancel(lw)
     }
 }
 
@@ -73,12 +73,12 @@ fn cancel_lots() {
 fn close() {
     let (mut tx, mut rx) = oneshot::channel::<u32>();
     rx.close();
-    block_on(poll_fn(|cx| {
-        match rx.poll_unpin(cx) {
+    block_on(poll_fn(|lw| {
+        match rx.poll_unpin(lw) {
             Poll::Ready(Err(_)) => {},
             _ => panic!(),
         };
-        assert!(tx.poll_cancel(cx).is_ready());
+        assert!(tx.poll_cancel(lw).is_ready());
         Poll::Ready(())
     }));
 }

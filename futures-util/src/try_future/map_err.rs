@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`map_err`](super::TryFutureExt::map_err) combinator.
@@ -31,10 +31,10 @@ impl<Fut, F, E> Future for MapErr<Fut, F>
     type Output = Result<Fut::Ok, E>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        match self.future().try_poll(cx) {
+        match self.future().try_poll(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
                 let f = self.f().take()

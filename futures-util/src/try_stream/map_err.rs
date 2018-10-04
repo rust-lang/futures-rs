@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`map_err`](super::TryStreamExt::map_err) combinator.
@@ -33,10 +33,10 @@ where
 
     #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
-        match self.stream().try_poll_next(cx) {
+        match self.stream().try_poll_next(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(opt) =>
                 Poll::Ready(opt.map(|res| res.map_err(|e| self.f()(e)))),

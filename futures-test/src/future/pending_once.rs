@@ -1,6 +1,6 @@
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
-use std::pin::PinMut;
+use futures_core::task::{LocalWaker, Poll};
+use std::pin::Pin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Combinator that guarantees one [`Poll::Pending`] before polling its inner
@@ -32,14 +32,14 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
     type Output = Fut::Output;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         if *self.polled_before() {
-            self.future().poll(cx)
+            self.future().poll(lw)
         } else {
             *self.polled_before() = true;
-            cx.waker().wake();
+            lw.wake();
             Poll::Pending
         }
     }

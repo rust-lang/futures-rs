@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 use futures_core::future::Future;
-use futures_core::task::{self, Poll, Waker};
+use futures_core::task::{LocalWaker, Poll, Waker};
 use std::any::Any;
 use std::boxed::Box;
 use std::cell::UnsafeCell;
@@ -11,7 +11,7 @@ use std::fmt;
 use std::marker::Unpin;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -55,9 +55,9 @@ impl<T> BiLock<T> {
     /// that will ever be available to the lock. These can then be sent to separate
     /// tasks to be managed there.
     ///
-    /// The data behind the bilock is considered to be pinned, which allows `PinMut`
+    /// The data behind the bilock is considered to be pinned, which allows `Pin`
     /// references to locked data. However, this means that the locked value
-    /// will only be available through `PinMut` (not `&mut`) unless `T` is `Unpin`.
+    /// will only be available through `Pin<&mut T>` (not `&mut T`) unless `T` is `Unpin`.
     /// Similarly, reuniting the lock and extracting the inner value is only
     /// possible when `T` is `Unpin`.
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
@@ -87,7 +87,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, cx: &mut task::Context) -> Poll<BiLockGuard<T>> {
+    pub fn poll_lock(&self, lw: &LocalWaker) -> Poll<BiLockGuard<T>> {
         loop {
             match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -104,7 +104,7 @@ impl<T> BiLock<T> {
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = Box::new(cx.waker().clone());
+            let me: Box<Waker> = Box::new(lw.clone().into_waker());
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -242,10 +242,10 @@ impl<'a, T: Unpin> DerefMut for BiLockGuard<'a, T> {
 
 impl<'a, T> BiLockGuard<'a, T> {
     /// Get a mutable pinned reference to the locked value.
-    pub fn as_pin_mut(&mut self) -> PinMut<'_, T> {
+    pub fn as_pin_mut(&mut self) -> Pin<&mut T> {
         // Safety: we never allow moving a !Unpin value out of a bilock, nor
         // allow mutable access to it
-        unsafe { PinMut::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
+        unsafe { Pin::new_unchecked(&mut *self.bilock.arc.value.as_ref().unwrap().get()) }
     }
 }
 
@@ -269,7 +269,7 @@ impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
 impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;
 
-    fn poll(self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        self.bilock.poll_lock(cx)
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        self.bilock.poll_lock(lw)
     }
 }

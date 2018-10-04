@@ -1,7 +1,7 @@
 //! An unbounded set of streams
 
 use std::fmt::{self, Debug};
-use std::pin::PinMut;
+use std::pin::Pin;
 
 use futures_core::{Poll, Stream};
 use futures_core::task;
@@ -69,9 +69,9 @@ impl<St: Stream> Stream for SelectAll<St> {
 
     fn poll_next(
         &mut self,
-        cx: &mut task::Context,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.inner.poll_next(cx).map_err(|(err, _)| err)? {
+        match self.inner.poll_next(lw).map_err(|(err, _)| err)? {
             Async::Pending => Ok(Async::Pending),
             Async::Ready(Some((Some(item), remaining))) => {
                 self.push(remaining);

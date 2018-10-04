@@ -1,7 +1,7 @@
 use core::marker::{PhantomData, Unpin};
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the [`err_into`](super::TryFutureExt::err_into) combinator.
@@ -32,10 +32,10 @@ impl<Fut, E> Future for ErrInto<Fut, E>
     type Output = Result<Fut::Ok, E>;
 
     fn poll(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        self.future().try_poll(cx)
+        self.future().try_poll(lw)
             .map(|res| res.map_err(Into::into))
     }
 }

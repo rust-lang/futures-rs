@@ -124,7 +124,7 @@ fn smoke_oneshot() {
 
     let (c, mut p) = oneshot::channel::<i32>();
     drop(c);
-    let res = panic_waker_cx(|cx| p.poll(cx));
+    let res = panic_waker_lw(|lw| p.poll(lw));
     assert!(res.is_err());
     let (c, p) = oneshot::channel::<i32>();
     drop(c);
@@ -147,8 +147,8 @@ fn select_cancels() {
     assert!(brx.try_recv().is_err());
     assert!(drx.try_recv().is_err());
     a.send(1).unwrap();
-    noop_waker_cx(|cx| {
-        let res = f.poll(cx);
+    noop_waker_lw(|lw| {
+        let res = f.poll(lw);
         assert!(res.ok().unwrap().is_ready());
         assert_eq!(brx.recv().unwrap(), 1);
         drop(c);
@@ -160,10 +160,10 @@ fn select_cancels() {
         let d = d.map(move |d| { dtx.send(d).unwrap(); d });
 
         let mut f = b.select(d).then(unselect);
-        assert!(f.poll(cx).ok().unwrap().is_pending());
-        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(f.poll(lw).ok().unwrap().is_pending());
+        assert!(f.poll(lw).ok().unwrap().is_pending());
         a.send(1).unwrap();
-        assert!(f.poll(cx).ok().unwrap().is_ready());
+        assert!(f.poll(lw).ok().unwrap().is_ready());
         drop((c, f));
         assert!(drx.recv().is_err());
     })
@@ -178,7 +178,7 @@ fn join_cancels() {
 
     let mut f = b.join(d);
     drop(a);
-    let res = panic_waker_cx(|cx| f.poll(cx));
+    let res = panic_waker_lw(|lw| f.poll(lw));
     assert!(res.is_err());
     drop(c);
     assert!(drx.recv().is_err());
@@ -206,39 +206,39 @@ fn join_cancels() {
 fn join_incomplete() {
     let (a, b) = oneshot::channel::<i32>();
     let (tx, rx) = channel();
-    noop_waker_cx(|cx| {
+    noop_waker_lw(|lw| {
         let mut f = ok(1).join(b).map(move |r| tx.send(r).unwrap());
-        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(f.poll(lw).ok().unwrap().is_pending());
         assert!(rx.try_recv().is_err());
         a.send(2).unwrap();
-        assert!(f.poll(cx).ok().unwrap().is_ready());
+        assert!(f.poll(lw).ok().unwrap().is_ready());
         assert_eq!(rx.recv().unwrap(), (1, 2));
 
         let (a, b) = oneshot::channel::<i32>();
         let (tx, rx) = channel();
         let mut f = b.join(Ok(2)).map(move |r| tx.send(r).unwrap());
-        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(f.poll(lw).ok().unwrap().is_pending());
         assert!(rx.try_recv().is_err());
         a.send(1).unwrap();
-        assert!(f.poll(cx).ok().unwrap().is_ready());
+        assert!(f.poll(lw).ok().unwrap().is_ready());
         assert_eq!(rx.recv().unwrap(), (1, 2));
 
         let (a, b) = oneshot::channel::<i32>();
         let (tx, rx) = channel();
         let mut f = ok(1).join(b).map_err(move |_r| tx.send(2).unwrap());
-        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(f.poll(lw).ok().unwrap().is_pending());
         assert!(rx.try_recv().is_err());
         drop(a);
-        assert!(f.poll(cx).is_err());
+        assert!(f.poll(lw).is_err());
         assert_eq!(rx.recv().unwrap(), 2);
 
         let (a, b) = oneshot::channel::<i32>();
         let (tx, rx) = channel();
         let mut f = b.join(Ok(2)).map_err(move |_r| tx.send(1).unwrap());
-        assert!(f.poll(cx).ok().unwrap().is_pending());
+        assert!(f.poll(lw).ok().unwrap().is_pending());
         assert!(rx.try_recv().is_err());
         drop(a);
-        assert!(f.poll(cx).is_err());
+        assert!(f.poll(lw).is_err());
         assert_eq!(rx.recv().unwrap(), 1);
     })
 }
@@ -340,7 +340,7 @@ fn select2() {
         let b = b.map(move |v| { btx.send(v).unwrap(); v });
         let d = d.map(move |v| { dtx.send(v).unwrap(); v });
         let mut f = b.select(d);
-        let _res = noop_waker_cx(|cx| f.poll(cx));
+        let _res = noop_waker_lw(|lw| f.poll(lw));
         drop(f);
         assert!(drx.recv().is_err());
         assert!(brx.recv().is_err());

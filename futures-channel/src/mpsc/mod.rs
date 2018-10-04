@@ -79,12 +79,12 @@
 // by the queue structure.
 
 use futures_core::stream::Stream;
-use futures_core::task::{self, Waker, Poll};
+use futures_core::task::{LocalWaker, Waker, Poll};
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
@@ -113,7 +113,7 @@ pub struct Sender<T> {
     maybe_parked: bool,
 }
 
-// We never project PinMut<Sender> to `PinMut<T>`
+// We never project Pin<&mut Sender> to `Pin<&mut T>`
 impl<T> Unpin for Sender<T> {}
 
 /// The transmission end of an unbounded mpsc channel.
@@ -139,7 +139,7 @@ pub struct Receiver<T> {
 #[derive(Debug)]
 pub struct UnboundedReceiver<T>(Receiver<T>);
 
-// `PinMut<UnboundedReceiver<T>>` is never projected to `PinMut<T>`
+// `Pin<&mut UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
 impl<T> Unpin for UnboundedReceiver<T> {}
 
 /// The error type for [`Sender`s](Sender) used as `Sink`s.
@@ -451,7 +451,7 @@ impl<T> Sender<T> {
 
     // Do the send without failing
     // None means close
-    fn do_send(&mut self, cx: Option<&mut task::Context>, msg: T)
+    fn do_send(&mut self, lw: Option<&LocalWaker>, msg: T)
         -> Result<(), TrySendError<T>>
     {
         // Anyone callig do_send *should* make sure there is room first,
@@ -483,7 +483,7 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(cx);
+            self.park(lw);
         }
 
         self.queue_push_and_signal(Some(msg));
@@ -616,10 +616,10 @@ impl<T> Sender<T> {
         }
     }
 
-    fn park(&mut self, cx: Option<&mut task::Context>) {
+    fn park(&mut self, lw: Option<&LocalWaker>) {
         // TODO: clean up internal state if the task::current will fail
 
-        let task = cx.map(|cx| cx.waker().clone());
+        let task = lw.map(|lw| lw.clone().into_waker());
 
         {
             let mut sender = self.sender_task.lock().unwrap();
@@ -651,7 +651,7 @@ impl<T> Sender<T> {
     /// - `Err(SendError)` if the receiver has been dropped.
     pub fn poll_ready(
         &mut self,
-        cx: &mut task::Context
+        lw: &LocalWaker
     ) -> Poll<Result<(), SendError>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
@@ -660,7 +660,7 @@ impl<T> Sender<T> {
             }));
         }
 
-        self.poll_unparked(Some(cx)).map(Ok)
+        self.poll_unparked(Some(lw)).map(Ok)
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -677,7 +677,7 @@ impl<T> Sender<T> {
         let _ = self.do_send_nb(None);
     }
 
-    fn poll_unparked(&mut self, cx: Option<&mut task::Context>) -> Poll<()> {
+    fn poll_unparked(&mut self, lw: Option<&LocalWaker>) -> Poll<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -695,7 +695,7 @@ impl<T> Sender<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = cx.map(|cx| cx.waker().clone());
+            task.task = lw.map(|lw| lw.clone().into_waker());
 
             Poll::Pending
         } else {
@@ -708,7 +708,7 @@ impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
     pub fn poll_ready(
         &self,
-        _: &mut task::Context,
+        _: &LocalWaker,
     ) -> Poll<Result<(), SendError>> {
         self.0.poll_ready_nb()
     }
@@ -914,7 +914,7 @@ impl<T> Receiver<T> {
     }
 
     // Try to park the receiver task
-    fn try_park(&self, cx: &mut task::Context) -> TryPark {
+    fn try_park(&self, lw: &LocalWaker) -> TryPark {
         let curr = self.inner.state.load(SeqCst);
         let state = decode_state(curr);
 
@@ -932,7 +932,7 @@ impl<T> Receiver<T> {
             return TryPark::NotEmpty;
         }
 
-        recv_task.task = Some(cx.waker().clone());
+        recv_task.task = Some(lw.clone().into_waker());
         TryPark::Parked
     }
 
@@ -953,15 +953,15 @@ impl<T> Receiver<T> {
     }
 }
 
-// The receiver does not ever take a PinMut to the inner T
+// The receiver does not ever take a Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
 
 impl<T> Stream for Receiver<T> {
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
         loop {
             // Try to read a message off of the message queue.
@@ -971,7 +971,7 @@ impl<T> Stream for Receiver<T> {
                     // There are no messages to read, in this case, attempt to
                     // park. The act of parking will verify that the channel is
                     // still empty after the park operation has completed.
-                    match self.try_park(cx) {
+                    match self.try_park(lw) {
                         TryPark::Parked => {
                             // The task was parked, and the channel is still
                             // empty, return Pending.
@@ -1030,10 +1030,10 @@ impl<T> Stream for UnboundedReceiver<T> {
     type Item = T;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<T>> {
-        PinMut::new(&mut self.0).poll_next(cx)
+        Pin::new(&mut self.0).poll_next(lw)
     }
 }
 

@@ -1,10 +1,10 @@
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_io::{AsyncRead, AsyncWrite};
 use std::boxed::Box;
 use std::io;
 use std::marker::Unpin;
-use std::pin::PinMut;
+use std::pin::Pin;
 
 /// A future which will copy all data from a reader into a writer.
 ///
@@ -23,7 +23,7 @@ pub struct CopyInto<'a, R: ?Sized + 'a, W: ?Sized + 'a> {
     buf: Box<[u8]>,
 }
 
-// No projections of PinMut<CopyInto> into PinMut<Field> are ever done.
+// No projections of Pin<&mut CopyInto> into Pin<&mut Field> are ever done.
 impl<R: ?Sized, W: ?Sized> Unpin for CopyInto<'_, R, W> {}
 
 impl<'a, R: ?Sized, W: ?Sized> CopyInto<'a, R, W> {
@@ -46,13 +46,13 @@ impl<R, W> Future for CopyInto<'_, R, W>
 {
     type Output = io::Result<u64>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let this = &mut *self;
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
             if this.pos == this.cap && !this.read_done {
-                let n = try_ready!(this.reader.poll_read(cx, &mut this.buf));
+                let n = try_ready!(this.reader.poll_read(lw, &mut this.buf));
                 if n == 0 {
                     this.read_done = true;
                 } else {
@@ -63,11 +63,9 @@ impl<R, W> Future for CopyInto<'_, R, W>
 
             // If our buffer has some data, let's write it out!
             while this.pos < this.cap {
-                let i = try_ready!(this.writer.poll_write(cx, &this.buf[this.pos..this.cap]));
+                let i = try_ready!(this.writer.poll_write(lw, &this.buf[this.pos..this.cap]));
                 if i == 0 {
-                    return Poll::Ready(Err(
-                        io::Error::new(
-                            io::ErrorKind::WriteZero, "write zero byte into writer")));
+                    return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
                 } else {
                     this.pos += i;
                     this.amt += i as u64;
@@ -78,7 +76,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             // data and finish the transfer.
             // done with the entire transfer.
             if this.pos == this.cap && this.read_done {
-                try_ready!(this.writer.poll_flush(cx));
+                try_ready!(this.writer.poll_flush(lw));
                 return Poll::Ready(Ok(this.amt));
             }
         }

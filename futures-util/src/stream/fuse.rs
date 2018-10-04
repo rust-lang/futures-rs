@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -57,8 +57,8 @@ impl<St: Stream> Fuse<St> {
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
-    pub fn get_pin_mut<'a>(self: PinMut<'a, Self>) -> PinMut<'a, St> {
-        unsafe { PinMut::map_unchecked(self, |x| x.get_mut()) }
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
+        unsafe { Pin::map_unchecked_mut(self, |x| x.get_mut()) }
     }
 
     /// Consumes this combinator, returning the underlying stream.
@@ -74,14 +74,14 @@ impl<S: Stream> Stream for Fuse<S> {
     type Item = S::Item;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
         if *self.done() {
             return Poll::Ready(None);
         }
 
-        let item = ready!(self.stream().poll_next(cx));
+        let item = ready!(self.stream().poll_next(lw));
         if item.is_none() {
             *self.done() = true;
         }

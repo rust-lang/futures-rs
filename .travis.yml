@@ -4,6 +4,11 @@ rust:
 sudo: false
 cache: cargo
 
+stages:
+  - name: test
+  - name: release
+    if: tag IS present
+
 matrix:
   include:
     - name: cargo test
@@ -12,11 +17,11 @@ matrix:
     - name: cargo test
       os: linux
 
-    # - name: cargo test (with minimal versions)
-    #   os: linux
-    #   script:
-    #     - cargo update -Zminimal-versions
-    #     - cargo test --all
+    - name: cargo test (with minimal versions)
+      os: linux
+      script:
+        - cargo update -Zminimal-versions
+        - cargo test --all
 
     - name: cargo clippy
       rust: nightly
@@ -50,6 +55,11 @@ matrix:
       script:
         - cargo build --all
 
+    - name: cargo build (compat feature)
+      rust: nightly
+      script:
+        - cargo build --manifest-path futures/Cargo.toml --features tokio-compat
+
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
       install:
@@ -63,11 +73,28 @@ matrix:
     - name: cargo doc
       rust: nightly
       script:
-        - RUSTDOCFLAGS=-Dwarnings cargo doc --all
-            --exclude futures-preview
-            --exclude futures-executor-preview
-            --exclude futures-test-preview
-        - cargo doc
+        - cargo doc --all --no-deps --all-features
+
+    - name: publish docs
+      stage: release
+      rust: nightly
+      before_script:
+        - echo "machine github.com login $GH_TOKEN password x-oauth-basic" >> ~/.netrc
+        - chmod 0600 ~/.netrc
+        - git clone https://github.com/rust-lang-nursery/futures-api-docs
+      script:
+        - cargo doc --all --no-deps --all-features
+        - mv target/doc "futures-api-docs/$TRAVIS_TAG"
+        - cd futures-api-docs
+        - |
+          sed -i'' -e '/<main id="doc-links">/a\
+          \        <a href="https://rust-lang-nursery.github.io/futures-api-docs/'"$TRAVIS_TAG"'/futures/">\
+          \          <span>'"$TRAVIS_TAG"'</span>\
+          \        </a>\
+          ' index.html
+        - git add "docs/$TRAVIS_TAG" index.html
+        - git commit -m "Add API docs for $TRAVIS_TAG"
+        - git push origin master
 
 script:
   - cargo test --all

@@ -1,7 +1,7 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A macro which returns the result of polling a future once within the
 /// current `async` context.
@@ -27,7 +27,7 @@ pub struct PollOnce<F: Future + Unpin> {
 
 impl<F: Future + Unpin> Future for PollOnce<F> {
     type Output = Poll<F::Output>;
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
-        Poll::Ready(PinMut::new(&mut self.future).poll(cx))
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        Poll::Ready(Pin::new(&mut self.future).poll(lw))
     }
 }

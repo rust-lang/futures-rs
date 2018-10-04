@@ -1,10 +1,10 @@
 use crate::stream::Fuse;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
 use std::mem;
-use std::pin::PinMut;
+use std::pin::Pin;
 use std::prelude::v1::*;
 
 /// An adaptor that chunks up elements in a vector.
@@ -34,7 +34,7 @@ impl<St: Stream> Chunks<St> where St: Stream {
         }
     }
 
-    fn take(mut self: PinMut<Self>) -> Vec<St::Item> {
+    fn take(mut self: Pin<&mut Self>) -> Vec<St::Item> {
         let cap = self.items().capacity();
         mem::replace(self.items(), Vec::with_capacity(cap))
     }
@@ -67,12 +67,12 @@ impl<St: Stream> Stream for Chunks<St> {
     type Item = Vec<St::Item>;
 
     fn poll_next(
-        mut self: PinMut<Self>,
-        cx: &mut task::Context,
+        mut self: Pin<&mut Self>,
+        lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {
-            match ready!(self.stream().poll_next(cx)) {
+            match ready!(self.stream().poll_next(lw)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.

@@ -1,7 +1,7 @@
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// A type which converts a `Future` into a `Stream`
@@ -25,10 +25,10 @@ impl<Fut: Future> IntoStream<Fut> {
 impl<Fut: Future> Stream for IntoStream<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
         let v = match self.future().as_pin_mut() {
             Some(fut) => {
-                match fut.poll(cx) {
+                match fut.poll(lw) {
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(v) => v
                 }
@@ -36,7 +36,7 @@ impl<Fut: Future> Stream for IntoStream<Fut> {
             None => return Poll::Ready(None),
         };
 
-        PinMut::set(self.future(), None);
+        Pin::set(self.future(), None);
         Poll::Ready(Some(v))
     }
 }

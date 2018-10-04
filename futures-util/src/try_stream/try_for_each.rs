@@ -1,8 +1,8 @@
 use core::marker::Unpin;
-use core::pin::PinMut;
+use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
 use futures_core::stream::TryStream;
-use futures_core::task::{self, Poll};
+use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which attempts to execute an async closure over each
@@ -44,17 +44,17 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
 {
     type Output = Result<(), St::Error>;
 
-    fn poll(mut self: PinMut<Self>, cx: &mut task::Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         loop {
             if let Some(future) = self.future().as_pin_mut() {
-                try_ready!(future.try_poll(cx));
+                try_ready!(future.try_poll(lw));
             }
-            PinMut::set(self.future(), None);
+            Pin::set(self.future(), None);
 
-            match ready!(self.stream().try_poll_next(cx)) {
+            match ready!(self.stream().try_poll_next(lw)) {
                 Some(Ok(e)) => {
                     let future = (self.f())(e);
-                    PinMut::set(self.future(), Some(future));
+                    Pin::set(self.future(), Some(future));
                 }
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(())),
