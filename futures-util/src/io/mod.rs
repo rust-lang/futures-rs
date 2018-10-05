@@ -225,7 +225,10 @@ pub trait AsyncReadExt: AsyncRead {
     }
 
     /// Wraps an [`AsyncRead`] in a compatibility wrapper that allows it to be
-    /// used as a futures 0.1 / tokio-io 0.1 `AsyncRead`.
+    /// used as a futures 0.1 / tokio-io 0.1 `AsyncRead`. If the wrapped type
+    /// implements [`AsyncWrite`] as well, the result will also implement the
+    /// futures 0.1 / tokio 0.1 `AsyncWrite` trait.
+    ///
     /// Requires the `io-compat` feature to enable.
     #[cfg(feature = "io-compat")]
     fn compat(self) -> Compat<Self>
