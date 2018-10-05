@@ -1,3 +1,5 @@
+cargo-features = ["rename-dependency"]
+
 [package]
 name = "futures-util-preview"
 edition = "2018"
@@ -17,7 +19,7 @@ name = "futures_util"
 [features]
 std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "either/use_std", "slab"]
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
-compat = ["std", "futures"]
+compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
 tokio-compat = ["compat", "tokio-executor"]
 bench = []
@@ -30,7 +32,7 @@ futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.7", defaul
 futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.7", default-features = false}
 either = { version = "1.4", default-features = false }
 slab = { version = "0.4", optional = true }
-futures = { version = "0.1", optional = true }
+futures_01 = { version = "0.1", optional = true, package = "futures" }
 tokio-executor = { version = "0.1.2", optional = true }
 tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.3"
@@ -38,3 +40,4 @@ pin-utils = "0.1.0-alpha.3"
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "0.3.0-alpha.7" }
 futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.7" }
+tokio = "0.1.11"

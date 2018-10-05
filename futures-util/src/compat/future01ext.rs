@@ -1,5 +1,5 @@
 use super::Compat;
-use futures::Future as Future01;
+use futures_01::Future as Future01;
 
 impl<Fut: Future01> Future01CompatExt for Fut {}
 

@@ -21,7 +21,7 @@ matrix:
       os: linux
       script:
         - cargo update -Zminimal-versions
-        - cargo test --all
+        - cargo test --all --all-features
 
     - name: cargo clippy
       rust: nightly
@@ -97,8 +97,8 @@ matrix:
         - git push origin master
 
 script:
-  - cargo test --all
-  - cargo test --all --release
+  - cargo test --all --all-features
+  - cargo test --all --all-features --release
 
 env:
   global:
