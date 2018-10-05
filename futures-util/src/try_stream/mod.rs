@@ -506,15 +506,11 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await, await_macro, futures_api)]
     /// use futures::future::{FutureExt, TryFutureExt};
-    /// use futures::spawn;
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
     /// let future03 = async {
     ///     println!("Running on the pool");
-    ///     spawn!(async {
-    ///         println!("Spawned!");
-    ///         # tx.send(42).unwrap();
-    ///     }).unwrap();
+    ///     tx.send(42).unwrap();
     /// };
     ///
     /// let future01 = future03
@@ -523,7 +519,7 @@ pub trait TryStreamExt: TryStream {
     ///     .compat();
     ///
     /// tokio::run(future01);
-    /// # futures::executor::block_on(rx).unwrap();
+    /// # assert_eq!(42, futures::executor::block_on(rx).unwrap());
     /// ```
     #[cfg(feature = "compat")]
     fn compat(self) -> Compat<Self>

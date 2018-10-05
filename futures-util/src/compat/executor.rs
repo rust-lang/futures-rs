@@ -5,8 +5,8 @@ use crate::{
     try_future::TryFutureExt,
     task::SpawnExt,
 };
-use futures::Future as Future01;
-use futures::future::{Executor as Executor01, ExecuteError as ExecuteError01};
+use futures_01::Future as Future01;
+use futures_01::future::{Executor as Executor01, ExecuteError as ExecuteError01};
 use futures_core::task::{Spawn as Spawn03, SpawnError as SpawnError03};
 use futures_core::future::FutureObj;
 
