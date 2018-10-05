@@ -22,21 +22,21 @@ travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
-futures-async-runtime-preview = { path = "../futures-async-runtime", version = "0.2.2", default-features = false }
-futures-core-preview = { path = "../futures-core", version = "0.2.2", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "0.2.2", default-features = false }
-futures-executor-preview = { path = "../futures-executor", version = "0.2.2", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "0.2.2", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "0.2.2", default-features = false }
-futures-stable-preview = { path = "../futures-stable", version = "0.2.2", default-features = false }
-futures-util-preview = { path = "../futures-util", version = "0.2.2", default-features = false }
-futures-macro-async-preview = { path = "../futures-macro-async", version = "0.2.2", optional = true }
-futures-macro-await-preview = { path = "../futures-macro-await", version = "0.2.2", optional = true }
+#futures-async-runtime-preview = { path = "../futures-async-runtime", version = "0.2.2", default-features = false }
+#futures-core-preview = { path = "../futures-core", version = "0.2.2", default-features = false }
+#futures-channel-preview = { path = "../futures-channel", version = "0.2.2", default-features = false }
+#futures-executor-preview = { path = "../futures-executor", version = "0.2.2", default-features = false }
+#futures-io-preview = { path = "../futures-io", version = "0.2.2", default-features = false }
+#futures-sink-preview = { path = "../futures-sink", version = "0.2.2", default-features = false }
+#futures-stable-preview = { path = "../futures-stable", version = "0.2.2", default-features = false }
+#futures-util-preview = { path = "../futures-util", version = "0.2.2", default-features = false }
+#futures-macro-async-preview = { path = "../futures-macro-async", version = "0.2.2", optional = true }
+#futures-macro-await-preview = { path = "../futures-macro-await", version = "0.2.2", optional = true }
 
 [features]
-nightly = ["futures-core-preview/nightly", "futures-stable-preview/nightly", "futures-async-runtime-preview/nightly", "futures-macro-async-preview", "futures-macro-await-preview", "futures-macro-async-preview/nightly"]
-std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-stable-preview/std", "futures-util-preview/std", "futures-async-runtime-preview/std"]
-default = ["std"]
+#nightly = ["futures-core-preview/nightly", "futures-stable-preview/nightly", "futures-async-runtime-preview/nightly", "futures-macro-async-preview", "futures-macro-await-preview", "futures-macro-async-preview/nightly"]
+#std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-stable-preview/std", "futures-util-preview/std", "futures-async-runtime-preview/std"]
+#default = ["std"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", ".cargo/registry/src/github.com-1ecc6299db9ec823/futures-0.2.3-docs-yank.2/yanked-redirect.html"]

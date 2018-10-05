@@ -1,3 +1,4 @@
+/*
 //! Abstractions for asynchronous programming.
 //!
 //! This crate provides a number of core abstractions for writing asynchronous code:
@@ -503,3 +504,4 @@ pub mod __rt {
     pub extern crate std;
     pub use futures_async_runtime::*;
 }
+*/
