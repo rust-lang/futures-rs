@@ -9,6 +9,8 @@ use std::vec::Vec;
 
 pub use futures_io::{AsyncRead, AsyncWrite, IoVec};
 
+#[cfg(feature = "io-compat")] use crate::compat::Compat;
+
 // Temporarily removed until AsyncBufRead is implemented
 // pub use io::lines::{lines, Lines};
 // pub use io::read_until::{read_until, ReadUntil};
@@ -221,6 +223,19 @@ pub trait AsyncReadExt: AsyncRead {
     {
         split::split(self)
     }
+
+    /// Wraps an [`AsyncRead`] in a compatibility wrapper that allows it to be
+    /// used as a futures 0.1 / tokio-io 0.1 `AsyncRead`. If the wrapped type
+    /// implements [`AsyncWrite`] as well, the result will also implement the
+    /// futures 0.1 / tokio 0.1 `AsyncWrite` trait.
+    ///
+    /// Requires the `io-compat` feature to enable.
+    #[cfg(feature = "io-compat")]
+    fn compat(self) -> Compat<Self>
+        where Self: Sized,
+    {
+        Compat::new(self)
+    }
 }
 
 impl<R: AsyncRead + ?Sized> AsyncReadExt for R {}
@@ -283,6 +298,16 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// ```
     fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
         WriteAll::new(self, buf)
+    }
+
+    /// Wraps an [`AsyncWrite`] in a compatibility wrapper that allows it to be
+    /// used as a futures 0.1 / tokio-io 0.1 `AsyncWrite`.
+    /// Requires the `io-compat` feature to enable.
+    #[cfg(feature = "io-compat")]
+    fn compat_write(self) -> Compat<Self>
+        where Self: Sized,
+    {
+        Compat::new(self)
     }
 }
 

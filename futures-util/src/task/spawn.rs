@@ -1,5 +1,7 @@
 use futures_core::task::{LocalSpawn, Spawn};
 
+#[cfg(feature = "compat")] use crate::compat::Compat;
+
 if_std! {
     use crate::future::{FutureExt, RemoteHandle};
     use futures_core::future::{Future, FutureObj, LocalFutureObj};
@@ -75,6 +77,15 @@ pub trait SpawnExt: Spawn {
         let (future, handle) = future.remote_handle();
         self.spawn(future)?;
         Ok(handle)
+    }
+
+    /// Wraps a [`Spawn`] and makes it usable as a futures 0.1 `Executor`.
+    /// Requires the `compat` feature to enable.
+    #[cfg(feature = "compat")]
+    fn compat(self) -> Compat<Self>
+        where Self: Sized,
+    {
+        Compat::new(self)
     }
 }
 

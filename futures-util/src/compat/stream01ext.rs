@@ -1,5 +1,5 @@
 use super::Compat;
-use futures::Stream as Stream01;
+use futures_01::Stream as Stream01;
 
 impl<St: Stream01> Stream01CompatExt for St {}
 

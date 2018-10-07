@@ -1,5 +1,5 @@
 use super::Compat;
-use futures::{
+use futures_01::{
     task as task01, Async as Async01, AsyncSink as AsyncSink01,
     Future as Future01, Poll as Poll01, Sink as Sink01,
     StartSend as StartSend01, Stream as Stream01,
@@ -10,6 +10,16 @@ use futures_core::{
 use futures_sink::Sink as Sink03;
 use std::{marker::Unpin, pin::Pin, ptr::NonNull, sync::Arc};
 
+fn poll_03_to_01<T, E>(x: task03::Poll<Result<T, E>>)
+    -> Result<Async01<T>, E>
+{
+    match x {
+        task03::Poll::Ready(Ok(t)) => Ok(Async01::Ready(t)),
+        task03::Poll::Pending => Ok(Async01::NotReady),
+        task03::Poll::Ready(Err(e)) => Err(e),
+    }
+}
+
 impl<Fut> Future01 for Compat<Fut>
 where
     Fut: TryFuture03 + Unpin,
@@ -18,11 +28,7 @@ where
     type Error = Fut::Error;
 
     fn poll(&mut self) -> Poll01<Self::Item, Self::Error> {
-        with_context(self, |inner, lw| match inner.try_poll(lw) {
-            task03::Poll::Ready(Ok(t)) => Ok(Async01::Ready(t)),
-            task03::Poll::Pending => Ok(Async01::NotReady),
-            task03::Poll::Ready(Err(e)) => Err(e),
-        })
+        with_context(self, |inner, lw| poll_03_to_01(inner.try_poll(lw)))
     }
 }
 
@@ -66,19 +72,11 @@ where
     }
 
     fn poll_complete(&mut self) -> Poll01<(), Self::SinkError> {
-        with_context(self, |inner, lw| match inner.poll_flush(lw) {
-            task03::Poll::Ready(Ok(())) => Ok(Async01::Ready(())),
-            task03::Poll::Pending => Ok(Async01::NotReady),
-            task03::Poll::Ready(Err(e)) => Err(e),
-        })
+        with_context(self, |inner, lw| poll_03_to_01(inner.poll_flush(lw)))
     }
 
     fn close(&mut self) -> Poll01<(), Self::SinkError> {
-        with_context(self, |inner, lw| match inner.poll_close(lw) {
-            task03::Poll::Ready(Ok(())) => Ok(Async01::Ready(())),
-            task03::Poll::Pending => Ok(Async01::NotReady),
-            task03::Poll::Ready(Err(e)) => Err(e),
-        })
+        with_context(self, |inner, lw| poll_03_to_01(inner.poll_close(lw)))
     }
 }
 
@@ -120,4 +118,58 @@ where
 {
     let lw = current_ref_as_waker();
     f(Pin::new(&mut compat.inner), &lw)
+}
+
+#[cfg(feature = "io-compat")]
+mod io {
+    use super::*;
+    use futures_io::{AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03};
+    use tokio_io::{AsyncRead as AsyncRead01, AsyncWrite as AsyncWrite01};
+
+    fn poll_03_to_io<T>(x: task03::Poll<Result<T, std::io::Error>>)
+        -> Result<T, std::io::Error>
+    {
+        match x {
+            task03::Poll::Ready(Ok(t)) => Ok(t),
+            task03::Poll::Pending => Err(std::io::ErrorKind::WouldBlock.into()),
+            task03::Poll::Ready(Err(e)) => Err(e),
+        }
+    }
+
+    impl<R: AsyncRead03> std::io::Read for Compat<R> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let lw = current_ref_as_waker();
+            poll_03_to_io(self.inner.poll_read(&lw, buf))
+        }
+    }
+
+    impl<R: AsyncRead03> AsyncRead01 for Compat<R> {
+        unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
+            let initializer = self.inner.initializer();
+            let does_init = initializer.should_initialize();
+            if does_init {
+                initializer.initialize(buf);
+            }
+            does_init
+        }
+    }
+
+    impl<W: AsyncWrite03> std::io::Write for Compat<W> {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            let lw = current_ref_as_waker();
+            poll_03_to_io(self.inner.poll_write(&lw, buf))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            let lw = current_ref_as_waker();
+            poll_03_to_io(self.inner.poll_flush(&lw))
+        }
+    }
+
+    impl<W: AsyncWrite03> AsyncWrite01 for Compat<W> {
+        fn shutdown(&mut self) -> std::io::Result<Async01<()>> {
+            let lw = current_ref_as_waker();
+            poll_03_to_01(self.inner.poll_close(&lw))
+        }
+    }
 }
