@@ -103,20 +103,24 @@ where
     }
 }
 
-fn current_ref_as_waker() -> task03::LocalWaker {
-    unsafe {
-        task03::LocalWaker::new(NonNull::<CurrentRef>::dangling())
+struct Current(task01::Task);
+
+impl Current {
+    fn new() -> Current {
+        Current(task01::current())
+    }
+
+    fn as_waker(&self) -> task03::LocalWaker {
+        unsafe {
+            task03::LocalWaker::new(NonNull::new_unchecked(self as *const Current as *mut Current))
+        }
     }
 }
 
-struct CurrentRef;
-
-struct CurrentOwned(task01::Task);
-
-unsafe impl task03::UnsafeWake for CurrentRef {
+unsafe impl task03::UnsafeWake for Current {
     #[inline]
     unsafe fn clone_raw(&self) -> task03::Waker {
-        task03::Waker::from(Arc::new(CurrentOwned(task01::current())))
+        task03::Waker::from(Arc::new(Current(self.0.clone())))
     }
 
     #[inline]
@@ -124,11 +128,11 @@ unsafe impl task03::UnsafeWake for CurrentRef {
 
     #[inline]
     unsafe fn wake(&self) {
-        task01::current().notify();
+        self.0.notify();
     }
 }
 
-impl task03::Wake for CurrentOwned {
+impl task03::Wake for Current {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.0.notify();
     }
@@ -139,7 +143,8 @@ where
     T: Unpin,
     F: FnOnce(Pin<&mut T>, &task03::LocalWaker) -> R,
 {
-    let lw = current_ref_as_waker();
+    let current = Current::new();
+    let lw = current.as_waker();
     f(Pin::new(&mut compat.inner), &lw)
 }
 
@@ -161,7 +166,8 @@ mod io {
 
     impl<R: AsyncRead03> std::io::Read for Compat<R> {
         fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-            let lw = current_ref_as_waker();
+            let current = Current::new();
+            let lw = current.as_waker();
             poll_03_to_io(self.inner.poll_read(&lw, buf))
         }
     }
@@ -179,19 +185,22 @@ mod io {
 
     impl<W: AsyncWrite03> std::io::Write for Compat<W> {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            let lw = current_ref_as_waker();
+            let current = Current::new();
+            let lw = current.as_waker();
             poll_03_to_io(self.inner.poll_write(&lw, buf))
         }
 
         fn flush(&mut self) -> std::io::Result<()> {
-            let lw = current_ref_as_waker();
+            let current = Current::new();
+            let lw = current.as_waker();
             poll_03_to_io(self.inner.poll_flush(&lw))
         }
     }
 
     impl<W: AsyncWrite03> AsyncWrite01 for Compat<W> {
         fn shutdown(&mut self) -> std::io::Result<Async01<()>> {
-            let lw = current_ref_as_waker();
+            let current = Current::new();
+            let lw = current.as_waker();
             poll_03_to_01(self.inner.poll_close(&lw))
         }
     }
