@@ -5,17 +5,11 @@
 mod executor;
 pub use self::executor::{Executor01CompatExt, Executor01Future, Executor01As03};
 
-mod compat;
-pub use self::compat::Compat;
+mod compat01as03;
+pub use self::compat01as03::{Compat01As03, Future01CompatExt, Stream01CompatExt};
 
-mod compat01to03;
-mod compat03to01;
-
-mod future01ext;
-pub use self::future01ext::Future01CompatExt;
-
-mod stream01ext;
-pub use self::stream01ext::Stream01CompatExt;
+mod compat03as01;
+pub use self::compat03as01::Compat;
 
 #[cfg(feature = "tokio-compat")]
 mod tokio;
