@@ -275,6 +275,19 @@ impl<T: ?Sized> Spawn<T> {
         self.obj
     }
 
+    /// Calls the provided closure, scheduling notifications to be sent to the
+    /// `notify` argument.
+    pub fn poll_fn_notify<N, F, R>(&mut self,
+                             notify: &N,
+                             id: usize,
+                             f: F) -> R
+        where F: FnOnce(&mut T) -> R,
+              N: Clone + Into<NotifyHandle>,
+    {
+        let mk = || notify.clone().into();
+        self.enter(BorrowedUnpark::new(&mk, id), f)
+    }
+
     /// Polls the internal future, scheduling notifications to be sent to the
     /// `notify` argument.
     ///
@@ -310,8 +323,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Future,
     {
-        let mk = || notify.clone().into();
-        self.enter(BorrowedUnpark::new(&mk, id), |f| f.poll())
+        self.poll_fn_notify(notify, id, |f| f.poll())
     }
 
     /// Like `poll_future_notify`, except polls the underlying stream.
@@ -322,8 +334,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Stream,
     {
-        let mk = || notify.clone().into();
-        self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll())
+        self.poll_fn_notify(notify, id, |s| s.poll())
     }
 
     /// Invokes the underlying `start_send` method with this task in place.
@@ -339,8 +350,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Sink,
     {
-        let mk = || notify.clone().into();
-        self.enter(BorrowedUnpark::new(&mk, id), |s| s.start_send(value))
+        self.poll_fn_notify(notify, id, |s| s.start_send(value))
     }
 
     /// Invokes the underlying `poll_complete` method with this task in place.
@@ -355,8 +365,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Sink,
     {
-        let mk = || notify.clone().into();
-        self.enter(BorrowedUnpark::new(&mk, id), |s| s.poll_complete())
+        self.poll_fn_notify(notify, id, |s| s.poll_complete())
     }
 
     /// Invokes the underlying `close` method with this task in place.
@@ -371,8 +380,7 @@ impl<T: ?Sized> Spawn<T> {
         where N: Clone + Into<NotifyHandle>,
               T: Sink,
     {
-        let mk = || notify.clone().into();
-        self.enter(BorrowedUnpark::new(&mk, id), |s| s.close())
+        self.poll_fn_notify(notify, id, |s| s.close())
     }
 
     fn enter<F, R>(&mut self, unpark: BorrowedUnpark, f: F) -> R
