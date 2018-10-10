@@ -1,4 +1,3 @@
-use super::Compat;
 use futures_01::{
     task as task01, Async as Async01, AsyncSink as AsyncSink01,
     Future as Future01, Poll as Poll01, Sink as Sink01,
@@ -9,6 +8,30 @@ use futures_core::{
 };
 use futures_sink::Sink as Sink03;
 use std::{marker::Unpin, pin::Pin, ptr::NonNull, sync::Arc};
+
+/// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
+/// [`TryStream`](futures_core::stream::TryStream) or
+/// [`Sink`](futures_sink::Sink) into a futures 0.1
+/// [`Future`](futures::future::Future),
+/// [`Stream`](futures::stream::Stream) or
+/// [`Sink`](futures::sink::Sink).
+#[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
+pub struct Compat<T> {
+    pub(crate) inner: T,
+}
+
+impl<T> Compat<T> {
+    /// Returns the inner item.
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
+    /// Creates a new [`Compat`].
+    pub(crate) fn new(inner: T) -> Compat<T> {
+        Compat { inner }
+    }
+}
 
 fn poll_03_to_01<T, E>(x: task03::Poll<Result<T, E>>)
     -> Result<Async01<T>, E>
