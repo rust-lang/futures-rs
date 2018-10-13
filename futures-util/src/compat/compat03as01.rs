@@ -7,7 +7,7 @@ use futures_core::{
     task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
 };
 use futures_sink::Sink as Sink03;
-use std::{marker::Unpin, pin::Pin, ptr::NonNull, sync::Arc};
+use std::{marker::{PhantomData, Unpin}, ops::Deref, pin::Pin, ptr::NonNull, sync::Arc};
 
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
 /// [`TryStream`](futures_core::stream::TryStream) or
@@ -103,6 +103,20 @@ where
     }
 }
 
+// `task::LocalWaker` with a lifetime tied to it.
+struct LocalWakerLt<'a> {
+    inner: task03::LocalWaker,
+    _marker: PhantomData<&'a ()>,
+}
+
+impl<'a> Deref for LocalWakerLt<'a> {
+    type Target = task03::LocalWaker;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 struct Current(task01::Task);
 
 impl Current {
@@ -110,9 +124,12 @@ impl Current {
         Current(task01::current())
     }
 
-    fn as_waker(&self) -> task03::LocalWaker {
+    fn as_waker(&self) -> LocalWakerLt {
         unsafe {
-            task03::LocalWaker::new(NonNull::new_unchecked(self as *const Current as *mut Current))
+            LocalWakerLt {
+                inner: task03::LocalWaker::new(NonNull::new_unchecked(self as *const Current as *mut Current)),
+                _marker: PhantomData,
+            }
         }
     }
 }
