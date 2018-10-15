@@ -1,7 +1,6 @@
 //! Core traits and types for asynchronous operations in Rust.
 
 #![feature(pin, arbitrary_self_types, futures_api)]
-#![feature(tool_lints)] // to allow clippy lints
 
 #![no_std]
 
