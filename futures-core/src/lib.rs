@@ -9,14 +9,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.9/futures_core")]
 
-#[doc(hidden)] pub use crate::future::Future;
-#[doc(hidden)] pub use crate::future::TryFuture;
-
-#[doc(hidden)] pub use crate::stream::Stream;
-#[doc(hidden)] pub use crate::stream::TryStream;
-
-#[doc(hidden)] pub use crate::task::Poll;
-
 macro_rules! if_std {
     ($($i:item)*) => ($(
         #[cfg(feature = "std")]
@@ -25,7 +17,10 @@ macro_rules! if_std {
 }
 
 pub mod future;
+#[doc(hidden)] pub use self::future::{Future, FusedFuture, TryFuture};
 
 pub mod stream;
+#[doc(hidden)] pub use self::stream::{Stream, FusedStream, TryStream};
 
 pub mod task;
+#[doc(hidden)] pub use self::task::Poll;

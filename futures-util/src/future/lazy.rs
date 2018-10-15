@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll};
 
 /// A future which, when polled, invokes a closure and yields its result.
@@ -39,6 +39,10 @@ pub fn lazy<F, R>(f: F) -> Lazy<F>
     where F: FnOnce(&LocalWaker) -> R,
 {
     Lazy { f: Some(f) }
+}
+
+impl<F> FusedFuture for Lazy<F> {
+    fn is_terminated(&self) -> bool { self.f.is_none() }
 }
 
 impl<R, F> Future for Lazy<F>

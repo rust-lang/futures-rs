@@ -1,6 +1,6 @@
 use super::{TryChain, TryChainAction};
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
+use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -22,6 +22,16 @@ impl<Fut1, Fut2, F> AndThen<Fut1, Fut2, F>
         AndThen {
             try_chain: TryChain::new(future, f),
         }
+    }
+}
+
+impl<Fut1, Fut2, F> FusedFuture for AndThen<Fut1, Fut2, F>
+    where Fut1: TryFuture,
+          Fut2: TryFuture<Error = Fut1::Error>,
+          F: FnOnce(Fut1::Ok) -> Fut2,
+{
+    fn is_terminated(&self) -> bool {
+        self.try_chain.is_terminated()
     }
 }
 

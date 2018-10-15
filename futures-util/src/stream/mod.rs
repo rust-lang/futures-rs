@@ -659,7 +659,8 @@ pub trait StreamExt: Stream {
     }
 
     /// Fuse a stream such that [`poll_next`](Stream::poll_next) will never
-    /// again be called once it has finished.
+    /// again be called once it has finished. This method can be used t turn
+    /// any `Stream` into a `FusedStream`.
     ///
     /// Normally, once a stream has returned [`None`] from
     /// [`poll_next`](Stream::poll_next) any further calls could exhibit bad

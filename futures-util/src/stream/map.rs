@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -49,6 +49,12 @@ impl<St, T, F> Map<St, F>
     /// care should be taken to avoid losing resources when this is called.
     pub fn into_inner(self) -> St {
         self.stream
+    }
+}
+
+impl<St: FusedStream, F> FusedStream for Map<St, F> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
     }
 }
 

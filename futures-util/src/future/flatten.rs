@@ -1,7 +1,7 @@
 use super::chain::Chain;
 use core::fmt;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -40,6 +40,13 @@ impl<Fut> fmt::Debug for Flatten<Fut>
             .field("state", &self.state)
             .finish()
     }
+}
+
+impl<Fut> FusedFuture for Flatten<Fut>
+    where Fut: Future,
+          Fut::Output: Future,
+{
+    fn is_terminated(&self) -> bool { self.state.is_terminated() }
 }
 
 impl<Fut> Future for Flatten<Fut>

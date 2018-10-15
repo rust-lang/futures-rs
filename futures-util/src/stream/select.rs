@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll};
 
 /// An adapter for merging the output of two streams.
@@ -33,6 +33,12 @@ impl<St1, St2> Select<St1, St2>
             stream2: stream2.fuse(),
             flag: false,
         }
+    }
+}
+
+impl<St1, St2> FusedStream for Select<St1, St2> {
+    fn is_terminated(&self) -> bool {
+        self.stream1.is_terminated() && self.stream2.is_terminated()
     }
 }
 

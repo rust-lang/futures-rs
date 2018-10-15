@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 
@@ -55,6 +55,12 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     /// an element.
     pub fn into_inner(self) -> Option<St> {
         self.stream
+    }
+}
+
+impl<St> FusedFuture for StreamFuture<St> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_none()
     }
 }
 

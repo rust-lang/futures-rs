@@ -1,6 +1,6 @@
 use core::marker::{PhantomData, Unpin};
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
+use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -23,6 +23,10 @@ impl<Fut, E> ErrInto<Fut, E> {
             _marker: PhantomData,
         }
     }
+}
+
+impl<Fut: FusedFuture, E> FusedFuture for ErrInto<Fut, E> {
+    fn is_terminated(&self) -> bool { self.future.is_terminated() }
 }
 
 impl<Fut, E> Future for ErrInto<Fut, E>

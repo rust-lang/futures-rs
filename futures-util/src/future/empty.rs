@@ -1,6 +1,6 @@
 use core::marker;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{LocalWaker, Poll};
 
 /// A future which is never resolved.
@@ -10,6 +10,10 @@ use futures_core::task::{LocalWaker, Poll};
 #[must_use = "futures do nothing unless polled"]
 pub struct Empty<T> {
     _data: marker::PhantomData<T>,
+}
+
+impl<T> FusedFuture for Empty<T> {
+    fn is_terminated(&self) -> bool { false }
 }
 
 /// Creates a future which never resolves, representing a computation that never
