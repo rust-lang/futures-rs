@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -23,6 +23,10 @@ impl<Fut> UnitError<Fut> {
 }
 
 impl<Fut: Unpin> Unpin for UnitError<Fut> {}
+
+impl<Fut: FusedFuture> FusedFuture for UnitError<Fut> {
+    fn is_terminated(&self) -> bool { self.future.is_terminated() }
+}
 
 impl<Fut, T> Future for UnitError<Fut>
     where Fut: Future<Output = T>,

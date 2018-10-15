@@ -482,20 +482,21 @@ pub trait FutureExt: Future {
     }
 
     /// Fuse a future such that `poll` will never again be called once it has
-    /// completed.
+    /// completed. This method can be used to turn any `Future` into a
+    /// `FusedFuture`.
     ///
-    /// Currently once a future has returned `Ready` or `Err` from
-    /// `poll` any further calls could exhibit bad behavior such as blocking
+    /// Normally, once a future has returned `Poll::Ready` from `poll`,
+    /// any further calls could exhibit bad behavior such as blocking
     /// forever, panicking, never returning, etc. If it is known that `poll`
     /// may be called too often then this method can be used to ensure that it
     /// has defined semantics.
     ///
-    /// Once a future has been `fuse`d and it returns a completion from `poll`,
-    /// then it will forever return `Pending` from `poll` again (never
-    /// resolve).  This, unlike the trait's `poll` method, is guaranteed.
+    /// If a `fuse`d future is `poll`ed after having returned `Poll::Ready`
+    /// previously, it will return `Poll::Pending`, from `poll` again (and will
+    /// continue to do so for all future calls to `poll`).
     ///
-    /// This combinator will drop this future as soon as it's been completed to
-    /// ensure resources are reclaimed as soon as possible.
+    /// This combinator will drop the underlying future as soon as it has been
+    /// completed to ensure resources are reclaimed as soon as possible.
     fn fuse(self) -> Fuse<Self>
         where Self: Sized
     {

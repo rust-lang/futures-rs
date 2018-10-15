@@ -10,6 +10,12 @@ pub(crate) enum Chain<Fut1, Fut2, Data> {
     Empty,
 }
 
+impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data> {
+    pub(crate)fn is_terminated(&self) -> bool {
+        if let Chain::Empty = *self { true } else { false }
+    }
+}
+
 impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
     where Fut1: Future,
           Fut2: Future,

@@ -2,7 +2,7 @@ use crate::stream::{FuturesUnordered, StreamExt};
 use core::marker::Unpin;
 use core::pin::Pin;
 use core::num::NonZeroUsize;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -45,6 +45,12 @@ where St: Stream,
             f,
             futures: FuturesUnordered::new(),
         }
+    }
+}
+
+impl<St, Fut, F> FusedFuture for ForEachConcurrent<St, Fut, F> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_none() && self.futures.is_empty()
     }
 }
 

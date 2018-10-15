@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::stream::{Stream, TryStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -23,6 +23,12 @@ impl<St, F> MapOk<St, F> {
 }
 
 impl<St: Unpin, F> Unpin for MapOk<St, F> {}
+
+impl<St: FusedStream, F> FusedStream for MapOk<St, F> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
+    }
+}
 
 impl<St, F, T> Stream for MapOk<St, F>
 where

@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -27,6 +27,12 @@ where St1: Stream,
             first: Some(stream1),
             second: stream2,
         }
+    }
+}
+
+impl<St1, St2: FusedStream> FusedStream for Chain<St1, St2> {
+    fn is_terminated(&self) -> bool {
+        self.first.is_none() && self.second.is_terminated()
     }
 }
 

@@ -1,6 +1,6 @@
 use super::Chain;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -26,6 +26,10 @@ impl<Fut1, Fut2, F> Then<Fut1, Fut2, F>
             chain: Chain::new(future, f),
         }
     }
+}
+
+impl<Fut1, Fut2, F> FusedFuture for Then<Fut1, Fut2, F> {
+    fn is_terminated(&self) -> bool { self.chain.is_terminated() }
 }
 
 impl<Fut1, Fut2, F> Future for Then<Fut1, Fut2, F>

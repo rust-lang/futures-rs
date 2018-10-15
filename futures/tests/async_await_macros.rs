@@ -1,8 +1,9 @@
 #![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
-use futures::{Poll, future, pending, poll, join, try_join, select};
+use futures::{Poll, pending, poll, join, try_join, select};
 use futures::channel::oneshot;
 use futures::executor::block_on;
+use futures::future::{self, FutureExt};
 use pin_utils::pin_mut;
 
 #[test]
@@ -37,17 +38,19 @@ fn join() {
 
 #[test]
 fn select() {
-    let (tx1, mut rx1) = oneshot::channel::<i32>();
-    let (_tx2, mut rx2) = oneshot::channel::<i32>();
+    let (tx1, rx1) = oneshot::channel::<i32>();
+    let (_tx2, rx2) = oneshot::channel::<i32>();
     tx1.send(1).unwrap();
+    let mut rx1 = rx1.fuse();
+    let mut rx2 = rx2.fuse();
     let mut ran = false;
     block_on(async {
         select! {
-            rx1 => {
-                assert_eq!(Ok(1), rx1);
+            future(rx1 as res) => {
+                assert_eq!(Ok(1), res);
                 ran = true;
             },
-            rx2 => unreachable!(),
+            future(rx2 as _) => unreachable!(),
         }
     });
     assert!(ran);
@@ -55,20 +58,22 @@ fn select() {
 
 #[test]
 fn select_can_move_uncompleted_futures() {
-    let (tx1, mut rx1) = oneshot::channel::<i32>();
-    let (tx2, mut rx2) = oneshot::channel::<i32>();
+    let (tx1, rx1) = oneshot::channel::<i32>();
+    let (tx2, rx2) = oneshot::channel::<i32>();
     tx1.send(1).unwrap();
     tx2.send(2).unwrap();
+    let mut rx1 = rx1.fuse();
+    let mut rx2 = rx2.fuse();
     let mut ran = false;
     block_on(async {
         select! {
-            rx1 => {
-                assert_eq!(Ok(1), rx1);
+            future(rx1 as res) => {
+                assert_eq!(Ok(1), res);
                 assert_eq!(Ok(2), await!(rx2));
                 ran = true;
             },
-            rx2 => {
-                assert_eq!(Ok(2), rx2);
+            future(rx2 as res) => {
+                assert_eq!(Ok(2), res);
                 assert_eq!(Ok(1), await!(rx1));
                 ran = true;
             },
@@ -82,7 +87,7 @@ fn select_size() {
     let fut = async {
         let mut ready = future::ready(0i32);
         select! {
-            ready => {},
+            future(ready as _) => {},
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 24);
@@ -91,8 +96,8 @@ fn select_size() {
         let mut ready1 = future::ready(0i32);
         let mut ready2 = future::ready(0i32);
         select! {
-            ready1 => {},
-            ready2 => {},
+            future(ready1 as _) => {},
+            future(ready2 as _) => {},
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 40);

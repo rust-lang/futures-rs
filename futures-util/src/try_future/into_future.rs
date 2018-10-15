@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::future::{Future, TryFuture};
+use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -17,6 +17,10 @@ impl<Fut> IntoFuture<Fut> {
     pub(super) fn new(future: Fut) -> IntoFuture<Fut> {
         IntoFuture { future }
     }
+}
+
+impl<Fut: FusedFuture> FusedFuture for IntoFuture<Fut> {
+    fn is_terminated(&self) -> bool { self.future.is_terminated() }
 }
 
 impl<Fut: TryFuture> Future for IntoFuture<Fut> {

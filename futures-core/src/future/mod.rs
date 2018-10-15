@@ -8,6 +8,19 @@ pub use core::future::Future;
 mod future_obj;
 pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
+/// A `Future` or `TryFuture` which tracks whether or not the underlying future
+/// should no longer be polled.
+///
+/// `is_terminated` will return `true` if a future should no longer be polled.
+/// Usually, this state occurs after `poll` (or `try_poll`) returned
+/// `Poll::Ready`. However, `is_terminated` may also return `true` if a future
+/// has become inactive and can no longer make progress and should be ignored
+/// or dropped rather than being `poll`ed again.
+pub trait FusedFuture {
+    /// Returns `true` if the underlying future should no longer be polled.
+    fn is_terminated(&self) -> bool;
+}
+
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
 pub trait TryFuture {

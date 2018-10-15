@@ -1,5 +1,5 @@
-use futures_core::future::Future;
-use futures_core::stream::TryStream;
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::Unpin;
@@ -12,7 +12,7 @@ use std::prelude::v1::*;
 /// This future is created by the `Stream::try_collect` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TryCollect<St, C> where St: TryStream {
+pub struct TryCollect<St, C> {
     stream: St,
     items: C,
 }
@@ -34,6 +34,12 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
 }
 
 impl<St: Unpin + TryStream, C> Unpin for TryCollect<St, C> {}
+
+impl<St: FusedStream, C> FusedFuture for TryCollect<St, C> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
+    }
+}
 
 impl<St, C> Future for TryCollect<St, C>
     where St: TryStream, C: Default + Extend<St::Ok>

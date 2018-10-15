@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll};
 
 /// A future that is immediately ready with a value
@@ -11,6 +11,12 @@ use futures_core::task::{LocalWaker, Poll};
 pub struct Ready<T>(Option<T>);
 
 impl<T> Unpin for Ready<T> {}
+
+impl<T> FusedFuture for Ready<T> {
+    fn is_terminated(&self) -> bool {
+        self.0.is_none()
+    }
+}
 
 impl<T> Future for Ready<T> {
     type Output = T;

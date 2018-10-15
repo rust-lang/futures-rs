@@ -25,6 +25,13 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
         TryChain::First(fut1, Some(data))
     }
 
+    pub(crate) fn is_terminated(&self) -> bool {
+        match self {
+            TryChain::First(..) | TryChain::Second(_) => true,
+            TryChain::Empty => false,
+        }
+    }
+
     pub(crate) fn poll<F>(
         self: Pin<&mut Self>,
         lw: &LocalWaker,

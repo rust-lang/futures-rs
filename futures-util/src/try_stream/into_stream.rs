@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::stream::{Stream, TryStream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -33,6 +33,12 @@ impl<St> IntoStream<St> {
     /// Consumes this combinator, returning the underlying stream.
     pub fn into_inner(self) -> St {
         self.stream
+    }
+}
+
+impl<St: FusedStream> FusedStream for IntoStream<St> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
     }
 }
 

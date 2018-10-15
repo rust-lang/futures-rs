@@ -1,8 +1,9 @@
 use crate::stream::{FuturesUnordered, StreamExt};
+use core::mem;
 use core::marker::Unpin;
 use core::pin::Pin;
 use core::num::NonZeroUsize;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::TryStream;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -26,6 +27,12 @@ impl<St, Fut, F> Unpin for TryForEachConcurrent<St, Fut, F>
 where St: Unpin,
       Fut: Unpin,
 {}
+
+impl<St, Fut, F> FusedFuture for TryForEachConcurrent<St, Fut, F> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_none() && self.futures.is_empty()
+    }
+}
 
 impl<St, Fut, F> TryForEachConcurrent<St, Fut, F>
 where St: TryStream,
@@ -63,39 +70,51 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
             let current_len = self.futures().len();
             // Check if we've already created a number of futures greater than `limit`
             if self.limit().map(|limit| limit.get() > current_len).unwrap_or(true) {
-                let mut stream_completed = false;
-                let elem = if let Some(stream) = self.stream().as_pin_mut() {
-                    match stream.try_poll_next(lw)? {
-                        Poll::Ready(Some(elem)) => {
-                            made_progress_this_iter = true;
-                            Some(elem)
-                        },
-                        Poll::Ready(None) => {
-                            stream_completed = true;
-                            None
-                        }
-                        Poll::Pending => None,
-                    }
-                } else {
-                    None
+                let poll_res = match self.stream().as_pin_mut() {
+                    Some(stream) => stream.try_poll_next(lw),
+                    None => Poll::Ready(None),
                 };
-                if stream_completed {
-                    Pin::set(self.stream(), None);
-                }
+
+                let elem = match poll_res {
+                    Poll::Ready(Some(Ok(elem))) => {
+                        made_progress_this_iter = true;
+                        Some(elem)
+                    },
+                    Poll::Ready(None) => {
+                        self.stream().set(None);
+                        None
+                    }
+                    Poll::Pending => None,
+                    Poll::Ready(Some(Err(e))) => {
+                        // Empty the stream and futures so that we know
+                        // the future has completed.
+                        self.stream().set(None);
+                        drop(mem::replace(self.futures(), FuturesUnordered::new()));
+                        return Poll::Ready(Err(e));
+                    }
+                };
+
                 if let Some(elem) = elem {
                     let next_future = (self.f())(elem);
                     self.futures().push(next_future);
                 }
             }
 
-            match self.futures().poll_next_unpin(lw)? {
-                Poll::Ready(Some(())) => made_progress_this_iter = true,
+            match self.futures().poll_next_unpin(lw) {
+                Poll::Ready(Some(Ok(()))) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
                     if self.stream().is_none() {
                         return Poll::Ready(Ok(()))
                     }
                 },
                 Poll::Pending => {}
+                Poll::Ready(Some(Err(e))) => {
+                    // Empty the stream and futures so that we know
+                    // the future has completed.
+                    self.stream().set(None);
+                    drop(mem::replace(self.futures(), FuturesUnordered::new()));
+                    return Poll::Ready(Err(e));
+                }
             }
 
             if !made_progress_this_iter {

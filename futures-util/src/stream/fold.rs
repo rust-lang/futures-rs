@@ -1,6 +1,6 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -36,6 +36,12 @@ where St: Stream,
             accum: Some(t),
             future: None,
         }
+    }
+}
+
+impl<St, Fut, T, F> FusedFuture for Fold<St, Fut, T, F> {
+    fn is_terminated(&self) -> bool {
+        self.accum.is_none() && self.future.is_none()
     }
 }
 
