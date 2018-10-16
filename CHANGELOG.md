@@ -1,3 +1,10 @@
+# 0.3.0-alpha.8 - 2018-10-16
+* Fixed stack overflow in 0.1 compatibility layer
+* Added AsyncRead / AsyncWrite compatibility layer
+* Added Spawn -> 0.1 Executor compatibility
+* Made 0.1 futures usable on 0.3 executors without an additional global `Task`, accomplished by wrapping 0.1 futures in an 0.1 `Spawn` when using them as 0.3 futures.
+* Cleanups and improvments to the `AtomicWaker` implementation.
+
 # 0.3.0-alpha.7 - 2018-10-01
 * Update to new nightly which removes `Spawn` from `task::Context` and replaces `Context` with `LocalWaker`.
 * Add `Spawn` and `LocalSpawn` traits and `FutureObj` and `LocalFutureObj` types to `futures-core`.
