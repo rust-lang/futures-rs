@@ -60,6 +60,7 @@ impl<T> BiLock<T> {
     /// will only be available through `Pin<&mut T>` (not `&mut T`) unless `T` is `Unpin`.
     /// Similarly, reuniting the lock and extracting the inner value is only
     /// possible when `T` is `Unpin`.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(t: T) -> (BiLock<T>, BiLock<T>) {
         let arc = Arc::new(Inner {
             state: AtomicUsize::new(0),
