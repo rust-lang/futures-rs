@@ -183,40 +183,29 @@ impl AtomicTask {
                     //
                     // Start by assuming that the state is `REGISTERING` as this
                     // is what we jut set it to.
-                    let mut curr = REGISTERING;
+                    let res = self.state.compare_exchange(
+                        REGISTERING, WAITING, AcqRel, Acquire);
 
-                    // If a task has to be notified, it will be set here.
-                    let mut notify: Option<Task> = None;
+                    match res {
+                        Ok(_) => {}
+                        Err(actual) => {
+                            // This branch can only be reached if a
+                            // concurrent thread called `notify`. In this
+                            // case, `actual` **must** be `REGISTERING |
+                            // `NOTIFYING`.
+                            debug_assert_eq!(actual, REGISTERING | NOTIFYING);
 
-                    loop {
-                        let res = self.state.compare_exchange(
-                            curr, WAITING, AcqRel, Acquire);
+                            // Take the task to notify once the atomic operation has
+                            // completed.
+                            let notify = (*self.task.get()).take().unwrap();
 
-                        match res {
-                            Ok(_) => {
-                                // The atomic exchange was successful, now
-                                // notify the task (if set) and return.
-                                if let Some(task) = notify {
-                                    task.notify();
-                                }
+                            // Just swap, because no one could change state
+                            // while state == `Registering | `Waking`
+                            self.state.swap(WAITING, AcqRel);
 
-                                return;
-                            }
-                            Err(actual) => {
-                                // This branch can only be reached if a
-                                // concurrent thread called `notify`. In this
-                                // case, `actual` **must** be `REGISTERING |
-                                // `NOTIFYING`.
-                                debug_assert_eq!(actual, REGISTERING | NOTIFYING);
-
-                                // Take the task to notify once the atomic operation has
-                                // completed.
-                                notify = (*self.task.get()).take();
-
-                                // Update `curr` for the next iteration of the
-                                // loop
-                                curr = actual;
-                            }
+                            // The atomic swap was complete, now
+                            // notify the task and return.
+                            notify.notify();
                         }
                     }
                 }
