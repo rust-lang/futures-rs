@@ -92,7 +92,7 @@ matrix:
           \          <span>'"$TRAVIS_TAG"'</span>\
           \        </a>\
           ' index.html
-        - git add "docs/$TRAVIS_TAG" index.html
+        - git add "$TRAVIS_TAG" index.html
         - git commit -m "Add API docs for $TRAVIS_TAG"
         - git push origin master
 
