@@ -328,3 +328,5 @@ mod abortable;
 
 mod fns;
 mod unfold_state;
+#[cfg(feature = "std")]
+mod wakerset;
