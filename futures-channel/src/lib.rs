@@ -5,7 +5,7 @@
 
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
