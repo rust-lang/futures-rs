@@ -1,3 +1,6 @@
+# 0.3.0-alpha.9 - 2018-10-18
+* Fixed in response to new nightly handling of 2018 edition + `#![no_std]`
+
 # 0.3.0-alpha.8 - 2018-10-16
 * Fixed stack overflow in 0.1 compatibility layer
 * Added AsyncRead / AsyncWrite compatibility layer
