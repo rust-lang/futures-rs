@@ -4,7 +4,7 @@
 //! asynchronous analogs to `std::io::{Read, Write}`. The primary difference is
 //! that these traits integrate with the asynchronous task system.
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
