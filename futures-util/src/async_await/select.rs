@@ -19,8 +19,8 @@
 /// let mut b = future::empty::<()>();
 ///
 /// let res = select! {
-///     done(a -> a) => a + 1,
-///     done(b -> _) => 0,
+///     done(a => a) => a + 1,
+///     done(b => _) => 0,
 /// };
 /// assert_eq!(res, 5);
 /// # });
@@ -41,8 +41,8 @@
 ///
 /// loop {
 ///     select! {
-///         done(a -> a) => total += a,
-///         done(b -> b) => total += b,
+///         done(a => a) => total += a,
+///         done(b => b) => total += b,
 ///         complete => break,
 ///     };
 /// }
@@ -96,8 +96,8 @@ macro_rules! select {
 
     (
         @codegen
-        dones ($( $fut_label:ident ($fut_name:ident -> $fut_pat:pat) => $fut_body:expr, )*)
-        nexts ($( $st_label:ident ($st_name:ident -> $st_pat:pat) => $st_body:expr, )*)
+        dones ($( $fut_label:ident ($fut_name:ident => $fut_pat:pat) => $fut_body:expr, )*)
+        nexts ($( $st_label:ident ($st_name:ident => $st_pat:pat) => $st_body:expr, )*)
         default ($default:expr)
         $( no_default $no_default:ident )*
         complete ($complete:expr)
@@ -483,19 +483,19 @@ macro_rules! select {
     ) => {
         compile_error!("too many cases in a `select!` block")
     };
-    // Parse `done(future -> foo) => { ... }`
+    // Parse `done(ident => foo) => { ... }`
     (@parse_case
         dones ($($done:tt)*)
         nexts $next:tt
         default $default:tt
         complete $complete:tt
-        cases (done($fut:ident -> $pat:pat) => $body:tt, $($tail:tt)*)
+        cases (done($fut:ident => $pat:pat) => $body:tt, $($tail:tt)*)
         labels ($label:tt $($labels:tt)*)
         used_labels ($($used:tt)*)
     ) => {
         $crate::select!(
             @parse_case
-            dones ($($done)* $label ($fut -> $pat) => $body,)
+            dones ($($done)* $label ($fut => $pat) => $body,)
             nexts $next
             default $default
             complete $complete
@@ -503,6 +503,30 @@ macro_rules! select {
             labels ($($labels)*)
             used_labels ($($used)* $label,)
         )
+    };
+    // Parse `done(expr => foo) => { ... }`
+    (@parse_case
+        dones ($($done:tt)*)
+        nexts $next:tt
+        default $default:tt
+        complete $complete:tt
+        cases (done($fut:expr => $pat:pat) => $body:tt, $($tail:tt)*)
+        labels ($label:tt $($labels:tt)*)
+        used_labels ($($used:tt)*)
+    ) => {
+        {
+            let mut $label = $fut;
+            $crate::select!(
+                @parse_case
+                dones ($($done)* $label ($label => $pat) => $body,)
+                nexts $next
+                default $default
+                complete $complete
+                cases ($($tail)*)
+                labels ($($labels)*)
+                used_labels ($($used)* $label,)
+            )
+        }
     };
     (@parse_case
         dones $done:tt
@@ -516,23 +540,23 @@ macro_rules! select {
         compile_error!(concat!(
             "invalid syntax to `done`: `",
             stringify!($t),
-            "`, expected `done(fut -> pat)`",
+            "`, expected `done(fut => pat)`",
         ))
     };
-    // Parse `next(stream -> foo) => { ... }`
+    // Parse `next(stream => foo) => { ... }`
     (@parse_case
         dones $done:tt
         nexts ($($next:tt)*)
         default $default:tt
         complete $complete:tt
-        cases (next($stream:ident -> $pat:pat) => $body:tt, $($tail:tt)*)
+        cases (next($stream:ident => $pat:pat) => $body:tt, $($tail:tt)*)
         labels ($label:tt $($labels:tt)*)
         used_labels ($($used:tt)*)
     ) => {
         $crate::select!(
             @parse_case
             dones $done
-            nexts ($($next)* $label ($stream -> $pat) => $body,)
+            nexts ($($next)* $label ($stream => $pat) => $body,)
             default $default
             complete $complete
             cases ($($tail)*)
@@ -552,7 +576,7 @@ macro_rules! select {
         compile_error!(concat!(
             "invalid syntax to `next`: `",
             stringify!($t),
-            "`, expected `next(stream -> pat)`",
+            "`, expected `next(stream => pat)`",
         ))
     };
     // Parse `default => { ... }`
@@ -633,7 +657,7 @@ macro_rules! select {
         used_labels $used:tt
     ) => {
         compile_error!(concat!(
-            "expected one of `done(fut -> x)`, `next(stream -> x)`, `default`, or `complete`, found `",
+            "expected one of `done(fut => x)`, `next(stream => x)`, `default`, or `complete`, found `",
             stringify!($case), stringify!($args),
             "`",
         ))
