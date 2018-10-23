@@ -72,7 +72,7 @@ impl<St: Stream> Fuse<St> {
 
 impl<S> FusedStream for Fuse<S> {
     fn is_terminated(&self) -> bool {
-        !self.done
+        self.done
     }
 }
 
