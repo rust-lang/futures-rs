@@ -1,5 +1,8 @@
 //! Task notification
 
+mod noop_waker;
+pub use self::noop_waker::{noop_local_waker, noop_local_waker_ref};
+
 mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
 

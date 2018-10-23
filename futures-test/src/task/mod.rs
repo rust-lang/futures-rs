@@ -26,8 +26,7 @@
 mod noop_spawner;
 pub use self::noop_spawner::{noop_spawner_mut, NoopSpawner};
 
-mod noop_waker;
-pub use self::noop_waker::{noop_local_waker, noop_local_waker_ref, NoopWake};
+pub use futures_util::task::{noop_local_waker, noop_local_waker_ref};
 
 mod panic_spawner;
 pub use self::panic_spawner::{panic_spawner_mut, PanicSpawner};
