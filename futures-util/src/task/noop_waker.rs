@@ -52,6 +52,7 @@ pub fn noop_local_waker_ref() -> &'static LocalWaker {
     // `NonNull<dyn UnsafeWake>`, which has the same repr as `&(dyn UnsafeWake + Sync)`
     // So an &'static &(dyn UnsafeWake + Sync) can be unsafely cast to a
     // &'static LocalWaker
+    #[allow(clippy::transmute_ptr_to_ptr)]
     unsafe {
         core::mem::transmute::<
             &&(dyn UnsafeWake + Sync),
