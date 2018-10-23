@@ -1,5 +1,5 @@
-use futures_core::future::Future;
-use futures_core::stream::TryStream;
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{LocalWaker, Poll};
 use core::marker::Unpin;
 use core::pin::Pin;
@@ -18,6 +18,12 @@ impl<St: Unpin> Unpin for TryNext<'_, St> {}
 impl<'a, St: TryStream + Unpin> TryNext<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {
         TryNext { stream }
+    }
+}
+
+impl<St: Unpin + FusedStream> FusedFuture for TryNext<'_, St> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
     }
 }
 

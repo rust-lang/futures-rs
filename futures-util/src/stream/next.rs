@@ -1,7 +1,7 @@
 use core::marker::Unpin;
 use core::pin::Pin;
-use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::future::{FusedFuture, Future};
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll};
 
 /// A future of the next element of a stream.
@@ -16,6 +16,12 @@ impl<St: Stream + Unpin> Unpin for Next<'_, St> {}
 impl<'a, St: Stream + Unpin> Next<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {
         Next { stream }
+    }
+}
+
+impl<St: FusedStream> FusedFuture for Next<'_, St> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_terminated()
     }
 }
 

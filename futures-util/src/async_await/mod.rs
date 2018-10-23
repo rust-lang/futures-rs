@@ -5,9 +5,12 @@
 
 use core::marker::Unpin;
 use futures_core::future::Future;
+use futures_core::stream::Stream;
 
 #[doc(hidden)]
 pub use futures_core::future::FusedFuture;
+#[doc(hidden)]
+pub use futures_core::stream::FusedStream;
 
 #[macro_use]
 mod poll;
@@ -27,8 +30,12 @@ mod select;
 
 #[doc(hidden)]
 #[inline(always)]
-pub fn assert_unpin<T: Future + Unpin>(_: &T) {}
+pub fn assert_unpin<T: Unpin>(_: &T) {}
 
 #[doc(hidden)]
 #[inline(always)]
 pub fn assert_fused_future<T: Future + FusedFuture>(_: &T) {}
+
+#[doc(hidden)]
+#[inline(always)]
+pub fn assert_fused_stream<T: Stream + FusedStream>(_: &T) {}

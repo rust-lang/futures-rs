@@ -1,9 +1,11 @@
 #![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
 use futures::{Poll, pending, poll, join, try_join, select};
-use futures::channel::oneshot;
+use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
+use futures::stream::StreamExt;
+use futures::sink::SinkExt;
 use pin_utils::pin_mut;
 
 #[test]
@@ -46,11 +48,54 @@ fn select() {
     let mut ran = false;
     block_on(async {
         select! {
-            future(rx1 as res) => {
+            done(rx1 -> res) => {
                 assert_eq!(Ok(1), res);
                 ran = true;
             },
-            future(rx2 as _) => unreachable!(),
+            done(rx2 -> _) => unreachable!(),
+        }
+    });
+    assert!(ran);
+}
+
+#[test]
+fn select_streams() {
+    let (mut tx1, rx1) = mpsc::channel::<i32>(1);
+    let (mut tx2, rx2) = mpsc::channel::<i32>(1);
+    let mut rx1 = rx1.fuse();
+    let mut rx2 = rx2.fuse();
+    let mut ran = false;
+    let mut total = 0;
+    block_on(async {
+        let mut tx1_opt;
+        let mut tx2_opt;
+        select! {
+            next(rx1 -> _) => panic!(),
+            next(rx2 -> _) => panic!(),
+            default => {
+                await!(tx1.send(2)).unwrap();
+                await!(tx2.send(3)).unwrap();
+                tx1_opt = Some(tx1);
+                tx2_opt = Some(tx2);
+            }
+            complete => panic!(),
+        }
+        loop {
+            select! {
+                // runs first and again after default
+                next(rx1 -> x) => if let Some(x) = x { total += x; },
+                // runs second and again after default
+                next(rx2 -> x) => if let Some(x) = x { total += x; },
+                // runs third
+                default => {
+                    assert_eq!(total, 5);
+                    ran = true;
+                    drop(tx1_opt.take().unwrap());
+                    drop(tx2_opt.take().unwrap());
+                },
+                // runs last
+                complete => break,
+            };
         }
     });
     assert!(ran);
@@ -67,12 +112,12 @@ fn select_can_move_uncompleted_futures() {
     let mut ran = false;
     block_on(async {
         select! {
-            future(rx1 as res) => {
+            done(rx1 -> res) => {
                 assert_eq!(Ok(1), res);
                 assert_eq!(Ok(2), await!(rx2));
                 ran = true;
             },
-            future(rx2 as res) => {
+            done(rx2 -> res) => {
                 assert_eq!(Ok(2), res);
                 assert_eq!(Ok(1), await!(rx1));
                 ran = true;
@@ -87,7 +132,7 @@ fn select_size() {
     let fut = async {
         let mut ready = future::ready(0i32);
         select! {
-            future(ready as _) => {},
+            done(ready -> _) => {},
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 24);
@@ -96,8 +141,8 @@ fn select_size() {
         let mut ready1 = future::ready(0i32);
         let mut ready2 = future::ready(0i32);
         select! {
-            future(ready1 as _) => {},
-            future(ready2 as _) => {},
+            done(ready1 -> _) => {},
+            done(ready2 -> _) => {},
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 40);

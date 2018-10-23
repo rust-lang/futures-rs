@@ -21,6 +21,38 @@ pub trait FusedFuture {
     fn is_terminated(&self) -> bool;
 }
 
+impl<F: FusedFuture> FusedFuture for Pin<&mut F> {
+    fn is_terminated(&self) -> bool {
+        <F as FusedFuture>::is_terminated(&**self)
+    }
+}
+
+impl<F: FusedFuture + ?Sized> FusedFuture for &mut F {
+    fn is_terminated(&self) -> bool {
+        <F as FusedFuture>::is_terminated(&**self)
+    }
+}
+
+if_std! {
+    impl<F: FusedFuture + ?Sized> FusedFuture for Box<F> {
+        fn is_terminated(&self) -> bool {
+            <F as FusedFuture>::is_terminated(&**self)
+        }
+    }
+
+    impl<F: FusedFuture + ?Sized> FusedFuture for Pin<Box<F>> {
+        fn is_terminated(&self) -> bool {
+            <F as FusedFuture>::is_terminated(&**self)
+        }
+    }
+
+    impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
+        fn is_terminated(&self) -> bool {
+            <F as FusedFuture>::is_terminated(&**self)
+        }
+    }
+}
+
 /// A convenience for futures that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
 pub trait TryFuture {
