@@ -1,39 +1,11 @@
-use futures_core::task::{LocalWaker, UnsafeWake, Wake, Waker};
+//! Utilities for creating zero-cost wakers that don't do anything.
+use futures_core::task::{LocalWaker, UnsafeWake, Waker};
 use std::cell::UnsafeCell;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
-/// An implementation of [`Wake`](futures_core::task::Wake) that does nothing
-/// when woken.
-///
-/// # Examples
-///
-/// ```
-/// #![feature(futures_api)]
-/// use futures_test::task::noop_local_waker_ref;
-/// let lw = noop_local_waker_ref();
-/// lw.wake();
-/// ```
 #[derive(Debug)]
-pub struct NoopWake {
+struct NoopWake {
     _reserved: (),
-}
-
-impl NoopWake {
-    /// Create a new instance
-    pub fn new() -> Self {
-        Self { _reserved: () }
-    }
-}
-
-impl Default for NoopWake {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Wake for NoopWake {
-    fn wake(_arc_self: &Arc<Self>) {}
 }
 
 unsafe impl UnsafeWake for NoopWake {
@@ -69,7 +41,7 @@ pub fn noop_local_waker() -> LocalWaker {
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures_test::task::noop_local_waker_ref;
+/// use futures::task::noop_local_waker_ref;
 /// let lw = noop_local_waker_ref();
 /// lw.wake();
 /// ```

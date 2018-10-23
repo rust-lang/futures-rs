@@ -368,6 +368,10 @@ pub mod task {
         SpawnExt, LocalSpawnExt,
     };
 
+    pub use futures_util::task::{
+        noop_local_waker, noop_local_waker_ref,
+    };
+
     #[cfg_attr(
         feature = "nightly",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))

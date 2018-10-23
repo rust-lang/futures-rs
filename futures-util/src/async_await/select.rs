@@ -129,7 +129,7 @@ macro_rules! select {
 			__Complete,
         }
 
-        let __priv_res = await!($crate::future::poll_fn(|lw| {
+        let mut __poll_fn = |lw: &$crate::core_reexport::task::LocalWaker| {
             let mut __any_polled = false;
 
             $(
@@ -145,29 +145,43 @@ macro_rules! select {
                     match $crate::core_reexport::future::Future::poll(
                         $crate::core_reexport::pin::Pin::new(&mut $used_label), lw)
                     {
-                        $crate::core_reexport::task::Poll::Ready(x) =>
+                        $crate::core_reexport::task::Poll::Ready(x) => {
                             return $crate::core_reexport::task::Poll::Ready(
                                 __PrivResult::$used_label(x)
-                            ),
+                            )
+                        },
                         $crate::core_reexport::task::Poll::Pending => {},
                     }
                 }
             )*
 
             if !__any_polled {
-                $crate::core_reexport::task::Poll::Ready(
-                    __PrivResult::__Complete)
+                $crate::core_reexport::task::Poll::Ready(__PrivResult::__Complete)
             } else {
                 $(
                     // only if there isn't a default case:
                     drop($no_default);
                     return $crate::core_reexport::task::Poll::Pending;
                 )*
+                // only reachable if there is a default case:
                 #[allow(unreachable_code)]
-                $crate::core_reexport::task::Poll::Ready(
-                    __PrivResult::__Default)
+                return $crate::core_reexport::task::Poll::Ready(__PrivResult::__Default)
             }
-        }));
+        };
+        #[allow(unreachable_code)]
+        let __priv_res = loop {
+            $(
+                // only if there isn't a default case:
+                drop($no_default);
+                break await!($crate::future::poll_fn(__poll_fn));
+            )*
+            // only reachable if there is a default case:
+            break if let $crate::core_reexport::task::Poll::Ready(x) =
+                __poll_fn(&$crate::task::noop_local_waker())
+            {
+                x
+            } else { unreachable!() };
+        };
         match __priv_res {
             $(
                 __PrivResult::$fut_label($fut_pat) => {
