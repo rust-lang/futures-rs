@@ -1,5 +1,5 @@
 use core::{
-    fmt, mem,
+    fmt,
     future::Future,
     marker::{PhantomData, Unpin},
     pin::Pin,
@@ -192,6 +192,7 @@ where
 
 if_std! {
     use std::boxed::Box;
+    use std::mem;
 
     unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>
         where F: Future<Output = T> + 'a
