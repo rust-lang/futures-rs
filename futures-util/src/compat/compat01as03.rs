@@ -30,7 +30,7 @@ impl<T> Compat01As03<T> {
     }
 
     fn in_notify<R>(&mut self, lw: &LocalWaker, f: impl FnOnce(&mut T) -> R) -> R {
-        let notify = &WakerToHandle(local_as_waker(lw));
+        let notify = &WakerToHandle(lw.as_waker());
         self.inner.poll_fn_notify(notify, 0, f)
     }
 }
@@ -58,11 +58,6 @@ pub trait Stream01CompatExt: Stream01 {
     }
 }
 impl<St: Stream01> Stream01CompatExt for St {}
-
-// TODO(cramertj) use as_waker from std when it lands
-fn local_as_waker(lw: &LocalWaker) -> &Waker {
-    unsafe { mem::transmute(lw) }
-}
 
 fn poll_01_to_03<T, E>(x: Result<Async01<T>, E>)
     -> task03::Poll<Result<T, E>>

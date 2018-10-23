@@ -177,7 +177,7 @@ macro_rules! select {
             )*
             // only reachable if there is a default case:
             break if let $crate::core_reexport::task::Poll::Ready(x) =
-                __poll_fn(&$crate::task::noop_local_waker())
+                __poll_fn($crate::task::noop_local_waker_ref())
             {
                 x
             } else { unreachable!() };

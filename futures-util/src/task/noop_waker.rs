@@ -1,7 +1,6 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
 use futures_core::task::{LocalWaker, UnsafeWake, Waker};
-use std::cell::UnsafeCell;
-use std::ptr::NonNull;
+use core::ptr::NonNull;
 
 #[derive(Debug)]
 struct NoopWake {
@@ -29,6 +28,7 @@ fn noop_waker() -> Waker {
 
 /// Create a new [`LocalWaker`](futures_core::task::LocalWaker) referencing a
 /// singleton instance of [`NoopWake`].
+#[inline]
 pub fn noop_local_waker() -> LocalWaker {
     unsafe { LocalWaker::new(noop_unsafe_wake()) }
 }
@@ -45,10 +45,17 @@ pub fn noop_local_waker() -> LocalWaker {
 /// let lw = noop_local_waker_ref();
 /// lw.wake();
 /// ```
+#[inline]
 pub fn noop_local_waker_ref() -> &'static LocalWaker {
-    thread_local! {
-        static LOCAL_WAKER_INSTANCE: UnsafeCell<LocalWaker> =
-            UnsafeCell::new(noop_local_waker());
+    static NOOP_WAKE_REF: &(dyn UnsafeWake + Sync) = &NoopWake { _reserved: () };
+    // Unsafety: `Waker` and `LocalWaker` are `repr(transparent)` wrappers around
+    // `NonNull<dyn UnsafeWake>`, which has the same repr as `&(dyn UnsafeWake + Sync)`
+    // So an &'static &(dyn UnsafeWake + Sync) can be unsafely cast to a
+    // &'static LocalWaker
+    unsafe {
+        core::mem::transmute::<
+            &&(dyn UnsafeWake + Sync),
+            &'static LocalWaker,
+        >(&NOOP_WAKE_REF)
     }
-    LOCAL_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }
