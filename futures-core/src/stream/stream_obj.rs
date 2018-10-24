@@ -2,6 +2,7 @@ use super::Stream;
 use crate::task::{LocalWaker, Poll};
 use core::fmt;
 use core::marker::{PhantomData, Unpin};
+use core::mem;
 use core::pin::Pin;
 
 /// A custom trait object for polling streams, roughly akin to
@@ -217,7 +218,10 @@ if_std! {
         where F: Stream<Item = T> + 'a
     {
         fn into_raw(mut self) -> *mut () {
-            unsafe { Pin::get_mut_unchecked(Pin::as_mut(&mut self)) as *mut F as *mut () }
+            let mut_ref: &mut F = unsafe { Pin::get_mut_unchecked(Pin::as_mut(&mut self)) };
+            let ptr = mut_ref as *mut F as *mut ();
+            mem::forget(self); // Don't drop the box
+            ptr
         }
 
         unsafe fn poll_next(ptr: *mut (), lw: &LocalWaker) -> Poll<Option<T>> {
