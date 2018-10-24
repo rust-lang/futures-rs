@@ -1,7 +1,10 @@
 //! The `select` macro.
 
-/// Polls multiple futures simultaneously, executing the branch for the future
-/// that finishes first.
+/// Polls multiple futures and streams simultaneously, executing the branch
+/// for the future that finishes first. Futures and streams passed to
+/// `select!` must be `Unpin` and implement `FusedFuture` or `FusedStream`.
+/// Futures and streams which are not already fused can be fused using the
+/// `.fuse()` method.
 ///
 /// `select!` can select over futures with different output types, but each
 /// branch has to have the same return type.
@@ -19,16 +22,36 @@
 /// let mut b = future::empty::<()>();
 ///
 /// let res = select! {
-///     done(a => a) => a + 1,
+///     done(a => a_res) => a_res + 1,
 ///     done(b => _) => 0,
 /// };
 /// assert_eq!(res, 5);
 /// # });
 /// ```
 ///
-/// In addition to `future(...)` matchers, `select!` accepts an `complete`
-/// branch which can be used to match on the case where all the futures passed
-/// to select have already completed.
+/// In addition to `done(...)` matchers, `select!` includes `next(...)`
+/// matchers for getting the next element of a stream:
+///
+/// ```
+/// #![feature(pin, async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future::{self, FutureExt};
+/// use futures::stream::{self, StreamExt};
+/// use futures::select;
+/// let mut st = stream::iter(vec![2]).fuse();
+/// let mut fut = future::empty::<()>();
+///
+/// select! {
+///     next(st => x) => assert_eq!(Some(2), x),
+///     done(fut => _) => panic!(),
+/// };
+/// # });
+/// ```
+///
+/// `select` also accepts a `complete` branch and a `default` branch.
+/// `complete` will run if all futures and streams have already been
+/// exhausted. `default` will run if no futures or streams are
+/// immediately ready.
 ///
 /// ```
 /// #![feature(pin, async_await, await_macro, futures_api)]
@@ -43,12 +66,18 @@
 ///     select! {
 ///         done(a => a) => total += a,
 ///         done(b => b) => total += b,
+///         default => panic!(), // never runs (futures run first, then complete)
 ///         complete => break,
 ///     };
 /// }
 /// assert_eq!(total, 10);
 /// # });
 /// ```
+///
+/// Note that the futures that have been matched over can still be mutated
+/// from inside the `select!` block's branches. This can be used to implement
+/// more complex behavior such as timer resets or writing into the head of
+/// a stream.
 #[macro_export]
 macro_rules! select {
     () => {
