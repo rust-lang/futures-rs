@@ -140,20 +140,37 @@ macro_rules! select {
             )*
 
             $(
-                if !$crate::async_await::FusedFuture::is_terminated(& $used_label) {
-                    __any_polled = true;
-                    match $crate::core_reexport::future::Future::poll(
-                        $crate::core_reexport::pin::Pin::new(&mut $used_label), lw)
-                    {
-                        $crate::core_reexport::task::Poll::Ready(x) => {
-                            return $crate::core_reexport::task::Poll::Ready(
-                                __PrivResult::$used_label(x)
-                            )
-                        },
-                        $crate::core_reexport::task::Poll::Pending => {},
+                let mut $used_label = move |lw: &_| {
+                    if $crate::async_await::FusedFuture::is_terminated(& $used_label) {
+                        None
+                    } else {
+                        Some($crate::core_reexport::future::Future::poll(
+                            $crate::core_reexport::pin::Pin::new(&mut $used_label),
+                            lw,
+                        ).map(__PrivResult::$used_label))
                     }
-                }
+                };
+                let $used_label:
+                    &mut dyn FnMut(&$crate::core_reexport::task::LocalWaker)
+                    -> Option<$crate::core_reexport::task::Poll<_>>
+                    = &mut $used_label;
             )*
+            let mut __select_arr = [$( $used_label, )*];
+            $crate::rand_reexport::Rng::shuffle(
+                &mut $crate::rand_reexport::thread_rng(),
+                &mut __select_arr,
+            );
+
+            for __poller in &mut __select_arr {
+                match __poller(lw) {
+                    Some(x @ $crate::core_reexport::task::Poll::Ready(_)) =>
+                        return x,
+                    Some($crate::core_reexport::task::Poll::Pending) => {
+                        __any_polled = true;
+                    }
+                    None => {}
+                }
+            }
 
             if !__any_polled {
                 $crate::core_reexport::task::Poll::Ready(__PrivResult::__Complete)

@@ -17,7 +17,7 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "either/use_std", "slab"]
+std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "either/use_std", "rand", "slab"]
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
@@ -31,6 +31,7 @@ futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.
 futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.9", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.9", default-features = false}
 either = { version = "1.4", default-features = false }
+rand = { version = "0.5.5", optional = true }
 slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-executor = { version = "0.1.2", optional = true }

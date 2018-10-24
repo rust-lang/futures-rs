@@ -25,6 +25,11 @@ if_std! {
     // FIXME: currently async/await is only available with std
     #[macro_use]
     pub mod async_await;
+
+    #[doc(hidden)]
+    pub mod rand_reexport { // used by select!
+        pub use rand::*;
+    }
 }
 
 #[doc(hidden)]
