@@ -1,6 +1,6 @@
 title: Futures-rs
 baseurl: "/futures-rs"
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://rust-lang-nursery.github.io"
 
 # Build settings
 markdown: kramdown
