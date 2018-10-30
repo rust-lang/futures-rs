@@ -44,6 +44,7 @@
 pub use self::PopResult::*;
 use std::prelude::v1::*;
 
+use std::thread;
 use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -135,6 +136,33 @@ impl<T> Queue<T> {
         }
 
         if self.head.load(Ordering::Acquire) == tail {Empty} else {Inconsistent}
+    }
+
+    /// Pop an element similarly to `pop` function, but spin-wait on inconsistent
+    /// queue state instead of returning `Inconsistent`.
+    ///
+    /// This function is unsafe because only one thread can call it at a time.
+    pub unsafe fn pop_spin(&self) -> Option<T> {
+        loop {
+            match self.pop() {
+                Empty => return None,
+                Data(t) => return Some(t),
+                // Inconsistent means that there will be a message to pop
+                // in a short time. This branch can only be reached if
+                // values are being produced from another thread, so there
+                // are a few ways that we can deal with this:
+                //
+                // 1) Spin
+                // 2) thread::yield_now()
+                // 3) task::current().unwrap() & return Pending
+                //
+                // For now, thread::yield_now() is used, but it would
+                // probably be better to spin a few times then yield.
+                Inconsistent => {
+                    thread::yield_now();
+                }
+            }
+        }
     }
 }
 
