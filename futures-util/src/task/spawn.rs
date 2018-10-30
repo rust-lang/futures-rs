@@ -2,11 +2,12 @@ use futures_core::task::{LocalSpawn, Spawn};
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
 
-if_std! {
-    use crate::future::{FutureExt, RemoteHandle};
-    use futures_core::future::{Future, FutureObj, LocalFutureObj};
-    use futures_core::task::SpawnError;
-}
+#[cfg(feature = "std")]
+use crate::future::{FutureExt, RemoteHandle};
+#[cfg(feature = "std")]
+use futures_core::future::{Future, FutureObj, LocalFutureObj};
+#[cfg(feature = "std")]
+use futures_core::task::SpawnError;
 
 impl<Sp: ?Sized> SpawnExt for Sp where Sp: Spawn {}
 impl<Sp: ?Sized> LocalSpawnExt for Sp where Sp: LocalSpawn {}

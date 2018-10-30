@@ -9,13 +9,6 @@
 
 #![feature(pin, arbitrary_self_types, futures_api)]
 
-macro_rules! if_std {
-    ($($i:item)*) => ($(
-        #[cfg(feature = "std")]
-        $i
-    )*)
-}
-
 use futures_core::task::{LocalWaker, Poll};
 use core::marker::Unpin;
 use core::pin::Pin;
@@ -159,8 +152,12 @@ impl<'a, S: ?Sized + Sink> Sink for Pin<&'a mut S> {
     }
 }
 
-if_std! {
-    mod channel_impls;
+#[cfg(feature = "std")]
+mod channel_impls;
+
+#[cfg(feature = "std")]
+mod if_std {
+    use super::*;
 
     /// The error type for `Vec` and `VecDequeue` when used as `Sink`s.
     /// Values of this type can never be created.
@@ -234,6 +231,9 @@ if_std! {
         }
     }
 }
+
+#[cfg(feature = "std")]
+pub use self::if_std::*;
 
 #[cfg(feature = "either")]
 use either::Either;

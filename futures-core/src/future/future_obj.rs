@@ -190,8 +190,9 @@ where
     unsafe fn drop(_ptr: *mut ()) {}
 }
 
-if_std! {
-    use std::boxed::Box;
+#[cfg(feature = "std")]
+mod if_std {
+    use super::*;
     use std::mem;
 
     unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>

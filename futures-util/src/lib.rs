@@ -11,25 +11,17 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.9/futures_util")]
 
-macro_rules! if_std {
-    ($($i:item)*) => ($(
-        #[cfg(feature = "std")]
-        $i
-    )*)
-}
-
 #[macro_use]
 mod macros;
 
-if_std! {
-    // FIXME: currently async/await is only available with std
-    #[macro_use]
-    pub mod async_await;
+#[cfg(feature = "std")]
+#[macro_use]
+pub mod async_await;
 
-    #[doc(hidden)]
-    pub mod rand_reexport { // used by select!
-        pub use rand::*;
-    }
+#[cfg(feature = "std")]
+#[doc(hidden)]
+pub mod rand_reexport { // used by select!
+    pub use rand::*;
 }
 
 #[doc(hidden)]
@@ -89,12 +81,14 @@ pub mod task;
 #[cfg(feature = "compat")]
 pub mod compat;
 
-if_std! {
-    pub mod io;
-    #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(feature = "std")]
+pub mod io;
+#[cfg(feature = "std")]
+#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 
-    #[cfg(any(test, feature = "bench"))]
-    pub mod lock;
-    #[cfg(not(any(test, feature = "bench")))]
-    mod lock;
-}
+#[cfg(feature = "std")]
+#[cfg(any(test, feature = "bench"))]
+pub mod lock;
+#[cfg(feature = "std")]
+#[cfg(not(any(test, feature = "bench")))]
+mod lock;

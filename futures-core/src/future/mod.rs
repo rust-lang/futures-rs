@@ -33,7 +33,9 @@ impl<F: FusedFuture + ?Sized> FusedFuture for &mut F {
     }
 }
 
-if_std! {
+#[cfg(feature = "std")]
+mod if_std {
+    use super::*;
     impl<F: FusedFuture + ?Sized> FusedFuture for Box<F> {
         fn is_terminated(&self) -> bool {
             <F as FusedFuture>::is_terminated(&**self)

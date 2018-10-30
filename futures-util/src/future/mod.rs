@@ -64,29 +64,41 @@ pub use self::unit_error::UnitError;
 mod chain;
 pub(crate) use self::chain::Chain;
 
-if_std! {
-    mod abortable;
-    pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
+#[cfg(feature = "std")]
+mod abortable;
+#[cfg(feature = "std")]
+pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
 
-    mod catch_unwind;
-    pub use self::catch_unwind::CatchUnwind;
+#[cfg(feature = "std")]
+mod catch_unwind;
+#[cfg(feature = "std")]
+pub use self::catch_unwind::CatchUnwind;
 
-    mod remote_handle;
-    pub use self::remote_handle::{Remote, RemoteHandle};
+#[cfg(feature = "std")]
+mod remote_handle;
+#[cfg(feature = "std")]
+pub use self::remote_handle::{Remote, RemoteHandle};
 
-    // ToDo
-    // mod join_all;
-    // pub use self::join_all::{join_all, JoinAll};
+// ToDo
+// #[cfg(feature = "std")]
+// mod join_all;
+// #[cfg(feature = "std")]
+// pub use self::join_all::{join_all, JoinAll};
 
-    // mod select_all;
-    // pub use self::select_all::{SelectAll, SelectAllNext, select_all};
+// #[cfg(feature = "std")]
+// mod select_all;
+// #[cfg(feature = "std")]
+// pub use self::select_all::{SelectAll, SelectAllNext, select_all};
 
-    // mod select_ok;
-    // pub use self::select_ok::{SelectOk, select_ok};
+// #[cfg(feature = "std")]
+// mod select_ok;
+// #[cfg(feature = "std")]
+// pub use self::select_ok::{SelectOk, select_ok};
 
-    mod shared;
-    pub use self::shared::Shared;
-}
+#[cfg(feature = "std")]
+mod shared;
+#[cfg(feature = "std")]
+pub use self::shared::Shared;
 
 impl<T: ?Sized> FutureExt for T where T: Future {}
 

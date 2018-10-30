@@ -193,8 +193,10 @@ where
     unsafe fn drop(_ptr: *mut ()) {}
 }
 
-if_std! {
+#[cfg(feature = "std")]
+mod if_std {
     use std::boxed::Box;
+    use super::*;
 
     unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for Box<F>
         where F: Stream<Item = T> + 'a

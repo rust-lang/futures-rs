@@ -145,8 +145,10 @@ impl<S, T, E> TryStream for S
     }
 }
 
-if_std! {
+#[cfg(feature = "std")]
+mod if_std {
     use std::boxed::Box;
+    use super::*;
 
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
         type Item = S::Item;

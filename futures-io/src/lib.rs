@@ -13,14 +13,8 @@
 
 #![feature(futures_api)]
 
-macro_rules! if_std {
-    ($($i:item)*) => ($(
-        #[cfg(feature = "std")]
-        $i
-    )*)
-}
-
-if_std! {
+#[cfg(feature = "std")]
+mod if_std {
     use futures_core::task::{LocalWaker, Poll};
     use std::boxed::Box;
     use std::cmp;
@@ -32,9 +26,9 @@ if_std! {
 
     // Re-export io::Error so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
-    pub use crate::StdIo::Error as Error;
-    pub use crate::StdIo::ErrorKind as ErrorKind;
-    pub use crate::StdIo::Result as Result;
+    pub use self::StdIo::Error as Error;
+    pub use self::StdIo::ErrorKind as ErrorKind;
+    pub use self::StdIo::Result as Result;
 
     /// A type used to conditionally initialize buffers passed to `AsyncRead`
     /// methods, modeled after `std`.
@@ -385,3 +379,6 @@ if_std! {
         delegate_async_write_to_stdio!();
     }
 }
+
+#[cfg(feature = "std")]
+pub use self::if_std::*;
