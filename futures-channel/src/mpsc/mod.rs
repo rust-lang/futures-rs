@@ -283,7 +283,7 @@ struct Inner<T> {
     state: AtomicUsize,
 
     // Atomic, FIFO queue used to send messages to the receiver
-    message_queue: Queue<Option<T>>,
+    message_queue: Queue<T>,
 
     // Atomic, FIFO queue used to send parked task handles to the receiver.
     parked_queue: Queue<Arc<Mutex<SenderTask>>>,
@@ -314,7 +314,6 @@ struct ReceiverTask {
 // Returned from Receiver::try_park()
 enum TryPark {
     Parked,
-    Closed,
     NotEmpty,
 }
 
@@ -436,7 +435,7 @@ impl<T> Sender<T> {
         }
 
         // The channel has capacity to accept the message, so send it
-        self.do_send(None, msg)
+        self.do_send_b(None, msg)
     }
 
     /// Send a message on the channel.
@@ -449,9 +448,9 @@ impl<T> Sender<T> {
             .map_err(|e| e.err)
     }
 
-    // Do the send without failing
-    // None means close
-    fn do_send(&mut self, lw: Option<&LocalWaker>, msg: T)
+    // Do the send without failing.
+    // Can be called only by bounded sender.
+    fn do_send_b(&mut self, lw: Option<&LocalWaker>, msg: T)
         -> Result<(), TrySendError<T>>
     {
         // Anyone callig do_send *should* make sure there is room first,
@@ -465,8 +464,12 @@ impl<T> Sender<T> {
         // None is returned in the case that the channel has been closed by the
         // receiver. This happens when `Receiver::close` is called or the
         // receiver is dropped.
-        let park_self = match self.inc_num_messages(false) {
-            Some(park_self) => park_self,
+        let park_self = match self.inc_num_messages() {
+            Some(num_messages) => {
+                // Block if the current number of pending messages has exceeded
+                // the configured buffer size
+                num_messages > self.inner.buffer.unwrap()
+            }
             None => return Err(TrySendError {
                 err: SendError {
                     kind: SendErrorKind::Disconnected,
@@ -486,37 +489,6 @@ impl<T> Sender<T> {
             self.park(lw);
         }
 
-        self.queue_push_and_signal(Some(msg));
-
-        Ok(())
-    }
-
-    // Do the send without parking current task.
-    fn do_send_nb(&self, msg: Option<T>) -> Result<(), TrySendError<T>> {
-        match self.inc_num_messages(msg.is_none()) {
-            Some(park_self) => assert!(!park_self),
-            None => {
-                // The receiver has closed the channel. Only abort if actually
-                // sending a message. It is important that the stream
-                // termination (None) is always sent. This technically means
-                // that it is possible for the queue to contain the following
-                // number of messages:
-                //
-                //     num-senders + buffer + 1
-                //
-                if let Some(msg) = msg {
-                    return Err(TrySendError {
-                        err: SendError {
-                            kind: SendErrorKind::Disconnected,
-                        },
-                        val: msg,
-                    });
-                } else {
-                    return Ok(());
-                }
-            },
-        };
-
         self.queue_push_and_signal(msg);
 
         Ok(())
@@ -535,7 +507,7 @@ impl<T> Sender<T> {
 
 
     // Push message to the queue and signal to the receiver
-    fn queue_push_and_signal(&self, msg: Option<T>) {
+    fn queue_push_and_signal(&self, msg: T) {
         // Push the message onto the message queue
         self.inner.message_queue.push(msg);
 
@@ -544,9 +516,8 @@ impl<T> Sender<T> {
         self.signal();
     }
 
-    // Increment the number of queued messages. Returns if the sender should
-    // block.
-    fn inc_num_messages(&self, close: bool) -> Option<bool> {
+    // Increment the number of queued messages. Returns the resulting number.
+    fn inc_num_messages(&self) -> Option<usize> {
         let mut curr = self.inner.state.load(SeqCst);
 
         loop {
@@ -565,22 +536,10 @@ impl<T> Sender<T> {
 
             state.num_messages += 1;
 
-            // The channel is closed by all sender handles being dropped.
-            if close {
-                state.is_open = false;
-            }
-
             let next = encode_state(&state);
             match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
                 Ok(_) => {
-                    // Block if the current number of pending messages has exceeded
-                    // the configured buffer size
-                    let park_self = !close && match self.inner.buffer {
-                        Some(buffer) => state.num_messages > buffer,
-                        None => false,
-                    };
-
-                    return Some(park_self)
+                    return Some(state.num_messages)
                 }
                 Err(actual) => curr = actual,
             }
@@ -674,7 +633,8 @@ impl<T> Sender<T> {
         // and we don't want to check for capacity, so skip
         // that stuff from `do_send`.
 
-        let _ = self.do_send_nb(None);
+        self.inner.set_closed();
+        self.signal();
     }
 
     fn poll_unparked(&mut self, lw: Option<&LocalWaker>) -> Poll<()> {
@@ -720,11 +680,27 @@ impl<T> UnboundedSender<T> {
 
     /// Closes this channel from the sender side, preventing any new messages.
     pub fn close_channel(&self) {
-        // There's no need to park this sender, its dropping,
-        // and we don't want to check for capacity, so skip
-        // that stuff from `do_send`.
+        self.0.inner.set_closed();
+        self.0.signal();
+    }
 
-        let _ = self.0.do_send_nb(None);
+    // Do the send without parking current task.
+    fn do_send_nb(&self, msg: T) -> Result<(), TrySendError<T>> {
+        match self.0.inc_num_messages() {
+            Some(_num_messages) => {}
+            None => {
+                return Err(TrySendError {
+                    err: SendError {
+                        kind: SendErrorKind::Disconnected,
+                    },
+                    val: msg,
+                });
+            },
+        };
+
+        self.0.queue_push_and_signal(msg);
+
+        Ok(())
     }
 
     /// Send a message on the channel.
@@ -732,7 +708,7 @@ impl<T> UnboundedSender<T> {
     /// This method should only be called after `poll_ready` has been used to
     /// verify that the channel is ready to receive a message.
     pub fn start_send(&mut self, msg: T) -> Result<(), SendError> {
-        self.0.do_send_nb(Some(msg))
+        self.do_send_nb(msg)
             .map_err(|e| e.err)
     }
 
@@ -742,7 +718,7 @@ impl<T> UnboundedSender<T> {
     /// by ensuring the return type reflects that the channel is always ready to
     /// receive messages.
     pub fn unbounded_send(&self, msg: T) -> Result<(), TrySendError<T>> {
-        self.0.do_send_nb(Some(msg))
+        self.do_send_nb(msg)
     }
 }
 
@@ -792,10 +768,7 @@ impl<T> Drop for Sender<T> {
         let prev = self.inner.num_senders.fetch_sub(1, SeqCst);
 
         if prev == 1 {
-            // There's no need to park this sender, its dropping,
-            // and we don't want to check for capacity, so skip
-            // that stuff from `do_send`.
-            let _ = self.do_send_nb(None);
+            self.close_channel();
         }
     }
 }
@@ -812,23 +785,7 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        let mut curr = self.inner.state.load(SeqCst);
-
-        loop {
-            let mut state = decode_state(curr);
-
-            if !state.is_open {
-                break
-            }
-
-            state.is_open = false;
-
-            let next = encode_state(&state);
-            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
-                Ok(_) => break,
-                Err(actual) => curr = actual,
-            }
-        }
+        self.inner.set_closed();
 
         // Wake up any threads waiting as they'll see that we've closed the
         // channel and will continue on their merry way.
@@ -869,11 +826,24 @@ impl<T> Receiver<T> {
                     // Decrement number of messages
                     self.dec_num_messages();
 
-                    return Poll::Ready(msg);
+                    return Poll::Ready(Some(msg));
                 }
                 PopResult::Empty => {
-                    // The queue is empty, return Pending
-                    return Poll::Pending;
+                    let state = decode_state(self.inner.state.load(SeqCst));
+                    if state.is_open || state.num_messages != 0 {
+                        // If queue is open, we need to return Pending
+                        // to be woken up when new messages arrive.
+                        // If queue is closed but num_messages is non-zero,
+                        // it means that senders updated the state,
+                        // but didn't put message to queue yet,
+                        // so we need to park until sender unparks the task
+                        // after queueing the message.
+                        return Poll::Pending;
+                    } else {
+                        // If closed flag is set AND there are no pending messages
+                        // it means end of stream
+                        return Poll::Ready(None);
+                    }
                 }
                 PopResult::Inconsistent => {
                     // Inconsistent means that there will be a message to pop
@@ -915,14 +885,6 @@ impl<T> Receiver<T> {
 
     // Try to park the receiver task
     fn try_park(&self, lw: &LocalWaker) -> TryPark {
-        let curr = self.inner.state.load(SeqCst);
-        let state = decode_state(curr);
-
-        // If the channel is closed, then there is no need to park.
-        if !state.is_open && state.num_messages == 0 {
-            return TryPark::Closed;
-        }
-
         // First, track the task in the `recv_task` slot
         let mut recv_task = self.inner.recv_task.lock().unwrap();
 
@@ -977,11 +939,6 @@ impl<T> Stream for Receiver<T> {
                             // empty, return Pending.
                             return Poll::Pending;
                         }
-                        TryPark::Closed => {
-                            // The channel is closed, there will be no further
-                            // messages.
-                            return Poll::Ready(None);
-                        }
                         TryPark::NotEmpty => {
                             // A message has been sent while attempting to
                             // park. Loop again, the next iteration is
@@ -1001,7 +958,7 @@ impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         // Drain the channel of all pending messages
         self.close();
-        while self.next_message().is_ready() {
+        while let Poll::Ready(Some(..)) = self.next_message() {
             // ...
         }
     }
@@ -1050,6 +1007,27 @@ impl<T> Inner<T> {
         match self.buffer {
             Some(buffer) => MAX_CAPACITY - buffer,
             None => MAX_BUFFER,
+        }
+    }
+
+    // Clear `open` flag in the state, keep `num_messages` intact.
+    fn set_closed(&self) {
+        let mut curr = self.state.load(SeqCst);
+
+        loop {
+            let mut state = decode_state(curr);
+
+            if !state.is_open {
+                break
+            }
+
+            state.is_open = false;
+
+            let next = encode_state(&state);
+            match self.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => break,
+                Err(actual) => curr = actual,
+            }
         }
     }
 }
