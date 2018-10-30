@@ -937,19 +937,10 @@ impl<T> Receiver<T> {
     }
 
     fn dec_num_messages(&self) {
-        let mut curr = self.inner.state.load(SeqCst);
-
-        loop {
-            let mut state = decode_state(curr);
-
-            state.num_messages -= 1;
-
-            let next = encode_state(&state);
-            match self.inner.state.compare_exchange(curr, next, SeqCst, SeqCst) {
-                Ok(_) => break,
-                Err(actual) => curr = actual,
-            }
-        }
+        // OPEN_MASK is highest bit, so it's unaffected by subtraction
+        // unless there's underflow, and we know there's no underflow
+        // because number of messages at this point is always > 0.
+        self.inner.state.fetch_sub(1, SeqCst);
     }
 }
 
