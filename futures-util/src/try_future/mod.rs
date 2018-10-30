@@ -15,14 +15,18 @@ mod select;
 pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::select::Select;
 
-if_std! {
+#[cfg(feature = "std")]
 mod join_all;
+#[cfg(feature = "std")]
 mod select_all;
+#[cfg(feature = "std")]
 mod select_ok;
+#[cfg(feature = "std")]
 pub use self::join_all::{join_all, JoinAll};
+#[cfg(feature = "std")]
 pub use self::select_all::{SelectAll, SelectAllNext, select_all};
+#[cfg(feature = "std")]
 pub use self::select_ok::{SelectOk, select_ok};
-}
 */
 
 // Combinators

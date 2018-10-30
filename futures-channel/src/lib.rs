@@ -12,15 +12,9 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.9/futures_channel")]
 
-macro_rules! if_std {
-    ($($i:item)*) => ($(
-        #[cfg(feature = "std")]
-        $i
-    )*)
-}
-
-if_std! {
-    mod lock;
-    pub mod mpsc;
-    pub mod oneshot;
-}
+#[cfg(feature = "std")]
+mod lock;
+#[cfg(feature = "std")]
+pub mod mpsc;
+#[cfg(feature = "std")]
+pub mod oneshot;

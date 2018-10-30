@@ -9,21 +9,19 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.9/futures_executor")]
 
-macro_rules! if_std {
-    ($($i:item)*) => ($(
-        #[cfg(feature = "std")]
-        $i
-    )*)
-}
+#[cfg(feature = "std")]
+mod local_pool;
+#[cfg(feature = "std")]
+pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
 
-if_std! {
-    mod local_pool;
-    pub use crate::local_pool::{block_on, block_on_stream, BlockingStream, LocalPool, LocalSpawner};
+#[cfg(feature = "std")]
+mod unpark_mutex;
+#[cfg(feature = "std")]
+mod thread_pool;
+#[cfg(feature = "std")]
+pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 
-    mod unpark_mutex;
-    mod thread_pool;
-    pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
-
-    mod enter;
-    pub use crate::enter::{enter, Enter, EnterError};
-}
+#[cfg(feature = "std")]
+mod enter;
+#[cfg(feature = "std")]
+pub use crate::enter::{enter, Enter, EnterError};

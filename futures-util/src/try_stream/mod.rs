@@ -37,17 +37,22 @@ pub use self::try_fold::TryFold;
 mod try_skip_while;
 pub use self::try_skip_while::TrySkipWhile;
 
-if_std! {
-    mod try_buffer_unordered;
-    pub use self::try_buffer_unordered::TryBufferUnordered;
+#[cfg(feature = "std")]
+mod try_buffer_unordered;
+#[cfg(feature = "std")]
+pub use self::try_buffer_unordered::TryBufferUnordered;
 
-    mod try_collect;
-    pub use self::try_collect::TryCollect;
+#[cfg(feature = "std")]
+mod try_collect;
+#[cfg(feature = "std")]
+pub use self::try_collect::TryCollect;
 
-    mod try_for_each_concurrent;
-    pub use self::try_for_each_concurrent::TryForEachConcurrent;
-    use futures_core::future::Future;
-}
+#[cfg(feature = "std")]
+mod try_for_each_concurrent;
+#[cfg(feature = "std")]
+pub use self::try_for_each_concurrent::TryForEachConcurrent;
+#[cfg(feature = "std")]
+use futures_core::future::Future;
 
 impl<S: TryStream> TryStreamExt for S {}
 

@@ -9,13 +9,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.9/futures_core")]
 
-macro_rules! if_std {
-    ($($i:item)*) => ($(
-        #[cfg(feature = "std")]
-        $i
-    )*)
-}
-
 pub mod future;
 #[doc(hidden)] pub use self::future::{Future, FusedFuture, TryFuture};
 

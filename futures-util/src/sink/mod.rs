@@ -42,10 +42,10 @@ pub use self::with::With;
 mod with_flat_map;
 pub use self::with_flat_map::WithFlatMap;
 
-if_std! {
-    mod buffer;
-    pub use self::buffer::Buffer;
-}
+#[cfg(feature = "std")]
+mod buffer;
+#[cfg(feature = "std")]
+pub use self::buffer::Buffer;
 
 impl<T: ?Sized> SinkExt for T where T: Sink {}
 

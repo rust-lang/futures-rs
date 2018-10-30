@@ -92,41 +92,61 @@ pub use self::unfold::{unfold, Unfold};
 mod zip;
 pub use self::zip::Zip;
 
-if_std! {
-    use std;
-    use std::iter::Extend;
+#[cfg(feature = "std")]
+use std;
+#[cfg(feature = "std")]
+use std::iter::Extend;
 
-    mod buffer_unordered;
-    pub use self::buffer_unordered::BufferUnordered;
+#[cfg(feature = "std")]
+mod buffer_unordered;
+#[cfg(feature = "std")]
+pub use self::buffer_unordered::BufferUnordered;
 
-    mod buffered;
-    pub use self::buffered::Buffered;
+#[cfg(feature = "std")]
+mod buffered;
+#[cfg(feature = "std")]
+pub use self::buffered::Buffered;
 
-    mod catch_unwind;
-    pub use self::catch_unwind::CatchUnwind;
+#[cfg(feature = "std")]
+mod catch_unwind;
+#[cfg(feature = "std")]
+pub use self::catch_unwind::CatchUnwind;
 
-    mod chunks;
-    pub use self::chunks::Chunks;
+#[cfg(feature = "std")]
+mod chunks;
+#[cfg(feature = "std")]
+pub use self::chunks::Chunks;
 
-    mod collect;
-    pub use self::collect::Collect;
+#[cfg(feature = "std")]
+mod collect;
+#[cfg(feature = "std")]
+pub use self::collect::Collect;
 
-    mod for_each_concurrent;
-    pub use self::for_each_concurrent::ForEachConcurrent;
+#[cfg(feature = "std")]
+mod for_each_concurrent;
+#[cfg(feature = "std")]
+pub use self::for_each_concurrent::ForEachConcurrent;
 
-    mod futures_ordered;
-    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
+#[cfg(feature = "std")]
+mod futures_ordered;
+#[cfg(feature = "std")]
+pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
-    mod futures_unordered;
-    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+#[cfg(feature = "std")]
+mod futures_unordered;
+#[cfg(feature = "std")]
+pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
 
-    mod split;
-    pub use self::split::{SplitStream, SplitSink, ReuniteError};
+#[cfg(feature = "std")]
+mod split;
+#[cfg(feature = "std")]
+pub use self::split::{SplitStream, SplitSink, ReuniteError};
 
-    // ToDo
-    // mod select_all;
-    // pub use self::select_all::{select_all, SelectAll};
-}
+// ToDo
+// #[cfg(feature = "std")]
+// mod select_all;
+// #[cfg(feature = "std")]
+// pub use self::select_all::{select_all, SelectAll};
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
 
