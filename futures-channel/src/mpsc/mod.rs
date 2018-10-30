@@ -88,10 +88,9 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
-use std::thread;
 use std::usize;
 
-use crate::mpsc::queue::{Queue, PopResult};
+use crate::mpsc::queue::Queue;
 
 mod queue;
 
@@ -789,14 +788,8 @@ impl<T> Receiver<T> {
 
         // Wake up any threads waiting as they'll see that we've closed the
         // channel and will continue on their merry way.
-        loop {
-            match unsafe { self.inner.parked_queue.pop() } {
-                PopResult::Data(task) => {
-                    task.lock().unwrap().notify();
-                }
-                PopResult::Empty => break,
-                PopResult::Inconsistent => thread::yield_now(),
-            }
+        while let Some(task) = unsafe { self.inner.parked_queue.pop_spin() } {
+            task.lock().unwrap().notify();
         }
     }
 
@@ -816,48 +809,32 @@ impl<T> Receiver<T> {
 
     fn next_message(&mut self) -> Poll<Option<T>> {
         // Pop off a message
-        loop {
-            match unsafe { self.inner.message_queue.pop() } {
-                PopResult::Data(msg) => {
-                    // If there are any parked task handles in the parked queue,
-                    // pop one and unpark it.
-                    self.unpark_one();
+        match unsafe { self.inner.message_queue.pop_spin() } {
+            Some(msg) => {
+                // If there are any parked task handles in the parked queue,
+                // pop one and unpark it.
+                self.unpark_one();
 
-                    // Decrement number of messages
-                    self.dec_num_messages();
+                // Decrement number of messages
+                self.dec_num_messages();
 
-                    return Poll::Ready(Some(msg));
-                }
-                PopResult::Empty => {
-                    let state = decode_state(self.inner.state.load(SeqCst));
-                    if state.is_open || state.num_messages != 0 {
-                        // If queue is open, we need to return Pending
-                        // to be woken up when new messages arrive.
-                        // If queue is closed but num_messages is non-zero,
-                        // it means that senders updated the state,
-                        // but didn't put message to queue yet,
-                        // so we need to park until sender unparks the task
-                        // after queueing the message.
-                        return Poll::Pending;
-                    } else {
-                        // If closed flag is set AND there are no pending messages
-                        // it means end of stream
-                        return Poll::Ready(None);
-                    }
-                }
-                PopResult::Inconsistent => {
-                    // Inconsistent means that there will be a message to pop
-                    // in a short time. This branch can only be reached if
-                    // values are being produced from another thread, so there
-                    // are a few ways that we can deal with this:
-                    //
-                    // 1) Spin
-                    // 2) thread::yield_now()
-                    // 3) task::current().unwrap() & return Pending
-                    //
-                    // For now, thread::yield_now() is used, but it would
-                    // probably be better to spin a few times then yield.
-                    thread::yield_now();
+                Poll::Ready(Some(msg))
+            }
+            None => {
+                let state = decode_state(self.inner.state.load(SeqCst));
+                if state.is_open || state.num_messages != 0 {
+                    // If queue is open, we need to return Pending
+                    // to be woken up when new messages arrive.
+                    // If queue is closed but num_messages is non-zero,
+                    // it means that senders updated the state,
+                    // but didn't put message to queue yet,
+                    // so we need to park until sender unparks the task
+                    // after queueing the message.
+                    return Poll::Pending;
+                } else {
+                    // If closed flag is set AND there are no pending messages
+                    // it means end of stream
+                    return Poll::Ready(None);
                 }
             }
         }
@@ -865,21 +842,8 @@ impl<T> Receiver<T> {
 
     // Unpark a single task handle if there is one pending in the parked queue
     fn unpark_one(&mut self) {
-        loop {
-            match unsafe { self.inner.parked_queue.pop() } {
-                PopResult::Data(task) => {
-                    task.lock().unwrap().notify();
-                    return;
-                }
-                PopResult::Empty => {
-                    // Queue empty, no task to wake up.
-                    return;
-                }
-                PopResult::Inconsistent => {
-                    // Same as above
-                    thread::yield_now();
-                }
-            }
+        if let Some(task) = unsafe { self.inner.parked_queue.pop_spin() } {
+            task.lock().unwrap().notify();
         }
     }
 
