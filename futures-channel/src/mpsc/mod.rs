@@ -1003,23 +1003,12 @@ impl<T> Inner<T> {
 
     // Clear `open` flag in the state, keep `num_messages` intact.
     fn set_closed(&self) {
-        let mut curr = self.state.load(SeqCst);
-
-        loop {
-            let mut state = decode_state(curr);
-
-            if !state.is_open {
-                break
-            }
-
-            state.is_open = false;
-
-            let next = encode_state(&state);
-            match self.state.compare_exchange(curr, next, SeqCst, SeqCst) {
-                Ok(_) => break,
-                Err(actual) => curr = actual,
-            }
+        let curr = self.state.load(SeqCst);
+        if !decode_state(curr).is_open {
+            return;
         }
+
+        self.state.fetch_and(!OPEN_MASK, SeqCst);
     }
 }
 
