@@ -1,3 +1,4 @@
+#![recursion_limit="128"]
 #![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
 use futures::{Poll, pending, poll, join, try_join, select};
@@ -46,11 +47,11 @@ fn select() {
     let mut ran = false;
     block_on(async {
         select! {
-            done(rx1.fuse() => res) => {
+            res = rx1.fuse() => {
                 assert_eq!(Ok(1), res);
                 ran = true;
             },
-            done(rx2.fuse() => _) => unreachable!(),
+            _ = rx2.fuse() => unreachable!(),
         }
     });
     assert!(ran);
@@ -68,8 +69,8 @@ fn select_streams() {
         let mut tx1_opt;
         let mut tx2_opt;
         select! {
-            next(rx1 => _) => panic!(),
-            next(rx2 => _) => panic!(),
+            _ = rx1.next() => panic!(),
+            _ = rx2.next() => panic!(),
             default => {
                 await!(tx1.send(2)).unwrap();
                 await!(tx2.send(3)).unwrap();
@@ -81,9 +82,9 @@ fn select_streams() {
         loop {
             select! {
                 // runs first and again after default
-                next(rx1 => x) => if let Some(x) = x { total += x; },
+                x = rx1.next() => if let Some(x) = x { total += x; },
                 // runs second and again after default
-                next(rx2 => x) => if let Some(x) = x { total += x; },
+                x = rx2.next()  => if let Some(x) = x { total += x; },
                 // runs third
                 default => {
                     assert_eq!(total, 5);
@@ -110,12 +111,12 @@ fn select_can_move_uncompleted_futures() {
     let mut rx2 = rx2.fuse();
     block_on(async {
         select! {
-            done(rx1 => res) => {
+            res = rx1 => {
                 assert_eq!(Ok(1), res);
                 assert_eq!(Ok(2), await!(rx2));
                 ran = true;
             },
-            done(rx2 => res) => {
+            res = rx2 => {
                 assert_eq!(Ok(2), res);
                 assert_eq!(Ok(1), await!(rx1));
                 ran = true;
@@ -130,7 +131,7 @@ fn select_size() {
     let fut = async {
         let mut ready = future::ready(0i32);
         select! {
-            done(ready => _) => {},
+            _ = ready => {},
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 24);
@@ -139,8 +140,8 @@ fn select_size() {
         let mut ready1 = future::ready(0i32);
         let mut ready2 = future::ready(0i32);
         select! {
-            done(ready1 => _) => {},
-            done(ready2 => _) => {},
+            _ = ready1 => {},
+            _ = ready2 => {},
         }
     };
     assert_eq!(::std::mem::size_of_val(&fut), 40);
