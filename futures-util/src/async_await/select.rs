@@ -1,10 +1,14 @@
 //! The `select` macro.
 
 /// Polls multiple futures and streams simultaneously, executing the branch
-/// for the future that finishes first. Futures and streams passed to
-/// `select!` must be `Unpin` and implement `FusedFuture` or `FusedStream`.
+/// for the future that finishes first. Futures passed to
+/// `select!` must be `Unpin` and implement `FusedFuture`.
 /// Futures and streams which are not already fused can be fused using the
-/// `.fuse()` method.
+/// `.fuse()` method. Note, though, that fusing a future or stream directly
+/// in the call to `select!` will not be enough to prevent it from being
+/// polled after completion if the `select!` call is in a loop, so when
+/// `select!`ing in a loop, users should take care to `fuse()` outside of
+/// the loop.
 ///
 /// `select!` can select over futures with different output types, but each
 /// branch has to have the same return type.
@@ -22,15 +26,12 @@
 /// let mut b = future::empty::<()>();
 ///
 /// let res = select! {
-///     done(a => a_res) => a_res + 1,
-///     done(b => _) => 0,
+///     a_res = a => a_res + 1,
+///     _ = b => 0,
 /// };
 /// assert_eq!(res, 5);
 /// # });
 /// ```
-///
-/// In addition to `done(...)` matchers, `select!` includes `next(...)`
-/// matchers for getting the next element of a stream:
 ///
 /// ```
 /// #![feature(pin, async_await, await_macro, futures_api)]
@@ -42,8 +43,8 @@
 /// let mut fut = future::empty::<()>();
 ///
 /// select! {
-///     next(st => x) => assert_eq!(Some(2), x),
-///     done(fut => _) => panic!(),
+///     x = st.next() => assert_eq!(Some(2), x),
+///     _ = fut => panic!(),
 /// };
 /// # });
 /// ```
@@ -58,14 +59,14 @@
 /// # futures::executor::block_on(async {
 /// use futures::future::{self, FutureExt};
 /// use futures::select;
-/// let mut a = future::ready(4);
-/// let mut b = future::ready(6);
+/// let mut a_fut = future::ready(4);
+/// let mut b_fut = future::ready(6);
 /// let mut total = 0;
 ///
 /// loop {
 ///     select! {
-///         done(a => a) => total += a,
-///         done(b => b) => total += b,
+///         a = a_fut => total += a,
+///         b = b_fut => total += b,
 ///         default => panic!(), // never runs (futures run first, then complete)
 ///         complete => break,
 ///     };
@@ -86,51 +87,41 @@ macro_rules! select {
 
 	(
         @codegen
-        dones $done:tt
-        nexts $next:tt
+        futs $fut:tt
         default $default:tt
         complete ()
-        used_labels $used_labels:tt
     ) => {
         $crate::select! {
             @codegen
-            dones $done
-            nexts $next
+            futs $fut
             default $default
             complete (
                 panic!("all futures in select! were completed, \
                        but no `complete =>` handler was provided"))
-            used_labels $used_labels
         }
     };
     // Remember the lack of a default
     (
         @codegen
-        dones $done:tt
-        nexts $next:tt
+        futs $fut:tt
         default ()
         complete $complete:tt
-        used_labels $used_labels:tt
     ) => {
         $crate::select! {
             @codegen
-            dones $done
-            nexts $next
+            futs $fut
             default ( unreachable!() )
             no_default true
             complete $complete
-            used_labels $used_labels
         }
     };
 
     (
         @codegen
-        dones ($( $fut_label:ident ($fut_name:ident => $fut_pat:pat) => $fut_body:expr, )*)
-        nexts ($( $st_label:ident ($st_name:ident => $st_pat:pat) => $st_body:expr, )*)
+        futs ($( $fut_pat:pat = $fut_name:ident => $fut_body:expr, )*)
         default ($default:expr)
         $( no_default $no_default:ident )*
         complete ($complete:expr)
-        used_labels ($( $used_label:ident, )*)
     ) => { {
 
         // Require all arguments to be `Unpin` so that we don't have to pin them,
@@ -144,15 +135,11 @@ macro_rules! select {
             $crate::async_await::assert_unpin(&$fut_name);
             $crate::async_await::assert_fused_future(&$fut_name);
         )*
-        $(
-            $crate::async_await::assert_unpin(&$st_name);
-            $crate::async_await::assert_fused_stream(&$st_name);
-        )*
 
         #[allow(bad_style)]
-        enum __PrivResult<$($used_label,)*> {
+        enum __PrivResult<$($fut_name,)*> {
             $(
-                $used_label($used_label),
+                $fut_name($fut_name),
             )*
             __Default,
 			__Complete,
@@ -162,35 +149,30 @@ macro_rules! select {
             let mut __any_polled = false;
 
             $(
-                let mut $fut_label = &mut $fut_name;
-            )*
-            $(
-                let mut $st_label = $crate::stream::StreamExt::next(&mut $st_name);
-            )*
-
-            $(
-                let mut $used_label = move |lw: &_| {
-                    if $crate::async_await::FusedFuture::is_terminated(& $used_label) {
+                let mut $fut_name = |lw: &_| {
+                    if $crate::async_await::FusedFuture::is_terminated(& $fut_name) {
                         None
                     } else {
                         Some($crate::core_reexport::future::Future::poll(
-                            $crate::core_reexport::pin::Pin::new(&mut $used_label),
+                            $crate::core_reexport::pin::Pin::new(&mut $fut_name),
                             lw,
-                        ).map(__PrivResult::$used_label))
+                        ).map(__PrivResult::$fut_name))
                     }
                 };
-                let $used_label:
+                let $fut_name:
                     &mut dyn FnMut(&$crate::core_reexport::task::LocalWaker)
                     -> Option<$crate::core_reexport::task::Poll<_>>
-                    = &mut $used_label;
+                    = &mut $fut_name;
             )*
-            let mut __select_arr = [$( $used_label, )*];
+            let mut __select_arr = [$( $fut_name, )*];
             $crate::rand_reexport::Rng::shuffle(
                 &mut $crate::rand_reexport::thread_rng(),
                 &mut __select_arr,
             );
 
             for __poller in &mut __select_arr {
+                let __poller: &mut &mut dyn FnMut(&$crate::core_reexport::task::LocalWaker)
+                    -> Option<$crate::core_reexport::task::Poll<_>> = __poller;
                 match __poller(lw) {
                     Some(x @ $crate::core_reexport::task::Poll::Ready(_)) =>
                         return x,
@@ -230,13 +212,8 @@ macro_rules! select {
         };
         match __priv_res {
             $(
-                __PrivResult::$fut_label($fut_pat) => {
+                __PrivResult::$fut_name($fut_pat) => {
                     $fut_body
-                }
-            )*
-            $(
-                __PrivResult::$st_label($st_pat) => {
-                    $st_body
                 }
             )*
             __PrivResult::__Default => {
@@ -253,14 +230,281 @@ macro_rules! select {
     (@parse_list
         cases($($head:tt)*)
         tokens()
+        labels $labels:tt
     ) => {
         $crate::select!(
             @parse_case
-            dones()
-            nexts()
+            futs()
             default()
             complete()
             cases($($head)*)
+        )
+    };
+    // Error: no labels left
+    (@parse_list
+        cases $cases:tt
+        tokens $tokens:tt
+        labels ()
+    ) => {
+        compile_error!("too many cases in a `select!` block")
+    };
+    // Normalize input to the form
+    // `KIND pat = ident => ...`
+    (@parse_list
+        cases($($head:tt)*)
+        tokens(default => $($tail:tt)*)
+        labels $labels:tt
+    ) => {
+        $crate::select!(
+            @parse_list
+            cases($($head)*)
+            tokens(__DEFAULT _ = __DEFAULT_IDENT => $($tail)*)
+            labels $labels
+        )
+    };
+    (@parse_list
+        cases($($head:tt)*)
+        tokens(complete => $($tail:tt)*)
+        labels $labels:tt
+    ) => {
+        $crate::select!(
+            @parse_list
+            cases($($head)*)
+            tokens(__COMPLETE _ = __COMPLETE_IDENT => $($tail)*)
+            labels $labels
+        )
+    };
+    (@parse_list
+        cases($($head:tt)*)
+        tokens($fut_pat:pat = $fut_ident:ident => $($tail:tt)*)
+        labels $labels:tt
+    ) => {
+        $crate::select!(
+            @parse_list
+            cases($($head)*)
+            tokens(__FUTURE $fut_pat = $fut_ident => $($tail)*)
+            labels $labels
+        )
+    };
+    (@parse_list // catch `expr` and expand w/ `let`
+        cases($($head:tt)*)
+        tokens($fut_pat:pat = $fut_expr:expr => $($tail:tt)*)
+        labels ($label:tt $($labels:tt)*)
+    ) => {
+        {
+            let mut $label = $fut_expr;
+            $crate::select!(
+                @parse_list
+                cases($($head)*)
+                tokens(__FUTURE $fut_pat = $label => $($tail)*)
+                labels ($($labels)*)
+            )
+        }
+    };
+    // The first case is separated by a comma.
+    (@parse_list
+        cases($($head:tt)*)
+        tokens($kind:ident $fut_pat:pat = $fut_ident:ident => $body:expr, $($tail:tt)*)
+        labels $labels:tt
+    ) => {
+        $crate::select!(
+            @parse_list
+            cases($($head)* $kind $fut_pat = $fut_ident => { $body },)
+            tokens($($tail)*)
+            labels $labels
+        )
+    };
+    // Print an error if there is a semicolon after the expression
+    (@parse_list
+        cases($($head:tt)*)
+        tokens($kind:ident $fut_pat:pat = $fut_ident:ident => $body:expr; $($tail:tt)*)
+        labels $labels:tt
+    ) => {
+        compile_error!("did you mean to put a comma instead of the semicolon after `}`?")
+    };
+
+    // Don't require a comma after the case if it has a proper block.
+    (@parse_list
+        cases($($head:tt)*)
+        tokens($kind:ident $fut_pat:pat = $fut_ident:ident => $body:block $($tail:tt)*)
+        labels $labels:tt
+    ) => {
+        $crate::select!(
+            @parse_list
+            cases($($head)* $kind $fut_pat = $fut_ident => { $body },)
+            tokens($($tail)*)
+            labels $labels
+        )
+    };
+    // Only one case remains.
+    (@parse_list
+        cases($($head:tt)*)
+        tokens($kind:ident $fut_pat:pat = $fut_ident:ident => $body:expr)
+        labels $labels:tt
+    ) => {
+        $crate::select!(
+            @parse_list
+            cases($($head)* $kind $fut_pat = $fut_ident => { $body },)
+            tokens()
+            labels $labels
+        )
+    };
+    // Diagnose and print an error.
+    (@parse_list
+        cases($($head:tt)*)
+        tokens($(tail:tt)*)
+        labels $labels:tt
+    ) => {
+        $crate::select!(@parse_list_error1 $($tail)*)
+    };
+    // Stage 1: check the case type.
+    (@parse_list_error1 default $($tail:tt)*) => {
+        $crate::select!(@parse_list_error2 $($tail)*)
+    };
+    (@parse_list_error1 complete $($tail:tt)*) => {
+        $crate::select!(@parse_list_error2 $($tail)*)
+    };
+    (@parse_list_error1 $fut_pat:pat = $fut_expr:ident $($tail:tt)*) => {
+        $crate::select!(@parse_list_error2 $($tail)*)
+    };
+    (@parse_list_error1 __DEFAULT _ = __DEFAULT_IDENT $($tail:tt)*) => {
+        $crate::select!(@parse_list_error2 $($tail)*)
+    };
+    (@parse_list_error1 __COMPLETE _ = __COMPLETE_IDENT $($tail:tt)*) => {
+        $crate::select!(@parse_list_error2 $($tail)*)
+    };
+    (@parse_list error1 __FUTURE $fut_pat:pat = $fut_ident:ident $($tail:tt)*) => {
+        $crate::select!(@parse_list_error2 => $($tail)*)
+    };
+    (@parse_list_error1 $t:tt $($tail:tt)*) => {
+        compile_error!(concat!(
+            "expected one of `pattern = future => expr,`, `default => expr,`, or `complete => expr`, found `",
+            stringify!($t),
+            "`",
+        ))
+    };
+    (@parse_list_error_2 => $body:expr; $($tail:tt)*) => {
+        compile_error!(concat!(
+            "did you mean to put a comma instead of the semicolon after `",
+            stringify!($body),
+            "`?",
+        ))
+    };
+    (@parse_list_error_2 => $($tail:tt)*) => {
+        compile_error!("expected expression followed by comma after `=>`")
+    };
+    (@parse_list_error_2 $($tail:tt)*) => {
+        compile_error!("expected `=>` after select! case")
+    };
+    (@parse_list_error2 $($tail:tt)*) => {
+        compile_error!("invalid syntax")
+    };
+
+    // Success! all cases were parsed
+    (@parse_case
+        futs $fut:tt
+        default $default:tt
+        complete $complete:tt
+        cases ()
+    ) => {
+        $crate::select!(
+            @codegen
+            futs $fut
+            default $default
+            complete $complete
+        )
+    };
+
+    // Parse `default => { ... }`
+    (@parse_case
+        futs $fut:tt
+        default ()
+        complete $complete:tt
+        cases (__DEFAULT $pat:pat = __DEFAULT_IDENT => $body:tt, $($tail:tt)*)
+    ) => {
+        $crate::select!(
+            @parse_case
+            futs $fut
+            default ($body)
+            complete $complete
+            cases ($($tail)*)
+        )
+    };
+    // Error on multiple `default`s
+    (@parse_case
+        futs $fut:tt
+        default $default:tt
+        complete $complete:tt
+        cases (__DEFAULT $pat:pat = __DEFAULT_IDENT => $body:tt, $($tail:tt)*)
+    ) => {
+        compile_error!("there can only be one `default` case in a `select!` block")
+    };
+    // Parse `complete => { ... }`
+    (@parse_case
+        futs $fut:tt
+        default $default:tt
+        complete ()
+        cases (__COMPLETE $pat:pat = __COMPLETE_IDENT => $body:tt, $($tail:tt)*)
+    ) => {
+        $crate::select!(
+            @parse_case
+            futs $fut
+            default $default
+            complete ($body)
+            cases ($($tail)*)
+        )
+    };
+    // Error on multiple `complete`s
+    (@parse_case
+        futs $fut:tt
+        default $default:tt
+        complete $complete:tt
+        cases (__COMPLETE $pat:pat = __COMPLETE_IDENT => $body:tt, $($tail:tt)*)
+    ) => {
+        compile_error!("there can only be one `complete` case in a `select!` block")
+    };
+    // Parse `pat = ident => { ... }`
+    (@parse_case
+        futs ($($futs:tt)*)
+        default $default:tt
+        complete $complete:tt
+        cases (__FUTURE $pat:pat = $ident:ident => $body:tt, $($tail:tt)*)
+    ) => {
+        $crate::select!(
+            @parse_case
+            futs ($($futs)* $pat = $ident => $body,)
+            default $default
+            complete $complete
+            cases ($($tail)*)
+        )
+    };
+    // Catch errors in case parsing
+    (@parse_case
+        futs $fut:tt
+        default $default:tt
+        complete $complete:tt
+        cases ($case:ident $args:tt => $body:tt, $($tail:tt)*)
+    ) => {
+        compile_error!(concat!(
+            "expected one of `pattern = future => expr,`, `default`, or `complete`, found `",
+            stringify!($case), stringify!($args),
+            "`",
+        ))
+    };
+
+    // Catches a bug within this macro (should not happen).
+    (@$($tokens:tt)*) => {
+        compile_error!(concat!(
+            "internal error in futures select macro: ",
+            stringify!(@$($tokens)*),
+        ))
+    };
+
+    ($($tokens:tt)*) => {
+        $crate::select!(
+            @parse_list
+            cases()
+            tokens($($tokens)*)
             labels(
                 case1
                 case2
@@ -294,456 +538,6 @@ macro_rules! select {
                 case30
                 case31
             )
-            used_labels ()
-        )
-    };
-
-    // insert empty argument list after `default` and `complete`
-    (@parse_list
-        cases($($head:tt)*)
-        tokens(default => $($tail:tt)*)
-    ) => {
-        $crate::select!(
-            @parse_list
-            cases($($head)*)
-            tokens(default() => $($tail)*)
-        )
-    };
-    (@parse_list
-        cases($($head:tt)*)
-        tokens(complete => $($tail:tt)*)
-    ) => {
-        $crate::select!(
-            @parse_list
-            cases($($head)*)
-            tokens(complete() => $($tail)*)
-        )
-    };
-
-    // The first case is separated by a comma.
-    (@parse_list
-        cases($($head:tt)*)
-        tokens($case:ident $args:tt => $body:expr, $($tail:tt)*)
-    ) => {
-        $crate::select!(
-            @parse_list
-            cases($($head)* $case $args => { $body },)
-            tokens($($tail)*)
-        )
-    };
-    // Print an error if there is a semicolon after the block.
-    (@parse_list
-        cases($($head:tt)*)
-        tokens($case:ident $args:tt => $body:block; $($tail:tt)*)
-    ) => {
-        compile_error!("did you mean to put a comma instead of the semicolon after `}`?")
-    };
-
-    // Don't require a comma after the case if it has a proper block.
-    (@parse_list
-        cases($($head:tt)*)
-        tokens($case:ident $args:tt => $body:block $($tail:tt)*)
-    ) => {
-        $crate::select!(
-            @parse_list
-            cases($($head)* $case $args => { $body },)
-            tokens($($tail)*)
-        )
-    };
-    // Only one case remains.
-    (@parse_list
-        cases($($head:tt)*)
-        tokens($case:ident $args:tt => $body:expr)
-    ) => {
-        $crate::select!(
-            @parse_list
-            cases($($head)* $case $args => { $body },)
-            tokens()
-        )
-    };
-    // Accept a trailing comma at the end of the list.
-    (@parse_list
-        cases($($head:tt)*)
-        tokens($case:ident $args:tt => $body:expr,)
-    ) => {
-        $crate::select!(
-            @parse_list
-            ($($head)* $case $args => { $body },)
-            ()
-        )
-    };
-    // Diagnose and print an error.
-    (@parse_list
-        cases($($head:tt)*)
-        tokens($(tail:tt)*)
-    ) => {
-        $crate::select!(@parse_list_error1 $($tail)*)
-    };
-    // Stage 1: check the case type.
-    (@parse_list_error1 recv $($tail:tt)*) => {
-        $crate::select!(@parse_list_error2 done $($tail)*)
-    };
-    (@parse_list_error1 send $($tail:tt)*) => {
-        $crate::select!(@parse_list_error2 next $($tail)*)
-    };
-    (@parse_list_error1 default $($tail:tt)*) => {
-        $crate::select!(@parse_list_error2 default $($tail)*)
-    };
-    (@parse_list_error1 complete $($tail:tt)*) => {
-        $crate::select!(@parse_list_error2 complete $($tail)*)
-    };
-    (@parse_list_error1 $t:tt $($tail:tt)*) => {
-        compile_error!(concat!(
-            "expected one of `done(...)`, `next(...)`, `default`, or `complete`, found `",
-            stringify!($t),
-            "`",
-        ))
-    };
-    (@parse_list_error1 $($tail:tt)*) => {
-        $crate::select!(@parse_list_error2 $($tail)*);
-    };
-    // Stage 2: check the argument list.
-    (@parse_list_error2 $case:ident) => {
-        compile_error!(concat!(
-            "missing argument list after `",
-            stringify!($case),
-            "`",
-        ))
-    };
-    (@parse_list_error2 $case:ident => $($tail:tt)*) => {
-        compile_error!(concat!(
-            "missing argument list after `",
-            stringify!($case),
-            "`",
-        ))
-    };
-    (@parse_list_error2 $($tail:tt)*) => {
-        $crate::select!(@parse_list_error3 $($tail)*)
-    };
-    // Stage 3: check the `=>` and what comes after it.
-    (@parse_list_error3 $case:ident($($args:tt)*)) => {
-        compile_error!(concat!(
-            "missing `=>` after the argument list of `",
-            stringify!($case),
-            "`",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) =>) => {
-        compile_error!("expected expression after `=>`")
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => $body:expr; $($tail:tt)*) => {
-        compile_error!(concat!(
-            "did you mean to put a comma instead of the semicolon after `",
-            stringify!($body),
-            "`?",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => recv($($a:tt)*) $($tail:tt)*) => {
-        compile_error!("expected an expression after `=>`")
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => send($($a:tt)*) $($tail:tt)*) => {
-        compile_error!("expected an expression after `=>`")
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => default($($a:tt)*) $($tail:tt)*) => {
-        compile_error!("expected an expression after `=>`")
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => $f:ident($($a:tt)*) $($tail:tt)*) => {
-        compile_error!(concat!(
-            "did you mean to put a comma after `",
-            stringify!($f),
-            "(",
-            stringify!($($a)*),
-            ")`?",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => $f:ident!($($a:tt)*) $($tail:tt)*) => {
-        compile_error!(concat!(
-            "did you mean to put a comma after `",
-            stringify!($f),
-            "!(",
-            stringify!($($a)*),
-            ")`?",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => $f:ident![$($a:tt)*] $($tail:tt)*) => {
-        compile_error!(concat!(
-            "did you mean to put a comma after `",
-            stringify!($f),
-            "![",
-            stringify!($($a)*),
-            "]`?",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => $f:ident!{$($a:tt)*} $($tail:tt)*) => {
-        compile_error!(concat!(
-            "did you mean to put a comma after `",
-            stringify!($f),
-            "!{",
-            stringify!($($a)*),
-            "}`?",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) => $body:tt $($tail:tt)*) => {
-        compile_error!(concat!(
-            "did you mean to put a comma after `",
-            stringify!($body),
-            "`?",
-        ))
-    };
-    (@parse_list_error3 $case:ident($($args:tt)*) $t:tt $($tail:tt)*) => {
-        compile_error!(concat!(
-            "expected `=>`, found `",
-            stringify!($t),
-            "`",
-        ))
-    };
-    (@parse_list_error3 $case:ident $args:tt $($tail:tt)*) => {
-        compile_error!(concat!(
-            "expected an argument list, found `",
-            stringify!($args),
-            "`",
-        ))
-    };
-    (@parse_list_error3 $($tail:tt)*) => {
-        $crate::select!(@parse_list_error4 $($tail)*)
-    };
-    // Stage 4: fail with a generic error message.
-    (@parse_list_error4 $($tail:tt)*) => {
-        compile_error!("invalid syntax")
-    };
-
-    // Success! all cases were parsed
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases ()
-        labels $labels:tt
-        used_labels $used:tt
-    ) => {
-        $crate::select!(
-            @codegen
-            dones $done
-            nexts $next
-            default $default
-            complete $complete
-            used_labels $used
-        )
-    };
-    // Error: no labels left
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases $cases:tt
-        labels ()
-        used_labels $used:tt
-    ) => {
-        compile_error!("too many cases in a `select!` block")
-    };
-    // Parse `done(ident => foo) => { ... }`
-    (@parse_case
-        dones ($($done:tt)*)
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases (done($fut:ident => $pat:pat) => $body:tt, $($tail:tt)*)
-        labels ($label:tt $($labels:tt)*)
-        used_labels ($($used:tt)*)
-    ) => {
-        $crate::select!(
-            @parse_case
-            dones ($($done)* $label ($fut => $pat) => $body,)
-            nexts $next
-            default $default
-            complete $complete
-            cases ($($tail)*)
-            labels ($($labels)*)
-            used_labels ($($used)* $label,)
-        )
-    };
-    // Parse `done(expr => foo) => { ... }`
-    (@parse_case
-        dones ($($done:tt)*)
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases (done($fut:expr => $pat:pat) => $body:tt, $($tail:tt)*)
-        labels ($label:tt $($labels:tt)*)
-        used_labels ($($used:tt)*)
-    ) => {
-        {
-            let mut $label = $fut;
-            $crate::select!(
-                @parse_case
-                dones ($($done)* $label ($label => $pat) => $body,)
-                nexts $next
-                default $default
-                complete $complete
-                cases ($($tail)*)
-                labels ($($labels)*)
-                used_labels ($($used)* $label,)
-            )
-        }
-    };
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases (done $t:tt => $body:tt, $($tail:tt)*)
-        labels ($label:tt $($labels:tt)*)
-        used_labels $used:tt
-    ) => {
-        compile_error!(concat!(
-            "invalid syntax to `done`: `",
-            stringify!($t),
-            "`, expected `done(fut => pat)`",
-        ))
-    };
-    // Parse `next(stream => foo) => { ... }`
-    (@parse_case
-        dones $done:tt
-        nexts ($($next:tt)*)
-        default $default:tt
-        complete $complete:tt
-        cases (next($stream:ident => $pat:pat) => $body:tt, $($tail:tt)*)
-        labels ($label:tt $($labels:tt)*)
-        used_labels ($($used:tt)*)
-    ) => {
-        $crate::select!(
-            @parse_case
-            dones $done
-            nexts ($($next)* $label ($stream => $pat) => $body,)
-            default $default
-            complete $complete
-            cases ($($tail)*)
-            labels ($($labels)*)
-            used_labels ($($used)* $label,)
-        )
-    };
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases (next $t:tt => $body:tt, $($tail:tt)*)
-        labels ($label:tt $($labels:tt)*)
-        used_labels $used:tt
-    ) => {
-        compile_error!(concat!(
-            "invalid syntax to `next`: `",
-            stringify!($t),
-            "`, expected `next(stream => pat)`",
-        ))
-    };
-    // Parse `default => { ... }`
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default ()
-        complete $complete:tt
-        cases (default() => $body:tt, $($tail:tt)*)
-        labels $labels:tt
-        used_labels $used:tt
-    ) => {
-        $crate::select!(
-            @parse_case
-            dones $done
-            nexts $next
-            default ($body)
-            complete $complete
-            cases ($($tail)*)
-            labels $labels
-            used_labels $used
-        )
-    };
-    // Error on multiple `default`s
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases (default() => $body:tt, $($tail:tt)*)
-        labels $labels:tt
-        used_labels $used:tt
-    ) => {
-        compile_error!("there can only be one `default` case in a `select!` block")
-    };
-    // Parse `complete => { ... }`
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete ()
-        cases (complete() => $body:tt, $($tail:tt)*)
-        labels $labels:tt
-        used_labels $used:tt
-    ) => {
-        $crate::select!(
-            @parse_case
-            dones $done
-            nexts $next
-            default $default
-            complete ($body)
-            cases ($($tail)*)
-            labels $labels
-            used_labels $used
-        )
-    };
-    // Error on multiple `complete`s
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases (complete() => $body:tt, $($tail:tt)*)
-        labels $labels:tt
-        used_labels $used:tt
-    ) => {
-        compile_error!("there can only be one `complete` case in a `select!` block")
-    };
-
-    // Catch errors in case parsing
-    (@parse_case
-        dones $done:tt
-        nexts $next:tt
-        default $default:tt
-        complete $complete:tt
-        cases ($case:ident $args:tt => $body:tt, $($tail:tt)*)
-        labels $labels:tt
-        used_labels $used:tt
-    ) => {
-        compile_error!(concat!(
-            "expected one of `done(fut => x)`, `next(stream => x)`, `default`, or `complete`, found `",
-            stringify!($case), stringify!($args),
-            "`",
-        ))
-    };
-
-    // Catches a bug within this macro (should not happen).
-    (@$($tokens:tt)*) => {
-        compile_error!(concat!(
-            "internal error in futures select macro: ",
-            stringify!(@$($tokens)*),
-        ))
-    };
-
-    ($($case:ident $(($($args:tt)*))* => $body:expr $(,)*)*) => {
-        $crate::select!(
-            @parse_list
-            cases()
-            tokens($($case $(($($args)*))* => $body,)*)
-        )
-    };
-
-    ($($tokens:tt)*) => {
-        $crate::select!(
-            @parse_list
-            cases()
-            tokens($($tokens)*)
         )
     };
 }
