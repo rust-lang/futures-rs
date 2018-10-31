@@ -85,7 +85,7 @@ macro_rules! select {
         compile_error!("The `select!` macro requires at least one branch")
     };
 
-	(
+    (
         @codegen
         futs $fut:tt
         default $default:tt
