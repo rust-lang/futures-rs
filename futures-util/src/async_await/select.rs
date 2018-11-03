@@ -52,7 +52,8 @@
 /// `select` also accepts a `complete` branch and a `default` branch.
 /// `complete` will run if all futures and streams have already been
 /// exhausted. `default` will run if no futures or streams are
-/// immediately ready.
+/// immediately ready. `complete` takes priority over `default` in
+/// the case where all futures have completed.
 ///
 /// ```
 /// #![feature(pin, async_await, await_macro, futures_api)]
@@ -67,8 +68,8 @@
 ///     select! {
 ///         a = a_fut => total += a,
 ///         b = b_fut => total += b,
-///         default => panic!(), // never runs (futures run first, then complete)
 ///         complete => break,
+///         default => panic!(), // never runs (futures run first, then complete)
 ///     };
 /// }
 /// assert_eq!(total, 10);
