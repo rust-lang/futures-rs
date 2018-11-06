@@ -830,11 +830,11 @@ impl<T> Receiver<T> {
                     // but didn't put message to queue yet,
                     // so we need to park until sender unparks the task
                     // after queueing the message.
-                    return Poll::Pending;
+                    Poll::Pending
                 } else {
                     // If closed flag is set AND there are no pending messages
                     // it means end of stream
-                    return Poll::Ready(None);
+                    Poll::Ready(None)
                 }
             }
         }
