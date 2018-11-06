@@ -1,5 +1,5 @@
 use crate::task::local_waker_ref_from_nonlocal;
-use futures_core::future::Future;
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll, Wake, Waker};
 use slab::Slab;
 use std::cell::UnsafeCell;
@@ -171,6 +171,12 @@ where
             FutureOrOutput::Output(ref item) => &item,
             FutureOrOutput::Future(_) => unreachable!(),
         }
+    }
+}
+
+impl<Fut: Future> FusedFuture for Shared<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_none()
     }
 }
 
