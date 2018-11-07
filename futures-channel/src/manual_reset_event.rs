@@ -132,7 +132,7 @@ impl InnerEventState {
     }
 
     fn is_set(&self) -> bool {
-        return self.is_set;
+        self.is_set
     }
 
     /// Polls one WaitHandle for completion. If the event isn't set, the WaitHandle gets registered
@@ -318,13 +318,13 @@ impl Future for WaitHandle {
 
 impl FusedFuture for WaitHandle {
     fn is_terminated(&self) -> bool {
-        return self.reg.terminated;
+        self.reg.terminated
     }
 }
 
 impl<'a> FusedFuture for LocalWaitHandle<'a> {
     fn is_terminated(&self) -> bool {
-        return self.reg.terminated;
+        self.reg.terminated
     }
 }
 
