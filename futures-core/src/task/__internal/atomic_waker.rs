@@ -1,7 +1,7 @@
 use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
+use core::sync::atomic::Ordering::{Acquire, Release, AcqRel, SeqCst};
 use crate::task::{LocalWaker, Waker};
 
 /// A synchronization primitive for task wakeup.
@@ -124,14 +124,53 @@ pub struct AtomicWaker {
 //    Thread A still holds the `wake` lock, the call to `register` will result
 //    in the task waking itself and get scheduled again.
 
-/// Idle state
-const WAITING: usize = 0;
+/// Idle state empty
+const EMPTY: usize = 0;
+
+/// Idle state with a waker in the cell
+const HOLDS: usize = 0b100;
 
 /// A new waker value is being registered with the `AtomicWaker` cell.
-const REGISTERING: usize = 0b01;
+const REGISTERING: usize = 0b001;
 
 /// The waker currently registered with the `AtomicWaker` cell is being woken.
-const WAKING: usize = 0b10;
+const WAKING: usize = 0b010;
+
+// State transition diagram
+// Can be viewed/edited with service like this:
+// https://dreampuf.github.io/GraphvizOnline/
+/*
+
+digraph G {
+    // Any fixed-width font will do
+    node [fontname=Monaco];
+
+    // Solid lines are transitions on function enter
+    // and dashed lines are second transitions in a function call.
+    // (There are at most two transitions per function call).
+
+    // register thread state transitions are red
+    "EMPTY" -> "REGISTERING" [color=red];
+    "HOLDS" -> "REGISTERING" [color=red];
+    "REGISTERING" -> "HOLDS" [color=red style=dashed];
+    "REGISTERING|WAKING" -> "EMPTY" [color=red style=dashed];
+
+    // wake thread state transitions are blue
+    "REGISTERING" -> "REGISTERING|WAKING" [color=blue];
+    "EMPTY" -> "WAKING" [color=blue];
+    "HOLDS" -> "WAKING|HOLDS" [color=blue];
+    "WAKING|HOLDS" -> "EMPTY" [color=blue style=dashed];
+    "WAKING" -> "EMPTY" [color=blue style=dashed];
+
+    // intermediate states (when at least one process is running)
+    "REGISTERING|WAKING" [style=dashed];
+    "WAKING|HOLDS" [style=dashed];
+    "WAKING" [style=dashed];
+    "REGISTERING" [style=dashed];
+}
+
+*/
+
 
 impl AtomicWaker {
     /// Create an `AtomicWaker`.
@@ -141,7 +180,7 @@ impl AtomicWaker {
         impl AssertSync for Waker {}
 
         AtomicWaker {
-            state: AtomicUsize::new(WAITING),
+            state: AtomicUsize::new(EMPTY),
             waker: UnsafeCell::new(None),
         }
     }
@@ -198,63 +237,66 @@ impl AtomicWaker {
     /// }
     /// ```
     pub fn register(&self, lw: &LocalWaker) {
-        match self.state.compare_and_swap(WAITING, REGISTERING, Acquire) {
-            WAITING => {
-                unsafe {
-                    // Locked acquired, update the waker cell
-                    *self.waker.get() = Some(lw.clone().into_waker());
+        let state = self.state.load(SeqCst);
+        if (state == EMPTY || state == HOLDS)
+            && self.state.compare_and_swap(state, REGISTERING, Acquire) == state
+        {
+            return unsafe {
+                debug_assert_eq!(state == HOLDS, (*self.waker.get()).is_some());
 
-                    // Release the lock. If the state transitioned to include
-                    // the `WAKING` bit, this means that a wake has been
-                    // called concurrently, so we have to remove the waker and
-                    // wake it.`
-                    //
-                    // Start by assuming that the state is `REGISTERING` as this
-                    // is what we jut set it to.
-                    let res = self.state.compare_exchange(
-                        REGISTERING, WAITING, AcqRel, Acquire);
+                // Locked acquired, update the waker cell
+                *self.waker.get() = Some(lw.clone().into_waker());
 
-                    match res {
-                        Ok(_) => {}
-                        Err(actual) => {
-                            // This branch can only be reached if a
-                            // concurrent thread called `wake`. In this
-                            // case, `actual` **must** be `REGISTERING |
-                            // `WAKING`.
-                            debug_assert_eq!(actual, REGISTERING | WAKING);
+                // Release the lock. If the state transitioned to include
+                // the `WAKING` bit, this means that a wake has been
+                // called concurrently, so we have to remove the waker and
+                // wake it.`
+                //
+                // Start by assuming that the state is `REGISTERING` as this
+                // is what we jut set it to.
+                let res = self.state.compare_exchange(
+                    REGISTERING, HOLDS, AcqRel, Acquire);
 
-                            // Take the waker to wake once the atomic operation has
-                            // completed.
-                            let waker = (*self.waker.get()).take().unwrap();
+                match res {
+                    Ok(_) => {}
+                    Err(actual) => {
+                        // This branch can only be reached if a
+                        // concurrent thread called `wake`. In this
+                        // case, `actual` **must** be `REGISTERING |
+                        // `WAKING`.
+                        debug_assert_eq!(actual, REGISTERING | WAKING);
 
-                            // Just swap, because no one could change state while state == `REGISTERING` | `WAKING`.
-                            self.state.swap(WAITING, AcqRel);
+                        // Take the waker to wake once the atomic operation has
+                        // completed.
+                        let waker = (*self.waker.get()).take().unwrap();
 
-                            // The atomic swap was complete, now
-                            // wake the task and return.
-                            waker.wake();
-                        }
+                        // Just swap, because no one could change state while state == `REGISTERING` | `WAKING`.
+                        self.state.swap(EMPTY, AcqRel);
+
+                        // The atomic swap was complete, now
+                        // wake the task and return.
+                        waker.wake();
                     }
                 }
             }
-            WAKING => {
-                // Currently in the process of waking the task, i.e.,
-                // `wake` is currently being called on the old task handle.
-                // So, we call wake on the new waker
-                lw.wake();
-            }
-            state => {
-                // In this case, a concurrent thread is holding the
-                // "registering" lock. This probably indicates a bug in the
-                // caller's code as racing to call `register` doesn't make much
-                // sense.
-                //
-                // We just want to maintain memory safety. It is ok to drop the
-                // call to `register`.
-                debug_assert!(
-                    state == REGISTERING ||
-                    state == REGISTERING | WAKING);
-            }
+        }
+
+        if state == WAKING || state == WAKING | HOLDS || state == EMPTY || state == HOLDS {
+            // Currently in the process of waking the task, i.e.,
+            // `wake` is currently being called on the old task handle.
+            // So, we call wake on the new waker
+            lw.wake();
+        } else {
+            // In this case, a concurrent thread is holding the
+            // "registering" lock. This probably indicates a bug in the
+            // caller's code as racing to call `register` doesn't make much
+            // sense.
+            //
+            // We just want to maintain memory safety. It is ok to drop the
+            // call to `register`.
+            debug_assert!(
+                state == REGISTERING ||
+                state == REGISTERING | WAKING);
         }
     }
 
@@ -262,16 +304,27 @@ impl AtomicWaker {
     ///
     /// If `register` has not been called yet, then this does nothing.
     pub fn wake(&self) {
+        let state = self.state.load(SeqCst);
+
+        if state == EMPTY || state & WAKING != 0 {
+            // One of:
+            // * no waker inside, nothing to wake
+            // * another process is calling wake now
+            return;
+        }
+
         // AcqRel ordering is used in order to acquire the value of the `task`
         // cell as well as to establish a `release` ordering with whatever
         // memory the `AtomicWaker` is associated with.
-        match self.state.fetch_or(WAKING, AcqRel) {
-            WAITING => {
+        let state = self.state.fetch_or(WAKING, AcqRel);
+        match state {
+            EMPTY | HOLDS => {
                 // The waking lock has been acquired.
                 let waker = unsafe { (*self.waker.get()).take() };
+                debug_assert_eq!(state == HOLDS, waker.is_some());
 
                 // Release the lock
-                self.state.fetch_and(!WAKING, Release);
+                self.state.fetch_and(!(WAKING | HOLDS), Release);
 
                 if let Some(waker) = waker {
                     waker.wake();
@@ -288,7 +341,8 @@ impl AtomicWaker {
                 debug_assert!(
                     state == REGISTERING ||
                     state == REGISTERING | WAKING ||
-                    state == WAKING);
+                    state == WAKING ||
+                    state == WAKING | HOLDS);
             }
         }
     }
