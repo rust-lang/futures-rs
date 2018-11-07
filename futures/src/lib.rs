@@ -73,7 +73,7 @@ pub mod channel {
     //!   channel for sending values between tasks, analogous to the
     //!   similarly-named structure in the standard library.
 
-    pub use futures_channel::{oneshot, mpsc};
+    pub use futures_channel::{oneshot, mpsc, manual_reset_event};
 }
 
 #[cfg(feature = "compat")]

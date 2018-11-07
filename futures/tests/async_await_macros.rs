@@ -3,11 +3,14 @@
 
 use futures::{Poll, pending, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};
+use futures::channel::manual_reset_event::{local_manual_reset_event, manual_reset_event, LocalManualResetEvent};
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
 use futures::stream::StreamExt;
 use futures::sink::SinkExt;
 use pin_utils::pin_mut;
+use std::{thread, time};
+
 
 #[test]
 fn poll_and_pending() {
@@ -196,4 +199,97 @@ fn try_join_doesnt_require_unpin() {
         let y = async { Ok::<(), ()>(()) };
         try_join!(x, y)
     };
+}
+
+#[test]
+fn test_manual_reset_event() {
+    let ev = manual_reset_event(false);
+    let ev2 = manual_reset_event(false);
+
+    let ev_set = ev.clone();
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(100));
+        ev_set.set();
+    });
+
+    block_on(async {
+        let wait1 = ev.poll_set();
+        let wait2 = ev2.poll_set();
+
+        let mut nr_selects = 0;
+
+        // Since the futures from poll_set are Unpin, they must be alias by a reference which is
+        // !Unpin for select
+        pin_mut!(wait1);
+        pin_mut!(wait2);
+        // This is currently necessary since FusedFuture is not propagated through Pin
+        let mut wait1 = wait1.fuse();
+        let mut wait2 = wait2.fuse();
+
+        while nr_selects != 2 {
+            select! {
+                _res = wait1 => {
+                    assert_eq!(true, ev.is_set());
+                    assert_eq!(false, ev2.is_set());
+                    ev2.set();
+                },
+                _res = wait2 => {
+                    assert_eq!(true, ev2.is_set());
+                },
+            }
+            nr_selects += 1;
+        }
+
+        assert_eq!(true, ev.is_set());
+        assert_eq!(true, ev2.is_set());
+    });
+}
+
+#[test]
+fn test_local_manual_reset_event() {
+    let (tx1, rx1) = oneshot::channel::<i32>();
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(100));
+        tx1.send(111).unwrap();
+    });
+
+    /// An async subroutine which only resolves after cancel_event has been set
+    async fn sub(cancel_event: &LocalManualResetEvent) -> i32 {
+        await!(cancel_event.poll_set());
+        32
+    }
+
+    block_on(async {
+        let cancel_ev = local_manual_reset_event(false);
+        let mut rx1 = rx1.fuse();
+
+        let sub1_done = sub(&cancel_ev);
+        let sub2_done = sub(&cancel_ev);
+        pin_mut!(sub1_done);
+        pin_mut!(sub2_done);
+        let mut sub1_done = sub1_done.fuse();
+        let mut sub2_done = sub2_done.fuse();
+
+        let mut nr_selects = 0;
+        while nr_selects != 3 {
+            select! {
+                res = sub1_done => {
+                    assert_eq!(32, res);
+                },
+                res = sub2_done => {
+                    assert_eq!(32, res);
+                },
+                res = rx1 => {
+                    assert_eq!(111, res.unwrap());
+                    assert_eq!(0, nr_selects);
+                    // Cancel the subroutine
+                    assert!(!cancel_ev.is_set());
+                    cancel_ev.set();
+                },
+            }
+            nr_selects += 1;
+        }
+
+        assert_eq!(true, cancel_ev.is_set());
+    });
 }

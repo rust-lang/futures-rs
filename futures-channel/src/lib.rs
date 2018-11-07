@@ -18,3 +18,5 @@ mod lock;
 pub mod mpsc;
 #[cfg(feature = "std")]
 pub mod oneshot;
+#[cfg(feature = "std")]
+pub mod manual_reset_event;
