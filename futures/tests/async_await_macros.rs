@@ -222,9 +222,6 @@ fn test_manual_reset_event() {
         // !Unpin for select
         pin_mut!(wait1);
         pin_mut!(wait2);
-        // This is currently necessary since FusedFuture is not propagated through Pin
-        let mut wait1 = wait1.fuse();
-        let mut wait2 = wait2.fuse();
 
         while nr_selects != 2 {
             select! {
@@ -263,12 +260,10 @@ fn test_local_manual_reset_event() {
         let cancel_ev = local_manual_reset_event(false);
         let mut rx1 = rx1.fuse();
 
-        let sub1_done = sub(&cancel_ev);
-        let sub2_done = sub(&cancel_ev);
+        let sub1_done = sub(&cancel_ev).fuse();
+        let sub2_done = sub(&cancel_ev).fuse();
         pin_mut!(sub1_done);
         pin_mut!(sub2_done);
-        let mut sub1_done = sub1_done.fuse();
-        let mut sub2_done = sub2_done.fuse();
 
         let mut nr_selects = 0;
         while nr_selects != 3 {
