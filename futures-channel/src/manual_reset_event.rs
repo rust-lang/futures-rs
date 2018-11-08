@@ -46,7 +46,9 @@ impl WaitHandleRegistration {
     }
 }
 
+/// A Future that is resolved once the corresponding ManualResetEvent has been set
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 struct WaitHandle {
     /// The ManualResetEvent this is associated with this WaitHandle
     event: Arc<Mutex<InnerEventState>>,
@@ -54,7 +56,9 @@ struct WaitHandle {
     reg: WaitHandleRegistration,
 }
 
+/// A Future that is resolved once the corresponding LocalManualResetEvent has been set
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 struct LocalWaitHandle<'a> {
     /// The LocalManualResetEvent this is associated with this WaitHandle
     event: &'a RefCell<InnerEventState>,
