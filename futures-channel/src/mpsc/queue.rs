@@ -45,7 +45,6 @@ pub use self::PopResult::*;
 use std::prelude::v1::*;
 
 use std::thread;
-use std::cell::UnsafeCell;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
@@ -74,7 +73,7 @@ struct Node<T> {
 #[derive(Debug)]
 pub struct Queue<T> {
     head: AtomicPtr<Node<T>>,
-    tail: UnsafeCell<*mut Node<T>>,
+    tail: AtomicPtr<Node<T>>,
 }
 
 unsafe impl<T: Send> Send for Queue<T> { }
@@ -97,7 +96,7 @@ impl<T> Queue<T> {
         let stub = unsafe { Node::new(None) };
         Queue {
             head: AtomicPtr::new(stub),
-            tail: UnsafeCell::new(stub),
+            tail: AtomicPtr::new(stub),
         }
     }
 
@@ -123,11 +122,11 @@ impl<T> Queue<T> {
     ///
     /// This function is unsafe because only one thread can call it at a time.
     pub unsafe fn pop(&self) -> PopResult<T> {
-        let tail = *self.tail.get();
+        let tail = self.tail.load(Ordering::Acquire);
         let next = (*tail).next.load(Ordering::Acquire);
 
         if !next.is_null() {
-            *self.tail.get() = next;
+            self.tail.store(next, Ordering::Release);
             assert!((*tail).value.is_none());
             assert!((*next).value.is_some());
             let ret = (*next).value.take().unwrap();
@@ -169,7 +168,7 @@ impl<T> Queue<T> {
 impl<T> Drop for Queue<T> {
     fn drop(&mut self) {
         unsafe {
-            let mut cur = *self.tail.get();
+            let mut cur = self.tail.load(Ordering::Acquire);
             while !cur.is_null() {
                 let next = (*cur).next.load(Ordering::Relaxed);
                 drop(Box::from_raw(cur));
