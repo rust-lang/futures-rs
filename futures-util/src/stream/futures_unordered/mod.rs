@@ -453,7 +453,7 @@ impl<Fut: Future> FromIterator<Fut> for FuturesUnordered<Fut> {
 
 /// Converts a list of futures into a [`Stream`] of outputs from the futures.
 ///
-/// This function will take an list of futures (e.g. a [`Vec`], an [`Iterator`],
+/// This function will take a list of futures (e.g. a [`Vec`], an [`Iterator`],
 /// etc), and return a stream. The stream will yield items as they become
 /// available on the futures internally, in the order that they become
 /// available. This function is similar to
