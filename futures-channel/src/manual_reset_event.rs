@@ -119,7 +119,7 @@ impl InnerEventState {
             self.waiters = null_mut();
 
             unsafe {
-                while waiter != null_mut() {
+                while !waiter.is_null() {
                     let task = (*waiter).task.take();
                     if let Some(ref handle) = task {
                         handle.wake();
@@ -181,37 +181,36 @@ impl InnerEventState {
     fn remove_waiter(&mut self, wait_handle: &mut WaitHandleRegistration) {
         let addr = wait_handle as *mut WaitHandleRegistration;
 
-        match wait_handle.state {
-            PollState::Waiting => {
-                // Remove the WaitHandle from the linked list
-                if self.waiters == addr {
-                    self.waiters = wait_handle.next;
-                } else {
-                    // Find the WaitHandle before us and link it to the one
-                    // behind us
-                    let mut iter = self.waiters;
-                    let mut found_addr = false;
+        // WaitHandle only needs to get removed if it had been registered at
+        // the Event. This has happened in the PollState::Waiting case.
+        if let PollState::Waiting = wait_handle.state {
+            // Remove the WaitHandle from the linked list
+            if self.waiters == addr {
+                self.waiters = wait_handle.next;
+            } else {
+                // Find the WaitHandle before us and link it to the one
+                // behind us
+                let mut iter = self.waiters;
+                let mut found_addr = false;
 
-                    unsafe {
-                        while iter != null_mut() {
-                            if (*iter).next == addr {
-                                (*iter).next = wait_handle.next;
-                                found_addr = true;
-                                break;
-                            } else {
-                                iter = (*iter).next;
-                            }
+                unsafe {
+                    while !iter.is_null() {
+                        if (*iter).next == addr {
+                            (*iter).next = wait_handle.next;
+                            found_addr = true;
+                            break;
+                        } else {
+                            iter = (*iter).next;
                         }
                     }
-
-                    // Panic if the address isn't found. This can only happen if the contract was
-                    // violated, e.g. the WaitHandle got moved after the initial poll.
-                    assert!(found_addr, "Future could not be unregistered");
                 }
-                wait_handle.next = null_mut();
-                wait_handle.state = PollState::Done;
-            },
-            _ => {},
+
+                // Panic if the address isn't found. This can only happen if the contract was
+                // violated, e.g. the WaitHandle got moved after the initial poll.
+                assert!(found_addr, "Future could not be unregistered");
+            }
+            wait_handle.next = null_mut();
+            wait_handle.state = PollState::Done;
         }
     }
 }
