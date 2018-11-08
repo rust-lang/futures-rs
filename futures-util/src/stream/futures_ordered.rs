@@ -100,7 +100,7 @@ impl<T: Future> Unpin for FuturesOrdered<T> {}
 
 /// Converts a list of futures into a `Stream` of results from the futures.
 ///
-/// This function will take an list of futures (e.g. a vector, an iterator,
+/// This function will take a list of futures (e.g. a vector, an iterator,
 /// etc), and return a stream. The stream will yield items as they become
 /// available on the futures internally, in the order that their originating
 /// futures were submitted to the queue. If the futures complete out of order,
