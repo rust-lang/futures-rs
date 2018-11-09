@@ -6,11 +6,11 @@ use std::sync::{Arc, Mutex};
 
 /// Type for keys into the waker set
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct WakerKey(usize);
+pub(crate) struct WakerKey(usize);
 
 impl WakerKey {
     /// null value for a waker key
-    pub const NULL: WakerKey = WakerKey(usize::max_value());
+    pub(crate) const NULL: WakerKey = WakerKey(usize::max_value());
 }
 
 impl fmt::Debug for WakerKey {
@@ -23,19 +23,17 @@ impl fmt::Debug for WakerKey {
 /// together.
 ///
 /// Useful for implementing shared futures and streams
-pub struct WakerSet {
+pub(crate) struct WakerSet {
     wakers: Mutex<Option<Slab<Option<Waker>>>>,
 }
 
 impl WakerSet {
-    pub fn new() -> Self {
-        Self {
-            wakers: Mutex::new(Some(Slab::new())),
-        }
+    pub(crate) fn new() -> Self {
+        Self { wakers: Mutex::new(Some(Slab::new())) }
     }
 
     /// Registers the current task to receive a wakeup when we are awoken.
-    pub fn record_waker(&self, key: &mut WakerKey, cx: &mut Context<'_>) {
+    pub(crate) fn record_waker(&self, key: &mut WakerKey, cx: &mut Context<'_>) {
         let mut wakers_guard = self.wakers.lock().unwrap();
 
         let wakers = match wakers_guard.as_mut() {
@@ -56,7 +54,7 @@ impl WakerSet {
         debug_assert!(*key != WakerKey::NULL);
     }
 
-    pub fn unregister(&self, key: WakerKey) {
+    pub(crate) fn unregister(&self, key: WakerKey) {
         if key == WakerKey::NULL {
             return;
         }
@@ -68,8 +66,8 @@ impl WakerSet {
     }
 
     /// Wake all registered wakers
-    pub fn wake_all(&self) {
-        let wakers = self.wakers.lock().unwrap();
+    pub(crate) fn wake_all(&self) {
+        let mut wakers = self.wakers.lock().unwrap();
 
         if let Some(wakers) = wakers.as_mut() {
             for (_, opt_waker) in wakers {
@@ -84,7 +82,7 @@ impl WakerSet {
     ///
     /// After waking existing wakers, this drops the underlying buffer, and will
     /// no longer notify more wakers.
-    pub fn wake_and_finish(&self) {
+    pub(crate) fn wake_and_finish(&self) {
         let mut wakers_guard = self.wakers.lock().unwrap();
         if let Some(mut wakers) = wakers_guard.take() {
             for waker in wakers.drain().flatten() {

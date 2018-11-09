@@ -1,5 +1,5 @@
 use crate::task::waker_ref;
-use crate::wakerset::{WakerSet, WakerKey};
+use crate::wakerset::{WakerKey, WakerSet};
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
 use std::cell::UnsafeCell;
@@ -243,11 +243,7 @@ where
 
         inner.notifier.record_waker(&mut this.waker_key, cx);
 
-        match inner
-            .state
-            .compare_exchange(IDLE, POLLING, SeqCst, SeqCst)
-            .unwrap_or_else(|x| x)
-        {
+        match inner.state.compare_exchange(IDLE, POLLING, SeqCst, SeqCst).unwrap_or_else(|x| x) {
             IDLE => {
                 // Lock acquired, fall through
             }
@@ -296,8 +292,7 @@ where
 
             match poll_result {
                 Poll::Pending => {
-                    if inner.state.compare_exchange(POLLING, IDLE, SeqCst, SeqCst).is_ok()
-                    {
+                    if inner.state.compare_exchange(POLLING, IDLE, SeqCst, SeqCst).is_ok() {
                         // Success
                         drop(reset);
                         this.inner = Some(inner);
@@ -352,6 +347,6 @@ impl<Fut: Future> WeakShared<Fut> {
     /// Returns [`None`] if all clones of the [`Shared`] have been dropped or polled
     /// to completion.
     pub fn upgrade(&self) -> Option<Shared<Fut>> {
-        Some(Shared { inner: Some(self.0.upgrade()?), waker_key: NULL_WAKER_KEY })
+        Some(Shared { inner: Some(self.0.upgrade()?), waker_key: WakerKey::NULL })
     }
 }
