@@ -1,5 +1,3 @@
-use crate::task::waker_ref;
-use crate::wakerset::{WakerKey, WakerSet};
 use alloc::sync::{Arc, Weak};
 use core::{
     cell::UnsafeCell,
@@ -13,8 +11,15 @@ use core::{
     },
 };
 
-use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Context, Poll};
+use futures_core::{
+    future::{FusedFuture, Future},
+    task::{Context, Poll},
+};
+
+use crate::{
+    task::waker_ref,
+    wakerset::{WakerKey, WakerSet},
+};
 
 /// Future for the [`shared`](super::FutureExt::shared) method.
 #[must_use = "futures do nothing unless you `.await` or poll them"]

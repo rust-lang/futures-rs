@@ -1,8 +1,10 @@
-use crate::task::{ArcWake, Waker};
 use alloc::sync::Arc;
 use core::fmt;
+
 use futures_core::task::Context;
 use slab::Slab;
+
+use crate::task::{ArcWake, Waker};
 
 #[cfg(feature = "std")]
 type Mutex<T> = std::sync::Mutex<T>;
@@ -71,7 +73,7 @@ impl WakerSet {
         }
         #[cfg(not(feature = "std"))]
         if let Some(wakers) = self.wakers.lock().as_mut() {
-            wakers.remove(self.waker_key);
+            wakers.remove(key.0);
         }
     }
 

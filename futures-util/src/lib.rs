@@ -327,5 +327,5 @@ mod abortable;
 
 mod fns;
 mod unfold_state;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", all(feature = "alloc", feature = "spin")))]
 mod wakerset;
