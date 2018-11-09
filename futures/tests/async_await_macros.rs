@@ -213,13 +213,13 @@ fn test_manual_reset_event() {
     });
 
     block_on(async {
-        let wait1 = ev.poll_set();
-        let wait2 = ev2.poll_set();
+        let wait1 = ev.get_awaiter();
+        let wait2 = ev2.get_awaiter();
 
         let mut nr_selects = 0;
 
-        // Since the futures from poll_set are Unpin, they must be alias by a reference which is
-        // !Unpin for select
+        // Since the futures from get_awaiter are !Unpin, they must be pinned on
+        // the stack to make them usable for select!, which requires Unpin
         pin_mut!(wait1);
         pin_mut!(wait2);
 
@@ -252,7 +252,7 @@ fn test_local_manual_reset_event() {
 
     /// An async subroutine which only resolves after cancel_event has been set
     async fn sub(cancel_event: &LocalManualResetEvent) -> i32 {
-        await!(cancel_event.poll_set());
+        await!(cancel_event.get_awaiter());
         32
     }
 

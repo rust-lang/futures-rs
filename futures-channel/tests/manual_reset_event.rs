@@ -28,7 +28,7 @@ fn smoke() {
         [1..4].iter().map(|_| {
             let ev = event.clone();
             thread::spawn(move || {
-                block_on(ev.poll_set());
+                block_on(ev.get_awaiter());
                 time::Instant::now()
             })
         }).collect();
@@ -52,7 +52,7 @@ fn immediately_ready_event() {
 
     assert!(event.is_set());
 
-    let poll = event.poll_set();
+    let poll = event.get_awaiter();
     pin_mut!(poll);
     assert!(!poll.as_mut().is_terminated());
 
@@ -69,11 +69,11 @@ fn cancel_mid_wait() {
     {
         // Cancel a wait in between other waits
         // In order to arbitrarily drop a non movable future we have to box and pin it
-        let mut poll1 = Box::pinned(event.poll_set());
-        let mut poll2 = Box::pinned(event.poll_set());
-        let mut poll3 = Box::pinned(event.poll_set());
-        let mut poll4 = Box::pinned(event.poll_set());
-        let mut poll5 = Box::pinned(event.poll_set());
+        let mut poll1 = Box::pinned(event.get_awaiter());
+        let mut poll2 = Box::pinned(event.get_awaiter());
+        let mut poll3 = Box::pinned(event.get_awaiter());
+        let mut poll4 = Box::pinned(event.get_awaiter());
+        let mut poll5 = Box::pinned(event.get_awaiter());
 
         assert!(poll1.as_mut().poll(lw).is_pending());
         assert!(poll2.as_mut().poll(lw).is_pending());
@@ -114,10 +114,10 @@ fn cancel_end_wait() {
     let wake_counter = WakeCounter::new();
     let lw = &wake_counter.local_waker();
 
-    let poll1 = event.poll_set();
-    let poll2 = event.poll_set();
-    let poll3 = event.poll_set();
-    let poll4 = event.poll_set();
+    let poll1 = event.get_awaiter();
+    let poll2 = event.get_awaiter();
+    let poll3 = event.get_awaiter();
+    let poll4 = event.get_awaiter();
 
     pin_mut!(poll1);
     pin_mut!(poll2);
@@ -130,8 +130,8 @@ fn cancel_end_wait() {
     // Start polling some wait handles which get cancelled
     // before new ones are attached
     {
-        let poll5 = event.poll_set();
-        let poll6 = event.poll_set();
+        let poll5 = event.get_awaiter();
+        let poll6 = event.get_awaiter();
         pin_mut!(poll5);
         pin_mut!(poll6);
         assert!(poll5.as_mut().poll(lw).is_pending());
@@ -161,11 +161,11 @@ fn local_event() {
     {
         // Cancel a wait in between other waits
         // In order to arbitrarily drop a non movable future we have to box and pin it
-        let mut poll1 = Box::pinned(event.poll_set());
-        let mut poll2 = Box::pinned(event.poll_set());
-        let mut poll3 = Box::pinned(event.poll_set());
-        let mut poll4 = Box::pinned(event.poll_set());
-        let mut poll5 = Box::pinned(event.poll_set());
+        let mut poll1 = Box::pinned(event.get_awaiter());
+        let mut poll2 = Box::pinned(event.get_awaiter());
+        let mut poll3 = Box::pinned(event.get_awaiter());
+        let mut poll4 = Box::pinned(event.get_awaiter());
+        let mut poll5 = Box::pinned(event.get_awaiter());
 
         assert!(poll1.as_mut().poll(lw).is_pending());
         assert!(poll2.as_mut().poll(lw).is_pending());

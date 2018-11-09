@@ -68,7 +68,7 @@ struct LocalWaitHandle<'a> {
 
 /// A synchronization primitive which can be either in the set or reset state.
 ///
-/// Tasks can wait for the event to get set by obtaining a Future via poll_set.
+/// Tasks can wait for the event to get set by obtaining a Future via get_awaiter.
 /// This Future will get fulfilled when the event had been set.
 #[derive(Debug, Clone)]
 pub struct ManualResetEvent {
@@ -81,7 +81,7 @@ unsafe impl Sync for ManualResetEvent {}
 
 /// A synchronization primitive which can be either in the set or reset state.
 ///
-/// Tasks can wait for the event to get set by obtaining a Future via poll_set.
+/// Tasks can wait for the event to get set by obtaining a Future via get_awaiter.
 /// This Future will get fulfilled when the event had been set.
 #[derive(Debug)]
 pub struct LocalManualResetEvent {
@@ -245,7 +245,7 @@ impl<'a> LocalManualResetEvent {
     }
 
     /// Returns a future that gets fulfilled when the event is set.
-    pub fn poll_set(&'a self) -> impl Future<Output = ()> + FusedFuture + 'a {
+    pub fn get_awaiter(&'a self) -> impl Future<Output = ()> + FusedFuture + 'a {
         LocalWaitHandle {
             event: &self.inner,
             reg: WaitHandleRegistration::new(),
@@ -284,7 +284,7 @@ impl ManualResetEvent {
     }
 
     /// Returns a future that gets fulfilled when the event is set.
-    pub fn poll_set(&self) -> impl Future<Output = ()> + FusedFuture {
+    pub fn get_awaiter(&self) -> impl Future<Output = ()> + FusedFuture {
         WaitHandle {
             event: self.inner.clone(),
             reg: WaitHandleRegistration::new(),
