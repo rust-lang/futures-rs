@@ -15,7 +15,7 @@ use std::{marker::{PhantomData, Unpin}, ops::Deref, pin::Pin, ptr::NonNull, sync
 /// [`Future`](futures::future::Future),
 /// [`Stream`](futures::stream::Stream) or
 /// [`Sink`](futures::sink::Sink).
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Compat<T> {
     pub(crate) inner: T,
@@ -28,7 +28,11 @@ impl<T> Compat<T> {
     }
 
     /// Creates a new [`Compat`].
-    pub(crate) fn new(inner: T) -> Compat<T> {
+    ///
+    /// For types which implement appropriate futures `0.3`
+    /// traits, the result will be a type which implements
+    /// the corresponding futures 0.1 type.
+    pub fn new(inner: T) -> Compat<T> {
         Compat { inner }
     }
 }
