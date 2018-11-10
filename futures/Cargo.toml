@@ -36,7 +36,7 @@ futures-test-preview = { path = "../futures-test", version = "0.3.0-alpha.9", de
 tokio = "0.1.11"
 
 [features]
-nightly = ["futures-util-preview/nightly"]
+nightly = ["futures-util-preview/nightly", "futures-core-preview/nightly"]
 std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-util-preview/std"]
 default = ["std"]
 compat = ["std", "futures-util-preview/compat"]
