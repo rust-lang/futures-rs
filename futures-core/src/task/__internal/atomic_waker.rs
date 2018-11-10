@@ -2,7 +2,7 @@ use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
-use futures_core::task::{LocalWaker, Waker};
+use crate::task::{LocalWaker, Waker};
 
 /// A synchronization primitive for task wakeup.
 ///

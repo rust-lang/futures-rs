@@ -1,3 +1,5 @@
+cargo-features = ["rename-dependency"]
+
 [package]
 name = "futures-core-preview"
 edition = "2018"
@@ -17,6 +19,10 @@ name = "futures_core"
 [features]
 default = ["std"]
 std = ["either/use_std"]
+nightly = []
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }
+
+[dev-dependencies]
+futures-preview = { path = "../futures", version = "0.3.0-alpha.9" }
