@@ -1,7 +1,8 @@
 //! An unbounded set of futures.
 
+use crate::stream::StreamExt;
 use crate::task::AtomicWaker;
-use futures_core::future::{Future, FutureObj, LocalFutureObj};
+use futures_core::future::{FusedFuture, Future, FutureObj, LocalFutureObj};
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll, Spawn, LocalSpawn, SpawnError};
 use std::cell::UnsafeCell;
@@ -144,6 +145,55 @@ impl<Fut> FuturesUnordered<Fut> {
     /// Returns `true` if the set contains no futures.
     pub fn is_empty(&self) -> bool {
         self.len == 0
+    }
+
+    /// Returns a `Future` that returns when the next future in this
+    /// `FuturesUnordered` completes.
+    ///
+    /// This is similar to the `next` method when using `FuturesUnordered` as
+    /// a stream, but it won't resolve to `None` if used on an empty
+    /// `FuturesUnordered`. Instead, the returned future type will return true
+    /// from `FusedFuture::is_terminated` when the `FuturesUnordered` is empty,
+    /// allowing `next_some()` to be easily used with the `select!` macro.
+    ///
+    /// If the future is polled while this `FuturesUnordered` is empty,
+    /// it will panic. Using the future with a `FusedFuture`-aware primitive
+    /// like the `select!` macro will prevent this.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api, pin)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{future, select};
+    /// use futures::stream::FuturesUnordered;
+    ///
+    /// let mut fut = future::ready(1);
+    /// let mut async_tasks = FuturesUnordered::new();
+    /// let mut total = 0;
+    /// loop {
+    ///     select! {
+    ///         num = fut => {
+    ///             // First, the `ready` future completes.
+    ///             total += num;
+    ///             // Then we spawn a new task onto `async_tasks`.
+    ///             async_tasks.push(async { 5 });
+    ///         },
+    ///         // On the next iteration of the loop, the task we spawned
+    ///         // completes.
+    ///         num = async_tasks.next_some() => {
+    ///             total += num;
+    ///         }
+    ///         // Finally, both the `ready` future and `async_tasks` have
+    ///         // finished, so we enter the `complete` branch.
+    ///         complete => break,
+    ///     }
+    /// }
+    /// assert_eq!(total, 6);
+    /// # });
+    /// ```
+    pub fn next_some(&mut self) -> FuturesUnorderedNextSome<'_, Fut> {
+        FuturesUnorderedNextSome(self)
     }
 
     /// Push a future into the set.
@@ -438,6 +488,25 @@ impl<Fut> Drop for FuturesUnordered<Fut> {
         // While that freeing operation isn't guaranteed to happen here, it's
         // guaranteed to happen "promptly" as no more "blocking work" will
         // happen while there's a strong refcount held.
+    }
+}
+
+/// A future that resolves to the next value yielded from a `FuturesUnordered`.
+#[derive(Debug)]
+pub struct FuturesUnorderedNextSome<'a, Fut>(&'a mut FuturesUnordered<Fut>);
+
+impl<'a, Fut> FusedFuture for FuturesUnorderedNextSome<'a, Fut> {
+    fn is_terminated(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl<'a, Fut: Future> Future for FuturesUnorderedNextSome<'a, Fut> {
+    type Output = Fut::Output;
+
+    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+        Poll::Ready(ready!(self.0.poll_next_unpin(lw))
+            .expect("`FuturesUnorderedNextSome` polled while empty"))
     }
 }
 

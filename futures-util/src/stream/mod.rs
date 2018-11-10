@@ -135,7 +135,7 @@ pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 #[cfg(feature = "std")]
 mod futures_unordered;
 #[cfg(feature = "std")]
-pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+pub use self::futures_unordered::{futures_unordered, FuturesUnordered, FuturesUnorderedNextSome};
 
 #[cfg(feature = "std")]
 mod split;

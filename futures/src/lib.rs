@@ -316,7 +316,7 @@ pub mod stream {
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
         futures_ordered, FuturesOrdered,
-        futures_unordered, FuturesUnordered,
+        futures_unordered, FuturesUnordered, FuturesUnorderedNextSome,
 
         // For StreamExt:
         BufferUnordered, Buffered, CatchUnwind, Chunks, Collect, SplitStream,
