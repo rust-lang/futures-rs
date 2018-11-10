@@ -420,7 +420,7 @@ impl<T> Sender<T> {
         }
 
         // The channel has capacity to accept the message, so send it
-        self.do_send_b(None, msg)
+        self.do_send_b(msg)
     }
 
     /// Send a message on the channel.
@@ -435,7 +435,7 @@ impl<T> Sender<T> {
 
     // Do the send without failing.
     // Can be called only by bounded sender.
-    fn do_send_b(&mut self, lw: Option<&LocalWaker>, msg: T)
+    fn do_send_b(&mut self, msg: T)
         -> Result<(), TrySendError<T>>
     {
         // Anyone callig do_send *should* make sure there is room first,
@@ -471,7 +471,7 @@ impl<T> Sender<T> {
         // maintain internal consistency, a blank message is pushed onto the
         // parked task queue.
         if park_self {
-            self.park(lw);
+            self.park();
         }
 
         self.queue_push_and_signal(msg);
@@ -531,14 +531,10 @@ impl<T> Sender<T> {
         }
     }
 
-    fn park(&mut self, lw: Option<&LocalWaker>) {
-        // TODO: clean up internal state if the task::current will fail
-
-        let task = lw.map(|lw| lw.clone().into_waker());
-
+    fn park(&mut self) {
         {
             let mut sender = self.sender_task.lock().unwrap();
-            sender.task = task;
+            sender.task = None;
             sender.is_parked = true;
         }
 
