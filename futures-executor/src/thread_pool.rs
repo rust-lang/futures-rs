@@ -105,6 +105,15 @@ impl Spawn for ThreadPool {
         &mut self,
         future: FutureObj<'static, ()>,
     ) -> Result<(), SpawnError> {
+        (&*self).spawn_obj(future)
+    }
+}
+
+impl Spawn for &ThreadPool {
+    fn spawn_obj(
+        &mut self,
+        future: FutureObj<'static, ()>,
+    ) -> Result<(), SpawnError> {
         let task = Task {
             future,
             wake_handle: Arc::new(WakeHandle {
