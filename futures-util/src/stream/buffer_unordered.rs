@@ -1,6 +1,6 @@
 use crate::stream::{Fuse, FuturesUnordered};
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -131,6 +131,16 @@ where
         } else {
             Poll::Pending
         }
+    }
+}
+
+impl<St> FusedStream for BufferUnordered<St>
+where
+    St: Stream,
+    St::Item: Future,
+{
+    fn is_terminated(&self) -> bool {
+        self.in_progress_queue.is_empty() && self.stream.is_terminated()
     }
 }
 
