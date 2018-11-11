@@ -7,7 +7,7 @@ use core::marker::Unpin;
 use core::pin::Pin;
 use either::Either;
 use futures_core::future::Future;
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 
@@ -58,6 +58,9 @@ pub use self::map::Map;
 
 mod next;
 pub use self::next::Next;
+
+mod next_some;
+pub use self::next_some::NextSome;
 
 mod once;
 pub use self::once::{once, Once};
@@ -1060,5 +1063,64 @@ pub trait StreamExt: Stream {
     where Self: Unpin + Sized
     {
         Pin::new(self).poll_next(lw)
+    }
+
+    /// Returns a [`Future`] that resolves when the next item in this stream is
+    /// ready.
+    ///
+    /// This is similar to the [`next`][StreamExt::next] method, but it won't
+    /// resolve to [`None`] if used on an empty [`Stream`]. Instead, the
+    /// returned future type will return [`true`] from
+    /// [`FusedFuture::is_terminated`][] when the [`Stream`] is empty, allowing
+    /// [`next_some`][StreamExt::next_some] to be easily used with the
+    /// [`select!`] macro.
+    ///
+    /// If the future is polled after this [`Stream`] is empty it will panic.
+    /// Using the future with a [`FusedFuture`][]-aware primitive like the
+    /// [`select!`] macro will prevent this.
+    ///
+    /// [`FusedFuture`]: futures_core::future::FusedFuture
+    /// [`FusedFuture::is_terminated`]: futures_core::future::FusedFuture::is_terminated
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api, pin)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{future, select};
+    /// use futures::channel::mpsc;
+    /// use futures::stream::StreamExt;
+    ///
+    /// let mut fut = future::ready(1);
+    /// let (tx, mut rx) = mpsc::channel(1);
+    /// let mut total = 0;
+    /// let mut tx = Some(tx);
+    /// let mut async_tasks = rx.buffer_unordered(2);
+    /// loop {
+    ///     select! {
+    ///         num = fut => {
+    ///             // First, the `ready` future completes.
+    ///             total += num;
+    ///             // Then we spawn a new task onto `async_tasks`,
+    ///             let mut tx = tx.take().unwrap();
+    ///             tx.try_send(async { 5 }).unwrap();
+    ///             // and close the channel.
+    ///             drop(tx);
+    ///         },
+    ///         // On the next iteration of the loop, the task we spawned
+    ///         // completes.
+    ///         num = async_tasks.next_some() => {
+    ///             total += num;
+    ///         }
+    ///         // Finally, both the `ready` future and `async_tasks` have
+    ///         // finished, so we enter the `complete` branch.
+    ///         complete => break,
+    ///     }
+    /// }
+    /// assert_eq!(total, 6);
+    /// # });
+    /// ```
+    fn next_some(&mut self) -> NextSome<'_, Self> where Self: Sized + Unpin + FusedStream {
+        NextSome::new(self)
     }
 }
