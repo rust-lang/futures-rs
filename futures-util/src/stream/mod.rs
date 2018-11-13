@@ -59,8 +59,8 @@ pub use self::map::Map;
 mod next;
 pub use self::next::Next;
 
-mod next_some;
-pub use self::next_some::NextSome;
+mod select_next_some;
+pub use self::select_next_some::SelectNextSome;
 
 mod once;
 pub use self::once::{once, Once};
@@ -1072,8 +1072,8 @@ pub trait StreamExt: Stream {
     /// resolve to [`None`] if used on an empty [`Stream`]. Instead, the
     /// returned future type will return [`true`] from
     /// [`FusedFuture::is_terminated`][] when the [`Stream`] is empty, allowing
-    /// [`next_some`][StreamExt::next_some] to be easily used with the
-    /// [`select!`] macro.
+    /// [`select_next_some`][StreamExt::select_next_some] to be easily used with
+    /// the [`select!`] macro.
     ///
     /// If the future is polled after this [`Stream`] is empty it will panic.
     /// Using the future with a [`FusedFuture`][]-aware primitive like the
@@ -1109,7 +1109,7 @@ pub trait StreamExt: Stream {
     ///         },
     ///         // On the next iteration of the loop, the task we spawned
     ///         // completes.
-    ///         num = async_tasks.next_some() => {
+    ///         num = async_tasks.select_next_some() => {
     ///             total += num;
     ///         }
     ///         // Finally, both the `ready` future and `async_tasks` have
@@ -1120,7 +1120,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(total, 6);
     /// # });
     /// ```
-    fn next_some(&mut self) -> NextSome<'_, Self> where Self: Sized + Unpin + FusedStream {
-        NextSome::new(self)
+    fn select_next_some(&mut self) -> SelectNextSome<'_, Self> where Self: Sized + Unpin + FusedStream {
+        SelectNextSome::new(self)
     }
 }
