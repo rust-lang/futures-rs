@@ -1,4 +1,4 @@
-use futures_core::future::Future;
+use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{LocalWaker, Poll};
 use std::pin::Pin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -42,5 +42,11 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
             lw.wake();
             Poll::Pending
         }
+    }
+}
+
+impl<Fut: Future + FusedFuture> FusedFuture for PendingOnce<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.polled_before && self.future.is_terminated()
     }
 }

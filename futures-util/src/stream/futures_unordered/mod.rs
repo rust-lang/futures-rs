@@ -2,7 +2,7 @@
 
 use crate::task::AtomicWaker;
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll, Spawn, LocalSpawn, SpawnError};
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
@@ -468,4 +468,10 @@ where
     I::Item: Future,
 {
     futures.into_iter().collect()
+}
+
+impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {
+    fn is_terminated(&self) -> bool {
+        self.is_empty()
+    }
 }
