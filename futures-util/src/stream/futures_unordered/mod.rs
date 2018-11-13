@@ -49,6 +49,9 @@ pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
     len: usize,
     head_all: *const Task<Fut>,
+    /// Track whether we have yielded `None` and can consider ourselves
+    /// terminated
+    is_terminated: bool,
 }
 
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
@@ -123,6 +126,7 @@ impl<Fut: Future> FuturesUnordered<Fut> {
             len: 0,
             head_all: ptr::null_mut(),
             ready_to_run_queue,
+            is_terminated: false,
         }
     }
 }
@@ -172,6 +176,10 @@ impl<Fut> FuturesUnordered<Fut> {
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.ready_to_run_queue.enqueue(ptr);
+
+        // If we've previously marked ourselves as terminated we need to clear
+        // that now that we will yield a new item.
+        self.is_terminated = false;
     }
 
     /// Returns an iterator that allows modifying each future in the set.
@@ -284,6 +292,9 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             let task = match unsafe { self.ready_to_run_queue.dequeue() } {
                 Dequeue::Empty => {
                     if self.is_empty() {
+                        // We can only consider ourselves terminated once we
+                        // have yielded a `None`
+                        self.is_terminated = true;
                         return Poll::Ready(None);
                     } else {
                         return Poll::Pending;
@@ -472,6 +483,6 @@ where
 
 impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {
     fn is_terminated(&self) -> bool {
-        self.is_empty()
+        self.is_terminated
     }
 }

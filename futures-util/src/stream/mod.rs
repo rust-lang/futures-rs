@@ -1095,7 +1095,7 @@ pub trait StreamExt: Stream {
     /// let (tx, mut rx) = mpsc::channel(1);
     /// let mut total = 0;
     /// let mut tx = Some(tx);
-    /// let mut async_tasks = rx.buffer_unordered(2);
+    /// let mut async_tasks = rx.buffer_unordered(2).fuse();
     /// loop {
     ///     select! {
     ///         num = fut => {
