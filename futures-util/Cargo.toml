@@ -41,4 +41,5 @@ pin-utils = "0.1.0-alpha.3"
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "0.3.0-alpha.9" }
 futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.9" }
+futures-test-preview = { path = "../futures-test", version = "0.3.0-alpha.9" }
 tokio = "0.1.11"
