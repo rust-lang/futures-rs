@@ -1088,24 +1088,18 @@ pub trait StreamExt: Stream {
     /// #![feature(async_await, await_macro, futures_api, pin)]
     /// # futures::executor::block_on(async {
     /// use futures::{future, select};
-    /// use futures::channel::mpsc;
-    /// use futures::stream::StreamExt;
+    /// use futures::stream::{StreamExt, FuturesUnordered};
     ///
     /// let mut fut = future::ready(1);
-    /// let (tx, mut rx) = mpsc::channel(1);
+    /// let mut async_tasks = FuturesUnordered::new();
     /// let mut total = 0;
-    /// let mut tx = Some(tx);
-    /// let mut async_tasks = rx.buffer_unordered(2).fuse();
     /// loop {
     ///     select! {
     ///         num = fut => {
     ///             // First, the `ready` future completes.
     ///             total += num;
     ///             // Then we spawn a new task onto `async_tasks`,
-    ///             let mut tx = tx.take().unwrap();
-    ///             tx.try_send(async { 5 }).unwrap();
-    ///             // and close the channel.
-    ///             drop(tx);
+    ///             async_tasks.push(async { 5 });
     ///         },
     ///         // On the next iteration of the loop, the task we spawned
     ///         // completes.
