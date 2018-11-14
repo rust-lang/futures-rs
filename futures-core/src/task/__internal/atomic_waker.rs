@@ -340,7 +340,7 @@ impl AtomicWaker {
                 // Release the lock
                 self.state.fetch_and(!(WAKING | HOLDS), Release);
 
-                return waker;
+                waker
             }
             state => {
                 // There is a concurrent thread currently updating the
@@ -356,7 +356,7 @@ impl AtomicWaker {
                     state == WAKING ||
                     state == WAKING | HOLDS);
 
-                return None;
+                None
             }
         }
     }
