@@ -304,13 +304,27 @@ impl AtomicWaker {
     ///
     /// If `register` has not been called yet, then this does nothing.
     pub fn wake(&self) {
+        if let Some(waker) = self.take() {
+            waker.wake();
+        }
+    }
+
+    /// Returns the last `Waker` passed to `register`, so that the user can wake it.
+    ///
+    ///
+    /// Sometimes, just waking the AtomicWaker is not fine grained enough. This allows the user
+    /// to take the waker and then wake it separately, rather than performing both steps in one
+    /// atomic action.
+    ///
+    /// If a waker has not been registered, this returns `None`.
+    pub fn take(&self) -> Option<Waker> {
         let state = self.state.load(SeqCst);
 
         if state == EMPTY || state & WAKING != 0 {
             // One of:
-            // * no waker inside, nothing to wake
+            // * no waker inside, nothing to take
             // * another process is calling wake now
-            return;
+            return None;
         }
 
         // AcqRel ordering is used in order to acquire the value of the `task`
@@ -326,9 +340,7 @@ impl AtomicWaker {
                 // Release the lock
                 self.state.fetch_and(!(WAKING | HOLDS), Release);
 
-                if let Some(waker) = waker {
-                    waker.wake();
-                }
+                return waker;
             }
             state => {
                 // There is a concurrent thread currently updating the
@@ -343,6 +355,8 @@ impl AtomicWaker {
                     state == REGISTERING | WAKING ||
                     state == WAKING ||
                     state == WAKING | HOLDS);
+
+                return None;
             }
         }
     }
