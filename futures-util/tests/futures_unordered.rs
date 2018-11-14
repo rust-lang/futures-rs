@@ -14,7 +14,16 @@ fn is_terminated() {
     assert_eq!(tasks.poll_next_unpin(lw), Poll::Ready(None));
     assert_eq!(tasks.is_terminated(), true);
 
+    // Test that the sentinel value doesn't leak
+    assert_eq!(tasks.is_empty(), true);
+    assert_eq!(tasks.len(), 0);
+    assert_eq!(tasks.iter_mut().len(), 0);
+
     tasks.push(future::ready(1));
+
+    assert_eq!(tasks.is_empty(), false);
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks.iter_mut().len(), 1);
 
     assert_eq!(tasks.is_terminated(), false);
     assert_eq!(tasks.poll_next_unpin(lw), Poll::Ready(Some(1)));

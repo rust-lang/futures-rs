@@ -27,6 +27,15 @@ use self::task::Task;
 mod ready_to_run_queue;
 use self::ready_to_run_queue::{ReadyToRunQueue, Dequeue};
 
+/// Constant used for a `FuturesUnordered` to indicate we are empty and have
+/// yielded a `None` element so can return `true` from
+/// `FusedStream::is_terminated`
+///
+/// It is safe to not check for this when incrementing as even a ZST future will
+/// have a `Task` allocated for it, so we cannot ever reach usize::max_value()
+/// without running out of ram.
+const TERMINATED_SENTINEL_LENGTH: usize = usize::max_value();
+
 /// A set of futures which may complete in any order.
 ///
 /// This structure is optimized to manage a large number of futures.
@@ -49,9 +58,6 @@ pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
     len: usize,
     head_all: *const Task<Fut>,
-    /// Track whether we have yielded `None` and can consider ourselves
-    /// terminated
-    is_terminated: bool,
 }
 
 unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
@@ -126,7 +132,6 @@ impl<Fut: Future> FuturesUnordered<Fut> {
             len: 0,
             head_all: ptr::null_mut(),
             ready_to_run_queue,
-            is_terminated: false,
         }
     }
 }
@@ -142,12 +147,12 @@ impl<Fut> FuturesUnordered<Fut> {
     ///
     /// This represents the total number of in-flight futures.
     pub fn len(&self) -> usize {
-        self.len
+        if self.len == TERMINATED_SENTINEL_LENGTH { 0 } else { self.len }
     }
 
     /// Returns `true` if the set contains no futures.
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len == 0 || self.len == TERMINATED_SENTINEL_LENGTH
     }
 
     /// Push a future into the set.
@@ -166,6 +171,12 @@ impl<Fut> FuturesUnordered<Fut> {
             ready_to_run_queue: Arc::downgrade(&self.ready_to_run_queue),
         });
 
+        // If we've previously marked ourselves as terminated we need to reset
+        // len to 0 to track it correctly
+        if self.len == TERMINATED_SENTINEL_LENGTH {
+            self.len = 0;
+        }
+
         // Right now our task has a strong reference count of 1. We transfer
         // ownership of this reference count to our internal linked list
         // and we'll reclaim ownership through the `unlink` method below.
@@ -176,10 +187,6 @@ impl<Fut> FuturesUnordered<Fut> {
         // futures are ready. To do that we unconditionally enqueue it for
         // polling here.
         self.ready_to_run_queue.enqueue(ptr);
-
-        // If we've previously marked ourselves as terminated we need to clear
-        // that now that we will yield a new item.
-        self.is_terminated = false;
     }
 
     /// Returns an iterator that allows modifying each future in the set.
@@ -192,7 +199,7 @@ impl<Fut> FuturesUnordered<Fut> {
     pub fn iter_pin_mut<'a>(self: Pin<&'a mut Self>) -> IterPinMut<'a, Fut> {
         IterPinMut {
             task: self.head_all,
-            len: self.len,
+            len: self.len(),
             _marker: PhantomData
         }
     }
@@ -294,7 +301,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     if self.is_empty() {
                         // We can only consider ourselves terminated once we
                         // have yielded a `None`
-                        self.is_terminated = true;
+                        self.len = TERMINATED_SENTINEL_LENGTH;
                         return Poll::Ready(None);
                     } else {
                         return Poll::Pending;
@@ -483,6 +490,6 @@ where
 
 impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {
     fn is_terminated(&self) -> bool {
-        self.is_terminated
+        self.len == TERMINATED_SENTINEL_LENGTH
     }
 }
