@@ -123,6 +123,18 @@ impl InnerEventState {
             self.waiters = null_mut();
 
             unsafe {
+                // Reverse the waiter list, so that the oldest waker (which is
+                // at the end of the list), gets woken first.
+                let mut rev_head: *mut WaitHandleRegistration = null_mut();
+                while !waiter.is_null() {
+                    let curr = waiter;
+                    waiter = (*waiter).next;
+
+                    (*curr).next = rev_head;
+                    rev_head = curr;
+                }
+                waiter = rev_head;
+
                 while !waiter.is_null() {
                     let task = (*waiter).task.take();
                     if let Some(ref handle) = task {
