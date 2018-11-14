@@ -174,7 +174,7 @@ pub mod future {
     //!   immediate defined value.
 
     pub use futures_core::future::{
-        Future, TryFuture,
+        Future, TryFuture, FusedFuture,
         FutureObj, LocalFutureObj, UnsafeFutureObj,
     };
 
@@ -295,8 +295,8 @@ pub mod stream {
     //!   constructs a stream from a collection of futures.
 
     pub use futures_core::stream::{
-        Stream, TryStream,
-        StreamObj, LocalStreamObj, UnsafeStreamObj
+        Stream, TryStream, FusedStream,
+        StreamObj, LocalStreamObj, UnsafeStreamObj,
     };
 
     pub use futures_util::stream::{

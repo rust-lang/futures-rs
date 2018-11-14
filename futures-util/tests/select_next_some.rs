@@ -1,12 +1,37 @@
 #![feature(async_await, await_macro, futures_api, pin)]
 
 use futures::{future, select};
-use futures::stream::FuturesUnordered;
-use futures::stream::StreamExt;
+use futures::future::{FusedFuture, FutureExt};
+use futures::stream::{FuturesUnordered, StreamExt};
+use futures::task::Poll;
 use futures_test::future::FutureTestExt;
+use futures_test::task::WakeCounter;
 
 #[test]
-fn futures_unordered() {
+fn is_terminated() {
+    let counter = WakeCounter::new();
+
+    let mut tasks = FuturesUnordered::new();
+
+    let mut select_next_some = tasks.select_next_some();
+    assert_eq!(select_next_some.is_terminated(), false);
+    assert_eq!(select_next_some.poll_unpin(counter.local_waker()), Poll::Pending);
+    assert_eq!(counter.count(), 1);
+    assert_eq!(select_next_some.is_terminated(), true);
+    drop(select_next_some);
+
+    tasks.push(future::ready(1));
+
+    let mut select_next_some = tasks.select_next_some();
+    assert_eq!(select_next_some.is_terminated(), false);
+    assert_eq!(select_next_some.poll_unpin(counter.local_waker()), Poll::Ready(1));
+    assert_eq!(select_next_some.is_terminated(), false);
+    assert_eq!(select_next_some.poll_unpin(counter.local_waker()), Poll::Pending);
+    assert_eq!(select_next_some.is_terminated(), true);
+}
+
+#[test]
+fn select() {
     // Checks that even though `async_tasks` will yield a `None` and return
     // `is_terminated() == true` during the first poll, it manages to toggle
     // back to having items after a future is pushed into it during the second
