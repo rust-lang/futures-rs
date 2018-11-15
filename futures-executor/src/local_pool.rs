@@ -203,13 +203,13 @@ lazy_static! {
 /// Run a future to completion on the current thread.
 ///
 /// This function will block the caller until the given future has completed.
-/// The default spawner for the future is a global `ThreadPool`.
+/// The default spawner for the future is a thread-local executor.
 ///
 /// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
 /// spawned tasks.
 pub fn block_on<F: Future>(f: F) -> F::Output {
-    let mut pool = LocalPool::new();
-    pool.run_until(f)
+    pin_mut!(f);
+    run_executor(|local_waker| f.as_mut().poll(local_waker))
 }
 
 /// Turn a stream into a blocking iterator.
