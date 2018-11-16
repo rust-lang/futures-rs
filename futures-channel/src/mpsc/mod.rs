@@ -309,8 +309,15 @@ struct BoundedInner<T> {
     // Max buffer size of the channel.
     buffer: usize,
 
-    // Same state fields as in unbounded queue.
-    unbounded: UnboundedInner<T>,
+    // Internal channel state. Consists of the number of messages stored in the
+    // channel as well as a flag signalling that the channel is closed.
+    state: AtomicUsize,
+
+    // Atomic, FIFO queue used to send messages to the receiver
+    message_queue: Queue<T>,
+
+    // Handle to the receiver's task.
+    recv_task: AtomicWaker,
 
     // Atomic, FIFO queue used to send parked task handles to the receiver.
     parked_queue: Queue<Arc<Mutex<SenderTask>>>,
@@ -376,11 +383,9 @@ pub fn channel<T>(buffer: usize) -> (Sender<T>, Receiver<T>) {
         buffer,
         parked_queue: Queue::new(),
         num_senders: AtomicUsize::new(1),
-        unbounded: UnboundedInner {
-            state: AtomicUsize::new(INIT_STATE),
-            message_queue: Queue::new(),
-            recv_task: AtomicWaker::new(),
-        },
+        state: AtomicUsize::new(INIT_STATE),
+        message_queue: Queue::new(),
+        recv_task: AtomicWaker::new(),
     });
 
     let tx = Sender {
@@ -474,7 +479,7 @@ impl<T> Sender<T> {
         // None is returned in the case that the channel has been closed by the
         // receiver. This happens when `Receiver::close` is called or the
         // receiver is dropped.
-        let park_self = match self.inner.unbounded.inc_num_messages() {
+        let park_self = match self.inner.inc_num_messages() {
             Some(num_messages) => {
                 // Block if the current number of pending messages has exceeded
                 // the configured buffer size
@@ -499,7 +504,7 @@ impl<T> Sender<T> {
             self.park();
         }
 
-        self.inner.unbounded.queue_push_and_signal(msg);
+        self.inner.queue_push_and_signal(msg);
 
         Ok(())
     }
@@ -519,7 +524,7 @@ impl<T> Sender<T> {
 
         // Check to make sure we weren't closed after we sent our task on the
         // queue
-        let state = decode_state(self.inner.unbounded.state.load(SeqCst));
+        let state = decode_state(self.inner.state.load(SeqCst));
         self.maybe_parked = state.is_open;
     }
 
@@ -539,7 +544,7 @@ impl<T> Sender<T> {
         &mut self,
         lw: &LocalWaker
     ) -> Poll<Result<(), SendError>> {
-        let state = decode_state(self.inner.unbounded.state.load(SeqCst));
+        let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
             return Poll::Ready(Err(SendError {
                 kind: SendErrorKind::Disconnected,
@@ -551,7 +556,7 @@ impl<T> Sender<T> {
 
     /// Returns whether this channel is closed without needing a context.
     pub fn is_closed(&self) -> bool {
-        !decode_state(self.inner.unbounded.state.load(SeqCst)).is_open
+        !decode_state(self.inner.state.load(SeqCst)).is_open
     }
 
     /// Closes this channel from the sender side, preventing any new messages.
@@ -560,8 +565,8 @@ impl<T> Sender<T> {
         // and we don't want to check for capacity, so skip
         // that stuff from `do_send`.
 
-        self.inner.unbounded.set_closed();
-        self.inner.unbounded.recv_task.wake();
+        self.inner.set_closed();
+        self.inner.recv_task.wake();
     }
 
     fn poll_unparked(&mut self, lw: Option<&LocalWaker>) -> Poll<()> {
@@ -726,7 +731,7 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        self.inner.unbounded.set_closed();
+        self.inner.set_closed();
 
         // Wake up any threads waiting as they'll see that we've closed the
         // channel and will continue on their merry way.
@@ -751,19 +756,19 @@ impl<T> Receiver<T> {
 
     fn next_message(&mut self) -> Poll<Option<T>> {
         // Pop off a message
-        match unsafe { self.inner.unbounded.message_queue.pop_spin() } {
+        match unsafe { self.inner.message_queue.pop_spin() } {
             Some(msg) => {
                 // If there are any parked task handles in the parked queue,
                 // pop one and unpark it.
                 self.unpark_one();
 
                 // Decrement number of messages
-                self.inner.unbounded.dec_num_messages();
+                self.inner.dec_num_messages();
 
                 Poll::Ready(Some(msg))
             }
             None => {
-                let state = decode_state(self.inner.unbounded.state.load(SeqCst));
+                let state = decode_state(self.inner.state.load(SeqCst));
                 if state.is_open || state.num_messages != 0 {
                     // If queue is open, we need to return Pending
                     // to be woken up when new messages arrive.
@@ -805,7 +810,7 @@ impl<T> Stream for Receiver<T> {
             Poll::Ready(msg) => Poll::Ready(msg),
             Poll::Pending => {
                 // There are no messages to read, in this case, park.
-                self.inner.unbounded.recv_task.register(lw);
+                self.inner.recv_task.register(lw);
                 // Check queue again after parking to prevent race condition:
                 // a message could be added to the queue after previous `next_message`
                 // before `register` call.
@@ -915,6 +920,63 @@ impl<T> Stream for UnboundedReceiver<T> {
  *
  */
 impl<T> BoundedInner<T> {
+    // Push message to the queue and signal to the receiver
+    fn queue_push_and_signal(&self, msg: T) {
+        // Push the message onto the message queue
+        self.message_queue.push(msg);
+
+        // Signal to the receiver that a message has been enqueued. If the
+        // receiver is parked, this will unpark the task.
+        self.recv_task.wake();
+    }
+
+    // Increment the number of queued messages. Returns new `num_messages`.
+    fn inc_num_messages(&self) -> Option<usize> {
+        let mut curr = self.state.load(SeqCst);
+
+        loop {
+            let mut state = decode_state(curr);
+
+            // The receiver end closed the channel.
+            if !state.is_open {
+                return None;
+            }
+
+            // This probably is never hit? Odds are the process will run out of
+            // memory first. It may be worth to return something else in this
+            // case?
+            assert!(state.num_messages < MAX_CAPACITY, "buffer space \
+                    exhausted; sending this messages would overflow the state");
+
+            state.num_messages += 1;
+
+            let next = encode_state(&state);
+            match self.state.compare_exchange(curr, next, SeqCst, SeqCst) {
+                Ok(_) => {
+                    return Some(state.num_messages)
+                }
+                Err(actual) => curr = actual,
+            }
+        }
+    }
+
+    // Clear `open` flag in the state, keep `num_messages` intact.
+    fn set_closed(&self) {
+        let curr = self.state.load(SeqCst);
+        if !decode_state(curr).is_open {
+            return;
+        }
+
+        self.state.fetch_and(!OPEN_MASK, SeqCst);
+    }
+
+    fn dec_num_messages(&self) {
+        // OPEN_MASK is highest bit, so it's unaffected by subtraction
+        // unless there's underflow, and we know there's no underflow
+        // because number of messages at this point is always > 0.
+        self.state.fetch_sub(1, SeqCst);
+    }
+
     // The return value is such that the total number of messages that can be
     // enqueued into the channel will never exceed MAX_CAPACITY
     fn max_senders(&self) -> usize {
