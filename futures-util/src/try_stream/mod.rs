@@ -31,6 +31,9 @@ pub use self::try_for_each::TryForEach;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
+mod try_concat;
+pub use self::try_concat::TryConcat;
+
 mod try_fold;
 pub use self::try_fold::TryFold;
 
@@ -436,6 +439,47 @@ pub trait TryStreamExt: TryStream {
               Self: Sized,
     {
         TryFold::new(self, f, init)
+    }
+
+    /// Attempt to concatenate all items of a stream into a single
+    /// extendable destination, returning a future representing the end result.
+    ///
+    /// This combinator will extend the first item with the contents of all
+    /// the subsequent successful results of the stream. If the stream is empty,
+    /// the default value will be returned.
+    ///
+    /// Works with all collections that implement the [`Extend`](std::iter::Extend) trait.
+    ///
+    /// This method is similar to [`concat`](super::StreamExt::concat), but will
+    /// exit early if an error is encountered in the stream.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::channel::mpsc;
+    /// use futures::executor::block_on;
+    /// use futures::stream::TryStreamExt;
+    /// use std::thread;
+    ///
+    /// let (mut tx, rx) = mpsc::unbounded::<Result<Vec<i32>, ()>>();
+    ///
+    /// thread::spawn(move || {
+    ///     for i in (0..3).rev() {
+    ///         let n = i * 3;
+    ///         tx.unbounded_send(Ok(vec![n + 1, n + 2, n + 3])).unwrap();
+    ///     }
+    /// });
+    ///
+    /// let result = block_on(rx.try_concat());
+    ///
+    /// assert_eq!(result, Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
+    /// ```
+    fn try_concat(self) -> TryConcat<Self>
+    where Self: Sized,
+          Self::Ok: Extend<<<Self as TryStream>::Ok as IntoIterator>::Item> +
+                    IntoIterator + Default,
+    {
+        TryConcat::new(self)
     }
 
     /// Attempt to execute several futures from a stream concurrently.
