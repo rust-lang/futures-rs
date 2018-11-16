@@ -145,6 +145,7 @@ pub struct Receiver<T> {
 #[derive(Debug)]
 pub struct UnboundedReceiver<T> {
     inner: Arc<UnboundedInner<T>>,
+    num_received: usize,
 }
 
 // `Pin<&mut UnboundedReceiver<T>>` is never projected to `Pin<&mut T>`
@@ -300,7 +301,8 @@ struct State {
     // `true` when the channel is open
     is_open: bool,
 
-    // Number of messages in the channel
+    // Number of messages in the channel for bounded queue
+    // Number of sent messages modulo MAX_CAPACITY + 1 for unbounded queue
     num_messages: usize,
 }
 
@@ -424,6 +426,7 @@ pub fn unbounded<T>() -> (UnboundedSender<T>, UnboundedReceiver<T>) {
 
     let rx = UnboundedReceiver {
         inner,
+        num_received: 0,
     };
 
     (tx, rx)
@@ -625,17 +628,14 @@ impl<T> UnboundedSender<T> {
 
     // Do the send without parking current task.
     fn do_send_nb(&self, msg: T) -> Result<(), TrySendError<T>> {
-        match self.inner.inc_num_messages() {
-            Some(_num_messages) => {}
-            None => {
-                return Err(TrySendError {
-                    err: SendError {
-                        kind: SendErrorKind::Disconnected,
-                    },
-                    val: msg,
-                });
-            },
-        };
+        if !self.inner.inc_num_messages() {
+            return Err(TrySendError {
+                err: SendError {
+                    kind: SendErrorKind::Disconnected,
+                },
+                val: msg,
+            });
+        }
 
         self.inner.queue_push_and_signal(msg);
 
@@ -844,13 +844,12 @@ impl<T> UnboundedReceiver<T> {
         match unsafe { self.inner.message_queue.pop_spin() } {
             Some(msg) => {
                 // Decrement number of messages
-                self.inner.dec_num_messages();
+                self.num_received = self.num_received.wrapping_add(1);
 
                 Poll::Ready(Some(msg))
             }
             None => {
-                let state = decode_state(self.inner.state.load(SeqCst));
-                if state.is_open || state.num_messages != 0 {
+                if !self.is_end_of_queue_from_state() {
                     // If queue is open, we need to return Pending
                     // to be woken up when new messages arrive.
                     // If queue is closed but num_messages is non-zero,
@@ -865,6 +864,20 @@ impl<T> UnboundedReceiver<T> {
                     Poll::Ready(None)
                 }
             }
+        }
+    }
+
+    fn is_end_of_queue_from_state(&self) -> bool {
+        let state = decode_state(self.inner.state.load(SeqCst));
+        if state.is_open {
+            false
+        } else {
+            // The condition is true when either:
+            // * queue is empty
+            // * N * (MAX_CAPACITY + 1) messages are in the queue
+            //   or being added to the queue at this moment
+            // The latter is very improbable because receiver has checked the queue recently.
+            state.num_messages == (self.num_received & !OPEN_MASK)
         }
     }
 
@@ -996,7 +1009,7 @@ impl<T> UnboundedInner<T> {
     }
 
     // Increment the number of queued messages. Returns new `num_messages`.
-    fn inc_num_messages(&self) -> Option<usize> {
+    fn inc_num_messages(&self) -> bool {
         let mut curr = self.state.load(SeqCst);
 
         loop {
@@ -1004,21 +1017,16 @@ impl<T> UnboundedInner<T> {
 
             // The receiver end closed the channel.
             if !state.is_open {
-                return None;
+                return false;
             }
 
-            // This probably is never hit? Odds are the process will run out of
-            // memory first. It may be worth to return something else in this
-            // case?
-            assert!(state.num_messages < MAX_CAPACITY, "buffer space \
-                    exhausted; sending this messages would overflow the state");
-
-            state.num_messages += 1;
+            // Won't overflow
+            state.num_messages = (state.num_messages + 1) & !OPEN_MASK;
 
             let next = encode_state(&state);
             match self.state.compare_exchange(curr, next, SeqCst, SeqCst) {
                 Ok(_) => {
-                    return Some(state.num_messages)
+                    return true;
                 }
                 Err(actual) => curr = actual,
             }
@@ -1033,13 +1041,6 @@ impl<T> UnboundedInner<T> {
         }
 
         self.state.fetch_and(!OPEN_MASK, SeqCst);
-    }
-
-    fn dec_num_messages(&self) {
-        // OPEN_MASK is highest bit, so it's unaffected by subtraction
-        // unless there's underflow, and we know there's no underflow
-        // because number of messages at this point is always > 0.
-        self.state.fetch_sub(1, SeqCst);
     }
 }
 
