@@ -119,7 +119,7 @@ pub mod executor {
     //! # use futures::future::{Future, lazy};
     //! # let my_app = lazy(|_| 42);
     //!
-    //! // assumping `my_app: Future`
+    //! // assuming `my_app: Future`
     //! ThreadPool::new().expect("Failed to create threadpool").run(my_app);
     //! ```
     //!
