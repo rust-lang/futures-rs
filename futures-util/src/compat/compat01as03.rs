@@ -7,7 +7,7 @@ use futures_01::executor::{
 use futures_01::{Async as Async01, Future as Future01, Stream as Stream01};
 use futures_core::{task as task03, Future as Future03, Stream as Stream03};
 use std::pin::Pin;
-use std::task::LocalWaker;
+use std::task::Waker;
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
 /// object to a futures 0.3-compatible version,
@@ -28,8 +28,8 @@ impl<T> Compat01As03<T> {
         }
     }
 
-    fn in_notify<R>(&mut self, lw: &LocalWaker, f: impl FnOnce(&mut T) -> R) -> R {
-        let notify = &WakerToHandle(lw.as_waker());
+    fn in_notify<R>(&mut self, waker: &Waker, f: impl FnOnce(&mut T) -> R) -> R {
+        let notify = &WakerToHandle(waker.as_waker());
         self.inner.poll_fn_notify(notify, 0, f)
     }
 }
@@ -73,9 +73,9 @@ impl<Fut: Future01> Future03 for Compat01As03<Fut> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> task03::Poll<Self::Output> {
-        poll_01_to_03(self.in_notify(lw, |f| f.poll()))
+        poll_01_to_03(self.in_notify(waker, |f| f.poll()))
     }
 }
 
@@ -84,9 +84,9 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> task03::Poll<Option<Self::Item>> {
-        match self.in_notify(lw, |f| f.poll()) {
+        match self.in_notify(waker, |f| f.poll()) {
             Ok(Async01::Ready(Some(t))) => task03::Poll::Ready(Some(Ok(t))),
             Ok(Async01::Ready(None)) => task03::Poll::Ready(None),
             Ok(Async01::NotReady) => task03::Poll::Pending,
@@ -146,30 +146,30 @@ mod io {
             }
         }
 
-        fn poll_read(&mut self, lw: &task03::LocalWaker, buf: &mut [u8])
+        fn poll_read(&mut self, waker: &task03::Waker, buf: &mut [u8])
             -> task03::Poll<Result<usize, Error>>
         {
-            poll_01_to_03(self.in_notify(lw, |x| x.poll_read(buf)))
+            poll_01_to_03(self.in_notify(waker, |x| x.poll_read(buf)))
         }
     }
 
     impl<W: AsyncWrite01> AsyncWrite03 for Compat01As03<W> {
-        fn poll_write(&mut self, lw: &task03::LocalWaker, buf: &[u8])
+        fn poll_write(&mut self, waker: &task03::Waker, buf: &[u8])
             -> task03::Poll<Result<usize, Error>>
         {
-            poll_01_to_03(self.in_notify(lw, |x| x.poll_write(buf)))
+            poll_01_to_03(self.in_notify(waker, |x| x.poll_write(buf)))
         }
 
-        fn poll_flush(&mut self, lw: &task03::LocalWaker)
+        fn poll_flush(&mut self, waker: &task03::Waker)
             -> task03::Poll<Result<(), Error>>
         {
-            poll_01_to_03(self.in_notify(lw, |x| x.poll_flush()))
+            poll_01_to_03(self.in_notify(waker, |x| x.poll_flush()))
         }
 
-        fn poll_close(&mut self, lw: &task03::LocalWaker)
+        fn poll_close(&mut self, waker: &task03::Waker)
             -> task03::Poll<Result<(), Error>>
         {
-            poll_01_to_03(self.in_notify(lw, |x| x.shutdown()))
+            poll_01_to_03(self.in_notify(waker, |x| x.shutdown()))
         }
     }
 }

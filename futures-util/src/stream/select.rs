@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// An adapter for merging the output of two streams.
 ///
@@ -49,7 +49,7 @@ impl<St1, St2> Stream for Select<St1, St2>
 
     fn poll_next(
         self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<St1::Item>> {
         let Select { flag, stream1, stream2 } =
             unsafe { Pin::get_unchecked_mut(self) };
@@ -57,9 +57,9 @@ impl<St1, St2> Stream for Select<St1, St2>
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
         if !*flag {
-            poll_inner(flag, stream1, stream2, lw)
+            poll_inner(flag, stream1, stream2, waker)
         } else {
-            poll_inner(flag, stream2, stream1, lw)
+            poll_inner(flag, stream2, stream1, waker)
         }
     }
 }
@@ -68,11 +68,11 @@ fn poll_inner<St1, St2>(
     flag: &mut bool,
     a: Pin<&mut St1>,
     b: Pin<&mut St2>,
-    lw: &LocalWaker
+    waker: &Waker
 ) -> Poll<Option<St1::Item>>
     where St1: Stream, St2: Stream<Item = St1::Item>
 {
-    let a_done = match a.poll_next(lw) {
+    let a_done = match a.poll_next(waker) {
         Poll::Ready(Some(item)) => {
             // give the other stream a chance to go first next time
             *flag = !*flag;
@@ -82,7 +82,7 @@ fn poll_inner<St1, St2>(
         Poll::Pending => false,
     };
 
-    match b.poll_next(lw) {
+    match b.poll_next(waker) {
         Poll::Ready(Some(item)) => {
             Poll::Ready(Some(item))
         }

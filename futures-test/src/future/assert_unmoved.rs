@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
@@ -35,7 +35,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
@@ -44,7 +44,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
         } else {
             assert_eq!(self.this_ptr, cur_this, "Future moved between poll calls");
         }
-        self.as_mut().future().poll(lw)
+        self.as_mut().future().poll(waker)
     }
 }
 

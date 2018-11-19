@@ -1,7 +1,7 @@
 use crate::stream::{Fuse, FuturesOrdered};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
@@ -103,19 +103,19 @@ where
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
         // Try to spawn off as many futures as possible by filling up
         // our in_progress_queue of futures.
         while self.in_progress_queue.len() < self.max {
-            match self.as_mut().stream().poll_next(lw) {
+            match self.as_mut().stream().poll_next(waker) {
                 Poll::Ready(Some(fut)) => self.as_mut().in_progress_queue().push(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        let res = Pin::new(self.as_mut().in_progress_queue()).poll_next(lw);
+        let res = Pin::new(self.as_mut().in_progress_queue()).poll_next(waker);
         if let Some(val) = ready!(res) {
             return Poll::Ready(Some(val))
         }

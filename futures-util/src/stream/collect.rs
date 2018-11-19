@@ -2,7 +2,7 @@ use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A future which collects all of the values of a stream into a vector.
@@ -45,9 +45,9 @@ where St: Stream,
 {
     type Output = C;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<C> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<C> {
         loop {
-            match ready!(self.as_mut().stream().poll_next(lw)) {
+            match ready!(self.as_mut().stream().poll_next(waker)) {
                 Some(e) => self.as_mut().collection().extend(Some(e)),
                 None => return Poll::Ready(self.as_mut().finish()),
             }

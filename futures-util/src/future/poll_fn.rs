@@ -2,7 +2,7 @@
 
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A future which wraps a function returning [`Poll`].
 ///
@@ -25,9 +25,9 @@ impl<F> Unpin for PollFn<F> {}
 /// #![feature(async_await, await_macro, futures_api)]
 /// # futures::executor::block_on(async {
 /// use futures::future::poll_fn;
-/// use futures::task::{LocalWaker, Poll};
+/// use futures::task::{Waker, Poll};
 ///
-/// fn read_line(lw: &LocalWaker) -> Poll<String> {
+/// fn read_line(waker: &Waker) -> Poll<String> {
 ///     Poll::Ready("Hello, World!".into())
 /// }
 ///
@@ -37,17 +37,17 @@ impl<F> Unpin for PollFn<F> {}
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&LocalWaker) -> Poll<T>
+    F: FnMut(&Waker) -> Poll<T>
 {
     PollFn { f }
 }
 
 impl<T, F> Future for PollFn<F>
-    where F: FnMut(&LocalWaker) -> Poll<T>,
+    where F: FnMut(&Waker) -> Poll<T>,
 {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
-        (&mut self.f)(lw)
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<T> {
+        (&mut self.f)(waker)
     }
 }

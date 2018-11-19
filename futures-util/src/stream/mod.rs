@@ -7,7 +7,7 @@ use core::pin::Pin;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
 mod iter;
@@ -1046,11 +1046,11 @@ pub trait StreamExt: Stream {
     /// stream types.
     fn poll_next_unpin(
         &mut self,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<Self::Item>>
     where Self: Unpin + Sized
     {
-        Pin::new(self).poll_next(lw)
+        Pin::new(self).poll_next(waker)
     }
 
     /// Returns a [`Future`] that resolves when the next item in this stream is

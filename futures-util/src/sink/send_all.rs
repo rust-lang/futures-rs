@@ -2,7 +2,7 @@ use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
 /// Future for the `Sink::send_all` combinator, which sends a stream of values
@@ -44,11 +44,11 @@ where
 
     fn try_start_send(
         &mut self,
-        lw: &LocalWaker,
+        waker: &Waker,
         item: Si::SinkItem,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
-        match Pin::new(&mut self.sink).poll_ready(lw) {
+        match Pin::new(&mut self.sink).poll_ready(waker) {
             Poll::Ready(Ok(())) => {
                 Poll::Ready(Pin::new(&mut self.sink).start_send(item))
             }
@@ -70,26 +70,26 @@ where
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = this.buffered.take() {
-            try_ready!(this.try_start_send(lw, item))
+            try_ready!(this.try_start_send(waker, item))
         }
 
         loop {
-            match this.stream.poll_next_unpin(lw) {
+            match this.stream.poll_next_unpin(waker) {
                 Poll::Ready(Some(item)) => {
-                    try_ready!(this.try_start_send(lw, item))
+                    try_ready!(this.try_start_send(waker, item))
                 }
                 Poll::Ready(None) => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(waker));
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(waker));
                     return Poll::Pending
                 }
             }

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// An adapter for chaining the output of two streams.
@@ -44,14 +44,14 @@ where St1: Stream,
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.as_mut().first().as_pin_mut() {
-            if let Some(item) = ready!(first.poll_next(lw)) {
+            if let Some(item) = ready!(first.poll_next(waker)) {
                 return Poll::Ready(Some(item))
             }
         }
         self.as_mut().first().set(None);
-        self.as_mut().second().poll_next(lw)
+        self.as_mut().second().poll_next(waker)
     }
 }

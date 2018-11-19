@@ -2,7 +2,7 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// Future for the `flatten_stream` combinator, flattening a
 /// future-of-a-stream to get just the result of the final stream as a stream.
@@ -58,14 +58,14 @@ impl<Fut> Stream for FlattenStream<Fut>
 {
     type Item = <Fut::Output as Stream>::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<Self::Item>> {
         loop {
             // safety: data is never moved via the resulting &mut reference
             let stream = match &mut unsafe { Pin::get_unchecked_mut(self.as_mut()) }.state {
                 State::Future(f) => {
                     // safety: the future we're re-pinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    match unsafe { Pin::new_unchecked(f) }.poll(lw) {
+                    match unsafe { Pin::new_unchecked(f) }.poll(waker) {
                         Poll::Pending => {
                             // State is not changed, early return.
                             return Poll::Pending
@@ -81,7 +81,7 @@ impl<Fut> Stream for FlattenStream<Fut>
                 State::Stream(s) => {
                     // safety: the stream we're repinning here will never be moved;
                     // it will just be polled, then dropped in place
-                    return unsafe { Pin::new_unchecked(s) }.poll_next(lw);
+                    return unsafe { Pin::new_unchecked(s) }.poll_next(waker);
                 }
             };
 

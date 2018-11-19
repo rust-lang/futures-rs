@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which will change the type of a stream from one
@@ -65,9 +65,9 @@ impl<St, F, T> Stream for Map<St, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<T>> {
-        let option = ready!(self.as_mut().stream().poll_next(lw));
+        let option = ready!(self.as_mut().stream().poll_next(waker));
         Poll::Ready(option.map(self.as_mut().f()))
     }
 }

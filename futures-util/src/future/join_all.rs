@@ -129,13 +129,13 @@ where
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &::std::task::LocalWaker,
+        waker: &::std::task::Waker,
     ) -> Poll<Self::Output> {
         let mut all_done = true;
 
         for mut elem in iter_pin_mut(self.elems.as_mut()) {
             if let Some(pending) = elem.as_mut().pending_pin_mut() {
-                if let Poll::Ready(output) = pending.poll(lw) {
+                if let Poll::Ready(output) = pending.poll(waker) {
                     elem.set(ElemState::Done(Some(output)));
                 } else {
                     all_done = false;

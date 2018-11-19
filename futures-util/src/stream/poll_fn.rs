@@ -2,7 +2,7 @@
 
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A stream which adapts a function returning `Poll`.
 ///
@@ -36,18 +36,18 @@ impl<F> Unpin for PollFn<F> {}
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>
 where
-    F: FnMut(&LocalWaker) -> Poll<Option<T>>,
+    F: FnMut(&Waker) -> Poll<Option<T>>,
 {
     PollFn { f }
 }
 
 impl<T, F> Stream for PollFn<F>
 where
-    F: FnMut(&LocalWaker) -> Poll<Option<T>>,
+    F: FnMut(&Waker) -> Poll<Option<T>>,
 {
     type Item = T;
 
-    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<T>> {
-        (&mut self.f)(lw)
+    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<T>> {
+        (&mut self.f)(waker)
     }
 }

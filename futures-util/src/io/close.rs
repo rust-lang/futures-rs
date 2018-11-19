@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
@@ -26,7 +26,7 @@ impl<'a, W: AsyncWrite + ?Sized> Close<'a, W> {
 impl<W: AsyncWrite + ?Sized> Future for Close<'_, W> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        self.writer.poll_close(lw)
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        self.writer.poll_close(waker)
     }
 }

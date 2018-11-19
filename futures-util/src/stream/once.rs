@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Creates a stream of single element
@@ -39,10 +39,10 @@ impl<Fut: Future> Stream for Once<Fut> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Fut::Output>> {
         let val = if let Some(f) = self.as_mut().future().as_pin_mut() {
-            ready!(f.poll(lw))
+            ready!(f.poll(waker))
         } else {
             return Poll::Ready(None)
         };

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the `map` combinator, changing the type of a future.
@@ -35,8 +35,8 @@ impl<Fut, F, T> Future for Map<Fut, F>
 {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
-        match self.as_mut().future().poll(lw) {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<T> {
+        match self.as_mut().future().poll(waker) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(output) => {
                 let f = self.f().take()

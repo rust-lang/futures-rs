@@ -1,7 +1,7 @@
 use crate::stream::FuturesUnordered;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 use std::collections::binary_heap::{BinaryHeap, PeekMut};
@@ -48,9 +48,9 @@ impl<T> Future for OrderWrapper<T>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
-        self.as_mut().data().as_mut().poll(lw)
+        self.as_mut().data().as_mut().poll(waker)
             .map(|output| OrderWrapper { data: output, index: self.index })
     }
 }
@@ -171,7 +171,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<Self::Item>> {
         let this = &mut *self;
 
@@ -184,7 +184,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
         }
 
         loop {
-            match Pin::new(&mut this.in_progress_queue).poll_next(lw) {
+            match Pin::new(&mut this.in_progress_queue).poll_next(waker) {
                 Poll::Ready(Some(output)) => {
                     if output.index == this.next_outgoing_index {
                         this.next_outgoing_index += 1;

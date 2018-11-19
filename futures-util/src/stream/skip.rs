@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which skips a number of elements before continuing.
@@ -61,16 +61,16 @@ impl<St: Stream> Stream for Skip<St> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<St::Item>> {
         while self.remaining > 0 {
-            match ready!(self.as_mut().stream().poll_next(lw)) {
+            match ready!(self.as_mut().stream().poll_next(waker)) {
                 Some(_) => *self.as_mut().remaining() -= 1,
                 None => return Poll::Ready(None),
             }
         }
 
-        self.as_mut().stream().poll_next(lw)
+        self.as_mut().stream().poll_next(waker)
     }
 }
 

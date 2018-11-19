@@ -38,9 +38,9 @@ macro_rules! delegate_sink {
     ($field:ident) => {
         fn poll_ready(
             self: Pin<&mut Self>,
-            lw: &$crate::core_reexport::task::LocalWaker,
+            waker: &$crate::core_reexport::task::Waker,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_ready(lw)
+            self.$field().poll_ready(waker)
         }
 
         fn start_send(
@@ -52,16 +52,16 @@ macro_rules! delegate_sink {
 
         fn poll_flush(
             self: Pin<&mut Self>,
-            lw: &$crate::core_reexport::task::LocalWaker
+            waker: &$crate::core_reexport::task::Waker
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_flush(lw)
+            self.$field().poll_flush(waker)
         }
 
         fn poll_close(
             self: Pin<&mut Self>,
-            lw: &$crate::core_reexport::task::LocalWaker
+            waker: &$crate::core_reexport::task::Waker
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
-            self.$field().poll_close(lw)
+            self.$field().poll_close(waker)
         }
     }
 }

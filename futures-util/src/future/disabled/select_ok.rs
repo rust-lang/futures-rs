@@ -45,11 +45,11 @@ impl<A> Future for SelectOk<A> where A: Future {
     type Item = (A::Item, Vec<A>);
     type Error = A::Error;
 
-    fn poll(&mut self, lw: &LocalWaker) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, waker: &Waker) -> Poll<Self::Item, Self::Error> {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-                match f.poll(lw) {
+                match f.poll(waker) {
                     Ok(Async::Pending) => None,
                     Ok(Async::Ready(e)) => Some((i, Ok(e))),
                     Err(e) => Some((i, Err(e))),

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// A future which "fuses" a future once it has been resolved.
@@ -37,12 +37,12 @@ impl<Fut: Future> FusedFuture for Fuse<Fut> {
 impl<Fut: Future> Future for Fuse<Fut> {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Fut::Output> {
         // safety: we use this &mut only for matching, not for movement
         let v = match self.as_mut().future().as_pin_mut() {
             Some(fut) => {
                 // safety: this re-pinned future will never move before being dropped
-                match fut.poll(lw) {
+                match fut.poll(waker) {
                     Poll::Pending => return Poll::Pending,
                     Poll::Ready(v) => v
                 }

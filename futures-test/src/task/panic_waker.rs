@@ -1,74 +1,55 @@
-use futures_core::task::{LocalWaker, UnsafeWake, Wake, Waker};
-use std::cell::UnsafeCell;
-use std::ptr::NonNull;
-use std::sync::Arc;
+use futures_core::task::{Waker, RawWaker, RawWakerVTable};
+use core::cell::UnsafeCell;
+use core::ptr::null;
 
-/// An implementation of [`Wake`](futures_core::task::Wake) that panics when
-/// woken.
+unsafe fn noop_clone(_data: *const()) -> RawWaker {
+    raw_panic_waker()
+}
+
+unsafe fn noop(_data: *const()) {
+}
+
+unsafe fn wake_panic(_data: *const()) {
+    panic!("should not be woken");
+}
+
+unsafe fn noop_into_waker(_data: *const()) -> Option<RawWaker> {
+    Some(raw_panic_waker())
+}
+
+const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
+    clone: noop_clone,
+    drop_fn: noop,
+    wake: wake_panic,
+};
+
+fn raw_panic_waker() -> RawWaker {
+    RawWaker {
+        data: null(),
+        vtable: &PANIC_WAKER_VTABLE,
+    }
+}
+
+/// Create a new [`Waker`](futures_core::task::Waker) which will
+/// panic when `wake()` is called on it. The [`Waker`] can be converted
+/// into a [`Waker`] which will behave the same way.
 ///
 /// # Examples
 ///
 /// ```should_panic
 /// #![feature(futures_api)]
-/// use futures_test::task::panic_local_waker_ref;
+/// use futures_test::task::panic_local_waker;
 ///
-/// let lw = panic_local_waker_ref();
+/// let lw = panic_local_waker();
 /// lw.wake(); // Will panic
 /// ```
-#[derive(Debug)]
-pub struct PanicWake {
-    _reserved: (),
+pub fn panic_local_waker() -> Waker {
+    unsafe { Waker::new_unchecked(raw_panic_waker()) }
 }
 
-impl PanicWake {
-    /// Create a new instance
-    pub fn new() -> Self {
-        Self { _reserved: () }
-    }
-}
-
-impl Default for PanicWake {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Wake for PanicWake {
-    fn wake(_arc_self: &Arc<Self>) {
-        panic!("should not be woken")
-    }
-}
-
-unsafe impl UnsafeWake for PanicWake {
-    unsafe fn clone_raw(&self) -> Waker {
-        panic_waker()
-    }
-
-    unsafe fn drop_raw(&self) {}
-
-    unsafe fn wake(&self) {
-        panic!("should not be woken")
-    }
-}
-
-fn panic_unsafe_wake() -> NonNull<dyn UnsafeWake> {
-    static mut INSTANCE: PanicWake = PanicWake { _reserved: () };
-    unsafe { NonNull::new_unchecked(&mut INSTANCE as *mut dyn UnsafeWake) }
-}
-
-fn panic_waker() -> Waker {
-    unsafe { Waker::new(panic_unsafe_wake()) }
-}
-
-/// Create a new [`LocalWaker`](futures_core::task::LocalWaker) referencing
-/// a singleton instance of [`PanicWake`].
-pub fn panic_local_waker() -> LocalWaker {
-    unsafe { LocalWaker::new(panic_unsafe_wake()) }
-}
-
-/// Get a thread local reference to a
-/// [`LocalWaker`](futures_core::task::LocalWaker) referencing a singleton
-/// instance of [`PanicWake`].
+/// Get a global reference to a
+/// [`Waker`](futures_core::task::Waker) referencing a singleton
+/// instance of a [`Waker`] which panics when woken.
 ///
 /// # Examples
 ///
@@ -80,10 +61,10 @@ pub fn panic_local_waker() -> LocalWaker {
 /// let lw = panic_local_waker_ref();
 /// lw.wake(); // Will panic
 /// ```
-pub fn panic_local_waker_ref() -> &'static LocalWaker {
+pub fn panic_local_waker_ref() -> &'static Waker {
     thread_local! {
-        static LOCAL_WAKER_INSTANCE: UnsafeCell<LocalWaker> =
+        static PANIC_WAKER_INSTANCE: UnsafeCell<Waker> =
             UnsafeCell::new(panic_local_waker());
     }
-    LOCAL_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
+    PANIC_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }

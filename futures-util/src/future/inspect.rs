@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Do something with the item of a future, passing it on.
@@ -37,8 +37,8 @@ impl<Fut, F> Future for Inspect<Fut, F>
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut::Output> {
-        let e = match self.as_mut().future().poll(lw) {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Fut::Output> {
+        let e = match self.as_mut().future().poll(waker) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };

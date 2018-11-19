@@ -1,6 +1,6 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::pin::Pin;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
@@ -52,10 +52,10 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.as_mut().sink1().poll_ready(lw)).is_ready();
-        let sink2_ready = try_poll!(self.as_mut().sink2().poll_ready(lw)).is_ready();
+        let sink1_ready = try_poll!(self.as_mut().sink1().poll_ready(waker)).is_ready();
+        let sink2_ready = try_poll!(self.as_mut().sink2().poll_ready(waker)).is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
@@ -71,20 +71,20 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.as_mut().sink1().poll_flush(lw)).is_ready();
-        let sink2_ready = try_poll!(self.as_mut().sink2().poll_flush(lw)).is_ready();
+        let sink1_ready = try_poll!(self.as_mut().sink1().poll_flush(waker)).is_ready();
+        let sink2_ready = try_poll!(self.as_mut().sink2().poll_flush(waker)).is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.as_mut().sink1().poll_close(lw)).is_ready();
-        let sink2_ready = try_poll!(self.as_mut().sink2().poll_close(lw)).is_ready();
+        let sink1_ready = try_poll!(self.as_mut().sink1().poll_close(waker)).is_ready();
+        let sink2_ready = try_poll!(self.as_mut().sink2().poll_close(waker)).is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }

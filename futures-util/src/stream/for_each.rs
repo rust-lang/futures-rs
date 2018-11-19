@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which executes a unit closure over each item on a
@@ -53,14 +53,14 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<()> {
         loop {
             if let Some(future) = self.as_mut().future().as_pin_mut() {
-                ready!(future.poll(lw));
+                ready!(future.poll(waker));
             }
             self.as_mut().future().as_mut().set(None);
 
-            match ready!(self.as_mut().stream().poll_next(lw)) {
+            match ready!(self.as_mut().stream().poll_next(waker)) {
                 Some(e) => {
                     let future = (self.as_mut().f())(e);
                     self.as_mut().future().set(Some(future));

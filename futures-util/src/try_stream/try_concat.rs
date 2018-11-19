@@ -2,7 +2,7 @@ use core::default::Default;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which attempts to concatenate the results of a stream into the
@@ -41,9 +41,9 @@ where
 {
     type Output = Result<St::Ok, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(lw)) {
+            match ready!(self.as_mut().stream().try_poll_next(waker)) {
                 Some(Ok(x)) => {
                     let accum = self.as_mut().accum();
                     if let Some(a) = accum {

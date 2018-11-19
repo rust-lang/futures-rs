@@ -1,9 +1,9 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{Poll, Wake, Spawn, SpawnError};
+use futures_core::task::{Poll, ArcWake, Spawn, SpawnError};
 use futures_util::future::FutureExt;
-use futures_util::task::local_waker_ref_from_nonlocal;
+use futures_util::task::waker_ref;
 use num_cpus;
 use std::io;
 use std::prelude::v1::*;
@@ -299,7 +299,7 @@ impl Task {
     /// thread.
     pub fn run(self) {
         let Task { mut future, wake_handle, mut exec } = self;
-        let local_waker = local_waker_ref_from_nonlocal(&wake_handle);
+        let waker = waker_ref(&wake_handle);
 
         // Safety: The ownership of this `Task` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
@@ -307,7 +307,7 @@ impl Task {
             wake_handle.mutex.start_poll();
 
             loop {
-                let res = future.poll_unpin(&local_waker);
+                let res = future.poll_unpin(&waker);
                 match res {
                     Poll::Pending => {}
                     Poll::Ready(()) => return wake_handle.mutex.complete(),
@@ -337,7 +337,7 @@ impl fmt::Debug for Task {
     }
 }
 
-impl Wake for WakeHandle {
+impl ArcWake for WakeHandle {
     fn wake(arc_self: &Arc<Self>) {
         match arc_self.mutex.notify() {
             Ok(task) => arc_self.exec.state.send(Message::Run(task)),

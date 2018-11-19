@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll, Waker};
+use futures_core::task::{Waker, Poll};
 use std::any::Any;
 use std::boxed::Box;
 use std::cell::UnsafeCell;
@@ -86,7 +86,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, lw: &LocalWaker) -> Poll<BiLockGuard<'_, T>> {
+    pub fn poll_lock(&self, waker: &Waker) -> Poll<BiLockGuard<'_, T>> {
         loop {
             match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -103,7 +103,7 @@ impl<T> BiLock<T> {
             }
 
             // type ascription for safety's sake!
-            let me: Box<Waker> = Box::new(lw.clone().into_waker());
+            let me: Box<Waker> = Box::new(waker.clone());
             let me = Box::into_raw(me) as usize;
 
             match self.arc.state.compare_exchange(1, me, SeqCst, SeqCst) {
@@ -268,7 +268,7 @@ impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
 impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;
 
-    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        self.bilock.poll_lock(lw)
+    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        self.bilock.poll_lock(waker)
     }
 }

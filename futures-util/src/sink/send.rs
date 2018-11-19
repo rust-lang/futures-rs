@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
 /// Future for the `Sink::send` combinator, which sends a value to a sink and
@@ -29,12 +29,12 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         if let Some(item) = this.item.take() {
             let mut sink = Pin::new(&mut this.sink);
-            match sink.as_mut().poll_ready(lw) {
+            match sink.as_mut().poll_ready(waker) {
                 Poll::Ready(Ok(())) => {
                     if let Err(e) = sink.as_mut().start_send(item) {
                         return Poll::Ready(Err(e));
@@ -50,7 +50,7 @@ impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        try_ready!(Pin::new(&mut this.sink).poll_flush(lw));
+        try_ready!(Pin::new(&mut this.sink).poll_flush(waker));
 
         Poll::Ready(Ok(()))
     }

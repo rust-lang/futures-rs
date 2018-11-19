@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use std::io;
 use std::pin::Pin;
 
@@ -31,7 +31,7 @@ impl<W> Future for Flush<'_, W>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        self.writer.poll_flush(lw)
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        self.writer.poll_flush(waker)
     }
 }

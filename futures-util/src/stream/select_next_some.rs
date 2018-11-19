@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::{Stream, FusedStream};
 use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use crate::stream::StreamExt;
 
 /// A future that resolves to the next value yielded from a [`Stream`].
@@ -26,14 +26,14 @@ impl<'a, St: FusedStream> FusedFuture for SelectNextSome<'a, St> {
 impl<'a, St: Stream + FusedStream + Unpin> Future for SelectNextSome<'a, St> {
     type Output = St::Item;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         assert!(!self.stream.is_terminated(), "SelectNextSome polled after terminated");
 
-        if let Some(item) = ready!(self.stream.poll_next_unpin(lw)) {
+        if let Some(item) = ready!(self.stream.poll_next_unpin(waker)) {
             Poll::Ready(item)
         } else {
             debug_assert!(self.stream.is_terminated());
-            lw.wake();
+            waker.wake();
             Poll::Pending
         }
     }

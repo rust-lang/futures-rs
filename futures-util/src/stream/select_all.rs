@@ -4,7 +4,7 @@ use std::fmt::{self, Debug};
 use std::pin::Pin;
 
 use futures_core::{Poll, Stream, FusedStream};
-use futures_core::task::LocalWaker;
+use futures_core::task::Waker;
 
 use crate::stream::{StreamExt, StreamFuture, FuturesUnordered};
 
@@ -74,9 +74,9 @@ impl<St: Stream + Unpin> Stream for SelectAll<St> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
-        match self.inner.poll_next_unpin(lw) {
+        match self.inner.poll_next_unpin(waker) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Some((Some(item), remaining))) => {
                 self.push(remaining);
@@ -86,7 +86,7 @@ impl<St: Stream + Unpin> Stream for SelectAll<St> {
                 // FuturesUnordered thinks it isn't terminated
                 // because it yielded a Some. Here we poll it
                 // so it can realize it is terminated.
-                self.inner.poll_next_unpin(lw);
+                self.inner.poll_next_unpin(waker);
                 Poll::Ready(None)
             }
             Poll::Ready(_) => Poll::Ready(None),

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A macro which yields to the event loop once.
 ///
@@ -30,7 +30,7 @@ pub struct PendingOnce {
 
 impl Future for PendingOnce {
     type Output = ();
-    fn poll(mut self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, _: &Waker) -> Poll<Self::Output> {
         if self.is_ready {
             Poll::Ready(())
         } else {

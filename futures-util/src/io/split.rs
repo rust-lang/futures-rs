@@ -1,5 +1,5 @@
 use crate::lock::BiLock;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_io::{AsyncRead, AsyncWrite, IoVec};
 use std::io;
 use std::pin::Pin;
@@ -18,15 +18,15 @@ pub struct WriteHalf<T> {
 
 fn lock_and_then<T, U, E, F>(
     lock: &BiLock<T>,
-    lw: &LocalWaker,
+    waker: &Waker,
     f: F
 ) -> Poll<Result<U, E>>
-    where F: FnOnce(&mut T, &LocalWaker) -> Poll<Result<U, E>>
+    where F: FnOnce(&mut T, &Waker) -> Poll<Result<U, E>>
 {
-    match lock.poll_lock(lw) {
+    match lock.poll_lock(waker) {
         // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
         // as a `Pin<&mut T>` anywhere other than here as a way to get to `&mut T`.
-        Poll::Ready(mut l) => f(unsafe { Pin::get_unchecked_mut(l.as_pin_mut()) }, lw),
+        Poll::Ready(mut l) => f(unsafe { Pin::get_unchecked_mut(l.as_pin_mut()) }, waker),
         Poll::Pending => Poll::Pending,
     }
 }
@@ -37,37 +37,37 @@ pub fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {
 }
 
 impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
-    fn poll_read(&mut self, lw: &LocalWaker, buf: &mut [u8])
+    fn poll_read(&mut self, waker: &Waker, buf: &mut [u8])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, lw, |l, lw| l.poll_read(lw, buf))
+        lock_and_then(&self.handle, waker, |l, waker| l.poll_read(waker, buf))
     }
 
-    fn poll_vectored_read(&mut self, lw: &LocalWaker, vec: &mut [&mut IoVec])
+    fn poll_vectored_read(&mut self, waker: &Waker, vec: &mut [&mut IoVec])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, lw, |l, lw| l.poll_vectored_read(lw, vec))
+        lock_and_then(&self.handle, waker, |l, waker| l.poll_vectored_read(waker, vec))
     }
 }
 
 impl<W: AsyncWrite> AsyncWrite for WriteHalf<W> {
-    fn poll_write(&mut self, lw: &LocalWaker, buf: &[u8])
+    fn poll_write(&mut self, waker: &Waker, buf: &[u8])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, lw, |l, lw| l.poll_write(lw, buf))
+        lock_and_then(&self.handle, waker, |l, waker| l.poll_write(waker, buf))
     }
 
-    fn poll_vectored_write(&mut self, lw: &LocalWaker, vec: &[&IoVec])
+    fn poll_vectored_write(&mut self, waker: &Waker, vec: &[&IoVec])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, lw, |l, lw| l.poll_vectored_write(lw, vec))
+        lock_and_then(&self.handle, waker, |l, waker| l.poll_vectored_write(waker, vec))
     }
 
-    fn poll_flush(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
-        lock_and_then(&self.handle, lw, |l, lw| l.poll_flush(lw))
+    fn poll_flush(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
+        lock_and_then(&self.handle, waker, |l, waker| l.poll_flush(waker))
     }
 
-    fn poll_close(&mut self, lw: &LocalWaker) -> Poll<io::Result<()>> {
-        lock_and_then(&self.handle, lw, |l, lw| l.poll_close(lw))
+    fn poll_close(&mut self, waker: &Waker) -> Poll<io::Result<()>> {
+        lock_and_then(&self.handle, waker, |l, waker| l.poll_close(waker))
     }
 }

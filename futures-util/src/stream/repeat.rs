@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// Stream that produces the same element repeatedly.
 ///
@@ -37,7 +37,7 @@ impl<T> Stream for Repeat<T>
 {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &Waker) -> Poll<Option<Self::Item>> {
         Poll::Ready(Some(self.item.clone()))
     }
 }

@@ -9,7 +9,7 @@
 
 #![feature(futures_api)]
 
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use core::pin::Pin;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
@@ -53,12 +53,12 @@ pub trait Sink {
     ///
     /// This method returns `Poll::Ready` once the underlying sink is ready to
     /// receive data. If this method returns `Async::Pending`, the current task
-    /// is registered to be notified (via `lw.waker()`) when `poll_ready`
+    /// is registered to be notified (via `waker.wake()`) when `poll_ready`
     /// should be called again.
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn poll_ready(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>>;
+    fn poll_ready(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>>;
 
     /// Begin the process of sending a value to the sink.
     /// Each call to this function must be proceeded by a successful call to
@@ -89,12 +89,12 @@ pub trait Sink {
     /// via `start_send` have been flushed.
     ///
     /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
-    /// case the current task is scheduled (via `lw.waker()`) to wake up when
+    /// case the current task is scheduled (via `waker.wake()`) to wake up when
     /// `poll_flush` should be called again.
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn poll_flush(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>>;
+    fn poll_flush(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>>;
 
     /// Flush any remaining output and close this sink, if necessary.
     ///
@@ -102,32 +102,32 @@ pub trait Sink {
     /// has been successfully closed.
     ///
     /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
-    /// case the current task is scheduled (via `lw.waker()`) to wake up when
+    /// case the current task is scheduled (via `waker.wake()`) to wake up when
     /// `poll_close` should be called again.
     ///
     /// If this function encounters an error, the sink should be considered to
     /// have failed permanently, and no more `Sink` methods should be called.
-    fn poll_close(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>>;
+    fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>>;
 }
 
 impl<'a, S: ?Sized + Sink + Unpin> Sink for &'a mut S {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        Pin::new(&mut **self).poll_ready(lw)
+    fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+        Pin::new(&mut **self).poll_ready(waker)
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
         Pin::new(&mut **self).start_send(item)
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        Pin::new(&mut **self).poll_flush(lw)
+    fn poll_flush(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+        Pin::new(&mut **self).poll_flush(waker)
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        Pin::new(&mut **self).poll_close(lw)
+    fn poll_close(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+        Pin::new(&mut **self).poll_close(waker)
     }
 }
 
@@ -135,20 +135,20 @@ impl<'a, S: ?Sized + Sink> Sink for Pin<&'a mut S> {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        S::poll_ready((*self).as_mut(), lw)
+    fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+        S::poll_ready((*self).as_mut(), waker)
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
         S::start_send((*self).as_mut(), item)
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        S::poll_flush((*self).as_mut(), lw)
+    fn poll_flush(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+        S::poll_flush((*self).as_mut(), waker)
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        S::poll_close((*self).as_mut(), lw)
+    fn poll_close(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+        S::poll_close((*self).as_mut(), waker)
     }
 }
 
@@ -168,7 +168,7 @@ mod if_std {
         type SinkItem = T;
         type SinkError = VecSinkError;
 
-        fn poll_ready(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_ready(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
 
@@ -178,11 +178,11 @@ mod if_std {
             Ok(())
         }
 
-        fn poll_flush(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_flush(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
 
-        fn poll_close(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_close(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
     }
@@ -191,7 +191,7 @@ mod if_std {
         type SinkItem = T;
         type SinkError = VecSinkError;
 
-        fn poll_ready(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_ready(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
 
@@ -201,11 +201,11 @@ mod if_std {
             Ok(())
         }
 
-        fn poll_flush(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_flush(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
 
-        fn poll_close(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        fn poll_close(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
     }
@@ -214,20 +214,20 @@ mod if_std {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
 
-        fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-            Pin::new(&mut **self).poll_ready(lw)
+        fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+            Pin::new(&mut **self).poll_ready(waker)
         }
 
         fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
             Pin::new(&mut **self).start_send(item)
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-            Pin::new(&mut **self).poll_flush(lw)
+        fn poll_flush(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+            Pin::new(&mut **self).poll_flush(waker)
         }
 
-        fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-            Pin::new(&mut **self).poll_close(lw)
+        fn poll_close(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
+            Pin::new(&mut **self).poll_close(waker)
         }
     }
 }
@@ -246,11 +246,11 @@ impl<A, B> Sink for Either<A, B>
     type SinkItem = <A as Sink>::SinkItem;
     type SinkError = <A as Sink>::SinkError;
 
-    fn poll_ready(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
             match Pin::get_unchecked_mut(self) {
-                Either::Left(x) => Pin::new_unchecked(x).poll_ready(lw),
-                Either::Right(x) => Pin::new_unchecked(x).poll_ready(lw),
+                Either::Left(x) => Pin::new_unchecked(x).poll_ready(waker),
+                Either::Right(x) => Pin::new_unchecked(x).poll_ready(waker),
             }
         }
     }
@@ -264,20 +264,20 @@ impl<A, B> Sink for Either<A, B>
         }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
             match Pin::get_unchecked_mut(self) {
-                Either::Left(x) => Pin::new_unchecked(x).poll_flush(lw),
-                Either::Right(x) => Pin::new_unchecked(x).poll_flush(lw),
+                Either::Left(x) => Pin::new_unchecked(x).poll_flush(waker),
+                Either::Right(x) => Pin::new_unchecked(x).poll_flush(waker),
             }
         }
     }
 
-    fn poll_close(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
             match Pin::get_unchecked_mut(self) {
-                Either::Left(x) => Pin::new_unchecked(x).poll_close(lw),
-                Either::Right(x) => Pin::new_unchecked(x).poll_close(lw),
+                Either::Left(x) => Pin::new_unchecked(x).poll_close(waker),
+                Either::Right(x) => Pin::new_unchecked(x).poll_close(waker),
             }
         }
     }

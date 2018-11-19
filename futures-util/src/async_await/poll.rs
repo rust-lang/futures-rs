@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A macro which returns the result of polling a future once within the
 /// current `async` context.
@@ -26,7 +26,7 @@ pub struct PollOnce<F: Future + Unpin> {
 
 impl<F: Future + Unpin> Future for PollOnce<F> {
     type Output = Poll<F::Output>;
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        Poll::Ready(Pin::new(&mut self.future).poll(lw))
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        Poll::Ready(Pin::new(&mut self.future).poll(waker))
     }
 }

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Stream for the [`into_stream`](super::TryStreamExt::into_stream) combinator.
@@ -48,8 +48,8 @@ impl<St: TryStream> Stream for IntoStream<St> {
     #[inline]
     fn poll_next(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(lw)
+        self.stream().try_poll_next(waker)
     }
 }

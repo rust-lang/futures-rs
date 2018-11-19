@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -76,7 +76,7 @@ where
 
     fn try_empty_stream(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Si::SinkError>> {
         let WithFlatMap { sink, stream, buffer, .. } =
             unsafe { Pin::get_unchecked_mut(self) };
@@ -84,14 +84,14 @@ where
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 
         if buffer.is_some() {
-            try_ready!(sink.as_mut().poll_ready(lw));
+            try_ready!(sink.as_mut().poll_ready(waker));
             let item = buffer.take().unwrap();
             try_ready!(Poll::Ready(sink.as_mut().start_send(item)));
         }
         if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
-            while let Some(x) = ready!(some_stream.as_mut().poll_next(lw)) {
+            while let Some(x) = ready!(some_stream.as_mut().poll_next(waker)) {
                 let item = try_ready!(Poll::Ready(x));
-                match try_poll!(sink.as_mut().poll_ready(lw)) {
+                match try_poll!(sink.as_mut().poll_ready(waker)) {
                     Poll::Ready(()) => {
                         try_poll!(Poll::Ready(sink.as_mut().start_send(item)))
                     }
@@ -116,9 +116,9 @@ where
     type Item = S::Item;
     fn poll_next(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(lw)
+        self.sink().poll_next(waker)
     }
 }
 
@@ -133,9 +133,9 @@ where
 
     fn poll_ready(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        self.try_empty_stream(lw)
+        self.try_empty_stream(waker)
     }
 
     fn start_send(
@@ -150,22 +150,22 @@ where
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(lw) {
+        match self.as_mut().try_empty_stream(waker) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.as_mut().sink().poll_flush(lw),
+            Poll::Ready(Ok(())) => self.as_mut().sink().poll_flush(waker),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(lw) {
+        match self.as_mut().try_empty_stream(waker) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.as_mut().sink().poll_close(lw),
+            Poll::Ready(Ok(())) => self.as_mut().sink().poll_close(waker),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
     }
