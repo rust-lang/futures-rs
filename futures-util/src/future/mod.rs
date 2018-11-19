@@ -79,11 +79,11 @@ mod remote_handle;
 #[cfg(feature = "std")]
 pub use self::remote_handle::{Remote, RemoteHandle};
 
-// ToDo
-// #[cfg(feature = "std")]
-// mod join_all;
-// #[cfg(feature = "std")]
-// pub use self::join_all::{join_all, JoinAll};
+#[cfg(feature = "std")]
+mod join_all;
+
+#[cfg(feature = "std")]
+pub use self::join_all::{join_all, JoinAll};
 
 // #[cfg(feature = "std")]
 // mod select_all;
