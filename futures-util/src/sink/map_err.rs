@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::{Sink};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -60,10 +60,10 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.as_mut().sink().poll_ready(lw).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut().sink().poll_ready(waker).map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn start_send(
@@ -76,18 +76,18 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.as_mut().sink().poll_flush(lw).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut().sink().poll_flush(waker).map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.as_mut().sink().poll_close(lw).map_err(|e| self.as_mut().take_f()(e))
+        self.as_mut().sink().poll_close(waker).map_err(|e| self.as_mut().take_f()(e))
     }
 }
 
@@ -96,8 +96,8 @@ impl<S: Stream, F> Stream for SinkMapErr<S, F> {
 
     fn poll_next(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(lw)
+        self.sink().poll_next(waker)
     }
 }

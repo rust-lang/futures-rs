@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Do something with the items of a stream, passing it on.
@@ -64,9 +64,9 @@ impl<St, F> Stream for Inspect<St, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<St::Item>> {
-        let item = ready!(self.as_mut().stream().poll_next(lw));
+        let item = ready!(self.as_mut().stream().poll_next(waker));
         Poll::Ready(item.map(|e| {
             (self.as_mut().f())(&e);
             e

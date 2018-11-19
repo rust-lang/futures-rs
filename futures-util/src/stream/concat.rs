@@ -3,7 +3,7 @@ use core::pin::Pin;
 use core::default::Default;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator to concatenate the results of a stream into the first
@@ -53,10 +53,10 @@ where St: Stream,
     type Output = St::Item;
 
     fn poll(
-        mut self: Pin<&mut Self>, lw: &LocalWaker
+        mut self: Pin<&mut Self>, waker: &Waker
     ) -> Poll<Self::Output> {
         loop {
-            match self.as_mut().stream().poll_next(lw) {
+            match self.as_mut().stream().poll_next(waker) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
                     return Poll::Ready(self.as_mut().accum().take().unwrap_or_default())

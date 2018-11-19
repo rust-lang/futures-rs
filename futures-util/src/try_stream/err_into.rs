@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Stream for the [`err_into`](super::TryStreamExt::err_into) combinator.
@@ -37,9 +37,9 @@ where
 
     fn poll_next(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
-        self.stream().try_poll_next(lw)
+        self.stream().try_poll_next(waker)
             .map(|res| res.map(|some| some.map_err(Into::into)))
     }
 }

@@ -3,7 +3,7 @@
 use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A future that may have completed.
 ///
@@ -92,11 +92,11 @@ impl<Fut: Future> FusedFuture for MaybeDone<Fut> {
 impl<Fut: Future> Future for MaybeDone<Fut> {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let res = unsafe {
             match Pin::get_unchecked_mut(self.as_mut()) {
                 MaybeDone::Future(a) => {
-                    if let Poll::Ready(res) = Pin::new_unchecked(a).poll(lw) {
+                    if let Poll::Ready(res) = Pin::new_unchecked(a).poll(waker) {
                         res
                     } else {
                         return Poll::Pending

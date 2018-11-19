@@ -1,6 +1,6 @@
 //! Futures.
 
-use crate::task::{LocalWaker, Poll};
+use crate::task::{Waker, Poll};
 use core::pin::Pin;
 
 pub use core::future::Future;
@@ -71,7 +71,7 @@ pub trait TryFuture {
     /// needed.
     fn try_poll(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<Self::Ok, Self::Error>>;
 }
 
@@ -82,7 +82,7 @@ impl<F, T, E> TryFuture for F
     type Error = E;
 
     #[inline]
-    fn try_poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<F::Output> {
-        self.poll(lw)
+    fn try_poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<F::Output> {
+        self.poll(waker)
     }
 }

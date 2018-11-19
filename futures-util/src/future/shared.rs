@@ -1,6 +1,6 @@
-use crate::task::local_waker_ref_from_nonlocal;
+use crate::task::{ArcWake, waker_ref};
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{LocalWaker, Poll, Wake, Waker};
+use futures_core::task::{Waker, Poll};
 use slab::Slab;
 use std::cell::UnsafeCell;
 use std::fmt;
@@ -110,7 +110,7 @@ where
     }
 
     /// Registers the current task to receive a wakeup when `Inner` is awoken.
-    fn set_waker(&mut self, lw: &LocalWaker) {
+    fn set_waker(&mut self, waker: &Waker) {
         // Acquire the lock first before checking COMPLETE to ensure there
         // isn't a race.
         let mut wakers_guard = if let Some(inner) = self.inner.as_ref() {
@@ -126,18 +126,20 @@ where
         };
 
         if self.waker_key == NULL_WAKER_KEY {
-            self.waker_key = wakers.insert(Some(lw.clone().into_waker()));
+            self.waker_key = wakers.insert(Some(waker.clone().into_waker()));
         } else {
             let waker_slot = &mut wakers[self.waker_key];
-            let needs_replacement = if let Some(old_waker) = waker_slot {
+            let needs_replacement = if let Some(_old_waker) = waker_slot {
                 // If there's still an unwoken waker in the slot, only replace
                 // if the current one wouldn't wake the same task.
-                !lw.will_wake_nonlocal(old_waker)
+                // TODO: This API is currently not available, so replace always
+                // !waker.will_wake_nonlocal(old_waker)
+                true
             } else {
                 true
             };
             if needs_replacement {
-                *waker_slot = Some(lw.clone().into_waker());
+                *waker_slot = Some(waker.clone().into_waker());
             }
         }
         debug_assert!(self.waker_key != NULL_WAKER_KEY);
@@ -185,10 +187,10 @@ where
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let this = &mut *self;
 
-        this.set_waker(lw);
+        this.set_waker(waker);
 
         let inner = if let Some(inner) = this.inner.as_ref() {
             inner
@@ -214,8 +216,8 @@ where
             _ => unreachable!(),
         }
 
-        let waker = local_waker_ref_from_nonlocal(&inner.notifier);
-        let lw = &waker;
+        let waker = waker_ref(&inner.notifier);
+        let waker = &waker;
 
         struct Reset<'a>(&'a AtomicUsize);
 
@@ -239,7 +241,7 @@ where
                 }
             };
 
-            let poll = future.poll(&lw);
+            let poll = future.poll(&waker);
 
             match poll {
                 Poll::Pending => {
@@ -314,7 +316,7 @@ where
     }
 }
 
-impl Wake for Notifier {
+impl ArcWake for Notifier {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 

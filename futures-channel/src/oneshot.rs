@@ -1,7 +1,7 @@
 //! A channel for sending a single message between asynchronous tasks.
 
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll, Waker};
+use futures_core::task::{Waker, Poll};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -154,7 +154,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn poll_cancel(&self, lw: &LocalWaker) -> Poll<()> {
+    fn poll_cancel(&self, waker: &Waker) -> Poll<()> {
         // Fast path up first, just read the flag and see if our other half is
         // gone. This flag is set both in our destructor and the oneshot
         // destructor, but our destructor hasn't run yet so if it's set then the
@@ -176,7 +176,7 @@ impl<T> Inner<T> {
         // `Receiver` may have been dropped. The first thing it does is set the
         // flag, and if it fails to acquire the lock it assumes that we'll see
         // the flag later on. So... we then try to see the flag later on!
-        let handle = lw.clone().into_waker();
+        let handle = waker.clone();
         match self.tx_task.try_lock() {
             Some(mut p) => *p = Some(handle),
             None => return Poll::Ready(()),
@@ -249,7 +249,7 @@ impl<T> Inner<T> {
         }
     }
 
-    fn recv(&self, lw: &LocalWaker) -> Poll<Result<T, Canceled>> {
+    fn recv(&self, waker: &Waker) -> Poll<Result<T, Canceled>> {
         // Check to see if some data has arrived. If it hasn't then we need to
         // block our task.
         //
@@ -260,7 +260,7 @@ impl<T> Inner<T> {
         let done = if self.complete.load(SeqCst) {
             true
         } else {
-            let task = lw.clone().into_waker();
+            let task = waker.clone();
             match self.rx_task.try_lock() {
                 Some(mut slot) => { *slot = Some(task); false },
                 None => true,
@@ -348,8 +348,8 @@ impl<T> Sender<T> {
     /// alive and may be able to receive a message if sent. The current task,
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
-    pub fn poll_cancel(&mut self, lw: &LocalWaker) -> Poll<()> {
-        self.inner.poll_cancel(lw)
+    pub fn poll_cancel(&mut self, waker: &Waker) -> Poll<()> {
+        self.inner.poll_cancel(waker)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
@@ -416,9 +416,9 @@ impl<T> Future for Receiver<T> {
 
     fn poll(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Result<T, Canceled>> {
-        self.inner.recv(lw)
+        self.inner.recv(waker)
     }
 }
 

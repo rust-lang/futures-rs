@@ -2,7 +2,7 @@
 
 use futures::future::{Future, FutureExt, FutureObj};
 use std::pin::Pin;
-use futures::task::{LocalWaker, Poll};
+use futures::task::{Waker, Poll};
 
 #[test]
 fn dropping_does_not_segfault() {
@@ -18,7 +18,7 @@ fn dropping_drops_the_future() {
     impl<'a> Future for Inc<'a> {
         type Output = ();
 
-        fn poll(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<()> {
+        fn poll(self: Pin<&mut Self>, _: &Waker) -> Poll<()> {
             unimplemented!()
         }
     }

@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A combinator used to temporarily convert a stream into a future.
 ///
@@ -68,11 +68,11 @@ impl<St: Stream + Unpin> Future for StreamFuture<St> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            ready!(Pin::new(s).poll_next(lw))
+            ready!(Pin::new(s).poll_next(waker))
         };
         let stream = self.stream.take().unwrap();
         Poll::Ready((item, stream))

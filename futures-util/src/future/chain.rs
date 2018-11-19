@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
@@ -26,7 +26,7 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
 
     pub(crate) fn poll<F>(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
         f: F,
     ) -> Poll<Fut2::Output>
         where F: FnOnce(Fut1::Output, Data) -> Fut2,
@@ -39,13 +39,13 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
         loop {
             let (output, data) = match this {
                 Chain::First(fut1, data) => {
-                    match unsafe { Pin::new_unchecked(fut1) }.poll(lw) {
+                    match unsafe { Pin::new_unchecked(fut1) }.poll(waker) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(output) => (output, data.take().unwrap()),
                     }
                 }
                 Chain::Second(fut2) => {
-                    return unsafe { Pin::new_unchecked(fut2) }.poll(lw);
+                    return unsafe { Pin::new_unchecked(fut2) }.poll(waker);
                 }
                 Chain::Empty => unreachable!()
             };

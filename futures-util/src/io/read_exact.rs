@@ -1,6 +1,6 @@
 use crate::io::AsyncRead;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use std::io;
 use std::mem;
 use std::pin::Pin;
@@ -28,10 +28,10 @@ impl<'a, R: AsyncRead + ?Sized> ReadExact<'a, R> {
 impl<R: AsyncRead + ?Sized> Future for ReadExact<'_, R> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.reader.poll_read(lw, this.buf));
+            let n = try_ready!(this.reader.poll_read(waker, this.buf));
             {
                 let (_, rest) = mem::replace(&mut this.buf, &mut []).split_at_mut(n);
                 this.buf = rest;

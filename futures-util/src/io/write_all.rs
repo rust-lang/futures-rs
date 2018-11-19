@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::mem;
@@ -28,10 +28,10 @@ impl<'a, W: AsyncWrite + ?Sized> WriteAll<'a, W> {
 impl<W: AsyncWrite + ?Sized> Future for WriteAll<'_, W> {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<io::Result<()>> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.writer.poll_write(lw, this.buf));
+            let n = try_ready!(this.writer.poll_write(waker, this.buf));
             {
                 let (_, rest) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;

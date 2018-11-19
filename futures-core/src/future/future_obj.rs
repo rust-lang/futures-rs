@@ -3,7 +3,7 @@ use core::{
     future::Future,
     marker::PhantomData,
     pin::Pin,
-    task::{LocalWaker, Poll},
+    task::{Waker, Poll},
 };
 
 /// A custom trait object for polling futures, roughly akin to
@@ -14,7 +14,7 @@ use core::{
 ///   `Box<dyn Trait>` is not available in no_std contexts.
 pub struct LocalFutureObj<'a, T> {
     ptr: *mut (),
-    poll_fn: unsafe fn(*mut (), &LocalWaker) -> Poll<T>,
+    poll_fn: unsafe fn(*mut (), &Waker) -> Poll<T>,
     drop_fn: unsafe fn(*mut ()),
     _marker: PhantomData<&'a ()>,
 }
@@ -61,9 +61,9 @@ impl<'a, T> Future for LocalFutureObj<'a, T> {
     type Output = T;
 
     #[inline]
-    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
+    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<T> {
         unsafe {
-            ((*self).poll_fn)((*self).ptr, lw)
+            ((*self).poll_fn)((*self).ptr, waker)
         }
     }
 }
@@ -111,11 +111,11 @@ impl<'a, T> Future for FutureObj<'a, T> {
     type Output = T;
 
     #[inline]
-    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
+    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<T> {
         let pinned_field: Pin<&mut LocalFutureObj<'a, T>> = unsafe {
             Pin::map_unchecked_mut(self, |x| &mut x.0)
         };
-        LocalFutureObj::poll(pinned_field, lw)
+        LocalFutureObj::poll(pinned_field, waker)
     }
 }
 
@@ -140,7 +140,7 @@ pub unsafe trait UnsafeFutureObj<'a, T>: 'a {
     /// `poll` with the result of `into_raw` until `drop` is called; such calls
     /// are not, however, allowed to race with each other or with calls to
     /// `drop`.
-    unsafe fn poll(ptr: *mut (), lw: &LocalWaker) -> Poll<T>;
+    unsafe fn poll(ptr: *mut (), waker: &Waker) -> Poll<T>;
 
     /// Drops the future represented by the given void pointer.
     ///
@@ -160,9 +160,9 @@ where
         self as *mut F as *mut ()
     }
 
-    unsafe fn poll(ptr: *mut (), lw: &LocalWaker) -> Poll<T> {
+    unsafe fn poll(ptr: *mut (), waker: &Waker) -> Poll<T> {
         let p: Pin<&mut F> = Pin::new_unchecked(&mut *(ptr as *mut F));
-        F::poll(p, lw)
+        F::poll(p, waker)
     }
 
     unsafe fn drop(_ptr: *mut ()) {}
@@ -177,9 +177,9 @@ where
         mut_ref as *mut F as *mut ()
     }
 
-    unsafe fn poll(ptr: *mut (), lw: &LocalWaker) -> Poll<T> {
+    unsafe fn poll(ptr: *mut (), waker: &Waker) -> Poll<T> {
         let future: Pin<&mut F> = Pin::new_unchecked(&mut *(ptr as *mut F));
-        F::poll(future, lw)
+        F::poll(future, waker)
     }
 
     unsafe fn drop(_ptr: *mut ()) {}
@@ -197,10 +197,10 @@ mod if_std {
             Box::into_raw(self) as *mut ()
         }
 
-        unsafe fn poll(ptr: *mut (), lw: &LocalWaker) -> Poll<T> {
+        unsafe fn poll(ptr: *mut (), waker: &Waker) -> Poll<T> {
             let ptr = ptr as *mut F;
             let pin: Pin<&mut F> = Pin::new_unchecked(&mut *ptr);
-            F::poll(pin, lw)
+            F::poll(pin, waker)
         }
 
         unsafe fn drop(ptr: *mut ()) {
@@ -219,10 +219,10 @@ mod if_std {
             ptr
         }
 
-        unsafe fn poll(ptr: *mut (), lw: &LocalWaker) -> Poll<T> {
+        unsafe fn poll(ptr: *mut (), waker: &Waker) -> Poll<T> {
             let ptr = ptr as *mut F;
             let pin: Pin<&mut F> = Pin::new_unchecked(&mut *ptr);
-            F::poll(pin, lw)
+            F::poll(pin, waker)
         }
 
         unsafe fn drop(ptr: *mut ()) {

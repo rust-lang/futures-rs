@@ -2,7 +2,7 @@ use super::chain::Chain;
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the `flatten` combinator.
@@ -55,7 +55,7 @@ impl<Fut> Future for Flatten<Fut>
 {
     type Output = <Fut::Output as Future>::Output;
 
-    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        self.state().poll(lw, |a, ()| a)
+    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        self.state().poll(waker, |a, ()| a)
     }
 }

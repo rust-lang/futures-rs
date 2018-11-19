@@ -2,7 +2,7 @@
 
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// A future representing a value which may or may not be present.
@@ -38,10 +38,10 @@ impl<F: Future> Future for OptionFuture<F> {
 
     fn poll(
         self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Self::Output> {
         match self.option().as_pin_mut() {
-            Some(x) => x.poll(lw).map(Some),
+            Some(x) => x.poll(waker).map(Some),
             None => Poll::Ready(None),
         }
     }

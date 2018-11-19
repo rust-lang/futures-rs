@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// An adapter for merging the output of two streams.
@@ -50,16 +50,16 @@ impl<St1, St2> Stream for Zip<St1, St2>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<Self::Item>> {
         if self.queued1.is_none() {
-            match self.as_mut().stream1().poll_next(lw) {
+            match self.as_mut().stream1().poll_next(waker) {
                 Poll::Ready(Some(item1)) => *self.as_mut().queued1() = Some(item1),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
         if self.as_mut().queued2().is_none() {
-            match self.as_mut().stream2().poll_next(lw) {
+            match self.as_mut().stream2().poll_next(waker) {
                 Poll::Ready(Some(item2)) => *self.as_mut().queued2() = Some(item2),
                 Poll::Ready(None) | Poll::Pending => {}
             }

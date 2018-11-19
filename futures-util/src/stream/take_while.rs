@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which takes elements from a stream while a predicate
@@ -74,14 +74,14 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<St::Item>> {
         if self.done_taking {
             return Poll::Ready(None);
         }
 
         if self.pending_item.is_none() {
-            let item = match ready!(self.as_mut().stream().poll_next(lw)) {
+            let item = match ready!(self.as_mut().stream().poll_next(waker)) {
                 Some(e) => e,
                 None => return Poll::Ready(None),
             };
@@ -90,7 +90,7 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
             *self.as_mut().pending_item() = Some(item);
         }
 
-        let take = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(lw));
+        let take = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(waker));
         self.as_mut().pending_fut().set(None);
         let item = self.as_mut().pending_item().take().unwrap();
 

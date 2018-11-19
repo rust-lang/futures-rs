@@ -1,6 +1,6 @@
 use crate::task::AtomicWaker;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -121,19 +121,19 @@ pub struct Aborted;
 impl<Fut> Future for Abortable<Fut> where Fut: Future {
     type Output = Result<Fut::Output, Aborted>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         // Check if the future has been aborted
         if self.inner.cancel.load(Ordering::Relaxed) {
             return Poll::Ready(Err(Aborted))
         }
 
         // attempt to complete the future
-        if let Poll::Ready(x) = self.as_mut().future().poll(lw) {
+        if let Poll::Ready(x) = self.as_mut().future().poll(waker) {
             return Poll::Ready(Ok(x))
         }
 
         // Register to receive a wakeup if the future is aborted in the... future
-        self.inner.waker.register(lw);
+        self.inner.waker.register(waker);
 
         // Check to see if the future was aborted between the first check and
         // registration.

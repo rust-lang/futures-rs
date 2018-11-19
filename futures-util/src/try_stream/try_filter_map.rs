@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{TryFuture};
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A combinator that attempts to filter the results of a stream
@@ -63,11 +63,11 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
             if self.pending.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(lw)) {
+                let item = match ready!(self.as_mut().stream().try_poll_next(waker)) {
                     Some(Ok(x)) => x,
                     Some(Err(e)) => return Poll::Ready(Some(Err(e))),
                     None => return Poll::Ready(None),
@@ -76,7 +76,7 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
                 self.as_mut().pending().set(Some(fut));
             }
 
-            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().try_poll(lw));
+            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().try_poll(waker));
             self.as_mut().pending().set(None);
             match result {
                 Ok(Some(x)) => return Poll::Ready(Some(Ok(x))),

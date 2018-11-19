@@ -1,6 +1,6 @@
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, TryStream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::mem;
 use std::pin::Pin;
@@ -47,10 +47,10 @@ impl<St, C> Future for TryCollect<St, C>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(lw)) {
+            match ready!(self.as_mut().stream().try_poll_next(waker)) {
                 Some(Ok(x)) => self.as_mut().items().extend(Some(x)),
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(self.as_mut().finish())),

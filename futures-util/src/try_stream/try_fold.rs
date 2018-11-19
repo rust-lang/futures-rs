@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::stream::TryStream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// The future for the `TryStream::fold` method.
@@ -49,14 +49,14 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
 {
     type Output = Result<T, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         loop {
             // we're currently processing a future to produce a new accum value
             if self.as_mut().accum().is_none() {
                 let accum = match ready!(
                     self.as_mut().future().as_pin_mut()
                        .expect("TryFold polled after completion")
-                       .try_poll(lw)
+                       .try_poll(waker)
                 ) {
                     Ok(accum) => accum,
                     Err(e) => {
@@ -69,7 +69,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
                 self.as_mut().future().set(None);
             }
 
-            let item = match ready!(self.as_mut().stream().try_poll_next(lw)) {
+            let item = match ready!(self.as_mut().stream().try_poll_next(waker)) {
                 Some(Ok(item)) => Some(item),
                 Some(Err(e)) => {
                     // Indicate that the future can no longer be polled.

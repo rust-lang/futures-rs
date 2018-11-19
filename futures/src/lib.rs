@@ -361,17 +361,17 @@ pub mod task {
 
     pub use futures_core::task::{
         Poll, Spawn, LocalSpawn, SpawnError,
-        Waker, LocalWaker, UnsafeWake,
+        Waker, LocalWaker, RawWaker, RawWakerVTable
     };
 
     #[cfg(feature = "std")]
     pub use futures_core::task::{
-        Wake, local_waker, local_waker_from_nonlocal
+        ArcWake,
     };
 
     #[cfg(feature = "std")]
     pub use futures_util::task::{
-        LocalWakerRef, local_waker_ref, local_waker_ref_from_nonlocal,
+        WakerRef, waker_ref, ArcWake,
         SpawnExt, LocalSpawnExt,
     };
 

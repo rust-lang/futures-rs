@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 
 /// A future of the next element of a stream.
 #[derive(Debug)]
@@ -29,8 +29,8 @@ impl<St: Stream + Unpin> Future for Next<'_, St> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
-        Pin::new(&mut *self.stream).poll_next(lw)
+        Pin::new(&mut *self.stream).poll_next(waker)
     }
 }

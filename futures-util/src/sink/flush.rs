@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
 /// Future for the `flush` combinator, which polls the sink until all data
@@ -31,8 +31,8 @@ impl<Si: Sink + Unpin + ?Sized> Future for Flush<'_, Si> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
-        Pin::new(&mut self.sink).poll_flush(lw)
+        Pin::new(&mut self.sink).poll_flush(waker)
     }
 }

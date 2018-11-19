@@ -2,7 +2,7 @@ use core::fmt;
 use core::cell::UnsafeCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::{Acquire, Release, AcqRel};
-use crate::task::{LocalWaker, Waker};
+use crate::task::Waker;
 
 /// A synchronization primitive for task wakeup.
 ///
@@ -171,7 +171,7 @@ impl AtomicWaker {
     /// ```
     /// #![feature(futures_api)]
     /// use futures::future::Future;
-    /// use futures::task::{LocalWaker, Poll, AtomicWaker};
+    /// use futures::task::{Waker, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
     /// use std::sync::atomic::Ordering::SeqCst;
     /// use std::pin::Pin;
@@ -184,10 +184,10 @@ impl AtomicWaker {
     /// impl Future for Flag {
     ///     type Output = ();
     ///
-    ///     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
+    ///     fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<()> {
     ///         // Register **before** checking `set` to avoid a race condition
     ///         // that would result in lost notifications.
-    ///         self.waker.register(lw);
+    ///         self.waker.register(waker);
     ///
     ///         if self.set.load(SeqCst) {
     ///             Poll::Ready(())
@@ -197,12 +197,12 @@ impl AtomicWaker {
     ///     }
     /// }
     /// ```
-    pub fn register(&self, lw: &LocalWaker) {
+    pub fn register(&self, waker: &Waker) {
         match self.state.compare_and_swap(WAITING, REGISTERING, Acquire) {
             WAITING => {
                 unsafe {
                     // Locked acquired, update the waker cell
-                    *self.waker.get() = Some(lw.clone().into_waker());
+                    *self.waker.get() = Some(waker.clone());
 
                     // Release the lock. If the state transitioned to include
                     // the `WAKING` bit, this means that a wake has been
@@ -241,7 +241,7 @@ impl AtomicWaker {
                 // Currently in the process of waking the task, i.e.,
                 // `wake` is currently being called on the old task handle.
                 // So, we call wake on the new waker
-                lw.wake();
+                waker.wake();
             }
             state => {
                 // In this case, a concurrent thread is holding the

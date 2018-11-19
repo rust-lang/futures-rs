@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -76,15 +76,15 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
         if self.done_skipping {
-            return self.as_mut().stream().try_poll_next(lw);
+            return self.as_mut().stream().try_poll_next(waker);
         }
 
         loop {
             if self.pending_item.is_none() {
-                let item = match ready!(self.as_mut().stream().try_poll_next(lw)?) {
+                let item = match ready!(self.as_mut().stream().try_poll_next(waker)?) {
                     Some(e) => e,
                     None => return Poll::Ready(None),
                 };
@@ -93,7 +93,7 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
                 *self.as_mut().pending_item() = Some(item);
             }
 
-            let skipped = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().try_poll(lw)?);
+            let skipped = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().try_poll(waker)?);
             let item = self.as_mut().pending_item().take().unwrap();
             self.as_mut().pending_fut().set(None);
 

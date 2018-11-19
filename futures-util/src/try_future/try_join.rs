@@ -5,7 +5,7 @@ use crate::try_future::{TryFutureExt, IntoFuture};
 use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{Future, TryFuture};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 macro_rules! generate {
@@ -70,17 +70,17 @@ macro_rules! generate {
 
             #[allow(clippy::useless_let_if_seq)]
             fn poll(
-                mut self: Pin<&mut Self>, lw: &LocalWaker
+                mut self: Pin<&mut Self>, waker: &Waker
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
-                if self.as_mut().Fut1().poll(lw).is_pending() {
+                if self.as_mut().Fut1().poll(waker).is_pending() {
                     all_done = false;
                 } else if self.as_mut().Fut1().output_mut().unwrap().is_err() {
                     return Poll::Ready(Err(
                         self.as_mut().Fut1().take_output().unwrap().err().unwrap()));
                 }
                 $(
-                    if self.as_mut().$Fut().poll(lw).is_pending() {
+                    if self.as_mut().$Fut().poll(waker).is_pending() {
                         all_done = false;
                     } else if self.as_mut().$Fut().output_mut().unwrap().is_err() {
                         return Poll::Ready(Err(

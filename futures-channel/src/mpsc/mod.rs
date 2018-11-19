@@ -79,7 +79,7 @@
 // by the queue structure.
 
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Waker, Poll};
+use futures_core::task::{Waker, Poll};
 use futures_core::task::__internal::AtomicWaker;
 use std::any::Any;
 use std::error::Error;
@@ -555,7 +555,7 @@ impl<T> SenderInner<T> {
     /// - `Err(SendError)` if the receiver has been dropped.
     fn poll_ready(
         &mut self,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Result<(), SendError>> {
         let state = decode_state(self.inner.state.load(SeqCst));
         if !state.is_open {
@@ -564,7 +564,7 @@ impl<T> SenderInner<T> {
             }));
         }
 
-        self.poll_unparked(Some(lw)).map(Ok)
+        self.poll_unparked(Some(waker)).map(Ok)
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -582,7 +582,7 @@ impl<T> SenderInner<T> {
         self.inner.recv_task.wake();
     }
 
-    fn poll_unparked(&mut self, lw: Option<&LocalWaker>) -> Poll<()> {
+    fn poll_unparked(&mut self, waker: Option<&Waker>) -> Poll<()> {
         // First check the `maybe_parked` variable. This avoids acquiring the
         // lock in most cases
         if self.maybe_parked {
@@ -600,7 +600,7 @@ impl<T> SenderInner<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = lw.map(|lw| lw.clone().into_waker());
+            task.task = waker.map(|waker| waker.clone());
 
             Poll::Pending
         } else {
@@ -649,12 +649,12 @@ impl<T> Sender<T> {
     /// - `Err(SendError)` if the receiver has been dropped.
     pub fn poll_ready(
         &mut self,
-        lw: &LocalWaker
+        waker: &Waker,
     ) -> Poll<Result<(), SendError>> {
         let inner = self.0.as_mut().ok_or(SendError {
             kind: SendErrorKind::Disconnected,
         })?;
-        inner.poll_ready(lw)
+        inner.poll_ready(waker)
     }
 
     /// Returns whether this channel is closed without needing a context.
@@ -679,7 +679,7 @@ impl<T> UnboundedSender<T> {
     /// Check if the channel is ready to receive a message.
     pub fn poll_ready(
         &self,
-        _: &LocalWaker,
+        _: &Waker,
     ) -> Poll<Result<(), SendError>> {
         let inner = self.0.as_ref().ok_or(SendError {
             kind: SendErrorKind::Disconnected,
@@ -904,7 +904,7 @@ impl<T> Stream for Receiver<T> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<T>> {
             // Try to read a message off of the message queue.
         match self.next_message() {
@@ -916,7 +916,7 @@ impl<T> Stream for Receiver<T> {
             },
             Poll::Pending => {
                 // There are no messages to read, in this case, park.
-                self.inner.as_ref().unwrap().recv_task.register(lw);
+                self.inner.as_ref().unwrap().recv_task.register(waker);
                 // Check queue again after parking to prevent race condition:
                 // a message could be added to the queue after previous `next_message`
                 // before `register` call.
@@ -971,9 +971,9 @@ impl<T> Stream for UnboundedReceiver<T> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<T>> {
-        Pin::new(&mut self.0).poll_next(lw)
+        Pin::new(&mut self.0).poll_next(waker)
     }
 }
 

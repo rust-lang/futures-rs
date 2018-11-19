@@ -45,7 +45,7 @@ impl<A> Stream for Lines<A>
     type Item = String;
     type Error = io::Error;
 
-    fn poll(&mut self, lw: &LocalWaker) -> Poll<Option<String>, io::Error> {
+    fn poll(&mut self, waker: &Waker) -> Poll<Option<String>, io::Error> {
         let n = ready!(self.io.read_line(&mut self.line));
         if n == 0 && self.line.len() == 0 {
             return Ok(None.into())

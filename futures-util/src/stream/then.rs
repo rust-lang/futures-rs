@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which chains a computation onto each item produced by a
@@ -50,10 +50,10 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<Fut::Output>> {
         if self.as_mut().future().as_pin_mut().is_none() {
-            let item = match ready!(self.as_mut().stream().poll_next(lw)) {
+            let item = match ready!(self.as_mut().stream().poll_next(waker)) {
                 None => return Poll::Ready(None),
                 Some(e) => e,
             };
@@ -61,7 +61,7 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
             self.as_mut().future().set(Some(fut));
         }
 
-        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(lw));
+        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(waker));
         self.as_mut().future().set(None);
         Poll::Ready(Some(e))
     }

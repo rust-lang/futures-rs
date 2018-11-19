@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which returns a maximum number of elements.
@@ -57,12 +57,12 @@ impl<St> Stream for Take<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        waker: &Waker
     ) -> Poll<Option<St::Item>> {
         if self.remaining == 0 {
             Poll::Ready(None)
         } else {
-            let next = ready!(self.as_mut().stream().poll_next(lw));
+            let next = ready!(self.as_mut().stream().poll_next(waker));
             match next {
                 Some(_) => *self.as_mut().remaining() -= 1,
                 None => *self.as_mut().remaining() = 0,

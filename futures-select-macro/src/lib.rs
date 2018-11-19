@@ -180,23 +180,23 @@ pub fn select(input: TokenStream) -> TokenStream {
         })
         .collect();
 
-    // For each future, make an `&mut dyn FnMut(&LocalWaker) -> Option<Poll<__PrivResult<...>>`
+    // For each future, make an `&mut dyn FnMut(&Waker) -> Option<Poll<__PrivResult<...>>`
     // to use for polling that individual future. These will then be put in an array.
     let poll_functions = bound_future_names.iter().zip(variant_names.iter())
         .map(|(bound_future_name, variant_name)| {
             quote! {
-                let mut #variant_name = |__lw: &_| {
+                let mut #variant_name = |__waker: &_| {
                     if #futures_crate::future::FusedFuture::is_terminated(&#bound_future_name) {
                         None
                     } else {
                         Some(#futures_crate::future::FutureExt::poll_unpin(
                             &mut #bound_future_name,
-                            __lw,
+                            __waker,
                         ).map(#enum_ident::#variant_name))
                     }
                 };
                 let #variant_name: &mut dyn FnMut(
-                    &#futures_crate::task::LocalWaker
+                    &#futures_crate::task::Waker
                 ) -> Option<#futures_crate::task::Poll<_>> = &mut #variant_name;
             }
         });
@@ -254,7 +254,7 @@ pub fn select(input: TokenStream) -> TokenStream {
         #enum_item
         #( #future_let_bindings )*
 
-        let mut __poll_fn = |__lw: &#futures_crate::task::LocalWaker| {
+        let mut __poll_fn = |__waker: &#futures_crate::task::Waker| {
             let mut __any_polled = false;
 
             #( #poll_functions )*
@@ -266,9 +266,9 @@ pub fn select(input: TokenStream) -> TokenStream {
             );
             for poller in &mut __select_arr {
                 let poller: &mut &mut dyn FnMut(
-                    &#futures_crate::task::LocalWaker
+                    &#futures_crate::task::Waker
                 ) -> Option<#futures_crate::task::Poll<_>> = poller;
-                match poller(__lw) {
+                match poller(__waker) {
                     Some(x @ #futures_crate::task::Poll::Ready(_)) =>
                         return x,
                     Some(#futures_crate::task::Poll::Pending) => {

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
@@ -70,16 +70,16 @@ impl<St> Stream for Flatten<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
         loop {
             if self.as_mut().next().as_pin_mut().is_none() {
-                match ready!(self.as_mut().stream().poll_next(lw)) {
+                match ready!(self.as_mut().stream().poll_next(waker)) {
                     Some(e) => self.as_mut().next().set(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
-            let item = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(lw));
+            let item = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(waker));
             if item.is_some() {
                 return Poll::Ready(item);
             } else {

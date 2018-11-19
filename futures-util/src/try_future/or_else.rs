@@ -1,7 +1,7 @@
 use super::{TryChain, TryChainAction};
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
-use futures_core::task::{LocalWaker, Poll};
+use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the [`or_else`](super::TryFutureExt::or_else) combinator.
@@ -44,9 +44,9 @@ impl<Fut1, Fut2, F> Future for OrElse<Fut1, Fut2, F>
 
     fn poll(
         self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> Poll<Self::Output> {
-        self.try_chain().poll(lw, |result, async_op| {
+        self.try_chain().poll(waker, |result, async_op| {
             match result {
                 Ok(ok) => TryChainAction::Output(Ok(ok)),
                 Err(err) => TryChainAction::Future(async_op(err)),
