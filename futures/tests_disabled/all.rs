@@ -243,34 +243,6 @@ fn join_incomplete() {
     })
 }
 
-#[test]
-fn collect_collects() {
-    assert_done(|| join_all(vec![f_ok(1), f_ok(2)]), Ok(vec![1, 2]));
-    assert_done(|| join_all(vec![f_ok(1)]), Ok(vec![1]));
-    assert_done(|| join_all(Vec::<Result<i32, u32>>::new()), Ok(vec![]));
-
-    // TODO: needs more tests
-}
-
-#[test]
-fn join_all_iter_lifetime() {
-    // In futures-rs version 0.1, this function would fail to typecheck due to an overly
-    // conservative type parameterization of `JoinAll`.
-    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<Future<Item=Vec<usize>, Error=()> + 'static> {
-        let iter = bufs.into_iter().map(|b| future::ok::<usize, ()>(b.len()));
-        Box::new(join_all(iter))
-    }
-
-    assert_done(|| sizes(vec![&[1,2,3], &[], &[0]]), Ok(vec![3, 0, 1]));
-}
-
-#[test]
-fn join_all_from_iter() {
-    assert_done(
-        || vec![f_ok(1), f_ok(2)].into_iter().collect::<JoinAll<_>>(),
-        Ok(vec![1, 2]),
-    )
-}
 
 #[test]
 fn select2() {
