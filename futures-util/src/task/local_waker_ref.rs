@@ -55,7 +55,7 @@ macro_rules! local_ref_vtable {
     };
 }
 
-// Another ference vtable which doesn't do decrement the refcount on drop.
+// Another reference vtable which doesn't do decrement the refcount on drop.
 // However on clone it will create a vtable which equals a Waker, and on wake
 // it will call the nonlocal wake function.
 macro_rules! nonlocal_ref_vtable {
