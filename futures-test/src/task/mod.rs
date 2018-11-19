@@ -32,7 +32,7 @@ mod panic_spawner;
 pub use self::panic_spawner::{panic_spawner_mut, PanicSpawner};
 
 mod panic_waker;
-pub use self::panic_waker::{panic_local_waker, panic_local_waker_ref, PanicWake};
+pub use self::panic_waker::{panic_local_waker, panic_local_waker_ref};
 
 mod record_spawner;
 pub use self::record_spawner::RecordSpawner;

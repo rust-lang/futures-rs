@@ -1,7 +1,7 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{Poll, Wake, Spawn, SpawnError};
+use futures_core::task::{Poll, ArcWake, Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use futures_util::task::local_waker_ref_from_nonlocal;
 use num_cpus;
@@ -338,12 +338,16 @@ impl fmt::Debug for Task {
     }
 }
 
-impl Wake for WakeHandle {
+impl ArcWake for WakeHandle {
     fn wake(arc_self: &Arc<Self>) {
         match arc_self.mutex.notify() {
             Ok(task) => arc_self.exec.state.send(Message::Run(task)),
             Err(()) => {}
         }
+    }
+
+    unsafe fn wake_local(arc_self: &Arc<Self>) {
+        Self::wake(arc_self);
     }
 }
 

@@ -1,14 +1,11 @@
 use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::mem;
-use std::ptr::{self, NonNull};
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::atomic::Ordering::SeqCst;
 
-use futures_core::task::{UnsafeWake, Waker, LocalWaker};
+use futures_core::task::{ArcWake};
 
-use crate::task::LocalWakerRef;
+use crate::task::{LocalWakerRef, local_waker_ref_from_nonlocal};
 use super::ReadyToRunQueue;
 use super::abort::abort;
 
@@ -32,9 +29,14 @@ pub(super) struct Task<Fut> {
     pub(super) queued: AtomicBool,
 }
 
-impl<Fut> Task<Fut> {
-    pub(super) fn wake(self: &Arc<Task<Fut>>) {
-        let inner = match self.ready_to_run_queue.upgrade() {
+// Task isn't really thread-safe, but we only access thread-safe fields from
+// other threads in the `ArcWake` implementation.
+unsafe impl<Fut> Send for Task<Fut> {}
+unsafe impl<Fut> Sync for Task<Fut> {}
+
+impl<Fut> ArcWake for Task<Fut> {
+    fn wake(arc_self: &Arc<Self>) {
+        let inner = match arc_self.ready_to_run_queue.upgrade() {
             Some(inner) => inner,
             None => return,
         };
@@ -51,59 +53,24 @@ impl<Fut> Task<Fut> {
         // implementation guarantees that if we set the `queued` flag that
         // there's a reference count held by the main `FuturesUnordered` queue
         // still.
-        let prev = self.queued.swap(true, SeqCst);
+        let prev = arc_self.queued.swap(true, SeqCst);
         if !prev {
-            inner.enqueue(&**self);
+            inner.enqueue(&**arc_self);
             inner.waker.wake();
         }
     }
 
-    /// Returns a waker.
-    pub(super) fn waker(self: &Arc<Task<Fut>>) -> Waker {
-        let clone = self.clone();
-
-        // Safety: This is save because an `Arc` is a struct which contains
-        // a single field that is a pointer.
-        let ptr = unsafe {
-            mem::transmute::<Arc<Task<Fut>>,
-                             NonNull<ArcTask<Fut>>>(clone)
-        };
-
-        let ptr = ptr as NonNull<dyn UnsafeWake>;
-
-        // Hide lifetime of `Fut`
-        // Safety: The waker can safely outlive the future because the
-        // `UnsafeWake` impl is guaranteed to not touch `Fut`.
-        let ptr = unsafe {
-            mem::transmute::<NonNull<dyn UnsafeWake>,
-                             NonNull<dyn UnsafeWake>>(ptr)
-        };
-
-        unsafe { Waker::new(ptr) }
+    unsafe fn wake_local(arc_self: &Arc<Self>) {
+        Self::wake(arc_self);
     }
+}
 
+impl<Fut> Task<Fut> {
     /// Returns a local waker for this task without cloning the Arc.
     pub(super) fn local_waker<'a>(self: &'a Arc<Task<Fut>>) -> LocalWakerRef<'a> {
-        // Safety: This is safe because an `Arc` is a struct which contains
-        // a single field that is a pointer.
-        let ptr = unsafe {
-            *(self as *const _ as *const NonNull<ArcTaskUnowned<Fut>>)
-        };
-
-        let ptr = ptr as NonNull<dyn UnsafeWake>;
-
-        // Hide lifetime of `self`
-        // Safety:
-        // - Since the `Arc` has not been cloned, the local waker must
-        //   not outlive it. This is ensured by the lifetime of `LocalWakerRef`.
-        // - The local waker can safely outlive the future because the
-        //   `UnsafeWake` impl is guaranteed to not touch `Fut`.
-        unsafe {
-            let ptr = mem::transmute::<NonNull<dyn UnsafeWake>,
-                                       NonNull<dyn UnsafeWake>>(ptr);
-            LocalWakerRef::new(LocalWaker::new(ptr))
-        }
+        local_waker_ref_from_nonlocal(self)
     }
+
 }
 
 impl<Fut> Drop for Task<Fut> {
@@ -121,77 +88,5 @@ impl<Fut> Drop for Task<Fut> {
                 abort("future still here when dropping");
             }
         }
-    }
-}
-
-// `ArcTask<Fut>` represents conceptually the struct an `Arc<Task<Fut>>` points
-// to. `*const ArcTask<Fut>` is equal to `Arc<Task<Fut>>`
-// It may only be used through references because its layout obviously doesn't
-// match the real inner struct of an `Arc` which (currently) has the form
-// `{ strong, weak, data }`.
-struct ArcTask<Fut>(PhantomData<Fut>);
-
-struct ArcTaskUnowned<Fut>(PhantomData<Fut>); // Doesn't drop the `Arc`'s data
-
-// We should never touch the future `Fut` on any thread other than the one
-// owning `FuturesUnordered`, so this should be a safe operation.
-unsafe impl<Fut> Send for ArcTask<Fut> {}
-unsafe impl<Fut> Sync for ArcTask<Fut> {}
-
-unsafe impl<Fut> Send for ArcTaskUnowned<Fut> {}
-unsafe impl<Fut> Sync for ArcTaskUnowned<Fut> {}
-
-// We need to implement `UnsafeWake` trait directly and can't implement `Wake`
-// for `Task<Fut>` because `Fut`, the future, isn't required to have a static
-// lifetime. `UnsafeWake` lets us forget about `Fut` and its lifetime. This is
-// safe because neither `drop_raw` nor `wake` touch `Fut`. This is the case even
-// though `drop_raw` runs the destructor for `Task<Fut>` because its destructor
-// is guaranteed to not touch `Fut`. `Fut` must already have been dropped by the
-// time it runs. See `Drop` impl for `Task<Fut>` for more details.
-unsafe impl<Fut> UnsafeWake for ArcTask<Fut> {
-    #[inline]
-    unsafe fn clone_raw(&self) -> Waker {
-        let me: *const ArcTask<Fut> = self;
-        let task = &*(&me as *const *const ArcTask<Fut>
-                          as *const Arc<Task<Fut>>);
-        task.waker()
-    }
-
-    #[inline]
-    unsafe fn drop_raw(&self) {
-        let mut me: *const ArcTask<Fut> = self;
-        let task_ptr = &mut me as *mut *const ArcTask<Fut>
-                               as *mut Arc<Task<Fut>>;
-        ptr::drop_in_place(task_ptr);
-    }
-
-    #[inline]
-    unsafe fn wake(&self) {
-        let me: *const ArcTask<Fut> = self;
-        let task = &*(&me as *const *const ArcTask<Fut>
-                          as *const Arc<Task<Fut>>);
-        task.wake();
-    }
-}
-
-unsafe impl<Fut> UnsafeWake for ArcTaskUnowned<Fut> {
-    #[inline]
-    unsafe fn clone_raw(&self) -> Waker {
-        let me: *const ArcTaskUnowned<Fut> = self;
-        let task = &*(&me as *const *const ArcTaskUnowned<Fut>
-                          as *const Arc<Task<Fut>>);
-        task.waker() // Clones the `Arc` and the returned waker owns the
-                     // clone. (`ArcTask<Fut>` not `ArcTaskUnowned<Fut>`)
-    }
-
-    #[inline]
-    unsafe fn drop_raw(&self) {} // Does nothing
-
-    #[inline]
-    unsafe fn wake(&self) {
-        let me: *const ArcTaskUnowned<Fut> = self;
-        let task = &*(&me as *const *const ArcTaskUnowned<Fut>
-                          as *const Arc<Task<Fut>>);
-       task.wake();
     }
 }

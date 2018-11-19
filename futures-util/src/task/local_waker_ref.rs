@@ -2,9 +2,10 @@
 
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::ptr::NonNull;
 use std::sync::Arc;
-use std::task::{LocalWaker, Waker, Wake, UnsafeWake};
+use std::task::{LocalWaker, ArcWake, RawWaker, RawWakerVTable};
+
+// TODO: Maybe it's better to rename this type, e.g. to LocalArcWakerRef
 
 /// A [`LocalWaker`](::std::task::LocalWaker) that is only valid for a given lifetime.
 ///
@@ -38,32 +39,56 @@ impl<'a> Deref for LocalWakerRef<'a> {
     }
 }
 
-// Pointers to this type below are really pointers to `Arc<W>`
-struct ReferencedArc<W> {
-    _marker: PhantomData<W>,
+/// Creates the VTable for the LocalWaker in the reference
+/// This LocalWaker does not increase the refcount of the Arc, since it
+/// assumes it is still alive. Therefore it does not need to do anything on drop.
+/// When a clone is created, this will increase the refcount and replace the
+/// vtable with one that releases the refcount on drop.
+macro_rules! local_ref_vtable {
+    ($ty:ident) => {
+        &RawWakerVTable {
+            clone: clone_arc_local_raw::<$ty>,
+            drop_fn: noop,
+            wake: wake_arc_local_raw::<$ty>,
+            into_waker: into_waker_raw::<$ty>,
+        }
+    };
 }
 
-unsafe impl<W: Wake + 'static> UnsafeWake for ReferencedArc<W> {
-    #[inline]
-    unsafe fn clone_raw(&self) -> Waker {
-        let me = self as *const ReferencedArc<W> as *const Arc<W>;
-        Arc::clone(&*me).into()
-    }
+// Another ference vtable which doesn't do decrement the refcount on drop.
+// However on clone it will create a vtable which equals a Waker, and on wake
+// it will call the nonlocal wake function.
+macro_rules! nonlocal_ref_vtable {
+    ($ty:ident) => {
+        &RawWakerVTable {
+            clone: clone_arc_nonlocal_raw::<$ty>,
+            drop_fn: noop,
+            wake: wake_arc_nonlocal_raw::<$ty>,
+            into_waker: into_waker_raw::<$ty>,
+        }
+    };
+}
 
-    #[inline]
-    unsafe fn drop_raw(&self) {}
+macro_rules! local_vtable {
+    ($ty:ident) => {
+        &RawWakerVTable {
+            clone: clone_arc_local_raw::<$ty>,
+            drop_fn: drop_arc_raw::<$ty>,
+            wake: wake_arc_local_raw::<$ty>,
+            into_waker: into_waker_raw::<$ty>,
+        }
+    };
+}
 
-    #[inline]
-    unsafe fn wake(&self) {
-        let me = self as *const ReferencedArc<W> as *const Arc<W>;
-        W::wake(&*me)
-    }
-
-    #[inline]
-    unsafe fn wake_local(&self) {
-        let me = self as *const ReferencedArc<W> as *const Arc<W>;
-        W::wake_local(&*me)
-    }
+macro_rules! nonlocal_vtable {
+    ($ty:ident) => {
+        &RawWakerVTable {
+            clone: clone_arc_nonlocal_raw::<$ty>,
+            drop_fn: drop_arc_raw::<$ty>,
+            wake: wake_arc_nonlocal_raw::<$ty>,
+            into_waker: into_waker_raw::<$ty>,
+        }
+    };
 }
 
 /// Creates a reference to a [`LocalWaker`](::std::task::LocalWaker)
@@ -79,43 +104,17 @@ unsafe impl<W: Wake + 'static> UnsafeWake for ReferencedArc<W> {
 #[inline]
 pub unsafe fn local_waker_ref<W>(wake: &Arc<W>) -> LocalWakerRef<'_>
 where
-    W: Wake + 'static,
+    W: ArcWake
 {
-    let ptr = wake
-        as *const Arc<W>
-        as *const ReferencedArc<W>
-        as *const dyn UnsafeWake
-        as *mut dyn UnsafeWake;
-    let local_waker = LocalWaker::new(NonNull::new_unchecked(ptr));
+    // This uses the same mechanism as Arc::into_raw, without needing a reference.
+    // This is potentially not stable
+    let ptr = &*wake as &W as *const W as *const();
+
+    let local_waker = LocalWaker::new_unchecked(RawWaker{
+        data: ptr,
+        vtable: local_ref_vtable!(W),
+    });
     LocalWakerRef::new(local_waker)
-}
-
-// Pointers to this type below are really pointers to `Arc<W>`,
-struct NonlocalReferencedArc<W> {
-    _marker: PhantomData<W>,
-}
-
-unsafe impl<W: Wake + 'static> UnsafeWake for NonlocalReferencedArc<W> {
-    #[inline]
-    unsafe fn clone_raw(&self) -> Waker {
-        let me = self as *const NonlocalReferencedArc<W> as *const Arc<W>;
-        Arc::clone(&*me).into()
-    }
-
-    #[inline]
-    unsafe fn drop_raw(&self) {}
-
-    #[inline]
-    unsafe fn wake(&self) {
-        let me = self as *const NonlocalReferencedArc<W> as *const Arc<W>;
-        W::wake(&*me)
-    }
-
-    #[inline]
-    unsafe fn wake_local(&self) {
-        let me = self as *const NonlocalReferencedArc<W> as *const Arc<W>;
-        W::wake(&*me)
-    }
 }
 
 /// Creates a reference to a [`LocalWaker`](::std::task::LocalWaker)
@@ -128,13 +127,69 @@ unsafe impl<W: Wake + 'static> UnsafeWake for NonlocalReferencedArc<W> {
 #[inline]
 pub fn local_waker_ref_from_nonlocal<W>(wake: &Arc<W>) -> LocalWakerRef<'_>
 where
-    W: Wake + 'static,
+    W: ArcWake
 {
-    let ptr = wake
-        as *const Arc<W>
-        as *const NonlocalReferencedArc<W>
-        as *const dyn UnsafeWake
-        as *mut dyn UnsafeWake;
-    let local_waker = unsafe { LocalWaker::new(NonNull::new_unchecked(ptr)) };
+    // This uses the same mechanism as Arc::into_raw, without needing a reference.
+    // This is potentially not stable
+    let ptr = &*wake as &W as *const W as *const();
+
+    let local_waker = unsafe {
+        LocalWaker::new_unchecked(RawWaker{
+            data: ptr,
+            vtable: nonlocal_ref_vtable!(W),
+        })
+    };
     LocalWakerRef::new(local_waker)
+}
+
+unsafe fn noop(_data: *const()) {
+}
+
+unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
+    // Retain Arc by creating a copy
+    let arc: Arc<T> = Arc::from_raw(data as *const T);
+    let arc_clone = arc.clone();
+    // Forget the Arcs again, so that the refcount isn't decrased
+    let _ = Arc::into_raw(arc);
+    let _ = Arc::into_raw(arc_clone);
+}
+
+unsafe fn clone_arc_nonlocal_raw<T: ArcWake>(data: *const()) -> RawWaker {
+    increase_refcount::<T>(data);
+    RawWaker {
+        data: data,
+        vtable: nonlocal_vtable!(T),
+    }
+}
+
+unsafe fn clone_arc_local_raw<T: ArcWake>(data: *const()) -> RawWaker {
+    increase_refcount::<T>(data);
+    RawWaker {
+        data: data,
+        vtable: local_vtable!(T),
+    }
+}
+
+unsafe fn drop_arc_raw<T: ArcWake>(data: *const()) {
+    // Drop Arc
+    let _: Arc<T> = Arc::from_raw(data as *const T);
+}
+
+unsafe fn wake_arc_local_raw<T: ArcWake>(data: *const()) {
+    let arc: Arc<T> = Arc::from_raw(data as *const T);
+    ArcWake::wake_local(&arc); // TODO: If this panics, the refcount is too big
+    let _ = Arc::into_raw(arc);
+}
+
+unsafe fn wake_arc_nonlocal_raw<T: ArcWake>(data: *const()) {
+    let arc: Arc<T> = Arc::from_raw(data as *const T);
+    ArcWake::wake(&arc); // TODO: If this panics, the refcount is too big
+    let _ = Arc::into_raw(arc);
+}
+
+unsafe fn into_waker_raw<T: ArcWake>(data: *const ()) -> Option<RawWaker> {
+    Some(RawWaker {
+        data: data,
+        vtable: nonlocal_vtable!(T),
+    })
 }

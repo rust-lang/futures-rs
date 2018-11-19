@@ -2,9 +2,10 @@ use crate::{enter, ThreadPool};
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{Stream};
 use futures_core::task::{
-    self, Poll, LocalWaker, Wake,
+    Poll, LocalWaker, ArcWake,
     Spawn, LocalSpawn, SpawnError,
 };
+use futures_util::task::{LocalWakerRef, local_waker_ref};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
 use lazy_static::lazy_static;
@@ -53,9 +54,13 @@ thread_local! {
     });
 }
 
-impl Wake for ThreadNotify {
+impl ArcWake for ThreadNotify {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.thread.unpark();
+    }
+
+    unsafe fn wake_local(arc_self: &Arc<Self>) {
+        Self::wake(arc_self);
     }
 }
 
@@ -67,8 +72,7 @@ fn run_executor<T, F: FnMut(&LocalWaker) -> Poll<T>>(mut f: F) -> T {
                  another executor");
 
     CURRENT_THREAD_NOTIFY.with(|thread_notify| {
-        let local_waker =
-          task::local_waker_from_nonlocal(thread_notify.clone());
+        let local_waker: LocalWakerRef = unsafe { local_waker_ref(thread_notify) };
         loop {
             if let Poll::Ready(t) = f(&local_waker) {
                 return t;

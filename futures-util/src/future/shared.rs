@@ -1,6 +1,6 @@
 use crate::task::local_waker_ref_from_nonlocal;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{LocalWaker, Poll, Wake, Waker};
+use futures_core::task::{LocalWaker, Poll, ArcWake, Waker};
 use slab::Slab;
 use std::cell::UnsafeCell;
 use std::fmt;
@@ -130,10 +130,12 @@ where
             self.waker_key = wakers.insert(Some(lw.clone().into_waker()));
         } else {
             let waker_slot = &mut wakers[self.waker_key];
-            let needs_replacement = if let Some(old_waker) = waker_slot {
+            let needs_replacement = if let Some(_old_waker) = waker_slot {
                 // If there's still an unwoken waker in the slot, only replace
                 // if the current one wouldn't wake the same task.
-                !lw.will_wake_nonlocal(old_waker)
+                // TODO: This API is currently not available, so replace always
+                // !lw.will_wake_nonlocal(old_waker)
+                true
             } else {
                 true
             };
@@ -315,7 +317,7 @@ where
     }
 }
 
-impl Wake for Notifier {
+impl ArcWake for Notifier {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
@@ -327,5 +329,9 @@ impl Wake for Notifier {
                 }
             }
         }
+    }
+
+    unsafe fn wake_local(arc_self: &Arc<Self>) {
+        Self::wake(arc_self);
     }
 }

@@ -1,4 +1,4 @@
-use futures_core::task::{self, LocalWaker, Wake};
+use futures_core::task::{LocalWaker, ArcWake};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -39,7 +39,7 @@ impl WakeCounter {
             count: AtomicUsize::new(0),
         });
         WakeCounter {
-            local_waker: task::local_waker_from_nonlocal(inner.clone()),
+            local_waker: ArcWake::into_local_waker(inner.clone()),
             inner,
         }
     }
@@ -63,8 +63,12 @@ impl Default for WakeCounter {
     }
 }
 
-impl Wake for Inner {
+impl ArcWake for Inner {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.count.fetch_add(1, Ordering::SeqCst);
+    }
+
+    unsafe fn wake_local(arc_self: &Arc<Self>) {
+        Self::wake(arc_self);
     }
 }
