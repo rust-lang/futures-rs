@@ -113,6 +113,12 @@ enum Dequeue<T> {
     Inconsistent,
 }
 
+impl<T> Default for FuturesUnordered<T> where T: Future {
+    fn default() -> Self {
+        FuturesUnordered::new()
+    }
+}
+
 impl<T> FuturesUnordered<T>
     where T: Future,
 {
