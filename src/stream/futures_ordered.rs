@@ -114,6 +114,12 @@ pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<<I::Item as IntoFuture>:
     return queue
 }
 
+impl<T> Default for FuturesOrdered<T> where T: Future {
+    fn default() -> Self {
+        FuturesOrdered::new()
+    }
+}
+
 impl<T> FuturesOrdered<T>
     where T: Future
 {
