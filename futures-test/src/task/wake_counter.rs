@@ -67,8 +67,4 @@ impl ArcWake for Inner {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.count.fetch_add(1, Ordering::SeqCst);
     }
-
-    unsafe fn wake_local(arc_self: &Arc<Self>) {
-        Self::wake(arc_self);
-    }
 }

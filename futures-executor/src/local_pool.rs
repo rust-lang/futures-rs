@@ -58,10 +58,6 @@ impl ArcWake for ThreadNotify {
     fn wake(arc_self: &Arc<Self>) {
         arc_self.thread.unpark();
     }
-
-    unsafe fn wake_local(arc_self: &Arc<Self>) {
-        Self::wake(arc_self);
-    }
 }
 
 // Set up and run a basic single-threaded spawner loop, invoking `f` on each

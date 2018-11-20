@@ -59,10 +59,6 @@ impl<Fut> ArcWake for Task<Fut> {
             inner.waker.wake();
         }
     }
-
-    unsafe fn wake_local(arc_self: &Arc<Self>) {
-        Self::wake(arc_self);
-    }
 }
 
 impl<Fut> Task<Fut> {
