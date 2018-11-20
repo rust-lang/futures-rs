@@ -87,8 +87,4 @@ pub mod io;
 #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 
 #[cfg(feature = "std")]
-#[cfg(any(test, feature = "bench"))]
 pub mod lock;
-#[cfg(feature = "std")]
-#[cfg(not(any(test, feature = "bench")))]
-mod lock;
