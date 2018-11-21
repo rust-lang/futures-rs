@@ -237,6 +237,12 @@ pub mod io {
     };
 }
 
+#[cfg(feature = "std")]
+pub mod lock {
+    //! Futures-powered synchronization primitives.
+    pub use futures_util::lock::{Mutex, MutexAcquire, MutexGuard};
+}
+
 pub mod prelude {
     //! A "prelude" for crates using the `futures` crate.
     //!
