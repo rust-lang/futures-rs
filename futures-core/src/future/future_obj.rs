@@ -12,11 +12,6 @@ use core::{
 /// This custom trait object was introduced for two reasons:
 /// - Currently it is not possible to take `dyn Trait` by value and
 ///   `Box<dyn Trait>` is not available in no_std contexts.
-/// - The `Future` trait is currently not object safe: The `Future::poll`
-///   method makes uses the arbitrary self types feature and traits in which
-///   this feature is used are currently not object safe due to current compiler
-///   limitations. (See tracking issue for arbitrary self types for more
-///   information #44874)
 pub struct LocalFutureObj<'a, T> {
     ptr: *mut (),
     poll_fn: unsafe fn(*mut (), &LocalWaker) -> Poll<T>,
