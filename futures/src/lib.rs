@@ -240,7 +240,7 @@ pub mod io {
 #[cfg(feature = "std")]
 pub mod lock {
     //! Futures-powered synchronization primitives.
-    pub use futures_util::lock::{Mutex, MutexAcquire, MutexGuard};
+    pub use futures_util::lock::{Mutex, MutexLockFuture, MutexGuard};
 }
 
 pub mod prelude {
