@@ -1,7 +1,7 @@
 //! Futures-powered synchronization primitives.
 
 mod mutex;
-pub use self::mutex::{Mutex, MutexAcquire, MutexGuard};
+pub use self::mutex::{Mutex, MutexLockFuture, MutexGuard};
 
 mod bilock;
 #[cfg(any(test, feature = "bench"))]

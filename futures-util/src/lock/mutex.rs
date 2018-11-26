@@ -76,8 +76,8 @@ impl<T> Mutex<T> {
     ///
     /// This method returns a future that will resolve once the lock has been
     /// successfully acquired.
-    pub fn lock(&self) -> MutexAcquire<'_, T> {
-        MutexAcquire {
+    pub fn lock(&self) -> MutexLockFuture<'_, T> {
+        MutexLockFuture {
             mutex: Some(self),
             wait_key: WAIT_KEY_NONE,
         }
@@ -110,15 +110,15 @@ impl<T> Mutex<T> {
 const WAIT_KEY_NONE: usize = usize::MAX;
 
 /// A future which resolves when the target mutex has been successfully acquired.
-pub struct MutexAcquire<'a, T: 'a> {
+pub struct MutexLockFuture<'a, T: 'a> {
     // `None` indicates that the mutex was successfully acquired.
     mutex: Option<&'a Mutex<T>>,
     wait_key: usize,
 }
 
-impl<T> fmt::Debug for MutexAcquire<'_, T> {
+impl<T> fmt::Debug for MutexLockFuture<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("MutexAcquire")
+        f.debug_struct("MutexLockFuture")
             .field("was_acquired", &self.mutex.is_none())
             .field("mutex", &self.mutex)
             .field("wait_key", &(
@@ -132,17 +132,17 @@ impl<T> fmt::Debug for MutexAcquire<'_, T> {
     }
 }
 
-impl<T> FusedFuture for MutexAcquire<'_, T> {
+impl<T> FusedFuture for MutexLockFuture<'_, T> {
     fn is_terminated(&self) -> bool {
         self.mutex.is_none()
     }
 }
 
-impl<'a, T> Future for MutexAcquire<'a, T> {
+impl<'a, T> Future for MutexLockFuture<'a, T> {
     type Output = MutexGuard<'a, T>;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
-        let mutex = self.mutex.expect("polled MutexAcquire after completion");
+        let mutex = self.mutex.expect("polled MutexLockFuture after completion");
 
         if let Some(lock) = mutex.try_lock() {
             mutex.remove_waker(self.wait_key, false);
@@ -174,7 +174,7 @@ impl<'a, T> Future for MutexAcquire<'a, T> {
     }
 }
 
-impl<T> Drop for MutexAcquire<'_, T> {
+impl<T> Drop for MutexLockFuture<'_, T> {
     fn drop(&mut self) {
         if let Some(mutex) = self.mutex {
             // This future was dropped before it acquired the mutex.
@@ -234,9 +234,9 @@ unsafe impl<T: Send> Sync for Mutex<T> {}
 
 // It's safe to switch which thread the acquire is being attempted on so long as
 // `T` can be accessed on that thread.
-unsafe impl<T: Send> Send for MutexAcquire<'_, T> {}
+unsafe impl<T: Send> Send for MutexLockFuture<'_, T> {}
 // doesn't have any interesting `&self` methods (only Debug)
-unsafe impl<T> Sync for MutexAcquire<'_, T> {}
+unsafe impl<T> Sync for MutexLockFuture<'_, T> {}
 
 // Safe to send since we don't track any thread-specific details-- the inner
 // lock is essentially spinlock-equivalent (attempt to flip an atomic bool)
