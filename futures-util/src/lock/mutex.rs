@@ -20,7 +20,7 @@ impl<T> fmt::Debug for Mutex<T> {
         let state = self.state.load(Ordering::SeqCst);
         f.debug_struct("Mutex")
             .field("is_locked", &((state & IS_LOCKED) != 0))
-            .field("has_waiters", &((state & IS_LOCKED) != 0))
+            .field("has_waiters", &((state & HAS_WAITERS) != 0))
             .finish()
     }
 }
@@ -33,10 +33,8 @@ enum Waiter {
 impl Waiter {
     fn register(&mut self, lw: &LocalWaker) {
         match self {
-            Waiter::Waiting(waker) => if !lw.will_wake_nonlocal(waker) {
-                *waker = lw.clone().into_waker();
-            },
-            Waiter::Woken => *self = Waiter::Waiting(lw.clone().into_waker()),
+            Waiter::Waiting(waker) if lw.will_wake_nonlocal(waker) => {},
+            _ => *self = Waiter::Waiting(lw.clone().into_waker()),
         }
     }
 
@@ -76,7 +74,7 @@ impl<T> Mutex<T> {
 
     /// Acquire the lock asynchronously.
     ///
-    /// This method returns a future that will resolve once the loch has been
+    /// This method returns a future that will resolve once the lock has been
     /// successfully acquired.
     pub fn lock(&self) -> MutexAcquire<'_, T> {
         MutexAcquire {
