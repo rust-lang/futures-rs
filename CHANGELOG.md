@@ -1,3 +1,15 @@
+# 0.3.0-alpha.10 - 2018-11-27
+* Revamped `select!` macro
+* Added `select_next_some` method for getting only the `Some` elements of a stream from `select!`
+* Added `futures::lock::Mutex` for async-aware synchronization.
+* Fixed bug converting `Pin<Box<_>>` to `StreamObj`
+* Improved performance of futures::channel
+* Improved performance and documentation of `Shared`
+* Add `new` method and more `derive`s to the `Compat` type
+* Enabled spawning on a borrowed threadpool
+* Re-added `join_all`
+* Added `try_concat`
+
 # 0.3.0-alpha.9 - 2018-10-18
 * Fixed in response to new nightly handling of 2018 edition + `#![no_std]`
 
