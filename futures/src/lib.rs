@@ -189,6 +189,9 @@ pub mod future {
         FutureObj, LocalFutureObj, UnsafeFutureObj,
     };
 
+    #[cfg(feature = "alloc")]
+    pub use futures_core::future::BoxFuture;
+
     pub use futures_util::future::{
         empty, Empty,
         lazy, Lazy,
@@ -335,8 +338,10 @@ pub mod stream {
 
     pub use futures_core::stream::{
         Stream, TryStream, FusedStream,
-        StreamObj, LocalStreamObj, UnsafeStreamObj,
     };
+
+    #[cfg(feature = "alloc")]
+    pub use futures_core::stream::BoxStream;
 
     pub use futures_util::stream::{
         iter, Iter,

@@ -2,7 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, FutureExt, FutureObj};
+use futures::future::{self, join, FutureExt};
 use futures::stream::{StreamExt, FuturesOrdered};
 use futures_test::task::noop_context;
 
@@ -34,8 +34,8 @@ fn works_2() {
     let (c_tx, c_rx) = oneshot::channel::<i32>();
 
     let mut stream = vec![
-        FutureObj::new(Box::new(a_rx)),
-        FutureObj::new(Box::new(join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)))),
+        a_rx.boxed(),
+        join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)).boxed(),
     ].into_iter().collect::<FuturesOrdered<_>>();
 
     let mut cx = noop_context();
@@ -65,10 +65,10 @@ fn queue_never_unblocked() {
     let (b_tx, b_rx) = oneshot::channel::<Box<Any+Send>>();
     let (c_tx, c_rx) = oneshot::channel::<Box<Any+Send>>();
 
-    let mut stream = futures_ordered(vec![
+    let mut stream = vec![
         Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
         Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))) as _,
-    ]);
+    ].into_iter().collect::<FuturesOrdered<_>>();
 
     with_no_spawn_context(|cx| {
         for _ in 0..10 {

@@ -2,13 +2,12 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, FutureExt, FutureObj};
+use futures::future::{self, join, FutureExt};
 use futures::stream::{StreamExt, FuturesUnordered};
 use futures::task::Poll;
 use futures_test::{assert_stream_done, assert_stream_next};
 use futures_test::future::FutureTestExt;
 use futures_test::task::noop_context;
-use std::boxed::Box;
 
 #[test]
 fn works_1() {
@@ -35,8 +34,8 @@ fn works_2() {
     let (c_tx, c_rx) = oneshot::channel::<i32>();
 
     let mut stream = vec![
-        FutureObj::new(Box::new(a_rx)),
-        FutureObj::new(Box::new(join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)))),
+        a_rx.boxed(),
+        join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)).boxed(),
     ].into_iter().collect::<FuturesUnordered<_>>();
 
     a_tx.send(9).unwrap();
@@ -67,10 +66,10 @@ fn finished_future() {
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
 
-    let mut stream = futures_unordered(vec![
-        FutureObj::new(Box::new(a_rx)),
-        //FutureObj::new(Box::new(b_rx.select(c_rx))),
-    ]);
+    let mut stream = vec![
+        a_rx.boxed(),
+        b_rx.select(c_rx).boxed(),
+    ].into_iter().collect::<FuturesUnordered<_>>();
 
     support::with_noop_waker_context(f)(|cx| {
         for _ in 0..10 {

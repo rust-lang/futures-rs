@@ -6,7 +6,7 @@ use futures::task::{Context, Poll};
 
 #[test]
 fn dropping_does_not_segfault() {
-    FutureObj::new(async { String::new() }.boxed());
+    FutureObj::new(Box::new(async { String::new() }));
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn dropping_drops_the_future() {
         }
     }
 
-    FutureObj::new(Inc(&mut times_dropped).boxed());
+    FutureObj::new(Box::new(Inc(&mut times_dropped)));
 
     assert_eq!(times_dropped, 1);
 }

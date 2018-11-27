@@ -9,6 +9,8 @@ use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
+#[cfg(feature = "alloc")]
+use futures_core::future::BoxFuture;
 
 // re-export for `select!`
 #[doc(hidden)]
@@ -491,8 +493,8 @@ pub trait FutureExt: Future {
 
     /// Wrap the future in a Box, pinning it.
     #[cfg(feature = "alloc")]
-    fn boxed(self) -> Pin<Box<Self>>
-        where Self: Sized
+    fn boxed(self) -> BoxFuture<'static, Self::Output>
+        where Self: Sized + Send + 'static
     {
         Box::pin(self)
     }

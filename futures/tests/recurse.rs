@@ -1,18 +1,18 @@
 #![feature(futures_api)]
 
 use futures::executor::block_on;
-use futures::future::{self, FutureExt, FutureObj};
+use futures::future::{self, FutureExt, BoxFuture};
 use std::sync::mpsc;
 use std::thread;
 
 #[test]
 fn lots() {
-    fn do_it(input: (i32, i32)) -> FutureObj<'static, i32> {
+    fn do_it(input: (i32, i32)) -> BoxFuture<'static, i32> {
         let (n, x) = input;
         if n == 0 {
-            FutureObj::new(Box::new(future::ready(x)))
+            future::ready(x).boxed()
         } else {
-            FutureObj::new(Box::new(future::ready((n - 1, x + n)).then(do_it)))
+            future::ready((n - 1, x + n)).then(do_it).boxed()
         }
     }
 
