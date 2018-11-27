@@ -3,12 +3,12 @@ cargo-features = ["rename-dependency"]
 [package]
 name = "futures-core-preview"
 edition = "2018"
-version = "0.3.0-alpha.9"
+version = "0.3.0-alpha.10"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.9/futures_core"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures_core"
 description = """
 The core traits and types in for the `futures` library.
 """
@@ -25,4 +25,4 @@ nightly = []
 either = { version = "1.4", default-features = false, optional = true }
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "0.3.0-alpha.9" }
+futures-preview = { path = "../futures", version = "0.3.0-alpha.10" }
