@@ -6,6 +6,7 @@ use futures::future::{FutureExt, poll_fn};
 use futures::stream::{Stream, StreamExt};
 use futures::sink::{Sink, SinkExt};
 use futures::task::Poll;
+use futures_test::task::noop_local_waker_ref;
 use pin_utils::pin_mut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -140,8 +141,6 @@ fn tx_close_gets_none() {
     // Run on a task context
     block_on(poll_fn(move |lw| {
         assert_eq!(rx.poll_next_unpin(lw), Poll::Ready(None));
-        assert_eq!(rx.poll_next_unpin(lw), Poll::Ready(None));
-
         Poll::Ready(())
     }));
 }
@@ -277,7 +276,7 @@ fn stress_receiver_multi_task_bounded_hard() {
     const NTHREADS: u32 = 2;
 
     let (mut tx, rx) = mpsc::channel::<usize>(0);
-    let rx = Arc::new(Mutex::new(rx));
+    let rx = Arc::new(Mutex::new(Some(rx)));
     let n = Arc::new(AtomicUsize::new(0));
 
     let mut th = vec![];
@@ -291,35 +290,33 @@ fn stress_receiver_multi_task_bounded_hard() {
 
             loop {
                 i += 1;
-                let mut rx = rx.lock().unwrap();
+                let mut rx_opt = rx.lock().unwrap();
+                if let Some(rx) = &mut *rx_opt {
+                    if i % 5 == 0 {
+                        let item = block_on(rx.next());
 
-                if i % 5 == 0 {
-                    let item = block_on(rx.next());
+                        if item.is_none() {
+                            *rx_opt = None;
+                            break;
+                        }
 
-                    if item.is_none() {
-                        break;
-                    }
-
-                    n.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    // Just poll
-                    let n = n.clone();
-                    let f = poll_fn(move |lw| {
-                        let r = match rx.poll_next_unpin(lw) {
+                        n.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        // Just poll
+                        let n = n.clone();
+                        match rx.poll_next_unpin(noop_local_waker_ref()) {
                             Poll::Ready(Some(_)) => {
                                 n.fetch_add(1, Ordering::Relaxed);
-                                false
                             }
-                            Poll::Ready(None) => true,
-                            Poll::Pending => false,
-                        };
-
-                        Poll::Ready(r)
-                    });
-
-                    if block_on(f) {
-                        break;
+                            Poll::Ready(None) => {
+                                *rx_opt = None;
+                                break
+                            },
+                            Poll::Pending => {},
+                        }
                     }
+                } else {
+                    break;
                 }
             }
         });

@@ -78,7 +78,7 @@
 // happens-before semantics required for the acquire / release semantics used
 // by the queue structure.
 
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Waker, Poll};
 use futures_core::task::__internal::AtomicWaker;
 use std::any::Any;
@@ -130,7 +130,7 @@ impl AssertKinds for UnboundedSender<u32> {}
 /// This value is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Receiver<T> {
-    inner: Arc<Inner<T>>,
+    inner: Option<Arc<Inner<T>>>,
 }
 
 /// The receiving end of an unbounded mpsc channel.
@@ -393,7 +393,7 @@ fn channel2<T>(buffer: Option<usize>) -> (Sender<T>, Receiver<T>) {
     };
 
     let rx = Receiver {
-        inner,
+        inner: Some(inner),
     };
 
     (tx, rx)
@@ -737,12 +737,14 @@ impl<T> Receiver<T> {
     /// This prevents any further messages from being sent on the channel while
     /// still enabling the receiver to drain messages that are buffered.
     pub fn close(&mut self) {
-        self.inner.set_closed();
+        if let Some(inner) = &mut self.inner {
+            inner.set_closed();
 
-        // Wake up any threads waiting as they'll see that we've closed the
-        // channel and will continue on their merry way.
-        while let Some(task) = unsafe { self.inner.parked_queue.pop_spin() } {
-            task.lock().unwrap().notify();
+            // Wake up any threads waiting as they'll see that we've closed the
+            // channel and will continue on their merry way.
+            while let Some(task) = unsafe { inner.parked_queue.pop_spin() } {
+                task.lock().unwrap().notify();
+            }
         }
     }
 
@@ -751,6 +753,9 @@ impl<T> Receiver<T> {
     /// It is not recommended to call this function from inside of a future,
     /// only when you've otherwise arranged to be notified when the channel is
     /// no longer empty.
+    ///
+    /// This function will panic if called after `try_next` or `poll_next` has
+    /// returned None.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         match self.next_message() {
             Poll::Ready(msg) => {
@@ -761,8 +766,9 @@ impl<T> Receiver<T> {
     }
 
     fn next_message(&mut self) -> Poll<Option<T>> {
+        let inner = self.inner.as_mut().expect("Receiver::next_message called after `None`");
         // Pop off a message
-        match unsafe { self.inner.message_queue.pop_spin() } {
+        match unsafe { inner.message_queue.pop_spin() } {
             Some(msg) => {
                 // If there are any parked task handles in the parked queue,
                 // pop one and unpark it.
@@ -774,7 +780,7 @@ impl<T> Receiver<T> {
                 Poll::Ready(Some(msg))
             }
             None => {
-                let state = decode_state(self.inner.state.load(SeqCst));
+                let state = decode_state(inner.state.load(SeqCst));
                 if state.is_open || state.num_messages != 0 {
                     // If queue is open, we need to return Pending
                     // to be woken up when new messages arrive.
@@ -787,6 +793,7 @@ impl<T> Receiver<T> {
                 } else {
                     // If closed flag is set AND there are no pending messages
                     // it means end of stream
+                    self.inner = None;
                     Poll::Ready(None)
                 }
             }
@@ -795,21 +802,31 @@ impl<T> Receiver<T> {
 
     // Unpark a single task handle if there is one pending in the parked queue
     fn unpark_one(&mut self) {
-        if let Some(task) = unsafe { self.inner.parked_queue.pop_spin() } {
-            task.lock().unwrap().notify();
+        if let Some(inner) = &mut self.inner {
+            if let Some(task) = unsafe { inner.parked_queue.pop_spin() } {
+                task.lock().unwrap().notify();
+            }
         }
     }
 
     fn dec_num_messages(&self) {
-        // OPEN_MASK is highest bit, so it's unaffected by subtraction
-        // unless there's underflow, and we know there's no underflow
-        // because number of messages at this point is always > 0.
-        self.inner.state.fetch_sub(1, SeqCst);
+        if let Some(inner) = &self.inner {
+            // OPEN_MASK is highest bit, so it's unaffected by subtraction
+            // unless there's underflow, and we know there's no underflow
+            // because number of messages at this point is always > 0.
+            inner.state.fetch_sub(1, SeqCst);
+        }
     }
 }
 
 // The receiver does not ever take a Pin to the inner T
 impl<T> Unpin for Receiver<T> {}
+
+impl<T> FusedStream for Receiver<T> {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_none()
+    }
+}
 
 impl<T> Stream for Receiver<T> {
     type Item = T;
@@ -820,10 +837,15 @@ impl<T> Stream for Receiver<T> {
     ) -> Poll<Option<T>> {
             // Try to read a message off of the message queue.
         match self.next_message() {
-            Poll::Ready(msg) => Poll::Ready(msg),
+            Poll::Ready(msg) => {
+                if msg.is_none() {
+                    self.inner = None;
+                }
+                Poll::Ready(msg)
+            },
             Poll::Pending => {
                 // There are no messages to read, in this case, park.
-                self.inner.recv_task.register(lw);
+                self.inner.as_ref().unwrap().recv_task.register(lw);
                 // Check queue again after parking to prevent race condition:
                 // a message could be added to the queue after previous `next_message`
                 // before `register` call.
@@ -837,8 +859,10 @@ impl<T> Drop for Receiver<T> {
     fn drop(&mut self) {
         // Drain the channel of all pending messages
         self.close();
-        while let Poll::Ready(Some(..)) = self.next_message() {
-            // ...
+        if self.inner.is_some() {
+            while let Poll::Ready(Some(..)) = self.next_message() {
+                // ...
+            }
         }
     }
 }
@@ -857,8 +881,17 @@ impl<T> UnboundedReceiver<T> {
     /// It is not recommended to call this function from inside of a future,
     /// only when you've otherwise arranged to be notified when the channel is
     /// no longer empty.
+    ///
+    /// This function will panic if called after `try_next` or `poll_next` has
+    /// returned None.
     pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
         self.0.try_next()
+    }
+}
+
+impl<T> FusedStream for UnboundedReceiver<T> {
+    fn is_terminated(&self) -> bool {
+        self.0.is_terminated()
     }
 }
 
