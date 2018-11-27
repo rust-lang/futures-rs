@@ -4,8 +4,10 @@ use core::ops::DerefMut;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-mod stream_obj;
-pub use self::stream_obj::{StreamObj,LocalStreamObj,UnsafeStreamObj};
+#[cfg(feature = "alloc")]
+/// An owned dynamically typed [`Stream`] for use in cases where you can't
+/// statically type your result or need to add some indirection.
+pub type BoxStream<'a, T> = Pin<alloc::boxed::Box<dyn Stream<Item = T> + Send + 'a>>;
 
 /// A stream of values produced asynchronously.
 ///

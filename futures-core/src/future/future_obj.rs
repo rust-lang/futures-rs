@@ -9,9 +9,9 @@ use core::{
 /// A custom trait object for polling futures, roughly akin to
 /// `Box<dyn Future<Output = T> + 'a>`.
 ///
-/// This custom trait object was introduced for two reasons:
-/// - Currently it is not possible to take `dyn Trait` by value and
-///   `Box<dyn Trait>` is not available in no_std contexts.
+/// This custom trait object was introduced as currently it is not possible to
+/// take `dyn Trait` by value and `Box<dyn Trait>` is not available in no_std
+/// contexts.
 pub struct LocalFutureObj<'a, T> {
     ptr: *mut (),
     poll_fn: unsafe fn(*mut (), &mut Context<'_>) -> Poll<T>,
@@ -79,14 +79,13 @@ impl<T> Drop for LocalFutureObj<'_, T> {
 /// A custom trait object for polling futures, roughly akin to
 /// `Box<dyn Future<Output = T> + Send + 'a>`.
 ///
-/// This custom trait object was introduced for two reasons:
-/// - Currently it is not possible to take `dyn Trait` by value and
-///   `Box<dyn Trait>` is not available in no_std contexts.
-/// - The `Future` trait is currently not object safe: The `Future::poll`
-///   method makes uses the arbitrary self types feature and traits in which
-///   this feature is used are currently not object safe due to current compiler
-///   limitations. (See tracking issue for arbitrary self types for more
-///   information #44874)
+/// This custom trait object was introduced as currently it is not possible to
+/// take `dyn Trait` by value and `Box<dyn Trait>` is not available in no_std
+/// contexts.
+///
+/// You should generally not need to use this type outside of `no_std` or when
+/// implementing `Spawn`, consider using [`BoxFuture`](crate::future::BoxFuture)
+/// instead.
 pub struct FutureObj<'a, T>(LocalFutureObj<'a, T>);
 
 impl<T> Unpin for FutureObj<'_, T> {}
