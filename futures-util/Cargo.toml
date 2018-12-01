@@ -17,7 +17,7 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "either/use_std", "rand", "slab"]
+std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "either/use_std", "rand", "slab"]
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
@@ -30,7 +30,9 @@ futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.10", d
 futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.10", default-features = false }
 futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.10", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.10", default-features = false}
+futures-select-macro-preview = { path = "../futures-select-macro", version = "0.3.0-alpha.10", default-features = false }
 either = { version = "1.4", default-features = false }
+proc-macro-hack = "0.5"
 rand = { version = "0.5.5", optional = true }
 slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
