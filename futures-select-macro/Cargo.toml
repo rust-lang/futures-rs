@@ -1,0 +1,25 @@
+[package]
+name = "futures-select-macro-preview"
+edition = "2018"
+version = "0.3.0-alpha.10"
+authors = ["Taylor Cramer <cramertj@google.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+homepage = "https://rust-lang-nursery.github.io/futures-rs"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures_select"
+description = """
+The `select!` macro for waiting on multiple different `Future`s at once and handling the first one to complete.
+"""
+
+[lib]
+name = "futures_select_macro"
+proc-macro = true
+
+[features]
+std = []
+
+[dependencies]
+proc-macro2 = "0.4"
+proc-macro-hack = "0.5"
+quote = "0.6"
+syn = { version = "0.15", features = ["full"] }

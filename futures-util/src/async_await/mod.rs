@@ -25,8 +25,8 @@ pub use self::pending::*;
 mod join;
 
 // Primary export is a macro
-#[macro_use]
-mod select;
+mod select_mod;
+pub use self::select_mod::*;
 
 #[doc(hidden)]
 #[inline(always)]
