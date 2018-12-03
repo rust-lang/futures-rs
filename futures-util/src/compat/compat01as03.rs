@@ -6,8 +6,7 @@ use futures_01::executor::{
 };
 use futures_01::{Async as Async01, Future as Future01, Stream as Stream01};
 use futures_core::{task as task03, Future as Future03, Stream as Stream03};
-use std::mem;
-use std::task::{LocalWaker, Waker};
+use std::task::LocalWaker;
 use std::pin::{Pin, Unpin};
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
