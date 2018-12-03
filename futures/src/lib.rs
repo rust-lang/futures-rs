@@ -199,7 +199,9 @@ pub mod future {
         // For FutureExt:
         CatchUnwind, Shared,
 
-        // ToDo: JoinAll, SelectAll, SelectOk, join_all, select_all, select_ok
+        join_all, JoinAll,
+
+        // ToDo: SelectAll, SelectOk, select_all, select_ok
     };
 
     pub use futures_util::try_future::{
