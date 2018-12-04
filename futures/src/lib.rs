@@ -399,6 +399,7 @@ pub mod inner_select {
     pub use futures_util::select;
 }
 
+#[cfg(feature = "std")]
 futures_util::document_select_macro! {
     #[macro_export]
     macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
