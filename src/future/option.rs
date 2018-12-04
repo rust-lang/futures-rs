@@ -13,6 +13,7 @@ impl<F, T, E> Future for Option<F> where F: Future<Item=T, Error=E> {
         }
     }
 
+    #[cfg(feature = "use_std")]
     fn wait(self) -> Result<Option<T>, E> {
         match self {
             None => Ok(None),

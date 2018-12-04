@@ -73,6 +73,7 @@ impl<T, E> Future for FutureResult<T, E> {
         self.inner.take().expect("cannot poll Result twice").map(Async::Ready)
     }
 
+    #[cfg(feature = "use_std")]
     fn wait(self) -> Result<T, E> {
         self.inner.expect("future has not been polled")
     }
