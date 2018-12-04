@@ -12,4 +12,11 @@ impl<F, T, E> Future for Option<F> where F: Future<Item=T, Error=E> {
             Some(ref mut x) => x.poll().map(|x| x.map(Some)),
         }
     }
+
+    fn wait(self) -> Result<Option<T>, E> {
+        match self {
+            None => Ok(None),
+            Some(x) => x.wait().map(Some),
+        }
+    }
 }
