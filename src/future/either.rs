@@ -36,4 +36,11 @@ impl<A, B> Future for Either<A, B>
             Either::B(ref mut b) => b.poll(),
         }
     }
+
+    fn wait(self) -> Result<A::Item, A::Error> {
+        match self {
+            Either::A(a) => a.wait(),
+            Either::B(b) => b.wait(),
+        }
+    }
 }
