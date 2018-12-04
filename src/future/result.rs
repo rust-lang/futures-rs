@@ -72,6 +72,10 @@ impl<T, E> Future for FutureResult<T, E> {
     fn poll(&mut self) -> Poll<T, E> {
         self.inner.take().expect("cannot poll Result twice").map(Async::Ready)
     }
+
+    fn wait(self) -> Result<T, E> {
+        self.inner.expect("future has not been polled")
+    }
 }
 
 impl<T, E> From<Result<T, E>> for FutureResult<T, E> {
