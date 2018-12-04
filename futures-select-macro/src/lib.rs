@@ -25,6 +25,7 @@ struct Select {
     normal_fut_handlers: Vec<(Pat, Expr)>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum CaseKind {
     Complete,
     Default,
