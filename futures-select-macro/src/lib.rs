@@ -79,11 +79,13 @@ impl Parse for Select {
             input.parse::<Token![=>]>()?;
             let expr = input.parse::<Expr>()?;
 
-            // Commas after the expression are only optional if it's a `Block`,
-            // otherwise they are required.
-            match &expr {
-                Expr::Block(_) => { input.parse::<Option<Token![,]>>()?; }
-                _ => { input.parse::<Token![,]>()?; }
+            // Commas after the expression are only optional if it's a `Block`
+            // or it is the last branch in the `match`.
+            let is_block = match expr { Expr::Block(_) => true, _ => false };
+            if is_block || input.is_empty() {
+                input.parse::<Option<Token![,]>>()?;
+            } else {
+                input.parse::<Token![,]>()?;
             }
 
             match case_kind {
@@ -116,43 +118,25 @@ fn declare_result_enum(
             .map(|num| Ident::new(&format!("_{}", num), span))
             .collect();
 
-    // `<_1, _2, ...>`
-    let enum_generics = variant_names.iter()
-        .map(|name| {
-            syn::GenericParam::Type(parse_quote!( #name ))
-        })
-        .collect();
+    let type_parameters = &variant_names;
+    let variants = &variant_names;
 
-    let unit_variant = |name| syn::Variant {
-        attrs: vec![],
-        ident: Ident::new(name, span),
-        fields: syn::Fields::Unit,
-        discriminant: None,
+    let complete_variant = if complete {
+        Some(quote!(Complete))
+    } else {
+        None
     };
 
-    // `_1(_1), _2(_2), ..., Complete`
-    let enum_variants = variant_names.iter()
-        .map(|name| parse_quote!( #name ( #name ) ))
-        .chain(if complete { Some(unit_variant("Complete")) } else { None })
-        .collect();
+    let enum_item = parse_quote! {
+        enum #result_ident<#(#type_parameters,)*> {
+            #(
+                #variants(#type_parameters),
+            )*
+            #complete_variant
+        }
+    };
 
-    (
-        variant_names,
-        syn::ItemEnum {
-            attrs: vec![],
-            vis: syn::Visibility::Inherited,
-            enum_token: syn::token::Enum::default(),
-            ident: result_ident,
-            generics: syn::Generics {
-                lt_token: None,
-                params: enum_generics,
-                gt_token: None,
-                where_clause: None,
-            },
-            brace_token: syn::token::Brace { span },
-            variants: enum_variants,
-        },
-    )
+    (variant_names, enum_item)
 }
 
 /// The `select!` macro.
@@ -185,9 +169,9 @@ pub fn select(input: TokenStream) -> TokenStream {
                 // This prevents creating redundant stack space
                 // for them.
                 syn::Expr::Path(path) => path,
-                x => {
+                _ => {
                     future_let_bindings.push(quote! {
-                        let mut #variant_name = #x;
+                        let mut #variant_name = #expr;
                     });
                     parse_quote! { #variant_name }
                 }
