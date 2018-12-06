@@ -4,10 +4,11 @@ use futures_01::executor::{
     Notify as Notify01,
     NotifyHandle as NotifyHandle01,
 };
-use futures_01::{Async as Async01, Future as Future01, Stream as Stream01};
+use futures_01::{Async as Async01, Future as Future01, Stream as Stream01, Sink as Sink01, AsyncSink as AsyncSink01};
 use futures_core::{task as task03, Future as Future03, Stream as Stream03};
 use std::pin::Pin;
 use std::task::Waker;
+use futures_sink::Sink as Sink03;
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
 /// object to a futures 0.3-compatible version,
@@ -58,6 +59,18 @@ pub trait Stream01CompatExt: Stream01 {
 }
 impl<St: Stream01> Stream01CompatExt for St {}
 
+/// Extension trait for futures 0.1 [`Sink`](futures::sink::Sink)
+pub trait Sink01CompatExt: Sink01 {
+    /// Converts a futures 0.1
+    /// [`Sink<SinkItem = T, SinkError = E>`](futures::sink::Sink)
+    /// into a futures 0.3
+    /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::sink::Sink).
+    fn compat(self) -> Compat01As03Sink<Self> where Self: Sized {
+        Compat01As03Sink::new(self)
+    }
+}
+impl<Si: Sink01> Sink01CompatExt for Si {}
+
 fn poll_01_to_03<T, E>(x: Result<Async01<T>, E>)
     -> task03::Poll<Result<T, E>>
 {
@@ -92,6 +105,83 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
             Ok(Async01::NotReady) => task03::Poll::Pending,
             Err(e) => task03::Poll::Ready(Some(Err(e))),
         }
+    }
+}
+
+/// Converts a futures 0.1 Sink object to a futures 0.3-compatible version
+#[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
+pub struct Compat01As03Sink<S: Sink01> {
+    pub(crate) inner: Spawn01<S>,
+    pub(crate) buffer: Option<S::SinkItem>,
+}
+
+impl<S: Sink01> Unpin for Compat01As03Sink<S> {}
+
+impl<S: Sink01> Compat01As03Sink<S> {
+    /// Wraps a futures 0.1 Sink object in a futures 0.3-compatible wrapper.
+    pub fn new(sink: S) -> Compat01As03Sink<S> {
+        Compat01As03Sink {
+            inner: spawn01(sink),
+            buffer: None,
+        }
+    }
+
+    fn in_notify<R>(&mut self, lw: &LocalWaker, f: impl FnOnce(&mut S) -> R) -> R {
+        let notify = &WakerToHandle(lw.as_waker());
+        self.inner.poll_fn_notify(notify, 0, f)
+    }
+}
+
+impl<S: Sink01> Sink03 for Compat01As03Sink<S> {
+    type SinkItem = S::SinkItem;
+    type SinkError = S::SinkError;
+
+    fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        self.buffer = Some(item);
+        Ok(())
+    }
+
+    fn poll_ready(mut self: Pin<&mut Self>, lw: &LocalWaker) -> task03::Poll<Result<(), Self::SinkError>>{
+        match self.buffer.take() {
+            Some(item) => match self.in_notify(lw, |f| f.start_send(item)) {
+                Ok(AsyncSink01::Ready) => task03::Poll::Ready(Ok(())),
+                Ok(AsyncSink01::NotReady(i)) => {
+                    self.buffer = Some(i);
+                    task03::Poll::Pending
+                }
+                Err(e) => task03::Poll::Ready(Err(e)),
+            },
+            None => task03::Poll::Ready(Ok(()))
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, lw: &LocalWaker) -> task03::Poll<Result<(), Self::SinkError>> {
+        let item = self.buffer.take();
+        match self.in_notify(lw, |f| {
+            match item {
+                Some(i) =>  match f.start_send(i) {
+                    Ok(AsyncSink01::Ready) => f.poll_complete().map(|i| (i, None)),
+                    Ok(AsyncSink01::NotReady(t)) => {
+                        Ok((Async01::NotReady, Some(t)))
+                    }
+                    Err(e) => Err(e),
+                }
+                None => Ok((Async01::NotReady, None))
+            }
+        }) {
+            Ok((Async01::Ready(_), _)) => task03::Poll::Ready(Ok(())),
+            Ok((Async01::NotReady, item)) => {
+                self.buffer = item;
+                task03::Poll::Pending
+            }
+            Err(e) => task03::Poll::Ready(Err(e)),
+        }
+    }
+
+     #[allow(unused_mut)]
+    fn poll_close(mut self: Pin<&mut Self>, lw: &LocalWaker) -> task03::Poll<Result<(), Self::SinkError>> {
+        self.poll_flush(lw)
     }
 }
 
