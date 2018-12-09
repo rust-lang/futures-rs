@@ -72,7 +72,7 @@ pub trait Sink01CompatExt: Sink01 {
     /// [`Sink<SinkItem = T, SinkError = E>`](futures::sink::Sink)
     /// into a futures 0.3
     /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::sink::Sink).
-    fn compat(self) -> Compat01As03Sink<Self, Self::SinkItem>
+    fn compat_sink(self) -> Compat01As03Sink<Self, Self::SinkItem>
     where
         Self: Sized,
     {
@@ -80,24 +80,6 @@ pub trait Sink01CompatExt: Sink01 {
     }
 }
 impl<Si: Sink01> Sink01CompatExt for Si {}
-
-/// Extension trait for futures 0.1 [`Stream`](futures::stream::Stream) and
-///  [`Sink`](futures::sink::Sink) combos
-pub trait StreamSink01CompatExt: Stream01 + Sink01 {
-    /// Converts a futures 0.1
-    /// [`Stream<Item = T, Error = E`](futures::stream::Stream) +
-    /// [`Sink<SinkItem = T, SinkError = E>`](futures::sink::Sink)
-    /// into a futures 0.3
-    /// [`Stream<Item = T, Error = E>`](futures_core::stream::Stream) +
-    /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::sink::Sink).
-    fn compat(self) -> Compat01As03Sink<Self, <Self as Sink01>::SinkItem>
-    where
-        Self: Sized,
-    {
-        Compat01As03Sink::new(self)
-    }
-}
-impl<S: Stream01 + Sink01> StreamSink01CompatExt for S {}
 
 fn poll_01_to_03<T, E>(x: Result<Async01<T>, E>) -> task03::Poll<Result<T, E>> {
     match x {
