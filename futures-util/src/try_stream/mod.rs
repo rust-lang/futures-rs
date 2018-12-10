@@ -57,6 +57,11 @@ pub use self::try_for_each_concurrent::TryForEachConcurrent;
 #[cfg(feature = "std")]
 use futures_core::future::Future;
 
+#[cfg(feature = "std")]
+mod into_async_read;
+#[cfg(feature = "std")]
+pub use self::into_async_read::IntoAsyncRead;
+
 impl<S: TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
@@ -572,8 +577,44 @@ pub trait TryStreamExt: TryStream {
     /// ```
     #[cfg(feature = "compat")]
     fn compat(self) -> Compat<Self>
-        where Self: Sized + Unpin,
+    where
+        Self: Sized + Unpin,
     {
         Compat::new(self)
+    }
+
+    /// Adapter that converts this stream into an [`AsyncRead`].
+    ///
+    /// Note that because `into_async_read` moves the stream, the [`Stream`] type must be
+    /// [`Unpin`]. If you want to use `into_async_read` with a [`!Unpin`](Unpin) stream, you'll
+    /// first have to pin the stream. This can be done by boxing the stream using [`Box::pinned`]
+    /// or pinning it to the stack using the `pin_mut!` macro from the `pin_utils` crate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::executor::block_on;
+    /// use futures::future::lazy;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    /// use futures::io::{AsyncRead, AsyncReadExt};
+    /// use std::io::Error;
+    ///
+    /// let stream = stream::iter(vec![Ok(vec![1, 2, 3, 4, 5])]);
+    /// let mut reader = stream.into_async_read();
+    /// let mut buf = Vec::new();
+    ///
+    /// assert!(await!(reader.read_to_end(&mut buf)).is_ok());
+    /// assert_eq!(buf, &[1, 2, 3, 4, 5]);
+    /// # })
+    /// ```
+    #[cfg(feature = "std")]
+    fn into_async_read(self) -> IntoAsyncRead<Self>
+    where
+        Self: Sized + TryStreamExt<Error = std::io::Error> + Unpin,
+        Self::Ok: AsRef<[u8]>,
+    {
+        IntoAsyncRead::new(self)
     }
 }
