@@ -1,5 +1,3 @@
-cargo-features = ["rename-dependency"]
-
 [package]
 name = "futures-util-preview"
 edition = "2018"
