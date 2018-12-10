@@ -4,8 +4,10 @@
 //! that return `Result`s, allowing for short-circuiting computations.
 
 use core::marker::Unpin;
+use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;
+use futures_core::task::{LocalWaker, Poll};
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
@@ -548,6 +550,17 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TryBufferUnordered::new(self, n)
+    }
+
+    /// A convenience method for calling [`TryStream::poll_next_unpin`] on [`Unpin`]
+    /// stream types.
+    fn try_poll_next_unpin(
+        &mut self,
+        lw: &LocalWaker
+    ) -> Poll<Option<Result<Self::Ok, Self::Error>>>
+    where Self: Unpin,
+    {
+        Pin::new(self).try_poll_next(lw)
     }
 
     /// Wraps a [`TryStream`] into a stream compatible with libraries using
