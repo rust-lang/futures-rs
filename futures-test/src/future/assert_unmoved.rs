@@ -1,7 +1,7 @@
 use futures_core::future::Future;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::marker::Pinned;
+use std::marker::PhantomPinned;
 use std::pin::Pin;
 use std::ptr;
 
@@ -13,7 +13,7 @@ use std::ptr;
 pub struct AssertUnmoved<Fut> {
     future: Fut,
     this_ptr: *const AssertUnmoved<Fut>,
-    _pinned: Pinned,
+    _pinned: PhantomPinned,
 }
 
 impl<Fut> AssertUnmoved<Fut> {
@@ -24,7 +24,7 @@ impl<Fut> AssertUnmoved<Fut> {
         Self {
             future,
             this_ptr: ptr::null(),
-            _pinned: Pinned,
+            _pinned: PhantomPinned,
         }
     }
 }
