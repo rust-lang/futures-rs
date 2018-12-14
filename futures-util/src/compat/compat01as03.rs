@@ -210,7 +210,7 @@ where
                 }
                 Err(e) => Err(e),
             },
-            None => Ok((Async01::NotReady, None)),
+            None => f.poll_complete().map(|i| (i, None)),
         }) {
             Ok((Async01::Ready(_), _)) => task03::Poll::Ready(Ok(())),
             Ok((Async01::NotReady, item)) => {
@@ -222,10 +222,47 @@ where
     }
 
     fn poll_close(
-        self: Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> task03::Poll<Result<(), Self::SinkError>> {
-        self.poll_flush(lw)
+        let item = self.buffer.take();
+        match self.in_notify(lw, |f| match item {
+            Some(i) => match f.start_send(i) {
+                Ok(AsyncSink01::Ready) => {
+                    match f.poll_complete() {
+                        Ok(Async01::Ready(_)) => {
+                            match <S as Sink01>::close(f) {
+                                Ok(i) => Ok((i, None)),
+                                Err(e) => Err(e)
+                            }
+                        },
+                        Ok(Async01::NotReady) => Ok((Async01::NotReady, None)),
+                        Err(e) => Err(e)
+                    }
+                },
+                Ok(AsyncSink01::NotReady(t)) => {
+                    Ok((Async01::NotReady, Some(t)))
+                }
+                Err(e) => Err(e),
+            },
+            None => match f.poll_complete() {
+                Ok(Async01::Ready(_)) => {
+                    match <S as Sink01>::close(f) {
+                        Ok(i) => Ok((i, None)),
+                        Err(e) => Err(e)
+                    }
+                },
+                Ok(Async01::NotReady) => Ok((Async01::NotReady, None)),
+                Err(e) => Err(e)
+            },
+        }) {
+            Ok((Async01::Ready(_), _)) => task03::Poll::Ready(Ok(())),
+            Ok((Async01::NotReady, item)) => {
+                self.buffer = item;
+                task03::Poll::Pending
+            }
+            Err(e) => task03::Poll::Ready(Err(e)),
+        }
     }
 }
 
