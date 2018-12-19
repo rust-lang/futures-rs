@@ -330,7 +330,7 @@ pub mod stream {
         BufferUnordered, Buffered, CatchUnwind, Chunks, Collect, SplitStream,
         SplitSink, ReuniteError,
 
-        // ToDo: select_all, SelectAll,
+        select_all, SelectAll,
     };
 
     pub use futures_util::try_stream::{

@@ -145,11 +145,10 @@ mod split;
 #[cfg(feature = "std")]
 pub use self::split::{SplitStream, SplitSink, ReuniteError};
 
-// ToDo
-// #[cfg(feature = "std")]
-// mod select_all;
-// #[cfg(feature = "std")]
-// pub use self::select_all::{select_all, SelectAll};
+#[cfg(feature = "std")]
+mod select_all;
+#[cfg(feature = "std")]
+pub use self::select_all::{select_all, SelectAll};
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
 
