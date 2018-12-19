@@ -2,11 +2,12 @@
 
 use std::fmt::{self, Debug};
 use std::pin::Pin;
+use std::marker::Unpin;
 
-use futures_core::{Poll, Stream};
-use futures_core::task;
+use futures_core::{Poll, Stream, FusedStream};
+use futures_core::task::LocalWaker;
 
-use stream::{StreamExt, StreamFuture, FuturesUnordered};
+use crate::stream::{StreamExt, StreamFuture, FuturesUnordered};
 
 /// An unbounded set of streams
 ///
@@ -31,11 +32,11 @@ impl<St: Debug> Debug for SelectAll<St> {
     }
 }
 
-impl<St: Stream> SelectAll<St> {
+impl<St: Stream + Unpin> SelectAll<St> {
     /// Constructs a new, empty `SelectAll`
     ///
     /// The returned `SelectAll` does not contain any streams and, in this
-    /// state, `SelectAll::poll` will return `Ok(Async::Ready(None))`.
+    /// state, `SelectAll::poll` will return `Poll::Ready(None)`.
     pub fn new() -> SelectAll<St> {
         SelectAll { inner: FuturesUnordered::new() }
     }
@@ -58,27 +59,39 @@ impl<St: Stream> SelectAll<St> {
     /// function will not call `poll` on the submitted stream. The caller must
     /// ensure that `SelectAll::poll` is called in order to receive task
     /// notifications.
-    pub fn push(&mut self, stream: S) {
-        self.inner.push(stream.next());
+    pub fn push(&mut self, stream: St) {
+        self.inner.push(stream.into_future());
     }
 }
 
-impl<St: Stream> Stream for SelectAll<St> {
-    type Item = S::Item;
-    type Error = S::Error;
+impl<St: Stream + Unpin> Stream for SelectAll<St> {
+    type Item = St::Item;
 
     fn poll_next(
-        &mut self,
+        mut self: Pin<&mut Self>,
         lw: &LocalWaker,
-    ) -> Poll<Option<Self::Item>, Self::Error> {
-        match self.inner.poll_next(lw).map_err(|(err, _)| err)? {
-            Async::Pending => Ok(Async::Pending),
-            Async::Ready(Some((Some(item), remaining))) => {
+    ) -> Poll<Option<Self::Item>> {
+        match self.inner.poll_next_unpin(lw) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Some((Some(item), remaining))) => {
                 self.push(remaining);
-                Ok(Async::Ready(Some(item)))
+                Poll::Ready(Some(item))
             }
-            Async::Ready(_) => Ok(Async::Ready(None)),
+            Poll::Ready(Some((None, _))) => {
+                // FuturesUnordered thinks it isn't terminated
+                // because it yielded a Some. Here we poll it
+                // so it can realize it is terminated.
+                self.inner.poll_next_unpin(lw);
+                Poll::Ready(None)
+            }
+            Poll::Ready(_) => Poll::Ready(None),
         }
+    }
+}
+
+impl<St: Stream + Unpin> FusedStream for SelectAll<St> {
+    fn is_terminated(&self) -> bool {
+        self.inner.is_terminated()
     }
 }
 
@@ -93,7 +106,7 @@ impl<St: Stream> Stream for SelectAll<St> {
 /// futures into the set as they become available.
 pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
     where I: IntoIterator,
-          I::Item: Stream
+          I::Item: Stream + Unpin
 {
     let mut set = SelectAll::new();
 
