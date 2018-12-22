@@ -2,7 +2,7 @@
 
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{LocalWaker, Poll, Waker};
-use std::marker::{Pinned};
+use std::marker::{PhantomPinned};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -30,7 +30,7 @@ struct WaitHandleRegistration {
     terminated: bool,
     /// Prevents the WaitHandleRegistration from being moved.
     /// This is important, since the address of the WaitHandleRegistration must be stable once polled.
-    _pin: Pinned,
+    _pin: PhantomPinned,
 }
 
 impl WaitHandleRegistration {
@@ -41,7 +41,7 @@ impl WaitHandleRegistration {
             next: null_mut(),
             state: PollState::New,
             terminated: false,
-            _pin: Pinned,
+            _pin: PhantomPinned,
         }
     }
 }
