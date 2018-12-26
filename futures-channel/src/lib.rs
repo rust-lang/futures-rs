@@ -3,7 +3,7 @@
 //! This crate provides channels that can be used to communicate between
 //! asynchronous tasks.
 
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(arbitrary_self_types, futures_api)]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

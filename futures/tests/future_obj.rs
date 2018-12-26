@@ -1,4 +1,4 @@
-#![feature(pin, async_await, arbitrary_self_types, futures_api)]
+#![feature(async_await, arbitrary_self_types, futures_api)]
 
 use futures::future::{Future, FutureExt, FutureObj};
 use std::pin::Pin;

@@ -7,7 +7,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures_sink")]
 
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(arbitrary_self_types, futures_api)]
 
 use futures_core::task::{LocalWaker, Poll};
 use core::marker::Unpin;

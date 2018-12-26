@@ -1,4 +1,4 @@
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(arbitrary_self_types, futures_api)]
 
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures_test::future::FutureTestExt;

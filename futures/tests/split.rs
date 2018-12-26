@@ -1,4 +1,4 @@
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(arbitrary_self_types, futures_api)]
 
 use futures::executor::block_on;
 use futures::sink::{Sink, SinkExt};

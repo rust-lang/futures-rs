@@ -21,7 +21,7 @@
 //! streams and sinks, and then spawned as independent tasks that are run to
 //! completion, but *do not block* the thread running them.
 
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(arbitrary_self_types, futures_api)]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
