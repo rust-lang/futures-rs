@@ -160,7 +160,7 @@ pub trait StreamExt: Stream {
     /// Note that because `next` doesn't take ownership over the stream,
     /// the [`Stream`] type must be [`Unpin`]. If you want to use `next` with a
     /// [`!Unpin`](Unpin) stream, you'll first have to pin the stream. This can
-    /// be done by boxing the stream using [`Box::pinned`] or
+    /// be done by boxing the stream using [`Box::pin`] or
     /// pinning it to the stack using the `pin_mut!` macro from the `pin_utils`
     /// crate.
     ///
@@ -193,7 +193,7 @@ pub trait StreamExt: Stream {
     /// Note that because `into_future` moves the stream, the [`Stream`] type
     /// must be [`Unpin`]. If you want to use `into_future` with a
     /// [`!Unpin`](Unpin) stream, you'll first have to pin the stream. This can
-    /// be done by boxing the stream using [`Box::pinned`] or
+    /// be done by boxing the stream using [`Box::pin`] or
     /// pinning it to the stack using the `pin_mut!` macro from the `pin_utils`
     /// crate.
     ///
@@ -806,7 +806,7 @@ pub trait StreamExt: Stream {
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
-        Box::pinned(self)
+        Box::pin(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
