@@ -175,7 +175,7 @@ where
     F: Stream<Item = T> + 'a,
 {
     fn into_raw(self) -> *mut () {
-        unsafe { Pin::get_mut_unchecked(self) as *mut F as *mut () }
+        unsafe { Pin::get_unchecked_mut(self) as *mut F as *mut () }
     }
 
     unsafe fn poll_next(
@@ -215,7 +215,7 @@ mod if_std {
         where F: Stream<Item = T> + 'a
     {
         fn into_raw(mut self) -> *mut () {
-            let mut_ref: &mut F = unsafe { Pin::get_mut_unchecked(Pin::as_mut(&mut self)) };
+            let mut_ref: &mut F = unsafe { Pin::get_unchecked_mut(Pin::as_mut(&mut self)) };
             let ptr = mut_ref as *mut F as *mut ();
             mem::forget(self); // Don't drop the box
             ptr
