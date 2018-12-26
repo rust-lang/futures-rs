@@ -64,6 +64,12 @@ impl<St: Stream + Unpin> SelectAll<St> {
     }
 }
 
+impl<St: Stream + Unpin> Default for SelectAll<St> {
+    fn default() -> SelectAll<St> {
+        SelectAll::new()
+    }
+}
+
 impl<St: Stream + Unpin> Stream for SelectAll<St> {
     type Item = St::Item;
 
