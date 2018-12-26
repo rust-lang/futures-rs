@@ -806,7 +806,7 @@ pub trait StreamExt: Stream {
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
-        Box::pinned(self)
+        Box::pin(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
