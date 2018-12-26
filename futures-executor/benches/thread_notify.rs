@@ -1,4 +1,4 @@
-#![feature(test, futures_api, pin, arbitrary_self_types)]
+#![feature(test, futures_api, arbitrary_self_types)]
 
 extern crate test;
 use crate::test::Bencher;
