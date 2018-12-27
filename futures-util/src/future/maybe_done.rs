@@ -54,7 +54,7 @@ impl<Fut: Future> MaybeDone<Fut> {
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn output_mut<'a>(self: Pin<&'a mut Self>) -> Option<&'a mut Fut::Output> {
         unsafe {
-            let this = Pin::get_unchecked_mut(self);
+            let this = Pin::get_mut_unchecked(self);
             match this {
                 MaybeDone::Done(res) => Some(res),
                 _ => None,
@@ -67,7 +67,7 @@ impl<Fut: Future> MaybeDone<Fut> {
     #[inline]
     pub fn take_output(self: Pin<&mut Self>) -> Option<Fut::Output> {
         unsafe {
-            let this = Pin::get_unchecked_mut(self);
+            let this = Pin::get_mut_unchecked(self);
             match this {
                 MaybeDone::Done(_) => {},
                 MaybeDone::Future(_) | MaybeDone::Gone => return None,
@@ -95,7 +95,7 @@ impl<Fut: Future> Future for MaybeDone<Fut> {
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         let res = unsafe {
-            match Pin::get_unchecked_mut(self.as_mut()) {
+            match Pin::get_mut_unchecked(self.as_mut()) {
                 MaybeDone::Future(a) => {
                     if let Poll::Ready(res) = Pin::new_unchecked(a).poll(lw) {
                         res

@@ -61,7 +61,7 @@ impl<Fut> Stream for FlattenStream<Fut>
     fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
         loop {
             // safety: data is never moved via the resulting &mut reference
-            let stream = match &mut unsafe { Pin::get_unchecked_mut(self.as_mut()) }.state {
+            let stream = match &mut unsafe { Pin::get_mut_unchecked(self.as_mut()) }.state {
                 State::Future(f) => {
                     // safety: the future we're re-pinning here will never be moved;
                     // it will just be polled, then dropped in place
@@ -88,7 +88,7 @@ impl<Fut> Stream for FlattenStream<Fut>
             unsafe {
                 // safety: we use the &mut only for an assignment, which causes
                 // only an in-place drop
-                Pin::get_unchecked_mut(self.as_mut()).state = State::Stream(stream);
+                Pin::get_mut_unchecked(self.as_mut()).state = State::Stream(stream);
             }
         }
     }
