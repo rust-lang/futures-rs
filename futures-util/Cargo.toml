@@ -36,8 +36,7 @@ slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-executor = { version = "0.1.2", optional = true }
 tokio-io = { version = "0.1.9", optional = true }
-# FIXME(taiki-e): When a new version of pin-utils is released, fix this line.
-pin-utils = { version = "0.1.0-alpha.3", git = "https://github.com/taiki-e/pin-utils", branch = "update-pin" }
+pin-utils = "0.1.0-alpha.3"
 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "0.3.0-alpha.10" }
