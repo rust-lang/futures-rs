@@ -71,7 +71,7 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
 
 impl<P> Stream for Pin<P>
 where
-    P: ops::DerefMut + Unpin,
+    P: ops::DerefMut,
     P::Target: Stream,
 {
     type Item = <P::Target as Stream>::Item;
