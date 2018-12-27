@@ -33,17 +33,17 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
-        if *self.caught_unwind() {
+        if *self.as_mut().caught_unwind() {
             Poll::Ready(None)
         } else {
             let res = catch_unwind(AssertUnwindSafe(|| {
-                self.stream().poll_next(lw)
+                self.as_mut().stream().poll_next(lw)
             }));
 
             match res {
                 Ok(poll) => poll.map(|opt| opt.map(Ok)),
                 Err(e) => {
-                    *self.caught_unwind() = true;
+                    *self.as_mut().caught_unwind() = true;
                     Poll::Ready(Some(Err(e)))
                 },
             }

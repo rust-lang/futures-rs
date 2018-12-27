@@ -173,7 +173,7 @@ where
     F: Future<Output = T> + 'a
 {
     fn into_raw(mut self) -> *mut () {
-        let mut_ref: &mut F = unsafe { Pin::get_mut_unchecked(Pin::as_mut(&mut self)) };
+        let mut_ref: &mut F = unsafe { Pin::get_unchecked_mut(Pin::as_mut(&mut self)) };
         mut_ref as *mut F as *mut ()
     }
 
@@ -213,7 +213,7 @@ mod if_std {
         F: Future<Output = T> + 'a
     {
         fn into_raw(mut self) -> *mut () {
-            let mut_ref: &mut F = unsafe { Pin::get_mut_unchecked(Pin::as_mut(&mut self)) };
+            let mut_ref: &mut F = unsafe { Pin::get_unchecked_mut(Pin::as_mut(&mut self)) };
             let ptr = mut_ref as *mut F as *mut ();
             mem::forget(self); // Don't drop the box
             ptr

@@ -44,9 +44,9 @@ where
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         loop {
-            match ready!(self.stream().try_poll_next(lw)) {
+            match ready!(self.as_mut().stream().try_poll_next(lw)) {
                 Some(Ok(x)) => {
-                    let accum = self.accum();
+                    let accum = self.as_mut().accum();
                     if let Some(a) = accum {
                         a.extend(x)
                     } else {
@@ -55,7 +55,7 @@ where
                 },
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => {
-                    return Poll::Ready(Ok(self.accum().take().unwrap_or_default()))
+                    return Poll::Ready(Ok(self.as_mut().accum().take().unwrap_or_default()))
                 }
             }
         }

@@ -28,7 +28,7 @@ impl<St: TryStream, C: Default> TryCollect<St, C> {
         }
     }
 
-    fn finish(mut self: Pin<&mut Self>) -> C {
+    fn finish(self: Pin<&mut Self>) -> C {
         mem::replace(self.items(), Default::default())
     }
 }
@@ -51,10 +51,10 @@ impl<St, C> Future for TryCollect<St, C>
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         loop {
-            match ready!(self.stream().try_poll_next(lw)) {
-                Some(Ok(x)) => self.items().extend(Some(x)),
+            match ready!(self.as_mut().stream().try_poll_next(lw)) {
+                Some(Ok(x)) => self.as_mut().items().extend(Some(x)),
                 Some(Err(e)) => return Poll::Ready(Err(e)),
-                None => return Poll::Ready(Ok(self.finish())),
+                None => return Poll::Ready(Ok(self.as_mut().finish())),
             }
         }
     }

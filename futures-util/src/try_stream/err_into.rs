@@ -36,7 +36,7 @@ where
     type Item = Result<St::Ok, E>;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         self.stream().try_poll_next(lw)

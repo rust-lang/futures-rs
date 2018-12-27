@@ -64,14 +64,14 @@ impl<St: Stream> Stream for Skip<St> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
-        while *self.remaining() > 0 {
-            match ready!(self.stream().poll_next(lw)) {
-                Some(_) => *self.remaining() -= 1,
+        while self.remaining > 0 {
+            match ready!(self.as_mut().stream().poll_next(lw)) {
+                Some(_) => *self.as_mut().remaining() -= 1,
                 None => return Poll::Ready(None),
             }
         }
 
-        self.stream().poll_next(lw)
+        self.as_mut().stream().poll_next(lw)
     }
 }
 

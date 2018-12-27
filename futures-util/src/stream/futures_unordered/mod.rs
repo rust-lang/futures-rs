@@ -402,7 +402,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // the internal allocation, appropriately accessing fields and
             // deallocating the task if need be.
             let res = {
-                let lw = bomb.task.as_ref().unwrap().local_waker();
+                let lw = Task::local_waker(bomb.task.as_ref().unwrap());
 
                 // Safety: We won't move the future ever again
                 let future = unsafe { Pin::new_unchecked(future) };

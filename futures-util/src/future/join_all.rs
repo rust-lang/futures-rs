@@ -4,8 +4,9 @@
 use std::fmt;
 use std::future::Future;
 use std::iter::FromIterator;
+use std::marker::Unpin;
 use std::mem;
-use std::pin::{Pin, Unpin};
+use std::pin::Pin;
 use std::prelude::v1::*;
 use std::task::Poll;
 

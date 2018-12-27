@@ -56,15 +56,15 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
         loop {
-            if let Some(future) = self.future().as_pin_mut() {
+            if let Some(future) = self.as_mut().future().as_pin_mut() {
                 ready!(future.poll(lw));
             }
-            Pin::set(self.future(), None);
+            self.as_mut().future().as_mut().set(None);
 
-            match ready!(self.stream().poll_next(lw)) {
+            match ready!(self.as_mut().stream().poll_next(lw)) {
                 Some(e) => {
-                    let future = (self.f())(e);
-                    Pin::set(self.future(), Some(future));
+                    let future = (self.as_mut().f())(e);
+                    self.as_mut().future().set(Some(future));
                 }
                 None => {
                     return Poll::Ready(());

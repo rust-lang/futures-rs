@@ -46,12 +46,12 @@ where St1: Stream,
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
-        if let Some(first) = self.first().as_pin_mut() {
+        if let Some(first) = self.as_mut().first().as_pin_mut() {
             if let Some(item) = ready!(first.poll_next(lw)) {
                 return Poll::Ready(Some(item))
             }
         }
-        Pin::set(self.first(), None);
-        self.second().poll_next(lw)
+        self.as_mut().first().set(None);
+        self.as_mut().second().poll_next(lw)
     }
 }

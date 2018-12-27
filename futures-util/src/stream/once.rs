@@ -42,12 +42,12 @@ impl<Fut: Future> Stream for Once<Fut> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<Fut::Output>> {
-        let val = if let Some(f) = self.future().as_pin_mut() {
+        let val = if let Some(f) = self.as_mut().future().as_pin_mut() {
             ready!(f.poll(lw))
         } else {
             return Poll::Ready(None)
         };
-        Pin::set(self.future(), None);
+        self.future().set(None);
         Poll::Ready(Some(val))
     }
 }

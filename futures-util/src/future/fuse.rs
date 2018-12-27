@@ -39,7 +39,7 @@ impl<Fut: Future> Future for Fuse<Fut> {
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut::Output> {
         // safety: we use this &mut only for matching, not for movement
-        let v = match self.future().as_pin_mut() {
+        let v = match self.as_mut().future().as_pin_mut() {
             Some(fut) => {
                 // safety: this re-pinned future will never move before being dropped
                 match fut.poll(lw) {
@@ -50,7 +50,7 @@ impl<Fut: Future> Future for Fuse<Fut> {
             None => return Poll::Pending,
         };
 
-        Pin::set(self.future(), None);
+        Pin::set(self.as_mut().future(), None);
         Poll::Ready(v)
     }
 }

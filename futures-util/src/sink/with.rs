@@ -66,7 +66,7 @@ impl<Fut, T> State<Fut, T> {
         self: Pin<&'a mut Self>,
     ) -> State<Pin<&'a mut Fut>, Pin<&'a mut T>> {
         unsafe {
-            match Pin::get_mut_unchecked(self) {
+            match Pin::get_unchecked_mut(self) {
                 State::Empty =>
                     State::Empty,
                 State::Process(fut) =>
@@ -87,7 +87,7 @@ impl<S, U, Fut, F> Stream for With<S, U, Fut, F>
     type Item = S::Item;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(lw)
@@ -119,19 +119,19 @@ impl<Si, U, Fut, F, E> With<Si, U, Fut, F>
     }
 
     fn poll(
-        self: &mut Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), E>> {
-        let buffered = match self.state().as_pin_mut() {
+        let buffered = match self.as_mut().state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
             State::Process(fut) => Some(try_ready!(fut.poll(lw))),
             State::Buffered(_) => None,
         };
         if let Some(buffered) = buffered {
-            Pin::set(self.state(), State::Buffered(buffered));
+            self.as_mut().state().set(State::Buffered(buffered));
         }
-        if let State::Buffered(item) = unsafe { mem::replace(Pin::get_mut_unchecked(self.state()), State::Empty) } {
-            Poll::Ready(self.sink().start_send(item).map_err(Into::into))
+        if let State::Buffered(item) = unsafe { mem::replace(Pin::get_unchecked_mut(self.as_mut().state()), State::Empty) } {
+            Poll::Ready(self.as_mut().sink().start_send(item).map_err(Into::into))
         } else {
             unreachable!()
         }
@@ -148,7 +148,7 @@ impl<Si, U, Fut, F, E> Sink for With<Si, U, Fut, F>
     type SinkError = E;
 
     fn poll_ready(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.poll(lw)
@@ -158,8 +158,8 @@ impl<Si, U, Fut, F, E> Sink for With<Si, U, Fut, F>
         mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
-        let item = (self.f())(item);
-        Pin::set(self.state(), State::Process(item));
+        let item = (self.as_mut().f())(item);
+        self.as_mut().state().set(State::Process(item));
         Ok(())
     }
 
@@ -167,8 +167,8 @@ impl<Si, U, Fut, F, E> Sink for With<Si, U, Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.poll(lw));
-        try_ready!(self.sink().poll_flush(lw));
+        try_ready!(self.as_mut().poll(lw));
+        try_ready!(self.as_mut().sink().poll_flush(lw));
         Poll::Ready(Ok(()))
     }
 
@@ -176,8 +176,8 @@ impl<Si, U, Fut, F, E> Sink for With<Si, U, Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.poll(lw));
-        try_ready!(self.sink().poll_close(lw));
+        try_ready!(self.as_mut().poll(lw));
+        try_ready!(self.as_mut().sink().poll_close(lw));
         Poll::Ready(Ok(()))
     }
 }

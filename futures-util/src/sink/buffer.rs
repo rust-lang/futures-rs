@@ -40,16 +40,16 @@ impl<Si: Sink> Buffer<Si> {
     }
 
     fn try_empty_buffer(
-        self: &mut Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Result<(), Si::SinkError>> {
-        try_ready!(self.sink().poll_ready(lw));
-        while let Some(item) = self.buf().pop_front() {
-            if let Err(e) = self.sink().start_send(item) {
+        try_ready!(self.as_mut().sink().poll_ready(lw));
+        while let Some(item) = self.as_mut().buf().pop_front() {
+            if let Err(e) = self.as_mut().sink().start_send(item) {
                 return Poll::Ready(Err(e));
             }
             if !self.buf.is_empty() {
-                try_ready!(self.sink().poll_ready(lw));
+                try_ready!(self.as_mut().sink().poll_ready(lw));
             }
         }
         Poll::Ready(Ok(()))
@@ -60,7 +60,7 @@ impl<Si: Sink> Buffer<Si> {
 impl<S> Stream for Buffer<S> where S: Sink + Stream {
     type Item = S::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
+    fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<S::Item>> {
         self.sink().poll_next(lw)
     }
 }
@@ -73,15 +73,15 @@ impl<Si: Sink> Sink for Buffer<Si> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        if *self.capacity() == 0 {
-            return self.sink().poll_ready(lw);
+        if self.capacity == 0 {
+            return self.as_mut().sink().poll_ready(lw);
         }
 
-        if let Poll::Ready(Err(e)) = self.try_empty_buffer(lw) {
+        if let Poll::Ready(Err(e)) = self.as_mut().try_empty_buffer(lw) {
             return Poll::Ready(Err(e));
         }
 
-        if self.buf().len() >= *self.capacity() {
+        if self.buf.len() >= self.capacity {
             Poll::Pending
         } else {
             Poll::Ready(Ok(()))
@@ -92,10 +92,10 @@ impl<Si: Sink> Sink for Buffer<Si> {
         mut self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
-        if *self.capacity() == 0 {
-            self.sink().start_send(item)
+        if self.capacity == 0 {
+            self.as_mut().sink().start_send(item)
         } else {
-            self.buf().push_back(item);
+            self.as_mut().buf().push_back(item);
             Ok(())
         }
     }
@@ -104,17 +104,17 @@ impl<Si: Sink> Sink for Buffer<Si> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.try_empty_buffer(lw));
-        debug_assert!(self.buf().is_empty());
-        self.sink().poll_flush(lw)
+        try_ready!(self.as_mut().try_empty_buffer(lw));
+        debug_assert!(self.as_mut().buf().is_empty());
+        self.as_mut().sink().poll_flush(lw)
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.try_empty_buffer(lw));
-        debug_assert!(self.buf().is_empty());
-        self.sink().poll_close(lw)
+        try_ready!(self.as_mut().try_empty_buffer(lw));
+        debug_assert!(self.as_mut().buf().is_empty());
+        self.as_mut().sink().poll_close(lw)
     }
 }

@@ -83,13 +83,13 @@ impl<S: Stream> Stream for Fuse<S> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
-        if *self.done() {
+        if *self.as_mut().done() {
             return Poll::Ready(None);
         }
 
-        let item = ready!(self.stream().poll_next(lw));
+        let item = ready!(self.as_mut().stream().poll_next(lw));
         if item.is_none() {
-            *self.done() = true;
+            *self.as_mut().done() = true;
         }
         Poll::Ready(item)
     }

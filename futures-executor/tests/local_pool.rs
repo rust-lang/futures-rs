@@ -1,4 +1,4 @@
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(futures_api)]
 
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
@@ -42,7 +42,7 @@ fn run_until_single_future() {
 fn run_until_ignores_spawned() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
-    spawn.spawn_local_obj(Box::pinned(pending()).into()).unwrap();
+    spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
     assert_eq!(pool.run_until(lazy(|_| ())), ());
 }
 
@@ -51,7 +51,7 @@ fn run_until_executes_spawned() {
     let (tx, rx) = oneshot::channel();
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
-    spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
+    spawn.spawn_local_obj(Box::pin(lazy(move |_| {
         tx.send(()).unwrap();
         ()
     })).into()).unwrap();
@@ -67,8 +67,8 @@ fn run_executes_spawned() {
     let mut spawn = pool.spawner();
     let mut spawn2 = pool.spawner();
 
-    spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
-        spawn2.spawn_local_obj(Box::pinned(lazy(move |_| {
+    spawn.spawn_local_obj(Box::pin(lazy(move |_| {
+        spawn2.spawn_local_obj(Box::pin(lazy(move |_| {
             cnt2.set(cnt2.get() + 1);
             ()
         })).into()).unwrap();
@@ -92,7 +92,7 @@ fn run_spawn_many() {
 
     for _ in 0..ITER {
         let cnt = cnt.clone();
-        spawn.spawn_local_obj(Box::pinned(lazy(move |_| {
+        spawn.spawn_local_obj(Box::pin(lazy(move |_| {
             cnt.set(cnt.get() + 1);
             ()
         })).into()).unwrap();
@@ -109,7 +109,7 @@ fn nesting_run() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
 
-    spawn.spawn_obj(Box::pinned(lazy(|_| {
+    spawn.spawn_obj(Box::pin(lazy(|_| {
         let mut pool = LocalPool::new();
         pool.run();
     })).into()).unwrap();
@@ -155,12 +155,12 @@ fn tasks_are_scheduled_fairly() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
 
-    spawn.spawn_local_obj(Box::pinned(Spin {
+    spawn.spawn_local_obj(Box::pin(Spin {
         state: state.clone(),
         idx: 0,
     }).into()).unwrap();
 
-    spawn.spawn_local_obj(Box::pinned(Spin {
+    spawn.spawn_local_obj(Box::pin(Spin {
         state: state,
         idx: 1,
     }).into()).unwrap();

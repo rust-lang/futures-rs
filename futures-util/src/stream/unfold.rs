@@ -94,16 +94,16 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<It>> {
-        if let Some(state) = self.state().take() {
-            let fut = (self.f())(state);
-            Pin::set(self.fut(), Some(fut));
+        if let Some(state) = self.as_mut().state().take() {
+            let fut = (self.as_mut().f())(state);
+            Pin::set(self.as_mut().fut(), Some(fut));
         }
 
-        let step = ready!(self.fut().as_pin_mut().unwrap().poll(lw));
-        Pin::set(self.fut(), None);
+        let step = ready!(self.as_mut().fut().as_pin_mut().unwrap().poll(lw));
+        self.as_mut().fut().set(None);
 
         if let Some((item, next_state)) = step {
-            *self.state() = Some(next_state);
+            *self.as_mut().state() = Some(next_state);
             return Poll::Ready(Some(item))
         } else {
             return Poll::Ready(None)

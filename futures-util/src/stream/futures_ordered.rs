@@ -51,7 +51,7 @@ impl<T> Future for OrderWrapper<T>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        self.data().poll(lw)
+        self.as_mut().data().as_mut().poll(lw)
             .map(|output| OrderWrapper { data: output, index: self.index })
     }
 }

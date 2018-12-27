@@ -57,13 +57,13 @@ where St: Stream,
         mut self: Pin<&mut Self>, lw: &LocalWaker
     ) -> Poll<Self::Output> {
         loop {
-            match self.stream().poll_next(lw) {
+            match self.as_mut().stream().poll_next(lw) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
-                    return Poll::Ready(self.accum().take().unwrap_or_default())
+                    return Poll::Ready(self.as_mut().accum().take().unwrap_or_default())
                 }
                 Poll::Ready(Some(e)) => {
-                    let accum = self.accum();
+                    let accum = self.as_mut().accum();
                     if let Some(a) = accum {
                         a.extend(e)
                     } else {

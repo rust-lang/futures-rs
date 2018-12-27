@@ -33,7 +33,7 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, futures_api, pin)]
+    /// #![feature(async_await, futures_api)]
     /// use futures::task::Poll;
     /// use futures::future::FutureExt;
     /// use futures_test::task;
@@ -60,7 +60,7 @@ pub trait FutureTestExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, futures_api, pin)]
+    /// #![feature(async_await, futures_api)]
     /// use futures::channel::oneshot;
     /// use futures::executor::block_on;
     /// use futures_test::future::FutureTestExt;

@@ -1,4 +1,4 @@
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(futures_api)]
 
 use futures::channel::oneshot;
 use futures::future::{self, Future, FutureExt, TryFutureExt};
@@ -56,7 +56,7 @@ impl<F, T> FutureData<F, T> {
 impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Output = F::Output;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<F::Output> {
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<F::Output> {
         self.future().poll(lw)
     }
 }

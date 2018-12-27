@@ -33,8 +33,8 @@ pub(super) struct Task<Fut> {
 }
 
 impl<Fut> Task<Fut> {
-    pub(super) fn wake(self: &Arc<Task<Fut>>) {
-        let inner = match self.ready_to_run_queue.upgrade() {
+    pub(super) fn wake(this: &Arc<Task<Fut>>) {
+        let inner = match this.ready_to_run_queue.upgrade() {
             Some(inner) => inner,
             None => return,
         };
@@ -51,16 +51,16 @@ impl<Fut> Task<Fut> {
         // implementation guarantees that if we set the `queued` flag that
         // there's a reference count held by the main `FuturesUnordered` queue
         // still.
-        let prev = self.queued.swap(true, SeqCst);
+        let prev = this.queued.swap(true, SeqCst);
         if !prev {
-            inner.enqueue(&**self);
+            inner.enqueue(&**this);
             inner.waker.wake();
         }
     }
 
     /// Returns a waker.
-    pub(super) fn waker(self: &Arc<Task<Fut>>) -> Waker {
-        let clone = self.clone();
+    pub(super) fn waker(this: &Arc<Task<Fut>>) -> Waker {
+        let clone = this.clone();
 
         // Safety: This is save because an `Arc` is a struct which contains
         // a single field that is a pointer.
@@ -83,11 +83,11 @@ impl<Fut> Task<Fut> {
     }
 
     /// Returns a local waker for this task without cloning the Arc.
-    pub(super) fn local_waker<'a>(self: &'a Arc<Task<Fut>>) -> LocalWakerRef<'a> {
+    pub(super) fn local_waker<'a>(this: &'a Arc<Task<Fut>>) -> LocalWakerRef<'a> {
         // Safety: This is safe because an `Arc` is a struct which contains
         // a single field that is a pointer.
         let ptr = unsafe {
-            *(self as *const _ as *const NonNull<ArcTaskUnowned<Fut>>)
+            *(this as *const _ as *const NonNull<ArcTaskUnowned<Fut>>)
         };
 
         let ptr = ptr as NonNull<dyn UnsafeWake>;
@@ -154,7 +154,7 @@ unsafe impl<Fut> UnsafeWake for ArcTask<Fut> {
         let me: *const ArcTask<Fut> = self;
         let task = &*(&me as *const *const ArcTask<Fut>
                           as *const Arc<Task<Fut>>);
-        task.waker()
+        Task::waker(task)
     }
 
     #[inline]
@@ -170,7 +170,7 @@ unsafe impl<Fut> UnsafeWake for ArcTask<Fut> {
         let me: *const ArcTask<Fut> = self;
         let task = &*(&me as *const *const ArcTask<Fut>
                           as *const Arc<Task<Fut>>);
-        task.wake();
+        Task::wake(task);
     }
 }
 
@@ -180,8 +180,9 @@ unsafe impl<Fut> UnsafeWake for ArcTaskUnowned<Fut> {
         let me: *const ArcTaskUnowned<Fut> = self;
         let task = &*(&me as *const *const ArcTaskUnowned<Fut>
                           as *const Arc<Task<Fut>>);
-        task.waker() // Clones the `Arc` and the returned waker owns the
-                     // clone. (`ArcTask<Fut>` not `ArcTaskUnowned<Fut>`)
+        // Clones the `Arc` and the returned waker owns the
+        // clone. (`ArcTask<Fut>` not `ArcTaskUnowned<Fut>`)
+        Task::waker(task)
     }
 
     #[inline]
@@ -192,6 +193,6 @@ unsafe impl<Fut> UnsafeWake for ArcTaskUnowned<Fut> {
         let me: *const ArcTaskUnowned<Fut> = self;
         let task = &*(&me as *const *const ArcTaskUnowned<Fut>
                           as *const Arc<Task<Fut>>);
-       task.wake();
+       Task::wake(task);
     }
 }

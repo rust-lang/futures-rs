@@ -1,8 +1,8 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(async_await, pin, arbitrary_self_types, futures_api, unsized_locals)]
-#![cfg_attr(feature = "std", feature(await_macro))]
+#![feature(futures_api)]
+#![cfg_attr(feature = "std", feature(async_await, await_macro))]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -35,28 +35,28 @@ pub mod core_reexport {
 macro_rules! delegate_sink {
     ($field:ident) => {
         fn poll_ready(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             lw: &$crate::core_reexport::task::LocalWaker,
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_ready(lw)
         }
 
         fn start_send(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             item: Self::SinkItem
         ) -> Result<(), Self::SinkError> {
             self.$field().start_send(item)
         }
 
         fn poll_flush(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             lw: &$crate::core_reexport::task::LocalWaker
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_flush(lw)
         }
 
         fn poll_close(
-            mut self: Pin<&mut Self>,
+            self: Pin<&mut Self>,
             lw: &$crate::core_reexport::task::LocalWaker
         ) -> $crate::core_reexport::task::Poll<Result<(), Self::SinkError>> {
             self.$field().poll_close(lw)

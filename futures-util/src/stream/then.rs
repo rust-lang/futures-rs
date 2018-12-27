@@ -53,17 +53,17 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<Fut::Output>> {
-        if self.future().as_pin_mut().is_none() {
-            let item = match ready!(self.stream().poll_next(lw)) {
+        if self.as_mut().future().as_pin_mut().is_none() {
+            let item = match ready!(self.as_mut().stream().poll_next(lw)) {
                 None => return Poll::Ready(None),
                 Some(e) => e,
             };
-            let fut = (self.f())(item);
-            Pin::set(self.future(), Some(fut));
+            let fut = (self.as_mut().f())(item);
+            self.as_mut().future().set(Some(fut));
         }
 
-        let e = ready!(self.future().as_pin_mut().unwrap().poll(lw));
-        Pin::set(self.future(), None);
+        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(lw));
+        self.as_mut().future().set(None);
         Poll::Ready(Some(e))
     }
 }

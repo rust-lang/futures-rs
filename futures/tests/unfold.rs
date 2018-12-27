@@ -1,4 +1,4 @@
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(futures_api)]
 
 use futures::future;
 use futures::stream;

@@ -53,7 +53,7 @@ impl<St1, St2> Stream for Select<St1, St2>
         lw: &LocalWaker
     ) -> Poll<Option<St1::Item>> {
         let Select { flag, stream1, stream2 } =
-            unsafe { Pin::get_mut_unchecked(self) };
+            unsafe { Pin::get_unchecked_mut(self) };
         let stream1 = unsafe { Pin::new_unchecked(stream1) };
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 

@@ -7,7 +7,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures_sink")]
 
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(futures_api)]
 
 use futures_core::task::{LocalWaker, Poll};
 use core::marker::Unpin;
@@ -174,7 +174,7 @@ mod if_std {
 
         fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
-            unsafe { Pin::get_mut_unchecked(self) }.push(item);
+            unsafe { Pin::get_unchecked_mut(self) }.push(item);
             Ok(())
         }
 
@@ -197,7 +197,7 @@ mod if_std {
 
         fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
-            unsafe { Pin::get_mut_unchecked(self) }.push_back(item);
+            unsafe { Pin::get_unchecked_mut(self) }.push_back(item);
             Ok(())
         }
 
@@ -248,7 +248,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn poll_ready(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match Pin::get_mut_unchecked(self) {
+            match Pin::get_unchecked_mut(self) {
                 Either::Left(x) => Pin::new_unchecked(x).poll_ready(lw),
                 Either::Right(x) => Pin::new_unchecked(x).poll_ready(lw),
             }
@@ -257,7 +257,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
         unsafe {
-            match Pin::get_mut_unchecked(self) {
+            match Pin::get_unchecked_mut(self) {
                 Either::Left(x) => Pin::new_unchecked(x).start_send(item),
                 Either::Right(x) => Pin::new_unchecked(x).start_send(item),
             }
@@ -266,7 +266,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn poll_flush(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match Pin::get_mut_unchecked(self) {
+            match Pin::get_unchecked_mut(self) {
                 Either::Left(x) => Pin::new_unchecked(x).poll_flush(lw),
                 Either::Right(x) => Pin::new_unchecked(x).poll_flush(lw),
             }
@@ -275,7 +275,7 @@ impl<A, B> Sink for Either<A, B>
 
     fn poll_close(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match Pin::get_mut_unchecked(self) {
+            match Pin::get_unchecked_mut(self) {
                 Either::Left(x) => Pin::new_unchecked(x).poll_close(lw),
                 Either::Right(x) => Pin::new_unchecked(x).poll_close(lw),
             }
