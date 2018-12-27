@@ -39,7 +39,7 @@ where
 {
     pub(super) fn new(stream: St) -> Self {
         IntoAsyncRead {
-            stream,
+            stream: stream,
             state: ReadState::PendingChunk,
         }
     }

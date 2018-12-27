@@ -114,5 +114,5 @@ pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
         set.push(stream);
     }
 
-    set
+    return set
 }
