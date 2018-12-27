@@ -1,6 +1,6 @@
 //! Core traits and types for asynchronous operations in Rust.
 
-#![feature(arbitrary_self_types, futures_api)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
