@@ -654,7 +654,7 @@ pub trait FutureExt: Future {
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
-        Box::pin(self)
+        Box::pinned(self)
     }
 
     /// Turns a `Future` into a `TryFuture` with `Error = ()`.
