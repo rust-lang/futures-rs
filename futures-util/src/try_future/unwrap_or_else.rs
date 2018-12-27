@@ -41,10 +41,10 @@ impl<Fut, F> Future for UnwrapOrElse<Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        match self.future().try_poll(lw) {
+        match self.as_mut().future().try_poll(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
-                let op = self.f().take()
+                let op = self.as_mut().f().take()
                     .expect("UnwrapOrElse already returned `Poll::Ready` before");
                 Poll::Ready(result.unwrap_or_else(op))
             }

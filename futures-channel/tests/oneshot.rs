@@ -1,4 +1,4 @@
-#![feature(futures_api, arbitrary_self_types, pin)]
+#![feature(futures_api)]
 
 use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;

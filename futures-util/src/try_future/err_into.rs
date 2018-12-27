@@ -36,7 +36,7 @@ impl<Fut, E> Future for ErrInto<Fut, E>
     type Output = Result<Fut::Ok, E>;
 
     fn poll(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
         self.future().try_poll(lw)

@@ -62,7 +62,7 @@ impl<S, E> Stream for SinkErrInto<S, E>
     type Item = S::Item;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(lw)

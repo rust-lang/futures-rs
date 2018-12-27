@@ -66,11 +66,11 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
             let mut made_progress_this_iter = false;
 
             // Try and pull an item from the stream
-            let current_len = self.futures().len();
+            let current_len = self.futures.len();
             // Check if we've already created a number of futures greater than `limit`
-            if self.limit().map(|limit| limit.get() > current_len).unwrap_or(true) {
+            if self.limit.map(|limit| limit.get() > current_len).unwrap_or(true) {
                 let mut stream_completed = false;
-                let elem = if let Some(stream) = self.stream().as_pin_mut() {
+                let elem = if let Some(stream) = self.as_mut().stream().as_pin_mut() {
                     match stream.poll_next(lw) {
                         Poll::Ready(Some(elem)) => {
                             made_progress_this_iter = true;
@@ -86,18 +86,18 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
                     None
                 };
                 if stream_completed {
-                    Pin::set(self.stream(), None);
+                    self.as_mut().stream().set(None);
                 }
                 if let Some(elem) = elem {
-                    let next_future = (self.f())(elem);
-                    self.futures().push(next_future);
+                    let next_future = (self.as_mut().f())(elem);
+                    self.as_mut().futures().push(next_future);
                 }
             }
 
-            match self.futures().poll_next_unpin(lw) {
+            match self.as_mut().futures().poll_next_unpin(lw) {
                 Poll::Ready(Some(())) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
-                    if self.stream().is_none() {
+                    if self.as_mut().stream().is_none() {
                         return Poll::Ready(())
                     }
                 },

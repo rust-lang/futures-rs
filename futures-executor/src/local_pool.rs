@@ -124,7 +124,7 @@ impl LocalPool {
     /// the `LocalPool` by using its spawner handle:
     ///
     /// ```
-    /// #![feature(pin, arbitrary_self_types, futures_api)]
+    /// #![feature(futures_api)]
     /// use futures::executor::LocalPool;
     /// use futures::future::ready;
     ///

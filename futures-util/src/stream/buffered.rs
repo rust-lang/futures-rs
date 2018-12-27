@@ -109,14 +109,14 @@ where
         // Try to spawn off as many futures as possible by filling up
         // our in_progress_queue of futures.
         while self.in_progress_queue.len() < self.max {
-            match self.stream().poll_next(lw) {
-                Poll::Ready(Some(fut)) => self.in_progress_queue().push(fut),
+            match self.as_mut().stream().poll_next(lw) {
+                Poll::Ready(Some(fut)) => self.as_mut().in_progress_queue().push(fut),
                 Poll::Ready(None) | Poll::Pending => break,
             }
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        let res = Pin::new(self.in_progress_queue()).poll_next(lw);
+        let res = Pin::new(self.as_mut().in_progress_queue()).poll_next(lw);
         if let Some(val) = ready!(res) {
             return Poll::Ready(Some(val))
         }

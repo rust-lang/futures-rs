@@ -67,18 +67,18 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
         lw: &LocalWaker,
     ) -> Poll<Option<Result<T, St::Error>>> {
         loop {
-            if self.pending().as_pin_mut().is_none() {
-                let item = match ready!(self.stream().try_poll_next(lw)) {
+            if self.pending.is_none() {
+                let item = match ready!(self.as_mut().stream().try_poll_next(lw)) {
                     Some(Ok(x)) => x,
                     Some(Err(e)) => return Poll::Ready(Some(Err(e))),
                     None => return Poll::Ready(None),
                 };
-                let fut = (self.f())(item);
-                Pin::set(self.pending(), Some(fut));
+                let fut = (self.as_mut().f())(item);
+                self.as_mut().pending().set(Some(fut));
             }
 
-            let result = ready!(self.pending().as_pin_mut().unwrap().try_poll(lw));
-            Pin::set(self.pending(), None);
+            let result = ready!(self.as_mut().pending().as_pin_mut().unwrap().try_poll(lw));
+            self.as_mut().pending().set(None);
             match result {
                 Ok(Some(x)) => return Poll::Ready(Some(Ok(x))),
                 Err(e) => return Poll::Ready(Some(Err(e))),

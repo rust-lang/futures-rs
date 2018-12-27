@@ -73,26 +73,26 @@ macro_rules! generate {
                 mut self: Pin<&mut Self>, lw: &LocalWaker
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
-                if self.Fut1().poll(lw).is_pending() {
+                if self.as_mut().Fut1().poll(lw).is_pending() {
                     all_done = false;
-                } else if self.Fut1().output_mut().unwrap().is_err() {
+                } else if self.as_mut().Fut1().output_mut().unwrap().is_err() {
                     return Poll::Ready(Err(
-                        self.Fut1().take_output().unwrap().err().unwrap()));
+                        self.as_mut().Fut1().take_output().unwrap().err().unwrap()));
                 }
                 $(
-                    if self.$Fut().poll(lw).is_pending() {
+                    if self.as_mut().$Fut().poll(lw).is_pending() {
                         all_done = false;
-                    } else if self.$Fut().output_mut().unwrap().is_err() {
+                    } else if self.as_mut().$Fut().output_mut().unwrap().is_err() {
                         return Poll::Ready(Err(
-                            self.$Fut().take_output().unwrap().err().unwrap()));
+                            self.as_mut().$Fut().take_output().unwrap().err().unwrap()));
                     }
                 )*
 
                 if all_done {
                     Poll::Ready(Ok((
-                        self.Fut1().take_output().unwrap().ok().unwrap(),
+                        self.as_mut().Fut1().take_output().unwrap().ok().unwrap(),
                         $(
-                            self.$Fut().take_output().unwrap().ok().unwrap()
+                            self.as_mut().$Fut().take_output().unwrap().ok().unwrap()
                         ),*
                     )))
                 } else {

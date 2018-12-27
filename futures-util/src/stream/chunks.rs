@@ -35,8 +35,8 @@ impl<St: Stream> Chunks<St> where St: Stream {
     }
 
     fn take(mut self: Pin<&mut Self>) -> Vec<St::Item> {
-        let cap = self.items().capacity();
-        mem::replace(self.items(), Vec::with_capacity(cap))
+        let cap = self.items.capacity();
+        mem::replace(self.as_mut().items(), Vec::with_capacity(cap))
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -72,24 +72,24 @@ impl<St: Stream> Stream for Chunks<St> {
     ) -> Poll<Option<Self::Item>> {
         let cap = self.items.capacity();
         loop {
-            match ready!(self.stream().poll_next(lw)) {
+            match ready!(self.as_mut().stream().poll_next(lw)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.
                 Some(item) => {
-                    self.items().push(item);
-                    if self.items().len() >= cap {
-                        return Poll::Ready(Some(self.take()))
+                    self.as_mut().items().push(item);
+                    if self.items.len() >= cap {
+                        return Poll::Ready(Some(self.as_mut().take()))
                     }
                 }
 
                 // Since the underlying stream ran out of values, return what we
                 // have buffered, if we have anything.
                 None => {
-                    let last = if self.items().is_empty() {
+                    let last = if self.items.is_empty() {
                         None
                     } else {
-                        let full_buf = mem::replace(self.items(), Vec::new());
+                        let full_buf = mem::replace(self.as_mut().items(), Vec::new());
                         Some(full_buf)
                     };
 

@@ -55,7 +55,7 @@ impl<Fut> Future for Flatten<Fut>
 {
     type Output = <Fut::Output as Future>::Output;
 
-    fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         self.state().poll(lw, |a, ()| a)
     }
 }

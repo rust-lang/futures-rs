@@ -35,10 +35,10 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        if *self.polled_before() {
-            self.future().poll(lw)
+        if self.polled_before {
+            self.as_mut().future().poll(lw)
         } else {
-            *self.polled_before() = true;
+            *self.as_mut().polled_before() = true;
             lw.wake();
             Poll::Pending
         }

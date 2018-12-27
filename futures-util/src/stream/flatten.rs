@@ -74,17 +74,17 @@ impl<St> Stream for Flatten<St>
         lw: &LocalWaker,
     ) -> Poll<Option<Self::Item>> {
         loop {
-            if self.next().as_pin_mut().is_none() {
-                match ready!(self.stream().poll_next(lw)) {
-                    Some(e) => Pin::set(self.next(), Some(e)),
+            if self.as_mut().next().as_pin_mut().is_none() {
+                match ready!(self.as_mut().stream().poll_next(lw)) {
+                    Some(e) => self.as_mut().next().set(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
-            let item = ready!(self.next().as_pin_mut().unwrap().poll_next(lw));
+            let item = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(lw));
             if item.is_some() {
                 return Poll::Ready(item);
             } else {
-                Pin::set(self.next(), None);
+                self.as_mut().next().set(None);
             }
         }
     }

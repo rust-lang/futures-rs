@@ -53,37 +53,37 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Self::Output> {
         loop {
             // we're currently processing a future to produce a new accum value
-            if self.accum().is_none() {
+            if self.as_mut().accum().is_none() {
                 let accum = match ready!(
-                    self.future().as_pin_mut()
+                    self.as_mut().future().as_pin_mut()
                        .expect("TryFold polled after completion")
                        .try_poll(lw)
                 ) {
                     Ok(accum) => accum,
                     Err(e) => {
                         // Indicate that the future can no longer be polled.
-                        self.future().set(None);
+                        self.as_mut().future().set(None);
                         return Poll::Ready(Err(e));
                     }
                 };
-                *self.accum() = Some(accum);
-                Pin::set(self.future(), None);
+                *self.as_mut().accum() = Some(accum);
+                self.as_mut().future().set(None);
             }
 
-            let item = match ready!(self.stream().try_poll_next(lw)) {
+            let item = match ready!(self.as_mut().stream().try_poll_next(lw)) {
                 Some(Ok(item)) => Some(item),
                 Some(Err(e)) => {
                     // Indicate that the future can no longer be polled.
-                    *self.accum() = None;
+                    *self.as_mut().accum() = None;
                     return Poll::Ready(Err(e));
                 }
                 None => None,
             };
-            let accum = self.accum().take().unwrap();
+            let accum = self.as_mut().accum().take().unwrap();
 
             if let Some(e) = item {
-                let future = (self.f())(accum, e);
-                Pin::set(self.future(), Some(future));
+                let future = (self.as_mut().f())(accum, e);
+                self.as_mut().future().set(Some(future));
             } else {
                 return Poll::Ready(Ok(accum))
             }

@@ -35,17 +35,19 @@ impl<St: Stream> Peekable<St> {
     /// This method polls the underlying stream and return either a reference
     /// to the next item if the stream is ready or passes through any errors.
     pub fn peek<'a>(
-        self: &'a mut Pin<&mut Self>,
+        mut self: Pin<&'a mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<&'a St::Item>> {
-        if self.peeked().is_some() {
-            return Poll::Ready(self.peeked().as_ref())
+        if self.peeked.is_some() {
+            let this: &Self = self.into_ref().get_ref();
+            return Poll::Ready(this.peeked.as_ref())
         }
-        match ready!(self.stream().poll_next(lw)) {
+        match ready!(self.as_mut().stream().poll_next(lw)) {
             None => Poll::Ready(None),
             Some(item) => {
-                *self.peeked() = Some(item);
-                Poll::Ready(self.peeked().as_ref())
+                *self.as_mut().peeked() = Some(item);
+                let this: &Self = self.into_ref().get_ref();
+                Poll::Ready(this.peeked.as_ref())
             }
         }
     }
@@ -64,10 +66,10 @@ impl<S: Stream> Stream for Peekable<S> {
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<Self::Item>> {
-        if let Some(item) = self.peeked().take() {
+        if let Some(item) = self.as_mut().peeked().take() {
             return Poll::Ready(Some(item))
         }
-        self.stream().poll_next(lw)
+        self.as_mut().stream().poll_next(lw)
     }
 }
 

@@ -40,6 +40,6 @@ impl<Fut1, Fut2, F> Future for Then<Fut1, Fut2, F>
     type Output = Fut2::Output;
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Fut2::Output> {
-        self.chain().poll(lw, |output, f| f(output))
+        self.as_mut().chain().poll(lw, |output, f| f(output))
     }
 }

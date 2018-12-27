@@ -1,4 +1,4 @@
-#![feature(pin, arbitrary_self_types, futures_api)]
+#![feature(futures_api)]
 
 use futures::executor::block_on;
 use futures::sink::{Sink, SinkExt};
@@ -21,7 +21,7 @@ impl<T: Stream, U> Stream for Join<T, U> {
     type Item = T::Item;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<T::Item>> {
         self.stream().poll_next(lw)
@@ -33,28 +33,28 @@ impl<T, U: Sink> Sink for Join<T, U> {
     type SinkError = U::SinkError;
 
     fn poll_ready(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_ready(lw)
     }
 
     fn start_send(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         self.sink().start_send(item)
     }
 
     fn poll_flush(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_flush(lw)
     }
 
     fn poll_close(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         self.sink().poll_close(lw)

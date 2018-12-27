@@ -76,28 +76,27 @@ impl<Fut: Future + Unpin> Unpin for Remote<Fut> {}
 impl<Fut: Future> Remote<Fut> {
     unsafe_pinned!(future: CatchUnwind<AssertUnwindSafe<Fut>>);
     unsafe_unpinned!(tx: Option<Sender<SendMsg<Fut>>>);
-    unsafe_unpinned!(keep_running: Arc<AtomicBool>);
 }
 
 impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<()> {
-        if let Poll::Ready(_) = self.tx().as_mut().unwrap().poll_cancel(lw) {
-            if !self.keep_running().load(Ordering::SeqCst) {
+        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_cancel(lw) {
+            if !self.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Poll::Ready(())
             }
         }
 
-        let output = match self.future().poll(lw) {
+        let output = match self.as_mut().future().poll(lw) {
             Poll::Ready(output) => output,
             Poll::Pending => return Poll::Pending,
         };
 
         // if the receiving end has gone away then that's ok, we just ignore the
         // send error here.
-        drop(self.tx().take().unwrap().send(output));
+        drop(self.as_mut().tx().take().unwrap().send(output));
         Poll::Ready(())
     }
 }

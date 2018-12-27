@@ -37,6 +37,7 @@ impl<St: Stream + Unpin> SelectAll<St> {
     ///
     /// The returned `SelectAll` does not contain any streams and, in this
     /// state, `SelectAll::poll` will return `Poll::Ready(None)`.
+    #[allow(clippy::new_without_default_derive)]
     pub fn new() -> SelectAll<St> {
         SelectAll { inner: FuturesUnordered::new() }
     }
@@ -114,5 +115,5 @@ pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
         set.push(stream);
     }
 
-    return set
+    set
 }

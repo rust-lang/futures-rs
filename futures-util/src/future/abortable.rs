@@ -129,7 +129,7 @@ impl<Fut> Future for Abortable<Fut> where Fut: Future {
         }
 
         // attempt to complete the future
-        if let Poll::Ready(x) = self.future().poll(lw) {
+        if let Poll::Ready(x) = self.as_mut().future().poll(lw) {
             return Poll::Ready(Ok(x))
         }
 

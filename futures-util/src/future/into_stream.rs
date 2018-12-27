@@ -26,7 +26,7 @@ impl<Fut: Future> Stream for IntoStream<Fut> {
     type Item = Fut::Output;
 
     fn poll_next(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<Self::Item>> {
-        let v = match self.future().as_pin_mut() {
+        let v = match self.as_mut().future().as_pin_mut() {
             Some(fut) => {
                 match fut.poll(lw) {
                     Poll::Pending => return Poll::Pending,
@@ -36,7 +36,7 @@ impl<Fut: Future> Stream for IntoStream<Fut> {
             None => return Poll::Ready(None),
         };
 
-        Pin::set(self.future(), None);
+        Pin::set(self.as_mut().future(), None);
         Poll::Ready(Some(v))
     }
 }

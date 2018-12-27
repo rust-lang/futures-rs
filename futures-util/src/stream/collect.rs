@@ -24,7 +24,7 @@ impl<St: Stream, C: Default> Collect<St, C> {
     unsafe_unpinned!(collection: C);
 
     fn finish(mut self: Pin<&mut Self>) -> C {
-        mem::replace(self.collection(), Default::default())
+        mem::replace(self.as_mut().collection(), Default::default())
     }
 
     pub(super) fn new(stream: St) -> Collect<St, C> {
@@ -49,9 +49,9 @@ where St: Stream,
 
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<C> {
         loop {
-            match ready!(self.stream().poll_next(lw)) {
-                Some(e) => self.collection().extend(Some(e)),
-                None => return Poll::Ready(self.finish()),
+            match ready!(self.as_mut().stream().poll_next(lw)) {
+                Some(e) => self.as_mut().collection().extend(Some(e)),
+                None => return Poll::Ready(self.as_mut().finish()),
             }
         }
     }

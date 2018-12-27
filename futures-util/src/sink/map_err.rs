@@ -47,7 +47,7 @@ impl<Si, F> SinkMapErr<Si, F> {
         self.sink
     }
 
-    fn take_f(mut self: Pin<&mut Self>) -> F {
+    fn take_f(self: Pin<&mut Self>) -> F {
         self.f().take().expect("polled MapErr after completion")
     }
 }
@@ -64,7 +64,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().poll_ready(lw).map_err(|e| self.take_f()(e))
+        self.as_mut().sink().poll_ready(lw).map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn start_send(
@@ -72,7 +72,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         item: Self::SinkItem,
     ) -> Result<(), Self::SinkError> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().start_send(item).map_err(|e| self.take_f()(e))
+        self.as_mut().sink().start_send(item).map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn poll_flush(
@@ -80,7 +80,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().poll_flush(lw).map_err(|e| self.take_f()(e))
+        self.as_mut().sink().poll_flush(lw).map_err(|e| self.as_mut().take_f()(e))
     }
 
     fn poll_close(
@@ -88,7 +88,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
         lw: &LocalWaker,
     ) -> Poll<Result<(), Self::SinkError>> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
-        self.sink().poll_close(lw).map_err(|e| self.take_f()(e))
+        self.as_mut().sink().poll_close(lw).map_err(|e| self.as_mut().take_f()(e))
     }
 }
 
@@ -96,7 +96,7 @@ impl<S: Stream, F> Stream for SinkMapErr<S, F> {
     type Item = S::Item;
 
     fn poll_next(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<S::Item>> {
         self.sink().poll_next(lw)

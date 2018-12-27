@@ -55,19 +55,19 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
     fn poll(mut self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<T> {
         loop {
             // we're currently processing a future to produce a new accum value
-            if self.accum().is_none() {
-                let accum = ready!(self.future().as_pin_mut().unwrap().poll(lw));
-                *self.accum() = Some(accum);
-                Pin::set(self.future(), None);
+            if self.as_mut().accum().is_none() {
+                let accum = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(lw));
+                *self.as_mut().accum() = Some(accum);
+                self.as_mut().future().set(None);
             }
 
-            let item = ready!(self.stream().poll_next(lw));
-            let accum = self.accum().take()
+            let item = ready!(self.as_mut().stream().poll_next(lw));
+            let accum = self.as_mut().accum().take()
                 .expect("Fold polled after completion");
 
             if let Some(e) = item {
-                let future = (self.f())(accum, e);
-                Pin::set(self.future(), Some(future));
+                let future = (self.as_mut().f())(accum, e);
+                self.as_mut().future().set(Some(future));
             } else {
                 return Poll::Ready(accum)
             }

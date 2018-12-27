@@ -60,13 +60,13 @@ impl<St> Stream for Take<St>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<St::Item>> {
-        if *self.remaining() == 0 {
+        if self.remaining == 0 {
             Poll::Ready(None)
         } else {
-            let next = ready!(self.stream().poll_next(lw));
+            let next = ready!(self.as_mut().stream().poll_next(lw));
             match next {
-                Some(_) => *self.remaining() -= 1,
-                None => *self.remaining() = 0,
+                Some(_) => *self.as_mut().remaining() -= 1,
+                None => *self.as_mut().remaining() = 0,
             }
             Poll::Ready(next)
         }

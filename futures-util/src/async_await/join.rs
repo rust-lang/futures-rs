@@ -11,7 +11,7 @@
 /// # Examples
 ///
 /// ```
-/// #![feature(pin, async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro, futures_api)]
 /// # futures::executor::block_on(async {
 /// use futures::{join, future};
 ///
@@ -63,7 +63,7 @@ macro_rules! join {
 /// `Ok` of a tuple of the values:
 ///
 /// ```
-/// #![feature(pin, async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro, futures_api)]
 /// # futures::executor::block_on(async {
 /// use futures::{try_join, future};
 ///
@@ -78,7 +78,7 @@ macro_rules! join {
 /// that error:
 ///
 /// ```
-/// #![feature(pin, async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro, futures_api)]
 /// # futures::executor::block_on(async {
 /// use futures::{try_join, future};
 ///

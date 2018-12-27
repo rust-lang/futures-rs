@@ -38,10 +38,10 @@ impl<Fut, F, E> Future for MapErr<Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Self::Output> {
-        match self.future().try_poll(lw) {
+        match self.as_mut().future().try_poll(lw) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
-                let f = self.f().take()
+                let f = self.as_mut().f().take()
                     .expect("MapErr must not be polled after it returned `Poll::Ready`");
                 Poll::Ready(result.map_err(f))
             }

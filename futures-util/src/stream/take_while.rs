@@ -77,28 +77,28 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Option<St::Item>> {
-        if *self.done_taking() {
+        if self.done_taking {
             return Poll::Ready(None);
         }
 
-        if self.pending_item().is_none() {
-            let item = match ready!(self.stream().poll_next(lw)) {
+        if self.pending_item.is_none() {
+            let item = match ready!(self.as_mut().stream().poll_next(lw)) {
                 Some(e) => e,
                 None => return Poll::Ready(None),
             };
-            let fut = (self.f())(&item);
-            Pin::set(self.pending_fut(), Some(fut));
-            *self.pending_item() = Some(item);
+            let fut = (self.as_mut().f())(&item);
+            self.as_mut().pending_fut().set(Some(fut));
+            *self.as_mut().pending_item() = Some(item);
         }
 
-        let take = ready!(self.pending_fut().as_pin_mut().unwrap().poll(lw));
-        Pin::set(self.pending_fut(), None);
-        let item = self.pending_item().take().unwrap();
+        let take = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(lw));
+        self.as_mut().pending_fut().set(None);
+        let item = self.as_mut().pending_item().take().unwrap();
 
         if take {
             Poll::Ready(Some(item))
         } else {
-            *self.done_taking() = true;
+            *self.as_mut().done_taking() = true;
             Poll::Ready(None)
         }
     }

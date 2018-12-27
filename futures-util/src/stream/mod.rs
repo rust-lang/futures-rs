@@ -167,7 +167,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(pin)]
     /// use futures::executor::block_on;
     /// use futures::stream::{self, StreamExt};
     ///
@@ -200,7 +199,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(pin)]
     /// use futures::executor::block_on;
     /// use futures::stream::{self, StreamExt};
     ///
@@ -806,7 +804,7 @@ pub trait StreamExt: Stream {
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
-        Box::pinned(self)
+        Box::pin(self)
     }
 
     /// An adaptor for creating a buffered list of pending futures.
@@ -1084,7 +1082,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api, pin)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::{future, select};
     /// use futures::stream::{StreamExt, FuturesUnordered};

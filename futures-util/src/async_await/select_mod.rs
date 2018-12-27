@@ -24,7 +24,7 @@ macro_rules! document_select_macro {
         /// # Examples
         ///
         /// ```
-        /// #![feature(pin, async_await, await_macro, futures_api)]
+        /// #![feature(async_await, await_macro, futures_api)]
         /// # futures::executor::block_on(async {
         /// use futures::future::{self, FutureExt};
         /// use futures::select;
@@ -40,7 +40,7 @@ macro_rules! document_select_macro {
         /// ```
         ///
         /// ```
-        /// #![feature(pin, async_await, await_macro, futures_api)]
+        /// #![feature(async_await, await_macro, futures_api)]
         /// # futures::executor::block_on(async {
         /// use futures::future::{self, FutureExt};
         /// use futures::stream::{self, StreamExt};
@@ -62,7 +62,7 @@ macro_rules! document_select_macro {
         /// the case where all futures have completed.
         ///
         /// ```
-        /// #![feature(pin, async_await, await_macro, futures_api)]
+        /// #![feature(async_await, await_macro, futures_api)]
         /// # futures::executor::block_on(async {
         /// use futures::future::{self, FutureExt};
         /// use futures::select;

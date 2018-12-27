@@ -10,7 +10,7 @@ pub fn assert_is_unpin_stream<S: Stream + Unpin>(_: &mut S) {}
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api, pin)]
+/// #![feature(async_await, futures_api)]
 /// use futures::stream;
 /// use futures_test::future::FutureTestExt;
 /// use futures_test::{
@@ -47,7 +47,7 @@ macro_rules! assert_stream_pending {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api, pin)]
+/// #![feature(async_await, futures_api)]
 /// use futures::stream;
 /// use futures_test::future::FutureTestExt;
 /// use futures_test::{
@@ -90,7 +90,7 @@ macro_rules! assert_stream_next {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api, pin)]
+/// #![feature(async_await, futures_api)]
 /// use futures::stream;
 /// use futures_test::future::FutureTestExt;
 /// use futures_test::{

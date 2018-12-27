@@ -53,24 +53,24 @@ impl<St1, St2> Stream for Zip<St1, St2>
         mut self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<Self::Item>> {
-        if self.queued1().is_none() {
-            match self.stream1().poll_next(lw) {
-                Poll::Ready(Some(item1)) => *self.queued1() = Some(item1),
+        if self.queued1.is_none() {
+            match self.as_mut().stream1().poll_next(lw) {
+                Poll::Ready(Some(item1)) => *self.as_mut().queued1() = Some(item1),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
-        if self.queued2().is_none() {
-            match self.stream2().poll_next(lw) {
-                Poll::Ready(Some(item2)) => *self.queued2() = Some(item2),
+        if self.as_mut().queued2().is_none() {
+            match self.as_mut().stream2().poll_next(lw) {
+                Poll::Ready(Some(item2)) => *self.as_mut().queued2() = Some(item2),
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
 
-        if self.queued1().is_some() && self.queued2().is_some() {
-            let pair = (self.queued1().take().unwrap(),
-                        self.queued2().take().unwrap());
+        if self.queued1.is_some() && self.queued2.is_some() {
+            let pair = (self.as_mut().queued1().take().unwrap(),
+                        self.as_mut().queued2().take().unwrap());
             Poll::Ready(Some(pair))
-        } else if self.stream1().is_done() || self.stream2().is_done() {
+        } else if self.stream1.is_done() || self.stream2.is_done() {
             Poll::Ready(None)
         } else {
             Poll::Pending

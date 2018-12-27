@@ -1,4 +1,4 @@
-#![feature(async_await, pin, arbitrary_self_types, futures_api)]
+#![feature(async_await, futures_api)]
 
 extern crate futures_util;
 extern crate futures;
@@ -7,7 +7,7 @@ use futures_util::future::*;
 use std::future::Future;
 use futures::executor::block_on;
 use std::fmt::Debug;
-use std::pin::Unpin;
+use std::marker::Unpin;
 
 fn assert_done<T: PartialEq + Debug, F: FnOnce() -> Box<Future<Output=T> + Unpin>>(actual_fut: F, expected: T) {
     let output = block_on(actual_fut());

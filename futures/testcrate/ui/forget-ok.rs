@@ -1,4 +1,4 @@
-#![feature(proc_macro, generators, pin)]
+#![feature(proc_macro, generators)]
 
 #[async]
 fn foo() -> Result<(), ()> {
