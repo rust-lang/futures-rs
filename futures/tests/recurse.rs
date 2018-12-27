@@ -1,4 +1,4 @@
-#![feature(arbitrary_self_types, futures_api)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 use futures::executor::block_on;
 use futures::future::{self, FutureExt, FutureObj};

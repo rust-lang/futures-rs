@@ -1,4 +1,4 @@
-#![feature(arbitrary_self_types, futures_api)]
+#![feature(pin, arbitrary_self_types, futures_api)]
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};

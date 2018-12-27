@@ -1,5 +1,5 @@
 #![recursion_limit="128"]
-#![feature(async_await, await_macro, arbitrary_self_types, futures_api)]
+#![feature(async_await, await_macro, pin, arbitrary_self_types, futures_api)]
 
 use futures::{Poll, pending, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};

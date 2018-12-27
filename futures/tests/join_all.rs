@@ -1,4 +1,4 @@
-#![feature(async_await, arbitrary_self_types, futures_api)]
+#![feature(async_await, pin, arbitrary_self_types, futures_api)]
 
 extern crate futures_util;
 extern crate futures;
