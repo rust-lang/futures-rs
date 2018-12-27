@@ -33,8 +33,8 @@ impl<Fut1, Fut2, Data> Chain<Fut1, Fut2, Data>
     {
         let mut f = Some(f);
 
-        // Safe to call `get_unchecked_mut` because we won't move the futures.
-        let this = unsafe { Pin::get_unchecked_mut(self) };
+        // Safe to call `get_mut_unchecked` because we won't move the futures.
+        let this = unsafe { Pin::get_mut_unchecked(self) };
 
         loop {
             let (output, data) = match this {

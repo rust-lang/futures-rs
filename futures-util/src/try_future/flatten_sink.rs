@@ -33,7 +33,7 @@ where
         self: Pin<&'a mut Self>
     ) -> State<Pin<&'a mut Fut>, Pin<&'a mut Si>> {
         unsafe {
-            match &mut Pin::get_unchecked_mut(self).0 {
+            match &mut Pin::get_mut_unchecked(self).0 {
                 Waiting(f) => Waiting(Pin::new_unchecked(f)),
                 Ready(s) => Ready(Pin::new_unchecked(s)),
                 Closed => Closed,

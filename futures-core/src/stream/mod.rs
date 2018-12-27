@@ -93,7 +93,7 @@ impl<A, B> Stream for Either<A, B>
 
     fn poll_next(self: Pin<&mut Self>, lw: &LocalWaker) -> Poll<Option<A::Item>> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match Pin::get_mut_unchecked(self) {
                 Either::Left(a) => Pin::new_unchecked(a).poll_next(lw),
                 Either::Right(b) => Pin::new_unchecked(b).poll_next(lw),
             }

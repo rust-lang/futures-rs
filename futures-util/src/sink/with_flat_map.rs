@@ -79,7 +79,7 @@ where
         lw: &LocalWaker,
     ) -> Poll<Result<(), Si::SinkError>> {
         let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { Pin::get_unchecked_mut(self) };
+            unsafe { Pin::get_mut_unchecked(self) };
         let mut sink = unsafe { Pin::new_unchecked(sink) };
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 
