@@ -1,3 +1,12 @@
+# 0.3.0-alpha.11 - 2018-12-27
+* Updated to newly stabilized versions of the `pin` and `arbitrary_self_types` features.
+* Re-added `select_all` for streams.
+* Added `TryStream::into_async_read` for converting from a stream of bytes into
+  an `AsyncRead`.
+* Added `try_poll_next_unpin`.
+* Rewrote `select!` as a procedural macro for better error messages
+* Exposed `join_all` from the facade
+
 # 0.3.0-alpha.10 - 2018-11-27
 * Revamped `select!` macro
 * Added `select_next_some` method for getting only the `Some` elements of a stream from `select!`
