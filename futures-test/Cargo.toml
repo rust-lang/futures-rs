@@ -18,8 +18,7 @@ name = "futures_test"
 futures-core-preview = { version = "0.3.0-alpha.2", path = "../futures-core", default-features = false }
 futures-util-preview = { version = "0.3.0-alpha.2", path = "../futures-util", default-features = false }
 futures-executor-preview = { version = "0.3.0-alpha.2", path = "../futures-executor", default-features = false }
-# FIXME(taiki-e): When a new version of pin-utils is released, fix this line.
-pin-utils = { version = "0.1.0-alpha.3", default-features = false, git = "https://github.com/taiki-e/pin-utils", branch = "update-pin" }
+pin-utils = { version = "0.1.0-alpha.3", default-features = false }
 
 [dev-dependencies]
 futures-preview = { version = "0.3.0-alpha.2", path = "../futures", default-features = false, features = ["std"] }
