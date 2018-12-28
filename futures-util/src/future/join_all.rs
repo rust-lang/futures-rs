@@ -15,7 +15,44 @@ where
     F: Future,
 {
     Pending(F),
-    Done(F::Output),
+    Done(Option<F::Output>),
+}
+
+impl<F> ElemState<F>
+where
+    F: Future,
+{
+    fn pending_pin_mut<'a>(self: Pin<&'a mut Self>) -> Option<Pin<&'a mut F>> {
+        // Safety: Basic enum pin projection, no drop + optionally Unpin based
+        // on the type of this variant
+        match unsafe { self.get_unchecked_mut() } {
+            ElemState::Pending(f) => Some(unsafe { Pin::new_unchecked(f) }),
+            ElemState::Done(_) => None,
+        }
+    }
+
+    fn take_done(self: Pin<&mut Self>) -> Option<F::Output> {
+        // Safety: Going from pin to a variant we never pin-project
+        match unsafe { self.get_unchecked_mut() } {
+            ElemState::Pending(_) => None,
+            ElemState::Done(output) => output.take(),
+        }
+    }
+}
+
+impl<F> Unpin for ElemState<F>
+where
+    F: Future + Unpin,
+{
+}
+
+fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
+    // Safety: `std` _could_ make this unsound if it were to decide Pin's
+    // invariants aren't required to transmit through slices. Otherwise this has
+    // the same safety as a normal field pin projection.
+    unsafe { slice.get_unchecked_mut() }
+        .iter_mut()
+        .map(|t| unsafe { Pin::new_unchecked(t) })
 }
 
 /// A future which takes a list of futures and resolves with a vector of the
@@ -27,7 +64,7 @@ pub struct JoinAll<F>
 where
     F: Future,
 {
-    elems: Vec<ElemState<F>>,
+    elems: Pin<Box<[ElemState<F>]>>,
 }
 
 impl<F> fmt::Debug for JoinAll<F>
@@ -49,33 +86,44 @@ where
 /// collecting the results into a destination `Vec<T>` in the same order as they
 /// were provided.
 ///
+/// # See Also
+///
+/// This is purposefully a very simple API for basic use-cases. In a lot of
+/// cases you will want to use the more powerful
+/// [`FuturesUnordered`][crate::stream::FuturesUnordered] APIs, some
+/// examples of additional functionality that provides:
+///
+///  * Adding new futures to the set even after it has been started.
+///
+///  * Only polling the specific futures that have been woken. In cases where
+///    you have a lot of futures this will result in much more efficient polling.
+///
 /// # Examples
 ///
 /// ```
-/// use futures_util::future::{FutureExt, join_all, ready};
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future::{join_all};
 ///
-/// let f = join_all(vec![
-///     ready::<u32>(1),
-///     ready::<u32>(2),
-///     ready::<u32>(3),
-/// ]);
-/// let f = f.map(|x| {
-///     assert_eq!(x, [1, 2, 3]);
-/// });
+/// async fn foo(i: u32) -> u32 { i }
+///
+/// let futures = vec![foo(1), foo(2), foo(3)];
+///
+/// assert_eq!(await!(join_all(futures)), [1, 2, 3]);
+/// # });
 /// ```
 pub fn join_all<I>(i: I) -> JoinAll<I::Item>
 where
     I: IntoIterator,
     I::Item: Future,
 {
-    let elems = i.into_iter().map(ElemState::Pending).collect();
-    JoinAll { elems }
+    let elems: Box<[_]> = i.into_iter().map(ElemState::Pending).collect();
+    JoinAll { elems: Box::into_pin(elems) }
 }
 
 impl<F> Future for JoinAll<F>
 where
-    F: Future + Unpin,
-    F::Output: Unpin,
+    F: Future,
 {
     type Output = Vec<F::Output>;
 
@@ -85,27 +133,20 @@ where
     ) -> Poll<Self::Output> {
         let mut all_done = true;
 
-        for elem in self.as_mut().elems.iter_mut() {
-            match elem {
-                ElemState::Pending(ref mut t) => match Pin::new(t).poll(lw) {
-                    Poll::Ready(v) => *elem = ElemState::Done(v),
-                    Poll::Pending => {
-                        all_done = false;
-                        continue;
-                    }
-                },
-                ElemState::Done(ref mut _v) => (),
-            };
+        for mut elem in iter_pin_mut(self.elems.as_mut()) {
+            if let Some(pending) = elem.as_mut().pending_pin_mut() {
+                if let Poll::Ready(output) = pending.poll(lw) {
+                    elem.set(ElemState::Done(Some(output)));
+                } else {
+                    all_done = false;
+                }
+            }
         }
 
         if all_done {
-            let elems = mem::replace(&mut self.elems, Vec::new());
-            let result = elems
-                .into_iter()
-                .map(|e| match e {
-                    ElemState::Done(t) => t,
-                    _ => unreachable!(),
-                })
+            let mut elems = mem::replace(&mut self.elems, Box::pin([]));
+            let result = iter_pin_mut(elems.as_mut())
+                .map(|e| e.take_done().unwrap())
                 .collect();
             Poll::Ready(result)
         } else {
