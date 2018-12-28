@@ -567,10 +567,10 @@ pub trait FutureExt: Future {
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};
     ///
-    /// let mut future = future::ready(2);
+    /// let future = future::ready(2);
     /// assert!(await!(future.catch_unwind()).is_ok());
     ///
-    /// let mut future = future::lazy(|_| -> Ready<i32> {
+    /// let future = future::lazy(|_| -> Ready<i32> {
     ///     unimplemented!()
     /// });
     /// assert!(await!(future.catch_unwind()).is_err());
