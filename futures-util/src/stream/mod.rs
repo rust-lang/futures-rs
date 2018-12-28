@@ -351,7 +351,7 @@ pub trait StreamExt: Stream {
     /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
-    /// let (mut tx, rx) = mpsc::unbounded();
+    /// let (tx, rx) = mpsc::unbounded();
     ///
     /// thread::spawn(move || {
     ///     for i in (1..=5) {
@@ -386,7 +386,7 @@ pub trait StreamExt: Stream {
     /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
-    /// let (mut tx, rx) = mpsc::unbounded();
+    /// let (tx, rx) = mpsc::unbounded();
     ///
     /// thread::spawn(move || {
     ///     for i in (0..3).rev() {
@@ -875,8 +875,8 @@ pub trait StreamExt: Stream {
     /// use futures::executor::block_on;
     /// use futures::stream::{self, StreamExt};
     ///
-    /// let mut stream1 = stream::iter(1..=3);
-    /// let mut stream2 = stream::iter(5..=10);
+    /// let stream1 = stream::iter(1..=3);
+    /// let stream2 = stream::iter(5..=10);
     ///
     /// let vec = block_on(stream1.zip(stream2)
     ///                           .collect::<Vec<_>>());
