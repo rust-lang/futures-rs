@@ -1,7 +1,7 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(futures_api)]
+#![feature(futures_api, box_into_pin)]
 #![cfg_attr(feature = "std", feature(async_await, await_macro))]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
