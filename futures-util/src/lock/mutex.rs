@@ -25,6 +25,12 @@ impl<T> fmt::Debug for Mutex<T> {
     }
 }
 
+impl<T: Default> Default for Mutex<T> {
+    fn default() -> Mutex<T> {
+        Mutex::new(Default::default())
+    }
+}
+
 enum Waiter {
     Waiting(Waker),
     Woken,
