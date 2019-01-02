@@ -32,7 +32,7 @@ futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.11", d
 
 [dev-dependencies]
 pin-utils = "0.1.0-alpha.4"
-futures-test-preview = { path = "../futures-test", version = "0.3.0-alpha.11", default-features = false }
+futures-test-preview = { path = "../futures-test", version = "0.3.0-alpha.11" }
 tokio = "0.1.11"
 
 [features]
