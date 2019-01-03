@@ -4,6 +4,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
 use std::ptr;
+use std::thread::panicking;
 
 /// Combinator for the
 /// [`FutureTestExt::assert_unmoved`](super::FutureTestExt::assert_unmoved)
@@ -49,7 +50,48 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
 
 impl<Fut> Drop for AssertUnmoved<Fut> {
     fn drop(&mut self) {
-        let cur_this = &*self as *const Self;
-        assert_eq!(self.this_ptr, cur_this, "Future moved before drop");
+        // If the thread is panicking then we can't panic again as that will
+        // cause the process to be aborted.
+        if !panicking() && !self.this_ptr.is_null() {
+            let cur_this = &*self as *const Self;
+            assert_eq!(self.this_ptr, cur_this, "Future moved before drop");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_core::future::Future;
+    use futures_core::task::Poll;
+    use futures_util::future::empty;
+    use futures_util::task::noop_local_waker;
+    use std::pin::Pin;
+
+    use super::AssertUnmoved;
+
+    #[test]
+    fn dont_panic_when_not_polled() {
+        // This shouldn't panic.
+        let future = AssertUnmoved::new(empty::<()>());
+        drop(future);
+    }
+
+    #[test]
+    #[should_panic(expected = "Future moved between poll calls")]
+    fn dont_double_panic() {
+        // This test should only panic, not abort the process.
+        let waker = noop_local_waker();
+
+        // First we allocate the future on the stack and poll it.
+        let mut future = AssertUnmoved::new(empty::<()>());
+        let pinned_future = unsafe { Pin::new_unchecked(&mut future) };
+        assert_eq!(pinned_future.poll(&waker), Poll::Pending);
+
+        // Next we move it back to the heap and poll it again. This second call
+        // should panic (as the future is moved), but we shouldn't panic again
+        // whilst dropping `AssertUnmoved`.
+        let mut future = Box::new(future);
+        let pinned_boxed_future = unsafe { Pin::new_unchecked(&mut *future) };
+        assert_eq!(pinned_boxed_future.poll(&waker), Poll::Pending);
     }
 }
