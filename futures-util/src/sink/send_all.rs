@@ -12,8 +12,8 @@ use futures_sink::Sink;
 #[must_use = "futures do nothing unless polled"]
 pub struct SendAll<'a, Si, St>
 where
-    Si: Sink + Unpin + ?Sized + 'a,
-    St: Stream + Unpin + ?Sized + 'a,
+    Si: Sink + Unpin + ?Sized,
+    St: Stream + Unpin + ?Sized,
 {
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,

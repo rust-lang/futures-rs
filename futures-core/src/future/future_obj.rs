@@ -44,7 +44,7 @@ impl<'a, T> LocalFutureObj<'a, T> {
 }
 
 impl<'a, T> fmt::Debug for LocalFutureObj<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalFutureObj")
             .finish()
     }
@@ -101,7 +101,7 @@ impl<'a, T> FutureObj<'a, T> {
 }
 
 impl<'a, T> fmt::Debug for FutureObj<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FutureObj")
             .finish()
     }

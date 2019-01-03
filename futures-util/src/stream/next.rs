@@ -7,7 +7,7 @@ use futures_core::task::{LocalWaker, Poll};
 /// A future of the next element of a stream.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Next<'a, St: 'a> {
+pub struct Next<'a, St> {
     stream: &'a mut St,
 }
 

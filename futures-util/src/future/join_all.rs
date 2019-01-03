@@ -36,7 +36,7 @@ where
     F: Future + fmt::Debug,
     F::Output: fmt::Debug,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("JoinAll")
             .field("elems", &self.elems)
             .finish()

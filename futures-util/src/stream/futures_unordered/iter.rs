@@ -5,7 +5,7 @@ use std::pin::Pin;
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterPinMut<'a, Fut: 'a> {
+pub struct IterPinMut<'a, Fut> {
     pub(super) task: *const Task<Fut>,
     pub(super) len: usize,
     pub(super) _marker: PhantomData<&'a mut FuturesUnordered<Fut>>
@@ -13,7 +13,7 @@ pub struct IterPinMut<'a, Fut: 'a> {
 
 #[derive(Debug)]
 /// Mutable iterator over all futures in the unordered set.
-pub struct IterMut<'a, Fut: Unpin + 'a> (pub(super) IterPinMut<'a, Fut>);
+pub struct IterMut<'a, Fut: Unpin> (pub(super) IterPinMut<'a, Fut>);
 
 impl<'a, Fut> Iterator for IterPinMut<'a, Fut> {
     type Item = Pin<&'a mut Fut>;

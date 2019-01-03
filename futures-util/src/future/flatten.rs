@@ -35,7 +35,7 @@ impl<Fut> fmt::Debug for Flatten<Fut>
     where Fut: Future + fmt::Debug,
           Fut::Output: Future + fmt::Debug,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Flatten")
             .field("state", &self.state)
             .finish()

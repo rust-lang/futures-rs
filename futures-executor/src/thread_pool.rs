@@ -45,7 +45,7 @@ struct PoolState {
 }
 
 impl fmt::Debug for ThreadPool {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ThreadPool")
             .field("size", &self.state.size)
             .finish()
@@ -53,7 +53,7 @@ impl fmt::Debug for ThreadPool {
 }
 
 impl fmt::Debug for ThreadPoolBuilder {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ThreadPoolBuilder")
             .field("pool_size", &self.pool_size)
             .field("name_prefix", &self.name_prefix)
@@ -331,7 +331,7 @@ impl Task {
 }
 
 impl fmt::Debug for Task {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Task")
             .field("contents", &"...")
             .finish()

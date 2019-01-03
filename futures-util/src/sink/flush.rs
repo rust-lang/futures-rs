@@ -8,7 +8,7 @@ use futures_sink::Sink;
 /// has been flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Flush<'a, Si: 'a + Unpin + ?Sized> {
+pub struct Flush<'a, Si: Unpin + ?Sized> {
     sink: &'a mut Si,
 }
 

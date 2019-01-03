@@ -127,7 +127,7 @@ pub fn split<S: Stream + Sink>(s: S) -> (SplitSink<S>, SplitStream<S>) {
 pub struct ReuniteError<T: Sink>(pub SplitSink<T>, pub SplitStream<T>);
 
 impl<T: Sink> fmt::Debug for ReuniteError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_tuple("ReuniteError")
             .field(&"...")
             .finish()
@@ -135,7 +135,7 @@ impl<T: Sink> fmt::Debug for ReuniteError<T> {
 }
 
 impl<T: Sink> fmt::Display for ReuniteError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "tried to reunite a SplitStream and SplitSink that don't form a pair")
     }
 }

@@ -16,7 +16,7 @@ pub struct Mutex<T> {
 }
 
 impl<T> fmt::Debug for Mutex<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let state = self.state.load(Ordering::SeqCst);
         f.debug_struct("Mutex")
             .field("is_locked", &((state & IS_LOCKED) != 0))
@@ -116,14 +116,14 @@ impl<T> Mutex<T> {
 const WAIT_KEY_NONE: usize = usize::MAX;
 
 /// A future which resolves when the target mutex has been successfully acquired.
-pub struct MutexLockFuture<'a, T: 'a> {
+pub struct MutexLockFuture<'a, T> {
     // `None` indicates that the mutex was successfully acquired.
     mutex: Option<&'a Mutex<T>>,
     wait_key: usize,
 }
 
 impl<T> fmt::Debug for MutexLockFuture<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MutexLockFuture")
             .field("was_acquired", &self.mutex.is_none())
             .field("mutex", &self.mutex)
@@ -195,12 +195,12 @@ impl<T> Drop for MutexLockFuture<'_, T> {
 /// An RAII guard returned by the `lock` and `try_lock` methods.
 /// When this structure is dropped (falls out of scope), the lock will be
 /// unlocked.
-pub struct MutexGuard<'a, T: 'a> {
+pub struct MutexGuard<'a, T> {
     mutex: &'a Mutex<T>,
 }
 
 impl<T: fmt::Debug> fmt::Debug for MutexGuard<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MutexGuard")
             .field("value", &*self)
             .field("mutex", &self.mutex)

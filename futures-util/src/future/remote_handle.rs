@@ -64,7 +64,7 @@ pub struct Remote<Fut: Future> {
 }
 
 impl<Fut: Future + fmt::Debug> fmt::Debug for Remote<Fut> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("Remote")
             .field(&self.future)
             .finish()

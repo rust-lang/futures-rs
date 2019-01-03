@@ -11,7 +11,7 @@ use std::pin::Pin;
 ///
 /// [`close`]: fn.close.html
 #[derive(Debug)]
-pub struct Close<'a, W: ?Sized + 'a> {
+pub struct Close<'a, W: ?Sized> {
     writer: &'a mut W,
 }
 

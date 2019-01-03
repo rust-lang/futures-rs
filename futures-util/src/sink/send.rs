@@ -8,7 +8,7 @@ use futures_sink::Sink;
 /// then waits until the sink has fully flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Send<'a, Si: Sink + Unpin + 'a + ?Sized> {
+pub struct Send<'a, Si: Sink + Unpin + ?Sized> {
     sink: &'a mut Si,
     item: Option<Si::SinkItem>,
 }
