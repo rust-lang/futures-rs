@@ -33,7 +33,7 @@ enum CaseKind {
 }
 
 impl Parse for Select {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut select = Select {
             futures_crate_path: None,
             complete: None,

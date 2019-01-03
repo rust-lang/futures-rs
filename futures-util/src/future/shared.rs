@@ -34,7 +34,7 @@ struct Notifier {
 impl<Fut: Future> Unpin for Shared<Fut> {}
 
 impl<Fut: Future> fmt::Debug for Shared<Fut> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Shared")
             .field("inner", &self.inner)
             .field("waker_key", &self.waker_key)
@@ -43,7 +43,7 @@ impl<Fut: Future> fmt::Debug for Shared<Fut> {
 }
 
 impl<Fut: Future> fmt::Debug for Inner<Fut> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Inner").finish()
     }
 }

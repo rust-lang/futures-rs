@@ -202,7 +202,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
 }
 
 impl<Fut: Future> Debug for FuturesOrdered<Fut> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "FuturesOrdered {{ ... }}")
     }
 }

@@ -13,7 +13,7 @@ use std::pin::Pin;
 ///
 /// [`read_exact`]: fn.read_exact.html
 #[derive(Debug)]
-pub struct ReadExact<'a, R: ?Sized + 'a> {
+pub struct ReadExact<'a, R: ?Sized> {
     reader: &'a mut R,
     buf: &'a mut [u8],
 }

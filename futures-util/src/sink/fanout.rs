@@ -34,7 +34,7 @@ impl<Si1: Sink + Debug, Si2: Sink + Debug> Debug for Fanout<Si1, Si2>
     where Si1::SinkItem: Debug,
           Si2::SinkItem: Debug
 {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.debug_struct("Fanout")
             .field("sink1", &self.sink1)
             .field("sink2", &self.sink2)

@@ -1,15 +1,12 @@
 #![feature(async_await, futures_api)]
 
-extern crate futures_util;
-extern crate futures;
-
 use futures_util::future::*;
 use std::future::Future;
 use futures::executor::block_on;
 use std::fmt::Debug;
 use std::marker::Unpin;
 
-fn assert_done<T: PartialEq + Debug, F: FnOnce() -> Box<Future<Output=T> + Unpin>>(actual_fut: F, expected: T) {
+fn assert_done<T: PartialEq + Debug, F: FnOnce() -> Box<dyn Future<Output=T> + Unpin>>(actual_fut: F, expected: T) {
     let output = block_on(actual_fut());
 
     assert_eq!(output, expected);
@@ -29,7 +26,7 @@ fn collect_collects() {
 fn join_all_iter_lifetime() {
     // In futures-rs version 0.1, this function would fail to typecheck due to an overly
     // conservative type parameterization of `JoinAll`.
-    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<Future<Output=Vec<usize>> + Unpin> {
+    fn sizes<'a>(bufs: Vec<&'a [u8]>) -> Box<dyn Future<Output=Vec<usize>> + Unpin> {
         let iter = bufs.into_iter().map(|b| ready::<usize>(b.len()));
         Box::new(join_all(iter))
     }

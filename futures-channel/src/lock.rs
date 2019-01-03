@@ -21,7 +21,7 @@ pub(crate) struct Lock<T> {
 
 /// Sentinel representing an acquired lock through which the data can be
 /// accessed.
-pub(crate) struct TryLock<'a, T: 'a> {
+pub(crate) struct TryLock<'a, T> {
     __ptr: &'a Lock<T>,
 }
 
@@ -52,7 +52,7 @@ impl<T> Lock<T> {
     ///
     /// If `None` is returned then the lock is already locked, either elsewhere
     /// on this thread or on another thread.
-    pub(crate) fn try_lock(&self) -> Option<TryLock<T>> {
+    pub(crate) fn try_lock(&self) -> Option<TryLock<'_, T>> {
         if !self.locked.swap(true, SeqCst) {
             Some(TryLock { __ptr: self })
         } else {

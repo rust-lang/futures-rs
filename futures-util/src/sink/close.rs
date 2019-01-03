@@ -8,7 +8,7 @@ use futures_sink::Sink;
 /// been closed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Close<'a, Si: 'a + Unpin + ?Sized> {
+pub struct Close<'a, Si: Unpin + ?Sized> {
     sink: &'a mut Si,
 }
 

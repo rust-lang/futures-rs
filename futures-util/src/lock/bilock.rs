@@ -88,7 +88,7 @@ impl<T> BiLock<T> {
     ///
     /// This function will panic if called outside the context of a future's
     /// task.
-    pub fn poll_lock(&self, lw: &LocalWaker) -> Poll<BiLockGuard<T>> {
+    pub fn poll_lock(&self, lw: &LocalWaker) -> Poll<BiLockGuard<'_, T>> {
         loop {
             match self.arc.state.swap(1, SeqCst) {
                 // Woohoo, we grabbed the lock!
@@ -140,7 +140,7 @@ impl<T> BiLock<T> {
     /// `BiLockGuard<T>`.
     ///
     /// Note that the returned future will never resolve to an error.
-    pub fn lock(&self) -> BiLockAcquire<T> {
+    pub fn lock(&self) -> BiLockAcquire<'_, T> {
         BiLockAcquire {
             bilock: self,
         }
@@ -199,7 +199,7 @@ impl<T> Drop for Inner<T> {
 pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
 
 impl<T> fmt::Debug for ReuniteError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_tuple("ReuniteError")
             .field(&"...")
             .finish()
@@ -207,7 +207,7 @@ impl<T> fmt::Debug for ReuniteError<T> {
 }
 
 impl<T> fmt::Display for ReuniteError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "tried to reunite two BiLocks that don't form a pair")
     }
 }
@@ -224,7 +224,7 @@ impl<T: Any> Error for ReuniteError<T> {
 /// implementing `Deref` and `DerefMut` to `T`. When dropped, the lock will be
 /// unlocked.
 #[derive(Debug)]
-pub struct BiLockGuard<'a, T: 'a> {
+pub struct BiLockGuard<'a, T> {
     bilock: &'a BiLock<T>,
 }
 
@@ -260,7 +260,7 @@ impl<'a, T> Drop for BiLockGuard<'a, T> {
 /// acquired.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
-pub struct BiLockAcquire<'a, T: 'a> {
+pub struct BiLockAcquire<'a, T> {
     bilock: &'a BiLock<T>,
 }
 

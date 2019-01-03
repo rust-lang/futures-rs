@@ -1,7 +1,5 @@
 #![feature(futures_api)]
 
-extern crate futures_util;
-
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;

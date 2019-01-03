@@ -9,7 +9,7 @@ use core::pin::Pin;
 /// This future is created by the `Stream::try_collect` method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct TryNext<'a, St: Unpin + 'a> {
+pub struct TryNext<'a, St: Unpin> {
     stream: &'a mut St,
 }
 

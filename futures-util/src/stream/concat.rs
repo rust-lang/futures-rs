@@ -39,7 +39,7 @@ impl<St> Debug for Concat<St>
 where St: Stream + Debug,
       St::Item: Debug,
 {
-    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> FmtResult {
         fmt.debug_struct("Concat")
             .field("accum", &self.accum)
             .finish()

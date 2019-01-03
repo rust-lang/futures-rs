@@ -36,7 +36,7 @@ where
     St: Stream + fmt::Debug,
     St::Item: Future,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Buffered")
             .field("stream", &self.stream)
             .field("in_progress_queue", &self.in_progress_queue)
