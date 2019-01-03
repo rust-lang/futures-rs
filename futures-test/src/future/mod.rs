@@ -1,10 +1,10 @@
 //! Additional combinators for testing futures.
 
 mod assert_unmoved;
-use self::assert_unmoved::AssertUnmoved;
+pub use self::assert_unmoved::AssertUnmoved;
 
 mod pending_once;
-use self::pending_once::PendingOnce;
+pub use self::pending_once::PendingOnce;
 
 use futures_core::future::Future;
 use futures_executor;
