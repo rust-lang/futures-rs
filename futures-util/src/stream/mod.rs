@@ -20,6 +20,9 @@ pub use self::repeat::{repeat, Repeat};
 mod chain;
 pub use self::chain::Chain;
 
+mod collect;
+pub use self::collect::Collect;
+
 mod concat;
 pub use self::concat::Concat;
 
@@ -97,8 +100,6 @@ pub use self::zip::Zip;
 
 #[cfg(feature = "std")]
 use std;
-#[cfg(feature = "std")]
-use std::iter::Extend;
 
 #[cfg(feature = "std")]
 mod buffer_unordered;
@@ -119,11 +120,6 @@ pub use self::catch_unwind::CatchUnwind;
 mod chunks;
 #[cfg(feature = "std")]
 pub use self::chunks::Chunks;
-
-#[cfg(feature = "std")]
-mod collect;
-#[cfg(feature = "std")]
-pub use self::collect::Collect;
 
 #[cfg(feature = "std")]
 mod for_each_concurrent;
@@ -347,9 +343,6 @@ pub trait StreamExt: Stream {
     ///
     /// The returned future will be resolved when the stream terminates.
     ///
-    /// This method is only available when the `std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
     /// # Examples
     ///
     /// ```
@@ -369,7 +362,6 @@ pub trait StreamExt: Stream {
     /// let output = block_on(rx.collect::<Vec<i32>>());
     /// assert_eq!(output, vec![1, 2, 3, 4, 5]);
     /// ```
-    #[cfg(feature = "std")]
     fn collect<C: Default + Extend<Self::Item>>(self) -> Collect<Self, C>
         where Self: Sized
     {
