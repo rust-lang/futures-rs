@@ -15,3 +15,4 @@
 mod intrusive_list;
 
 pub mod sync;
+pub mod channel;
