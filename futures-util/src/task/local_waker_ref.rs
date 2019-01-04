@@ -39,11 +39,11 @@ impl<'a> Deref for LocalWakerRef<'a> {
 }
 
 // Pointers to this type below are really pointers to `Arc<W>`
-struct ReferencedArc<W> {
+struct ReferencedArc<W: ?Sized> {
     _marker: PhantomData<W>,
 }
 
-unsafe impl<W: Wake + 'static> UnsafeWake for ReferencedArc<W> {
+unsafe impl<W: Wake + 'static + ?Sized> UnsafeWake for ReferencedArc<W> {
     #[inline]
     unsafe fn clone_raw(&self) -> Waker {
         let me = self as *const ReferencedArc<W> as *const Arc<W>;
@@ -79,7 +79,7 @@ unsafe impl<W: Wake + 'static> UnsafeWake for ReferencedArc<W> {
 #[inline]
 pub unsafe fn local_waker_ref<W>(wake: &Arc<W>) -> LocalWakerRef<'_>
 where
-    W: Wake + 'static,
+    W: Wake + 'static + ?Sized,
 {
     let ptr = wake
         as *const Arc<W>
@@ -91,11 +91,11 @@ where
 }
 
 // Pointers to this type below are really pointers to `Arc<W>`,
-struct NonlocalReferencedArc<W> {
+struct NonlocalReferencedArc<W: ?Sized> {
     _marker: PhantomData<W>,
 }
 
-unsafe impl<W: Wake + 'static> UnsafeWake for NonlocalReferencedArc<W> {
+unsafe impl<W: Wake + 'static + ?Sized> UnsafeWake for NonlocalReferencedArc<W> {
     #[inline]
     unsafe fn clone_raw(&self) -> Waker {
         let me = self as *const NonlocalReferencedArc<W> as *const Arc<W>;
@@ -126,7 +126,7 @@ unsafe impl<W: Wake + 'static> UnsafeWake for NonlocalReferencedArc<W> {
 /// [`LocalWaker`](::std::task::LocalWaker) will call
 /// [`wake.wake()`](::std::task::Wake::wake) when awoken.
 #[inline]
-pub fn local_waker_ref_from_nonlocal<W>(wake: &Arc<W>) -> LocalWakerRef<'_>
+pub fn local_waker_ref_from_nonlocal<W: ?Sized>(wake: &Arc<W>) -> LocalWakerRef<'_>
 where
     W: Wake + 'static,
 {
