@@ -43,7 +43,7 @@ impl<'a, T> LocalStreamObj<'a, T> {
 }
 
 impl<'a, T> fmt::Debug for LocalStreamObj<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalStreamObj").finish()
     }
 }
@@ -98,7 +98,7 @@ impl<'a, T> StreamObj<'a, T> {
 }
 
 impl<'a, T> fmt::Debug for StreamObj<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("StreamObj").finish()
     }
 }

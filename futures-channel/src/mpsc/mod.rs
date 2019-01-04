@@ -167,7 +167,7 @@ pub struct TryRecvError {
 }
 
 impl fmt::Display for SendError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_full() {
             write!(fmt, "send failed because channel is full")
         } else {
@@ -205,7 +205,7 @@ impl SendError {
 }
 
 impl<T> fmt::Debug for TrySendError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("TrySendError")
             .field("kind", &self.err.kind)
             .finish()
@@ -213,7 +213,7 @@ impl<T> fmt::Debug for TrySendError<T> {
 }
 
 impl<T> fmt::Display for TrySendError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_full() {
             write!(fmt, "send failed because channel is full")
         } else {
@@ -255,14 +255,14 @@ impl<T> TrySendError<T> {
 }
 
 impl fmt::Debug for TryRecvError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_tuple("TryRecvError")
             .finish()
     }
 }
 
 impl fmt::Display for TryRecvError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.description())
     }
 }

@@ -1,11 +1,10 @@
+use core::marker::Unpin;
+use core::mem;
+use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::marker::Unpin;
-use std::mem;
-use std::pin::Pin;
-use std::prelude::v1::*;
 
 /// A future which collects all of the values of a stream into a vector.
 ///

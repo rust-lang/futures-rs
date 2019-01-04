@@ -12,7 +12,7 @@ use std::pin::Pin;
 ///
 /// [`write_all`]: fn.write_all.html
 #[derive(Debug)]
-pub struct WriteAll<'a, W: ?Sized + 'a> {
+pub struct WriteAll<'a, W: ?Sized> {
     writer: &'a mut W,
     buf: &'a [u8],
 }

@@ -25,7 +25,7 @@ macro_rules! generate {
                 $Fut::Output: fmt::Debug,
             )*
         {
-            fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.debug_struct(stringify!($Join))
                     $(.field(stringify!($Fut), &self.$Fut))*
                     .finish()

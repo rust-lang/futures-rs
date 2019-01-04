@@ -31,7 +31,7 @@ macro_rules! generate {
                 $Fut::Error: fmt::Debug,
             )*
         {
-            fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.debug_struct(stringify!($Join))
                     .field("Fut1", &self.Fut1)
                     $(.field(stringify!($Fut), &self.$Fut))*

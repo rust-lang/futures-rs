@@ -91,6 +91,6 @@ macro_rules! document_select_macro {
 }
 
 document_select_macro! {
-    #[proc_macro_hack]
+    #[proc_macro_hack(support_nested)]
     pub use futures_select_macro::select;
 }

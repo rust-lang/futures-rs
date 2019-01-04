@@ -71,7 +71,7 @@ impl<T> Sink for Drain<T> {
 }
 
 impl fmt::Display for DrainError {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
         }
     }

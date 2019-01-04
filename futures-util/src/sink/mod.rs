@@ -93,7 +93,7 @@ pub trait SinkExt: Sink {
     /// use futures::stream::StreamExt;
     /// use std::collections::VecDeque;
     ///
-    /// let (mut tx, rx) = mpsc::channel(5);
+    /// let (tx, rx) = mpsc::channel(5);
     ///
     /// let mut tx = tx.with_flat_map(|x| {
     ///     VecDeque::from(vec![Ok(42); x])

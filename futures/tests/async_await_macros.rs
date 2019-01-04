@@ -127,6 +127,22 @@ fn select_can_move_uncompleted_futures() {
 }
 
 #[test]
+fn select_nested() {
+    let mut outer_fut = future::ready(1);
+    let mut inner_fut = future::ready(2);
+    let res = block_on(async {
+        select! {
+            x = outer_fut => {
+                select! {
+                    y = inner_fut => x + y,
+                }
+            }
+        }
+    });
+    assert_eq!(res, 3);
+}
+
+#[test]
 fn select_size() {
     let fut = async {
         let mut ready = future::ready(0i32);

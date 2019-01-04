@@ -13,7 +13,7 @@ use std::pin::Pin;
 ///
 /// [`copy_into`]: fn.copy_into.html
 #[derive(Debug)]
-pub struct CopyInto<'a, R: ?Sized + 'a, W: ?Sized + 'a> {
+pub struct CopyInto<'a, R: ?Sized, W: ?Sized> {
     reader: &'a mut R,
     read_done: bool,
     writer: &'a mut W,

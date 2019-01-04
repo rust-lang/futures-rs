@@ -190,7 +190,7 @@ impl<Fut> FuturesUnordered<Fut> {
     }
 
     /// Returns an iterator that allows modifying each future in the set.
-    pub fn iter_mut(&mut self) -> IterMut<Fut> where Fut: Unpin {
+    pub fn iter_mut(&mut self) -> IterMut<'_, Fut> where Fut: Unpin {
         IterMut(Pin::new(self).iter_pin_mut())
     }
 
@@ -372,7 +372,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // * We unlink the task from our internal queue to preemptively
             //   assume it'll panic, in which case we'll want to discard it
             //   regardless.
-            struct Bomb<'a, Fut: 'a> {
+            struct Bomb<'a, Fut> {
                 queue: &'a mut FuturesUnordered<Fut>,
                 task: Option<Arc<Task<Fut>>>,
             }
@@ -425,7 +425,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
 }
 
 impl<Fut> Debug for FuturesUnordered<Fut> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "FuturesUnordered {{ ... }}")
     }
 }

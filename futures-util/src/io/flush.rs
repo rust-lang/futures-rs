@@ -14,7 +14,7 @@ use futures_io::AsyncWrite;
 ///
 /// [`flush`]: fn.flush.html
 #[derive(Debug)]
-pub struct Flush<'a, W: ?Sized + 'a> {
+pub struct Flush<'a, W: ?Sized> {
     writer: &'a mut W,
 }
 

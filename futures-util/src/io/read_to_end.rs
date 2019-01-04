@@ -13,7 +13,7 @@ use std::vec::Vec;
 ///
 /// [`read_to_end`]: fn.read_to_end.html
 #[derive(Debug)]
-pub struct ReadToEnd<'a, R: ?Sized + 'a> {
+pub struct ReadToEnd<'a, R: ?Sized> {
     reader: &'a mut R,
     buf: &'a mut Vec<u8>,
 }

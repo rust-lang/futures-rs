@@ -31,6 +31,7 @@ futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.11", d
 futures-select-macro-preview = { path = "../futures-select-macro", version = "0.3.0-alpha.11", default-features = false }
 either = { version = "1.4", default-features = false }
 proc-macro-hack = "0.5"
+proc-macro-nested = "0.1.2"
 rand = { version = "0.5.5", optional = true }
 slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }

@@ -27,7 +27,7 @@ pub struct SelectAll<St> {
 }
 
 impl<St: Debug> Debug for SelectAll<St> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "SelectAll {{ ... }}")
     }
 }
@@ -37,7 +37,6 @@ impl<St: Stream + Unpin> SelectAll<St> {
     ///
     /// The returned `SelectAll` does not contain any streams and, in this
     /// state, `SelectAll::poll` will return `Poll::Ready(None)`.
-    #[allow(clippy::new_without_default_derive)]
     pub fn new() -> SelectAll<St> {
         SelectAll { inner: FuturesUnordered::new() }
     }
@@ -62,6 +61,12 @@ impl<St: Stream + Unpin> SelectAll<St> {
     /// notifications.
     pub fn push(&mut self, stream: St) {
         self.inner.push(stream.into_future());
+    }
+}
+
+impl<St: Stream + Unpin> Default for SelectAll<St> {
+    fn default() -> SelectAll<St> {
+        SelectAll::new()
     }
 }
 
