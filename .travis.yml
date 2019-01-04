@@ -23,6 +23,10 @@ matrix:
         - cargo update -Zminimal-versions
         - cargo test --all --all-features
 
+    # When updating this, the reminder to update the minimum required version in README.md.
+    - name: cargo test (minimum required version)
+      rust: nightly-2018-12-26
+
     - name: cargo clippy
       rust: nightly
       script:
