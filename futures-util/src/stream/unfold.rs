@@ -49,8 +49,9 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// assert_eq!(result, vec![0, 2, 4]);
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(It, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(It, T)>>,
 {
     Unfold {
         f,
@@ -85,18 +86,19 @@ impl<T, F, Fut> FusedStream for Unfold<T, F, Fut> {
 }
 
 impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
-    where F: FnMut(T) -> Fut,
-          Fut: Future<Output = Option<(It, T)>>,
+where
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Option<(It, T)>>,
 {
     type Item = It;
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker
+        lw: &LocalWaker,
     ) -> Poll<Option<It>> {
         if let Some(state) = self.as_mut().state().take() {
             let fut = (self.as_mut().f())(state);
-            Pin::set(self.as_mut().fut(), Some(fut));
+            Pin::set(&mut self.as_mut().fut(), Some(fut));
         }
 
         let step = ready!(self.as_mut().fut().as_pin_mut().unwrap().poll(lw));
@@ -104,9 +106,9 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
 
         if let Some((item, next_state)) = step {
             *self.as_mut().state() = Some(next_state);
-            return Poll::Ready(Some(item))
+            return Poll::Ready(Some(item));
         } else {
-            return Poll::Ready(None)
+            return Poll::Ready(None);
         }
     }
 }

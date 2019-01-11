@@ -1,5 +1,5 @@
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
 
@@ -22,9 +22,7 @@ impl<Fut: Future> Fuse<Fut> {
     unsafe_pinned!(future: Option<Fut>);
 
     pub(super) fn new(f: Fut) -> Fuse<Fut> {
-        Fuse {
-            future: Some(f),
-        }
+        Fuse { future: Some(f) }
     }
 }
 
@@ -44,13 +42,13 @@ impl<Fut: Future> Future for Fuse<Fut> {
                 // safety: this re-pinned future will never move before being dropped
                 match fut.poll(lw) {
                     Poll::Pending => return Poll::Pending,
-                    Poll::Ready(v) => v
+                    Poll::Ready(v) => v,
                 }
             }
             None => return Poll::Pending,
         };
 
-        Pin::set(self.as_mut().future(), None);
+        Pin::set(&mut self.as_mut().future(), None);
         Poll::Ready(v)
     }
 }

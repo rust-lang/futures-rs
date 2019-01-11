@@ -20,9 +20,10 @@ pub struct TryForEach<St, Fut, F> {
 impl<St: Unpin, Fut: Unpin, F> Unpin for TryForEach<St, Fut, F> {}
 
 impl<St, Fut, F> TryForEach<St, Fut, F>
-where St: TryStream,
-      F: FnMut(St::Ok) -> Fut,
-      Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -38,9 +39,10 @@ where St: TryStream,
 }
 
 impl<St, Fut, F> Future for TryForEach<St, Fut, F>
-    where St: TryStream,
-          F: FnMut(St::Ok) -> Fut,
-          Fut: TryFuture<Ok = (), Error = St::Error>,
+where
+    St: TryStream,
+    F: FnMut(St::Ok) -> Fut,
+    Fut: TryFuture<Ok = (), Error = St::Error>,
 {
     type Output = Result<(), St::Error>;
 
@@ -49,12 +51,12 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 try_ready!(future.try_poll(lw));
             }
-            Pin::set(self.as_mut().future(), None);
+            Pin::set(&mut self.as_mut().future(), None);
 
             match ready!(self.as_mut().stream().try_poll_next(lw)) {
                 Some(Ok(e)) => {
                     let future = (self.as_mut().f())(e);
-                    Pin::set(self.as_mut().future(), Some(future));
+                    Pin::set(&mut self.as_mut().future(), Some(future));
                 }
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(())),

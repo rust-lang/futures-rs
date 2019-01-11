@@ -1,4 +1,4 @@
-use core::marker::{Unpin, PhantomData};
+use core::marker::{PhantomData, Unpin};
 use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
@@ -28,7 +28,8 @@ where
     Si: Sink + Unpin,
     F: FnMut(U) -> St,
     St: Stream<Item = Result<Si::SinkItem, Si::SinkError>> + Unpin,
-{}
+{
+}
 
 impl<Si, U, St, F> WithFlatMap<Si, U, St, F>
 where
@@ -78,8 +79,12 @@ where
         self: Pin<&mut Self>,
         lw: &LocalWaker,
     ) -> Poll<Result<(), Si::SinkError>> {
-        let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { Pin::get_unchecked_mut(self) };
+        let WithFlatMap {
+            sink,
+            stream,
+            buffer,
+            ..
+        } = unsafe { Pin::get_unchecked_mut(self) };
         let mut sink = unsafe { Pin::new_unchecked(sink) };
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 
@@ -102,7 +107,7 @@ where
                 };
             }
         }
-        Pin::set(stream, None);
+        Pin::set(&mut stream, None);
         Poll::Ready(Ok(()))
     }
 }

@@ -30,7 +30,7 @@ where
 
     #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     fn project_pin<'a>(
-        self: Pin<&'a mut Self>
+        self: Pin<&'a mut Self>,
     ) -> State<Pin<&'a mut Fut>, Pin<&'a mut Si>> {
         unsafe {
             match &mut Pin::get_unchecked_mut(self).0 {
@@ -59,7 +59,7 @@ where
             Waiting(f) => try_ready!(f.try_poll(lw)),
             Closed => panic!("poll_ready called after eof"),
         };
-        Pin::set(self.as_mut(), FlattenSink(Ready(resolved_stream)));
+        Pin::set(&mut self.as_mut(), FlattenSink(Ready(resolved_stream)));
         if let Ready(resolved_stream) = self.project_pin() {
             resolved_stream.poll_ready(lw)
         } else {
@@ -99,7 +99,7 @@ where
             Waiting(_) | Closed => Poll::Ready(Ok(())),
         };
         if res.is_ready() {
-            Pin::set(self, FlattenSink(Closed));
+            Pin::set(&mut self, FlattenSink(Closed));
         }
         res
     }
