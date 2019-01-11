@@ -9,6 +9,10 @@ use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 
+// re-export for `select!`
+#[doc(hidden)]
+pub use futures_core::future::FusedFuture;
+
 // Primitive futures
 mod empty;
 pub use self::empty::{empty, Empty};

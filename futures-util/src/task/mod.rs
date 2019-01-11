@@ -16,3 +16,7 @@ pub use self::local_waker_ref::{local_waker_ref, local_waker_ref_from_nonlocal, 
     cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
 )]
 pub use futures_core::task::__internal::AtomicWaker;
+
+// re-export for `select!`
+#[doc(hidden)]
+pub use futures_core::task::{LocalWaker, Poll};

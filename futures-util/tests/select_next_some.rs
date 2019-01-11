@@ -55,3 +55,32 @@ fn select() {
         assert_eq!(total, 6);
     });
 }
+
+// Check that `select!` macro does not fail when importing from `futures_util`.
+#[test]
+fn futures_util_select() {
+    use futures_util::select;
+
+    // Checks that even though `async_tasks` will yield a `None` and return
+    // `is_terminated() == true` during the first poll, it manages to toggle
+    // back to having items after a future is pushed into it during the second
+    // poll (after pending_once completes).
+    futures::executor::block_on(async {
+        let mut fut = future::ready(1).pending_once();
+        let mut async_tasks = FuturesUnordered::new();
+        let mut total = 0;
+        loop {
+            select! {
+                num = fut => {
+                    total += num;
+                    async_tasks.push(async { 5 });
+                },
+                num = async_tasks.select_next_some() => {
+                    total += num;
+                }
+                complete => break,
+            }
+        }
+        assert_eq!(total, 6);
+    });
+}
