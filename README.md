@@ -39,7 +39,7 @@ Now, you can use futures-rs:
 use futures::future::Future; // Note: It's not `futures_preview`
 ```
 
-The current version of futures-rs requires Rust nightly 2018-12-26 or later.
+The current version of futures-rs requires Rust nightly 2019-01-11 or later.
 
 ### Feature `std`
 
