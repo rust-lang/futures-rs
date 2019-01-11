@@ -102,7 +102,7 @@ where
                 };
             }
         }
-        Pin::set(stream, None);
+        Pin::set(&mut stream, None);
         Poll::Ready(Ok(()))
     }
 }

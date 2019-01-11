@@ -59,7 +59,7 @@ where
             Waiting(f) => try_ready!(f.try_poll(lw)),
             Closed => panic!("poll_ready called after eof"),
         };
-        Pin::set(self.as_mut(), FlattenSink(Ready(resolved_stream)));
+        Pin::set(&mut self.as_mut(), FlattenSink(Ready(resolved_stream)));
         if let Ready(resolved_stream) = self.project_pin() {
             resolved_stream.poll_ready(lw)
         } else {
@@ -99,7 +99,7 @@ where
             Waiting(_) | Closed => Poll::Ready(Ok(())),
         };
         if res.is_ready() {
-            Pin::set(self, FlattenSink(Closed));
+            Pin::set(&mut self, FlattenSink(Closed));
         }
         res
     }

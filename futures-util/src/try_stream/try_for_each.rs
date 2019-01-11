@@ -49,12 +49,12 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 try_ready!(future.try_poll(lw));
             }
-            Pin::set(self.as_mut().future(), None);
+            Pin::set(&mut self.as_mut().future(), None);
 
             match ready!(self.as_mut().stream().try_poll_next(lw)) {
                 Some(Ok(e)) => {
                     let future = (self.as_mut().f())(e);
-                    Pin::set(self.as_mut().future(), Some(future));
+                    Pin::set(&mut self.as_mut().future(), Some(future));
                 }
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(())),
