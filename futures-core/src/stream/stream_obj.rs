@@ -1,7 +1,7 @@
 use super::Stream;
 use crate::task::{LocalWaker, Poll};
 use core::fmt;
-use core::marker::{PhantomData, Unpin};
+use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
 

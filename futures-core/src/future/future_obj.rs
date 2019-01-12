@@ -1,7 +1,7 @@
 use core::{
     fmt,
     future::Future,
-    marker::{PhantomData, Unpin},
+    marker::PhantomData,
     pin::Pin,
     task::{LocalWaker, Poll},
 };

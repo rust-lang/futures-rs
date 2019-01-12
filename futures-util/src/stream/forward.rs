@@ -1,5 +1,4 @@
 use crate::stream::{StreamExt, Fuse};
-use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;

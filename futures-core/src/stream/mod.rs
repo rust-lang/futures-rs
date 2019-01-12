@@ -1,7 +1,6 @@
 //! Asynchronous streams.
 
 use crate::task::{LocalWaker, Poll};
-use core::marker::Unpin;
 use core::ops;
 use core::pin::Pin;
 

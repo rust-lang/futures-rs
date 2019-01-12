@@ -10,7 +10,6 @@ use futures_util::stream::StreamExt;
 use lazy_static::lazy_static;
 use pin_utils::pin_mut;
 use std::cell::{RefCell};
-use std::marker::Unpin;
 use std::ops::{Deref, DerefMut};
 use std::prelude::v1::*;
 use std::rc::{Rc, Weak};

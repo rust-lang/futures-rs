@@ -3,7 +3,6 @@
 //! This module contains a number of functions and combinators for working
 //! with `async`/`await` code.
 
-use core::marker::Unpin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 

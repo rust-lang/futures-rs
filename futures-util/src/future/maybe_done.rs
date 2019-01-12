@@ -1,6 +1,5 @@
 //! Definition of the MaybeDone combinator
 
-use core::marker::Unpin;
 use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};

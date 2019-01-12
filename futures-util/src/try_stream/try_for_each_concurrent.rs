@@ -1,6 +1,5 @@
 use crate::stream::{FuturesUnordered, StreamExt};
 use core::mem;
-use core::marker::Unpin;
 use core::pin::Pin;
 use core::num::NonZeroUsize;
 use futures_core::future::{FusedFuture, Future};

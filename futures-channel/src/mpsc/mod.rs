@@ -84,7 +84,6 @@ use futures_core::task::__internal::AtomicWaker;
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
-use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;

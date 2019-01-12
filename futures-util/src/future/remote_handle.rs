@@ -9,7 +9,6 @@ use {
     std::{
         any::Any,
         fmt,
-        marker::Unpin,
         panic::{self, AssertUnwindSafe},
         pin::Pin,
         sync::{

@@ -2,7 +2,6 @@ use crate::io::AsyncRead;
 use futures_core::future::Future;
 use futures_core::task::{LocalWaker, Poll};
 use std::io;
-use std::marker::Unpin;
 use std::mem;
 use std::pin::Pin;
 

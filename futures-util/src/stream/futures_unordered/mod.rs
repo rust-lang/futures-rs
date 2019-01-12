@@ -7,7 +7,7 @@ use futures_core::task::{LocalWaker, Poll, Spawn, LocalSpawn, SpawnError};
 use std::cell::UnsafeCell;
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
-use std::marker::{PhantomData, Unpin};
+use std::marker::PhantomData;
 use std::mem;
 use std::pin::Pin;
 use std::ptr;

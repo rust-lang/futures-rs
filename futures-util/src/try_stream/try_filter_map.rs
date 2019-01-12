@@ -1,4 +1,3 @@
-use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::{TryFuture};
 use futures_core::stream::{Stream, TryStream};

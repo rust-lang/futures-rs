@@ -2,7 +2,6 @@ use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
-use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

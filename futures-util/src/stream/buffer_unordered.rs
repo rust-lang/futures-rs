@@ -5,7 +5,6 @@ use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
-use std::marker::Unpin;
 use std::pin::Pin;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if

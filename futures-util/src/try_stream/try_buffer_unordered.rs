@@ -5,7 +5,6 @@ use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::marker::Unpin;
 use std::pin::Pin;
 
 /// A stream returned by the

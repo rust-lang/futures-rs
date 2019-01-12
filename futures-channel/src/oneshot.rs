@@ -2,7 +2,6 @@
 
 use futures_core::future::Future;
 use futures_core::task::{LocalWaker, Poll, Waker};
-use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;

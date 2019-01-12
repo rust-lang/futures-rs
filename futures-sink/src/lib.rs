@@ -10,7 +10,6 @@
 #![feature(futures_api)]
 
 use futures_core::task::{LocalWaker, Poll};
-use core::marker::Unpin;
 use core::pin::Pin;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.

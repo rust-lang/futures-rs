@@ -1,5 +1,4 @@
 use core::default::Default;
-use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::TryStream;

@@ -7,7 +7,7 @@ use futures_core::{
     task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
 };
 use futures_sink::Sink as Sink03;
-use std::{marker::{PhantomData, Unpin}, ops::Deref, pin::Pin, ptr::NonNull, sync::Arc};
+use std::{marker::PhantomData, ops::Deref, pin::Pin, ptr::NonNull, sync::Arc};
 
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
 /// [`TryStream`](futures_core::stream::TryStream) or

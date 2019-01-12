@@ -1,4 +1,4 @@
-use core::marker::{PhantomData, Unpin};
+use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{LocalWaker, Poll};

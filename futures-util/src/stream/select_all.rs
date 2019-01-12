@@ -2,7 +2,6 @@
 
 use std::fmt::{self, Debug};
 use std::pin::Pin;
-use std::marker::Unpin;
 
 use futures_core::{Poll, Stream, FusedStream};
 use futures_core::task::LocalWaker;
