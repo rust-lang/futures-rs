@@ -3,7 +3,6 @@ use futures_core::task::{LocalWaker, Poll};
 use futures_io::{AsyncRead, AsyncWrite};
 use std::boxed::Box;
 use std::io;
-use std::marker::Unpin;
 use std::pin::Pin;
 
 /// A future which will copy all data from a reader into a writer.

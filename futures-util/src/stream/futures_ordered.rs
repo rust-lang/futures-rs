@@ -7,7 +7,6 @@ use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
 use std::collections::binary_heap::{BinaryHeap, PeekMut};
 use std::fmt::{self, Debug};
 use std::iter::FromIterator;
-use std::marker::Unpin;
 use std::pin::Pin;
 
 #[must_use = "futures do nothing unless polled"]

@@ -1,6 +1,6 @@
 use super::FuturesUnordered;
 use super::task::Task;
-use std::marker::{PhantomData, Unpin};
+use std::marker::PhantomData;
 use std::pin::Pin;
 
 #[derive(Debug)]

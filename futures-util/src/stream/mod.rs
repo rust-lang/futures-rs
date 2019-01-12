@@ -3,7 +3,6 @@
 //! This module contains a number of functions for working with `Stream`s,
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
-use core::marker::Unpin;
 use core::pin::Pin;
 use either::Either;
 use futures_core::future::Future;

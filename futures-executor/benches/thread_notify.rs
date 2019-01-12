@@ -6,7 +6,6 @@ use crate::test::Bencher;
 use futures::executor::block_on;
 use futures::future::Future;
 use futures::task::{Poll, LocalWaker, Waker};
-use std::marker::Unpin;
 use std::pin::Pin;
 
 #[bench]

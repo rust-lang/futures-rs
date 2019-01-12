@@ -1,6 +1,5 @@
 //! Definition of the `PollFn` combinator
 
-use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};

@@ -7,7 +7,6 @@ use futures_core::future::TryFuture;
 use futures_sink::Sink;
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
-#[cfg(feature = "compat")] use core::marker::Unpin;
 
 /* TODO
 mod join;

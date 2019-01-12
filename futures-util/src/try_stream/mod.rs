@@ -3,7 +3,6 @@
 //! This module contains a number of functions for working with `Streams`s
 //! that return `Result`s, allowing for short-circuiting computations.
 
-use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;

@@ -4,7 +4,6 @@ use futures_core::task::{LocalWaker, Poll, Wake, Waker};
 use slab::Slab;
 use std::cell::UnsafeCell;
 use std::fmt;
-use std::marker::Unpin;
 use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;

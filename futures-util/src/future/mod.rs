@@ -3,7 +3,6 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
-use core::marker::Unpin;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;

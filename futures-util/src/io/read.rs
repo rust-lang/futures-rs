@@ -2,7 +2,6 @@ use crate::io::AsyncRead;
 use futures_core::future::Future;
 use futures_core::task::{LocalWaker, Poll};
 use std::io;
-use std::marker::Unpin;
 use std::pin::Pin;
 
 /// A future which can be used to easily read available number of bytes to fill

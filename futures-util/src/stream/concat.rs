@@ -1,5 +1,4 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
-use core::marker::Unpin;
 use core::pin::Pin;
 use core::default::Default;
 use futures_core::future::Future;

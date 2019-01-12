@@ -4,7 +4,6 @@ use futures_sink::Sink;
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
-use std::marker::Unpin;
 use std::pin::Pin;
 
 use crate::lock::BiLock;

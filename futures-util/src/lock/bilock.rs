@@ -8,7 +8,6 @@ use std::boxed::Box;
 use std::cell::UnsafeCell;
 use std::error::Error;
 use std::fmt;
-use std::marker::Unpin;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;

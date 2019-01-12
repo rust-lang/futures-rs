@@ -1,5 +1,4 @@
 use futures_core::stream::Stream;
-use std::marker::Unpin;
 
 #[doc(hidden)]
 pub fn assert_is_unpin_stream<S: Stream + Unpin>(_: &mut S) {}

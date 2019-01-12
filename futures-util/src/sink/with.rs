@@ -1,4 +1,4 @@
-use core::marker::{Unpin, PhantomData};
+use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
 use futures_core::future::Future;
