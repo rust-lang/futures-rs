@@ -107,7 +107,7 @@ impl<Fut: Future> Future for MaybeDone<Fut> {
                 MaybeDone::Gone => panic!("MaybeDone polled after value taken"),
             }
         };
-        Pin::set(self, MaybeDone::Done(res));
+        Pin::set(&mut self, MaybeDone::Done(res));
         Poll::Ready(())
     }
 }

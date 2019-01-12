@@ -96,7 +96,7 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
     ) -> Poll<Option<It>> {
         if let Some(state) = self.as_mut().state().take() {
             let fut = (self.as_mut().f())(state);
-            Pin::set(self.as_mut().fut(), Some(fut));
+            Pin::set(&mut self.as_mut().fut(), Some(fut));
         }
 
         let step = ready!(self.as_mut().fut().as_pin_mut().unwrap().poll(lw));

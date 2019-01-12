@@ -1,7 +1,9 @@
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{LocalWaker, Poll};
+
 use pin_utils::unsafe_pinned;
+
+use futures_core::future::{FusedFuture, Future};
+use futures_core::task::{LocalWaker, Poll};
 
 /// A future which "fuses" a future once it has been resolved.
 /// This wrapper can be used to turn any `Future` into a `FusedFuture`.
@@ -50,7 +52,7 @@ impl<Fut: Future> Future for Fuse<Fut> {
             None => return Poll::Pending,
         };
 
-        Pin::set(self.as_mut().future(), None);
+        Pin::set(&mut self.as_mut().future(), None);
         Poll::Ready(v)
     }
 }
