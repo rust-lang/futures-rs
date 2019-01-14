@@ -1,3 +1,10 @@
+# 0.3.0-alpha.12 - 2019-1-14
+* Updated to new nightly with a modification to `Pin::set`.
+* Expose `AssertUnmoved` and `PendingOnce`.
+* Prevent double-panic in `AssertUnmoved`.
+* Support nested invocations of the `select!` macro.
+* Implement `Default` for `Mutex` and `SelectAll`.
+
 # 0.3.0-alpha.11 - 2018-12-27
 * Updated to newly stabilized versions of the `pin` and `arbitrary_self_types` features.
 * Re-added `select_all` for streams.
