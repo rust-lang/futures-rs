@@ -10,9 +10,16 @@ pub struct AwokenCount {
     inner: Arc<WakerInner>,
 }
 
+impl AwokenCount {
+    /// Get the current count.
+    fn get(&self) -> usize {
+        self.inner.count.load(Ordering::SeqCst)
+    }
+}
+
 impl PartialEq<usize> for AwokenCount {
     fn eq(&self, other: &usize) -> bool {
-        self.inner.count.load(Ordering::SeqCst) == *other
+        self.get() == *other
     }
 }
 
