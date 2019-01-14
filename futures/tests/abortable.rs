@@ -4,7 +4,7 @@ use futures::channel::oneshot;
 use futures::executor::block_on;
 use futures::future::{abortable, Aborted, FutureExt};
 use futures::task::Poll;
-use futures_test::task::WakeCounter;
+use futures_test::task::new_count_waker;
 
 #[test]
 fn abortable_works() {
@@ -20,14 +20,13 @@ fn abortable_awakens() {
     let (_tx, a_rx) = oneshot::channel::<()>();
     let (mut abortable_rx, abort_handle) = abortable(a_rx);
 
-    let wake_counter = WakeCounter::new();
-    let lw = &wake_counter.local_waker();
-    assert_eq!(0, wake_counter.count());
-    assert_eq!(Poll::Pending, abortable_rx.poll_unpin(lw));
-    assert_eq!(0, wake_counter.count());
+    let (lw, counter) = new_count_waker();
+    assert_eq!(counter, 0);
+    assert_eq!(Poll::Pending, abortable_rx.poll_unpin(&lw));
+    assert_eq!(counter, 0);
     abort_handle.abort();
-    assert_eq!(1, wake_counter.count());
-    assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(lw));
+    assert_eq!(counter, 1);
+    assert_eq!(Poll::Ready(Err(Aborted)), abortable_rx.poll_unpin(&lw));
 }
 
 #[test]

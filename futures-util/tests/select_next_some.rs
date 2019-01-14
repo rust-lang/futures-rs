@@ -5,18 +5,18 @@ use futures::future::{FusedFuture, FutureExt};
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::task::Poll;
 use futures_test::future::FutureTestExt;
-use futures_test::task::WakeCounter;
+use futures_test::task::new_count_waker;
 
 #[test]
 fn is_terminated() {
-    let counter = WakeCounter::new();
+    let (lw, counter) = new_count_waker();
 
     let mut tasks = FuturesUnordered::new();
 
     let mut select_next_some = tasks.select_next_some();
     assert_eq!(select_next_some.is_terminated(), false);
-    assert_eq!(select_next_some.poll_unpin(counter.local_waker()), Poll::Pending);
-    assert_eq!(counter.count(), 1);
+    assert_eq!(select_next_some.poll_unpin(&lw), Poll::Pending);
+    assert_eq!(counter, 1);
     assert_eq!(select_next_some.is_terminated(), true);
     drop(select_next_some);
 
@@ -24,9 +24,9 @@ fn is_terminated() {
 
     let mut select_next_some = tasks.select_next_some();
     assert_eq!(select_next_some.is_terminated(), false);
-    assert_eq!(select_next_some.poll_unpin(counter.local_waker()), Poll::Ready(1));
+    assert_eq!(select_next_some.poll_unpin(&lw), Poll::Ready(1));
     assert_eq!(select_next_some.is_terminated(), false);
-    assert_eq!(select_next_some.poll_unpin(counter.local_waker()), Poll::Pending);
+    assert_eq!(select_next_some.poll_unpin(&lw), Poll::Pending);
     assert_eq!(select_next_some.is_terminated(), true);
 }
 
