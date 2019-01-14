@@ -9,8 +9,8 @@
 //!   [`wake`](futures_core::task::LocalWaker).
 //! - [`panic_local_waker`] creates a waker that panics when
 //!   [`wake`](futures_core::task::LocalWaker) is called.
-//! - [`WakeCounter::local_waker`] creates a waker that increments
-//!   a counter whenever [`wake`](futures_core::task::LocalWaker) is called.
+//! - [`new_count_waker`] creates a waker that increments a counter whenever
+//!   [`wake`](futures_core::task::LocalWaker) is called.
 //!
 //! Test spawners:
 //! - [`NoopSpawner`] ignores calls to
@@ -38,4 +38,4 @@ mod record_spawner;
 pub use self::record_spawner::RecordSpawner;
 
 mod wake_counter;
-pub use self::wake_counter::{AwokenCount, WakeCounter, new_count_waker};
+pub use self::wake_counter::{AwokenCount, new_count_waker};
