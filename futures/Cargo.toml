@@ -23,16 +23,16 @@ travis-ci = { repository = "rust-lang-nursery/futures-rs" }
 appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "0.3.0-alpha.12", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "0.3.0-alpha.12", default-features = false }
-futures-executor-preview = { path = "../futures-executor", version = "0.3.0-alpha.12", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "0.3.0-alpha.12", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "0.3.0-alpha.12", default-features = false }
-futures-util-preview = { path = "../futures-util", version = "0.3.0-alpha.12", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.12", default-features = false }
+futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.12", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.12", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.12", default-features = false }
+futures-util-preview = { path = "../futures-util", version = "=0.3.0-alpha.12", default-features = false }
 
 [dev-dependencies]
 pin-utils = "0.1.0-alpha.4"
-futures-test-preview = { path = "../futures-test", version = "0.3.0-alpha.12" }
+futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.12" }
 tokio = "0.1.11"
 
 [features]
