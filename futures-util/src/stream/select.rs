@@ -56,7 +56,7 @@ impl<St1, St2> Stream for Select<St1, St2>
         let stream1 = unsafe { Pin::new_unchecked(stream1) };
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
-        if *flag {
+        if !*flag {
             poll_inner(flag, stream1, stream2, lw)
         } else {
             poll_inner(flag, stream2, stream1, lw)
@@ -73,18 +73,17 @@ fn poll_inner<St1, St2>(
     where St1: Stream, St2: Stream<Item = St1::Item>
 {
     let a_done = match a.poll_next(lw) {
-        Poll::Ready(Some(item)) => return Poll::Ready(Some(item)),
+        Poll::Ready(Some(item)) => {
+            // give the other stream a chance to go first next time
+            *flag = !*flag;
+            return Poll::Ready(Some(item))
+        },
         Poll::Ready(None) => true,
         Poll::Pending => false,
     };
 
     match b.poll_next(lw) {
         Poll::Ready(Some(item)) => {
-            // If the other stream isn't finished yet, give them a chance to
-            // go first next time as we pulled something off `b`.
-            if !a_done {
-                *flag = !*flag;
-            }
             Poll::Ready(Some(item))
         }
         Poll::Ready(None) if a_done => Poll::Ready(None),
