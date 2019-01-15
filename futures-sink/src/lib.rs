@@ -38,6 +38,7 @@ use core::pin::Pin;
 /// higher-level way. The `Sink::send_all` combinator is of particular
 /// importance: you can use it to send an entire stream to a sink, which is
 /// the simplest way to ultimately consume a stream.
+#[must_use = "sinks do nothing unless polled"]
 pub trait Sink {
     /// The type of value that the sink accepts.
     type SinkItem;

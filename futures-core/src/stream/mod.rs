@@ -20,6 +20,7 @@ pub use self::stream_obj::{StreamObj,LocalStreamObj,UnsafeStreamObj};
 /// The trait is modeled after `Future`, but allows `poll_next` to be called
 /// even after a value has been produced, yielding `None` once the stream has
 /// been fully exhausted.
+#[must_use = "streams do nothing unless polled"]
 pub trait Stream {
     /// Values yielded by the stream.
     type Item;
