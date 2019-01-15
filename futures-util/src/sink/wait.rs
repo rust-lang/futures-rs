@@ -7,7 +7,7 @@ use executor;
 /// Created by the `Sink::wait` method, this function transforms any sink into a
 /// blocking version. This is implemented by blocking the current thread when a
 /// sink is otherwise unable to make progress.
-#[must_use = "sinks do nothing unless used"]
+#[must_use = "sinks do nothing unless polled"]
 #[derive(Debug)]
 pub struct Wait<Si> {
     sink: executor::Spawn<Si>,
