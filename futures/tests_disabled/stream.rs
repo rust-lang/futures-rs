@@ -329,21 +329,6 @@ fn chunks_panic_on_cap_zero() {
 }
 
 #[test]
-fn select() {
-    let a = iter_ok::<_, u32>(vec![1, 2, 3]);
-    let b = iter_ok(vec![4, 5, 6]);
-    assert_done(|| a.select(b).collect(), Ok(vec![1, 4, 2, 5, 3, 6]));
-
-    let a = iter_ok::<_, u32>(vec![1, 2, 3]);
-    let b = iter_ok(vec![1, 2]);
-    assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
-
-    let a = iter_ok(vec![1, 2]);
-    let b = iter_ok::<_, u32>(vec![1, 2, 3]);
-    assert_done(|| a.select(b).collect(), Ok(vec![1, 1, 2, 2, 3]));
-}
-
-#[test]
 fn forward() {
     let v = Vec::new();
     let v = block_on(iter_ok::<_, Never>(vec![0, 1]).forward(v)).unwrap().1;
