@@ -12,7 +12,7 @@ pub struct AwokenCount {
 
 impl AwokenCount {
     /// Get the current count.
-    fn get(&self) -> usize {
+    pub fn get(&self) -> usize {
         self.inner.count.load(Ordering::SeqCst)
     }
 }
