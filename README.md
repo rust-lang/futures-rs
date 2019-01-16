@@ -30,7 +30,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "0.3.0-alpha.11"
+futures-preview = "0.3.0-alpha.12"
 ```
 
 Now, you can use futures-rs:
