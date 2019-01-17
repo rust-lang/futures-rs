@@ -15,7 +15,7 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "either/use_std", "rand", "slab"]
+std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "either/use_std", "rand", "rand_core", "slab"]
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
@@ -32,7 +32,8 @@ futures-select-macro-preview = { path = "../futures-select-macro", version = "=0
 either = { version = "1.4", default-features = false }
 proc-macro-hack = "0.5"
 proc-macro-nested = "0.1.2"
-rand = { version = "0.5.5", optional = true }
+rand = { version = "0.6.4", optional = true }
+rand_core = { version = ">=0.2.2, <0.4", optional = true } # See https://github.com/rust-random/rand/issues/645
 slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-executor = { version = "0.1.2", optional = true }
