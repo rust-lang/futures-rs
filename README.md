@@ -7,8 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="https://travis-ci.org/rust-lang-nursery/futures-rs">
-    <img alt="Build Status" src="https://travis-ci.org/rust-lang-nursery/futures-rs.svg?branch=master">
+  <a href="https://travis-ci.com/rust-lang-nursery/futures-rs">
+    <img alt="Build Status" src="https://travis-ci.com/rust-lang-nursery/futures-rs.svg?branch=master">
   </a>
 
   <a href="https://crates.io/crates/futures-preview">
