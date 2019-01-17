@@ -29,7 +29,7 @@ futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.12", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.12", default-features = false}
 futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.12", default-features = false }
-either = { version = "1.4", default-features = false }
+either = { version = "1.5", default-features = false }
 proc-macro-hack = "0.5"
 proc-macro-nested = "0.1.2"
 rand = { version = "0.5.5", optional = true }

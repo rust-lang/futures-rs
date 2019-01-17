@@ -19,6 +19,6 @@ std = ["either/use_std", "futures-core-preview/std", "futures-channel-preview/st
 default = ["std"]
 
 [dependencies]
-either = { version = "1.4", default-features = false, optional = true }
+either = { version = "1.5", default-features = false, optional = true }
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false }
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.12", default-features = false }
