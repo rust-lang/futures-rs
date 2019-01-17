@@ -259,9 +259,9 @@ pub fn select(input: TokenStream) -> TokenStream {
             #( #poll_functions )*
 
             let mut __select_arr = [#( #variant_names ),*];
-            #rand_crate::Rng::shuffle(
-                &mut #rand_crate::thread_rng(),
+            <[_] as #rand_crate::seq::SliceRandom>::shuffle(
                 &mut __select_arr,
+                &mut #rand_crate::thread_rng(),
             );
             for poller in &mut __select_arr {
                 let poller: &mut &mut dyn FnMut(

@@ -32,7 +32,7 @@ futures-select-macro-preview = { path = "../futures-select-macro", version = "=0
 either = { version = "1.4", default-features = false }
 proc-macro-hack = "0.5"
 proc-macro-nested = "0.1.2"
-rand = { version = "0.5.5", optional = true }
+rand = { version = "0.6.4", optional = true }
 slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
 tokio-executor = { version = "0.1.2", optional = true }
