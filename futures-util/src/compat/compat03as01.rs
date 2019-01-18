@@ -185,6 +185,26 @@ mod io {
         }
     }
 
+    impl<T: AsyncRead03> AsyncRead03 for Compat<T> {
+        fn poll_read(&mut self, lw: &std::task::LocalWaker, buf: &mut [u8])
+                     -> task03::Poll<Result<usize, std::io::Error>> {
+            self.inner.poll_read(lw, buf)
+        }
+    }
+
+    impl<T: AsyncWrite03> AsyncWrite03 for Compat<T> {
+        fn poll_write(&mut self, lw: &std::task::LocalWaker, buf: &[u8])
+                      -> task03::Poll<Result<usize, std::io::Error>> {
+            self.inner.poll_write(lw, buf)
+        }
+        fn poll_flush(&mut self, lw: &std::task::LocalWaker) -> task03::Poll<Result<(), std::io::Error>> {
+            self.inner.poll_flush(lw)
+        }
+        fn poll_close(&mut self, lw: &std::task::LocalWaker) -> task03::Poll<Result<(), std::io::Error>> {
+            self.inner.poll_close(lw)
+        }
+    }
+
     impl<R: AsyncRead03> std::io::Read for Compat<R> {
         fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
             let current = Current::new();
