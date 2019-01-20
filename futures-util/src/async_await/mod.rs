@@ -19,6 +19,10 @@ pub use self::poll::*;
 mod pending;
 pub use self::pending::*;
 
+#[macro_use]
+mod yield_now;
+pub use self::yield_now::*;
+
 // Primary export is a macro
 #[macro_use]
 mod join;
