@@ -19,7 +19,6 @@ std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-previ
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
-tokio-compat = ["compat", "tokio-executor"]
 bench = []
 nightly = []
 
@@ -36,7 +35,6 @@ rand = { version = "0.6.4", optional = true }
 rand_core = { version = ">=0.2.2, <0.4", optional = true } # See https://github.com/rust-random/rand/issues/645
 slab = { version = "0.4", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
-tokio-executor = { version = "0.1.2", optional = true }
 tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
