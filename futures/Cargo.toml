@@ -41,4 +41,3 @@ std = ["futures-core-preview/std", "futures-executor-preview/std", "futures-io-p
 default = ["std"]
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
-tokio-compat = ["compat", "futures-util-preview/tokio-compat"]
