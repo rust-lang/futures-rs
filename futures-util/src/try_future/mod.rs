@@ -55,10 +55,10 @@ mod unwrap_or_else;
 pub use self::unwrap_or_else::UnwrapOrElse;
 
 #[cfg(feature = "std")]
-mod join_all;
+mod try_join_all;
 
 #[cfg(feature = "std")]
-pub use self::join_all::{join_all, JoinAll};
+pub use self::try_join_all::{try_join_all, TryJoinAll};
 
 // Implementation details
 mod try_chain;
