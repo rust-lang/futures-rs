@@ -58,7 +58,7 @@ fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
 /// A future which takes a list of futures and resolves with a vector of the
 /// completed values.
 ///
-/// This future is created with the `join_all` method.
+/// This future is created with the `join_all` function.
 #[must_use = "futures do nothing unless polled"]
 pub struct JoinAll<F>
 where

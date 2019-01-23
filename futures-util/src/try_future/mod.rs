@@ -21,8 +21,6 @@ mod select_all;
 #[cfg(feature = "std")]
 mod select_ok;
 #[cfg(feature = "std")]
-pub use self::join_all::{join_all, JoinAll};
-#[cfg(feature = "std")]
 pub use self::select_all::{SelectAll, SelectAllNext, select_all};
 #[cfg(feature = "std")]
 pub use self::select_ok::{SelectOk, select_ok};
@@ -55,6 +53,12 @@ pub use self::or_else::OrElse;
 
 mod unwrap_or_else;
 pub use self::unwrap_or_else::UnwrapOrElse;
+
+#[cfg(feature = "std")]
+mod join_all;
+
+#[cfg(feature = "std")]
+pub use self::join_all::{join_all, JoinAll};
 
 // Implementation details
 mod try_chain;
