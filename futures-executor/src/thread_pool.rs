@@ -72,7 +72,6 @@ impl ThreadPool {
     /// See documentation for the methods in
     /// [`ThreadPoolBuilder`](ThreadPoolBuilder) for details on the default
     /// configuration.
-    #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Result<ThreadPool, io::Error> {
         ThreadPoolBuilder::new().create()
     }
