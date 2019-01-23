@@ -81,7 +81,6 @@ unsafe impl<T: Send> Send for Queue<T> { }
 unsafe impl<T: Send> Sync for Queue<T> { }
 
 impl<T> Node<T> {
-    #[allow(clippy::new_ret_no_self)]
     unsafe fn new(v: Option<T>) -> *mut Node<T> {
         Box::into_raw(Box::new(Node {
             next: AtomicPtr::new(ptr::null_mut()),
