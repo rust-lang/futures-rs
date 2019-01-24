@@ -16,7 +16,7 @@ where
     F: TryFuture,
 {
     Pending(F),
-    Done(Option<Result<F::Ok, F::Error>>),
+    Done(Option<F::Ok>),
 }
 
 impl<F> ElemState<F>
@@ -32,7 +32,7 @@ where
         }
     }
 
-    fn take_done(self: Pin<&mut Self>) -> Option<Result<F::Ok, F::Error>> {
+    fn take_done(self: Pin<&mut Self>) -> Option<F::Ok> {
         // Safety: Going from pin to a variant we never pin-project
         match unsafe { self.get_unchecked_mut() } {
             ElemState::Pending(_) => None,
@@ -148,7 +148,7 @@ where
                 match pending.try_poll(lw) {
                     Poll::Pending => state = FinalState::Pending,
                     Poll::Ready(output) => match output {
-                        Ok(item) => elem.set(ElemState::Done(Some(Ok(item)))),
+                        Ok(item) => elem.set(ElemState::Done(Some(item))),
                         Err(e) => {
                             state = FinalState::Error(e);
                             break;
@@ -162,10 +162,10 @@ where
             FinalState::Pending => Poll::Pending,
             FinalState::AllDone => {
                 let mut elems = mem::replace(&mut self.elems, Box::pin([]));
-                let result = iter_pin_mut(elems.as_mut())
+                let results = iter_pin_mut(elems.as_mut())
                     .map(|e| e.take_done().unwrap())
                     .collect();
-                Poll::Ready(result)
+                Poll::Ready(Ok(results))
             },
             FinalState::Error(e) => {
                 let _ = mem::replace(&mut self.elems, Box::pin([]));
