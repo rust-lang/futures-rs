@@ -8,6 +8,7 @@ use std::mem;
 use std::pin::Pin;
 use std::prelude::v1::*;
 use std::task::Poll;
+
 use super::TryFuture;
 
 #[derive(Debug)]
@@ -52,7 +53,6 @@ fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
         .map(|t| unsafe { Pin::new_unchecked(t) })
 }
 
-#[derive(Debug)]
 enum FinalState<E = ()> {
     Pending,
     AllDone,
