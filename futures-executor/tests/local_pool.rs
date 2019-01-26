@@ -2,7 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
-use futures::future::{Future, lazy};
+use futures::future::{Future, lazy, poll_fn};
 use futures::task::{LocalWaker, Poll, Spawn, LocalSpawn};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
@@ -59,6 +59,13 @@ fn run_until_executes_spawned() {
 }
 
 #[test]
+fn run_returns_if_empty() {
+    let mut pool = LocalPool::new();
+    pool.run();
+    pool.run();
+}
+
+#[test]
 fn run_executes_spawned() {
     let cnt = Rc::new(Cell::new(0));
     let cnt2 = cnt.clone();
@@ -104,6 +111,130 @@ fn run_spawn_many() {
 }
 
 #[test]
+fn poll_one_returns_if_empty() {
+    let mut pool = LocalPool::new();
+    assert!(pool.poll_one() == false);
+}
+
+#[test]
+fn poll_one_executes_one_ready() {
+    const ITER: usize = 200;
+
+    let cnt = Rc::new(Cell::new(0));
+
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+
+    for _ in 0..ITER {
+        spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
+
+        let cnt = cnt.clone();
+        spawn.spawn_local_obj(Box::pin(lazy(move |_| {
+            cnt.set(cnt.get() + 1);
+            ()
+        })).into()).unwrap();
+
+        spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
+    }
+
+    for i in 0..ITER {
+        assert_eq!(cnt.get(), i);
+        assert!(pool.poll_one());
+        assert_eq!(cnt.get(), i + 1);
+    }
+    assert!(pool.poll_one() == false);
+}
+
+#[test]
+fn poll_one_returns_on_no_progress() {
+    const ITER: usize = 10;
+
+    let cnt = Rc::new(Cell::new(0));
+
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+
+    let waker: Rc<Cell<Option<LocalWaker>>> = Rc::new(Cell::new(None));
+    {
+        let cnt = cnt.clone();
+        let waker = waker.clone();
+        spawn.spawn_local_obj(Box::pin(poll_fn(move |local_waiter| {
+            cnt.set(cnt.get() + 1);
+            waker.set(Some(local_waiter.clone()));
+            if cnt.get() == ITER {
+                Poll::Ready(())
+            } else {
+                Poll::Pending
+            }
+        })).into()).unwrap();
+    }
+
+    for i in 0..ITER - 1 {
+        assert_eq!(cnt.get(), i);
+        assert!(!pool.poll_one());
+        assert_eq!(cnt.get(), i + 1);
+        let w = waker.take();
+        assert!(w.is_some());
+        w.unwrap().wake();
+    }
+    assert!(pool.poll_one());
+    assert_eq!(cnt.get(), ITER);
+}
+
+#[test]
+fn poll_returns_if_empty() {
+    let mut pool = LocalPool::new();
+    pool.poll();
+    pool.poll();
+}
+
+#[test]
+fn poll_returns_multiple_times() {
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+    let cnt = Rc::new(Cell::new(0));
+
+    let cnt1 = cnt.clone();
+    spawn.spawn_local_obj(Box::pin(lazy(move |_|{ cnt1.set(cnt1.get() + 1) })).into()).unwrap();
+    pool.poll();
+    assert_eq!(cnt.get(), 1);
+
+    let cnt2 = cnt.clone();
+    spawn.spawn_local_obj(Box::pin(lazy(move |_|{ cnt2.set(cnt2.get() + 1) })).into()).unwrap();
+    pool.poll();
+    assert_eq!(cnt.get(), 2);
+}
+
+#[test]
+fn poll_executes_all_ready() {
+    const ITER: usize = 200;
+    const PER_ITER: usize = 3;
+
+    let cnt = Rc::new(Cell::new(0));
+
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+
+    for i in 0..ITER {
+        for _ in 0..PER_ITER {
+            spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
+
+            let cnt = cnt.clone();
+            spawn.spawn_local_obj(Box::pin(lazy(move |_| {
+                cnt.set(cnt.get() + 1);
+                ()
+            })).into()).unwrap();
+
+            // also add some pending tasks to test if they are ignored
+            spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
+        }
+        assert_eq!(cnt.get(), i * PER_ITER);
+        pool.poll();
+        assert_eq!(cnt.get(), (i + 1) * PER_ITER);
+    }
+}
+
+#[test]
 #[should_panic]
 fn nesting_run() {
     let mut pool = LocalPool::new();
@@ -113,6 +244,21 @@ fn nesting_run() {
         let mut pool = LocalPool::new();
         pool.run();
     })).into()).unwrap();
+
+    pool.run();
+}
+
+#[test]
+#[should_panic]
+fn nesting_run_poll() {
+    let mut pool = LocalPool::new();
+    let mut spawn = pool.spawner();
+
+    spawn.spawn_obj(Box::pin(lazy(|_| {
+        let mut pool = LocalPool::new();
+        pool.poll();
+    })).into()).unwrap();
+
     pool.run();
 }
 

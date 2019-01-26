@@ -77,6 +77,19 @@ fn run_executor<T, F: FnMut(&LocalWaker) -> Poll<T>>(mut f: F) -> T {
     })
 }
 
+// Set up and run a basic single-threaded spawner and return the result of `f`
+fn poll_executor<T, F: FnMut(&LocalWaker) -> T>(mut f: F) -> T {
+    let _enter = enter()
+        .expect("cannot execute `LocalPool` executor from within \
+                 another executor");
+
+    CURRENT_THREAD_NOTIFY.with(|thread_notify| {
+        let local_waker =
+          task::local_waker_from_nonlocal(thread_notify.clone());
+        f(&local_waker)
+    })
+}
+
 impl LocalPool {
     /// Create a new, empty pool of tasks.
     pub fn new() -> LocalPool {
@@ -138,8 +151,8 @@ impl LocalPool {
     /// The function will block the calling thread *only* until the future `f`
     /// completes; there may still be incomplete tasks in the pool, which will
     /// be inert after the call completes, but can continue with further use of
-    /// `run` or `run_until`. While the function is running, however, all tasks
-    /// in the pool will try to make progress.
+    /// one of the pool's run or poll mothods. While the function is running,
+    /// however, all tasks in the pool will try to make progress.
     pub fn run_until<F: Future>(&mut self, future: F) -> F::Output {
         pin_mut!(future);
 
@@ -157,20 +170,94 @@ impl LocalPool {
         })
     }
 
+    /// Runs all tasks and returns after completing one future or until no more progress
+    /// can be made. Returns `true` if one future was completed, `false` otherwise.
+    ///
+    /// ```
+    /// #![feature(futures_api)]
+    /// use futures::executor::LocalPool;
+    /// use futures::task::LocalSpawnExt;
+    /// use futures::future::{ready, empty};
+    ///
+    /// let mut pool = LocalPool::new();
+    /// let mut spawner = pool.spawner();
+    ///
+    /// spawner.spawn_local(ready(()));
+    /// spawner.spawn_local(ready(()));
+    /// spawner.spawn_local(empty());
+    ///
+    /// // Run the two ready tasks and return true for them.
+    /// pool.poll_one(); // returns true after completing one of the ready futures
+    /// pool.poll_one(); // returns true after completing the other ready future
+    ///
+    /// // the remaining task can not be completed
+    /// pool.poll_one(); // returns false
+    /// ```
+    ///
+    /// This function will not block the calling thread and will return the moment
+    /// that there are no tasks left for which progress can be made or after exactly one
+    /// task was completed; Remaining incomplete tasks in the pool can continue with
+    /// further use of one of the pool's run or poll methods.
+    /// Though only one task will be completed, progress may be made on multiple tasks.
+    pub fn poll_one(&mut self) -> bool {
+        poll_executor(|local_waker| {
+            let ret = self.poll_pool_once(local_waker);
+
+            // return if we really have executed a future
+            match ret {
+                Poll::Ready(Some(_)) => true,
+                _ => false
+            }
+        })
+    }
+
+    /// Runs all tasks in the pool and returns if no more progress can be made
+    /// on any task.
+    ///
+    /// ```
+    /// #![feature(futures_api)]
+    /// use futures::executor::LocalPool;
+    /// use futures::task::LocalSpawnExt;
+    /// use futures::future::{ready, empty};
+    ///
+    /// let mut pool = LocalPool::new();
+    /// let mut spawner = pool.spawner();
+    ///
+    /// spawner.spawn_local(ready(()));
+    /// spawner.spawn_local(ready(()));
+    /// spawner.spawn_local(empty());
+    ///
+    /// // Runs the two ready task and returns.
+    /// // The empty task remains in the pool.
+    /// pool.poll();
+    /// ```
+    ///
+    /// This function will not block the calling thread and will return the moment
+    /// that there are no tasks left for which progress can be made;
+    /// remaining incomplete tasks in the pool can continue with further use of one
+    /// of the pool's run or poll methods. While the function is running, all tasks
+    /// in the pool will try to make progress.
+    pub fn poll(&mut self) {
+        poll_executor(|local_waker| {
+            loop {
+                let result = self.poll_pool_once(local_waker);
+
+                // if there are no more ready futures exit 
+                match result {
+                    Poll::Pending | Poll::Ready(None) => return,
+                    _ => continue
+                }
+            }
+        })
+    }
+
     // Make maximal progress on the entire pool of spawned task, returning `Ready`
     // if the pool is empty and `Pending` if no further progress can be made.
     fn poll_pool(&mut self, local_waker: &LocalWaker) -> Poll<()> {
         // state for the FuturesUnordered, which will never be used
         loop {
-            // empty the incoming queue of newly-spawned tasks
-            {
-                let mut incoming = self.incoming.borrow_mut();
-                for task in incoming.drain(..) {
-                    self.pool.push(task)
-                }
-            }
+            let ret = self.poll_pool_once(local_waker);
 
-            let ret = self.pool.poll_next_unpin(local_waker);
             // we queued up some new tasks; add them and poll again
             if !self.incoming.borrow().is_empty() {
                 continue;
@@ -183,6 +270,20 @@ impl LocalPool {
                 _ => {}
             }
         }
+    }
+
+    // Try make minimal progress on the pool of spawned tasks
+    fn poll_pool_once(&mut self, local_waker: &LocalWaker) -> Poll<Option<()>> {
+        // empty the incoming queue of newly-spawned tasks
+        {
+            let mut incoming = self.incoming.borrow_mut();
+            for task in incoming.drain(..) {
+                self.pool.push(task)
+            }
+        }
+
+        // try to execute the next ready future
+        self.pool.poll_next_unpin(local_waker)
     }
 }
 
