@@ -16,11 +16,13 @@ name = "futures_core"
 
 [features]
 default = ["std"]
-std = ["either/use_std"]
+std = ["alloc", "either/use_std", "alloc-shim/std"]
 nightly = []
+alloc = ["alloc-shim/alloc"]
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }
+alloc-shim = { version = "0.3.0", features = ["futures"], optional = true }
 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "=0.3.0-alpha.12" }

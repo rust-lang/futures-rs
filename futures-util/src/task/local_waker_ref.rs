@@ -1,10 +1,10 @@
 #![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
 
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ptr::NonNull;
-use std::sync::Arc;
-use std::task::{LocalWaker, Waker, Wake, UnsafeWake};
+use core::marker::PhantomData;
+use core::ops::Deref;
+use core::ptr::NonNull;
+use alloc::sync::Arc;
+use alloc::task::{LocalWaker, Waker, Wake, UnsafeWake};
 
 /// A [`LocalWaker`](::std::task::LocalWaker) that is only valid for a given lifetime.
 ///

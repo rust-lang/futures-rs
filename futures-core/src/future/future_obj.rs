@@ -185,10 +185,11 @@ where
     unsafe fn drop(_ptr: *mut ()) {}
 }
 
-#[cfg(feature = "std")]
-mod if_std {
+#[cfg(feature = "alloc")]
+mod if_alloc {
     use super::*;
-    use std::mem;
+    use core::mem;
+    use alloc::boxed::Box;
 
     unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>
         where F: Future<Output = T> + 'a

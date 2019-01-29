@@ -145,9 +145,9 @@ impl<S, T, E> TryStream for S
     }
 }
 
-#[cfg(feature = "std")]
-mod if_std {
-    use std::boxed::Box;
+#[cfg(feature = "alloc")]
+mod if_alloc {
+    use alloc::boxed::Box;
     use super::*;
 
     impl<S: ?Sized + Stream + Unpin> Stream for Box<S> {
@@ -161,6 +161,7 @@ mod if_std {
         }
     }
 
+    #[cfg(feature = "std")]
     impl<S: Stream> Stream for ::std::panic::AssertUnwindSafe<S> {
         type Item = S::Item;
 
@@ -172,7 +173,7 @@ mod if_std {
         }
     }
 
-    impl<T: Unpin> Stream for ::std::collections::VecDeque<T> {
+    impl<T: Unpin> Stream for ::alloc::collections::VecDeque<T> {
         type Item = T;
 
         fn poll_next(

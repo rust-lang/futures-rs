@@ -2,8 +2,8 @@ use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::collections::VecDeque;
-use std::pin::Pin;
+use core::pin::Pin;
+use alloc::collections::VecDeque;
 
 /// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
 /// number of values when the underlying sink is unable to accept them.

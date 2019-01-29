@@ -2,6 +2,7 @@
 
 #![feature(futures_api)]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
+#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -9,6 +10,9 @@
 #![deny(bare_trait_objects)]
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_core")]
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "nightly"))))]
+compile_error!("The `alloc` feature without `std` requires the `nightly` feature active to explicitly opt-in to unstable features");
 
 pub mod future;
 #[doc(hidden)] pub use self::future::{Future, FusedFuture, TryFuture};

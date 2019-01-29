@@ -2,9 +2,9 @@ use crate::stream::Fuse;
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::mem;
-use std::pin::Pin;
-use std::prelude::v1::*;
+use core::mem;
+use core::pin::Pin;
+use alloc::prelude::*;
 
 /// An adaptor that chunks up elements in a vector.
 ///

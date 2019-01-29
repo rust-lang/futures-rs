@@ -54,6 +54,14 @@ matrix:
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
 
+    - name: cargo build (alloc)
+      rust: nightly
+      script:
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features=alloc,nightly
+        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features=alloc,nightly
+        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features=alloc,nightly
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features=alloc,nightly
+
     - name: cargo build (default features)
       rust: nightly
       script:

@@ -2,9 +2,9 @@ use crate::task::AtomicWaker;
 use futures_core::future::Future;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use core::pin::Pin;
+use core::sync::atomic::{AtomicBool, Ordering};
+use alloc::sync::Arc;
 
 /// A future which can be remotely short-circuited using an `AbortHandle`.
 #[derive(Debug, Clone)]

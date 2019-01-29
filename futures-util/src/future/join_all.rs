@@ -1,13 +1,13 @@
 //! Definition of the `JoinAll` combinator, waiting for all of a list of futures
 //! to finish.
 
-use std::fmt;
-use std::future::Future;
-use std::iter::FromIterator;
-use std::mem;
-use std::pin::Pin;
-use std::prelude::v1::*;
-use std::task::Poll;
+use core::fmt;
+use core::future::Future;
+use core::iter::FromIterator;
+use core::mem;
+use core::pin::Pin;
+use alloc::prelude::*;
+use alloc::task::Poll;
 
 #[derive(Debug)]
 enum ElemState<F>
@@ -129,7 +129,7 @@ where
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &::std::task::LocalWaker,
+        lw: &::alloc::task::LocalWaker,
     ) -> Poll<Self::Output> {
         let mut all_done = true;
 

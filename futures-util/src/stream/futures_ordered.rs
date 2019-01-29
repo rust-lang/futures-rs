@@ -3,11 +3,11 @@ use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
 use pin_utils::unsafe_pinned;
-use std::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
-use std::collections::binary_heap::{BinaryHeap, PeekMut};
-use std::fmt::{self, Debug};
-use std::iter::FromIterator;
-use std::pin::Pin;
+use core::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
+use core::fmt::{self, Debug};
+use core::iter::FromIterator;
+use core::pin::Pin;
+use alloc::collections::binary_heap::{BinaryHeap, PeekMut};
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]

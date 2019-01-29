@@ -4,12 +4,16 @@
 #![feature(futures_api, box_into_pin)]
 #![cfg_attr(feature = "std", feature(async_await, await_macro))]
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
+#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![deny(bare_trait_objects)]
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_util")]
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "nightly"))))]
+compile_error!("The `alloc` feature without `std` requires the `nightly` feature active to explicitly opt-in to unstable features");
 
 #[macro_use]
 mod macros;
@@ -89,5 +93,5 @@ pub mod io;
 #[cfg(feature = "std")]
 #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub mod lock;

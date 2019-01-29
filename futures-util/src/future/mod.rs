@@ -7,6 +7,8 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{LocalWaker, Poll};
+#[cfg(feature = "alloc")]
+use alloc::prelude::*;
 
 // re-export for `select!`
 #[doc(hidden)]
@@ -67,9 +69,9 @@ pub use self::unit_error::UnitError;
 mod chain;
 pub(crate) use self::chain::Chain;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod abortable;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
 
 #[cfg(feature = "std")]
@@ -82,10 +84,10 @@ mod remote_handle;
 #[cfg(feature = "std")]
 pub use self::remote_handle::{Remote, RemoteHandle};
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod join_all;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::join_all::{join_all, JoinAll};
 
 // #[cfg(feature = "std")]
@@ -653,7 +655,7 @@ pub trait FutureExt: Future {
     }
 
     /// Wrap the future in a Box, pinning it.
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {

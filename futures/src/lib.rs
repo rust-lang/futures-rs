@@ -31,6 +31,10 @@
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures")]
 
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
+#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "nightly"))))]
+compile_error!("The `alloc` feature without `std` requires the `nightly` feature active to explicitly opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_util::core_reexport;
 
@@ -189,14 +193,17 @@ pub mod future {
         Join5, Map, Then,
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::future::{
         abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
+
+        join_all, JoinAll,
+    };
+    #[cfg(feature = "std")]
+    pub use futures_util::future::{
         Remote, RemoteHandle,
         // For FutureExt:
         CatchUnwind, Shared,
-
-        join_all, JoinAll,
 
         // ToDo: SelectAll, SelectOk, select_all, select_ok
     };
@@ -282,7 +289,7 @@ pub mod sink {
         // WithFlatMap,
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::sink::Buffer;
 }
 
@@ -319,16 +326,21 @@ pub mod stream {
         Take, TakeWhile, Then, Zip
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         futures_ordered, FuturesOrdered,
         futures_unordered, FuturesUnordered,
 
         // For StreamExt:
-        BufferUnordered, Buffered, CatchUnwind, Chunks, Collect, SplitStream,
-        SplitSink, ReuniteError,
+        BufferUnordered, Buffered, Chunks, Collect, SplitStream, SplitSink,
 
         select_all, SelectAll,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::stream::{
+        // For StreamExt:
+        CatchUnwind, ReuniteError,
     };
 
     pub use futures_util::try_stream::{
@@ -339,7 +351,7 @@ pub mod stream {
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
         TryCollect, TryBufferUnordered,
@@ -363,12 +375,12 @@ pub mod task {
         Waker, LocalWaker, UnsafeWake,
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_core::task::{
         Wake, local_waker, local_waker_from_nonlocal
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::task::{
         LocalWakerRef, local_waker_ref, local_waker_ref_from_nonlocal,
         SpawnExt, LocalSpawnExt,

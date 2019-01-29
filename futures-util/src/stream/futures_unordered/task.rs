@@ -1,10 +1,10 @@
-use std::cell::UnsafeCell;
-use std::marker::PhantomData;
-use std::mem;
-use std::ptr::{self, NonNull};
-use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicPtr, AtomicBool};
-use std::sync::atomic::Ordering::SeqCst;
+use core::cell::UnsafeCell;
+use core::marker::PhantomData;
+use core::mem;
+use core::ptr::{self, NonNull};
+use core::sync::atomic::{AtomicPtr, AtomicBool};
+use core::sync::atomic::Ordering::SeqCst;
+use alloc::sync::{Arc, Weak};
 
 use futures_core::task::{UnsafeWake, Waker, LocalWaker};
 

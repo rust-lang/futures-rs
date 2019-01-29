@@ -4,17 +4,17 @@ use crate::task::AtomicWaker;
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{LocalWaker, Poll, Spawn, LocalSpawn, SpawnError};
-use std::cell::UnsafeCell;
-use std::fmt::{self, Debug};
-use std::iter::FromIterator;
-use std::marker::PhantomData;
-use std::mem;
-use std::pin::Pin;
-use std::ptr;
-use std::sync::atomic::Ordering::SeqCst;
-use std::sync::atomic::{AtomicPtr, AtomicBool};
-use std::sync::{Arc, Weak};
-use std::usize;
+use core::cell::UnsafeCell;
+use core::fmt::{self, Debug};
+use core::iter::FromIterator;
+use core::marker::PhantomData;
+use core::mem;
+use core::pin::Pin;
+use core::ptr;
+use core::sync::atomic::Ordering::SeqCst;
+use core::sync::atomic::{AtomicPtr, AtomicBool};
+use core::usize;
+use alloc::sync::{Arc, Weak};
 
 mod abort;
 
