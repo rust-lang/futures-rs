@@ -22,6 +22,7 @@
 //! completion, but *do not block* the thread running them.
 
 #![feature(futures_api)]
+#![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -29,6 +30,9 @@
 #![deny(bare_trait_objects)]
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures")]
+
+#[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
+compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_util::core_reexport;
 
@@ -377,7 +381,7 @@ pub mod task {
     };
 
     #[cfg_attr(
-        feature = "nightly",
+        feature = "target-has-atomic",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     pub use futures_util::task::AtomicWaker;
