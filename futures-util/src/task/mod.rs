@@ -12,7 +12,7 @@ mod local_waker_ref;
 pub use self::local_waker_ref::{local_waker_ref, local_waker_ref_from_nonlocal, LocalWakerRef};
 
 #[cfg_attr(
-    feature = "nightly",
+    feature = "cfg-target-has-atomic",
     cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
 )]
 pub use futures_core::task::__internal::AtomicWaker;

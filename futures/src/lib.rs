@@ -29,8 +29,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures")]
 
-#![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
-
 #[doc(hidden)] pub use futures_util::core_reexport;
 
 #[doc(hidden)] pub use futures_core::future::Future;
