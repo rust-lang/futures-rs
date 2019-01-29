@@ -20,7 +20,7 @@ impl<T> Sink for Sender<T> {
     }
 
     fn poll_close(mut self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        self.close_channel();
+        self.disconnect();
         Poll::Ready(Ok(()))
     }
 }
@@ -41,8 +41,8 @@ impl<T> Sink for UnboundedSender<T> {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
-        self.close_channel();
+    fn poll_close(mut self: Pin<&mut Self>, _: &LocalWaker) -> Poll<Result<(), Self::SinkError>> {
+        self.disconnect();
         Poll::Ready(Ok(()))
     }
 }
