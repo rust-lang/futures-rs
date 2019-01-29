@@ -18,6 +18,7 @@ name = "futures_core"
 default = ["std"]
 std = ["either/use_std"]
 nightly = []
+cfg-target-has-atomic = []
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }

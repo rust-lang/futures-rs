@@ -21,6 +21,7 @@ compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
 bench = []
 nightly = []
+cfg-target-has-atomic = []
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false }
