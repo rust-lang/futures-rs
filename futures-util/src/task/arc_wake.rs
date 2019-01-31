@@ -1,13 +1,23 @@
 use std::sync::Arc;
 use std::task::{Waker, RawWaker, RawWakerVTable};
 
+macro_rules! waker_vtable {
+    ($ty:ident) => {
+        &RawWakerVTable {
+            clone: clone_arc_raw::<$ty>,
+            drop_fn: drop_arc_raw::<$ty>,
+            wake: wake_arc_raw::<$ty>,
+        }
+    };
+}
+
 /// A way of waking up a specific task.
 ///
 /// By implementing this trait, types that are expected to be wrapped in an `Arc`
 /// can be converted into `Waker` objects.
 /// Those Wakers can be used to signal executors that a task it owns
 /// is ready to be `poll`ed again.
-pub trait ArcWake: Send + Sync {
+pub trait ArcWake {
     /// Indicates that the associated task is ready to make progress and should
     /// be `poll`ed.
     ///
@@ -30,19 +40,9 @@ pub trait ArcWake: Send + Sync {
             Waker::new_unchecked(RawWaker{
                 data: ptr,
                 vtable: waker_vtable!(Self),
-            }
+            })
         }
     }
-}
-
-macro_rules! waker_vtable {
-    ($ty:ident) => {
-        &RawWakerVTable {
-            clone: clone_arc_raw::<$ty>,
-            drop_fn: drop_arc_raw::<$ty>,
-            wake: wake_arc_raw::<$ty>,
-        }
-    };
 }
 
 unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
@@ -76,6 +76,7 @@ unsafe fn wake_arc_raw<T: ArcWake>(data: *const()) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
     struct CountingWaker {
         nr_wake: Mutex<i32>,
@@ -106,6 +107,7 @@ mod tests {
 
         let w1: Waker = ArcWake::into_waker(some_w.clone());
         assert_eq!(2, Arc::strong_count(&some_w));
+        w1.wake();
         assert_eq!(1, some_w.wakes());
 
         let w2 = w1.clone();

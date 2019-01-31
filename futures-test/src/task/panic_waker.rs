@@ -13,10 +13,6 @@ unsafe fn wake_panic(_data: *const()) {
     panic!("should not be woken");
 }
 
-unsafe fn noop_into_waker(_data: *const()) -> Option<RawWaker> {
-    Some(raw_panic_waker())
-}
-
 const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
     clone: noop_clone,
     drop_fn: noop,

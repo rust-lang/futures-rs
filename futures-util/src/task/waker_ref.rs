@@ -64,15 +64,10 @@ macro_rules! owned_vtable {
 /// Creates a reference to a [`Waker`](::std::task::Waker)
 /// from a local [`wake`](::std::task::Wake).
 ///
-/// # Safety
-///
-/// This function requires that `wake` is "local" (created on the current thread).
 /// The resulting [`Waker`](::std::task::Waker) will call
-/// [`wake.wake_local()`](::std::task::Wake::wake_local)
-/// when awoken, and will call [`wake.wake()`](::std::task::Wake::wake) if
-/// awoken after being converted to a [`Waker`](::std::task::Waker).
+/// [`wake.wake()`](::std::task::Wake::wake) if awoken.
 #[inline]
-pub unsafe fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
+pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
     W: ArcWake
 {
@@ -80,10 +75,11 @@ where
     // This is potentially not stable
     let ptr = &*wake as &W as *const W as *const();
 
-    let waker = Waker::new_unchecked(RawWaker{
-        data: ptr,
-        vtable: ref_vtable!(W),
-    });
+    let waker = unsafe {
+        Waker::new_unchecked(RawWaker{
+            data: ptr,
+            vtable: ref_vtable!(W),
+        })};
     WakerRef::new(waker)
 }
 

@@ -1,5 +1,9 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
+<<<<<<< HEAD
 use futures_core::task::{RawWaker, RawWakerVTable, Waker};
+=======
+use futures_core::task::{Waker, RawWaker, RawWakerVTable};
+>>>>>>> Fix remaining compilation errors
 use core::ptr::null;
 use core::cell::UnsafeCell;
 

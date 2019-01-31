@@ -1,4 +1,4 @@
-use futures_core::task::{local_waker_from_nonlocal, Waker, Wake};
+use futures_core::task::{Waker};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use futures_util::task::ArcWake;

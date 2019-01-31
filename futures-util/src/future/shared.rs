@@ -126,7 +126,7 @@ where
         };
 
         if self.waker_key == NULL_WAKER_KEY {
-            self.waker_key = wakers.insert(Some(waker.clone().into_waker()));
+            self.waker_key = wakers.insert(Some(waker.clone()));
         } else {
             let waker_slot = &mut wakers[self.waker_key];
             let needs_replacement = if let Some(_old_waker) = waker_slot {
@@ -139,7 +139,7 @@ where
                 true
             };
             if needs_replacement {
-                *waker_slot = Some(waker.clone().into_waker());
+                *waker_slot = Some(waker.clone());
             }
         }
         debug_assert!(self.waker_key != NULL_WAKER_KEY);
