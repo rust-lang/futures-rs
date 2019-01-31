@@ -24,4 +24,4 @@ pub use futures_core::task::__internal::AtomicWaker;
 
 // re-export for `select!`
 #[doc(hidden)]
-pub use futures_core::task::{LocalWaker, Poll};
+pub use futures_core::task::{Waker, Poll};

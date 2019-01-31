@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicPtr, AtomicBool};
 use std::sync::atomic::Ordering::SeqCst;
 
-use crate::task::{ArcWake};
+use crate::task::{ArcWake, WakerRef, waker_ref};
 use super::ReadyToRunQueue;
 use super::abort::abort;
 
@@ -59,6 +59,13 @@ impl<Fut> ArcWake for Task<Fut> {
             inner.enqueue(&**arc_self);
             inner.waker.wake();
         }
+    }
+}
+
+impl<Fut> Task<Fut> {
+    /// Returns a waker reference for this task without cloning the Arc.
+    pub(super) fn waker_ref<'a>(this: &'a Arc<Task<Fut>>) -> WakerRef<'a> {
+        waker_ref(this)
     }
 }
 

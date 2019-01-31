@@ -40,7 +40,7 @@ impl Waiter {
     fn register(&mut self, waker: &Waker) {
         match self {
             Waiter::Waiting(waker) if waker.will_wake(waker) => {},
-            _ => *self = Waiter::Waiting(waker.clone().into_waker()),
+            _ => *self = Waiter::Waiting(waker.clone()),
         }
     }
 

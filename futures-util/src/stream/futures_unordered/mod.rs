@@ -1,6 +1,6 @@
 //! An unbounded set of futures.
 
-use crate::task::AtomicWaker;
+use crate::task::{AtomicWaker};
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll, Spawn, LocalSpawn, SpawnError};
@@ -402,7 +402,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // the internal allocation, appropriately accessing fields and
             // deallocating the task if need be.
             let res = {
-                let waker = Task::local_waker(bomb.task.as_ref().unwrap());
+                let waker = Task::waker_ref(bomb.task.as_ref().unwrap());
 
                 // Safety: We won't move the future ever again
                 let future = unsafe { Pin::new_unchecked(future) };

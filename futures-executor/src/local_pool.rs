@@ -67,7 +67,7 @@ fn run_executor<T, F: FnMut(&Waker) -> Poll<T>>(mut f: F) -> T {
                  another executor");
 
     CURRENT_THREAD_NOTIFY.with(|thread_notify| {
-        let waker: WakerRef = unsafe { waker_ref(thread_notify) };
+        let waker: WakerRef = waker_ref(thread_notify);
         loop {
             if let Poll::Ready(t) = f(&waker) {
                 return t;

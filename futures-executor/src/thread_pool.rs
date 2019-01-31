@@ -1,9 +1,9 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{Poll, ArcWake, Spawn, SpawnError};
+use futures_core::task::{Poll, Spawn, SpawnError};
 use futures_util::future::FutureExt;
-use futures_util::task::waker_ref;
+use futures_util::task::{ArcWake, waker_ref};
 use num_cpus;
 use std::io;
 use std::prelude::v1::*;
