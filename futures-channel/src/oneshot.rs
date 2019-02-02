@@ -25,6 +25,12 @@ pub struct Receiver<T> {
 /// This is created by the [`channel`](channel) function.
 #[derive(Debug)]
 pub struct Sender<T> {
+    wrapper: Arc<SenderInnerWrapper<T>>,
+}
+
+// Use intermediate struct to to track number of Senders
+#[derive(Debug)]
+struct SenderInnerWrapper<T> {
     inner: Arc<Inner<T>>,
 }
 
@@ -106,7 +112,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
         inner: inner.clone(),
     };
     let sender = Sender {
-        inner,
+        wrapper: Arc::new(SenderInnerWrapper{inner}),
     };
     (sender, receiver)
 }
@@ -130,7 +136,10 @@ impl<T> Inner<T> {
         // is closed and sets the `complete` flag to true, whereupon
         // the receiver may call `poll()`.
         if let Some(mut slot) = self.data.try_lock() {
-            assert!(slot.is_none());
+            if !slot.is_none() {
+                // Already been used by another Sender
+                return Err(t)
+            }
             *slot = Some(t);
             drop(slot);
 
@@ -333,7 +342,7 @@ impl<T> Sender<T> {
     /// this function was called, however, then `Err` is returned with the value
     /// provided.
     pub fn send(self, t: T) -> Result<(), T> {
-        self.inner.send(t)
+        self.wrapper.inner.send(t)
     }
 
     /// Polls this `Sender` half to detect whether its associated
@@ -349,7 +358,7 @@ impl<T> Sender<T> {
     /// however, is scheduled to receive a notification if the corresponding
     /// `Receiver` goes away.
     pub fn poll_cancel(&mut self, lw: &LocalWaker) -> Poll<()> {
-        self.inner.poll_cancel(lw)
+        self.wrapper.inner.poll_cancel(lw)
     }
 
     /// Tests to see whether this `Sender`'s corresponding `Receiver`
@@ -359,11 +368,17 @@ impl<T> Sender<T> {
     /// enqueue a task for wakeup upon cancellation, but merely reports the
     /// current state, which may be subject to concurrent modification.
     pub fn is_canceled(&self) -> bool {
-        self.inner.is_canceled()
+        self.wrapper.inner.is_canceled()
     }
 }
 
-impl<T> Drop for Sender<T> {
+impl<T> Clone for Sender<T> {
+    fn clone(&self) -> Self {
+        Sender{wrapper: self.wrapper.clone()}
+    }
+}
+
+impl<T> Drop for SenderInnerWrapper<T> {
     fn drop(&mut self) {
         self.inner.drop_tx()
     }
