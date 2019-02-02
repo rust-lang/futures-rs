@@ -118,7 +118,7 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
 
 /// Converts a futures 0.1 Sink object to a futures 0.3-compatible version
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "sinks do nothing unless polled"]
 pub struct Compat01As03Sink<S, SinkItem> {
     pub(crate) inner: Spawn01<S>,
     pub(crate) buffer: Option<SinkItem>,
@@ -230,43 +230,23 @@ where
         let item = self.buffer.take();
         let close_started = self.close_started;
 
-        match self.in_notify(lw, |f| match item {
-            Some(i) => match f.start_send(i) {
-                Ok(AsyncSink01::Ready) => {
-                    match f.poll_complete() {
-                        Ok(Async01::Ready(_)) => {
-                            match <S as Sink01>::close(f) {
-                                Ok(i) => Ok((i, None, true)),
-                                Err(e) => Err(e)
-                            }
-                        },
-                        Ok(Async01::NotReady) => Ok((Async01::NotReady, None, false)),
-                        Err(e) => Err(e)
+        let result = self.in_notify(lw, |f| {
+            if !close_started {
+                if let Some(item) = item {
+                    if let AsyncSink01::NotReady(item) = f.start_send(item)? {
+                        return Ok((Async01::NotReady, Some(item), false));
                     }
-                },
-                Ok(AsyncSink01::NotReady(t)) => {
-                    Ok((Async01::NotReady, Some(t), close_started))
                 }
-                Err(e) => Err(e),
-            },
-            None => if close_started {
-                match <S as Sink01>::close(f) {
-                    Ok(i) => Ok((i, None, true)),
-                    Err(e) => Err(e)
+
+                if let Async01::NotReady = f.poll_complete()? {
+                    return Ok((Async01::NotReady, None, false));
                 }
-            } else {
-                match f.poll_complete() {
-                    Ok(Async01::Ready(_)) => {
-                        match <S as Sink01>::close(f) {
-                            Ok(i) => Ok((i, None, true)),
-                            Err(e) => Err(e)
-                        }
-                    },
-                    Ok(Async01::NotReady) => Ok((Async01::NotReady, None, close_started)),
-                    Err(e) => Err(e)
-                }
-            },
-        }) {
+            }
+
+            Ok((<S as Sink01>::close(f)?, None, true))
+        });
+
+        match result {
             Ok((Async01::Ready(_), _, _)) => task03::Poll::Ready(Ok(())),
             Ok((Async01::NotReady, item, close_started)) => {
                 self.buffer = item;
