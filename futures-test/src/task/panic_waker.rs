@@ -15,7 +15,7 @@ unsafe fn wake_panic(_data: *const()) {
 
 const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
     clone: noop_clone,
-    drop_fn: noop,
+    drop: noop,
     wake: wake_panic,
 };
 
