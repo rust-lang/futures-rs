@@ -2,7 +2,6 @@ use super::Stream;
 use crate::task::{LocalWaker, Poll};
 use core::fmt;
 use core::marker::PhantomData;
-use core::mem;
 use core::pin::Pin;
 
 /// A custom trait object for polling streams, roughly akin to
@@ -191,6 +190,7 @@ where
 #[cfg(feature = "std")]
 mod if_std {
     use std::boxed::Box;
+    use std::mem;
     use super::*;
 
     unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for Box<F>
