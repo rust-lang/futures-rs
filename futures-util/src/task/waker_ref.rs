@@ -45,7 +45,7 @@ macro_rules! ref_vtable {
     ($ty:ident) => {
         &RawWakerVTable {
             clone: clone_arc_raw::<$ty>,
-            drop_fn: noop,
+            drop: noop,
             wake: wake_arc_raw::<$ty>,
         }
     };
@@ -55,7 +55,7 @@ macro_rules! owned_vtable {
     ($ty:ident) => {
         &RawWakerVTable {
             clone: clone_arc_raw::<$ty>,
-            drop_fn: drop_arc_raw::<$ty>,
+            drop: drop_arc_raw::<$ty>,
             wake: wake_arc_raw::<$ty>,
         }
     };
