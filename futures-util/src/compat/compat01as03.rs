@@ -72,7 +72,7 @@ pub trait Sink01CompatExt: Sink01 {
     /// [`Sink<SinkItem = T, SinkError = E>`](futures::sink::Sink)
     /// into a futures 0.3
     /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::sink::Sink).
-    fn compat_sink(self) -> Compat01As03Sink<Self, Self::SinkItem>
+    fn sink_compat(self) -> Compat01As03Sink<Self, Self::SinkItem>
     where
         Self: Sized,
     {
