@@ -6,8 +6,7 @@
 #![cfg_attr(feature = "nightly", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs, missing_debug_implementations)]
-#![deny(rust_2018_idioms)]
+#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_util")]
 
