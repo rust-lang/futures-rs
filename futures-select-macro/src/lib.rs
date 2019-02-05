@@ -1,6 +1,7 @@
 //! The futures-rs `select! macro implementation.
 
 #![recursion_limit="128"]
+#![deny(rust_2018_idioms)]
 
 extern crate proc_macro;
 

@@ -128,7 +128,7 @@ impl Current {
         Current(task01::current())
     }
 
-    fn as_waker(&self) -> LocalWakerLt {
+    fn as_waker(&self) -> LocalWakerLt<'_> {
         unsafe {
             LocalWakerLt {
                 inner: task03::LocalWaker::new(NonNull::new_unchecked(self as *const Current as *mut Current)),

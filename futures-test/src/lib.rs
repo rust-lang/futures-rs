@@ -6,7 +6,7 @@
     futures_api,
 )]
 #![warn(missing_docs, missing_debug_implementations)]
-#![deny(bare_trait_objects)]
+#![deny(rust_2018_idioms)]
 #![doc(
     html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.5/futures_test"
 )]
