@@ -2,7 +2,7 @@ use futures_core::task::{Waker, RawWaker, RawWakerVTable};
 use core::cell::UnsafeCell;
 use core::ptr::null;
 
-unsafe fn noop_clone(_data: *const()) -> RawWaker {
+unsafe fn clone_panic_waker(_data: *const()) -> RawWaker {
     raw_panic_waker()
 }
 
@@ -14,16 +14,13 @@ unsafe fn wake_panic(_data: *const()) {
 }
 
 const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
-    clone: noop_clone,
+    clone: clone_panic_waker,
     drop: noop,
     wake: wake_panic,
 };
 
 fn raw_panic_waker() -> RawWaker {
-    RawWaker {
-        data: null(),
-        vtable: &PANIC_WAKER_VTABLE,
-    }
+    RawWaker::new(null(), &PANIC_WAKER_VTABLE)
 }
 
 /// Create a new [`Waker`](futures_core::task::Waker) which will

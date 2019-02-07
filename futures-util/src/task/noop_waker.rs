@@ -21,10 +21,7 @@ const NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
 };
 
 fn noop_raw_waker() -> RawWaker {
-    RawWaker {
-        data: null(),
-        vtable: &NOOP_WAKER_VTABLE,
-    }
+    RawWaker::new(null(), &NOOP_WAKER_VTABLE)
 }
 
 /// Create a new [`Waker`](futures_core::task::Waker) which does
