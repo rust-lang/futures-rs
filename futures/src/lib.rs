@@ -84,6 +84,7 @@ pub mod compat {
     pub use futures_util::compat::{
         Compat,
         Compat01As03,
+        Compat01As03Sink,
         Executor01Future,
         Executor01As03,
         Executor01CompatExt,
