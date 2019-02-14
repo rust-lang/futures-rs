@@ -73,7 +73,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -99,7 +99,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -125,7 +125,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -183,7 +183,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, TryStreamExt};
     ///
@@ -215,7 +215,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
@@ -250,7 +250,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
@@ -285,7 +285,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -340,7 +340,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::executor::block_on;
@@ -384,7 +384,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// # Examples
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::executor::block_on;
     /// use futures::future;
@@ -425,7 +425,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, TryStreamExt};
@@ -508,7 +508,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// Results are returned in the order of completion:
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
@@ -532,7 +532,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// Errors from the underlying stream itself are propagated:
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::future;
@@ -605,7 +605,7 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await, await_macro, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::executor::block_on;
     /// use futures::future::lazy;
