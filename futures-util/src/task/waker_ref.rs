@@ -95,7 +95,7 @@ unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
 
 unsafe fn clone_arc_raw<T: ArcWake>(data: *const()) -> RawWaker {
     increase_refcount::<T>(data);
-    RawWaker:new(data, owned_vtable!(T))
+    RawWaker::new(data, owned_vtable!(T))
 }
 
 unsafe fn drop_arc_raw<T: ArcWake>(data: *const()) {
