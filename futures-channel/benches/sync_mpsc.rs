@@ -11,14 +11,14 @@ use {
         sink::Sink,
         task::{Waker, Poll},
     },
-    futures_test::task::noop_local_waker_ref,
+    futures_test::task::noop_waker_ref,
     std::pin::Pin,
 };
 
 /// Single producer, single consumer
 #[bench]
 fn unbounded_1_tx(b: &mut Bencher) {
-    let waker = noop_local_waker_ref();
+    let waker = noop_waker_ref();
     b.iter(|| {
         let (tx, mut rx) = mpsc::unbounded();
 
@@ -40,7 +40,7 @@ fn unbounded_1_tx(b: &mut Bencher) {
 /// 100 producers, single consumer
 #[bench]
 fn unbounded_100_tx(b: &mut Bencher) {
-    let waker = noop_local_waker_ref();
+    let waker = noop_waker_ref();
     b.iter(|| {
         let (tx, mut rx) = mpsc::unbounded();
 
@@ -61,7 +61,7 @@ fn unbounded_100_tx(b: &mut Bencher) {
 
 #[bench]
 fn unbounded_uncontended(b: &mut Bencher) {
-    let waker = noop_local_waker_ref();
+    let waker = noop_waker_ref();
     b.iter(|| {
         let (tx, mut rx) = mpsc::unbounded();
 
@@ -101,7 +101,7 @@ impl Stream for TestSender {
 /// Single producers, single consumer
 #[bench]
 fn bounded_1_tx(b: &mut Bencher) {
-    let waker = noop_local_waker_ref();
+    let waker = noop_waker_ref();
     b.iter(|| {
         let (tx, mut rx) = mpsc::channel(0);
 
@@ -118,7 +118,7 @@ fn bounded_1_tx(b: &mut Bencher) {
 /// 100 producers, single consumer
 #[bench]
 fn bounded_100_tx(b: &mut Bencher) {
-    let waker = noop_local_waker_ref();
+    let waker = noop_waker_ref();
     b.iter(|| {
         // Each sender can send one item after specified capacity
         let (tx, mut rx) = mpsc::channel(0);

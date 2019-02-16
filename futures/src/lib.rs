@@ -371,7 +371,7 @@ pub mod task {
     };
 
     pub use futures_util::task::{
-        noop_local_waker, noop_local_waker_ref,
+        noop_waker, noop_waker_ref,
     };
 
     #[cfg_attr(
