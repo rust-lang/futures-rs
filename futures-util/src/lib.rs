@@ -1,8 +1,8 @@
 //! Combinators and utilities for working with `Future`s, `Stream`s, `Sink`s,
 //! and the `AsyncRead` and `AsyncWrite` traits.
 
-#![feature(futures_api, box_into_pin)]
-#![cfg_attr(feature = "std", feature(async_await, await_macro))]
+#![feature(futures_api)]
+#![cfg_attr(feature = "std", feature(async_await, await_macro, box_into_pin))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
