@@ -31,12 +31,12 @@ fn raw_panic_waker() -> RawWaker {
 ///
 /// ```should_panic
 /// #![feature(futures_api)]
-/// use futures_test::task::panic_local_waker;
+/// use futures_test::task::panic_waker;
 ///
-/// let lw = panic_local_waker();
+/// let lw = panic_waker();
 /// lw.wake(); // Will panic
 /// ```
-pub fn panic_local_waker() -> Waker {
+pub fn panic_waker() -> Waker {
     unsafe { Waker::new_unchecked(raw_panic_waker()) }
 }
 
@@ -49,15 +49,15 @@ pub fn panic_local_waker() -> Waker {
 /// ```should_panic
 /// #![feature(async_await, futures_api)]
 /// use futures::task;
-/// use futures_test::task::panic_local_waker_ref;
+/// use futures_test::task::panic_waker_ref;
 ///
-/// let lw = panic_local_waker_ref();
+/// let lw = panic_waker_ref();
 /// lw.wake(); // Will panic
 /// ```
-pub fn panic_local_waker_ref() -> &'static Waker {
+pub fn panic_waker_ref() -> &'static Waker {
     thread_local! {
         static PANIC_WAKER_INSTANCE: UnsafeCell<Waker> =
-            UnsafeCell::new(panic_local_waker());
+            UnsafeCell::new(panic_waker());
     }
     PANIC_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }

@@ -103,11 +103,11 @@ mod tests {
     use super::*;
     use futures::stream::{self, StreamExt, TryStreamExt};
     use futures_io::AsyncRead;
-    use futures_test::task::noop_local_waker_ref;
+    use futures_test::task::noop_waker_ref;
 
     macro_rules! assert_read {
         ($reader:expr, $buf:expr, $item:expr) => {
-            let waker = noop_local_waker_ref();
+            let waker = noop_waker_ref();
             match $reader.poll_read(waker, $buf) {
                 Poll::Ready(Ok(x)) => {
                     assert_eq!(x, $item);

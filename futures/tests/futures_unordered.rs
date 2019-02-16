@@ -7,7 +7,7 @@ use futures::stream::{StreamExt, futures_unordered, FuturesUnordered};
 use futures::task::Poll;
 use futures_test::{assert_stream_done, assert_stream_next};
 use futures_test::future::FutureTestExt;
-use futures_test::task::noop_local_waker_ref;
+use futures_test::task::noop_waker_ref;
 use std::boxed::Box;
 
 #[test]
@@ -42,7 +42,7 @@ fn works_2() {
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
 
-    let lw = &noop_local_waker_ref();
+    let lw = &noop_waker_ref();
     assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(Some(Ok(9))));
     c_tx.send(20).unwrap();
     assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(Some(Ok(30))));

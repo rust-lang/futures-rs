@@ -235,7 +235,7 @@ pub fn select(input: TokenStream) -> TokenStream {
     let await_and_select = if let Some(default_expr) = parsed.default {
         quote! {
             if let #futures_crate::task::Poll::Ready(x) =
-                __poll_fn(#futures_crate::task::noop_local_waker_ref())
+                __poll_fn(#futures_crate::task::noop_waker_ref())
             {
                 match x { #branches }
             } else {

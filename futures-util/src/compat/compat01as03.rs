@@ -29,7 +29,7 @@ impl<T> Compat01As03<T> {
     }
 
     fn in_notify<R>(&mut self, waker: &Waker, f: impl FnOnce(&mut T) -> R) -> R {
-        let notify = &WakerToHandle(waker.as_waker());
+        let notify = &WakerToHandle(waker);
         self.inner.poll_fn_notify(notify, 0, f)
     }
 }

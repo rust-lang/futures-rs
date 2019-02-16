@@ -64,7 +64,7 @@ mod tests {
     use futures_core::future::Future;
     use futures_core::task::Poll;
     use futures_util::future::empty;
-    use futures_util::task::noop_local_waker;
+    use futures_util::task::noop_waker;
     use std::pin::Pin;
 
     use super::AssertUnmoved;
@@ -80,7 +80,7 @@ mod tests {
     #[should_panic(expected = "Future moved between poll calls")]
     fn dont_double_panic() {
         // This test should only panic, not abort the process.
-        let waker = noop_local_waker();
+        let waker = noop_waker();
 
         // First we allocate the future on the stack and poll it.
         let mut future = AssertUnmoved::new(empty::<()>());

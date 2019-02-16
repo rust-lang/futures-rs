@@ -7,8 +7,8 @@ use futures_core::{
     task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
 };
 use futures_sink::Sink as Sink03;
-use futures_util::task::ArcWake as ArcWake03;
-use std::{marker::PhantomData, ops::Deref, pin::Pin, ptr::NonNull, sync::Arc};
+use crate::task::ArcWake as ArcWake03;
+use std::{pin::Pin, sync::Arc};
 
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
 /// [`TryStream`](futures_core::stream::TryStream) or
@@ -115,9 +115,9 @@ impl Current {
         Current(task01::current())
     }
 
-    fn as_waker(&self) -> Waker {
+    fn as_waker(&self) -> task03::Waker {
         // For simplicity reasons wrap the Waker into an Arc.
-        // We can optmize this again later on and reintroduce WakerLt<'a> which
+        // We can optimize this again later on and reintroduce WakerLt<'a> which
         // derefs to Waker, and where cloning it through RawWakerVTable returns
         // an Arc version
         ArcWake03::into_waker(Arc::new(Current(self.0.clone())))

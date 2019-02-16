@@ -89,7 +89,7 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                self.tx.send(waker.clone().into_waker()).unwrap();
+                self.tx.send(waker.clone()).unwrap();
                 Poll::Pending
             }
         }

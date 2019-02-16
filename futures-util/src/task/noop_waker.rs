@@ -32,12 +32,12 @@ fn noop_raw_waker() -> RawWaker {
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures::task::noop_local_waker;
-/// let lw = noop_local_waker();
+/// use futures::task::noop_waker;
+/// let lw = noop_waker();
 /// lw.wake();
 /// ```
 #[inline]
-pub fn noop_local_waker() -> Waker {
+pub fn noop_waker() -> Waker {
     unsafe {
         Waker::new_unchecked(noop_raw_waker())
     }
@@ -51,15 +51,15 @@ pub fn noop_local_waker() -> Waker {
 ///
 /// ```
 /// #![feature(futures_api)]
-/// use futures::task::noop_local_waker_ref;
-/// let lw = noop_local_waker_ref();
+/// use futures::task::noop_waker_ref;
+/// let lw = noop_waker_ref();
 /// lw.wake();
 /// ```
 #[inline]
-pub fn noop_local_waker_ref() -> &'static Waker {
+pub fn noop_waker_ref() -> &'static Waker {
     thread_local! {
         static NOOP_WAKER_INSTANCE: UnsafeCell<Waker> =
-            UnsafeCell::new(noop_local_waker());
+            UnsafeCell::new(noop_waker());
     }
     NOOP_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }

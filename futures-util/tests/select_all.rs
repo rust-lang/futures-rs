@@ -5,11 +5,11 @@ use futures::FutureExt;
 use futures::task::Poll;
 use futures::stream::FusedStream;
 use futures::stream::{SelectAll, StreamExt};
-use futures_test::task::noop_local_waker_ref;
+use futures_test::task::noop_waker_ref;
 
 #[test]
 fn is_terminated() {
-    let lw = noop_local_waker_ref();
+    let lw = noop_waker_ref();
     let mut tasks = SelectAll::new();
 
     assert_eq!(tasks.is_terminated(), false);

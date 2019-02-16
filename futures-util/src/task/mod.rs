@@ -6,7 +6,7 @@ mod arc_wake;
 pub use self::arc_wake::ArcWake;
 
 mod noop_waker;
-pub use self::noop_waker::{noop_local_waker, noop_local_waker_ref};
+pub use self::noop_waker::{noop_waker, noop_waker_ref};
 
 mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
