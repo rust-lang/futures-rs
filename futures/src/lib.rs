@@ -207,6 +207,10 @@ pub mod future {
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
         UnwrapOrElse,
         TryJoin, TryJoin3, TryJoin4, TryJoin5,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::try_future::{
         try_join_all, TryJoinAll,
     };
 }
@@ -364,18 +368,17 @@ pub mod task {
         Waker, RawWaker, RawWakerVTable
     };
 
+    pub use futures_util::task::noop_waker;
+
     #[cfg(feature = "std")]
     pub use futures_util::task::{
         WakerRef, waker_ref, ArcWake,
         SpawnExt, LocalSpawnExt,
-    };
-
-    pub use futures_util::task::{
-        noop_waker, noop_waker_ref,
+        noop_waker_ref,
     };
 
     #[cfg_attr(
-        feature = "target-has-atomic",
+        feature = "cfg-target-has-atomic",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     pub use futures_util::task::AtomicWaker;

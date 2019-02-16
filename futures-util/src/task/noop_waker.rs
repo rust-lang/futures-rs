@@ -1,6 +1,7 @@
 //! Utilities for creating zero-cost wakers that don't do anything.
 use futures_core::task::{RawWaker, RawWakerVTable, Waker};
 use core::ptr::null;
+#[cfg(feature = "std")]
 use core::cell::UnsafeCell;
 
 unsafe fn noop_clone(_data: *const()) -> RawWaker {
@@ -52,6 +53,7 @@ pub fn noop_waker() -> Waker {
 /// lw.wake();
 /// ```
 #[inline]
+#[cfg(feature = "std")]
 pub fn noop_waker_ref() -> &'static Waker {
     thread_local! {
         static NOOP_WAKER_INSTANCE: UnsafeCell<Waker> =
