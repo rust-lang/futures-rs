@@ -64,17 +64,26 @@ matrix:
       script:
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
 
-    # Allow build fail until #1396 is fixed.
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
-      env: ALLOW_FAILURES=true
       install:
         - rustup target add thumbv6m-none-eabi
       script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --manifest-path futures/Cargo.toml
             --target thumbv6m-none-eabi
             --no-default-features
-            --features nightly
+            --features nightly,cfg-target-has-atomic
+
+    - name: cargo build --target=thumbv7m-none-eabi
+      rust: nightly
+      install:
+        - rustup target add thumbv7m-none-eabi
+      script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        - cargo build --manifest-path futures/Cargo.toml
+            --target thumbv7m-none-eabi
+            --no-default-features
 
     - name: cargo doc
       rust: nightly
@@ -101,10 +110,6 @@ matrix:
         - git add "$TRAVIS_TAG" index.html
         - git commit -m "Add API docs for $TRAVIS_TAG"
         - git push origin master
-
-  allow_failures:
-    - rust: nightly
-      env: ALLOW_FAILURES=true
 
 script:
   - cargo test --all --all-features
