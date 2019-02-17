@@ -18,6 +18,7 @@ pub struct Select<St1, St2> {
     stream1: Fuse<St1>,
     stream2: Fuse<St2>,
     flag: bool,
+    short_circuit: bool,
 }
 
 impl<St1: Unpin, St2: Unpin> Unpin for Select<St1, St2> {}
@@ -26,11 +27,12 @@ impl<St1, St2> Select<St1, St2>
     where St1: Stream,
           St2: Stream<Item = St1::Item>
 {
-    pub(super) fn new(stream1: St1, stream2: St2) -> Select<St1, St2> {
+    pub(super) fn new(stream1: St1, stream2: St2, short_circuit: bool) -> Select<St1, St2> {
         Select {
             stream1: stream1.fuse(),
             stream2: stream2.fuse(),
             flag: false,
+            short_circuit,
         }
     }
 }
@@ -51,15 +53,15 @@ impl<St1, St2> Stream for Select<St1, St2>
         self: Pin<&mut Self>,
         lw: &LocalWaker
     ) -> Poll<Option<St1::Item>> {
-        let Select { flag, stream1, stream2 } =
+        let Select { flag, stream1, stream2, short_circuit } =
             unsafe { Pin::get_unchecked_mut(self) };
         let stream1 = unsafe { Pin::new_unchecked(stream1) };
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 
         if !*flag {
-            poll_inner(flag, stream1, stream2, lw)
+            poll_inner(flag, stream1, stream2, *short_circuit, lw)
         } else {
-            poll_inner(flag, stream2, stream1, lw)
+            poll_inner(flag, stream2, stream1, *short_circuit, lw)
         }
     }
 }
@@ -68,6 +70,7 @@ fn poll_inner<St1, St2>(
     flag: &mut bool,
     a: Pin<&mut St1>,
     b: Pin<&mut St2>,
+    short_circuit: bool,
     lw: &LocalWaker
 ) -> Poll<Option<St1::Item>>
     where St1: Stream, St2: Stream<Item = St1::Item>
@@ -78,7 +81,12 @@ fn poll_inner<St1, St2>(
             *flag = !*flag;
             return Poll::Ready(Some(item))
         },
-        Poll::Ready(None) => true,
+        Poll::Ready(None) => {
+            if short_circuit {
+                return Poll::Ready(None)
+            }
+            true
+        },
         Poll::Pending => false,
     };
 

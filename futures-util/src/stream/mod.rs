@@ -962,11 +962,33 @@ pub trait StreamExt: Stream {
     ///
     /// Note that this method consumes both streams and returns a wrapped
     /// version of them.
+    /// Also note that when one stream completes, it will not be `Drop`ed until
+    /// both stream complete. Resources it takes up will not be released in
+    /// the meanwhile. See also:
+    /// https://github.com/rust-lang-nursery/futures-rs/pull/1422
     fn select<St>(self, other: St) -> Select<Self, St>
         where St: Stream<Item = Self::Item>,
               Self: Sized,
     {
-        Select::new(self, other)
+        Select::new(self, other, false)
+    }
+
+    /// This combinator will attempt to pull items from both streams. Each
+    /// stream will be polled in a round-robin fashion, and whenever a stream is
+    /// ready to yield an item that item is yielded.
+    ///
+    /// With `short_circuit` being `true`, the returned stream completes when one of
+    /// the two input stream completes.
+    /// With `short_circuit` being `false`, the returned stream completes when both
+    /// input streams have completed.
+    ///
+    /// Note that this method consumes both streams and returns a wrapped
+    /// version of them.
+    fn select2<St>(self, other: St, short_circuit: bool) -> Select<Self, St>
+        where St: Stream<Item = Self::Item>,
+              Self: Sized,
+    {
+        Select::new(self, other, short_circuit)
     }
 
     /// A future that completes after the given stream has been fully processed
