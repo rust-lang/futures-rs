@@ -54,8 +54,8 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.as_mut().sink1().poll_ready(waker)).is_ready();
-        let sink2_ready = try_poll!(self.as_mut().sink2().poll_ready(waker)).is_ready();
+        let sink1_ready = self.as_mut().sink1().poll_ready(waker)?.is_ready();
+        let sink2_ready = self.as_mut().sink2().poll_ready(waker)?.is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
@@ -73,8 +73,8 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.as_mut().sink1().poll_flush(waker)).is_ready();
-        let sink2_ready = try_poll!(self.as_mut().sink2().poll_flush(waker)).is_ready();
+        let sink1_ready = self.as_mut().sink1().poll_flush(waker)?.is_ready();
+        let sink2_ready = self.as_mut().sink2().poll_flush(waker)?.is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }
@@ -83,8 +83,8 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> Poll<Result<(), Self::SinkError>> {
-        let sink1_ready = try_poll!(self.as_mut().sink1().poll_close(waker)).is_ready();
-        let sink2_ready = try_poll!(self.as_mut().sink2().poll_close(waker)).is_ready();
+        let sink1_ready = self.as_mut().sink1().poll_close(waker)?.is_ready();
+        let sink2_ready = self.as_mut().sink2().poll_close(waker)?.is_ready();
         let ready = sink1_ready && sink2_ready;
         if ready { Poll::Ready(Ok(())) } else { Poll::Pending }
     }

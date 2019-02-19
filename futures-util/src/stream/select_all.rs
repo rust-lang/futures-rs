@@ -86,7 +86,7 @@ impl<St: Stream + Unpin> Stream for SelectAll<St> {
                 // FuturesUnordered thinks it isn't terminated
                 // because it yielded a Some. Here we poll it
                 // so it can realize it is terminated.
-                self.inner.poll_next_unpin(waker);
+                let _ = self.inner.poll_next_unpin(waker);
                 Poll::Ready(None)
             }
             Poll::Ready(_) => Poll::Ready(None),

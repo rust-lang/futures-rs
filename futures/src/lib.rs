@@ -53,7 +53,7 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` featu
 // Macro reexports
 pub use futures_util::{
     // Error/readiness propagation
-    try_ready, try_poll, ready,
+    try_ready, ready,
 };
 #[cfg(feature = "std")]
 pub use futures_util::{

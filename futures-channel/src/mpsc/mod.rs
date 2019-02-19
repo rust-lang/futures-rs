@@ -649,11 +649,7 @@ impl<T> Sender<T> {
     /// - `Err(SendError)` if the receiver has been dropped.
     pub fn poll_ready(
         &mut self,
-<<<<<<< HEAD
         waker: &Waker,
-=======
-        waker: &Waker
->>>>>>> Rename noop/panic waker and fix other compilation issue
     ) -> Poll<Result<(), SendError>> {
         let inner = self.0.as_mut().ok_or(SendError {
             kind: SendErrorKind::Disconnected,

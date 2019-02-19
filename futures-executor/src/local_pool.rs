@@ -152,7 +152,7 @@ impl LocalPool {
                 }
             }
 
-            self.poll_pool(waker);
+            let _ = self.poll_pool(waker);
             Poll::Pending
         })
     }

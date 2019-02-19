@@ -91,10 +91,8 @@ where
         if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
             while let Some(x) = ready!(some_stream.as_mut().poll_next(waker)) {
                 let item = try_ready!(Poll::Ready(x));
-                match try_poll!(sink.as_mut().poll_ready(waker)) {
-                    Poll::Ready(()) => {
-                        try_poll!(Poll::Ready(sink.as_mut().start_send(item)))
-                    }
+                match sink.as_mut().poll_ready(waker)? {
+                    Poll::Ready(()) => sink.as_mut().start_send(item)?,
                     Poll::Pending => {
                         *buffer = Some(item);
                         return Poll::Pending;
