@@ -51,7 +51,7 @@ where
         debug_assert!(self.buffered_item.is_none());
         {
             let mut sink = self.as_mut().sink().as_pin_mut().unwrap();
-            if try_poll!(sink.as_mut().poll_ready(waker)).is_ready() {
+            if sink.as_mut().poll_ready(waker)?.is_ready() {
                 return Poll::Ready(sink.start_send(item));
             }
         }
