@@ -4,11 +4,21 @@ use futures_01::{
     StartSend as StartSend01, Stream as Stream01,
 };
 use futures_core::{
-    task as task03, TryFuture as TryFuture03, TryStream as TryStream03,
+    task::{
+        self as task03,
+        RawWaker,
+        RawWakerVTable,
+    },
+    TryFuture as TryFuture03,
+    TryStream as TryStream03,
 };
 use futures_sink::Sink as Sink03;
-use crate::task::ArcWake as ArcWake03;
-use std::{pin::Pin, sync::Arc};
+use crate::task::{ArcWake as ArcWake03, WakerRef};
+use std::{
+    mem,
+    pin::Pin,
+    sync::Arc,
+};
 
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
 /// [`TryStream`](futures_core::stream::TryStream) or
@@ -108,6 +118,7 @@ where
     }
 }
 
+#[derive(Clone)]
 struct Current(task01::Task);
 
 impl Current {
@@ -115,12 +126,32 @@ impl Current {
         Current(task01::current())
     }
 
-    fn as_waker(&self) -> task03::Waker {
-        // For simplicity reasons wrap the Waker into an Arc.
-        // We can optimize this again later on and reintroduce WakerLt<'a> which
-        // derefs to Waker, and where cloning it through RawWakerVTable returns
-        // an Arc version
-        ArcWake03::into_waker(Arc::new(Current(self.0.clone())))
+    fn as_waker(&self) -> WakerRef<'_> {
+        unsafe fn ptr_to_current<'a>(ptr: *const ()) -> &'a Current {
+            &*(ptr as *const Current)
+        }
+        fn current_to_ptr(current: &Current) -> *const () {
+            current as *const Current as *const ()
+        }
+
+        unsafe fn clone(ptr: *const ()) -> RawWaker {
+            // Lazily create the `Arc` only when the waker is actually cloned.
+            // FIXME: remove `transmute` when a `Waker` -> `RawWaker` conversion
+            // function is landed in `core`.
+            mem::transmute::<task03::Waker, RawWaker>(
+                Arc::new(ptr_to_current(ptr).clone()).into_waker()
+            )
+        }
+        unsafe fn drop(_: *const ()) {}
+        unsafe fn wake(ptr: *const ()) {
+            ptr_to_current(ptr).0.notify()
+        }
+
+        let ptr = current_to_ptr(self);
+        let vtable = &RawWakerVTable { clone, drop, wake };
+        unsafe {
+            WakerRef::new(task03::Waker::new_unchecked(RawWaker::new(ptr, vtable)))
+        }
     }
 }
 
