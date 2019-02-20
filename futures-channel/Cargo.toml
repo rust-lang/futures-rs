@@ -1,12 +1,12 @@
 [package]
 name = "futures-channel-preview"
 edition = "2018"
-version = "0.3.0-alpha.12"
+version = "0.3.0-alpha.13"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_channel"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_channel"
 description = """
 Channels for asynchronous communication using futures-rs.
 """
@@ -19,9 +19,9 @@ std = ["futures-core-preview/std"]
 default = ["std"]
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.13", default-features = false }
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.12", default-features = true }
-futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.12", default-features = true }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.13", default-features = true }
+futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.13", default-features = true }
 pin-utils = "0.1.0-alpha.4"

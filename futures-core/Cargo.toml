@@ -1,12 +1,12 @@
 [package]
 name = "futures-core-preview"
 edition = "2018"
-version = "0.3.0-alpha.12"
+version = "0.3.0-alpha.13"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_core"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_core"
 description = """
 The core traits and types in for the `futures` library.
 """
@@ -24,4 +24,4 @@ cfg-target-has-atomic = []
 either = { version = "1.4", default-features = false, optional = true }
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.12" }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.13" }

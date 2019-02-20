@@ -1,12 +1,12 @@
 [package]
 name = "futures-executor-preview"
 edition = "2018"
-version = "0.3.0-alpha.12"
+version = "0.3.0-alpha.13"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_executor"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_executor"
 description = """
 Executors for asynchronous tasks based on the futures-rs library.
 """
@@ -19,13 +19,13 @@ std = ["num_cpus", "futures-core-preview/std", "futures-util-preview/std", "futu
 default = ["std"]
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false}
-futures-util-preview = { path = "../futures-util", version = "=0.3.0-alpha.12", default-features = false}
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.12", default-features = false}
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.13", default-features = false}
+futures-util-preview = { path = "../futures-util", version = "=0.3.0-alpha.13", default-features = false}
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.13", default-features = false}
 num_cpus = { version = "1.8.0", optional = true }
 lazy_static = { version = "1.1.0", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.12" }
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.12" }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.13" }
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.13" }
