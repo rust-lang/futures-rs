@@ -1,15 +1,6 @@
+use std::mem;
 use std::sync::Arc;
 use std::task::{Waker, RawWaker, RawWakerVTable};
-
-macro_rules! waker_vtable {
-    ($ty:ident) => {
-        &RawWakerVTable {
-            clone: clone_arc_raw::<$ty>,
-            drop: drop_arc_raw::<$ty>,
-            wake: wake_arc_raw::<$ty>,
-        }
-    };
-}
 
 /// A way of waking up a specific task.
 ///
@@ -42,29 +33,33 @@ pub trait ArcWake {
     }
 }
 
+// FIXME: panics on Arc::clone / refcount changes could wreak havoc on the
+// code here. We should guard against this by aborting.
+
 unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
     // Retain Arc by creating a copy
     let arc: Arc<T> = Arc::from_raw(data as *const T);
     let arc_clone = arc.clone();
     // Forget the Arcs again, so that the refcount isn't decrased
-    let _ = Arc::into_raw(arc);
-    let _ = Arc::into_raw(arc_clone);
+    mem::forget(arc);
+    mem::forget(arc_clone);
 }
 
-unsafe fn clone_arc_raw<T: ArcWake>(data: *const()) -> RawWaker {
+// used by `waker_ref`
+pub(super) unsafe fn clone_arc_raw<T: ArcWake>(data: *const()) -> RawWaker {
     increase_refcount::<T>(data);
     RawWaker::new(data, waker_vtable!(T))
 }
 
 unsafe fn drop_arc_raw<T: ArcWake>(data: *const()) {
-    // Drop Arc
-    let _: Arc<T> = Arc::from_raw(data as *const T);
+    drop(Arc::<T>::from_raw(data as *const T))
 }
 
-unsafe fn wake_arc_raw<T: ArcWake>(data: *const()) {
+// used by `waker_ref`
+pub(super) unsafe fn wake_arc_raw<T: ArcWake>(data: *const()) {
     let arc: Arc<T> = Arc::from_raw(data as *const T);
-    ArcWake::wake(&arc); // TODO: If this panics, the refcount is too big
-    let _ = Arc::into_raw(arc);
+    ArcWake::wake(&arc);
+    mem::forget(arc);
 }
 
 #[cfg(test)]
