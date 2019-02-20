@@ -1,3 +1,13 @@
+# 0.3.0-alpha.13 - 2019-2-20
+* Updated to new nightly with stabilization candidate API.
+* Removed `LocalWaker`.
+* Added `#[must_use]` to `Stream` and `Sink` traits.
+* Enabled using `!Unpin` futures in `JoinAll`.
+* Added the `try_join_all` combinator.
+* Stopped closing a whole channel upon closing of one sender.
+* Removed `TokioDefaultSpawner` and `tokio-compat`.
+* Moved intra-crate dependencies to exact versions.
+
 # 0.3.0-alpha.12 - 2019-1-14
 * Updated to new nightly with a modification to `Pin::set`.
 * Expose `AssertUnmoved` and `PendingOnce`.

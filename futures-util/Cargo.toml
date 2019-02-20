@@ -1,12 +1,12 @@
 [package]
 name = "futures-util-preview"
 edition = "2018"
-version = "0.3.0-alpha.12"
+version = "0.3.0-alpha.13"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_util"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_util"
 description = """
 Common utilities and extension traits for the futures-rs library.
 """
@@ -24,11 +24,11 @@ nightly = []
 cfg-target-has-atomic = []
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.12", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.12", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.12", default-features = false}
-futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.12", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.13", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.13", default-features = false }
+futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.13", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.13", default-features = false}
+futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.13", default-features = false }
 either = { version = "1.4", default-features = false }
 proc-macro-hack = "0.5"
 proc-macro-nested = "0.1.2"
@@ -40,7 +40,7 @@ tokio-io = { version = "0.1.9", optional = true }
 pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.12" }
-futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.12" }
-futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.12" }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.13" }
+futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.13" }
+futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.13" }
 tokio = "0.1.11"

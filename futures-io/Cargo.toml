@@ -1,12 +1,12 @@
 [package]
 name = "futures-io-preview"
 edition = "2018"
-version = "0.3.0-alpha.12"
+version = "0.3.0-alpha.13"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://rust-lang-nursery.github.io/futures-rs"
-documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures_io"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_io"
 description = """
 The `AsyncRead` and `AsyncWrite` traits for the futures-rs library.
 """
@@ -19,9 +19,9 @@ std = ["futures-core-preview/std", "iovec"]
 default = ["std"]
 
 [dependencies]
-futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.12", default-features = false }
+futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.13", default-features = false }
 iovec = { version = "0.1", optional = true }
 
 [dev-dependencies]
-futures-preview = { path = "../futures", version = "=0.3.0-alpha.12" }
+futures-preview = { path = "../futures", version = "=0.3.0-alpha.13" }
 assert_matches = "1.3.0"

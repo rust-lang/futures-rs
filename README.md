@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.12/futures/">
+  <a href="https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures/">
     Documentation
   </a> | <a href="https://rust-lang-nursery.github.io/futures-rs/">
     Website
@@ -30,7 +30,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "0.3.0-alpha.12"
+futures-preview = "0.3.0-alpha.13"
 ```
 
 Now, you can use futures-rs:
@@ -49,7 +49,7 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures-preview = { version = "=0.3.0-alpha.12", default-features = false }
+futures-preview = { version = "=0.3.0-alpha.13", default-features = false }
 ```
 
 # License
