@@ -1,5 +1,17 @@
 //! Task notification
 
+/// A macro for creating a `RawWaker` vtable for a type that implements
+/// the `ArcWake` trait.
+macro_rules! waker_vtable {
+    ($ty:ident) => {
+        &RawWakerVTable {
+            clone: clone_arc_raw::<$ty>,
+            drop: drop_arc_raw::<$ty>,
+            wake: wake_arc_raw::<$ty>,
+        }
+    };
+}
+
 #[cfg(feature = "std")]
 mod arc_wake;
 #[cfg(feature = "std")]

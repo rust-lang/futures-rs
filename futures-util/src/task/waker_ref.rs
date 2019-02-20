@@ -1,10 +1,10 @@
 #![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
 
+use super::arc_wake::{ArcWake, clone_arc_raw, wake_arc_raw};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::task::{Waker, RawWaker, RawWakerVTable};
-use super::ArcWake;
 
 /// A [`Waker`](::std::task::Waker) that is only valid for a given lifetime.
 ///
@@ -38,28 +38,8 @@ impl<'a> Deref for WakerRef<'a> {
     }
 }
 
-// Another reference vtable which doesn't do decrement the refcount on drop.
-// However on clone it will create a vtable which equals a Waker, and on wake
-// it will call the nonlocal wake function.
-macro_rules! ref_vtable {
-    ($ty:ident) => {
-        &RawWakerVTable {
-            clone: clone_arc_raw::<$ty>,
-            drop: noop,
-            wake: wake_arc_raw::<$ty>,
-        }
-    };
-}
-
-macro_rules! owned_vtable {
-    ($ty:ident) => {
-        &RawWakerVTable {
-            clone: clone_arc_raw::<$ty>,
-            drop: drop_arc_raw::<$ty>,
-            wake: wake_arc_raw::<$ty>,
-        }
-    };
-}
+#[inline]
+unsafe fn noop(_data: *const ()) {}
 
 /// Creates a reference to a [`Waker`](::std::task::Waker)
 /// from a local [`wake`](::std::task::Wake).
@@ -75,36 +55,16 @@ where
     // This is potentially not stable
     let ptr = &*wake as &W as *const W as *const();
 
+    // Similar to `waker_vtable`, but with a no-op `drop` function.
+    // Clones of the resulting `RawWaker` will still be dropped normally.
+    let vtable = &RawWakerVTable {
+        clone: clone_arc_raw::<W>,
+        drop: noop,
+        wake: wake_arc_raw::<W>,
+    };
+
     let waker = unsafe {
-        Waker::new_unchecked(RawWaker::new(ptr, ref_vtable!(W)))
+        Waker::new_unchecked(RawWaker::new(ptr, vtable))
     };
     WakerRef::new(waker)
-}
-
-unsafe fn noop(_data: *const()) {
-}
-
-unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
-    // Retain Arc by creating a copy
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
-    let arc_clone = arc.clone();
-    // Forget the Arcs again, so that the refcount isn't decrased
-    let _ = Arc::into_raw(arc);
-    let _ = Arc::into_raw(arc_clone);
-}
-
-unsafe fn clone_arc_raw<T: ArcWake>(data: *const()) -> RawWaker {
-    increase_refcount::<T>(data);
-    RawWaker::new(data, owned_vtable!(T))
-}
-
-unsafe fn drop_arc_raw<T: ArcWake>(data: *const()) {
-    // Drop Arc
-    let _: Arc<T> = Arc::from_raw(data as *const T);
-}
-
-unsafe fn wake_arc_raw<T: ArcWake>(data: *const()) {
-    let arc: Arc<T> = Arc::from_raw(data as *const T);
-    ArcWake::wake(&arc); // TODO: If this panics, the refcount is too big
-    let _ = Arc::into_raw(arc);
 }
