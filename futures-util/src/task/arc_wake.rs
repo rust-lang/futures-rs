@@ -23,9 +23,9 @@ pub trait ArcWake {
     ///
     /// If `wake()` is called on the returned `Waker`,
     /// the `wake()` function that is defined inside this trait will get called.
-    fn into_waker(wake: Arc<Self>) -> Waker where Self: Sized
+    fn into_waker(self: Arc<Self>) -> Waker where Self: Sized
     {
-        let ptr = Arc::into_raw(wake) as *const();
+        let ptr = Arc::into_raw(self) as *const();
 
         unsafe {
             Waker::new_unchecked(RawWaker::new(ptr, waker_vtable!(Self)))
