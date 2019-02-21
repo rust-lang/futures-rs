@@ -600,7 +600,7 @@ impl<T> SenderInner<T> {
             //
             // Update the task in case the `Sender` has been moved to another
             // task
-            task.task = waker.map(|waker| waker.clone());
+            task.task = waker.cloned();
 
             Poll::Pending
         } else {
