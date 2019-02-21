@@ -75,7 +75,7 @@ impl<Fut: Future01> Future03 for Compat01As03<Fut> {
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> task03::Poll<Self::Output> {
-        poll_01_to_03(self.in_notify(waker, |f| f.poll()))
+        poll_01_to_03(self.in_notify(waker, Future01::poll))
     }
 }
 
@@ -86,7 +86,7 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> task03::Poll<Option<Self::Item>> {
-        match self.in_notify(waker, |f| f.poll()) {
+        match self.in_notify(waker, Stream01::poll) {
             Ok(Async01::Ready(Some(t))) => task03::Poll::Ready(Some(Ok(t))),
             Ok(Async01::Ready(None)) => task03::Poll::Ready(None),
             Ok(Async01::NotReady) => task03::Poll::Pending,
@@ -163,13 +163,13 @@ mod io {
         fn poll_flush(&mut self, waker: &task03::Waker)
             -> task03::Poll<Result<(), Error>>
         {
-            poll_01_to_03(self.in_notify(waker, |x| x.poll_flush()))
+            poll_01_to_03(self.in_notify(waker, AsyncWrite01::poll_flush))
         }
 
         fn poll_close(&mut self, waker: &task03::Waker)
             -> task03::Poll<Result<(), Error>>
         {
-            poll_01_to_03(self.in_notify(waker, |x| x.shutdown()))
+            poll_01_to_03(self.in_notify(waker, AsyncWrite01::shutdown))
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::{Sink, Poll};
 use futures_core::task::Waker;
-use futures_channel::mpsc::{Sender, SendError, UnboundedSender};
+use futures_channel::mpsc::{Sender, SendError, TrySendError, UnboundedSender};
 use std::pin::Pin;
 
 impl<T> Sink for Sender<T> {
@@ -57,7 +57,7 @@ impl<'a, T> Sink for &'a UnboundedSender<T> {
 
     fn start_send(self: Pin<&mut Self>, msg: T) -> Result<(), Self::SinkError> {
         self.unbounded_send(msg)
-            .map_err(|err| err.into_send_error())
+            .map_err(TrySendError::into_send_error)
     }
 
     fn poll_flush(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
