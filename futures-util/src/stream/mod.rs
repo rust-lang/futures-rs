@@ -970,15 +970,15 @@ pub trait StreamExt: Stream {
     }
 
     /// A future that completes after the given stream has been fully processed
-    /// into the sink, including flushing.
+    /// into the sink and the sink has been flushed and closed.
     ///
     /// This future will drive the stream to keep producing items until it is
-    /// exhausted, sending each item to the sink. It will complete once both the
-    /// stream is exhausted and the sink has received and flushed all items.
-    /// Note that the sink is **not** closed.
+    /// exhausted, sending each item to the sink. It will complete once the
+    /// stream is exhausted, the sink has received and flushed all items, and
+    /// the sink is closed.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink + Unpin,
+        S: Sink,
         Self: Stream<Item = Result<S::SinkItem, S::SinkError>> + Sized,
     {
         Forward::new(self, sink)
