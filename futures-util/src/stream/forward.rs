@@ -71,7 +71,7 @@ where
     Si: Sink + Unpin,
     St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
 {
-    type Output = Result<Si, Si::SinkError>;
+    type Output = Result<(), Si::SinkError>;
 
     fn poll(
         mut self: Pin<&mut Self>,
@@ -91,7 +91,8 @@ where
                 Poll::Ready(None) => {
                     try_ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL)
                                    .poll_close(waker));
-                    return Poll::Ready(Ok(self.as_mut().sink().take().unwrap()))
+                    let _ = self.as_mut().sink().take().unwrap();
+                    return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
                     try_ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL)

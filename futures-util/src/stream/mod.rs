@@ -976,12 +976,6 @@ pub trait StreamExt: Stream {
     /// exhausted, sending each item to the sink. It will complete once both the
     /// stream is exhausted and the sink has received and flushed all items.
     /// Note that the sink is **not** closed.
-    ///
-    /// On completion, the sink is returned.
-    ///
-    /// Note that this combinator is only usable with `Unpin` sinks.
-    /// Sinks that are not `Unpin` will need to be pinned in order to be used
-    /// with `forward`.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
         S: Sink + Unpin,
