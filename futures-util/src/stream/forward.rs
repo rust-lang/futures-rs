@@ -85,7 +85,7 @@ where
                 Poll::Ready(None) => {
                     try_ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL)
                                    .poll_close(waker));
-                    let _ = self.as_mut().sink().as_pin_mut().take().unwrap();
+                    self.as_mut().sink().set(None);
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
