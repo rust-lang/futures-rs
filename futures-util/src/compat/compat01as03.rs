@@ -139,10 +139,10 @@ impl<S, SinkItem> Compat01As03Sink<S, SinkItem> {
 
     fn in_notify<R>(
         &mut self,
-        lw: &LocalWaker,
+        waker: &Waker,
         f: impl FnOnce(&mut S) -> R,
     ) -> R {
-        let notify = &WakerToHandle(lw.as_waker());
+        let notify = &WakerToHandle(waker);
         self.inner.poll_fn_notify(notify, 0, f)
     }
 }
@@ -155,9 +155,9 @@ where
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> task03::Poll<Option<Self::Item>> {
-        match self.in_notify(lw, |f| f.poll()) {
+        match self.in_notify(waker, |f| f.poll()) {
             Ok(Async01::Ready(Some(t))) => task03::Poll::Ready(Some(Ok(t))),
             Ok(Async01::Ready(None)) => task03::Poll::Ready(None),
             Ok(Async01::NotReady) => task03::Poll::Pending,
@@ -184,10 +184,10 @@ where
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> task03::Poll<Result<(), Self::SinkError>> {
         match self.buffer.take() {
-            Some(item) => match self.in_notify(lw, |f| f.start_send(item)) {
+            Some(item) => match self.in_notify(waker, |f| f.start_send(item)) {
                 Ok(AsyncSink01::Ready) => task03::Poll::Ready(Ok(())),
                 Ok(AsyncSink01::NotReady(i)) => {
                     self.buffer = Some(i);
@@ -201,10 +201,10 @@ where
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> task03::Poll<Result<(), Self::SinkError>> {
         let item = self.buffer.take();
-        match self.in_notify(lw, |f| match item {
+        match self.in_notify(waker, |f| match item {
             Some(i) => match f.start_send(i) {
                 Ok(AsyncSink01::Ready) => f.poll_complete().map(|i| (i, None)),
                 Ok(AsyncSink01::NotReady(t)) => {
@@ -225,12 +225,12 @@ where
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        lw: &LocalWaker,
+        waker: &Waker,
     ) -> task03::Poll<Result<(), Self::SinkError>> {
         let item = self.buffer.take();
         let close_started = self.close_started;
 
-        let result = self.in_notify(lw, |f| {
+        let result = self.in_notify(waker, |f| {
             if !close_started {
                 if let Some(item) = item {
                     if let AsyncSink01::NotReady(item) = f.start_send(item)? {
