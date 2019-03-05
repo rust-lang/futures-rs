@@ -127,6 +127,14 @@ The compatibility layer offers conversions in both directions and thus enables g
 
 Finally a self contained example that shows using futures 0.1 based `hyper` and `tokio` with a `std` async/await layer in between:
 
+```toml
+[dependencies]
+futures-preview = { version = "0.3.0-alpha.14", features = ["io-compat"] }
+hyper = "0.12.25"
+tokio = "0.1.16"
+pin-utils = "0.1.0-alpha.4"
+```
+
 ```rust
 #![feature(async_await, await_macro, futures_api)]
 
@@ -136,7 +144,6 @@ use futures::{
   io::AsyncWriteExt,
   stream::StreamExt,
 };
-use hyper::Client;
 use pin_utils::pin_mut;
 use std::error::Error;
 
@@ -144,7 +151,7 @@ fn main() {
     let future03 = async {
         let url = "http://httpbin.org/ip".parse()?;
 
-        let client = Client::new();
+        let client = hyper::Client::new();
         let res = await!(client.get(url).compat())?;
         println!("{}", res.status());
 
