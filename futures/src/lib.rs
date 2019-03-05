@@ -92,6 +92,12 @@ pub mod compat {
         Stream01CompatExt,
         Sink01CompatExt,
     };
+
+    #[cfg(feature = "io-compat")]
+    pub use futures_util::compat::{
+        AsyncRead01CompatExt,
+        AsyncWrite01CompatExt,
+    };
 }
 
 #[cfg(feature = "std")]
