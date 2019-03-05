@@ -21,7 +21,7 @@ Rust's futures ecosystem is currently split in two: On the one hand we have the 
 The compatibility layer can be enabled by setting the `compat` feature in your `Cargo.toml`:
 
 ```toml
-futures-preview = { version = "0.3.0-alpha.10", features = ["compat"] }
+futures-preview = { version = "0.3.0-alpha.14", features = ["compat"] }
 ```
 
 To use `futures@0.1` and `futures@0.3` together in a single project, we can make use of the [new cargo feature for renaming dependencies][renaming-dependencies]. Why? Because, even though the `futures@0.3` crate is called `futures-preview` on crates.io, it's lib name is also `futures`. By renaming `futures` version 0.1 to `futures01`, we can avoid a name collision:
@@ -63,11 +63,11 @@ Turning a `std` future into a 0.1 future requires three steps:
 
 - The final step is to call the [`compat`][] combinator which wraps the `std` future into a 0.1 future that can run on any 0.1 executor.
 
-[`TryFuture`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/future/trait.TryFuture.html
-[`unit_error`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/future/trait.FutureExt.html#method.unit_error
+[`TryFuture`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/future/trait.TryFuture.html
+[`unit_error`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/future/trait.FutureExt.html#method.unit_error
 [`Unpin`]: https://doc.rust-lang.org/nightly/std/marker/trait.Unpin.html
-[`boxed`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/future/trait.FutureExt.html#method.boxed
-[`compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/future/trait.TryFutureExt.html#method.compat
+[`boxed`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/future/trait.FutureExt.html#method.boxed
+[`compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/future/trait.TryFutureExt.html#method.compat
 
 ## 0.1 futures in async functions
 
@@ -81,66 +81,61 @@ let future03 = future01.compat();
 
 It converts a 0.1 `Future<Item = T, Error = E>` into a `std` `Future<Output = Result<T, E>>`.
 
-[Future01CompatExt::compat]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/compat/trait.Future01CompatExt.html#method.compat
+[Future01CompatExt::compat]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/compat/trait.Future01CompatExt.html#method.compat
 
 ## Streams and Sinks
 
-Converting between 0.1 and 0.3 streams is possible via the [`TryStreamExt::compat`][] and [`Stream01CompatExt::compat`][] methods. Both combinators work analogously to their future equivalents.
+Converting between 0.1 and 0.3 streams and sinks are possible via the [`TryStreamExt::compat`][], [`Stream01CompatExt::compat`][], [`SinkExt::compat`][] and [`Sink01CompatExt::sink_compat`][] methods. These combinators work analogously to their future equivalents.
 
-Sinks are a little different, the current compat layer only includes support for transforming a 0.3 sink into a 0.1 sink, this goes through a [`SinkExt::compat`][] method as normal. See [rust-lang-nursery/futures-rs#1362][] for more details on the inverse transform.
-
-[`TryStreamExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/prelude/trait.TryStreamExt.html#method.compat
-[`Stream01CompatExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/compat/trait.Stream01CompatExt.html#method.compat
-[`SinkExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/prelude/trait.SinkExt.html#method.compat
-[rust-lang-nursery/futures-rs#1362]: https://github.com/rust-lang-nursery/futures-rs/issues/1362
+[`TryStreamExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/prelude/trait.TryStreamExt.html#method.compat
+[`Stream01CompatExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/compat/trait.Stream01CompatExt.html#method.compat
+[`SinkExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/prelude/trait.SinkExt.html#method.compat
+[`Sink01CompatExt::sink_compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/compat/trait.Sink01CompatExt.html#method.sink_compat
 
 ## Spawning
 
-Next, there's also conversions between futures 0.1 [`Executor`][] trait and futures 0.3 [`Spawn`][] trait. Again, these function near identically to the futures compatibility functions with [`SpawnExt::compat`][] and [`Executor01CompatExt::compat`][] providing the conversions in each direction.
+Finally from the core `compat` feature, there's also conversions between futures 0.1 [`Executor`][] trait and futures 0.3 [`Spawn`][] trait. Again, these function near identically to the futures compatibility functions with [`SpawnExt::compat`][] and [`Executor01CompatExt::compat`][] providing the conversions in each direction.
 
 [`Executor`]: https://docs.rs/futures/0.1.25/futures/future/trait.Executor.html
-[`Spawn`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/task/trait.Spawn.html
-[`SpawnExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/task/trait.SpawnExt.html#method.compat
-[`Executor01CompatExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/compat/trait.Executor01CompatExt.html#tymethod.compat
-
-### Tokio's Default Executor
-
-There's an additional feature to allow easy use of Tokio's thread-local executor on libraries that are using the `Spawn` trait, adding `tokio-compat` to your `futures-preview` dependency will add an additional [`TokioDefaultSpawner`][] struct. `TokioDefaultSpawner` is an implementation of `Spawn` that will delegate any new futures to Tokio's [`DefaultExecutor`][]
-
-[`TokioDefaultSpawner`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/compat/struct.TokioDefaultSpawner.html
-[`DefaultExecutor`]: https://docs.rs/tokio/0.1.13/tokio/executor/struct.DefaultExecutor.html
+[`Spawn`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/task/trait.Spawn.html
+[`SpawnExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/task/trait.SpawnExt.html#method.compat
+[`Executor01CompatExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/compat/trait.Executor01CompatExt.html#tymethod.compat
 
 ## Async IO
 
 With futures 0.1 IO was almost exclusively provided by Tokio, this was reflected in the core IO traits being provided by [`tokio-io`][]. With 0.3 instead the `futures` crate is providing these core abstractions along with generic utilities that work with them. To convert between these traits you can enable the `io-compat` feature in your `Cargo.toml` (this will implicitly enable the base `compat` feature as well):
 
 ```toml
-futures-preview = { version = "0.3.0-alpha.10", features = ["io-compat"] }
+futures-preview = { version = "0.3.0-alpha.14", features = ["io-compat"] }
 ```
 
-This provides the 4 expected conversions: [`AsyncReadExt::compat`][] to convert from a [`futures::io::AsyncRead`][] to a [`tokio-io::AsyncRead`][] and [`AsyncWriteExt::compat_write`][] to convert from a [`futures::io::AsyncWrite`][] to a [`tokio-io::AsyncWrite`][], for the inverse transformations there are (currently?) no helper methods provided, but you can simply construct a [`Compat01As03`][] wrapping the reader/writer.
+This provides the 4 expected conversions: [`AsyncReadExt::compat`][] and [`AsyncRead01CompatExt::compat`][] to convert between [`futures::io::AsyncRead`][] and [`tokio-io::AsyncRead`][]; and [`AsyncWriteExt::compat_write`][] and [`AsyncWrite01CompatExt::compat`][] to convert between [`futures::io::AsyncWrite`][] and [`tokio-io::AsyncWrite`][].
 
 [`tokio-io`]: https://docs.rs/tokio-io/
-[`futures::io::AsyncRead`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/io/trait.AsyncRead.html
-[`futures::io::AsyncWrite`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/io/trait.AsyncWrite.html
+[`futures::io::AsyncRead`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/io/trait.AsyncRead.html
+[`futures::io::AsyncWrite`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/io/trait.AsyncWrite.html
 [`tokio-io::AsyncRead`]: https://docs.rs/tokio-io/0.1.10/tokio_io/trait.AsyncRead.html
 [`tokio-io::AsyncWrite`]: https://docs.rs/tokio-io/0.1.10/tokio_io/trait.AsyncWrite.html
-[`AsyncReadExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/io/trait.AsyncReadExt.html#method.compat
-[`AsyncWriteExt::compat_write`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/io/trait.AsyncWriteExt.html#method.compat_write
-[`Compat01As03`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.10/futures/compat/struct.Compat01As03.html
+[`AsyncReadExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/io/trait.AsyncReadExt.html#method.compat
+[`AsyncRead01CompatExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/compat/trait.AsyncRead01CompatExt.html#tymethod.compat
+[`AsyncWriteExt::compat_write`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/io/trait.AsyncWriteExt.html#method.compat_write
+[`AsyncWrite01CompatExt::compat`]: https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures/compat/trait.AsyncWrite01CompatExt.html#tymethod.compat
 
 ## Conclusion
 
 The compatibility layer offers conversions in both directions and thus enables gradual migrations and experiments with `std::future`. With that it manages to bridge the gap between the futures 0.1 and futures 0.3 ecosystems.
 
-Finally a self contained example that shows how to fetch a website from a server:
+Finally a self contained example that shows using futures 0.1 based `hyper` and `tokio` with a `std` async/await layer in between:
 
 ```rust
-#![feature(pin, async_await, await_macro)]
-use futures::compat::{Compat01As03, Future01CompatExt, Stream01CompatExt};
-use futures::stream::StreamExt;
-use futures::future::{FutureExt, TryFutureExt};
-use futures::io::AsyncWriteExt;
+#![feature(async_await, await_macro, futures_api)]
+
+use futures::{
+  compat::{Future01CompatExt, Stream01CompatExt, AsyncWrite01CompatExt},
+  future::{FutureExt, TryFutureExt},
+  io::AsyncWriteExt,
+  stream::StreamExt,
+};
 use hyper::Client;
 use pin_utils::pin_mut;
 use std::error::Error;
@@ -156,7 +151,7 @@ fn main() {
         let body = res.into_body().compat();
         pin_mut!(body);
 
-        let mut stdout = Compat01As03::new(tokio::io::stdout());
+        let mut stdout = tokio::io::stdout().compat();
         while let Some(Ok(chunk)) = await!(body.next()) {
             await!(stdout.write_all(&chunk))?;
         }
@@ -168,4 +163,10 @@ fn main() {
 }
 ```
 
-Special thanks goes to [@tinaun](https://www.github.com/tinaun) and [@Nemo157](https://www.github.com/Nemo157) for developing the compatibility layer.
+Special thanks goes to the main authors of the compatibility layer:
+
+ * [@tinaun](https://www.github.com/tinaun)
+ * [@Nemo157](https://www.github.com/Nemo157)
+ * [@cramertj](https://www.github.com/cramertj)
+ * [@LucioFranco](https://www.github.com/LucioFranco)
+
