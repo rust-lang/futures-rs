@@ -11,6 +11,9 @@ use std::pin::Pin;
 use std::task::Waker;
 use futures_sink::Sink as Sink03;
 
+#[cfg(feature = "io-compat")]
+pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
+
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
 /// object to a futures 0.3-compatible version,
 #[derive(Debug)]
@@ -296,6 +299,32 @@ mod io {
     };
     use std::io::Error;
     use tokio_io::{AsyncRead as AsyncRead01, AsyncWrite as AsyncWrite01};
+
+    /// Extension trait for tokio-io [`AsyncRead`](tokio_io::AsyncRead)
+    pub trait AsyncRead01CompatExt: AsyncRead01 {
+        /// Converts a tokio-io [`AsyncRead`](tokio_io::AsyncRead) into a futures-io 0.3
+        /// [`AsyncRead`](futures_io::AsyncRead).
+        fn compat(self) -> Compat01As03<Self>
+        where
+            Self: Sized,
+        {
+            Compat01As03::new(self)
+        }
+    }
+    impl<R: AsyncRead01> AsyncRead01CompatExt for R {}
+
+    /// Extension trait for tokio-io [`AsyncWrite`](tokio_io::AsyncWrite)
+    pub trait AsyncWrite01CompatExt: AsyncWrite01 {
+        /// Converts a tokio-io [`AsyncWrite`](tokio_io::AsyncWrite) into a futures-io 0.3
+        /// [`AsyncWrite`](futures_io::AsyncWrite).
+        fn compat(self) -> Compat01As03<Self>
+        where
+            Self: Sized,
+        {
+            Compat01As03::new(self)
+        }
+    }
+    impl<W: AsyncWrite01> AsyncWrite01CompatExt for W {}
 
     impl<R: AsyncRead01> AsyncRead03 for Compat01As03<R> {
         unsafe fn initializer(&self) -> Initializer {
