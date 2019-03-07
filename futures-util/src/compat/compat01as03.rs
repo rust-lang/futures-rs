@@ -45,6 +45,18 @@ pub trait Future01CompatExt: Future01 {
     /// [`Future<Item = T, Error = E>`](futures::future::Future)
     /// into a futures 0.3
     /// [`Future<Output = Result<T, E>>`](futures_core::future::Future).
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// # // TODO: These should be all using `futures::compat`, but that runs up against Cargo
+    /// # // feature issues
+    /// use futures_util::compat::Future01CompatExt;
+    ///
+    /// let future = futures_01::future::ok::<u32, ()>(1);
+    /// assert_eq!(await!(future.compat()), Ok(1));
+    /// # });
+    /// ```
     fn compat(self) -> Compat01As03<Self>
     where
         Self: Sized,
@@ -60,6 +72,19 @@ pub trait Stream01CompatExt: Stream01 {
     /// [`Stream<Item = T, Error = E>`](futures::stream::Stream)
     /// into a futures 0.3
     /// [`Stream<Item = Result<T, E>>`](futures_core::stream::Stream).
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::StreamExt;
+    /// use futures_util::compat::Stream01CompatExt;
+    ///
+    /// let stream = futures_01::stream::once::<u32, ()>(Ok(1));
+    /// let mut stream = stream.compat();
+    /// assert_eq!(await!(stream.next()), Some(Ok(1)));
+    /// assert_eq!(await!(stream.next()), None);
+    /// # });
+    /// ```
     fn compat(self) -> Compat01As03<Self>
     where
         Self: Sized,
@@ -75,6 +100,22 @@ pub trait Sink01CompatExt: Sink01 {
     /// [`Sink<SinkItem = T, SinkError = E>`](futures::sink::Sink)
     /// into a futures 0.3
     /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::sink::Sink).
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::{sink::SinkExt, stream::StreamExt};
+    /// use futures_util::compat::{Stream01CompatExt, Sink01CompatExt};
+    ///
+    /// let (tx, rx) = futures_01::unsync::mpsc::channel(1);
+    /// let (mut tx, mut rx) = (tx.sink_compat(), rx.compat());
+    ///
+    /// await!(tx.send(1)).unwrap();
+    /// drop(tx);
+    /// assert_eq!(await!(rx.next()), Some(Ok(1)));
+    /// assert_eq!(await!(rx.next()), None);
+    /// # });
+    /// ```
     fn sink_compat(self) -> Compat01As03Sink<Self, Self::SinkItem>
     where
         Self: Sized,
@@ -304,6 +345,22 @@ mod io {
     pub trait AsyncRead01CompatExt: AsyncRead01 {
         /// Converts a tokio-io [`AsyncRead`](tokio_io::AsyncRead) into a futures-io 0.3
         /// [`AsyncRead`](futures_io::AsyncRead).
+        ///
+        /// ```
+        /// #![feature(async_await, await_macro, futures_api, impl_trait_in_bindings)]
+        /// # futures::executor::block_on(async {
+        /// use futures::io::AsyncReadExt;
+        /// use futures_util::compat::AsyncRead01CompatExt;
+        ///
+        /// let input = b"Hello World!";
+        /// let reader: impl tokio_io::AsyncRead = std::io::Cursor::new(input);
+        /// let mut reader: impl futures::io::AsyncRead = reader.compat();
+        ///
+        /// let mut output = Vec::with_capacity(12);
+        /// await!(reader.read_to_end(&mut output)).unwrap();
+        /// assert_eq!(output, input);
+        /// # });
+        /// ```
         fn compat(self) -> Compat01As03<Self>
         where
             Self: Sized,
@@ -317,6 +374,22 @@ mod io {
     pub trait AsyncWrite01CompatExt: AsyncWrite01 {
         /// Converts a tokio-io [`AsyncWrite`](tokio_io::AsyncWrite) into a futures-io 0.3
         /// [`AsyncWrite`](futures_io::AsyncWrite).
+        ///
+        /// ```
+        /// #![feature(async_await, await_macro, futures_api, impl_trait_in_bindings)]
+        /// # futures::executor::block_on(async {
+        /// use futures::io::AsyncWriteExt;
+        /// use futures_util::compat::AsyncWrite01CompatExt;
+        ///
+        /// let input = b"Hello World!";
+        /// let mut cursor = std::io::Cursor::new(Vec::with_capacity(12));
+        ///
+        /// let mut writer = (&mut cursor).compat();
+        /// await!(writer.write_all(input)).unwrap();
+        ///
+        /// assert_eq!(cursor.into_inner(), input);
+        /// # });
+        /// ```
         fn compat(self) -> Compat01As03<Self>
         where
             Self: Sized,

@@ -21,20 +21,20 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
     /// Converts a futures 0.1 [`Executor`](futures::future::Executor) into a
     /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
     ///
-    /// ```ignore
+    /// ```
     /// #![feature(async_await, await_macro, futures_api)]
     /// use futures::Future;
+    /// use futures::task::SpawnExt;
     /// use futures::future::{FutureExt, TryFutureExt};
-    /// use futures::compat::Executor01CompatExt;
-    /// use futures::spawn;
-    /// use tokio_threadpool::ThreadPool;
+    /// use futures_util::compat::Executor01CompatExt;
+    /// use tokio::executor::DefaultExecutor;
     ///
-    /// let pool01 = ThreadPool::new();
     /// # let (tx, rx) = futures::channel::oneshot::channel();
     ///
-    /// let future03 = async {
+    /// let mut spawner = DefaultExecutor::current().compat();
+    /// let future03 = async move {
     ///     println!("Running on the pool");
-    ///     spawn!(async {
+    ///     spawner.spawn(async {
     ///         println!("Spawned!");
     ///         # tx.send(42).unwrap();
     ///     }).unwrap();
@@ -42,8 +42,7 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
     ///
     /// let future01 = future03.unit_error().boxed().compat();
     ///
-    /// pool01.spawn(future01);
-    /// pool01.shutdown_on_idle().wait().unwrap();
+    /// tokio::run(future01);
     /// # futures::executor::block_on(rx).unwrap();
     /// ```
     fn compat(self) -> Executor01As03<Self>
