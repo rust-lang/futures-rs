@@ -201,7 +201,7 @@ where
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> task03::Poll<Option<Self::Item>> {
-        match self.in_notify(waker, |f| f.poll()) {
+        match self.in_notify(waker, Stream01::poll) {
             Ok(Async01::Ready(Some(t))) => task03::Poll::Ready(Some(Ok(t))),
             Ok(Async01::Ready(None)) => task03::Poll::Ready(None),
             Ok(Async01::NotReady) => task03::Poll::Pending,
@@ -409,7 +409,7 @@ mod io {
             }
         }
 
-        fn poll_read(&mut self, waker: &task03::Waker, buf: &mut [u8])
+        fn poll_read(mut self: Pin<&mut Self>, waker: &task03::Waker, buf: &mut [u8])
             -> task03::Poll<Result<usize, Error>>
         {
             poll_01_to_03(self.in_notify(waker, |x| x.poll_read(buf)))
@@ -417,19 +417,19 @@ mod io {
     }
 
     impl<W: AsyncWrite01> AsyncWrite03 for Compat01As03<W> {
-        fn poll_write(&mut self, waker: &task03::Waker, buf: &[u8])
+        fn poll_write(mut self: Pin<&mut Self>, waker: &task03::Waker, buf: &[u8])
             -> task03::Poll<Result<usize, Error>>
         {
             poll_01_to_03(self.in_notify(waker, |x| x.poll_write(buf)))
         }
 
-        fn poll_flush(&mut self, waker: &task03::Waker)
+        fn poll_flush(mut self: Pin<&mut Self>, waker: &task03::Waker)
             -> task03::Poll<Result<(), Error>>
         {
             poll_01_to_03(self.in_notify(waker, AsyncWrite01::poll_flush))
         }
 
-        fn poll_close(&mut self, waker: &task03::Waker)
+        fn poll_close(mut self: Pin<&mut Self>, waker: &task03::Waker)
             -> task03::Poll<Result<(), Error>>
         {
             poll_01_to_03(self.in_notify(waker, AsyncWrite01::shutdown))

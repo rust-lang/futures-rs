@@ -50,7 +50,7 @@ where
     St::Ok: AsRef<[u8]>,
 {
     fn poll_read(
-        &mut self,
+        mut self: Pin<&mut Self>,
         waker: &Waker,
         buf: &mut [u8],
     ) -> Poll<Result<usize>> {
@@ -108,7 +108,7 @@ mod tests {
     macro_rules! assert_read {
         ($reader:expr, $buf:expr, $item:expr) => {
             let waker = noop_waker_ref();
-            match $reader.poll_read(waker, $buf) {
+            match Pin::new(&mut $reader).poll_read(waker, $buf) {
                 Poll::Ready(Ok(x)) => {
                     assert_eq!(x, $item);
                 }

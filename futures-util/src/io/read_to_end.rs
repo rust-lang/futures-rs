@@ -12,15 +12,14 @@ use std::vec::Vec;
 ///
 /// [`read_to_end`]: fn.read_to_end.html
 #[derive(Debug)]
-pub struct ReadToEnd<'a, R: ?Sized> {
+pub struct ReadToEnd<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,
     buf: &'a mut Vec<u8>,
 }
 
-// We never project pinning to fields
-impl<R: ?Sized> Unpin for ReadToEnd<'_, R> {}
+impl<R: ?Sized + Unpin> Unpin for ReadToEnd<'_, R> {}
 
-impl<'a, R: AsyncRead + ?Sized> ReadToEnd<'a, R> {
+impl<'a, R: AsyncRead + ?Sized + Unpin> ReadToEnd<'a, R> {
     pub(super) fn new(reader: &'a mut R, buf: &'a mut Vec<u8>) -> Self {
         ReadToEnd { reader, buf }
     }
@@ -44,7 +43,7 @@ impl Drop for Guard<'_> {
 // Because we're extending the buffer with uninitialized data for trusted
 // readers, we need to make sure to truncate that if any of this panics.
 fn read_to_end_internal<R: AsyncRead + ?Sized>(
-    rd: &mut R,
+    mut rd: Pin<&mut R>,
     waker: &Waker,
     buf: &mut Vec<u8>,
 ) -> Poll<io::Result<()>> {
@@ -60,7 +59,7 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(
             }
         }
 
-        match rd.poll_read(waker, &mut g.buf[g.len..]) {
+        match rd.as_mut().poll_read(waker, &mut g.buf[g.len..]) {
             Poll::Ready(Ok(0)) => {
                 ret = Poll::Ready(Ok(()));
                 break;
@@ -78,12 +77,12 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(
 }
 
 impl<A> Future for ReadToEnd<'_, A>
-    where A: AsyncRead + ?Sized,
+    where A: AsyncRead + ?Sized + Unpin,
 {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let this = &mut *self;
-        read_to_end_internal(this.reader, waker, this.buf)
+        read_to_end_internal(Pin::new(&mut this.reader), waker, this.buf)
     }
 }

@@ -188,15 +188,15 @@ mod io {
         }
     }
 
-    impl<R: AsyncRead03> std::io::Read for Compat<R> {
+    impl<R: AsyncRead03 + Unpin> std::io::Read for Compat<R> {
         fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
             let current = Current::new();
             let waker = current.as_waker();
-            poll_03_to_io(self.inner.poll_read(&waker, buf))
+            poll_03_to_io(Pin::new(&mut self.inner).poll_read(&waker, buf))
         }
     }
 
-    impl<R: AsyncRead03> AsyncRead01 for Compat<R> {
+    impl<R: AsyncRead03 + Unpin> AsyncRead01 for Compat<R> {
         unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [u8]) -> bool {
             let initializer = self.inner.initializer();
             let does_init = initializer.should_initialize();
@@ -207,25 +207,25 @@ mod io {
         }
     }
 
-    impl<W: AsyncWrite03> std::io::Write for Compat<W> {
+    impl<W: AsyncWrite03 + Unpin> std::io::Write for Compat<W> {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             let current = Current::new();
             let waker = current.as_waker();
-            poll_03_to_io(self.inner.poll_write(&waker, buf))
+            poll_03_to_io(Pin::new(&mut self.inner).poll_write(&waker, buf))
         }
 
         fn flush(&mut self) -> std::io::Result<()> {
             let current = Current::new();
             let waker = current.as_waker();
-            poll_03_to_io(self.inner.poll_flush(&waker))
+            poll_03_to_io(Pin::new(&mut self.inner).poll_flush(&waker))
         }
     }
 
-    impl<W: AsyncWrite03> AsyncWrite01 for Compat<W> {
+    impl<W: AsyncWrite03 + Unpin> AsyncWrite01 for Compat<W> {
         fn shutdown(&mut self) -> std::io::Result<Async01<()>> {
             let current = Current::new();
             let waker = current.as_waker();
-            poll_03_to_01(self.inner.poll_close(&waker))
+            poll_03_to_01(Pin::new(&mut self.inner).poll_close(&waker))
         }
     }
 }

@@ -1,9 +1,8 @@
 use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
+use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
-
-use futures_io::AsyncWrite;
 
 /// A future used to fully flush an I/O object.
 ///
@@ -13,25 +12,24 @@ use futures_io::AsyncWrite;
 ///
 /// [`flush`]: fn.flush.html
 #[derive(Debug)]
-pub struct Flush<'a, W: ?Sized> {
+pub struct Flush<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,
 }
 
-// Pinning is never projected to fields
-impl<W: ?Sized> Unpin for Flush<'_, W> {}
+impl<W: ?Sized + Unpin> Unpin for Flush<'_, W> {}
 
-impl<'a, W: AsyncWrite + ?Sized> Flush<'a, W> {
+impl<'a, W: AsyncWrite + ?Sized + Unpin> Flush<'a, W> {
     pub(super) fn new(writer: &'a mut W) -> Self {
         Flush { writer }
     }
 }
 
 impl<W> Future for Flush<'_, W>
-    where W: AsyncWrite + ?Sized,
+    where W: AsyncWrite + ?Sized + Unpin,
 {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
-        self.writer.poll_flush(waker)
+        Pin::new(&mut *self.writer).poll_flush(waker)
     }
 }
