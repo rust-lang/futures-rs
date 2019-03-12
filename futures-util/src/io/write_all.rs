@@ -11,27 +11,26 @@ use std::pin::Pin;
 ///
 /// [`write_all`]: fn.write_all.html
 #[derive(Debug)]
-pub struct WriteAll<'a, W: ?Sized> {
+pub struct WriteAll<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,
     buf: &'a [u8],
 }
 
-// Pinning is never projected to fields
-impl<W: ?Sized> Unpin for WriteAll<'_, W> {}
+impl<W: ?Sized + Unpin> Unpin for WriteAll<'_, W> {}
 
-impl<'a, W: AsyncWrite + ?Sized> WriteAll<'a, W> {
+impl<'a, W: AsyncWrite + ?Sized + Unpin> WriteAll<'a, W> {
     pub(super) fn new(writer: &'a mut W, buf: &'a [u8]) -> Self {
         WriteAll { writer, buf }
     }
 }
 
-impl<W: AsyncWrite + ?Sized> Future for WriteAll<'_, W> {
+impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAll<'_, W> {
     type Output = io::Result<()>;
 
     fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(this.writer.poll_write(waker, this.buf));
+            let n = try_ready!(Pin::new(&mut this.writer).poll_write(waker, this.buf));
             {
                 let (_, rest) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;

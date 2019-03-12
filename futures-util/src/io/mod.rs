@@ -79,7 +79,7 @@ pub trait AsyncReadExt: AsyncRead {
         &'a mut self,
         writer: &'a mut W,
     ) -> CopyInto<'a, Self, W>
-        where W: AsyncWrite,
+        where Self: Unpin, W: AsyncWrite + Unpin,
     {
         CopyInto::new(self, writer)
     }
@@ -110,7 +110,9 @@ pub trait AsyncReadExt: AsyncRead {
     /// assert_eq!(output, [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
-    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self> {
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self>
+        where Self: Unpin,
+    {
         Read::new(self, buf)
     }
 
@@ -158,7 +160,9 @@ pub trait AsyncReadExt: AsyncRead {
     fn read_exact<'a>(
         &'a mut self,
         buf: &'a mut [u8],
-    ) -> ReadExact<'a, Self> {
+    ) -> ReadExact<'a, Self>
+        where Self: Unpin,
+    {
         ReadExact::new(self, buf)
     }
 
@@ -183,7 +187,9 @@ pub trait AsyncReadExt: AsyncRead {
     fn read_to_end<'a>(
         &'a mut self,
         buf: &'a mut Vec<u8>,
-    ) -> ReadToEnd<'a, Self> {
+    ) -> ReadToEnd<'a, Self>
+        where Self: Unpin,
+    {
         ReadToEnd::new(self, buf)
     }
 
@@ -232,7 +238,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// Requires the `io-compat` feature to enable.
     #[cfg(feature = "io-compat")]
     fn compat(self) -> Compat<Self>
-        where Self: Sized,
+        where Self: Sized + Unpin,
     {
         Compat::new(self)
     }
@@ -265,12 +271,16 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// assert_eq!(output, [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
-    fn flush(&mut self) -> Flush<'_, Self> {
+    fn flush(&mut self) -> Flush<'_, Self>
+        where Self: Unpin,
+    {
         Flush::new(self)
     }
 
     /// Creates a future which will entirely close this `AsyncWrite`.
-    fn close(&mut self) -> Close<'_, Self> {
+    fn close(&mut self) -> Close<'_, Self>
+        where Self: Unpin,
+    {
         Close::new(self)
     }
 
@@ -296,7 +306,9 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
-    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self> {
+    fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self>
+        where Self: Unpin,
+    {
         WriteAll::new(self, buf)
     }
 
@@ -305,7 +317,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// Requires the `io-compat` feature to enable.
     #[cfg(feature = "io-compat")]
     fn compat_write(self) -> Compat<Self>
-        where Self: Sized,
+        where Self: Sized + Unpin,
     {
         Compat::new(self)
     }
