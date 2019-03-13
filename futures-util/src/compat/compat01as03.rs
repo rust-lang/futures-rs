@@ -354,7 +354,7 @@ mod io {
         ///
         /// let input = b"Hello World!";
         /// let reader: impl tokio_io::AsyncRead = std::io::Cursor::new(input);
-        /// let mut reader: impl futures::io::AsyncRead = reader.compat();
+        /// let mut reader: impl futures::io::AsyncRead + Unpin = reader.compat();
         ///
         /// let mut output = Vec::with_capacity(12);
         /// await!(reader.read_to_end(&mut output)).unwrap();
