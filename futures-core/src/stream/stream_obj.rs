@@ -187,11 +187,11 @@ where
     unsafe fn drop(_ptr: *mut ()) {}
 }
 
-#[cfg(feature = "std")]
-mod if_std {
-    use std::boxed::Box;
-    use std::mem;
+#[cfg(feature = "alloc")]
+mod if_alloc {
     use super::*;
+    use core::mem;
+    use alloc::boxed::Box;
 
     unsafe impl<'a, T, F> UnsafeStreamObj<'a, T> for Box<F>
         where F: Stream<Item = T> + 'a

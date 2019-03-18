@@ -44,16 +44,16 @@ pub use self::try_fold::TryFold;
 mod try_skip_while;
 pub use self::try_skip_while::TrySkipWhile;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod try_buffer_unordered;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::try_buffer_unordered::TryBufferUnordered;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod try_for_each_concurrent;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::try_for_each_concurrent::TryForEachConcurrent;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 use futures_core::future::Future;
 
 #[cfg(feature = "std")]
@@ -310,7 +310,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(Err(oneshot::Canceled), await!(fut));
     /// # })
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn try_for_each_concurrent<Fut, F>(
         self,
         limit: impl Into<Option<usize>>,
@@ -542,7 +542,7 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(await!(buffered.next()), Some(Err("error in the stream")));
     /// # })
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn try_buffer_unordered(self, n: usize) -> TryBufferUnordered<Self>
         where Self::Ok: TryFuture<Error = Self::Error>,
               Self: Sized

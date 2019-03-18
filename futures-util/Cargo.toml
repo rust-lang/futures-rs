@@ -15,13 +15,14 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "either/use_std", "rand", "rand_core", "slab"]
+std = ["alloc", "futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "either/use_std", "rand", "rand_core", "slab"]
 default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
 bench = []
-nightly = []
+nightly = ["futures-core-preview/nightly", "futures-sink-preview/nightly"]
 cfg-target-has-atomic = []
+alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.13", default-features = false }

@@ -4,8 +4,8 @@ use futures_core::stream::{Stream, FusedStream};
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::fmt;
-use std::pin::Pin;
+use core::fmt;
+use core::pin::Pin;
 
 /// An adaptor for a stream of futures to execute the futures concurrently, if
 /// possible, delivering results as they become available.

@@ -9,6 +9,8 @@ use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 
 mod iter;
 pub use self::iter::{iter, Iter};
@@ -97,17 +99,14 @@ pub use self::unfold::{unfold, Unfold};
 mod zip;
 pub use self::zip::Zip;
 
-#[cfg(feature = "std")]
-use std;
-
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod buffer_unordered;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::buffer_unordered::BufferUnordered;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod buffered;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::buffered::Buffered;
 
 #[cfg(feature = "std")]
@@ -115,34 +114,34 @@ mod catch_unwind;
 #[cfg(feature = "std")]
 pub use self::catch_unwind::CatchUnwind;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod chunks;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::chunks::Chunks;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod for_each_concurrent;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::for_each_concurrent::ForEachConcurrent;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod futures_ordered;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod futures_unordered;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod split;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::split::{SplitStream, SplitSink, ReuniteError};
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod select_all;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::select_all::{select_all, SelectAll};
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
@@ -614,7 +613,7 @@ pub trait StreamExt: Stream {
     /// await!(fut);
     /// # })
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn for_each_concurrent<Fut, F>(
         self,
         limit: impl Into<Option<usize>>,
@@ -791,7 +790,7 @@ pub trait StreamExt: Stream {
     }
 
     /// Wrap the stream in a Box, pinning it.
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
     {
@@ -810,7 +809,7 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn buffered(self, n: usize) -> Buffered<Self>
         where Self::Item: Future,
               Self: Sized
@@ -854,7 +853,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(await!(buffered.next()), None);
     /// # })
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
         where Self::Item: Future,
               Self: Sized
@@ -945,7 +944,7 @@ pub trait StreamExt: Stream {
     /// # Panics
     ///
     /// This method will panic of `capacity` is zero.
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn chunks(self, capacity: usize) -> Chunks<Self>
         where Self: Sized
     {
@@ -993,7 +992,7 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
         where Self: Sink + Sized
     {
