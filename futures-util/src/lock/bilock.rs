@@ -3,17 +3,19 @@
 
 use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
+use core::cell::UnsafeCell;
+use core::fmt;
+use core::mem;
+use core::ops::{Deref, DerefMut};
+use core::pin::Pin;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::SeqCst;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+#[cfg(feature = "std")]
 use std::any::Any;
-use std::boxed::Box;
-use std::cell::UnsafeCell;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::mem;
-use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::SeqCst;
 
 /// A type of futures-powered synchronization primitive which is a mutex between
 /// two possible owners.
@@ -210,6 +212,7 @@ impl<T> fmt::Display for ReuniteError<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Any> Error for ReuniteError<T> {
     fn description(&self) -> &str {
         "tried to reunite two BiLocks that don't form a pair"

@@ -1,7 +1,7 @@
-use std::cell::UnsafeCell;
-use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicPtr, AtomicBool};
-use std::sync::atomic::Ordering::SeqCst;
+use core::cell::UnsafeCell;
+use core::sync::atomic::{AtomicPtr, AtomicBool};
+use core::sync::atomic::Ordering::SeqCst;
+use alloc::sync::{Arc, Weak};
 
 use crate::task::{ArcWake, WakerRef, waker_ref};
 use super::ReadyToRunQueue;

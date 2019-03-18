@@ -1,6 +1,6 @@
-use std::mem;
-use std::sync::Arc;
-use std::task::{Waker, RawWaker, RawWakerVTable};
+use core::mem;
+use core::task::{Waker, RawWaker, RawWakerVTable};
+use alloc::sync::Arc;
 
 /// A way of waking up a specific task.
 ///

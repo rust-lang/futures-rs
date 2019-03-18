@@ -1,9 +1,9 @@
 use crate::task::AtomicWaker;
-use std::cell::UnsafeCell;
-use std::ptr;
-use std::sync::Arc;
-use std::sync::atomic::AtomicPtr;
-use std::sync::atomic::Ordering::{Relaxed, Acquire, Release, AcqRel};
+use core::cell::UnsafeCell;
+use core::ptr;
+use core::sync::atomic::AtomicPtr;
+use core::sync::atomic::Ordering::{Relaxed, Acquire, Release, AcqRel};
+use alloc::sync::Arc;
 
 use super::abort::abort;
 use super::task::Task;

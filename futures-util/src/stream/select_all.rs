@@ -1,7 +1,7 @@
 //! An unbounded set of streams
 
-use std::fmt::{self, Debug};
-use std::pin::Pin;
+use core::fmt::{self, Debug};
+use core::pin::Pin;
 
 use futures_core::{Poll, Stream, FusedStream};
 use futures_core::task::Waker;

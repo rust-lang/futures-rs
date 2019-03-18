@@ -5,7 +5,7 @@ use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::pin::Pin;
+use core::pin::Pin;
 
 /// A stream returned by the
 /// [`try_buffer_unordered`](super::TryStreamExt::try_buffer_unordered) method

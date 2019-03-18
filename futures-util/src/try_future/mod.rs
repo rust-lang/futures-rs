@@ -54,10 +54,9 @@ pub use self::or_else::OrElse;
 mod unwrap_or_else;
 pub use self::unwrap_or_else::UnwrapOrElse;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod try_join_all;
-
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::try_join_all::{try_join_all, TryJoinAll};
 
 // Implementation details

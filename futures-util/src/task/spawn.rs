@@ -4,10 +4,12 @@ use futures_core::task::{LocalSpawn, Spawn};
 
 #[cfg(feature = "std")]
 use crate::future::{FutureExt, RemoteHandle};
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 use futures_core::task::SpawnError;
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 
 impl<Sp: ?Sized> SpawnExt for Sp where Sp: Spawn {}
 impl<Sp: ?Sized> LocalSpawnExt for Sp where Sp: LocalSpawn {}
@@ -39,7 +41,7 @@ pub trait SpawnExt: Spawn {
     /// let future = async { /* ... */ };
     /// executor.spawn(future).unwrap();
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn spawn<Fut>(&mut self, future: Fut) -> Result<(), SpawnError>
     where
         Fut: Future<Output = ()> + Send + 'static,
@@ -118,7 +120,7 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// let future = async { /* ... */ };
     /// spawner.spawn_local(future).unwrap();
     /// ```
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     fn spawn_local<Fut>(&mut self, future: Fut) -> Result<(), SpawnError>
     where
         Fut: Future<Output = ()> + 'static,

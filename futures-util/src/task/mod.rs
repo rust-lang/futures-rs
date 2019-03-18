@@ -12,9 +12,9 @@ macro_rules! waker_vtable {
     };
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod arc_wake;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::arc_wake::ArcWake;
 
 mod noop_waker;
@@ -25,9 +25,9 @@ pub use self::noop_waker::noop_waker_ref;
 mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 mod waker_ref;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use self::waker_ref::{waker_ref, WakerRef};
 
 #[cfg_attr(

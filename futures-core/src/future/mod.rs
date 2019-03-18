@@ -33,9 +33,11 @@ impl<F: FusedFuture + ?Sized> FusedFuture for &mut F {
     }
 }
 
-#[cfg(feature = "std")]
-mod if_std {
+#[cfg(feature = "alloc")]
+mod if_alloc {
+    use alloc::boxed::Box;
     use super::*;
+
     impl<F: FusedFuture + ?Sized> FusedFuture for Box<F> {
         fn is_terminated(&self) -> bool {
             <F as FusedFuture>::is_terminated(&**self)
@@ -48,6 +50,7 @@ mod if_std {
         }
     }
 
+    #[cfg(feature = "std")]
     impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
         fn is_terminated(&self) -> bool {
             <F as FusedFuture>::is_terminated(&**self)

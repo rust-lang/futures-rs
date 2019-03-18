@@ -1,10 +1,12 @@
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
+use core::fmt;
+use core::pin::Pin;
+#[cfg(feature = "std")]
 use std::any::Any;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::pin::Pin;
 
 use crate::lock::BiLock;
 
@@ -139,6 +141,7 @@ impl<T: Sink> fmt::Display for ReuniteError<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Any + Sink> Error for ReuniteError<T> {
     fn description(&self) -> &str {
         "tried to reunite a SplitStream and SplitSink that don't form a pair"

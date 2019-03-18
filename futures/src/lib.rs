@@ -23,6 +23,7 @@
 
 #![feature(futures_api)]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
+#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -32,6 +33,9 @@
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "nightly"))))]
+compile_error!("The `alloc` feature without `std` requires the `nightly` feature active to explicitly opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_util::core_reexport;
 
@@ -198,14 +202,18 @@ pub mod future {
         Join5, Map, Then,
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::future::{
         abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
+
+        join_all, JoinAll,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::future::{
         Remote, RemoteHandle,
         // For FutureExt:
         CatchUnwind, Shared,
-
-        join_all, JoinAll,
 
         // ToDo: SelectAll, SelectOk, select_all, select_ok
     };
@@ -217,7 +225,7 @@ pub mod future {
         TryJoin, TryJoin3, TryJoin4, TryJoin5,
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::try_future::{
         try_join_all, TryJoinAll,
     };
@@ -295,7 +303,7 @@ pub mod sink {
         // WithFlatMap,
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::sink::Buffer;
 }
 
@@ -327,21 +335,26 @@ pub mod stream {
         unfold, Unfold,
 
         StreamExt,
-        Chain, Concat, Filter, FilterMap, Flatten, Fold, Forward, ForEach, Fuse,
+        Chain, Collect, Concat, Filter, FilterMap, Flatten, Fold, Forward, ForEach, Fuse,
         StreamFuture, Inspect, Map, Next, Peekable, Select, Skip, SkipWhile,
         Take, TakeWhile, Then, Zip
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
         futures_ordered, FuturesOrdered,
         futures_unordered, FuturesUnordered,
 
         // For StreamExt:
-        BufferUnordered, Buffered, CatchUnwind, Chunks, Collect, SplitStream,
-        SplitSink, ReuniteError,
+        BufferUnordered, Buffered, Chunks, SplitStream, SplitSink,
 
         select_all, SelectAll,
+    };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::stream::{
+        // For StreamExt:
+        CatchUnwind, ReuniteError,
     };
 
     pub use futures_util::try_stream::{
@@ -352,7 +365,7 @@ pub mod stream {
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
         TryBufferUnordered,
@@ -378,12 +391,14 @@ pub mod task {
 
     pub use futures_util::task::noop_waker;
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub use futures_util::task::{
         WakerRef, waker_ref, ArcWake,
         SpawnExt, LocalSpawnExt,
-        noop_waker_ref,
     };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::task::noop_waker_ref;
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",

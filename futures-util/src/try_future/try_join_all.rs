@@ -1,13 +1,13 @@
 //! Definition of the `TryJoinAll` combinator, waiting for all of a list of
 //! futures to finish with either success or error.
 
-use std::fmt;
-use std::future::Future;
-use std::iter::FromIterator;
-use std::mem;
-use std::pin::Pin;
-use std::prelude::v1::*;
-use std::task::Poll;
+use core::fmt;
+use core::future::Future;
+use core::iter::FromIterator;
+use core::mem;
+use core::pin::Pin;
+use core::task::{Poll, Waker};
+use alloc::prelude::v1::*;
 
 use super::TryFuture;
 
@@ -137,10 +137,7 @@ where
 {
     type Output = Result<Vec<F::Ok>, F::Error>;
 
-    fn poll(
-        mut self: Pin<&mut Self>,
-        waker: &::std::task::Waker,
-    ) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
         let mut state = FinalState::AllDone;
 
         for mut elem in iter_pin_mut(self.elems.as_mut()) {

@@ -8,6 +8,15 @@
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_sink")]
 
 #![feature(futures_api)]
+#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "nightly"))))]
+compile_error!("The `alloc` feature without `std` requires the `nightly` feature active to explicitly opt-in to unstable features");
+
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std as alloc;
 
 use futures_core::task::{Waker, Poll};
 use core::pin::Pin;
@@ -155,8 +164,8 @@ impl<'a, S: ?Sized + Sink> Sink for Pin<&'a mut S> {
 #[cfg(feature = "std")]
 mod channel_impls;
 
-#[cfg(feature = "std")]
-mod if_std {
+#[cfg(feature = "alloc")]
+mod if_alloc {
     use super::*;
 
     /// The error type for `Vec` and `VecDequeue` when used as `Sink`s.
@@ -164,7 +173,7 @@ mod if_std {
     #[derive(Copy, Clone, Debug)]
     pub enum VecSinkError {}
 
-    impl<T> Sink for ::std::vec::Vec<T> {
+    impl<T> Sink for ::alloc::vec::Vec<T> {
         type SinkItem = T;
         type SinkError = VecSinkError;
 
@@ -187,7 +196,7 @@ mod if_std {
         }
     }
 
-    impl<T> Sink for ::std::collections::VecDeque<T> {
+    impl<T> Sink for ::alloc::collections::VecDeque<T> {
         type SinkItem = T;
         type SinkError = VecSinkError;
 
@@ -210,7 +219,7 @@ mod if_std {
         }
     }
 
-    impl<S: ?Sized + Sink + Unpin> Sink for ::std::boxed::Box<S> {
+    impl<S: ?Sized + Sink + Unpin> Sink for ::alloc::boxed::Box<S> {
         type SinkItem = S::SinkItem;
         type SinkError = S::SinkError;
 
@@ -232,8 +241,8 @@ mod if_std {
     }
 }
 
-#[cfg(feature = "std")]
-pub use self::if_std::*;
+#[cfg(feature = "alloc")]
+pub use self::if_alloc::*;
 
 #[cfg(feature = "either")]
 use either::Either;

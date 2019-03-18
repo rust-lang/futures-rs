@@ -1,10 +1,10 @@
 #![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
 
 use super::arc_wake::{ArcWake, clone_arc_raw, wake_arc_raw};
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::sync::Arc;
-use std::task::{Waker, RawWaker, RawWakerVTable};
+use alloc::sync::Arc;
+use core::marker::PhantomData;
+use core::ops::Deref;
+use core::task::{Waker, RawWaker, RawWakerVTable};
 
 /// A [`Waker`](::std::task::Waker) that is only valid for a given lifetime.
 ///
