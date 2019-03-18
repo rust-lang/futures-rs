@@ -32,6 +32,9 @@ pub use self::try_for_each::TryForEach;
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
+mod try_collect;
+pub use self::try_collect::TryCollect;
+
 mod try_concat;
 pub use self::try_concat::TryConcat;
 
@@ -45,11 +48,6 @@ pub use self::try_skip_while::TrySkipWhile;
 mod try_buffer_unordered;
 #[cfg(feature = "std")]
 pub use self::try_buffer_unordered::TryBufferUnordered;
-
-#[cfg(feature = "std")]
-mod try_collect;
-#[cfg(feature = "std")]
-pub use self::try_collect::TryCollect;
 
 #[cfg(feature = "std")]
 mod try_for_each_concurrent;
@@ -334,9 +332,6 @@ pub trait TryStreamExt: TryStream {
     ///
     /// The returned future will be resolved when the stream terminates.
     ///
-    /// This method is only available when the `std` feature of this
-    /// library is activated, and it is activated by default.
-    ///
     /// # Examples
     ///
     /// ```
@@ -360,7 +355,6 @@ pub trait TryStreamExt: TryStream {
     /// assert_eq!(output, Err(6));
     /// # })
     /// ```
-    #[cfg(feature = "std")]
     fn try_collect<C: Default + Extend<Self::Ok>>(self) -> TryCollect<Self, C>
         where Self: Sized
     {

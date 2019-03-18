@@ -1,10 +1,9 @@
+use core::mem;
+use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
-use std::mem;
-use std::pin::Pin;
-use std::prelude::v1::*;
 
 /// A future which attempts to collect all of the values of a stream.
 ///
