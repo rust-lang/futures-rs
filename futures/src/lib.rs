@@ -203,10 +203,15 @@ pub mod future {
     };
 
     #[cfg(feature = "alloc")]
+    pub use futures_util::future::{join_all, JoinAll};
+
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
+    #[cfg(feature = "alloc")]
     pub use futures_util::future::{
         abortable, Abortable, AbortHandle, AbortRegistration, Aborted,
-
-        join_all, JoinAll,
     };
 
     #[cfg(feature = "std")]
@@ -342,11 +347,21 @@ pub mod stream {
 
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
+        // For StreamExt:
+        Chunks,
+    };
+
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
+    #[cfg(feature = "alloc")]
+    pub use futures_util::stream::{
         futures_ordered, FuturesOrdered,
         futures_unordered, FuturesUnordered,
 
         // For StreamExt:
-        BufferUnordered, Buffered, Chunks, SplitStream, SplitSink,
+        BufferUnordered, Buffered, SplitStream, SplitSink,
 
         select_all, SelectAll,
     };
@@ -365,6 +380,10 @@ pub mod stream {
         // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
     };
 
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     #[cfg(feature = "alloc")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
@@ -391,6 +410,10 @@ pub mod task {
 
     pub use futures_util::task::noop_waker;
 
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     #[cfg(feature = "alloc")]
     pub use futures_util::task::{
         WakerRef, waker_ref, ArcWake,

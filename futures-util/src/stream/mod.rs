@@ -99,13 +99,29 @@ pub use self::unfold::{unfold, Unfold};
 mod zip;
 pub use self::zip::Zip;
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod buffer_unordered;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::buffer_unordered::BufferUnordered;
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod buffered;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::buffered::Buffered;
 
@@ -119,28 +135,68 @@ mod chunks;
 #[cfg(feature = "alloc")]
 pub use self::chunks::Chunks;
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod for_each_concurrent;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::for_each_concurrent::ForEachConcurrent;
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod futures_ordered;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod futures_unordered;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod split;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::split::{SplitStream, SplitSink, ReuniteError};
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod select_all;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::select_all::{select_all, SelectAll};
 
@@ -613,6 +669,10 @@ pub trait StreamExt: Stream {
     /// await!(fut);
     /// # })
     /// ```
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     #[cfg(feature = "alloc")]
     fn for_each_concurrent<Fut, F>(
         self,
@@ -809,6 +869,10 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     #[cfg(feature = "alloc")]
     fn buffered(self, n: usize) -> Buffered<Self>
         where Self::Item: Future,
@@ -853,6 +917,10 @@ pub trait StreamExt: Stream {
     /// assert_eq!(await!(buffered.next()), None);
     /// # })
     /// ```
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     #[cfg(feature = "alloc")]
     fn buffer_unordered(self, n: usize) -> BufferUnordered<Self>
         where Self::Item: Future,
@@ -992,6 +1060,10 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
+    #[cfg_attr(
+        feature = "cfg-target-has-atomic",
+        cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+    )]
     #[cfg(feature = "alloc")]
     fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
         where Self: Sink + Sized
