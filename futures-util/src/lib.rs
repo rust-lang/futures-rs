@@ -101,9 +101,7 @@ pub mod io;
 #[cfg(feature = "std")]
 #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub mod lock;
+cfg_target_has_atomic! {
+    #[cfg(feature = "alloc")]
+    pub mod lock;
+}
