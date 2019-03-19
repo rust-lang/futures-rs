@@ -2,6 +2,11 @@
 
 /// A macro for creating a `RawWaker` vtable for a type that implements
 /// the `ArcWake` trait.
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
+#[cfg(feature = "alloc")]
 macro_rules! waker_vtable {
     ($ty:ident) => {
         &RawWakerVTable {
@@ -12,8 +17,16 @@ macro_rules! waker_vtable {
     };
 }
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod arc_wake;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::arc_wake::ArcWake;
 
@@ -25,8 +38,16 @@ pub use self::noop_waker::noop_waker_ref;
 mod spawn;
 pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod waker_ref;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::waker_ref::{waker_ref, WakerRef};
 

@@ -69,8 +69,16 @@ pub use self::unit_error::UnitError;
 mod chain;
 pub(crate) use self::chain::Chain;
 
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 mod abortable;
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
 #[cfg(feature = "alloc")]
 pub use self::abortable::{abortable, Abortable, AbortHandle, AbortRegistration, Aborted};
 
