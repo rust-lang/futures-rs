@@ -99,106 +99,52 @@ pub use self::unfold::{unfold, Unfold};
 mod zip;
 pub use self::zip::Zip;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod buffer_unordered;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::buffer_unordered::BufferUnordered;
-
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod buffered;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::buffered::Buffered;
-
-#[cfg(feature = "std")]
-mod catch_unwind;
-#[cfg(feature = "std")]
-pub use self::catch_unwind::CatchUnwind;
-
 #[cfg(feature = "alloc")]
 mod chunks;
 #[cfg(feature = "alloc")]
 pub use self::chunks::Chunks;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod for_each_concurrent;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::for_each_concurrent::ForEachConcurrent;
+cfg_target_has_atomic! {
+    #[cfg(feature = "alloc")]
+    mod buffer_unordered;
+    #[cfg(feature = "alloc")]
+    pub use self::buffer_unordered::BufferUnordered;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod futures_ordered;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
+    #[cfg(feature = "alloc")]
+    mod buffered;
+    #[cfg(feature = "alloc")]
+    pub use self::buffered::Buffered;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod futures_unordered;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    #[cfg(feature = "alloc")]
+    mod for_each_concurrent;
+    #[cfg(feature = "alloc")]
+    pub use self::for_each_concurrent::ForEachConcurrent;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod split;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::split::{SplitStream, SplitSink, ReuniteError};
+    #[cfg(feature = "alloc")]
+    mod futures_ordered;
+    #[cfg(feature = "alloc")]
+    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod select_all;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::select_all::{select_all, SelectAll};
+    #[cfg(feature = "alloc")]
+    mod futures_unordered;
+    #[cfg(feature = "alloc")]
+    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+
+    #[cfg(feature = "alloc")]
+    mod split;
+    #[cfg(feature = "alloc")]
+    pub use self::split::{SplitStream, SplitSink, ReuniteError};
+
+    #[cfg(feature = "alloc")]
+    mod select_all;
+    #[cfg(feature = "alloc")]
+    pub use self::select_all::{select_all, SelectAll};
+}
+
+#[cfg(feature = "std")]
+mod catch_unwind;
+#[cfg(feature = "std")]
+pub use self::catch_unwind::CatchUnwind;
 
 impl<T: ?Sized> StreamExt for T where T: Stream {}
 

@@ -44,37 +44,19 @@ pub use self::try_fold::TryFold;
 mod try_skip_while;
 pub use self::try_skip_while::TrySkipWhile;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod try_buffer_unordered;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::try_buffer_unordered::TryBufferUnordered;
+cfg_target_has_atomic! {
+    #[cfg(feature = "alloc")]
+    mod try_buffer_unordered;
+    #[cfg(feature = "alloc")]
+    pub use self::try_buffer_unordered::TryBufferUnordered;
 
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-mod try_for_each_concurrent;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-pub use self::try_for_each_concurrent::TryForEachConcurrent;
-#[cfg_attr(
-    feature = "cfg-target-has-atomic",
-    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
-)]
-#[cfg(feature = "alloc")]
-use futures_core::future::Future;
+    #[cfg(feature = "alloc")]
+    mod try_for_each_concurrent;
+    #[cfg(feature = "alloc")]
+    pub use self::try_for_each_concurrent::TryForEachConcurrent;
+    #[cfg(feature = "alloc")]
+    use futures_core::future::Future;
+}
 
 #[cfg(feature = "std")]
 mod into_async_read;
