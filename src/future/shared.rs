@@ -306,6 +306,7 @@ impl<E> error::Error for SharedError<E>
         self.error.description()
     }
 
+    #[allow(deprecated)]
     fn cause(&self) -> Option<&error::Error> {
         self.error.cause()
     }
