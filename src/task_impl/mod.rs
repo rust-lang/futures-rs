@@ -24,13 +24,16 @@ pub struct BorrowedTask<'a> {
 }
 
 fn fresh_task_id() -> usize {
-    use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+    use core::sync::atomic::{AtomicUsize, Ordering};
+    #[allow(deprecated)]
+    use core::sync::atomic::ATOMIC_USIZE_INIT;
 
     // TODO: this assert is a real bummer, need to figure out how to reuse
     //       old IDs that are no longer in use.
     //
     // Note, though, that it is intended that these ids go away entirely
     // eventually, see the comment on `is_current` below.
+    #[allow(deprecated)]
     static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     assert!(id < usize::max_value() / 2,

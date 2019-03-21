@@ -52,6 +52,7 @@ fn drop_rx() {
 
 #[test]
 fn drop_order() {
+    #[allow(deprecated)]
     static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
     let (tx, rx) = mpsc::channel(1);
 
