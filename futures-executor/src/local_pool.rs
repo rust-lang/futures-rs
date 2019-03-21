@@ -1,4 +1,4 @@
-use crate::{enter, ThreadPool};
+use crate::enter;
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{Stream};
 use futures_core::task::{
@@ -8,7 +8,6 @@ use futures_core::task::{
 use futures_util::task::{WakerRef, waker_ref, ArcWake};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
-use lazy_static::lazy_static;
 use pin_utils::pin_mut;
 use std::cell::{RefCell};
 use std::ops::{Deref, DerefMut};
@@ -192,17 +191,9 @@ impl Default for LocalPool {
     }
 }
 
-lazy_static! {
-    static ref GLOBAL_POOL: ThreadPool = ThreadPool::builder()
-        .name_prefix("block_on-")
-        .create()
-        .expect("Unable to create global thread-pool");
-}
-
 /// Run a future to completion on the current thread.
 ///
 /// This function will block the caller until the given future has completed.
-/// The default spawner for the future is a thread-local executor.
 ///
 /// Use a [`LocalPool`](LocalPool) if you need finer-grained control over
 /// spawned tasks.
@@ -215,7 +206,6 @@ pub fn block_on<F: Future>(f: F) -> F::Output {
 ///
 /// When `next` is called on the resulting `BlockingStream`, the caller
 /// will be blocked until the next element of the `Stream` becomes available.
-/// The default spawner for the future is a global `ThreadPool`.
 pub fn block_on_stream<S: Stream + Unpin>(stream: S) -> BlockingStream<S> {
     BlockingStream { stream }
 }
