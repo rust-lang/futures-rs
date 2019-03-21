@@ -16,6 +16,7 @@ use alloc::prelude::v1::*;
 pub struct Chunks<St: Stream> {
     stream: Fuse<St>,
     items: Vec<St::Item>,
+    cap: usize, // https://github.com/rust-lang-nursery/futures-rs/issues/1475
 }
 
 impl<St: Unpin + Stream> Unpin for Chunks<St> {}
@@ -30,11 +31,12 @@ impl<St: Stream> Chunks<St> where St: Stream {
         Chunks {
             stream: super::Fuse::new(stream),
             items: Vec::with_capacity(capacity),
+            cap: capacity,
         }
     }
 
     fn take(mut self: Pin<&mut Self>) -> Vec<St::Item> {
-        let cap = self.items.capacity();
+        let cap = self.cap;
         mem::replace(self.as_mut().items(), Vec::with_capacity(cap))
     }
 
@@ -69,7 +71,6 @@ impl<St: Stream> Stream for Chunks<St> {
         mut self: Pin<&mut Self>,
         waker: &Waker,
     ) -> Poll<Option<Self::Item>> {
-        let cap = self.items.capacity();
         loop {
             match ready!(self.as_mut().stream().poll_next(waker)) {
                 // Push the item into the buffer and check whether it is full.
@@ -77,7 +78,7 @@ impl<St: Stream> Stream for Chunks<St> {
                 // the full one.
                 Some(item) => {
                     self.as_mut().items().push(item);
-                    if self.items.len() >= cap {
+                    if self.items.len() >= self.cap {
                         return Poll::Ready(Some(self.as_mut().take()))
                     }
                 }
