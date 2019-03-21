@@ -15,6 +15,7 @@ use futures_core::{
 use futures_sink::Sink as Sink03;
 use crate::task::{ArcWake as ArcWake03, WakerRef};
 use std::{
+    marker::PhantomData,
     mem,
     pin::Pin,
     sync::Arc,
@@ -32,6 +33,14 @@ pub struct Compat<T> {
     pub(crate) inner: T,
 }
 
+/// Converts a futures 0.3 Sink object to a futures 0.1-compatible version
+#[derive(Debug)]
+#[must_use = "sinks do nothing unless polled"]
+pub struct CompatSink<T, Item> {
+    inner: T,
+    _phantom: PhantomData<fn(Item)>,
+}
+
 impl<T> Compat<T> {
     /// Returns the inner item.
     pub fn into_inner(self) -> T {
@@ -45,6 +54,21 @@ impl<T> Compat<T> {
     /// the corresponding futures 0.1 type.
     pub fn new(inner: T) -> Compat<T> {
         Compat { inner }
+    }
+}
+
+impl<T, Item> CompatSink<T, Item> {
+    /// Returns the inner item.
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
+    /// Creates a new [`CompatSink`].
+    pub fn new(inner: T) -> Self {
+        CompatSink {
+            inner,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -87,18 +111,18 @@ where
     }
 }
 
-impl<T> Sink01 for Compat<T>
+impl<T, Item> Sink01 for CompatSink<T, Item>
 where
-    T: Sink03 + Unpin,
+    T: Sink03<Item> + Unpin,
 {
-    type SinkItem = T::SinkItem;
+    type SinkItem = Item;
     type SinkError = T::SinkError;
 
     fn start_send(
         &mut self,
         item: Self::SinkItem,
     ) -> StartSend01<Self::SinkItem, Self::SinkError> {
-        with_context(self, |mut inner, waker| {
+        with_sink_context(self, |mut inner, waker| {
             match inner.as_mut().poll_ready(waker) {
                 task03::Poll::Ready(Ok(())) => {
                     inner.start_send(item).map(|()| AsyncSink01::Ready)
@@ -110,11 +134,11 @@ where
     }
 
     fn poll_complete(&mut self) -> Poll01<(), Self::SinkError> {
-        with_context(self, |inner, waker| poll_03_to_01(inner.poll_flush(waker)))
+        with_sink_context(self, |inner, waker| poll_03_to_01(inner.poll_flush(waker)))
     }
 
     fn close(&mut self) -> Poll01<(), Self::SinkError> {
-        with_context(self, |inner, waker| poll_03_to_01(inner.poll_close(waker)))
+        with_sink_context(self, |inner, waker| poll_03_to_01(inner.poll_close(waker)))
     }
 }
 
@@ -163,6 +187,16 @@ impl ArcWake03 for Current {
 }
 
 fn with_context<T, R, F>(compat: &mut Compat<T>, f: F) -> R
+where
+    T: Unpin,
+    F: FnOnce(Pin<&mut T>, &task03::Waker) -> R,
+{
+    let current = Current::new();
+    let waker = current.as_waker();
+    f(Pin::new(&mut compat.inner), &waker)
+}
+
+fn with_sink_context<T, Item, R, F>(compat: &mut CompatSink<T, Item>, f: F) -> R
 where
     T: Unpin,
     F: FnOnce(Pin<&mut T>, &task03::Waker) -> R,

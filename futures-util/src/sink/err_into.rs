@@ -10,17 +10,17 @@ use pin_utils::unsafe_pinned;
 /// This is created by the `Sink::err_into` method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SinkErrInto<Si: Sink, E> {
+pub struct SinkErrInto<Si: Sink<Item>, Item, E> {
     sink: SinkMapErr<Si, fn(Si::SinkError) -> E>,
 }
 
-impl<Si, E> SinkErrInto<Si, E>
-    where Si: Sink,
+impl<Si, E, Item> SinkErrInto<Si, Item, E>
+    where Si: Sink<Item>,
           Si::SinkError: Into<E>,
 {
     unsafe_pinned!(sink: SinkMapErr<Si, fn(Si::SinkError) -> E>);
 
-    pub(super) fn new(sink: Si) -> SinkErrInto<Si, E> {
+    pub(super) fn new(sink: Si) -> Self {
         SinkErrInto {
             sink: SinkExt::sink_map_err(sink, Into::into),
         }
@@ -45,18 +45,17 @@ impl<Si, E> SinkErrInto<Si, E>
     }
 }
 
-impl<Si, E> Sink for SinkErrInto<Si, E>
-    where Si: Sink,
+impl<Si, Item, E> Sink<Item> for SinkErrInto<Si, Item, E>
+    where Si: Sink<Item>,
           Si::SinkError: Into<E>,
 {
-    type SinkItem = Si::SinkItem;
     type SinkError = E;
 
-    delegate_sink!(sink);
+    delegate_sink!(sink, Item);
 }
 
-impl<S, E> Stream for SinkErrInto<S, E>
-    where S: Sink + Stream,
+impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
+    where S: Sink<Item> + Stream,
           S::SinkError: Into<E>
 {
     type Item = S::Item;

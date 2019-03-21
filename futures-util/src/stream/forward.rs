@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::Stream;
+use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -12,24 +12,24 @@ const INVALID_POLL: &str = "polled `Forward` after completion";
 /// to a sink and then flushes and closes the sink.
 #[derive(Debug)]
 #[must_use = "steams do nothing unless polled"]
-pub struct Forward<St: Stream, Si: Sink> {
+pub struct Forward<St: TryStream, Si: Sink<St::Ok>> {
     sink: Option<Si>,
     stream: Fuse<St>,
-    buffered_item: Option<Si::SinkItem>,
+    buffered_item: Option<St::Ok>,
 }
 
-impl<St: Stream + Unpin, Si: Sink + Unpin> Unpin for Forward<St, Si> {}
+impl<St: TryStream + Unpin, Si: Sink<St::Ok> + Unpin> Unpin for Forward<St, Si> {}
 
 impl<St, Si> Forward<St, Si>
 where
-    Si: Sink,
-    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
+    Si: Sink<St::Ok, SinkError = St::Error>,
+    St: TryStream + Stream,
 {
     unsafe_pinned!(sink: Option<Si>);
     unsafe_pinned!(stream: Fuse<St>);
-    unsafe_unpinned!(buffered_item: Option<Si::SinkItem>);
+    unsafe_unpinned!(buffered_item: Option<St::Ok>);
 
-    pub(super) fn new(stream: St, sink: Si) -> Forward<St, Si> {
+    pub(super) fn new(stream: St, sink: Si) -> Self {
         Forward {
             sink: Some(sink),
             stream: stream.fuse(),
@@ -40,7 +40,7 @@ where
     fn try_start_send(
         mut self: Pin<&mut Self>,
         waker: &Waker,
-        item: Si::SinkItem,
+        item: St::Ok,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered_item.is_none());
         {
@@ -54,16 +54,16 @@ where
     }
 }
 
-impl<St: Stream, Si: Sink + Unpin> FusedFuture for Forward<St, Si> {
+impl<St: TryStream, Si: Sink<St::Ok> + Unpin> FusedFuture for Forward<St, Si> {
     fn is_terminated(&self) -> bool {
         self.sink.is_none()
     }
 }
 
-impl<St, Si> Future for Forward<St, Si>
+impl<St, Si, Item, E> Future for Forward<St, Si>
 where
-    Si: Sink,
-    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
+    Si: Sink<Item, SinkError = E>,
+    St: Stream<Item = Result<Item, E>>,
 {
     type Output = Result<(), Si::SinkError>;
 

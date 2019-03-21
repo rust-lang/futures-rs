@@ -6,7 +6,7 @@
 use core::pin::Pin;
 use either::Either;
 use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 #[cfg(feature = "alloc")]
@@ -991,8 +991,8 @@ pub trait StreamExt: Stream {
     /// the sink is closed.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
-        S: Sink,
-        Self: Stream<Item = Result<S::SinkItem, S::SinkError>> + Sized,
+        S: Sink<<Self as TryStream>::Ok>,
+        Self: TryStream<Error = S::SinkError> + Sized,
     {
         Forward::new(self, sink)
     }
@@ -1011,8 +1011,8 @@ pub trait StreamExt: Stream {
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     #[cfg(feature = "alloc")]
-    fn split(self) -> (SplitSink<Self>, SplitStream<Self>)
-        where Self: Sink + Sized
+    fn split<Item>(self) -> (SplitSink<Self, Item>, SplitStream<Self>)
+        where Self: Sink<Item> + Sized
     {
         split::split(self)
     }

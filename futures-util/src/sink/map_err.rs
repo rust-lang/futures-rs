@@ -51,11 +51,10 @@ impl<Si, F> SinkMapErr<Si, F> {
     }
 }
 
-impl<Si, F, E> Sink for SinkMapErr<Si, F>
-    where Si: Sink,
+impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
+    where Si: Sink<Item>,
           F: FnOnce(Si::SinkError) -> E,
 {
-    type SinkItem = Si::SinkItem;
     type SinkError = E;
 
     fn poll_ready(
@@ -68,7 +67,7 @@ impl<Si, F, E> Sink for SinkMapErr<Si, F>
 
     fn start_send(
         mut self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: Item,
     ) -> Result<(), Self::SinkError> {
         #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.as_mut().sink().start_send(item).map_err(|e| self.as_mut().take_f()(e))

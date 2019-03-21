@@ -9,23 +9,23 @@ use alloc::collections::VecDeque;
 /// number of values when the underlying sink is unable to accept them.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct Buffer<Si: Sink> {
+pub struct Buffer<Si: Sink<Item>, Item> {
     sink: Si,
-    buf: VecDeque<Si::SinkItem>,
+    buf: VecDeque<Item>,
 
     // Track capacity separately from the `VecDeque`, which may be rounded up
     capacity: usize,
 }
 
-impl<Si: Sink + Unpin> Unpin for Buffer<Si> {}
+impl<Si: Sink<Item> + Unpin, Item> Unpin for Buffer<Si, Item> {}
 
-impl<Si: Sink> Buffer<Si> {
+impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     unsafe_pinned!(sink: Si);
-    unsafe_unpinned!(buf: VecDeque<Si::SinkItem>);
+    unsafe_unpinned!(buf: VecDeque<Item>);
     unsafe_unpinned!(capacity: usize);
 
 
-    pub(super) fn new(sink: Si, capacity: usize) -> Buffer<Si> {
+    pub(super) fn new(sink: Si, capacity: usize) -> Self {
         Buffer {
             sink,
             buf: VecDeque::with_capacity(capacity),
@@ -56,7 +56,7 @@ impl<Si: Sink> Buffer<Si> {
 }
 
 // Forwarding impl of Stream from the underlying sink
-impl<S> Stream for Buffer<S> where S: Sink + Stream {
+impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
     type Item = S::Item;
 
     fn poll_next(self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<S::Item>> {
@@ -64,8 +64,7 @@ impl<S> Stream for Buffer<S> where S: Sink + Stream {
     }
 }
 
-impl<Si: Sink> Sink for Buffer<Si> {
-    type SinkItem = Si::SinkItem;
+impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     type SinkError = Si::SinkError;
 
     fn poll_ready(
@@ -89,7 +88,7 @@ impl<Si: Sink> Sink for Buffer<Si> {
 
     fn start_send(
         mut self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: Item,
     ) -> Result<(), Self::SinkError> {
         if self.capacity == 0 {
             self.as_mut().sink().start_send(item)

@@ -130,13 +130,12 @@ where
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Buffered<S>
+impl<S, Item> Sink<Item> for Buffered<S>
 where
-    S: Stream + Sink,
+    S: Stream + Sink<Item>,
     S::Item: Future,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }

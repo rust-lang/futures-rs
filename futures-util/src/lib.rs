@@ -45,7 +45,7 @@ pub mod core_reexport {
 }
 
 macro_rules! delegate_sink {
-    ($field:ident) => {
+    ($field:ident, $item:ty) => {
         fn poll_ready(
             self: Pin<&mut Self>,
             waker: &$crate::core_reexport::task::Waker,
@@ -55,7 +55,7 @@ macro_rules! delegate_sink {
 
         fn start_send(
             self: Pin<&mut Self>,
-            item: Self::SinkItem
+            item: $item,
         ) -> Result<(), Self::SinkError> {
             self.$field().start_send(item)
         }

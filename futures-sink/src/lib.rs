@@ -48,10 +48,7 @@ use core::pin::Pin;
 /// importance: you can use it to send an entire stream to a sink, which is
 /// the simplest way to ultimately consume a stream.
 #[must_use = "sinks do nothing unless polled"]
-pub trait Sink {
-    /// The type of value that the sink accepts.
-    type SinkItem;
-
+pub trait Sink<Item> {
     /// The type of value produced by the sink when an error occurs.
     type SinkError;
 
@@ -88,7 +85,7 @@ pub trait Sink {
     ///
     /// In most cases, if the sink encounters an error, the sink will
     /// permanently be unable to receive items.
-    fn start_send(self: Pin<&mut Self>, item: Self::SinkItem)
+    fn start_send(self: Pin<&mut Self>, item: Item)
                   -> Result<(), Self::SinkError>;
 
     /// Flush any remaining output from this sink.
@@ -119,15 +116,14 @@ pub trait Sink {
     fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>>;
 }
 
-impl<'a, S: ?Sized + Sink + Unpin> Sink for &'a mut S {
-    type SinkItem = S::SinkItem;
+impl<'a, S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for &'a mut S {
     type SinkError = S::SinkError;
 
     fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
         Pin::new(&mut **self).poll_ready(waker)
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+    fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
         Pin::new(&mut **self).start_send(item)
     }
 
@@ -140,15 +136,14 @@ impl<'a, S: ?Sized + Sink + Unpin> Sink for &'a mut S {
     }
 }
 
-impl<'a, S: ?Sized + Sink> Sink for Pin<&'a mut S> {
-    type SinkItem = S::SinkItem;
+impl<'a, S: ?Sized + Sink<Item>, Item> Sink<Item> for Pin<&'a mut S> {
     type SinkError = S::SinkError;
 
     fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
         S::poll_ready((*self).as_mut(), waker)
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+    fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
         S::start_send((*self).as_mut(), item)
     }
 
@@ -173,15 +168,14 @@ mod if_alloc {
     #[derive(Copy, Clone, Debug)]
     pub enum VecSinkError {}
 
-    impl<T> Sink for ::alloc::vec::Vec<T> {
-        type SinkItem = T;
+    impl<T> Sink<T> for ::alloc::vec::Vec<T> {
         type SinkError = VecSinkError;
 
         fn poll_ready(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
 
-        fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        fn start_send(self: Pin<&mut Self>, item: T) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
             unsafe { Pin::get_unchecked_mut(self) }.push(item);
             Ok(())
@@ -196,15 +190,14 @@ mod if_alloc {
         }
     }
 
-    impl<T> Sink for ::alloc::collections::VecDeque<T> {
-        type SinkItem = T;
+    impl<T> Sink<T> for ::alloc::collections::VecDeque<T> {
         type SinkError = VecSinkError;
 
         fn poll_ready(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
         }
 
-        fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        fn start_send(self: Pin<&mut Self>, item: T) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
             unsafe { Pin::get_unchecked_mut(self) }.push_back(item);
             Ok(())
@@ -219,15 +212,14 @@ mod if_alloc {
         }
     }
 
-    impl<S: ?Sized + Sink + Unpin> Sink for ::alloc::boxed::Box<S> {
-        type SinkItem = S::SinkItem;
+    impl<S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for ::alloc::boxed::Box<S> {
         type SinkError = S::SinkError;
 
         fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
             Pin::new(&mut **self).poll_ready(waker)
         }
 
-        fn start_send(mut self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+        fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
             Pin::new(&mut **self).start_send(item)
         }
 
@@ -247,13 +239,11 @@ pub use self::if_alloc::*;
 #[cfg(feature = "either")]
 use either::Either;
 #[cfg(feature = "either")]
-impl<A, B> Sink for Either<A, B>
-    where A: Sink,
-          B: Sink<SinkItem=<A as Sink>::SinkItem,
-                  SinkError=<A as Sink>::SinkError>
+impl<A, B, Item> Sink<Item> for Either<A, B>
+    where A: Sink<Item>,
+          B: Sink<Item, SinkError=A::SinkError>,
 {
-    type SinkItem = <A as Sink>::SinkItem;
-    type SinkError = <A as Sink>::SinkError;
+    type SinkError = A::SinkError;
 
     fn poll_ready(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
@@ -264,7 +254,7 @@ impl<A, B> Sink for Either<A, B>
         }
     }
 
-    fn start_send(self: Pin<&mut Self>, item: Self::SinkItem) -> Result<(), Self::SinkError> {
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
         unsafe {
             match Pin::get_unchecked_mut(self) {
                 Either::Left(x) => Pin::new_unchecked(x).start_send(item),

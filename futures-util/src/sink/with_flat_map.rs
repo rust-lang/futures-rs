@@ -10,37 +10,37 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// sink.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct WithFlatMap<Si, U, St, F>
+pub struct WithFlatMap<Si, Item, U, St, F>
 where
-    Si: Sink,
+    Si: Sink<Item>,
     F: FnMut(U) -> St,
-    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
+    St: Stream<Item = Result<Item, Si::SinkError>>,
 {
     sink: Si,
     f: F,
     stream: Option<St>,
-    buffer: Option<Si::SinkItem>,
+    buffer: Option<Item>,
     _marker: PhantomData<fn(U)>,
 }
 
-impl<Si, U, St, F> Unpin for WithFlatMap<Si, U, St, F>
+impl<Si, Item, U, St, F> Unpin for WithFlatMap<Si, Item, U, St, F>
 where
-    Si: Sink + Unpin,
+    Si: Sink<Item> + Unpin,
     F: FnMut(U) -> St,
-    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>> + Unpin,
+    St: Stream<Item = Result<Item, Si::SinkError>> + Unpin,
 {}
 
-impl<Si, U, St, F> WithFlatMap<Si, U, St, F>
+impl<Si, Item, U, St, F> WithFlatMap<Si, Item, U, St, F>
 where
-    Si: Sink,
+    Si: Sink<Item>,
     F: FnMut(U) -> St,
-    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
+    St: Stream<Item = Result<Item, Si::SinkError>>,
 {
     unsafe_pinned!(sink: Si);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(stream: Option<St>);
 
-    pub(super) fn new(sink: Si, f: F) -> WithFlatMap<Si, U, St, F> {
+    pub(super) fn new(sink: Si, f: F) -> Self {
         WithFlatMap {
             sink,
             f,
@@ -105,11 +105,11 @@ where
     }
 }
 
-impl<S, U, St, F> Stream for WithFlatMap<S, U, St, F>
+impl<S, Item, U, St, F> Stream for WithFlatMap<S, Item, U, St, F>
 where
-    S: Stream + Sink,
+    S: Stream + Sink<Item>,
     F: FnMut(U) -> St,
-    St: Stream<Item = Result<S::SinkItem, S::SinkError>>,
+    St: Stream<Item = Result<Item, S::SinkError>>,
 {
     type Item = S::Item;
     fn poll_next(
@@ -120,13 +120,12 @@ where
     }
 }
 
-impl<Si, U, St, F> Sink for WithFlatMap<Si, U, St, F>
+impl<Si, Item, U, St, F> Sink<U> for WithFlatMap<Si, Item, U, St, F>
 where
-    Si: Sink,
+    Si: Sink<Item>,
     F: FnMut(U) -> St,
-    St: Stream<Item = Result<Si::SinkItem, Si::SinkError>>,
+    St: Stream<Item = Result<Item, Si::SinkError>>,
 {
-    type SinkItem = U;
     type SinkError = Si::SinkError;
 
     fn poll_ready(
@@ -138,7 +137,7 @@ where
 
     fn start_send(
         mut self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: U,
     ) -> Result<(), Self::SinkError> {
         assert!(self.stream.is_none());
         let stream = (self.as_mut().f())(item);

@@ -210,16 +210,15 @@ where
     }
 }
 
-impl<S, SinkItem> Sink03 for Compat01As03Sink<S, SinkItem>
+impl<S, SinkItem> Sink03<SinkItem> for Compat01As03Sink<S, SinkItem>
 where
     S: Sink01<SinkItem = SinkItem>,
 {
-    type SinkItem = SinkItem;
     type SinkError = S::SinkError;
 
     fn start_send(
         mut self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: SinkItem,
     ) -> Result<(), Self::SinkError> {
         debug_assert!(self.buffer.is_none());
         self.buffer = Some(item);
