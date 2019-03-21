@@ -95,9 +95,8 @@ impl<S: Stream> Stream for Fuse<S> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S: Stream + Sink> Sink for Fuse<S> {
-    type SinkItem = S::SinkItem;
+impl<S: Stream + Sink<Item>, Item> Sink<Item> for Fuse<S> {
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }

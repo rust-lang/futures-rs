@@ -21,7 +21,6 @@ impl<Fut: Unpin, Si: Unpin> Unpin for FlattenSink<Fut, Si> {}
 impl<Fut, Si> FlattenSink<Fut, Si>
 where
     Fut: TryFuture<Ok = Si>,
-    Si: Sink<SinkError = Fut::Error>,
 {
     pub(super) fn new(future: Fut) -> FlattenSink<Fut, Si> {
         FlattenSink(Waiting(future))
@@ -41,12 +40,11 @@ where
     }
 }
 
-impl<Fut, Si> Sink for FlattenSink<Fut, Si>
+impl<Fut, Si, Item> Sink<Item> for FlattenSink<Fut, Si>
 where
     Fut: TryFuture<Ok = Si>,
-    Si: Sink<SinkError = Fut::Error>,
+    Si: Sink<Item, SinkError = Fut::Error>,
 {
-    type SinkItem = Si::SinkItem;
     type SinkError = Si::SinkError;
 
     fn poll_ready(
@@ -68,7 +66,7 @@ where
 
     fn start_send(
         self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: Item,
     ) -> Result<(), Self::SinkError> {
         match self.project_pin() {
             Ready(s) => s.start_send(item),

@@ -8,12 +8,12 @@ use pin_utils::unsafe_pinned;
 ///
 /// Backpressure from any downstream sink propagates up, which means that this sink
 /// can only process items as fast as its _slowest_ downstream sink.
-pub struct Fanout<Si1: Sink, Si2: Sink> {
+pub struct Fanout<Si1, Si2> {
     sink1: Si1,
     sink2: Si2
 }
 
-impl<Si1: Sink, Si2: Sink> Fanout<Si1, Si2> {
+impl<Si1, Si2> Fanout<Si1, Si2> {
     unsafe_pinned!(sink1: Si1);
     unsafe_pinned!(sink2: Si2);
 
@@ -30,10 +30,7 @@ impl<Si1: Sink, Si2: Sink> Fanout<Si1, Si2> {
     }
 }
 
-impl<Si1: Sink + Debug, Si2: Sink + Debug> Debug for Fanout<Si1, Si2>
-    where Si1::SinkItem: Debug,
-          Si2::SinkItem: Debug
-{
+impl<Si1: Debug, Si2: Debug> Debug for Fanout<Si1, Si2> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         f.debug_struct("Fanout")
             .field("sink1", &self.sink1)
@@ -42,12 +39,11 @@ impl<Si1: Sink + Debug, Si2: Sink + Debug> Debug for Fanout<Si1, Si2>
     }
 }
 
-impl<Si1, Si2> Sink for Fanout<Si1, Si2>
-    where Si1: Sink,
-          Si1::SinkItem: Clone,
-          Si2: Sink<SinkItem=Si1::SinkItem, SinkError=Si1::SinkError>
+impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
+    where Si1: Sink<Item>,
+          Item: Clone,
+          Si2: Sink<Item, SinkError=Si1::SinkError>
 {
-    type SinkItem = Si1::SinkItem;
     type SinkError = Si1::SinkError;
 
     fn poll_ready(
@@ -62,7 +58,7 @@ impl<Si1, Si2> Sink for Fanout<Si1, Si2>
 
     fn start_send(
         mut self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: Item,
     ) -> Result<(), Self::SinkError> {
         self.as_mut().sink1().start_send(item.clone())?;
         self.as_mut().sink2().start_send(item)?;

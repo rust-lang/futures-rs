@@ -88,20 +88,20 @@ pub trait TryFutureExt: TryFuture {
     /// # type E = SendError;
     ///
     /// fn make_sink_async() -> impl Future<Output = Result<
-    ///     impl Sink<SinkItem = T, SinkError = E>,
+    ///     impl Sink<T, SinkError = E>,
     ///     E,
     /// >> { // ... }
     /// # let (tx, _rx) = mpsc::unbounded::<i32>();
     /// # futures::future::ready(Ok(tx))
     /// # }
-    /// fn take_sink(sink: impl Sink<SinkItem = T, SinkError = E>) { /* ... */ }
+    /// fn take_sink(sink: impl Sink<T, SinkError = E>) { /* ... */ }
     ///
     /// let fut = make_sink_async();
     /// take_sink(fut.flatten_sink())
     /// ```
-    fn flatten_sink(self) -> FlattenSink<Self, Self::Ok>
+    fn flatten_sink<Item>(self) -> FlattenSink<Self, Self::Ok>
     where
-        Self::Ok: Sink<SinkError = Self::Error>,
+        Self::Ok: Sink<Item, SinkError = Self::Error>,
         Self: Sized,
     {
         FlattenSink::new(self)

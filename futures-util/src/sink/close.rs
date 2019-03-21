@@ -1,3 +1,4 @@
+use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
@@ -7,20 +8,24 @@ use futures_sink::Sink;
 /// been closed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Close<'a, Si: Unpin + ?Sized> {
+pub struct Close<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {
     sink: &'a mut Si,
+    _phantom: PhantomData<fn(Item)>,
 }
 
 /// A future that completes when the sink has finished closing.
 ///
 /// The sink itself is returned after closeing is complete.
-impl<'a, Si: Sink + Unpin + ?Sized> Close<'a, Si> {
+impl<'a, Si: Sink<Item> + Unpin + ?Sized, Item> Close<'a, Si, Item> {
     pub(super) fn new(sink: &'a mut Si) -> Self {
-        Close { sink }
+        Close {
+            sink,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<Si: Sink + Unpin + ?Sized> Future for Close<'_, Si> {
+impl<Si: Sink<Item> + Unpin + ?Sized, Item> Future for Close<'_, Si, Item> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(

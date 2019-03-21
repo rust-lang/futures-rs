@@ -28,8 +28,7 @@ impl<T: Stream, U> Stream for Join<T, U> {
     }
 }
 
-impl<T, U: Sink> Sink for Join<T, U> {
-    type SinkItem = U::SinkItem;
+impl<T, U: Sink<Item>, Item> Sink<Item> for Join<T, U> {
     type SinkError = U::SinkError;
 
     fn poll_ready(
@@ -41,7 +40,7 @@ impl<T, U: Sink> Sink for Join<T, U> {
 
     fn start_send(
         self: Pin<&mut Self>,
-        item: Self::SinkItem,
+        item: Item,
     ) -> Result<(), Self::SinkError> {
         self.sink().start_send(item)
     }

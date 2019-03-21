@@ -3,8 +3,7 @@ use futures_core::task::Waker;
 use futures_channel::mpsc::{Sender, SendError, TrySendError, UnboundedSender};
 use std::pin::Pin;
 
-impl<T> Sink for Sender<T> {
-    type SinkItem = T;
+impl<T> Sink<T> for Sender<T> {
     type SinkError = SendError;
 
     fn poll_ready(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
@@ -25,8 +24,7 @@ impl<T> Sink for Sender<T> {
     }
 }
 
-impl<T> Sink for UnboundedSender<T> {
-    type SinkItem = T;
+impl<T> Sink<T> for UnboundedSender<T> {
     type SinkError = SendError;
 
     fn poll_ready(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {
@@ -47,8 +45,7 @@ impl<T> Sink for UnboundedSender<T> {
     }
 }
 
-impl<'a, T> Sink for &'a UnboundedSender<T> {
-    type SinkItem = T;
+impl<'a, T> Sink<T> for &'a UnboundedSender<T> {
     type SinkError = SendError;
 
     fn poll_ready(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<(), Self::SinkError>> {

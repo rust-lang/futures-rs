@@ -11,25 +11,25 @@ use futures_sink::Sink;
 #[must_use = "futures do nothing unless polled"]
 pub struct SendAll<'a, Si, St>
 where
-    Si: Sink + Unpin + ?Sized,
+    Si: Sink<St::Item> + Unpin + ?Sized,
     St: Stream + Unpin + ?Sized,
 {
     sink: &'a mut Si,
     stream: Fuse<&'a mut St>,
-    buffered: Option<Si::SinkItem>,
+    buffered: Option<St::Item>,
 }
 
 // Pinning is never projected to any fields
 impl<Si, St> Unpin for SendAll<'_, Si, St>
 where
-    Si: Sink + Unpin + ?Sized,
+    Si: Sink<St::Item> + Unpin + ?Sized,
     St: Stream + Unpin + ?Sized,
 {}
 
 impl<'a, Si, St> SendAll<'a, Si, St>
 where
-    Si: Sink + Unpin + ?Sized,
-    St: Stream<Item = Si::SinkItem> + Unpin + ?Sized,
+    Si: Sink<St::Item> + Unpin + ?Sized,
+    St: Stream + Unpin + ?Sized,
 {
     pub(super) fn new(
         sink: &'a mut Si,
@@ -45,7 +45,7 @@ where
     fn try_start_send(
         &mut self,
         waker: &Waker,
-        item: Si::SinkItem,
+        item: St::Item,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
         match Pin::new(&mut self.sink).poll_ready(waker) {
@@ -63,8 +63,8 @@ where
 
 impl<Si, St> Future for SendAll<'_, Si, St>
 where
-    Si: Sink + Unpin + ?Sized,
-    St: Stream<Item = Si::SinkItem> + Unpin + ?Sized,
+    Si: Sink<St::Item> + Unpin + ?Sized,
+    St: Stream + Unpin + ?Sized,
 {
     type Output = Result<(), Si::SinkError>;
 

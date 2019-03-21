@@ -9,7 +9,7 @@ use futures_core::stream::Stream;
 use futures_sink::Sink;
 
 #[cfg(feature = "compat")]
-use crate::compat::Compat;
+use crate::compat::CompatSink;
 
 mod close;
 pub use self::close::Close;
@@ -46,11 +46,11 @@ mod buffer;
 #[cfg(feature = "alloc")]
 pub use self::buffer::Buffer;
 
-impl<T: ?Sized> SinkExt for T where T: Sink {}
+impl<T: ?Sized, Item> SinkExt<Item> for T where T: Sink<Item> {}
 
 /// An extension trait for `Sink`s that provides a variety of convenient
 /// combinator functions.
-pub trait SinkExt: Sink {
+pub trait SinkExt<Item>: Sink<Item> {
     /// Composes a function *in front of* the sink.
     ///
     /// This adapter produces a new sink that passes each value through the
@@ -62,9 +62,9 @@ pub trait SinkExt: Sink {
     ///
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
-    fn with<U, Fut, F, E>(self, f: F) -> With<Self, U, Fut, F>
+    fn with<U, Fut, F, E>(self, f: F) -> With<Self, Item, U, Fut, F>
         where F: FnMut(U) -> Fut,
-              Fut: Future<Output = Result<Self::SinkItem, E>>,
+              Fut: Future<Output = Result<Item, E>>,
               E: From<Self::SinkError>,
               Self: Sized
     {
@@ -103,9 +103,9 @@ pub trait SinkExt: Sink {
     /// let received: Vec<i32> = block_on(rx.collect());
     /// assert_eq!(received, vec![42, 42, 42, 42, 42]);
     /// ```
-    fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, U, St, F>
+    fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, Item, U, St, F>
         where F: FnMut(U) -> St,
-              St: Stream<Item = Result<Self::SinkItem, Self::SinkError>>,
+              St: Stream<Item = Result<Item, Self::SinkError>>,
               Self: Sized
     {
         WithFlatMap::new(self, f)
@@ -136,7 +136,7 @@ pub trait SinkExt: Sink {
     /// Map this sink's error to a different error type using the `Into` trait.
     ///
     /// If wanting to map errors of a `Sink + Stream`, use `.sink_err_into().err_into()`.
-    fn sink_err_into<E>(self) -> err_into::SinkErrInto<Self, E>
+    fn sink_err_into<E>(self) -> err_into::SinkErrInto<Self, Item, E>
         where Self: Sized,
               Self::SinkError: Into<E>,
     {
@@ -157,14 +157,14 @@ pub trait SinkExt: Sink {
     /// This method is only available when the `std` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
-    fn buffer(self, capacity: usize) -> Buffer<Self>
+    fn buffer(self, capacity: usize) -> Buffer<Self, Item>
         where Self: Sized,
     {
         Buffer::new(self, capacity)
     }
 
     /// Close the sink.
-    fn close(&mut self) -> Close<'_, Self>
+    fn close(&mut self) -> Close<'_, Self, Item>
         where Self: Unpin,
     {
         Close::new(self)
@@ -176,8 +176,8 @@ pub trait SinkExt: Sink {
     /// the other sink at the same time.
     fn fanout<Si>(self, other: Si) -> Fanout<Self, Si>
         where Self: Sized,
-              Self::SinkItem: Clone,
-              Si: Sink<SinkItem=Self::SinkItem, SinkError=Self::SinkError>
+              Item: Clone,
+              Si: Sink<Item, SinkError=Self::SinkError>
     {
         Fanout::new(self, other)
     }
@@ -186,7 +186,7 @@ pub trait SinkExt: Sink {
     ///
     /// This adapter is intended to be used when you want to stop sending to the sink
     /// until all current requests are processed.
-    fn flush(&mut self) -> Flush<'_, Self>
+    fn flush(&mut self) -> Flush<'_, Self, Item>
         where Self: Unpin,
     {
         Flush::new(self)
@@ -198,7 +198,7 @@ pub trait SinkExt: Sink {
     /// Note that, **because of the flushing requirement, it is usually better
     /// to batch together items to send via `send_all`, rather than flushing
     /// between each item.**
-    fn send(&mut self, item: Self::SinkItem) -> Send<'_, Self>
+    fn send(&mut self, item: Item) -> Send<'_, Self, Item>
         where Self: Unpin,
     {
         Send::new(self, item)
@@ -219,7 +219,7 @@ pub trait SinkExt: Sink {
         &'a mut self,
         stream: &'a mut St
     ) -> SendAll<'a, Self, St>
-        where St: Stream<Item = Self::SinkItem> + Unpin,
+        where St: Stream<Item = Item> + Unpin,
               Self: Unpin,
     {
         SendAll::new(self, stream)
@@ -231,7 +231,7 @@ pub trait SinkExt: Sink {
     /// This can be used in combination with the `right_sink` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn left_sink<Si2>(self) -> Either<Self, Si2>
-        where Si2: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
+        where Si2: Sink<Item, SinkError = Self::SinkError>,
               Self: Sized
     {
         Either::Left(self)
@@ -243,7 +243,7 @@ pub trait SinkExt: Sink {
     /// This can be used in combination with the `left_sink` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn right_sink<Si1>(self) -> Either<Si1, Self>
-        where Si1: Sink<SinkItem = Self::SinkItem, SinkError = Self::SinkError>,
+        where Si1: Sink<Item, SinkError = Self::SinkError>,
               Self: Sized
     {
         Either::Right(self)
@@ -252,9 +252,9 @@ pub trait SinkExt: Sink {
     /// Wraps a [`Sink`] into a sink compatible with libraries using
     /// futures 0.1 `Sink`. Requires the `compat` feature to be enabled.
     #[cfg(feature = "compat")]
-    fn compat(self) -> Compat<Self>
+    fn compat(self) -> CompatSink<Self, Item>
         where Self: Sized + Unpin,
     {
-        Compat::new(self)
+        CompatSink::new(self)
     }
 }

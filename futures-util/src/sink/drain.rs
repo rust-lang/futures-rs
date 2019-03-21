@@ -37,8 +37,7 @@ pub fn drain<T>() -> Drain<T> {
     Drain { marker: PhantomData }
 }
 
-impl<T> Sink for Drain<T> {
-    type SinkItem = T;
+impl<T> Sink<T> for Drain<T> {
     type SinkError = DrainError;
 
     fn poll_ready(
@@ -50,7 +49,7 @@ impl<T> Sink for Drain<T> {
 
     fn start_send(
         self: Pin<&mut Self>,
-        _item: Self::SinkItem,
+        _item: T,
     ) -> Result<(), Self::SinkError> {
         Ok(())
     }

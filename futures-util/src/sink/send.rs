@@ -7,16 +7,16 @@ use futures_sink::Sink;
 /// then waits until the sink has fully flushed.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct Send<'a, Si: Sink + Unpin + ?Sized> {
+pub struct Send<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {
     sink: &'a mut Si,
-    item: Option<Si::SinkItem>,
+    item: Option<Item>,
 }
 
 // Pinning is never projected to children
-impl<Si: Sink + Unpin + ?Sized> Unpin for Send<'_, Si> {}
+impl<Si: Sink<Item> + Unpin + ?Sized, Item> Unpin for Send<'_, Si, Item> {}
 
-impl<'a, Si: Sink + Unpin + ?Sized> Send<'a, Si> {
-    pub(super) fn new(sink: &'a mut Si, item: Si::SinkItem) -> Self {
+impl<'a, Si: Sink<Item> + Unpin + ?Sized, Item> Send<'a, Si, Item> {
+    pub(super) fn new(sink: &'a mut Si, item: Item) -> Self {
         Send {
             sink,
             item: Some(item),
@@ -24,7 +24,7 @@ impl<'a, Si: Sink + Unpin + ?Sized> Send<'a, Si> {
     }
 }
 
-impl<Si: Sink + Unpin + ?Sized> Future for Send<'_, Si> {
+impl<Si: Sink<Item> + Unpin + ?Sized, Item> Future for Send<'_, Si, Item> {
     type Output = Result<(), Si::SinkError>;
 
     fn poll(
