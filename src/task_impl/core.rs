@@ -2,7 +2,9 @@
 
 use core::marker;
 use core::mem;
-use core::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
+use core::sync::atomic::AtomicUsize;
+#[allow(deprecated)]
+use core::sync::atomic::ATOMIC_USIZE_INIT;
 use core::sync::atomic::Ordering::{SeqCst, Relaxed};
 
 use super::{BorrowedTask, NotifyHandle};
@@ -84,7 +86,9 @@ impl Drop for TaskUnpark {
     }
 }
 
+#[allow(deprecated)]
 static GET: AtomicUsize = ATOMIC_USIZE_INIT;
+#[allow(deprecated)]
 static SET: AtomicUsize = ATOMIC_USIZE_INIT;
 
 /// Initialize the `futures` task system.

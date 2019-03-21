@@ -1,7 +1,9 @@
 extern crate futures;
 extern crate futures_cpupool;
 
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
+#[allow(deprecated)]
+use std::sync::atomic::ATOMIC_USIZE_INIT;
 use std::thread;
 use std::time::Duration;
 
@@ -36,6 +38,7 @@ fn select() {
 
 #[test]
 fn threads_go_away() {
+    #[allow(deprecated)]
     static CNT: AtomicUsize = ATOMIC_USIZE_INIT;
 
     struct A;
@@ -66,7 +69,9 @@ fn threads_go_away() {
 
 #[test]
 fn lifecycle_test() {
+    #[allow(deprecated)]
     static NUM_STARTS: AtomicUsize = ATOMIC_USIZE_INIT;
+    #[allow(deprecated)]
     static NUM_STOPS: AtomicUsize = ATOMIC_USIZE_INIT;
 
     fn after_start() {
