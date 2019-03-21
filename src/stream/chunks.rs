@@ -16,7 +16,8 @@ pub struct Chunks<S>
 {
     items: Vec<S::Item>,
     err: Option<S::Error>,
-    stream: Fuse<S>
+    stream: Fuse<S>,
+    cap: usize, // https://github.com/rust-lang-nursery/futures-rs/issues/1475
 }
 
 pub fn new<S>(s: S, capacity: usize) -> Chunks<S>
@@ -28,6 +29,7 @@ pub fn new<S>(s: S, capacity: usize) -> Chunks<S>
         items: Vec::with_capacity(capacity),
         err: None,
         stream: super::fuse::new(s),
+        cap: capacity,
     }
 }
 
@@ -54,7 +56,7 @@ impl<S> ::sink::Sink for Chunks<S>
 
 impl<S> Chunks<S> where S: Stream {
     fn take(&mut self) -> Vec<S::Item> {
-        let cap = self.items.capacity();
+        let cap = self.cap;
         mem::replace(&mut self.items, Vec::with_capacity(cap))
     }
 
@@ -93,7 +95,6 @@ impl<S> Stream for Chunks<S>
             return Err(err)
         }
 
-        let cap = self.items.capacity();
         loop {
             match self.stream.poll() {
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
@@ -103,7 +104,7 @@ impl<S> Stream for Chunks<S>
                 // the full one.
                 Ok(Async::Ready(Some(item))) => {
                     self.items.push(item);
-                    if self.items.len() >= cap {
+                    if self.items.len() >= self.cap {
                         return Ok(Some(self.take()).into())
                     }
                 }
