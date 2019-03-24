@@ -46,6 +46,9 @@ mod buffer;
 #[cfg(feature = "alloc")]
 pub use self::buffer::Buffer;
 
+mod for_each;
+pub use self::for_each::{for_each, ForEach};
+
 impl<T: ?Sized, Item> SinkExt<Item> for T where T: Sink<Item> {}
 
 /// An extension trait for `Sink`s that provides a variety of convenient
