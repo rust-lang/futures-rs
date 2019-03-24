@@ -5,6 +5,7 @@
 #![cfg_attr(feature = "alloc", feature(box_into_pin))]
 #![cfg_attr(feature = "std", feature(async_await, await_macro))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
+#![cfg_attr(feature = "never-type", feature(never_type))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
@@ -13,6 +14,9 @@
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
+#[cfg(all(feature = "never-type", not(feature = "nightly")))]
+compile_error!("The `never-type` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

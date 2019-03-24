@@ -70,6 +70,11 @@ pub use self::inspect::Inspect;
 mod unit_error;
 pub use self::unit_error::UnitError;
 
+#[cfg(feature = "never-type")]
+mod never_error;
+#[cfg(feature = "never-type")]
+pub use self::never_error::NeverError;
+
 // Implementation details
 mod chain;
 pub(crate) use self::chain::Chain;
@@ -535,6 +540,15 @@ pub trait FutureExt: Future {
         where Self: Sized
     {
         UnitError::new(self)
+    }
+
+    #[cfg(feature = "never-type")]
+    /// Turns a [`Future<Output = T>`](Future) into a
+    /// [`TryFuture<Ok = T, Error = !`>](futures_core::future::TryFuture).
+    fn never_error(self) -> NeverError<Self>
+        where Self: Sized
+    {
+        NeverError::new(self)
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.
