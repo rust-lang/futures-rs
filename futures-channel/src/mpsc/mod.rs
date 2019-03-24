@@ -81,16 +81,21 @@
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use futures_core::task::__internal::AtomicWaker;
+use core::fmt;
+use core::pin::Pin;
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::SeqCst;
+use alloc::sync::Arc;
+#[cfg(feature = "std")]
 use std::any::Any;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::SeqCst;
-use std::usize;
+#[cfg(feature = "std")]
+use std::sync::Mutex;
 
 use crate::mpsc::queue::Queue;
+#[cfg(not(feature = "std"))]
+use crate::lock::Mutex;
 
 mod queue;
 
@@ -178,6 +183,7 @@ impl fmt::Display for SendError {
     }
 }
 
+#[cfg(feature = "std")]
 impl Error for SendError {
     fn description(&self) -> &str {
         if self.is_full() {
@@ -224,6 +230,7 @@ impl<T> fmt::Display for TrySendError<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Any> Error for TrySendError<T> {
     fn description(&self) -> &str {
         if self.is_full() {
@@ -265,10 +272,11 @@ impl fmt::Debug for TryRecvError {
 
 impl fmt::Display for TryRecvError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
+        write!(fmt, "receiver channel is empty")
     }
 }
 
+#[cfg(feature = "std")]
 impl Error for TryRecvError {
     fn description(&self) -> &str {
         "receiver channel is empty"
@@ -308,13 +316,13 @@ struct State {
 }
 
 // The `is_open` flag is stored in the left-most bit of `Inner::state`
-const OPEN_MASK: usize = usize::MAX - (usize::MAX >> 1);
+const OPEN_MASK: usize = usize::max_value() - (usize::max_value() >> 1);
 
 // When a new channel is created, it is created in the open state with no
 // pending messages.
 const INIT_STATE: usize = OPEN_MASK;
 
-// The maximum number of messages that a channel can track is `usize::MAX >> 1`
+// The maximum number of messages that a channel can track is `usize::max_value() >> 1`
 const MAX_CAPACITY: usize = !(OPEN_MASK);
 
 // The maximum requested buffer size must be less than the maximum capacity of

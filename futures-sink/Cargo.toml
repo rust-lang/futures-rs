@@ -17,8 +17,9 @@ name = "futures_sink"
 [features]
 std = ["alloc", "either/use_std", "futures-core-preview/std", "futures-channel-preview/std"]
 default = ["std"]
-nightly = ["futures-core-preview/nightly"]
-alloc = ["futures-core-preview/alloc"]
+nightly = ["futures-core-preview/nightly", "futures-channel-preview/nightly"]
+cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic"]
+alloc = ["futures-core-preview/alloc", "futures-channel-preview/alloc"]
 
 [dependencies]
 either = { version = "1.4", default-features = false, optional = true }

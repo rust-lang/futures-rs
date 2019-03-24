@@ -59,6 +59,7 @@ matrix:
       script:
         - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc,nightly
         - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc,nightly
+        - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features --features alloc,nightly
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc,nightly
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,nightly
 

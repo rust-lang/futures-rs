@@ -41,5 +41,5 @@ std = ["alloc", "futures-core-preview/std", "futures-executor-preview/std", "fut
 default = ["std"]
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
-cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
+cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-sink-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc", "futures-util-preview/alloc"]

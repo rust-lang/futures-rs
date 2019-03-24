@@ -1,7 +1,7 @@
 use crate::{Sink, Poll};
 use futures_core::task::Waker;
 use futures_channel::mpsc::{Sender, SendError, TrySendError, UnboundedSender};
-use std::pin::Pin;
+use core::pin::Pin;
 
 impl<T> Sink<T> for Sender<T> {
     type SinkError = SendError;

@@ -42,12 +42,16 @@
 //       slightly modified
 
 pub use self::PopResult::*;
-use std::prelude::v1::*;
 
+use core::cell::UnsafeCell;
+use core::ptr;
+use core::sync::atomic::{AtomicPtr, Ordering};
+use alloc::boxed::Box;
+
+#[cfg(not(feature = "std"))]
+use core::sync::atomic;
+#[cfg(feature = "std")]
 use std::thread;
-use std::cell::UnsafeCell;
-use std::ptr;
-use std::sync::atomic::{AtomicPtr, Ordering};
 
 /// A result of the `pop` function.
 pub enum PopResult<T> {
@@ -157,8 +161,19 @@ impl<T> Queue<T> {
                 //
                 // For now, thread::yield_now() is used, but it would
                 // probably be better to spin a few times then yield.
+                #[cfg(feature = "std")]
                 Inconsistent => {
                     thread::yield_now();
+                }
+
+                // In the `no_std` environment, use `spin_loop_hint` because it
+                // cannot invoke the OS scheduler.
+                #[cfg(not(feature = "std"))]
+                Inconsistent => {
+                    // TODO: Investigate appropriate spin times.
+                    for _ in 0..2 {
+                        atomic::spin_loop_hint();
+                    }
                 }
             }
         }

@@ -87,12 +87,55 @@ impl<'a, T> Drop for TryLock<'a, T> {
     }
 }
 
+// Use `Lock` as spinlock mutex.
+// In the `no_std` environment, use own spinlock mutex because it cannot use the OS provided mutex.
+#[cfg(any(not(feature = "std"), test))]
+mod mutex {
+    use super::*;
+    use core::sync::atomic;
+    use core::sync::atomic::Ordering::{Acquire, Relaxed};
+
+    /// A spinning based mutex.
+    pub(crate) type Mutex<T> = Lock<T>;
+
+    /// A "scoped lock" of a mutex. When this structure is dropped
+    /// (falls out of scope), the lock will be unlocked.
+    pub(crate) type MutexGuard<'a, T> = TryLock<'a, T>;
+
+    // FIXME: If `never_type` stabilizes before `futures_api` or `alloc`, use `!` instead of `Void`.
+    /// Same as `!`.
+    #[derive(Debug)]
+    pub(crate) enum Void {}
+
+    impl<T> Mutex<T> {
+        /// Acquires a mutex, spinning the current thread until it is able to do
+        /// so.
+        ///
+        /// This method is absolutely successful, but it returns `Result`
+        /// because it needs to have the same signature as
+        /// `std::sync::Mutex::lock`.
+        pub(crate) fn lock(&self) -> Result<MutexGuard<'_, T>, Void> {
+            while self.locked.compare_and_swap(false, true, Acquire) {
+                // Wait until the lock looks unlocked before retrying.
+                // See https://github.com/mvdnes/spin-rs/pull/33 for more.
+                while self.locked.load(Relaxed) {
+                    atomic::spin_loop_hint();
+                }
+            }
+            Ok(MutexGuard { __ptr: self })
+        }
+    }
+}
+
+#[cfg(any(not(feature = "std"), test))]
+pub(crate) use mutex::*;
+
 #[cfg(test)]
 mod tests {
-    use super::Lock;
+    use super::{Lock, Mutex};
 
     #[test]
-    fn smoke() {
+    fn smoke_try_lock() {
         let a = Lock::new(1);
         let mut a1 = a.try_lock().unwrap();
         assert!(a.try_lock().is_none());
@@ -101,5 +144,12 @@ mod tests {
         drop(a1);
         assert_eq!(*a.try_lock().unwrap(), 2);
         assert_eq!(*a.try_lock().unwrap(), 2);
+    }
+
+    #[test]
+    fn smoke_lock() {
+        let m = Mutex::new(());
+        drop(m.lock().unwrap());
+        drop(m.lock().unwrap());
     }
 }

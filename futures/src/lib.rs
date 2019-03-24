@@ -65,7 +65,11 @@ pub use futures_util::{
     join, try_join, pending, poll,
 };
 
-#[cfg(feature = "std")]
+#[cfg_attr(
+    feature = "cfg-target-has-atomic",
+    cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+)]
+#[cfg(feature = "alloc")]
 pub mod channel {
     //! Cross-task communication.
     //!

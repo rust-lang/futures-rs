@@ -2,12 +2,13 @@
 
 use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::SeqCst;
+use core::pin::Pin;
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering::SeqCst;
+use core::fmt;
+use alloc::sync::Arc;
+#[cfg(feature = "std")]
 use std::error::Error;
-use std::fmt;
 
 use crate::lock::Lock;
 
@@ -380,6 +381,7 @@ impl fmt::Display for Canceled {
     }
 }
 
+#[cfg(feature = "std")]
 impl Error for Canceled {
     fn description(&self) -> &str {
         "oneshot canceled"
