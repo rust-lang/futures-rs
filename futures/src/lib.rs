@@ -201,7 +201,7 @@ pub mod future {
         OptionFuture,
 
         FutureExt,
-        FlattenStream, Flatten, Fuse, Inspect, IntoStream, Map, Then,
+        FlattenStream, Flatten, Fuse, Inspect, IntoStream, Map, Then, UnitError,
     };
 
     #[cfg(feature = "alloc")]
