@@ -23,6 +23,7 @@
 
 #![feature(futures_api)]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
+#![cfg_attr(feature = "never-type", feature(never_type))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -32,6 +33,9 @@
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
+#[cfg(all(feature = "never-type", not(feature = "nightly")))]
+compile_error!("The `never-type` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_util::core_reexport;
 
@@ -229,6 +233,9 @@ pub mod future {
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
         UnwrapOrElse,
     };
+
+    #[cfg(feature = "never-type")]
+    pub use futures_util::future::NeverError;
 
     #[cfg(feature = "alloc")]
     pub use futures_util::try_future::{
