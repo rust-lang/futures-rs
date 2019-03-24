@@ -270,6 +270,24 @@ mod if_std {
         deref_async_read!();
     }
 
+    impl<'a, T: ?Sized + AsyncRead> AsyncRead for Pin<&'a mut T> {
+        unsafe fn initializer(&self) -> Initializer {
+            (**self).initializer()
+        }
+
+        fn poll_read(mut self: Pin<&mut Self>, waker: &Waker, buf: &mut [u8])
+            -> Poll<Result<usize>>
+        {
+            T::poll_read((*self).as_mut(), waker, buf)
+        }
+
+        fn poll_vectored_read(mut self: Pin<&mut Self>, waker: &Waker, vec: &mut [&mut IoVec])
+            -> Poll<Result<usize>>
+        {
+            T::poll_vectored_read((*self).as_mut(), waker, vec)
+        }
+    }
+
     /// `unsafe` because the `StdIo::Read` type must not access the buffer
     /// before reading data into it.
     macro_rules! unsafe_delegate_async_read_to_stdio {
