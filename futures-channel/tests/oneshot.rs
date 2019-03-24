@@ -4,6 +4,7 @@ use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt, poll_fn};
 use futures::task::{Context, Poll};
+use futures_test::task::panic_waker_ref;
 use std::pin::Pin;
 use std::sync::mpsc;
 use std::thread;
@@ -67,6 +68,15 @@ fn cancel_lots() {
     drop(tx);
 
     t.join().unwrap();
+}
+
+#[test]
+fn cancel_after_sender_drop_doesnt_notify() {
+    let (mut tx, rx) = oneshot::channel::<u32>();
+    let mut cx = Context::from_waker(panic_waker_ref());
+    assert_eq!(tx.poll_cancel(&mut cx), Poll::Pending);
+    drop(tx);
+    drop(rx);
 }
 
 #[test]

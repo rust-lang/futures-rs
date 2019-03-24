@@ -214,11 +214,18 @@ impl<T> Inner<T> {
         // and deadlock might be possible, as was observed in
         // https://github.com/rust-lang-nursery/futures-rs/pull/219.
         self.complete.store(true, SeqCst);
+
         if let Some(mut slot) = self.rx_task.try_lock() {
             if let Some(task) = slot.take() {
                 drop(slot);
                 task.wake();
             }
+        }
+
+        // If we registered a task for cancel notification drop it to reduce
+        // spurious wakeups
+        if let Some(mut slot) = self.tx_task.try_lock() {
+            drop(slot.take());
         }
     }
 
