@@ -3,9 +3,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Future for the `unit_error` combinator, turning a `Future` into a `TryFuture`.
-///
-/// This is created by the `FutureExt::unit_error` method.
+/// Future for the [`unit_error`](super::FutureExt::unit_error) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct UnitError<Fut> {
@@ -15,7 +13,6 @@ pub struct UnitError<Fut> {
 impl<Fut> UnitError<Fut> {
     unsafe_pinned!(future: Fut);
 
-    /// Creates a new UnitError.
     pub(super) fn new(future: Fut) -> UnitError<Fut> {
         UnitError { future }
     }

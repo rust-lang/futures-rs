@@ -535,7 +535,8 @@ pub trait FutureExt: Future {
         Box::pin(self)
     }
 
-    /// Turns a `Future` into a `TryFuture` with `Error = ()`.
+    /// Turns a [`Future<Output = T>`](Future) into a
+    /// [`TryFuture<Ok = T, Error = ()`>](futures_core::future::TryFuture).
     fn unit_error(self) -> UnitError<Self>
         where Self: Sized
     {
