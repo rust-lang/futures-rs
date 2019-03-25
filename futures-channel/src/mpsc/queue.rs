@@ -146,6 +146,8 @@ impl<T> Queue<T> {
     ///
     /// This function is unsafe because only one thread can call it at a time.
     pub unsafe fn pop_spin(&self) -> Option<T> {
+        #[cfg(not(feature = "std"))]
+        let mut backoff = Backoff::default();
         loop {
             match self.pop() {
                 Empty => return None,
@@ -170,13 +172,30 @@ impl<T> Queue<T> {
                 // cannot invoke the OS scheduler.
                 #[cfg(not(feature = "std"))]
                 Inconsistent => {
-                    // TODO: Investigate appropriate spin times.
-                    for _ in 0..2 {
-                        atomic::spin_loop_hint();
-                    }
+                    backoff.spin();
                 }
             }
         }
+    }
+}
+
+// truncated binary exponential backoff
+#[cfg(not(feature = "std"))]
+#[derive(Default)]
+struct Backoff {
+    count: u32,
+}
+
+#[cfg(not(feature = "std"))]
+impl Backoff {
+    // TODO: Investigate appropriate ceiling.
+    const CEILING: u32 = 8;
+
+    fn spin(&mut self) {
+        for _ in 0..1 << self.count.min(Self::CEILING) {
+            atomic::spin_loop_hint();
+        }
+        self.count = self.count.wrapping_add(1);
     }
 }
 
