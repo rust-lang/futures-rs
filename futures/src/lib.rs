@@ -87,6 +87,7 @@ pub mod compat {
 
     pub use futures_util::compat::{
         Compat,
+        CompatSink,
         Compat01As03,
         Compat01As03Sink,
         Executor01Future,
@@ -305,7 +306,7 @@ pub mod sink {
     pub use futures_util::sink::{
         Close, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
         SinkExt, Fanout, Drain, DrainError, drain,
-        // WithFlatMap,
+        WithFlatMap,
     };
 
     #[cfg(feature = "alloc")]
@@ -340,9 +341,9 @@ pub mod stream {
         unfold, Unfold,
 
         StreamExt,
-        Chain, Collect, Concat, Filter, FilterMap, Flatten, Fold, Forward, ForEach, Fuse,
-        StreamFuture, Inspect, Map, Next, Peekable, Select, Skip, SkipWhile,
-        Take, TakeWhile, Then, Zip
+        Chain, Collect, Concat, Filter, FilterMap, Flatten, Fold, Forward,
+        ForEach, Fuse, StreamFuture, Inspect, Map, Next, SelectNextSome,
+        Peekable, Select, Skip, SkipWhile, Take, TakeWhile, Then, Zip
     };
 
     #[cfg(feature = "alloc")]
@@ -361,7 +362,8 @@ pub mod stream {
         futures_unordered, FuturesUnordered,
 
         // For StreamExt:
-        BufferUnordered, Buffered, SplitStream, SplitSink,
+        BufferUnordered, Buffered, ForEachConcurrent, SplitStream, SplitSink,
+        ReuniteError,
 
         select_all, SelectAll,
     };
@@ -369,15 +371,16 @@ pub mod stream {
     #[cfg(feature = "std")]
     pub use futures_util::stream::{
         // For StreamExt:
-        CatchUnwind, ReuniteError,
+        CatchUnwind,
     };
 
     pub use futures_util::try_stream::{
         TryStreamExt,
-        TryNext, TryForEach, ErrInto,
+        ErrInto, MapOk, MapErr,
+        TryNext, TryForEach, TryFilterMap,
         TryCollect, TryFold, TrySkipWhile,
         IntoStream,
-        // ToDo: AndThen, ErrInto, InspectErr, MapErr, OrElse
+        // ToDo: AndThen, InspectErr, OrElse
     };
 
     #[cfg_attr(
@@ -387,9 +390,12 @@ pub mod stream {
     #[cfg(feature = "alloc")]
     pub use futures_util::try_stream::{
         // For TryStreamExt:
-        TryBufferUnordered,
-        // ToDo: AndThen, InspectErr, MapErr, OrElse
+        TryBufferUnordered, TryForEachConcurrent,
+        // ToDo: AndThen, InspectErr, OrElse
     };
+
+    #[cfg(feature = "std")]
+    pub use futures_util::try_stream::IntoAsyncRead;
 }
 
 pub mod task {
@@ -410,18 +416,18 @@ pub mod task {
 
     pub use futures_util::task::noop_waker;
 
+    #[cfg(feature = "std")]
+    pub use futures_util::task::noop_waker_ref;
+
+    #[cfg(feature = "alloc")]
+    pub use futures_util::task::{SpawnExt, LocalSpawnExt};
+
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     #[cfg(feature = "alloc")]
-    pub use futures_util::task::{
-        WakerRef, waker_ref, ArcWake,
-        SpawnExt, LocalSpawnExt,
-    };
-
-    #[cfg(feature = "std")]
-    pub use futures_util::task::noop_waker_ref;
+    pub use futures_util::task::{WakerRef, waker_ref, ArcWake};
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
