@@ -9,13 +9,9 @@ use futures_sink::Sink;
 #[cfg(feature = "compat")] use crate::compat::Compat;
 
 /* TODO
-mod join;
 mod select;
-pub use self::join::{Join, Join3, Join4, Join5};
 pub use self::select::Select;
 
-#[cfg(feature = "std")]
-mod join_all;
 #[cfg(feature = "std")]
 mod select_all;
 #[cfg(feature = "std")]
@@ -365,88 +361,6 @@ pub trait TryFutureExt: TryFuture {
         where B: IntoFuture, Self: Sized
     {
         select::new(self, other.into_future())
-    }
-
-    /// Joins the result of two futures, waiting for them both to complete.
-    ///
-    /// This function will return a new future which awaits both this and the
-    /// `other` future to complete. The returned future will finish with a tuple
-    /// of both results.
-    ///
-    /// Both futures must have the same error type, and if either finishes with
-    /// an error then the other will be dropped and that error will be
-    /// returned.
-    ///
-    /// Note that this method consumes the future it is called on and returns a
-    /// wrapped version of it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::future;
-    /// use futures::executor::block_on;
-    ///
-    /// let a = future::ok::<i32, i32>(1);
-    /// let b = future::ok::<i32, i32>(2);
-    /// let pair = a.join(b);
-    ///
-    /// assert_eq!(block_on(pair), Ok((1, 2)));
-    /// # }
-    /// ```
-    ///
-    /// If one or both of the joined `Future`s is errored, the resulting
-    /// `Future` will be errored:
-    ///
-    /// ```
-    /// use futures::executor::block_on;
-    /// use futures::future::{self, FutureExt};
-    ///
-    /// let a = future::ok::<i32, i32>(1);
-    /// let b = future::err::<i32, i32>(2);
-    /// let pair = a.join(b);
-    ///
-    /// assert_eq!(block_on(pair), Err(2));
-    /// # }
-    /// ```
-    fn join<B>(self, other: B) -> Join<Self, B::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        let f = join::new(self, other.into_future());
-        assert_future::<(Self::Item, B::Item), Self::Error, _>(f)
-    }
-
-    /// Same as `join`, but with more futures.
-    fn join3<B, C>(self, b: B, c: C) -> Join3<Self, B::Future, C::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        join::new3(self, b.into_future(), c.into_future())
-    }
-
-    /// Same as `join`, but with more futures.
-    fn join4<B, C, D>(self, b: B, c: C, d: D)
-                      -> Join4<Self, B::Future, C::Future, D::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        join::new4(self, b.into_future(), c.into_future(), d.into_future())
-    }
-
-    /// Same as `join`, but with more futures.
-    fn join5<B, C, D, E>(self, b: B, c: C, d: D, e: E)
-                         -> Join5<Self, B::Future, C::Future, D::Future, E::Future>
-        where B: IntoFuture<Error=Self::Error>,
-              C: IntoFuture<Error=Self::Error>,
-              D: IntoFuture<Error=Self::Error>,
-              E: IntoFuture<Error=Self::Error>,
-              Self: Sized,
-    {
-        join::new5(self, b.into_future(), c.into_future(), d.into_future(),
-                   e.into_future())
     }
 */
 
