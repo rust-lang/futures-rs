@@ -77,3 +77,31 @@ impl SpawnError {
         true
     }
 }
+
+#[cfg(feature = "alloc")]
+mod if_alloc {
+    use alloc::boxed::Box;
+    use super::*;
+
+    impl<Sp: ?Sized + Spawn> Spawn for Box<Sp> {
+        fn spawn_obj(&mut self, future: FutureObj<'static, ()>)
+        -> Result<(), SpawnError> {
+            (**self).spawn_obj(future)
+        }
+
+        fn status(&self) -> Result<(), SpawnError> {
+            (**self).status()
+        }
+    }
+
+    impl<Sp: ?Sized + LocalSpawn> LocalSpawn for Box<Sp> {
+        fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>)
+        -> Result<(), SpawnError> {
+            (**self).spawn_local_obj(future)
+        }
+
+        fn status_local(&self) -> Result<(), SpawnError> {
+            (**self).status_local()
+        }
+    }
+}
