@@ -31,6 +31,7 @@ mod macros;
 #[doc(hidden)]
 pub mod async_await;
 #[cfg(feature = "std")]
+#[doc(hidden)]
 pub use self::async_await::*;
 
 #[cfg(feature = "std")]
