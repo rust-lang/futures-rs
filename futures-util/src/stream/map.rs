@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which will change the type of a stream from one
@@ -72,14 +73,12 @@ impl<St, F, T> Stream for Map<St, F>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> Sink for Map<S, F>
-    where S: Sink
+impl<S, F, T, Item> Sink<Item> for Map<S, F>
+    where S: Stream + Sink<Item>,
+          F: FnMut(S::Item) -> T,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/

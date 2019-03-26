@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Do something with the items of a stream, passing it on.
@@ -17,7 +18,7 @@ impl<St: Stream + Unpin, F> Unpin for Inspect<St, F> {}
 
 impl<St, F> Inspect<St, F>
     where St: Stream,
-          F: FnMut(&St::Item) -> (),
+          F: FnMut(&St::Item),
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
@@ -74,14 +75,12 @@ impl<St, F> Stream for Inspect<St, F>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S, F> Sink for Inspect<S, F>
-    where S: Sink + Stream
+impl<S, F, Item> Sink<Item> for Inspect<S, F>
+    where S: Stream + Sink<Item>,
+          F: FnMut(&S::Item),
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/

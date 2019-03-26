@@ -2,6 +2,7 @@ use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which skips elements of a stream while a predicate
@@ -105,14 +106,13 @@ impl<St, Fut, F> Stream for TrySkipWhile<St, Fut, F>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S, R, P> Sink for TrySkipWhile<S, R, P>
-    where S: Sink + Stream, R: IntoFuture
+impl<S, Fut, F, Item> Sink<Item> for TrySkipWhile<S, Fut, F>
+    where S: TryStream + Sink<Item>,
+          F: FnMut(&S::Ok) -> Fut,
+          Fut: TryFuture<Ok = bool, Error = S::Error>,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/

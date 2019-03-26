@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`map_ok`](super::TryStreamExt::map_ok) combinator.
@@ -47,4 +48,15 @@ where
                 Poll::Ready(opt.map(|res| res.map(|x| self.as_mut().f()(x)))),
         }
     }
+}
+
+// Forwarding impl of Sink from the underlying stream
+impl<S, F, T, Item> Sink<Item> for MapOk<S, F>
+where
+    S: TryStream + Sink<Item>,
+    F: FnMut(S::Ok) -> T,
+{
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream, Item);
 }

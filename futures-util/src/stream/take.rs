@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which returns a maximum number of elements.
@@ -72,14 +73,11 @@ impl<St> Stream for Take<St>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Take<S>
-    where S: Sink + Stream
+impl<S, Item> Sink<Item> for Take<S>
+    where S: Stream + Sink<Item>,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/
