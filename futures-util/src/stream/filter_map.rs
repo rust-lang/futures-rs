@@ -2,6 +2,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A combinator used to filter the results of a stream and simultaneously map
@@ -103,16 +104,13 @@ impl<St, Fut, F, T> Stream for FilterMap<St, Fut, F>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S, R, F> Sink for FilterMap<S, R, F>
-    where S: Stream + Sink,
-          F: FnMut(S::Item) -> R,
-          R: IntoFuture<Error=S::Error>,
+impl<S, Fut, F, Item> Sink<Item> for FilterMap<S, Fut, F>
+    where S: Stream + Sink<Item>,
+          F: FnMut(S::Item) -> Fut,
+          Fut: Future,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/

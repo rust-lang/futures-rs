@@ -2,6 +2,7 @@ use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A `Stream` that implements a `peek` method.
@@ -72,14 +73,11 @@ impl<S: Stream> Stream for Peekable<S> {
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S> Sink for Peekable<S>
-    where S: Sink + Stream
+impl<S, Item> Sink<Item> for Peekable<S>
+    where S: Sink<Item> + Stream
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/

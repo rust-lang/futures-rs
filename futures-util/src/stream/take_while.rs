@@ -2,6 +2,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which takes elements from a stream while a predicate
@@ -103,14 +104,13 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S, R, P> Sink for TakeWhile<S, R, P>
-    where S: Sink + Stream, R: IntoFuture
+impl<S, Fut, F, Item> Sink<Item> for TakeWhile<S, Fut, F>
+    where S: Stream + Sink<Item>,
+          F: FnMut(&S::Item) -> Fut,
+          Fut: Future<Output = bool>,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
-*/

@@ -2,6 +2,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// A stream combinator which chains a computation onto each item produced by a
@@ -67,14 +68,13 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
     }
 }
 
-/* TODO
 // Forwarding impl of Sink from the underlying stream
-impl<S, U, F> Sink for Then<S, U, F>
-    where S: Sink, U: IntoFuture,
+impl<S, Fut, F, Item> Sink<Item> for Then<S, Fut, F>
+    where S: Stream + Sink<Item>,
+          F: FnMut(S::Item) -> Fut,
+          Fut: Future,
 {
-    type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
 
-    delegate_sink!(stream);
+    delegate_sink!(stream, Item);
 }
- */
