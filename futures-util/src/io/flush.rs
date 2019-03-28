@@ -4,13 +4,7 @@ use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
 
-/// A future used to fully flush an I/O object.
-///
-/// Resolves to the underlying I/O object once the flush operation is complete.
-///
-/// Created by the [`flush`] function.
-///
-/// [`flush`]: fn.flush.html
+/// Future for the [`flush`](super::AsyncWriteExt::flush) combinator.
 #[derive(Debug)]
 pub struct Flush<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,

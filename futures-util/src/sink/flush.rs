@@ -4,8 +4,7 @@ use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
-/// Future for the `flush` combinator, which polls the sink until all data
-/// has been flushed.
+/// Future for the [`flush`](super::SinkExt::flush) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Flush<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {

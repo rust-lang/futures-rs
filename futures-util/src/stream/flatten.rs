@@ -4,10 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
-/// A combinator used to flatten a stream-of-streams into one long stream of
-/// elements.
-///
-/// This combinator is created by the `Stream::flatten` method.
+/// Stream for the [`flatten`](super::StreamExt::flatten) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Flatten<St>

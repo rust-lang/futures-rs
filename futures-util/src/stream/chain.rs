@@ -3,10 +3,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// An adapter for chaining the output of two streams.
-///
-/// The resulting stream produces items from first stream and then
-/// from second stream.
+/// Stream for the [`chain`](super::StreamExt::chain) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Chain<St1, St2> {

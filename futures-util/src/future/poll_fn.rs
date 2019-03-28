@@ -4,9 +4,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
 
-/// A future which wraps a function returning [`Poll`].
-///
-/// Created by the [`poll_fn()`] function.
+/// Future for the [`poll_fn`] combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct PollFn<F> {

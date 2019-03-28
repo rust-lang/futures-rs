@@ -5,12 +5,8 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which skips elements of a stream while a predicate
-/// holds.
-///
-/// This structure is produced by the
-/// [`TryStreamExt::try_skip_while`](super::TryStreamExt::try_skip_while)
-/// method.
+/// Stream for the [`try_skip_while`](super::TryStreamExt::try_skip_while)
+/// combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TrySkipWhile<St, Fut, F> where St: TryStream {

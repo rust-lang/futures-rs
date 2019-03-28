@@ -58,9 +58,7 @@ pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
     }
 }
 
-/// A stream which creates futures, polls them and return their result
-///
-/// This stream is returned by the `futures::stream::unfold` method
+/// Stream for the [`unfold`] combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Unfold<T, F, Fut> {

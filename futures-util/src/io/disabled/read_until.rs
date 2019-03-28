@@ -6,12 +6,7 @@ use {Poll, Future};
 
 use io::AsyncRead;
 
-/// A future which can be used to easily read the contents of a stream into a
-/// vector until the delimiter is reached.
-///
-/// Created by the [`read_until`] function.
-///
-/// [`read_until`]: fn.read_until.html
+/// Future for the [`read_until`] combinator.
 #[derive(Debug)]
 pub struct ReadUntil<A> {
     state: State<A>,

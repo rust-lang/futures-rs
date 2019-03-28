@@ -7,11 +7,7 @@ use core::mem;
 use core::pin::Pin;
 use alloc::prelude::v1::*;
 
-/// An adaptor that chunks up elements in a vector.
-///
-/// This adaptor will buffer up a list of items in the stream and pass on the
-/// vector used for buffering when a specified capacity has been reached. This
-/// is created by the `Stream::chunks` method.
+/// Stream for the [`chunks`](super::StreamExt::chunks) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Chunks<St: Stream> {

@@ -3,15 +3,7 @@ use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 
-/// An adapter for merging the output of two streams.
-///
-/// The merged stream will attempt to pull items from both input streams. Each
-/// stream will be polled in a round-robin fashion, and whenever a stream is
-/// ready to yield an item that item is yielded.
-///
-/// After one of the two input stream completes, the remaining one will be
-/// polled exclusively. The returned stream completes when both input
-/// streams have completed.
+/// Stream for the [`select`](super::StreamExt::select) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Select<St1, St2> {

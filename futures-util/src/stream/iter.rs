@@ -2,9 +2,7 @@ use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// A stream which is just a shim over an underlying instance of `Iterator`.
-///
-/// This stream will never block and is always ready.
+/// Stream for the [`iter`] combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Iter<I> {

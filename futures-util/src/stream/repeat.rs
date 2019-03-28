@@ -2,9 +2,7 @@ use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// Stream that produces the same element repeatedly.
-///
-/// This structure is created by the `stream::repeat` function.
+/// Stream for the [`repeat`] combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Repeat<T> {

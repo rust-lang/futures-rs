@@ -4,11 +4,7 @@ use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
 
-/// A future used to fully close an I/O object.
-///
-/// Created by the [`close`] function.
-///
-/// [`close`]: fn.close.html
+/// Future for the [`close`](super::AsyncWriteExt::close) combinator.
 #[derive(Debug)]
 pub struct Close<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,

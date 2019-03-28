@@ -5,10 +5,7 @@ use futures_core::stream::TryStream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which attempts to concatenate the results of a stream into the
-/// first yielded item.
-///
-/// This structure is produced by the `TryStream::try_concat` method.
+/// Future for the [`try_concat`](super::TryStreamExt::try_concat) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryConcat<St: TryStream> {

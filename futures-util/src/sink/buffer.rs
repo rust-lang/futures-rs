@@ -5,8 +5,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::pin::Pin;
 use alloc::collections::VecDeque;
 
-/// Sink for the `Sink::buffer` combinator, which buffers up to some fixed
-/// number of values when the underlying sink is unable to accept them.
+/// Sink for the [`buffer`](super::SinkExt::buffer) combinator.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Buffer<Si: Sink<Item>, Item> {

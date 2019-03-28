@@ -4,9 +4,7 @@ use core::pin::Pin;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
-/// A sink that will discard all items given to it.
-///
-/// See the [`drain()`] function for more details.
+/// Sink for the [`drain`] combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Drain<T> {

@@ -5,10 +5,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A combinator used to filter the results of a stream and simultaneously map
-/// them to a different type.
-///
-/// This structure is returned by the `Stream::filter_map` method.
+/// Stream for the [`filter_map`](super::StreamExt::filter_map) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct FilterMap<St, Fut, F>

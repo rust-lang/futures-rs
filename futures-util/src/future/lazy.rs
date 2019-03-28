@@ -2,9 +2,7 @@ use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 
-/// A future which, when polled, invokes a closure and yields its result.
-///
-/// This is created by the [`lazy()`] function.
+/// Future for the [`lazy`] combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Lazy<F> {

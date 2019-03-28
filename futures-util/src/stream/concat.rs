@@ -6,10 +6,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator to concatenate the results of a stream into the first
-/// yielded item.
-///
-/// This structure is produced by the `Stream::concat` method.
+/// Future for the [`concat`](super::StreamExt::concat) combinator.
 #[must_use = "streams do nothing unless polled"]
 pub struct Concat<St: Stream> {
     stream: St,

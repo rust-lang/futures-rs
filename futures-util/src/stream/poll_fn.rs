@@ -4,9 +4,7 @@ use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// A stream which adapts a function returning `Poll`.
-///
-/// Created by the `poll_fn` function.
+/// Stream for the [`poll_fn`] combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct PollFn<F> {

@@ -3,8 +3,7 @@ use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
-/// Future for the `Sink::send` combinator, which sends a value to a sink and
-/// then waits until the sink has fully flushed.
+/// Future for the [`send`](super::SinkExt::send) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Send<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {

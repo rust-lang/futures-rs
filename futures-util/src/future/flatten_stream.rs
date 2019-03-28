@@ -4,10 +4,8 @@ use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 
-/// Future for the `flatten_stream` combinator, flattening a
-/// future-of-a-stream to get just the result of the final stream as a stream.
-///
-/// This is created by the `Future::flatten_stream` method.
+/// Stream for the [`flatten_stream`](super::FutureExt::flatten_stream)
+/// combinator.
 #[must_use = "streams do nothing unless polled"]
 pub struct FlattenStream<Fut: Future> {
     state: State<Fut>

@@ -4,11 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream which "fuse"s a stream once it's terminated.
-///
-/// Normally streams can behave unpredictably when used after they have already
-/// finished, but `Fuse` continues to return `None` from `poll` forever when
-/// finished.
+/// Stream for the [`fuse`](super::StreamExt::fuse) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Fuse<St> {

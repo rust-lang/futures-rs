@@ -3,9 +3,7 @@ use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Waker, Poll};
 
-/// A future which is never resolved.
-///
-/// This future can be created with the [`empty()`] function.
+/// Future for the [`empty`] combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Empty<T> {

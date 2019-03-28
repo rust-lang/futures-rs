@@ -4,8 +4,7 @@ use futures_core::future::Future;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
-/// Future for the `close` combinator, which polls the sink until all data has
-/// been closed.
+/// Future for the [`close`](super::SinkExt::close) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Close<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {

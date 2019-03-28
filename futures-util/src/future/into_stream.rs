@@ -4,8 +4,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// A type which converts a `Future` into a `Stream`
-/// containing a single element.
+/// Stream for the [`into_stream`](super::FutureExt::into_stream) combinator.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct IntoStream<Fut: Future> {

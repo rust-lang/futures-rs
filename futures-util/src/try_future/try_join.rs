@@ -104,27 +104,15 @@ macro_rules! generate {
 }
 
 generate! {
-    /// Future for the `try_join` combinator, waiting for two futures to
-    /// complete or for one to error.
-    ///
-    /// This is created by the `TryFuture::try_join` method.
+    /// Future for the [`try_join`](super::TryFutureExt::try_join) combinator.
     (TryJoin, <Fut1, Fut2>),
 
-    /// Future for the `try_join3` combinator, waiting for three futures to
-    /// complete or for one to error.
-    ///
-    /// This is created by the `TryFuture::try_join3` method.
+    /// Future for the [`try_join3`](super::TryFutureExt::try_join3) combinator.
     (TryJoin3, <Fut1, Fut2, Fut3>),
 
-    /// Future for the `try_join4` combinator, waiting for four futures to
-    /// complete or for one to error.
-    ///
-    /// This is created by the `TryFuture::try_join4` method.
+    /// Future for the [`try_join4`](super::TryFutureExt::try_join4) combinator.
     (TryJoin4, <Fut1, Fut2, Fut3, Fut4>),
 
-    /// Future for the `try_join5` combinator, waiting for five futures to
-    /// complete or for one to error.
-    ///
-    /// This is created by the `TryFuture::try_join5` method.
+    /// Future for the [`try_join5`](super::TryFutureExt::try_join5) combinator.
     (TryJoin5, <Fut1, Fut2, Fut3, Fut4, Fut5>),
 }

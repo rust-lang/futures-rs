@@ -5,12 +5,7 @@ use std::boxed::Box;
 use std::io;
 use std::pin::Pin;
 
-/// A future which will copy all data from a reader into a writer.
-///
-/// Created by the [`copy_into`] function, this future will resolve to the number of
-/// bytes copied or an error if one happens.
-///
-/// [`copy_into`]: fn.copy_into.html
+/// Future for the [`copy_into`](super::AsyncReadExt::copy_into) combinator.
 #[derive(Debug)]
 pub struct CopyInto<'a, R: ?Sized + Unpin, W: ?Sized + Unpin> {
     reader: &'a mut R,

@@ -5,12 +5,7 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 
-/// A future which can be used to easily read exactly enough bytes to fill
-/// a buffer.
-///
-/// Created by the [`read_exact`] function.
-///
-/// [`read_exact`]: fn.read_exact.html
+/// Future for the [`read_exact`](super::AsyncReadExt::read_exact) combinator.
 #[derive(Debug)]
 pub struct ReadExact<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,

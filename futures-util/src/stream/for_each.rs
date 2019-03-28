@@ -4,10 +4,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which executes a unit closure over each item on a
-/// stream.
-///
-/// This structure is returned by the `Stream::for_each` method.
+/// Future for the [`for_each`](super::StreamExt::for_each) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct ForEach<St, Fut, F> {

@@ -5,9 +5,7 @@ use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A future which attempts to collect all of the values of a stream.
-///
-/// This future is created by the `Stream::try_collect` method.
+/// Future for the [`try_collect`](super::TryStreamExt::try_collect) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryCollect<St, C> {
