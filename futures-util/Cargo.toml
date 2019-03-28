@@ -21,7 +21,7 @@ compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
 bench = []
 nightly = ["futures-core-preview/nightly", "futures-sink-preview/nightly"]
-cfg-target-has-atomic = []
+cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
 alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc"]
 
 [dependencies]
