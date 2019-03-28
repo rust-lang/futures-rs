@@ -195,12 +195,13 @@ pub mod future {
         maybe_done, MaybeDone,
         poll_fn, PollFn,
         ready, ok, err, Ready,
+        join, join3, join4, join5,
+        Join, Join3, Join4, Join5,
 
         OptionFuture,
 
         FutureExt,
-        FlattenStream, Flatten, Fuse, Inspect, IntoStream, Join, Join3, Join4,
-        Join5, Map, Then,
+        FlattenStream, Flatten, Fuse, Inspect, IntoStream, Map, Then,
     };
 
     #[cfg(feature = "alloc")]
@@ -225,10 +226,12 @@ pub mod future {
     };
 
     pub use futures_util::try_future::{
+        try_join, try_join3, try_join4, try_join5,
+        TryJoin, TryJoin3, TryJoin4, TryJoin5,
+
         TryFutureExt,
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
         UnwrapOrElse,
-        TryJoin, TryJoin3, TryJoin4, TryJoin5,
     };
 
     #[cfg(feature = "alloc")]

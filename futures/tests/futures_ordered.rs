@@ -2,7 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureExt, FutureObj};
+use futures::future::{self, join, FutureExt, FutureObj};
 use futures::stream::{StreamExt, FuturesOrdered};
 use futures::task::Context;
 use futures_test::task::noop_waker_ref;
@@ -36,7 +36,7 @@ fn works_2() {
 
     let mut stream = vec![
         FutureObj::new(Box::new(a_rx)),
-        FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
+        FutureObj::new(Box::new(join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)))),
     ].into_iter().collect::<FuturesOrdered<_>>();
 
     let mut cx = Context::from_waker(noop_waker_ref());

@@ -46,7 +46,7 @@ macro_rules! generate {
                 $Fut: TryFuture<Error=Fut1::Error>
             ),*
         {
-            pub(super) fn new(Fut1: Fut1, $($Fut: $Fut),*) -> $Join<Fut1, $($Fut),*> {
+            fn new(Fut1: Fut1, $($Fut: $Fut),*) -> $Join<Fut1, $($Fut),*> {
                 $Join {
                     Fut1: maybe_done(TryFutureExt::into_future(Fut1)),
                     $($Fut: maybe_done(TryFutureExt::into_future($Fut))),*
@@ -104,15 +104,166 @@ macro_rules! generate {
 }
 
 generate! {
-    /// Future for the [`try_join`](super::TryFutureExt::try_join) method.
+    /// Future for the [`try_join`](try_join()) function.
     (TryJoin, <Fut1, Fut2>),
 
-    /// Future for the [`try_join3`](super::TryFutureExt::try_join3) method.
+    /// Future for the [`try_join3`] function.
     (TryJoin3, <Fut1, Fut2, Fut3>),
 
-    /// Future for the [`try_join4`](super::TryFutureExt::try_join4) method.
+    /// Future for the [`try_join4`] function.
     (TryJoin4, <Fut1, Fut2, Fut3, Fut4>),
 
-    /// Future for the [`try_join5`](super::TryFutureExt::try_join5) method.
+    /// Future for the [`try_join5`] function.
     (TryJoin5, <Fut1, Fut2, Fut3, Fut4, Fut5>),
+}
+
+/// Joins the result of two futures, waiting for them both to complete or
+/// for one to produce an error.
+///
+/// This function will return a new future which awaits both futures to
+/// complete. If successful, the returned future will finish with a tuple of
+/// both results. If unsuccesful, it will complete with the first error
+/// encountered.
+///
+/// Note that this function consumes the passed futures and returns a
+/// wrapped version of it.
+///
+/// # Examples
+///
+/// When used on multiple futures that return [`Ok`], `try_join` will return
+/// [`Ok`] of a tuple of the values:
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future;
+///
+/// let a = future::ready(Ok::<i32, i32>(1));
+/// let b = future::ready(Ok::<i32, i32>(2));
+/// let pair = future::try_join(a, b);
+///
+/// assert_eq!(await!(pair), Ok((1, 2)));
+/// # });
+/// ```
+///
+/// If one of the futures resolves to an error, `try_join` will return
+/// that error:
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future;
+///
+/// let a = future::ready(Ok::<i32, i32>(1));
+/// let b = future::ready(Err::<i32, i32>(2));
+/// let pair = future::try_join(a, b);
+///
+/// assert_eq!(await!(pair), Err(2));
+/// # });
+/// ```
+pub fn try_join<Fut1, Fut2>(future1: Fut1, future2: Fut2) -> TryJoin<Fut1, Fut2>
+where
+    Fut1: TryFuture,
+    Fut2: TryFuture<Error = Fut1::Error>,
+{
+    TryJoin::new(future1, future2)
+}
+
+/// Same as [`try_join`](try_join()), but with more futures.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future;
+///
+/// let a = future::ready(Ok::<i32, i32>(1));
+/// let b = future::ready(Ok::<i32, i32>(2));
+/// let c = future::ready(Ok::<i32, i32>(3));
+/// let tuple = future::try_join3(a, b, c);
+///
+/// assert_eq!(await!(tuple), Ok((1, 2, 3)));
+/// # });
+/// ```
+pub fn try_join3<Fut1, Fut2, Fut3>(
+    future1: Fut1,
+    future2: Fut2,
+    future3: Fut3,
+) -> TryJoin3<Fut1, Fut2, Fut3>
+where
+    Fut1: TryFuture,
+    Fut2: TryFuture<Error = Fut1::Error>,
+    Fut3: TryFuture<Error = Fut1::Error>,
+{
+    TryJoin3::new(future1, future2, future3)
+}
+
+/// Same as [`try_join`](try_join()), but with more futures.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future;
+///
+/// let a = future::ready(Ok::<i32, i32>(1));
+/// let b = future::ready(Ok::<i32, i32>(2));
+/// let c = future::ready(Ok::<i32, i32>(3));
+/// let d = future::ready(Ok::<i32, i32>(4));
+/// let tuple = future::try_join4(a, b, c, d);
+///
+/// assert_eq!(await!(tuple), Ok((1, 2, 3, 4)));
+/// # });
+/// ```
+pub fn try_join4<Fut1, Fut2, Fut3, Fut4>(
+    future1: Fut1,
+    future2: Fut2,
+    future3: Fut3,
+    future4: Fut4,
+) -> TryJoin4<Fut1, Fut2, Fut3, Fut4>
+where
+    Fut1: TryFuture,
+    Fut2: TryFuture<Error = Fut1::Error>,
+    Fut3: TryFuture<Error = Fut1::Error>,
+    Fut4: TryFuture<Error = Fut1::Error>,
+{
+    TryJoin4::new(future1, future2, future3, future4)
+}
+
+/// Same as [`try_join`](try_join()), but with more futures.
+///
+/// # Examples
+///
+/// ```
+/// #![feature(async_await, await_macro, futures_api)]
+/// # futures::executor::block_on(async {
+/// use futures::future;
+///
+/// let a = future::ready(Ok::<i32, i32>(1));
+/// let b = future::ready(Ok::<i32, i32>(2));
+/// let c = future::ready(Ok::<i32, i32>(3));
+/// let d = future::ready(Ok::<i32, i32>(4));
+/// let e = future::ready(Ok::<i32, i32>(5));
+/// let tuple = future::try_join5(a, b, c, d, e);
+///
+/// assert_eq!(await!(tuple), Ok((1, 2, 3, 4, 5)));
+/// # });
+/// ```
+pub fn try_join5<Fut1, Fut2, Fut3, Fut4, Fut5>(
+    future1: Fut1,
+    future2: Fut2,
+    future3: Fut3,
+    future4: Fut4,
+    future5: Fut5,
+) -> TryJoin5<Fut1, Fut2, Fut3, Fut4, Fut5>
+where
+    Fut1: TryFuture,
+    Fut2: TryFuture<Error = Fut1::Error>,
+    Fut3: TryFuture<Error = Fut1::Error>,
+    Fut4: TryFuture<Error = Fut1::Error>,
+    Fut5: TryFuture<Error = Fut1::Error>,
+{
+    TryJoin5::new(future1, future2, future3, future4, future5)
 }
