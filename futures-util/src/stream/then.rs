@@ -5,10 +5,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which chains a computation onto each item produced by a
-/// stream.
-///
-/// This structure is produced by the `Stream::then` method.
+/// Stream for the [`then`](super::StreamExt::then) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Then<St, Fut, F> {

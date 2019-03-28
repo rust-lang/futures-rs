@@ -7,12 +7,8 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::fmt;
 use core::pin::Pin;
 
-/// An adaptor for a stream of futures to execute the futures concurrently, if
-/// possible, delivering results as they become available.
-///
-/// This adaptor will buffer up a list of pending futures, and then return their
-/// results in the order that they complete. This is created by the
-/// `Stream::buffer_unordered` method.
+/// Stream for the [`buffer_unordered`](super::StreamExt::buffer_unordered)
+/// combinator.
 #[must_use = "streams do nothing unless polled"]
 pub struct BufferUnordered<St>
 where

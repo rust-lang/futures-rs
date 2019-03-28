@@ -5,9 +5,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A future which collects all of the values of a stream into a vector.
-///
-/// This future is created by the `Stream::collect` method.
+/// Future for the [`collect`](super::StreamExt::collect) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Collect<St, C> {

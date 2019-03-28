@@ -5,12 +5,7 @@ use std::io;
 use std::pin::Pin;
 use std::vec::Vec;
 
-/// A future which can be used to easily read the entire contents of a stream
-/// into a vector.
-///
-/// Created by the [`read_to_end`] function.
-///
-/// [`read_to_end`]: fn.read_to_end.html
+/// Future for the [`read_to_end`](super::AsyncReadExt::read_to_end) combinator.
 #[derive(Debug)]
 pub struct ReadToEnd<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,

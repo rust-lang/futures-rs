@@ -3,9 +3,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Future for the `map` combinator, changing the type of a future.
-///
-/// This is created by the `Future::map` method.
+/// Future for the [`map`](super::FutureExt::map) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Map<Fut, F> {

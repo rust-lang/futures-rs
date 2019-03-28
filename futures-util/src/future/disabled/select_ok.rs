@@ -7,11 +7,7 @@ use std::prelude::v1::*;
 use futures_core::{Future, IntoFuture, Poll, Async};
 use futures_core::task;
 
-/// Future for the `select_ok` combinator, waiting for one of any of a list of
-/// futures to successfully complete. Unlike `select_all`, this future ignores all
-/// but the last error, if there are any.
-///
-/// This is created by the `select_ok` function.
+/// Future for the [`select_ok`] combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectOk<A> where A: Future {

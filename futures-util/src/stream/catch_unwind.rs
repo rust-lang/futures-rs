@@ -6,9 +6,7 @@ use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 use std::prelude::v1::*;
 
-/// Stream for the `catch_unwind` combinator.
-///
-/// This is created by the `Stream::catch_unwind` method.
+/// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct CatchUnwind<St: Stream> {

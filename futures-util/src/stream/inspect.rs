@@ -4,9 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Do something with the items of a stream, passing it on.
-///
-/// This is created by the `Stream::inspect` method.
+/// Stream for the [`inspect`](super::StreamExt::inspect) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Inspect<St, F> where St: Stream {

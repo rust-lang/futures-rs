@@ -4,8 +4,7 @@ use futures_core::task::{Waker, Poll};
 use std::io;
 use std::pin::Pin;
 
-/// A future which can be used to easily read available number of bytes to fill
-/// a buffer.
+/// Future for the [`read`](super::AsyncReadExt::read) combinator.
 #[derive(Debug)]
 pub struct Read<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,

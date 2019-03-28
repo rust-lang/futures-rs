@@ -4,10 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which will change the type of a stream from one
-/// type to another.
-///
-/// This is produced by the `Stream::map` method.
+/// Stream for the [`map`](super::StreamExt::map) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Map<St, F> {

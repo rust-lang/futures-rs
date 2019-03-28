@@ -6,8 +6,7 @@ use {Poll, Stream};
 
 use io::AsyncRead;
 
-/// Combinator created by the top-level `lines` method which is a stream over
-/// the lines of text on an I/O object.
+/// Future for the [`lines`] combinator.
 #[derive(Debug)]
 pub struct Lines<A> {
     io: A,

@@ -4,7 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::{Sink};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Sink for the `Sink::sink_map_err` combinator.
+/// Sink for the [`sink_map_err`](super::SinkExt::sink_map_err) combinator.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct SinkMapErr<Si, F> {

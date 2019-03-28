@@ -3,9 +3,7 @@ use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// A stream which contains no elements.
-///
-/// This stream can be created with the `stream::empty` function.
+/// Stream for the [`empty`] combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Empty<T> {

@@ -9,9 +9,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
 
-/// A future that is cloneable and can be polled in multiple threads.
-/// Use the [`shared`](crate::FutureExt::shared) combinator method to convert
-/// any future into a `Shared` future.
+/// Future for the [`shared`](super::FutureExt::shared) combinator.
 #[must_use = "futures do nothing unless polled"]
 pub struct Shared<Fut: Future> {
     inner: Option<Arc<Inner<Fut>>>,

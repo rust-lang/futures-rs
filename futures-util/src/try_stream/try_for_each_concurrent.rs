@@ -7,12 +7,9 @@ use futures_core::stream::TryStream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which executes a unit closure over each item on a
-/// stream concurrently.
-///
-/// This structure is returned by the
-/// [`TryStreamExt::try_for_each_concurrent`](super::TryStreamExt::try_for_each_concurrent)
-/// method.
+/// Future for the
+/// [`try_for_each_concurrent`](super::TryStreamExt::try_for_each_concurrent)
+/// combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryForEachConcurrent<St, Fut, F> {

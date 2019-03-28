@@ -4,9 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which returns a maximum number of elements.
-///
-/// This structure is produced by the `Stream::take` method.
+/// Stream for the [`take`](super::StreamExt::take) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Take<St> {

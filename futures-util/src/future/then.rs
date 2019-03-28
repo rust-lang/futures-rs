@@ -4,10 +4,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Future for the `then` combinator, chaining computations on the end of
-/// another future regardless of its outcome.
-///
-/// This is created by the `Future::then` method.
+/// Future for the [`then`](super::FutureExt::then) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Then<Fut1, Fut2, F> {

@@ -5,11 +5,7 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 
-/// A future used to write the entire contents of some data to a stream.
-///
-/// This is created by the [`write_all`] top-level method.
-///
-/// [`write_all`]: fn.write_all.html
+/// Future for the [`write_all`](super::AsyncWriteExt::write_all) combinator.
 #[derive(Debug)]
 pub struct WriteAll<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,

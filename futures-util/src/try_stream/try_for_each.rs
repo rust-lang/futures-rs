@@ -4,10 +4,8 @@ use futures_core::stream::TryStream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A stream combinator which attempts to execute an async closure over each
-/// future in a stream.
-///
-/// This future is returned by the `TryStream::try_for_each` method.
+/// Future for the [`try_for_each`](super::TryStreamExt::try_for_each)
+/// combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryForEach<St, Fut, F> {

@@ -6,9 +6,7 @@ use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
 use std::prelude::v1::*;
 
-/// Future for the `catch_unwind` combinator.
-///
-/// This is created by the `Future::catch_unwind` method.
+/// Future for the [`catch_unwind`](super::FutureExt::catch_unwind) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct CatchUnwind<Fut> where Fut: Future {

@@ -68,27 +68,15 @@ macro_rules! generate {
 }
 
 generate! {
-    /// Future for the `join` combinator, waiting for two futures to
-    /// complete.
-    ///
-    /// This is created by the `Future::join` method.
+    /// Future for the [`join`](super::FutureExt::join) combinator.
     (Join, <Fut1, Fut2>),
 
-    /// Future for the `join3` combinator, waiting for three futures to
-    /// complete.
-    ///
-    /// This is created by the `Future::join3` method.
+    /// Future for the [`join3`](super::FutureExt::join3) combinator.
     (Join3, <Fut1, Fut2, Fut3>),
 
-    /// Future for the `join4` combinator, waiting for four futures to
-    /// complete.
-    ///
-    /// This is created by the `Future::join4` method.
+    /// Future for the [`join4`](super::FutureExt::join4) combinator.
     (Join4, <Fut1, Fut2, Fut3, Fut4>),
 
-    /// Future for the `join5` combinator, waiting for five futures to
-    /// complete.
-    ///
-    /// This is created by the `Future::join5` method.
+    /// Future for the [`join5`](super::FutureExt::join5) combinator.
     (Join5, <Fut1, Fut2, Fut3, Fut4, Fut5>),
 }

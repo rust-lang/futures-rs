@@ -59,10 +59,7 @@ enum FinalState<E = ()> {
     Error(E)
 }
 
-/// A future which takes a list of futures and resolves with a vector of the
-/// completed values or an error.
-///
-/// This future is created with the `try_join_all` function.
+/// Future for the [`try_join_all`] combinator.
 #[must_use = "futures do nothing unless polled"]
 pub struct TryJoinAll<F>
 where

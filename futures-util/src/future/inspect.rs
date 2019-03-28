@@ -3,9 +3,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Do something with the item of a future, passing it on.
-///
-/// This is created by the [`super::FutureExt::inspect`] method.
+/// Future for the [`inspect`](super::FutureExt::inspect) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Inspect<Fut, F> where Fut: Future {

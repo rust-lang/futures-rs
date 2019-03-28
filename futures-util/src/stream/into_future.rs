@@ -3,9 +3,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// A combinator used to temporarily convert a stream into a future.
-///
-/// This future is returned by the `Stream::into_future` method.
+/// Future for the [`into_future`](super::StreamExt::into_future) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct StreamFuture<St> {

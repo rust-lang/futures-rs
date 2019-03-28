@@ -5,11 +5,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Future for the `flatten` combinator.
-///
-/// This combinator turns a `Future`-of-a-`Future` into a single `Future`.
-///
-/// This is created by the `Future::flatten` method.
+/// Future for the [`flatten`](super::FutureExt::flatten) combinator.
 #[must_use = "futures do nothing unless polled"]
 pub struct Flatten<Fut>
     where Fut: Future,

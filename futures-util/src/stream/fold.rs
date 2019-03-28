@@ -4,9 +4,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// A future used to collect all the results of a stream into one generic type.
-///
-/// This future is returned by the `Stream::fold` method.
+/// Future for the [`fold`](super::StreamExt::fold) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Fold<St, Fut, T, F> {

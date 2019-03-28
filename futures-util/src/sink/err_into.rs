@@ -5,9 +5,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::{Sink};
 use pin_utils::unsafe_pinned;
 
-/// A sink combinator to change the error type of a sink.
-///
-/// This is created by the `Sink::err_into` method.
+/// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) combinator.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SinkErrInto<Si: Sink<Item>, Item, E> {

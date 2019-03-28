@@ -4,10 +4,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// An adapter for merging the output of two streams.
-///
-/// The merged stream produces items from one or both of the underlying
-/// streams as they become available.
+/// Stream for the [`zip`](super::StreamExt::zip) combinator.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Zip<St1: Stream, St2: Stream> {
