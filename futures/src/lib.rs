@@ -22,6 +22,7 @@
 //! completion, but *do not block* the thread running them.
 
 #![feature(futures_api)]
+#![cfg_attr(feature = "std", feature(iovec))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -255,7 +256,7 @@ pub mod io {
     //! sinks.
 
     pub use futures_io::{
-        Error, Initializer, IoVec, ErrorKind, AsyncRead, AsyncWrite, Result
+        Error, Initializer, IoVec, IoVecMut, ErrorKind, AsyncRead, AsyncWrite, Result
     };
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AllowStdIo, Close, CopyInto, Flush,

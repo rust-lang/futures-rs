@@ -3,7 +3,7 @@
 
 #![feature(futures_api)]
 #![cfg_attr(feature = "alloc", feature(box_into_pin))]
-#![cfg_attr(feature = "std", feature(async_await, await_macro))]
+#![cfg_attr(feature = "std", feature(async_await, await_macro, iovec))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]

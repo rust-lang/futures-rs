@@ -11,6 +11,7 @@
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures_io")]
 
 #![feature(futures_api)]
+#![cfg_attr(feature = "std", feature(iovec))]
 
 #[cfg(feature = "std")]
 mod if_std {
@@ -21,8 +22,8 @@ mod if_std {
     use std::pin::Pin;
     use std::ptr;
 
-    // Re-export IoVec for convenience
-    pub use iovec::IoVec;
+    // Re-export IoVec and IoVecMut for convenience
+    pub use self::StdIo::{IoVec, IoVecMut};
 
     // Re-export io::Error so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
@@ -134,7 +135,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
             -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
@@ -195,7 +196,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
             if let Some(ref first_iovec) = vec.get(0) {
@@ -254,7 +255,7 @@ mod if_std {
                 Pin::new(&mut **self).poll_read(cx, buf)
             }
 
-            fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+            fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
                 -> Poll<Result<usize>>
             {
                 Pin::new(&mut **self).poll_vectored_read(cx, vec)
@@ -281,7 +282,7 @@ mod if_std {
             T::poll_read((*self).as_mut(), cx, buf)
         }
 
-        fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+        fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
             -> Poll<Result<usize>>
         {
             T::poll_vectored_read((*self).as_mut(), cx, vec)
@@ -324,7 +325,7 @@ mod if_std {
                 Pin::new(&mut **self).poll_write(cx, buf)
             }
 
-            fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+            fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
                 -> Poll<Result<usize>>
             {
                 Pin::new(&mut **self).poll_vectored_write(cx, vec)
@@ -355,7 +356,7 @@ mod if_std {
             T::poll_write((*self).as_mut(), cx, buf)
         }
 
-        fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+        fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
             T::poll_vectored_write((*self).as_mut(), cx, vec)
