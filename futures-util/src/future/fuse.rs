@@ -3,7 +3,7 @@ use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Future for the [`fuse`](super::FutureExt::fuse) combinator.
+/// Future for the [`fuse`](super::FutureExt::fuse) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Fuse<Fut: Future> {

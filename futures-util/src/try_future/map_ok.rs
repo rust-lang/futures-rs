@@ -3,7 +3,7 @@ use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Future for the [`map_ok`](super::TryFutureExt::map_ok) combinator.
+/// Future for the [`map_ok`](super::TryFutureExt::map_ok) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct MapOk<Fut, F> {

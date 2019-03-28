@@ -3,7 +3,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Stream for the [`chain`](super::StreamExt::chain) combinator.
+/// Stream for the [`chain`](super::StreamExt::chain) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Chain<St1, St2> {

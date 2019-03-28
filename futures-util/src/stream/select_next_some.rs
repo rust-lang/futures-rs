@@ -5,7 +5,7 @@ use futures_core::task::{Waker, Poll};
 use crate::stream::StreamExt;
 
 /// Future for the [`select_next_some`](super::StreamExt::select_next_some)
-/// combinator.
+/// method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectNextSome<'a, St> {

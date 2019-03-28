@@ -3,7 +3,7 @@ use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{Waker, Poll};
 use core::pin::Pin;
 
-/// Future for the [`try_next`](super::TryStreamExt::try_next) combinator.
+/// Future for the [`try_next`](super::TryStreamExt::try_next) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryNext<'a, St: Unpin> {

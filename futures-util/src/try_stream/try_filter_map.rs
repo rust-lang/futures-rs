@@ -5,7 +5,7 @@ use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`try_filter_map`](super::TryStreamExt::try_filter_map)
-/// combinator.
+/// method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryFilterMap<St, Fut, F> {

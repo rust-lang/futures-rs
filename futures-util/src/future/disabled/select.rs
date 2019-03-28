@@ -3,7 +3,7 @@ use futures_core::task;
 
 use either::Either;
 
-/// Future for the [`select`](super::FutureExt::select) combinator.
+/// Future for the [`select`](super::FutureExt::select) method.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct Select<A, B> {

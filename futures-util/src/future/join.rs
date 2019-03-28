@@ -68,15 +68,15 @@ macro_rules! generate {
 }
 
 generate! {
-    /// Future for the [`join`](super::FutureExt::join) combinator.
+    /// Future for the [`join`](super::FutureExt::join) method.
     (Join, <Fut1, Fut2>),
 
-    /// Future for the [`join3`](super::FutureExt::join3) combinator.
+    /// Future for the [`join3`](super::FutureExt::join3) method.
     (Join3, <Fut1, Fut2, Fut3>),
 
-    /// Future for the [`join4`](super::FutureExt::join4) combinator.
+    /// Future for the [`join4`](super::FutureExt::join4) method.
     (Join4, <Fut1, Fut2, Fut3, Fut4>),
 
-    /// Future for the [`join5`](super::FutureExt::join5) combinator.
+    /// Future for the [`join5`](super::FutureExt::join5) method.
     (Join5, <Fut1, Fut2, Fut3, Fut4, Fut5>),
 }

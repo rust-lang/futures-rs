@@ -59,7 +59,7 @@ enum FinalState<E = ()> {
     Error(E)
 }
 
-/// Future for the [`try_join_all`] combinator.
+/// Future for the [`try_join_all`] function.
 #[must_use = "futures do nothing unless polled"]
 pub struct TryJoinAll<F>
 where

@@ -9,7 +9,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::{Arc, Mutex};
 
-/// Future for the [`shared`](super::FutureExt::shared) combinator.
+/// Future for the [`shared`](super::FutureExt::shared) method.
 #[must_use = "futures do nothing unless polled"]
 pub struct Shared<Fut: Future> {
     inner: Option<Arc<Inner<Fut>>>,

@@ -6,7 +6,7 @@ use {Poll, Stream};
 
 use io::AsyncRead;
 
-/// Future for the [`lines`] combinator.
+/// Future for the [`lines`] function.
 #[derive(Debug)]
 pub struct Lines<A> {
     io: A,

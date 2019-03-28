@@ -6,7 +6,7 @@ use {Poll, Future};
 
 use io::AsyncRead;
 
-/// Future for the [`read_until`] combinator.
+/// Future for the [`read_until`] function.
 #[derive(Debug)]
 pub struct ReadUntil<A> {
     state: State<A>,

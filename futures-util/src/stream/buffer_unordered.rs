@@ -8,7 +8,7 @@ use core::fmt;
 use core::pin::Pin;
 
 /// Stream for the [`buffer_unordered`](super::StreamExt::buffer_unordered)
-/// combinator.
+/// method.
 #[must_use = "streams do nothing unless polled"]
 pub struct BufferUnordered<St>
 where

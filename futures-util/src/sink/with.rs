@@ -7,7 +7,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Sink for the [`with`](super::SinkExt::with) combinator.
+/// Sink for the [`with`](super::SinkExt::with) method.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct With<Si, Item, U, Fut, F>

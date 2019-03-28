@@ -5,7 +5,7 @@ use std::io;
 use std::pin::Pin;
 use std::vec::Vec;
 
-/// Future for the [`read_to_end`](super::AsyncReadExt::read_to_end) combinator.
+/// Future for the [`read_to_end`](super::AsyncReadExt::read_to_end) method.
 #[derive(Debug)]
 pub struct ReadToEnd<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,

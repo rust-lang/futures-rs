@@ -58,7 +58,7 @@ pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
     }
 }
 
-/// Stream for the [`unfold`] combinator.
+/// Stream for the [`unfold`] function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Unfold<T, F, Fut> {

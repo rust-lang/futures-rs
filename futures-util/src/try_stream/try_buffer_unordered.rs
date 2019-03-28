@@ -8,8 +8,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::pin::Pin;
 
 /// Stream for the
-/// [`try_buffer_unordered`](super::TryStreamExt::try_buffer_unordered)
-/// combinator.
+/// [`try_buffer_unordered`](super::TryStreamExt::try_buffer_unordered) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryBufferUnordered<St>

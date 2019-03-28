@@ -4,7 +4,7 @@ use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
 
-/// Future for the [`close`](super::AsyncWriteExt::close) combinator.
+/// Future for the [`close`](super::AsyncWriteExt::close) method.
 #[derive(Debug)]
 pub struct Close<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,

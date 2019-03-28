@@ -4,7 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Stream for the [`map_err`](super::TryStreamExt::map_err) combinator.
+/// Stream for the [`map_err`](super::TryStreamExt::map_err) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct MapErr<St, F> {

@@ -3,7 +3,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 
-/// Future for the [`next`](super::StreamExt::next) combinator.
+/// Future for the [`next`](super::StreamExt::next) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Next<'a, St> {

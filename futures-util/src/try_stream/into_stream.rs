@@ -3,7 +3,7 @@ use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Stream for the [`into_stream`](super::TryStreamExt::into_stream) combinator.
+/// Stream for the [`into_stream`](super::TryStreamExt::into_stream) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct IntoStream<St> {

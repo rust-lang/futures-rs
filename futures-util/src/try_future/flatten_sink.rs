@@ -11,8 +11,7 @@ enum State<Fut, Si> {
 }
 use self::State::*;
 
-/// Future for the [`flatten_sink`](super::TryFutureExt::flatten_sink)
-/// combinator.
+/// Future for the [`flatten_sink`](super::TryFutureExt::flatten_sink) method.
 #[derive(Debug)]
 pub struct FlattenSink<Fut, Si>(State<Fut, Si>);
 

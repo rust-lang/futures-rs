@@ -5,7 +5,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::pin::Pin;
 use alloc::collections::VecDeque;
 
-/// Sink for the [`buffer`](super::SinkExt::buffer) combinator.
+/// Sink for the [`buffer`](super::SinkExt::buffer) method.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct Buffer<Si: Sink<Item>, Item> {

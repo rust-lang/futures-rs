@@ -3,7 +3,7 @@ use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
 use futures_core::task::{Waker, Poll};
 
-/// Future for the [`empty`] combinator.
+/// Future for the [`empty`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Empty<T> {

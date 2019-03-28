@@ -5,7 +5,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Future for the [`flatten`](super::FutureExt::flatten) combinator.
+/// Future for the [`flatten`](super::FutureExt::flatten) method.
 #[must_use = "futures do nothing unless polled"]
 pub struct Flatten<Fut>
     where Fut: Future,

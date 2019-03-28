@@ -6,7 +6,7 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`try_skip_while`](super::TryStreamExt::try_skip_while)
-/// combinator.
+/// method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TrySkipWhile<St, Fut, F> where St: TryStream {

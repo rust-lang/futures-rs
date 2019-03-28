@@ -4,7 +4,7 @@ use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
 
-/// Future for the [`flush`](super::AsyncWriteExt::flush) combinator.
+/// Future for the [`flush`](super::AsyncWriteExt::flush) method.
 #[derive(Debug)]
 pub struct Flush<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,

@@ -5,7 +5,7 @@ use futures_core::stream::TryStream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Future for the [`try_concat`](super::TryStreamExt::try_concat) combinator.
+/// Future for the [`try_concat`](super::TryStreamExt::try_concat) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryConcat<St: TryStream> {

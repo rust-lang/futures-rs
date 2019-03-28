@@ -5,7 +5,7 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 
-/// Future for the [`read_exact`](super::AsyncReadExt::read_exact) combinator.
+/// Future for the [`read_exact`](super::AsyncReadExt::read_exact) method.
 #[derive(Debug)]
 pub struct ReadExact<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,

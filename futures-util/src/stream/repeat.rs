@@ -2,7 +2,7 @@ use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// Stream for the [`repeat`] combinator.
+/// Stream for the [`repeat`] function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Repeat<T> {
