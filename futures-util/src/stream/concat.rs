@@ -6,7 +6,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Future for the [`concat`](super::StreamExt::concat) combinator.
+/// Future for the [`concat`](super::StreamExt::concat) method.
 #[must_use = "streams do nothing unless polled"]
 pub struct Concat<St: Stream> {
     stream: St,

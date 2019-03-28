@@ -4,7 +4,7 @@ use futures_core::task::{Waker, Poll};
 use std::io;
 use std::pin::Pin;
 
-/// Future for the [`read`](super::AsyncReadExt::read) combinator.
+/// Future for the [`read`](super::AsyncReadExt::read) method.
 #[derive(Debug)]
 pub struct Read<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,

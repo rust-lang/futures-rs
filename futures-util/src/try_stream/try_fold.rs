@@ -4,7 +4,7 @@ use futures_core::stream::TryStream;
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Future for the [`try_fold`](super::TryStreamExt::try_fold) combinator.
+/// Future for the [`try_fold`](super::TryStreamExt::try_fold) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryFold<St, Fut, T, F> {

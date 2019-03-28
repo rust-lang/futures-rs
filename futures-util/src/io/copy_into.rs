@@ -5,7 +5,7 @@ use std::boxed::Box;
 use std::io;
 use std::pin::Pin;
 
-/// Future for the [`copy_into`](super::AsyncReadExt::copy_into) combinator.
+/// Future for the [`copy_into`](super::AsyncReadExt::copy_into) method.
 #[derive(Debug)]
 pub struct CopyInto<'a, R: ?Sized + Unpin, W: ?Sized + Unpin> {
     reader: &'a mut R,

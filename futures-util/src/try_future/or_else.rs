@@ -4,7 +4,7 @@ use futures_core::future::{FusedFuture, Future, TryFuture};
 use futures_core::task::{Waker, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Future for the [`or_else`](super::TryFutureExt::or_else) combinator.
+/// Future for the [`or_else`](super::TryFutureExt::or_else) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct OrElse<Fut1, Fut2, F> {

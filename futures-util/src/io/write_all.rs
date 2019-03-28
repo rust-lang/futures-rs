@@ -5,7 +5,7 @@ use std::io;
 use std::mem;
 use std::pin::Pin;
 
-/// Future for the [`write_all`](super::AsyncWriteExt::write_all) combinator.
+/// Future for the [`write_all`](super::AsyncWriteExt::write_all) method.
 #[derive(Debug)]
 pub struct WriteAll<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,

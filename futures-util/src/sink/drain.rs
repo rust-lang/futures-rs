@@ -4,7 +4,7 @@ use core::pin::Pin;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
-/// Sink for the [`drain`] combinator.
+/// Sink for the [`drain`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Drain<T> {

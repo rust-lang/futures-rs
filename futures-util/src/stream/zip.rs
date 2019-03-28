@@ -4,7 +4,7 @@ use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Stream for the [`zip`](super::StreamExt::zip) combinator.
+/// Stream for the [`zip`](super::StreamExt::zip) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Zip<St1: Stream, St2: Stream> {

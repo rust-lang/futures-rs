@@ -5,7 +5,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 
-/// Future for the [`send_all`](super::SinkExt::send_all) combinator.
+/// Future for the [`send_all`](super::SinkExt::send_all) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SendAll<'a, Si, St>

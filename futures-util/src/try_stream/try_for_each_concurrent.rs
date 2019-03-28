@@ -9,7 +9,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the
 /// [`try_for_each_concurrent`](super::TryStreamExt::try_for_each_concurrent)
-/// combinator.
+/// method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TryForEachConcurrent<St, Fut, F> {

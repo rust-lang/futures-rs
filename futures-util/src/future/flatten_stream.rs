@@ -4,8 +4,7 @@ use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 
-/// Stream for the [`flatten_stream`](super::FutureExt::flatten_stream)
-/// combinator.
+/// Stream for the [`flatten_stream`](super::FutureExt::flatten_stream) method.
 #[must_use = "streams do nothing unless polled"]
 pub struct FlattenStream<Fut: Future> {
     state: State<Fut>

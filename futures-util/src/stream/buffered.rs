@@ -7,7 +7,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::fmt;
 use core::pin::Pin;
 
-/// Stream for the [`buffered`](super::StreamExt::buffered) combinator.
+/// Stream for the [`buffered`](super::StreamExt::buffered) method.
 #[must_use = "streams do nothing unless polled"]
 pub struct Buffered<St: Stream>
 where

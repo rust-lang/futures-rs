@@ -4,7 +4,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Stream for the [`skip`](super::StreamExt::skip) combinator.
+/// Stream for the [`skip`](super::StreamExt::skip) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Skip<St> {

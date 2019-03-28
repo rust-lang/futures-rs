@@ -3,7 +3,7 @@ use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Future for the [`inspect`](super::FutureExt::inspect) combinator.
+/// Future for the [`inspect`](super::FutureExt::inspect) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Inspect<Fut, F> where Fut: Future {

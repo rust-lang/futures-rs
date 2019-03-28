@@ -2,7 +2,7 @@ use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Waker, Poll};
 
-/// Future for the [`lazy`] combinator.
+/// Future for the [`lazy`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct Lazy<F> {

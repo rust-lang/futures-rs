@@ -7,7 +7,7 @@ use std::prelude::v1::*;
 use futures_core::{Future, IntoFuture, Poll, Async};
 use futures_core::task;
 
-/// Future for the [`select_ok`] combinator.
+/// Future for the [`select_ok`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SelectOk<A> where A: Future {

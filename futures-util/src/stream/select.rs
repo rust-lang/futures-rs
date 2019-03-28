@@ -3,7 +3,7 @@ use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Waker, Poll};
 
-/// Stream for the [`select`](super::StreamExt::select) combinator.
+/// Stream for the [`select`](super::StreamExt::select) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Select<St1, St2> {

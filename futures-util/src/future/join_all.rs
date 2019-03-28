@@ -55,7 +55,7 @@ fn iter_pin_mut<T>(slice: Pin<&mut [T]>) -> impl Iterator<Item = Pin<&mut T>> {
         .map(|t| unsafe { Pin::new_unchecked(t) })
 }
 
-/// Future for the [`join_all`] combinator.
+/// Future for the [`join_all`] function.
 #[must_use = "futures do nothing unless polled"]
 pub struct JoinAll<F>
 where

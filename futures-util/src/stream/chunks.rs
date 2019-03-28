@@ -7,7 +7,7 @@ use core::mem;
 use core::pin::Pin;
 use alloc::prelude::v1::*;
 
-/// Stream for the [`chunks`](super::StreamExt::chunks) combinator.
+/// Stream for the [`chunks`](super::StreamExt::chunks) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Chunks<St: Stream> {

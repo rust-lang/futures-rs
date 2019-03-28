@@ -8,7 +8,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 const INVALID_POLL: &str = "polled `Forward` after completion";
 
-/// Future for the [`forward`](super::StreamExt::forward) combinator.
+/// Future for the [`forward`](super::StreamExt::forward) method.
 #[derive(Debug)]
 #[must_use = "steams do nothing unless polled"]
 pub struct Forward<St: TryStream, Si: Sink<St::Ok>> {

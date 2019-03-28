@@ -4,7 +4,7 @@ use core::pin::Pin;
 use futures_core::stream::Stream;
 use futures_core::task::{Waker, Poll};
 
-/// Stream for the [`poll_fn`] combinator.
+/// Stream for the [`poll_fn`] function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct PollFn<F> {

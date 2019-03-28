@@ -5,7 +5,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Stream for the [`take_while`](super::StreamExt::take_while) combinator.
+/// Stream for the [`take_while`](super::StreamExt::take_while) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TakeWhile<St: Stream , Fut, F> {

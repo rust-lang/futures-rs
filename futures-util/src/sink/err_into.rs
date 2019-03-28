@@ -5,7 +5,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::{Sink};
 use pin_utils::unsafe_pinned;
 
-/// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) combinator.
+/// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
 pub struct SinkErrInto<Si: Sink<Item>, Item, E> {

@@ -5,7 +5,7 @@ use futures_core::task::{Waker, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) combinator.
+/// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct WithFlatMap<Si, Item, U, St, F>
