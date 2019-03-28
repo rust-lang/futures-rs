@@ -2,7 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, FutureExt, FutureObj};
+use futures::future::{self, join, FutureExt, FutureObj};
 use futures::stream::{StreamExt, FuturesUnordered};
 use futures::task::{Context, Poll};
 use futures_test::{assert_stream_done, assert_stream_next};
@@ -36,7 +36,7 @@ fn works_2() {
 
     let mut stream = vec![
         FutureObj::new(Box::new(a_rx)),
-        FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
+        FutureObj::new(Box::new(join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)))),
     ].into_iter().collect::<FuturesUnordered<_>>();
 
     a_tx.send(9).unwrap();

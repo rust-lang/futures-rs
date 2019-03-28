@@ -89,7 +89,7 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
 #[cfg(test)]
 #[cfg(feature = "std")]
 mod tests {
-    use crate::future::FutureExt;
+    use crate::future::join3;
     use crate::sink::SinkExt;
     use crate::stream::{self, StreamExt};
     use futures_executor::block_on;
@@ -108,7 +108,7 @@ mod tests {
 
         let collect_fut1 = rx1.collect::<Vec<_>>();
         let collect_fut2 = rx2.collect::<Vec<_>>();
-        let (_, vec1, vec2) = block_on(fwd.join3(collect_fut1, collect_fut2));
+        let (_, vec1, vec2) = block_on(join3(fwd, collect_fut1, collect_fut2));
 
         let expected = (0..10).collect::<Vec<_>>();
 

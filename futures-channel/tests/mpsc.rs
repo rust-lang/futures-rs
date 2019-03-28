@@ -2,7 +2,7 @@
 
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{FutureExt, poll_fn};
+use futures::future::{join, poll_fn};
 use futures::stream::{Stream, StreamExt};
 use futures::sink::{Sink, SinkExt};
 use futures::task::{Context, Poll};
@@ -98,10 +98,10 @@ fn send_recv_threads_no_capacity() {
     let mut readyrx = block_on_stream(readyrx);
     let t = thread::spawn(move || {
         let mut readytx = readytx.sink_map_err(|_| panic!());
-        let (send_res_1, send_res_2) = block_on(tx.send(1).join(readytx.send(())));
+        let (send_res_1, send_res_2) = block_on(join(tx.send(1), readytx.send(())));
         send_res_1.unwrap();
         send_res_2.unwrap();
-        block_on(tx.send(2).join(readytx.send(())));
+        block_on(join(tx.send(2), readytx.send(())));
     });
 
     readyrx.next();

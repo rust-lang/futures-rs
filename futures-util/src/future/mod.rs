@@ -33,6 +33,14 @@ pub use self::poll_fn::{poll_fn, PollFn};
 mod ready;
 pub use self::ready::{ready, ok, err, Ready};
 
+mod join;
+pub use self::join::{join, join3, join4, join5, Join, Join3, Join4, Join5};
+
+#[cfg(feature = "alloc")]
+mod join_all;
+#[cfg(feature = "alloc")]
+pub use self::join_all::{join_all, JoinAll};
+
 // Combinators
 mod flatten;
 pub use self::flatten::Flatten;
@@ -45,9 +53,6 @@ pub use self::fuse::Fuse;
 
 mod into_stream;
 pub use self::into_stream::IntoStream;
-
-mod join;
-pub use self::join::{Join, Join3, Join4, Join5};
 
 mod map;
 pub use self::map::Map;
@@ -68,11 +73,6 @@ pub use self::unit_error::UnitError;
 // Implementation details
 mod chain;
 pub(crate) use self::chain::Chain;
-
-#[cfg(feature = "alloc")]
-mod join_all;
-#[cfg(feature = "alloc")]
-pub use self::join_all::{join_all, JoinAll};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
@@ -217,139 +217,6 @@ pub trait FutureExt: Future {
         select::new(self, other.into_future())
     }
     */
-
-    /// Joins the result of two futures, waiting for them both to complete.
-    ///
-    /// This function will return a new future which awaits both this and the
-    /// `other` future to complete. The returned future will finish with a tuple
-    /// of both results.
-    ///
-    /// Note that this function consumes the receiving future and returns a
-    /// wrapped version of it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
-    ///
-    /// let a = future::ready(1);
-    /// let b = future::ready(2);
-    /// let pair = a.join(b);
-    ///
-    /// assert_eq!(await!(pair), (1, 2));
-    /// # });
-    /// ```
-    fn join<Fut2>(self, other: Fut2) -> Join<Self, Fut2>
-    where
-        Fut2: Future,
-        Self: Sized,
-    {
-        let f = Join::new(self, other);
-        assert_future::<(Self::Output, Fut2::Output), _>(f)
-    }
-
-    /// Same as `join`, but with more futures.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
-    ///
-    /// let a = future::ready(1);
-    /// let b = future::ready(2);
-    /// let c = future::ready(3);
-    /// let tuple = a.join3(b, c);
-    ///
-    /// assert_eq!(await!(tuple), (1, 2, 3));
-    /// # });
-    /// ```
-    fn join3<Fut2, Fut3>(
-        self,
-        future2: Fut2,
-        future3: Fut3,
-    ) -> Join3<Self, Fut2, Fut3>
-    where
-        Fut2: Future,
-        Fut3: Future,
-        Self: Sized,
-    {
-        Join3::new(self, future2, future3)
-    }
-
-    /// Same as `join`, but with more futures.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
-    ///
-    /// let a = future::ready(1);
-    /// let b = future::ready(2);
-    /// let c = future::ready(3);
-    /// let d = future::ready(4);
-    /// let tuple = a.join4(b, c, d);
-    ///
-    /// assert_eq!(await!(tuple), (1, 2, 3, 4));
-    /// # });
-    /// ```
-    fn join4<Fut2, Fut3, Fut4>(
-        self,
-        future2: Fut2,
-        future3: Fut3,
-        future4: Fut4,
-    ) -> Join4<Self, Fut2, Fut3, Fut4>
-    where
-        Fut2: Future,
-        Fut3: Future,
-        Fut3: Future,
-        Fut4: Future,
-        Self: Sized,
-    {
-        Join4::new(self, future2, future3, future4)
-    }
-
-    /// Same as `join`, but with more futures.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
-    /// # futures::executor::block_on(async {
-    /// use futures::future::{self, FutureExt};
-    ///
-    /// let a = future::ready(1);
-    /// let b = future::ready(2);
-    /// let c = future::ready(3);
-    /// let d = future::ready(4);
-    /// let e = future::ready(5);
-    /// let tuple = a.join5(b, c, d, e);
-    ///
-    /// assert_eq!(await!(tuple), (1, 2, 3, 4, 5));
-    /// # });
-    /// ```
-    fn join5<Fut2, Fut3, Fut4, Fut5>(
-        self,
-        future2: Fut2,
-        future3: Fut3,
-        future4: Fut4,
-        future5: Fut5,
-    ) -> Join5<Self, Fut2, Fut3, Fut4, Fut5>
-    where
-        Fut2: Future,
-        Fut3: Future,
-        Fut3: Future,
-        Fut4: Future,
-        Fut5: Future,
-        Self: Sized,
-    {
-        Join5::new(self, future2, future3, future4, future5)
-    }
 
     /* ToDo: futures-core cannot implement Future for Either anymore because of
              the orphan rule. Remove? Implement our own `Either`?
