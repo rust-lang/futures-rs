@@ -140,7 +140,7 @@ mod if_std {
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         #[cfg(feature = "iovec")]
-        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
+        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
             -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
@@ -202,7 +202,7 @@ mod if_std {
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         #[cfg(feature = "iovec")]
-        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
+        fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
             if let Some(ref first_iovec) = vec.get(0) {
@@ -262,10 +262,10 @@ mod if_std {
             }
 
             #[cfg(feature = "iovec")]
-            fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
+            fn poll_read_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_vectored_read(cx, vec)
+                Pin::new(&mut **self).poll_read_vectored(cx, vec)
             }
         }
     }
@@ -290,10 +290,10 @@ mod if_std {
         }
 
         #[cfg(feature = "iovec")]
-        fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
+        fn poll_read_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
             -> Poll<Result<usize>>
         {
-            T::poll_vectored_read((*self).as_mut(), cx, vec)
+            T::poll_read_vectored((*self).as_mut(), cx, vec)
         }
     }
 
@@ -312,7 +312,7 @@ mod if_std {
             }
 
             #[cfg(feature = "iovec")]
-            fn poll_vectored_read(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
+            fn poll_read_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Read::read_vectored(&mut *self, vec))
@@ -341,10 +341,10 @@ mod if_std {
             }
 
             #[cfg(feature = "iovec")]
-            fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
+            fn poll_write_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_vectored_write(cx, vec)
+                Pin::new(&mut **self).poll_write_vectored(cx, vec)
             }
 
             fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
@@ -373,10 +373,10 @@ mod if_std {
         }
 
         #[cfg(feature = "iovec")]
-        fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
+        fn poll_write_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
-            T::poll_vectored_write((*self).as_mut(), cx, vec)
+            T::poll_write_vectored((*self).as_mut(), cx, vec)
         }
 
         fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
@@ -397,7 +397,7 @@ mod if_std {
             }
 
             #[cfg(feature = "iovec")]
-            fn poll_vectored_write(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &[IoVec<'_>])
+            fn poll_write_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &[IoVec<'_>])
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Write::write_vectored(&mut *self, vec))
@@ -432,7 +432,7 @@ mod if_std {
         }
 
         #[cfg(feature = "iovec")]
-        fn poll_vectored_write(self: Pin<&mut Self>, _: &mut Context<'_>, vec: &[IoVec<'_>])
+        fn poll_write_vectored(self: Pin<&mut Self>, _: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
             Poll::Ready(StdIo::Write::write_vectored(&mut self.get_mut().get_mut().as_mut(), vec))

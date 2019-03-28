@@ -46,10 +46,10 @@ impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
     }
 
     #[cfg(feature = "iovec")]
-    fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
+    fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_read(cx, vec))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_read_vectored(cx, vec))
     }
 }
 
@@ -61,10 +61,10 @@ impl<W: AsyncWrite> AsyncWrite for WriteHalf<W> {
     }
 
     #[cfg(feature = "iovec")]
-    fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
+    fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_write(cx, vec))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_write_vectored(cx, vec))
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
