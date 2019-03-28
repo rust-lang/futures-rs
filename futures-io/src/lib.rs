@@ -11,7 +11,10 @@
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures_io")]
 
 #![feature(futures_api)]
-#![cfg_attr(feature = "std", feature(iovec))]
+#![cfg_attr(feature = "iovec", feature(iovec))]
+
+#[cfg(all(feature = "iovec", not(feature = "nightly")))]
+compile_error!("The `iovec` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[cfg(feature = "std")]
 mod if_std {
@@ -23,6 +26,7 @@ mod if_std {
     use std::ptr;
 
     // Re-export IoVec and IoVecMut for convenience
+    #[cfg(feature = "iovec")]
     pub use self::StdIo::{IoVec, IoVecMut};
 
     // Re-export io::Error so that users don't have to deal
@@ -135,6 +139,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        #[cfg(feature = "iovec")]
         fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
             -> Poll<Result<usize>>
         {
@@ -196,6 +201,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
+        #[cfg(feature = "iovec")]
         fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
@@ -255,6 +261,7 @@ mod if_std {
                 Pin::new(&mut **self).poll_read(cx, buf)
             }
 
+            #[cfg(feature = "iovec")]
             fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
                 -> Poll<Result<usize>>
             {
@@ -282,6 +289,7 @@ mod if_std {
             T::poll_read((*self).as_mut(), cx, buf)
         }
 
+        #[cfg(feature = "iovec")]
         fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
             -> Poll<Result<usize>>
         {
@@ -301,6 +309,13 @@ mod if_std {
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Read::read(&mut *self, buf))
+            }
+
+            #[cfg(feature = "iovec")]
+            fn poll_vectored_read(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
+                -> Poll<Result<usize>>
+            {
+                Poll::Ready(StdIo::Read::read_vectored(&mut *self, vec))
             }
         }
     }
@@ -325,6 +340,7 @@ mod if_std {
                 Pin::new(&mut **self).poll_write(cx, buf)
             }
 
+            #[cfg(feature = "iovec")]
             fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
                 -> Poll<Result<usize>>
             {
@@ -356,6 +372,7 @@ mod if_std {
             T::poll_write((*self).as_mut(), cx, buf)
         }
 
+        #[cfg(feature = "iovec")]
         fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
             -> Poll<Result<usize>>
         {
@@ -377,6 +394,13 @@ mod if_std {
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Write::write(&mut *self, buf))
+            }
+
+            #[cfg(feature = "iovec")]
+            fn poll_vectored_write(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &[IoVec<'_>])
+                -> Poll<Result<usize>>
+            {
+                Poll::Ready(StdIo::Write::write_vectored(&mut *self, vec))
             }
 
             fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
@@ -405,6 +429,13 @@ mod if_std {
                 self.get_mut().set_position(position + offset as u64);
             }
             Poll::Ready(result)
+        }
+
+        #[cfg(feature = "iovec")]
+        fn poll_vectored_write(self: Pin<&mut Self>, _: &mut Context<'_>, vec: &[IoVec<'_>])
+            -> Poll<Result<usize>>
+        {
+            Poll::Ready(StdIo::Write::write_vectored(&mut self.get_mut().get_mut().as_mut(), vec))
         }
 
         fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {

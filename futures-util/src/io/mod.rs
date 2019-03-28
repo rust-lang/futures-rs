@@ -7,7 +7,10 @@
 
 use std::vec::Vec;
 
-pub use futures_io::{AsyncRead, AsyncWrite, IoVec, IoVecMut};
+pub use futures_io::{AsyncRead, AsyncWrite};
+
+#[cfg(feature = "iovec")]
+pub use futures_io::{IoVec, IoVecMut};
 
 #[cfg(feature = "io-compat")] use crate::compat::Compat;
 

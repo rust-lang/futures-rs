@@ -20,9 +20,10 @@ default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
 bench = []
-nightly = ["futures-core-preview/nightly", "futures-sink-preview/nightly"]
+nightly = ["futures-core-preview/nightly", "futures-io-preview/nightly", "futures-sink-preview/nightly"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
 alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc"]
+iovec = ["futures-io-preview/iovec"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.14", default-features = false }

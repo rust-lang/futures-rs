@@ -22,8 +22,8 @@
 //! completion, but *do not block* the thread running them.
 
 #![feature(futures_api)]
-#![cfg_attr(feature = "std", feature(iovec))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
+#![cfg_attr(feature = "iovec", feature(iovec))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -33,6 +33,9 @@
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
+#[cfg(all(feature = "iovec", not(feature = "nightly")))]
+compile_error!("The `iovec` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_util::core_reexport;
 
@@ -256,8 +259,12 @@ pub mod io {
     //! sinks.
 
     pub use futures_io::{
-        Error, Initializer, IoVec, IoVecMut, ErrorKind, AsyncRead, AsyncWrite, Result
+        Error, Initializer, ErrorKind, AsyncRead, AsyncWrite, Result,
     };
+
+    #[cfg(feature = "iovec")]
+    pub use futures_io::{IoVec, IoVecMut};
+
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AllowStdIo, Close, CopyInto, Flush,
         Read, ReadExact, ReadHalf, ReadToEnd, Window, WriteAll, WriteHalf,

@@ -1,6 +1,8 @@
 use crate::lock::BiLock;
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite, IoVec, IoVecMut};
+use futures_io::{AsyncRead, AsyncWrite};
+#[cfg(feature = "iovec")]
+use futures_io::{IoVec, IoVecMut};
 use std::io;
 use std::pin::Pin;
 
@@ -43,6 +45,7 @@ impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_read(cx, buf))
     }
 
+    #[cfg(feature = "iovec")]
     fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoVecMut<'_>])
         -> Poll<io::Result<usize>>
     {
@@ -57,6 +60,7 @@ impl<W: AsyncWrite> AsyncWrite for WriteHalf<W> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_write(cx, buf))
     }
 
+    #[cfg(feature = "iovec")]
     fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[IoVec<'_>])
         -> Poll<io::Result<usize>>
     {
