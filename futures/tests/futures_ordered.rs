@@ -3,7 +3,7 @@
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureExt, FutureObj};
-use futures::stream::{StreamExt, futures_ordered, FuturesOrdered};
+use futures::stream::{StreamExt, FuturesOrdered};
 use futures_test::task::noop_waker_ref;
 
 #[test]
@@ -12,7 +12,7 @@ fn works_1() {
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
 
-    let mut stream = futures_ordered(vec![a_rx, b_rx, c_rx]);
+    let mut stream = vec![a_rx, b_rx, c_rx].into_iter().collect::<FuturesOrdered<_>>();
 
     b_tx.send(99).unwrap();
     assert!(stream.poll_next_unpin(&noop_waker_ref()).is_pending());
@@ -33,10 +33,10 @@ fn works_2() {
     let (b_tx, b_rx) = oneshot::channel::<i32>();
     let (c_tx, c_rx) = oneshot::channel::<i32>();
 
-    let mut stream = futures_ordered(vec![
+    let mut stream = vec![
         FutureObj::new(Box::new(a_rx)),
         FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
-    ]);
+    ].into_iter().collect::<FuturesOrdered<_>>();
 
     let lw = &noop_waker_ref();
     a_tx.send(33).unwrap();
