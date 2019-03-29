@@ -322,10 +322,8 @@ pub mod stream {
     //!   asynchronously produce a sequence of values.
     //! - The [`StreamExt`](crate::stream::StreamExt) trait, which provides
     //!   adapters for chaining and composing streams.
-    //! - Top-level stream contructors like [`iter_ok`](crate::stream::iter)
-    //!   which creates a stream from an iterator, and
-    //!   [`futures_unordered`](crate::stream::futures_unordered()), which
-    //!   constructs a stream from a collection of futures.
+    //! - Top-level stream contructors like [`iter`](crate::stream::iter)
+    //!   which creates a stream from an iterator.
 
     pub use futures_core::stream::{
         Stream, TryStream, FusedStream,
@@ -358,7 +356,7 @@ pub mod stream {
     )]
     #[cfg(feature = "alloc")]
     pub use futures_util::stream::{
-        futures_ordered, FuturesOrdered,
+        FuturesOrdered,
         futures_unordered, FuturesUnordered,
 
         // For StreamExt:

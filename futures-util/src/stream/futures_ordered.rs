@@ -85,8 +85,8 @@ impl<T> Future for OrderWrapper<T>
 /// some of the later futures have already completed.
 ///
 /// Note that you can create a ready-made `FuturesOrdered` via the
-/// `futures_ordered` function in the `stream` module, or you can start with an
-/// empty queue with the `FuturesOrdered::new` constructor.
+/// [`collect`](Iterator::collect) method, or you can start with an empty queue
+/// with the `FuturesOrdered::new` constructor.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesOrdered<T: Future> {
     in_progress_queue: FuturesUnordered<OrderWrapper<T>>,
@@ -96,25 +96,6 @@ pub struct FuturesOrdered<T: Future> {
 }
 
 impl<T: Future> Unpin for FuturesOrdered<T> {}
-
-/// Converts a list of futures into a `Stream` of results from the futures.
-///
-/// This function will take a list of futures (e.g. a vector, an iterator,
-/// etc), and return a stream. The stream will yield items as they become
-/// available on the futures internally, in the order that their originating
-/// futures were submitted to the queue. If the futures complete out of order,
-/// items will be stored internally within `FuturesOrdered` until all preceding
-/// items have been yielded.
-///
-/// Note that the returned queue can also be used to dynamically push more
-/// futures into the queue as they become available.
-pub fn futures_ordered<I>(futures: I) -> FuturesOrdered<I::Item>
-where
-    I: IntoIterator,
-    I::Item: Future,
-{
-    futures.into_iter().collect()
-}
 
 impl<Fut: Future> FuturesOrdered<Fut> {
     /// Constructs a new, empty `FuturesOrdered`

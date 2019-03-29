@@ -19,7 +19,7 @@ use alloc::sync::{Arc, Weak};
 mod abort;
 
 mod iter;
-use self::iter::{IterMut, IterPinMut};
+pub use self::iter::{IterMut, IterPinMut};
 
 mod task;
 use self::task::Task;
@@ -51,8 +51,8 @@ const TERMINATED_SENTINEL_LENGTH: usize = usize::max_value();
 /// wake-ups for new futures.
 ///
 /// Note that you can create a ready-made [`FuturesUnordered`] via the
-/// [`futures_unordered`](futures_unordered()) function, or you can start with
-/// an empty set with the [`FuturesUnordered::new`] constructor.
+/// [`collect`](Iterator::collect) method, or you can start with an empty set
+/// with the [`FuturesUnordered::new`] constructor.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
@@ -467,25 +467,6 @@ impl<Fut: Future> FromIterator<Fut> for FuturesUnordered<Fut> {
         let acc = FuturesUnordered::new();
         iter.into_iter().fold(acc, |mut acc, item| { acc.push(item); acc })
     }
-}
-
-/// Converts a list of futures into a [`Stream`] of outputs from the futures.
-///
-/// This function will take a list of futures (e.g. a [`Vec`], an [`Iterator`],
-/// etc), and return a stream. The stream will yield items as they become
-/// available on the futures internally, in the order that they become
-/// available. This function is similar to
-/// [`buffer_unordered`](super::StreamExt::buffer_unordered) in that it may
-/// return items in a different order than in the list specified.
-///
-/// Note that the returned set can also be used to dynamically push more
-/// futures into the set as they become available.
-pub fn futures_unordered<I>(futures: I) -> FuturesUnordered<I::Item>
-where
-    I: IntoIterator,
-    I::Item: Future,
-{
-    futures.into_iter().collect()
 }
 
 impl<Fut: Future> FusedStream for FuturesUnordered<Fut> {

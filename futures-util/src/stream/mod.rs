@@ -123,12 +123,13 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     mod futures_ordered;
     #[cfg(feature = "alloc")]
-    pub use self::futures_ordered::{futures_ordered, FuturesOrdered};
+    pub use self::futures_ordered::FuturesOrdered;
 
     #[cfg(feature = "alloc")]
-    mod futures_unordered;
+    pub mod futures_unordered;
     #[cfg(feature = "alloc")]
-    pub use self::futures_unordered::{futures_unordered, FuturesUnordered};
+    #[doc(inline)]
+    pub use self::futures_unordered::FuturesUnordered;
 
     #[cfg(feature = "alloc")]
     mod split;
