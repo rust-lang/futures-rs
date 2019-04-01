@@ -4,6 +4,7 @@ use crate::try_stream::IntoStream;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::pin::Pin;
 
@@ -95,4 +96,14 @@ impl<St> Stream for TryBufferUnordered<St>
             Poll::Pending
         }
     }
+}
+
+// Forwarding impl of Sink from the underlying stream
+impl<S, Item> Sink<Item> for TryBufferUnordered<S>
+    where S: TryStream + Sink<Item>,
+          S::Ok: TryFuture<Error = S::Error>,
+{
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream, Item);
 }

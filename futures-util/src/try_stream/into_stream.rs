@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
 /// Stream for the [`into_stream`](super::TryStreamExt::into_stream) method.
@@ -52,4 +53,11 @@ impl<St: TryStream> Stream for IntoStream<St> {
     ) -> Poll<Option<Self::Item>> {
         self.stream().try_poll_next(waker)
     }
+}
+
+// Forwarding impl of Sink from the underlying stream
+impl<S: TryStream + Sink<Item>, Item> Sink<Item> for IntoStream<S> {
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream, Item);
 }

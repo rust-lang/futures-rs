@@ -2,6 +2,7 @@ use core::pin::Pin;
 use futures_core::future::{TryFuture};
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Waker, Poll};
+use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`try_filter_map`](super::TryStreamExt::try_filter_map)
@@ -84,3 +85,13 @@ impl<St, Fut, F, T> Stream for TryFilterMap<St, Fut, F>
     }
 }
 
+// Forwarding impl of Sink from the underlying stream
+impl<S, Fut, F, T, Item> Sink<Item> for TryFilterMap<S, Fut, F>
+    where S: TryStream + Sink<Item>,
+          Fut: TryFuture<Ok = Option<T>, Error = S::Error>,
+          F: FnMut(S::Ok) -> Fut,
+{
+    type SinkError = S::SinkError;
+
+    delegate_sink!(stream, Item);
+}
