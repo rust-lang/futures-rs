@@ -58,7 +58,7 @@ pub trait Sink<Item> {
     /// each call to `start_send`.
     ///
     /// This method returns `Poll::Ready` once the underlying sink is ready to
-    /// receive data. If this method returns `Async::Pending`, the current task
+    /// receive data. If this method returns `Poll::Pending`, the current task
     /// is registered to be notified (via `waker.wake()`) when `poll_ready`
     /// should be called again.
     ///
@@ -94,7 +94,7 @@ pub trait Sink<Item> {
     /// value is returned then it is guaranteed that all previous values sent
     /// via `start_send` have been flushed.
     ///
-    /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
+    /// Returns `Ok(Poll::Pending)` if there is more work left to do, in which
     /// case the current task is scheduled (via `waker.wake()`) to wake up when
     /// `poll_flush` should be called again.
     ///
@@ -107,7 +107,7 @@ pub trait Sink<Item> {
     /// Returns `Ok(Poll::Ready(()))` when no buffered items remain and the sink
     /// has been successfully closed.
     ///
-    /// Returns `Ok(Async::Pending)` if there is more work left to do, in which
+    /// Returns `Ok(Poll::Pending)` if there is more work left to do, in which
     /// case the current task is scheduled (via `waker.wake()`) to wake up when
     /// `poll_close` should be called again.
     ///

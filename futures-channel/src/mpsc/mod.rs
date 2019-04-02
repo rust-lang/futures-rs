@@ -548,8 +548,8 @@ impl<T> SenderInner<T> {
     ///
     /// This method returns:
     ///
-    /// - `Ok(Async::Ready(_))` if there is sufficient capacity;
-    /// - `Ok(Async::Pending)` if the channel may not have
+    /// - `Ok(Poll::Ready(_))` if there is sufficient capacity;
+    /// - `Ok(Poll::Pending)` if the channel may not have
     ///   capacity, in which case the current task is queued to be notified once
     ///   capacity is available;
     /// - `Err(SendError)` if the receiver has been dropped.
@@ -642,8 +642,8 @@ impl<T> Sender<T> {
     ///
     /// This method returns:
     ///
-    /// - `Ok(Async::Ready(_))` if there is sufficient capacity;
-    /// - `Ok(Async::Pending)` if the channel may not have
+    /// - `Ok(Poll::Ready(_))` if there is sufficient capacity;
+    /// - `Ok(Poll::Pending)` if the channel may not have
     ///   capacity, in which case the current task is queued to be notified once
     ///   capacity is available;
     /// - `Err(SendError)` if the receiver has been dropped.

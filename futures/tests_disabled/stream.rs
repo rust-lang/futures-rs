@@ -27,9 +27,9 @@ impl<I, T, E> Stream for Iter<I>
 
     fn poll_next(&mut self, _: &Waker) -> Poll<Option<T>, E> {
         match self.iter.next() {
-            Some(Ok(e)) => Ok(Async::Ready(Some(e))),
+            Some(Ok(e)) => Ok(Poll::Ready(Some(e))),
             Some(Err(e)) => Err(e),
-            None => Ok(Async::Ready(None)),
+            None => Ok(Poll::Ready(None)),
         }
     }
 }
@@ -295,7 +295,7 @@ fn peek() {
             }
             assert_eq!(self.inner.peek(waker).unwrap(), Some(&1).into());
             assert_eq!(self.inner.poll_next(waker).unwrap(), Some(1).into());
-            Ok(Async::Ready(()))
+            Ok(Poll::Ready(()))
         }
     }
 
@@ -369,10 +369,10 @@ fn stream_poll_fn() {
 
     let read_stream = poll_fn(move |_| -> Poll<Option<usize>, std::io::Error> {
         if counter == 0 {
-            return Ok(Async::Ready(None));
+            return Ok(Poll::Ready(None));
         }
         counter -= 1;
-        Ok(Async::Ready(Some(counter)))
+        Ok(Poll::Ready(Some(counter)))
     });
 
     assert_eq!(block_on_stream(read_stream).count(), 5);

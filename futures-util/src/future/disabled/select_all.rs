@@ -49,8 +49,8 @@ impl<A> Future for SelectAll<A>
     fn poll(&mut self, waker: &Waker) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
             match f.poll(waker) {
-                Ok(Async::Pending) => None,
-                Ok(Async::Ready(e)) => Some((i, Ok(e))),
+                Ok(Poll::Pending) => None,
+                Ok(Poll::Ready(e)) => Some((i, Ok(e))),
                 Err(e) => Some((i, Err(e))),
             }
         }).next();
@@ -59,11 +59,11 @@ impl<A> Future for SelectAll<A>
                 self.inner.remove(idx);
                 let rest = mem::replace(&mut self.inner, Vec::new());
                 match res {
-                    Ok(e) => Ok(Async::Ready((e, idx, rest))),
+                    Ok(e) => Ok(Poll::Ready((e, idx, rest))),
                     Err(e) => Err((e, idx, rest)),
                 }
             }
-            None => Ok(Async::Pending),
+            None => Ok(Poll::Pending),
         }
     }
 }

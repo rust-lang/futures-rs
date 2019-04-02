@@ -48,8 +48,8 @@ impl Stream for LockStream {
 
     fn poll_next(&mut self, waker: &Waker) -> Poll<Option<Self::Item>, Self::Error> {
         self.lock.poll(waker).map(|a| match a {
-            Async::Ready(a) => Async::Ready(Some(a)),
-            Async::Pending => Async::Pending,
+            Poll::Ready(a) => Poll::Ready(Some(a)),
+            Poll::Pending => Poll::Pending,
         })
     }
 }
@@ -71,20 +71,20 @@ fn contended(b: &mut Bencher) {
 
         for _ in 0..1000 {
             let x_guard = match x.poll_next(&mut waker) {
-                Ok(Async::Ready(Some(guard))) => guard,
+                Ok(Poll::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             // Try poll second lock while first lock still holds the lock
             match y.poll_next(&mut waker) {
-                Ok(Async::Pending) => (),
+                Ok(Poll::Pending) => (),
                 _ => panic!(),
             };
 
             x.release_lock(x_guard);
 
             let y_guard = match y.poll_next(&mut waker) {
-                Ok(Async::Ready(Some(guard))) => guard,
+                Ok(Poll::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
@@ -110,14 +110,14 @@ fn lock_unlock(b: &mut Bencher) {
 
         for _ in 0..1000 {
             let x_guard = match x.poll_next(&mut waker) {
-                Ok(Async::Ready(Some(guard))) => guard,
+                Ok(Poll::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 
             x.release_lock(x_guard);
 
             let y_guard = match y.poll_next(&mut waker) {
-                Ok(Async::Ready(Some(guard))) => guard,
+                Ok(Poll::Ready(Some(guard))) => guard,
                 _ => panic!(),
             };
 

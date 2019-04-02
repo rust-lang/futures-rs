@@ -46,8 +46,8 @@ impl<A> Future for SelectOk<A> where A: Future {
         loop {
             let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
                 match f.poll(waker) {
-                    Ok(Async::Pending) => None,
-                    Ok(Async::Ready(e)) => Some((i, Ok(e))),
+                    Ok(Poll::Pending) => None,
+                    Ok(Poll::Ready(e)) => Some((i, Ok(e))),
                     Err(e) => Some((i, Err(e))),
                 }
             }).next();
@@ -59,7 +59,7 @@ impl<A> Future for SelectOk<A> where A: Future {
                     match res {
                         Ok(e) => {
                             let rest = mem::replace(&mut self.inner, Vec::new());
-                            return Ok(Async::Ready((e, rest)))
+                            return Ok(Poll::Ready((e, rest)))
                         },
                         Err(e) => {
                             if self.inner.is_empty() {
@@ -70,7 +70,7 @@ impl<A> Future for SelectOk<A> where A: Future {
                 }
                 None => {
                     // based on the filter above, nothing is ready, return
-                    return Ok(Async::Pending)
+                    return Ok(Poll::Pending)
                 },
             }
         }

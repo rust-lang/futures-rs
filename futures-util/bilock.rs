@@ -14,8 +14,8 @@ fn smoke() {
 
         {
             let mut lock = match a.poll_lock() {
-                Async::Ready(l) => l,
-                Async::Pending => panic!("poll not ready"),
+                Poll::Ready(l) => l,
+                Poll::Pending => panic!("poll not ready"),
             };
             assert_eq!(*lock, 1);
             *lock = 2;
@@ -29,8 +29,8 @@ fn smoke() {
 
         {
             let lock = match b.poll_lock() {
-                Async::Ready(l) => l,
-                Async::Pending => panic!("poll not ready"),
+                Poll::Ready(l) => l,
+                Poll::Pending => panic!("poll not ready"),
             };
             assert_eq!(*lock, 2);
         }
@@ -67,12 +67,12 @@ fn concurrent() {
     let a = t1.join().unwrap().expect("a error");
 
     match a.poll_lock() {
-        Async::Ready(l) => assert_eq!(*l, 2 * N),
-        Async::Pending => panic!("poll not ready"),
+        Poll::Ready(l) => assert_eq!(*l, 2 * N),
+        Poll::Pending => panic!("poll not ready"),
     }
     match b.poll_lock() {
-        Async::Ready(l) => assert_eq!(*l, 2 * N),
-        Async::Pending => panic!("poll not ready"),
+        Poll::Ready(l) => assert_eq!(*l, 2 * N),
+        Poll::Pending => panic!("poll not ready"),
     }
 
     assert_eq!(a.reunite(b).expect("bilock/concurrent: reunite error"), 2 * N);
@@ -94,8 +94,8 @@ fn concurrent() {
 
                 let a = self.a.as_ref().unwrap();
                 let mut a = match a.poll_lock() {
-                    Async::Ready(l) => l,
-                    Async::Pending => return Ok(Async::Pending),
+                    Poll::Ready(l) => l,
+                    Poll::Pending => return Ok(Poll::Pending),
                 };
                 self.remaining -= 1;
                 *a += 1;

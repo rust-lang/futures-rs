@@ -128,7 +128,7 @@ impl<S: Sink> Future for StartSendFut<S> {
             try_ready!(inner.poll_ready(waker));
             inner.start_send(self.1.take().unwrap())?;
         }
-        Ok(Async::Ready(self.0.take().unwrap()))
+        Ok(Poll::Ready(self.0.take().unwrap()))
     }
 }
 
@@ -178,7 +178,7 @@ fn with_flush() {
         assert!(flag.get());
 
         let sink = match task.poll(waker).unwrap() {
-            Async::Ready(sink) => sink,
+            Poll::Ready(sink) => sink,
             _ => panic!()
         };
 
@@ -223,7 +223,7 @@ impl<T> Sink for ManualFlush<T> {
     type SinkError = ();
 
     fn poll_ready(&mut self, _: &Waker) -> Poll<(), Self::SinkError> {
-        Ok(Async::Ready(()))
+        Ok(Poll::Ready(()))
     }
 
     fn start_send(&mut self, f: Self::SinkItem) -> Result<(), Self::SinkError> {
@@ -237,10 +237,10 @@ impl<T> Sink for ManualFlush<T> {
 
     fn poll_flush(&mut self, waker: &Waker) -> Poll<(), Self::SinkError> {
         if self.data.is_empty() {
-            Ok(Async::Ready(()))
+            Ok(Poll::Ready(()))
         } else {
             self.waiting_tasks.push(waker.waker().clone());
-            Ok(Async::Pending)
+            Ok(Poll::Pending)
         }
     }
 
@@ -341,9 +341,9 @@ impl<T> Sink for ManualAllow<T> {
 
     fn poll_ready(&mut self, waker: &Waker) -> Poll<(), Self::SinkError> {
         if self.allow.check(waker) {
-            Ok(Async::Ready(()))
+            Ok(Poll::Ready(()))
         } else {
-            Ok(Async::Pending)
+            Ok(Poll::Pending)
         }
     }
 
@@ -353,11 +353,11 @@ impl<T> Sink for ManualAllow<T> {
     }
 
     fn poll_flush(&mut self, _: &Waker) -> Poll<(), Self::SinkError> {
-        Ok(Async::Ready(()))
+        Ok(Poll::Ready(()))
     }
 
     fn poll_close(&mut self, _: &Waker) -> Poll<(), Self::SinkError> {
-        Ok(Async::Ready(()))
+        Ok(Poll::Ready(()))
     }
 }
 
@@ -387,7 +387,7 @@ fn buffer() {
         allow.start();
         assert!(flag.get());
         match task.poll(waker).unwrap() {
-            Async::Ready(sink) => {
+            Poll::Ready(sink) => {
                 assert_eq!(sink.get_ref().data, vec![0, 1, 2]);
             }
             _ => panic!()
@@ -439,7 +439,7 @@ fn map_err() {
         let (tx, _rx) = mpsc::channel(1);
         let mut tx = tx.sink_map_err(|_| ());
         assert_eq!(tx.start_send(()), Ok(()));
-        assert_eq!(tx.poll_flush(waker), Ok(Async::Ready(())));
+        assert_eq!(tx.poll_flush(waker), Ok(Poll::Ready(())));
     });
 
     let tx = mpsc::channel(0).0;
@@ -461,7 +461,7 @@ fn from_err() {
         let (tx, _rx) = mpsc::channel(1);
         let mut tx: SinkErrInto<mpsc::Sender<()>, FromErrTest> = tx.sink_err_into();
         assert_eq!(tx.start_send(()), Ok(()));
-        assert_eq!(tx.poll_flush(lw), Ok(Async::Ready(())));
+        assert_eq!(tx.poll_flush(lw), Ok(Poll::Ready(())));
     });
 
     let tx = mpsc::channel(0).0;
