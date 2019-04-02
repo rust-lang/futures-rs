@@ -16,7 +16,7 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures = "0.1.17"
+futures = "0.1.26"
 ```
 
 Next, add this to your crate:
@@ -39,7 +39,7 @@ a `#[no_std]` environment, use:
 
 ```toml
 [dependencies]
-futures = { version = "0.1.17", default-features = false }
+futures = { version = "0.1.26", default-features = false }
 ```
 
 # License
