@@ -22,13 +22,13 @@ impl<A, B> Future for Select<A, B> where A: Future, B: Future {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
         match a.poll(waker) {
             Err(e) => Err(Either::Left((e, b))),
-            Ok(Async::Ready(x)) => Ok(Async::Ready(Either::Left((x, b)))),
-            Ok(Async::Pending) => match b.poll(waker) {
+            Ok(Poll::Ready(x)) => Ok(Poll::Ready(Either::Left((x, b)))),
+            Ok(Poll::Pending) => match b.poll(waker) {
                 Err(e) => Err(Either::Right((e, a))),
-                Ok(Async::Ready(x)) => Ok(Async::Ready(Either::Right((x, a)))),
-                Ok(Async::Pending) => {
+                Ok(Poll::Ready(x)) => Ok(Poll::Ready(Either::Right((x, a)))),
+                Ok(Poll::Pending) => {
                     self.inner = Some((a, b));
-                    Ok(Async::Pending)
+                    Ok(Poll::Pending)
                 }
             }
         }

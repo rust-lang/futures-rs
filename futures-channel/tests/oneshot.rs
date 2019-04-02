@@ -155,7 +155,7 @@ fn cancel_sends() {
 //         type Error = ();
 //
 //         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-//             Ok(Async::Pending)
+//             Ok(Poll::Pending)
 //         }
 //     }
 //
@@ -217,7 +217,7 @@ fn cancel_sends() {
 //         type Error = ();
 //
 //         fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-//             Ok(Async::Pending)
+//             Ok(Poll::Pending)
 //         }
 //     }
 //

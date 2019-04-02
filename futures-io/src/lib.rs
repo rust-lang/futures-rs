@@ -96,10 +96,10 @@ mod if_std {
 
         /// Attempt to read from the `AsyncRead` into `buf`.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
         ///
         /// If no data is available for reading, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `waker.wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -107,7 +107,7 @@ mod if_std {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_read(self: Pin<&mut Self>, waker: &Waker, buf: &mut [u8])
             -> Poll<Result<usize>>;
@@ -118,10 +118,10 @@ mod if_std {
         /// This method is similar to `poll_read`, but allows data to be read
         /// into multiple buffers using a single operation.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_read))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
         ///
         /// If no data is available for reading, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `waker.wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
@@ -132,7 +132,7 @@ mod if_std {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_vectored_read(self: Pin<&mut Self>, waker: &Waker, vec: &mut [&mut IoVec])
             -> Poll<Result<usize>>
@@ -156,10 +156,10 @@ mod if_std {
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_written))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
         ///
         /// If the object is not ready for writing, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `waker.wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -167,7 +167,7 @@ mod if_std {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_write(self: Pin<&mut Self>, waker: &Waker, buf: &[u8])
             -> Poll<Result<usize>>;
@@ -178,10 +178,10 @@ mod if_std {
         /// This method is similar to `poll_write`, but allows data from multiple buffers to be written
         /// using a single operation.
         ///
-        /// On success, returns `Ok(Async::Ready(num_bytes_written))`.
+        /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
         ///
         /// If the object is not ready for writing, the method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `waker.wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -193,7 +193,7 @@ mod if_std {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_vectored_write(self: Pin<&mut Self>, waker: &Waker, vec: &[&IoVec])
             -> Poll<Result<usize>>
@@ -209,10 +209,10 @@ mod if_std {
         /// Attempt to flush the object, ensuring that any buffered data reach
         /// their destination.
         ///
-        /// On success, returns `Ok(Async::Ready(()))`.
+        /// On success, returns `Ok(Poll::Ready(()))`.
         ///
         /// If flushing cannot immediately complete, this method returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `waker.wake()`) to receive a notification when the object can make
         /// progress towards flushing.
         ///
@@ -220,16 +220,16 @@ mod if_std {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_flush(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>>;
 
         /// Attempt to close the object.
         ///
-        /// On success, returns `Ok(Async::Ready(()))`.
+        /// On success, returns `Ok(Poll::Ready(()))`.
         ///
         /// If closing cannot immediately complete, this function returns
-        /// `Ok(Async::Pending)` and arranges for the current task (via
+        /// `Ok(Poll::Pending)` and arranges for the current task (via
         /// `waker.wake()`) to receive a notification when the object can make
         /// progress towards closing.
         ///
@@ -237,7 +237,7 @@ mod if_std {
         ///
         /// This function may not return errors of kind `WouldBlock` or
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
-        /// `Async::Pending` and either internally retry or convert
+        /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
         fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>>;
     }

@@ -75,12 +75,12 @@ impl<T> BiLock<T> {
     ///
     /// This function will acquire the lock in a nonblocking fashion, returning
     /// immediately if the lock is already held. If the lock is successfully
-    /// acquired then `Async::Ready` is returned with a value that represents
+    /// acquired then `Poll::Ready` is returned with a value that represents
     /// the locked value (and can be used to access the protected data). The
     /// lock is unlocked when the returned `BiLockGuard` is dropped.
     ///
     /// If the lock is already held then this function will return
-    /// `Async::Pending`. In this case the current task will also be scheduled
+    /// `Poll::Pending`. In this case the current task will also be scheduled
     /// to receive a notification when the lock would otherwise become
     /// available.
     ///
