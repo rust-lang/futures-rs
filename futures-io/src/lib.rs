@@ -415,6 +415,10 @@ mod if_std {
         }
     }
 
+    impl AsyncWrite for Vec<u8> {
+        delegate_async_write_to_stdio!();
+    }
+
     impl AsyncWrite for StdIo::Sink {
         delegate_async_write_to_stdio!();
     }
