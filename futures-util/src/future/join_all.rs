@@ -7,7 +7,8 @@ use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use alloc::prelude::v1::*;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 #[derive(Debug)]
 enum ElemState<F>

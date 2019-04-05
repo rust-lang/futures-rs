@@ -5,7 +5,7 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::mem;
 use core::pin::Pin;
-use alloc::prelude::v1::*;
+use alloc::vec::Vec;
 
 /// Stream for the [`chunks`](super::StreamExt::chunks) method.
 #[derive(Debug)]
