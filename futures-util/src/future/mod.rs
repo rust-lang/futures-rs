@@ -6,7 +6,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
@@ -671,10 +671,10 @@ pub trait FutureExt: Future {
     }
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.
-    fn poll_unpin(&mut self, waker: &Waker) -> Poll<Self::Output>
+    fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output>
         where Self: Unpin + Sized
     {
-        Pin::new(self).poll(waker)
+        Pin::new(self).poll(cx)
     }
 }
 

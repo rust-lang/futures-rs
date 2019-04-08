@@ -24,14 +24,14 @@ fn basic() {
     let t = thread::spawn(move || {
         let mut pending_count = 0;
 
-        block_on(poll_fn(move |lw| {
+        block_on(poll_fn(move |cx| {
             if woken_copy.load(Ordering::Relaxed) == 1 {
                 Poll::Ready(())
             } else {
                 // Assert we return pending exactly once
                 assert_eq!(0, pending_count);
                 pending_count += 1;
-                atomic_waker_copy.register(lw);
+                atomic_waker_copy.register(cx.waker());
 
                 returned_pending_copy.store(1, Ordering::Relaxed);
 

@@ -3,7 +3,7 @@ use core::pin::Pin;
 use core::num::NonZeroUsize;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`for_each_concurrent`](super::StreamExt::for_each_concurrent)
@@ -56,7 +56,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
 {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<()> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
         loop {
             let mut made_progress_this_iter = false;
 
@@ -66,7 +66,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
             if self.limit.map(|limit| limit.get() > current_len).unwrap_or(true) {
                 let mut stream_completed = false;
                 let elem = if let Some(stream) = self.as_mut().stream().as_pin_mut() {
-                    match stream.poll_next(waker) {
+                    match stream.poll_next(cx) {
                         Poll::Ready(Some(elem)) => {
                             made_progress_this_iter = true;
                             Some(elem)
@@ -89,7 +89,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
                 }
             }
 
-            match self.as_mut().futures().poll_next_unpin(waker) {
+            match self.as_mut().futures().poll_next_unpin(cx) {
                 Poll::Ready(Some(())) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
                     if self.as_mut().stream().is_none() {

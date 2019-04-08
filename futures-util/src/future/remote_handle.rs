@@ -3,7 +3,7 @@ use {
     futures_channel::oneshot::{self, Sender, Receiver},
     futures_core::{
         future::Future,
-        task::{Waker, Poll},
+        task::{Context, Poll},
     },
     pin_utils::{unsafe_pinned, unsafe_unpinned},
     std::{
@@ -41,8 +41,8 @@ impl<T> RemoteHandle<T> {
 impl<T: Send + 'static> Future for RemoteHandle<T> {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<T> {
-        match self.rx.poll_unpin(waker) {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
+        match self.rx.poll_unpin(cx) {
             Poll::Ready(Ok(Ok(output))) => Poll::Ready(output),
             Poll::Ready(Ok(Err(e))) => panic::resume_unwind(e),
             Poll::Ready(Err(e)) => panic::resume_unwind(Box::new(e)),
@@ -80,15 +80,15 @@ impl<Fut: Future> Remote<Fut> {
 impl<Fut: Future> Future for Remote<Fut> {
     type Output = ();
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<()> {
-        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_cancel(waker) {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        if let Poll::Ready(_) = self.as_mut().tx().as_mut().unwrap().poll_cancel(cx) {
             if !self.keep_running.load(Ordering::SeqCst) {
                 // Cancelled, bail out
                 return Poll::Ready(())
             }
         }
 
-        let output = match self.as_mut().future().poll(waker) {
+        let output = match self.as_mut().future().poll(cx) {
             Poll::Ready(output) => output,
             Poll::Pending => return Poll::Pending,
         };

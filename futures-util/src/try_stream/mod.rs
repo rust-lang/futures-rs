@@ -6,7 +6,7 @@
 use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
@@ -564,11 +564,11 @@ pub trait TryStreamExt: TryStream {
     /// stream types.
     fn try_poll_next_unpin(
         &mut self,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Self::Ok, Self::Error>>>
     where Self: Unpin,
     {
-        Pin::new(self).try_poll_next(waker)
+        Pin::new(self).try_poll_next(cx)
     }
 
     /// Wraps a [`TryStream`] into a stream compatible with libraries using

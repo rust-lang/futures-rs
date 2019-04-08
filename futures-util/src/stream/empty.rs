@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 /// Stream for the [`empty`] function.
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl<T> Unpin for Empty<T> {}
 impl<T> Stream for Empty<T> {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &Waker) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Ready(None)
     }
 }

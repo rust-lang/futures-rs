@@ -1,6 +1,6 @@
 use crate::io::AsyncRead;
 use futures_core::future::Future;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use std::io;
 use std::pin::Pin;
 
@@ -22,8 +22,8 @@ impl<'a, R: AsyncRead + ?Sized + Unpin> Read<'a, R> {
 impl<R: AsyncRead + ?Sized + Unpin> Future for Read<'_, R> {
     type Output = io::Result<usize>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
-        Pin::new(&mut this.reader).poll_read(waker, this.buf)
+        Pin::new(&mut this.reader).poll_read(cx, this.buf)
     }
 }

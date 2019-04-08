@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 /// Future for the [`close`](super::SinkExt::close) method.
@@ -29,8 +29,8 @@ impl<Si: Sink<Item> + Unpin + ?Sized, Item> Future for Close<'_, Si, Item> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        Pin::new(&mut self.sink).poll_close(waker)
+        Pin::new(&mut self.sink).poll_close(cx)
     }
 }

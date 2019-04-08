@@ -45,12 +45,12 @@ impl ArcWake for WakerInner {
 /// #![feature(futures_api)]
 /// use futures_test::task::new_count_waker;
 ///
-/// let (lw, count) = new_count_waker();
+/// let (waker, count) = new_count_waker();
 ///
 /// assert_eq!(count, 0);
 ///
-/// lw.wake();
-/// lw.wake();
+/// waker.wake();
+/// waker.wake();
 ///
 /// assert_eq!(count, 2);
 /// ```

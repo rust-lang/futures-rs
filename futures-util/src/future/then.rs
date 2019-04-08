@@ -1,7 +1,7 @@
 use super::Chain;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the [`then`](super::FutureExt::then) method.
@@ -36,7 +36,7 @@ impl<Fut1, Fut2, F> Future for Then<Fut1, Fut2, F>
 {
     type Output = Fut2::Output;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Fut2::Output> {
-        self.as_mut().chain().poll(waker, |output, f| f(output))
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut2::Output> {
+        self.as_mut().chain().poll(cx, |output, f| f(output))
     }
 }

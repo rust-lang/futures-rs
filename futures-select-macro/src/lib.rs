@@ -180,23 +180,23 @@ pub fn select(input: TokenStream) -> TokenStream {
         })
         .collect();
 
-    // For each future, make an `&mut dyn FnMut(&Waker) -> Option<Poll<__PrivResult<...>>`
+    // For each future, make an `&mut dyn FnMut(&mut Context<'_>) -> Option<Poll<__PrivResult<...>>`
     // to use for polling that individual future. These will then be put in an array.
     let poll_functions = bound_future_names.iter().zip(variant_names.iter())
         .map(|(bound_future_name, variant_name)| {
             quote! {
-                let mut #variant_name = |__waker: &_| {
+                let mut #variant_name = |__cx: &mut #futures_crate::task::Context<'_>| {
                     if #futures_crate::future::FusedFuture::is_terminated(&#bound_future_name) {
                         None
                     } else {
                         Some(#futures_crate::future::FutureExt::poll_unpin(
                             &mut #bound_future_name,
-                            __waker,
+                            __cx,
                         ).map(#enum_ident::#variant_name))
                     }
                 };
                 let #variant_name: &mut dyn FnMut(
-                    &#futures_crate::task::Waker
+                    &mut #futures_crate::task::Context<'_>
                 ) -> Option<#futures_crate::task::Poll<_>> = &mut #variant_name;
             }
         });
@@ -235,7 +235,9 @@ pub fn select(input: TokenStream) -> TokenStream {
     let await_and_select = if let Some(default_expr) = parsed.default {
         quote! {
             if let #futures_crate::task::Poll::Ready(x) =
-                __poll_fn(#futures_crate::task::noop_waker_ref())
+                __poll_fn(&mut #futures_crate::task::Context::from_waker(
+                    #futures_crate::task::noop_waker_ref()
+                ))
             {
                 match x { #branches }
             } else {
@@ -254,7 +256,7 @@ pub fn select(input: TokenStream) -> TokenStream {
         #enum_item
         #( #future_let_bindings )*
 
-        let mut __poll_fn = |__waker: &#futures_crate::task::Waker| {
+        let mut __poll_fn = |__cx: &mut #futures_crate::task::Context<'_>| {
             let mut __any_polled = false;
 
             #( #poll_functions )*
@@ -266,9 +268,9 @@ pub fn select(input: TokenStream) -> TokenStream {
             );
             for poller in &mut __select_arr {
                 let poller: &mut &mut dyn FnMut(
-                    &#futures_crate::task::Waker
+                    &mut #futures_crate::task::Context<'_>
                 ) -> Option<#futures_crate::task::Poll<_>> = poller;
-                match poller(__waker) {
+                match poller(__cx) {
                     Some(x @ #futures_crate::task::Poll::Ready(_)) =>
                         return x,
                     Some(#futures_crate::task::Poll::Pending) => {

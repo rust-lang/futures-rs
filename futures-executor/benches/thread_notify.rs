@@ -5,7 +5,7 @@ use crate::test::Bencher;
 
 use futures::executor::block_on;
 use futures::future::Future;
-use futures::task::{Poll, Waker};
+use futures::task::{Context, Poll, Waker};
 use std::pin::Pin;
 
 #[bench]
@@ -19,12 +19,12 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
     impl Future for Yield {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             if self.rem == 0 {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                waker.wake();
+                cx.waker().wake();
                 Poll::Pending
             }
         }
@@ -47,12 +47,12 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
     impl Future for Yield {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             if self.rem == 0 {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                waker.wake();
+                cx.waker().wake();
                 Poll::Pending
             }
         }
@@ -84,12 +84,12 @@ fn thread_yield_multi_thread(b: &mut Bencher) {
     impl Future for Yield {
         type Output = ();
 
-        fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             if self.rem == 0 {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                self.tx.send(waker.clone()).unwrap();
+                self.tx.send(cx.waker().clone()).unwrap();
                 Poll::Pending
             }
         }

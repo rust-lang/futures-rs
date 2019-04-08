@@ -13,11 +13,11 @@ unsafe fn wake_panic(_data: *const()) {
     panic!("should not be woken");
 }
 
-const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable {
-    clone: clone_panic_waker,
-    drop: noop,
-    wake: wake_panic,
-};
+const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+    clone_panic_waker,
+    wake_panic,
+    noop,
+);
 
 fn raw_panic_waker() -> RawWaker {
     RawWaker::new(null(), &PANIC_WAKER_VTABLE)
@@ -33,8 +33,8 @@ fn raw_panic_waker() -> RawWaker {
 /// #![feature(futures_api)]
 /// use futures_test::task::panic_waker;
 ///
-/// let lw = panic_waker();
-/// lw.wake(); // Will panic
+/// let waker = panic_waker();
+/// waker.wake(); // Will panic
 /// ```
 pub fn panic_waker() -> Waker {
     unsafe { Waker::new_unchecked(raw_panic_waker()) }
@@ -51,8 +51,8 @@ pub fn panic_waker() -> Waker {
 /// use futures::task;
 /// use futures_test::task::panic_waker_ref;
 ///
-/// let lw = panic_waker_ref();
-/// lw.wake(); // Will panic
+/// let waker = panic_waker_ref();
+/// waker.wake(); // Will panic
 /// ```
 pub fn panic_waker_ref() -> &'static Waker {
     thread_local! {

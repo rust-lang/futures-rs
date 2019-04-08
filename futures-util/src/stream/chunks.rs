@@ -1,6 +1,6 @@
 use crate::stream::Fuse;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::mem;
@@ -66,10 +66,10 @@ impl<St: Stream> Stream for Chunks<St> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         loop {
-            match ready!(self.as_mut().stream().poll_next(waker)) {
+            match ready!(self.as_mut().stream().poll_next(cx)) {
                 // Push the item into the buffer and check whether it is full.
                 // If so, replace our buffer with a new and empty one and return
                 // the full one.

@@ -2,7 +2,7 @@ use core::mem;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, TryStream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`try_collect`](super::TryStreamExt::try_collect) method.
@@ -44,10 +44,10 @@ impl<St, C> Future for TryCollect<St, C>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(waker)) {
+            match ready!(self.as_mut().stream().try_poll_next(cx)) {
                 Some(Ok(x)) => self.as_mut().items().extend(Some(x)),
                 Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(self.as_mut().finish())),

@@ -1,7 +1,7 @@
 use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -36,13 +36,13 @@ impl<St: Stream> Peekable<St> {
     /// to the next item if the stream is ready or passes through any errors.
     pub fn peek<'a>(
         mut self: Pin<&'a mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<&'a St::Item>> {
         if self.peeked.is_some() {
             let this: &Self = self.into_ref().get_ref();
             return Poll::Ready(this.peeked.as_ref())
         }
-        match ready!(self.as_mut().stream().poll_next(waker)) {
+        match ready!(self.as_mut().stream().poll_next(cx)) {
             None => Poll::Ready(None),
             Some(item) => {
                 *self.as_mut().peeked() = Some(item);
@@ -64,12 +64,12 @@ impl<S: Stream> Stream for Peekable<S> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         if let Some(item) = self.as_mut().peeked().take() {
             return Poll::Ready(Some(item))
         }
-        self.as_mut().stream().poll_next(waker)
+        self.as_mut().stream().poll_next(cx)
     }
 }
 

@@ -25,7 +25,7 @@ impl<I, T, E> Stream for Iter<I>
     type Item = T;
     type Error = E;
 
-    fn poll_next(&mut self, _: &Waker) -> Poll<Option<T>, E> {
+    fn poll_next(&mut self, _: &mut Context<'_>) -> Poll<Option<T>, E> {
         match self.iter.next() {
             Some(Ok(e)) => Ok(Poll::Ready(Some(e))),
             Some(Err(e)) => Err(e),
@@ -288,13 +288,13 @@ fn peek() {
         type Item = ();
         type Error = u32;
 
-        fn poll(&mut self, waker: &Waker) -> Poll<(), u32> {
+        fn poll(&mut self, cx: &mut Context<'_>) -> Poll<(), u32> {
             {
-                let res = try_ready!(self.inner.peek(waker));
+                let res = try_ready!(self.inner.peek(cx));
                 assert_eq!(res, Some(&1));
             }
-            assert_eq!(self.inner.peek(waker).unwrap(), Some(&1).into());
-            assert_eq!(self.inner.poll_next(waker).unwrap(), Some(1).into());
+            assert_eq!(self.inner.peek(cx).unwrap(), Some(&1).into());
+            assert_eq!(self.inner.poll_next(cx).unwrap(), Some(1).into());
             Ok(Poll::Ready(()))
         }
     }

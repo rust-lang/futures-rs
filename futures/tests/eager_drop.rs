@@ -2,7 +2,7 @@
 
 use futures::channel::oneshot;
 use futures::future::{self, Future, FutureExt, TryFutureExt};
-use futures::task::{Waker, Poll};
+use futures::task::{Context, Poll};
 use futures_test::future::FutureTestExt;
 use pin_utils::unsafe_pinned;
 use std::pin::Pin;
@@ -56,8 +56,8 @@ impl<F, T> FutureData<F, T> {
 impl<F: Future, T: Send + 'static> Future for FutureData<F, T> {
     type Output = F::Output;
 
-    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<F::Output> {
-        self.future().poll(waker)
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<F::Output> {
+        self.future().poll(cx)
     }
 }
 

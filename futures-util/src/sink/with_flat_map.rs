@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -74,7 +74,7 @@ where
 
     fn try_empty_stream(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Si::SinkError>> {
         let WithFlatMap { sink, stream, buffer, .. } =
             unsafe { Pin::get_unchecked_mut(self) };
@@ -82,14 +82,14 @@ where
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 
         if buffer.is_some() {
-            try_ready!(sink.as_mut().poll_ready(waker));
+            try_ready!(sink.as_mut().poll_ready(cx));
             let item = buffer.take().unwrap();
             try_ready!(Poll::Ready(sink.as_mut().start_send(item)));
         }
         if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
-            while let Some(x) = ready!(some_stream.as_mut().poll_next(waker)) {
+            while let Some(x) = ready!(some_stream.as_mut().poll_next(cx)) {
                 let item = try_ready!(Poll::Ready(x));
-                match sink.as_mut().poll_ready(waker)? {
+                match sink.as_mut().poll_ready(cx)? {
                     Poll::Ready(()) => sink.as_mut().start_send(item)?,
                     Poll::Pending => {
                         *buffer = Some(item);
@@ -112,9 +112,9 @@ where
     type Item = S::Item;
     fn poll_next(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(waker)
+        self.sink().poll_next(cx)
     }
 }
 
@@ -128,9 +128,9 @@ where
 
     fn poll_ready(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        self.try_empty_stream(waker)
+        self.try_empty_stream(cx)
     }
 
     fn start_send(
@@ -145,22 +145,22 @@ where
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(waker) {
+        match self.as_mut().try_empty_stream(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.as_mut().sink().poll_flush(waker),
+            Poll::Ready(Ok(())) => self.as_mut().sink().poll_flush(cx),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(waker) {
+        match self.as_mut().try_empty_stream(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.as_mut().sink().poll_close(waker),
+            Poll::Ready(Ok(())) => self.as_mut().sink().poll_close(cx),
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
     }

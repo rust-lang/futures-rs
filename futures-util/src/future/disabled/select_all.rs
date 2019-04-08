@@ -46,9 +46,9 @@ impl<A> Future for SelectAll<A>
     type Item = (A::Item, usize, Vec<A>);
     type Error = (A::Error, usize, Vec<A>);
 
-    fn poll(&mut self, waker: &Waker) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Self::Item, Self::Error> {
         let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-            match f.poll(waker) {
+            match f.poll(cx) {
                 Ok(Poll::Pending) => None,
                 Ok(Poll::Ready(e)) => Some((i, Ok(e))),
                 Err(e) => Some((i, Err(e))),

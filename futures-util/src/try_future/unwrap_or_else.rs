@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`unwrap_or_else`](super::TryFutureExt::unwrap_or_else)
@@ -38,9 +38,9 @@ impl<Fut, F> Future for UnwrapOrElse<Fut, F>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        match self.as_mut().future().try_poll(waker) {
+        match self.as_mut().future().try_poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
                 let op = self.as_mut().f().take()

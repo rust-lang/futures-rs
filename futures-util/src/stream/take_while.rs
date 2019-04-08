@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -72,14 +72,14 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
         if self.done_taking {
             return Poll::Ready(None);
         }
 
         if self.pending_item.is_none() {
-            let item = match ready!(self.as_mut().stream().poll_next(waker)) {
+            let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                 Some(e) => e,
                 None => return Poll::Ready(None),
             };
@@ -88,7 +88,7 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
             *self.as_mut().pending_item() = Some(item);
         }
 
-        let take = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(waker));
+        let take = ready!(self.as_mut().pending_fut().as_pin_mut().unwrap().poll(cx));
         self.as_mut().pending_fut().set(None);
         let item = self.as_mut().pending_item().take().unwrap();
 

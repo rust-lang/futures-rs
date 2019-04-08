@@ -402,13 +402,15 @@ pub mod task {
     //! This module contains:
     //!
     //! - [`Spawn`](crate::task::Spawn), a trait for spawning new tasks.
+    //! - [`Context`](crate::task::Context), a context of an asynchronous task,
+    //!   including a handle for waking up the task.
     //! - [`Waker`](crate::task::Waker), a handle for waking up a task.
     //!
     //! The remaining types and traits in the module are used for implementing
     //! executors or dealing with synchronization issues around task wakeup.
 
     pub use futures_core::task::{
-        Poll, Spawn, LocalSpawn, SpawnError,
+        Context, Poll, Spawn, LocalSpawn, SpawnError,
         Waker, RawWaker, RawWakerVTable
     };
 

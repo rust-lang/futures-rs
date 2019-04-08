@@ -1,7 +1,7 @@
 use crate::enter;
 use crate::unpark_mutex::UnparkMutex;
 use futures_core::future::{Future, FutureObj};
-use futures_core::task::{Poll, Spawn, SpawnError};
+use futures_core::task::{Context, Poll, Spawn, SpawnError};
 use futures_util::future::FutureExt;
 use futures_util::task::{ArcWake, waker_ref};
 use num_cpus;
@@ -300,6 +300,7 @@ impl Task {
     pub fn run(self) {
         let Task { mut future, wake_handle, mut exec } = self;
         let waker = waker_ref(&wake_handle);
+        let mut cx = Context::from_waker(&waker);
 
         // Safety: The ownership of this `Task` object is evidence that
         // we are in the `POLLING`/`REPOLL` state for the mutex.
@@ -307,7 +308,7 @@ impl Task {
             wake_handle.mutex.start_poll();
 
             loop {
-                let res = future.poll_unpin(&waker);
+                let res = future.poll_unpin(&mut cx);
                 match res {
                     Poll::Pending => {}
                     Poll::Ready(()) => return wake_handle.mutex.complete(),

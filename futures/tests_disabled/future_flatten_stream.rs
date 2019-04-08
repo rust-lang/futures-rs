@@ -25,7 +25,7 @@ impl<T, E> Stream for PanickingStream<T, E> {
     type Item = T;
     type Error = E;
 
-    fn poll_next(&mut self, _: &Waker) -> Poll<Option<Self::Item>, Self::Error> {
+    fn poll_next(&mut self, _: &mut Context<'_>) -> Poll<Option<Self::Item>, Self::Error> {
         panic!()
     }
 }

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -76,13 +76,13 @@ impl<S: Stream> Stream for Fuse<S> {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
         if *self.as_mut().done() {
             return Poll::Ready(None);
         }
 
-        let item = ready!(self.as_mut().stream().poll_next(waker));
+        let item = ready!(self.as_mut().stream().poll_next(cx));
         if item.is_none() {
             *self.as_mut().done() = true;
         }

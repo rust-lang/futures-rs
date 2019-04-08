@@ -1,8 +1,8 @@
 //! Asynchronous streams.
 
-use crate::task::{Waker, Poll};
 use core::ops;
 use core::pin::Pin;
+use core::task::{Context, Poll};
 
 #[cfg(feature = "either")]
 use either::Either;
@@ -54,7 +54,7 @@ pub trait Stream {
     /// calls.
     fn poll_next(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>>;
 }
 
@@ -63,9 +63,9 @@ impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        S::poll_next(Pin::new(&mut **self), waker)
+        S::poll_next(Pin::new(&mut **self), cx)
     }
 }
 
@@ -78,9 +78,9 @@ where
 
     fn poll_next(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        Pin::get_mut(self).as_mut().poll_next(waker)
+        Pin::get_mut(self).as_mut().poll_next(cx)
     }
 }
 
@@ -91,11 +91,11 @@ impl<A, B> Stream for Either<A, B>
 {
     type Item = A::Item;
 
-    fn poll_next(self: Pin<&mut Self>, waker: &Waker) -> Poll<Option<A::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<A::Item>> {
         unsafe {
             match Pin::get_unchecked_mut(self) {
-                Either::Left(a) => Pin::new_unchecked(a).poll_next(waker),
-                Either::Right(b) => Pin::new_unchecked(b).poll_next(waker),
+                Either::Left(a) => Pin::new_unchecked(a).poll_next(cx),
+                Either::Right(b) => Pin::new_unchecked(b).poll_next(cx),
             }
         }
     }
@@ -128,7 +128,7 @@ pub trait TryStream {
     /// This method is a stopgap for a compiler limitation that prevents us from
     /// directly inheriting from the `Stream` trait; in the future it won't be
     /// needed.
-    fn try_poll_next(self: Pin<&mut Self>, waker: &Waker)
+    fn try_poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>)
         -> Poll<Option<Result<Self::Ok, Self::Error>>>;
 }
 
@@ -138,10 +138,10 @@ impl<S, T, E> TryStream for S
     type Ok = T;
     type Error = E;
 
-    fn try_poll_next(self: Pin<&mut Self>, waker: &Waker)
+    fn try_poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>)
         -> Poll<Option<Result<Self::Ok, Self::Error>>>
     {
-        self.poll_next(waker)
+        self.poll_next(cx)
     }
 }
 
@@ -155,9 +155,9 @@ mod if_alloc {
 
         fn poll_next(
             mut self: Pin<&mut Self>,
-            waker: &Waker,
+            cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Item>> {
-            Pin::new(&mut **self).poll_next(waker)
+            Pin::new(&mut **self).poll_next(cx)
         }
     }
 
@@ -167,9 +167,9 @@ mod if_alloc {
 
         fn poll_next(
             self: Pin<&mut Self>,
-            waker: &Waker,
+            cx: &mut Context<'_>,
         ) -> Poll<Option<S::Item>> {
-            unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) }.poll_next(waker)
+            unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) }.poll_next(cx)
         }
     }
 
@@ -178,7 +178,7 @@ mod if_alloc {
 
         fn poll_next(
             mut self: Pin<&mut Self>,
-            _lw: &Waker,
+            _cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Item>> {
             Poll::Ready(self.pop_front())
         }

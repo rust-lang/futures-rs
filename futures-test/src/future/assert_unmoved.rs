@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
@@ -35,7 +35,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         let cur_this = &*self as *const Self;
         if self.this_ptr.is_null() {
@@ -44,7 +44,7 @@ impl<Fut: Future> Future for AssertUnmoved<Fut> {
         } else {
             assert_eq!(self.this_ptr, cur_this, "Future moved between poll calls");
         }
-        self.as_mut().future().poll(waker)
+        self.as_mut().future().poll(cx)
     }
 }
 
@@ -62,7 +62,7 @@ impl<Fut> Drop for AssertUnmoved<Fut> {
 #[cfg(test)]
 mod tests {
     use futures_core::future::Future;
-    use futures_core::task::Poll;
+    use futures_core::task::{Context, Poll};
     use futures_util::future::empty;
     use futures_util::task::noop_waker;
     use std::pin::Pin;
@@ -81,17 +81,18 @@ mod tests {
     fn dont_double_panic() {
         // This test should only panic, not abort the process.
         let waker = noop_waker();
+        let mut cx = Context::from_waker(&waker);
 
         // First we allocate the future on the stack and poll it.
         let mut future = AssertUnmoved::new(empty::<()>());
         let pinned_future = unsafe { Pin::new_unchecked(&mut future) };
-        assert_eq!(pinned_future.poll(&waker), Poll::Pending);
+        assert_eq!(pinned_future.poll(&mut cx), Poll::Pending);
 
         // Next we move it back to the heap and poll it again. This second call
         // should panic (as the future is moved), but we shouldn't panic again
         // whilst dropping `AssertUnmoved`.
         let mut future = Box::new(future);
         let pinned_boxed_future = unsafe { Pin::new_unchecked(&mut *future) };
-        assert_eq!(pinned_boxed_future.poll(&waker), Poll::Pending);
+        assert_eq!(pinned_boxed_future.poll(&mut cx), Poll::Pending);
     }
 }

@@ -1,17 +1,17 @@
 #![feature(async_await, await_macro, futures_api)]
 
 use futures::future;
-use futures::task::Poll;
+use futures::task::{Context, Poll};
 use futures::stream::{FusedStream, FuturesUnordered, StreamExt};
 use futures_test::task::noop_waker_ref;
 
 #[test]
 fn is_terminated() {
-    let lw = noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     let mut tasks = FuturesUnordered::new();
 
     assert_eq!(tasks.is_terminated(), false);
-    assert_eq!(tasks.poll_next_unpin(lw), Poll::Ready(None));
+    assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
     assert_eq!(tasks.is_terminated(), true);
 
     // Test that the sentinel value doesn't leak
@@ -26,8 +26,8 @@ fn is_terminated() {
     assert_eq!(tasks.iter_mut().len(), 1);
 
     assert_eq!(tasks.is_terminated(), false);
-    assert_eq!(tasks.poll_next_unpin(lw), Poll::Ready(Some(1)));
+    assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(Some(1)));
     assert_eq!(tasks.is_terminated(), false);
-    assert_eq!(tasks.poll_next_unpin(lw), Poll::Ready(None));
+    assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
     assert_eq!(tasks.is_terminated(), true);
 }

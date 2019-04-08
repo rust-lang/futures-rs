@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_io::{AsyncRead, AsyncWrite};
 use std::boxed::Box;
 use std::io;
@@ -39,13 +39,13 @@ impl<R, W> Future for CopyInto<'_, R, W>
 {
     type Output = io::Result<u64>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = &mut *self;
         loop {
             // If our buffer is empty, then we need to read some data to
             // continue.
             if this.pos == this.cap && !this.read_done {
-                let n = try_ready!(Pin::new(&mut this.reader).poll_read(waker, &mut this.buf));
+                let n = try_ready!(Pin::new(&mut this.reader).poll_read(cx, &mut this.buf));
                 if n == 0 {
                     this.read_done = true;
                 } else {
@@ -56,7 +56,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
 
             // If our buffer has some data, let's write it out!
             while this.pos < this.cap {
-                let i = try_ready!(Pin::new(&mut this.writer).poll_write(waker, &this.buf[this.pos..this.cap]));
+                let i = try_ready!(Pin::new(&mut this.writer).poll_write(cx, &this.buf[this.pos..this.cap]));
                 if i == 0 {
                     return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
                 } else {
@@ -69,7 +69,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             // data and finish the transfer.
             // done with the entire transfer.
             if this.pos == this.cap && this.read_done {
-                try_ready!(Pin::new(&mut this.writer).poll_flush(waker));
+                try_ready!(Pin::new(&mut this.writer).poll_flush(cx));
                 return Poll::Ready(Ok(this.amt));
             }
         }

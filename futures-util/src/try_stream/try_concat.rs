@@ -2,7 +2,7 @@ use core::default::Default;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::TryStream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`try_concat`](super::TryStreamExt::try_concat) method.
@@ -38,9 +38,9 @@ where
 {
     type Output = Result<St::Ok, St::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(waker)) {
+            match ready!(self.as_mut().stream().try_poll_next(cx)) {
                 Some(Ok(x)) => {
                     let accum = self.as_mut().accum();
                     if let Some(a) = accum {

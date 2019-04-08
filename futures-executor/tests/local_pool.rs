@@ -3,7 +3,7 @@
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
 use futures::future::{Future, lazy};
-use futures::task::{Waker, Poll, Spawn, LocalSpawn};
+use futures::task::{Context, Poll, Spawn, LocalSpawn};
 use std::cell::{Cell, RefCell};
 use std::pin::Pin;
 use std::rc::Rc;
@@ -13,7 +13,7 @@ struct Pending(Rc<()>);
 impl Future for Pending {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, _waker: &Waker) -> Poll<()> {
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
         Poll::Pending
     }
 }
@@ -128,7 +128,7 @@ fn tasks_are_scheduled_fairly() {
     impl Future for Spin {
         type Output = ();
 
-        fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<()> {
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
             let mut state = self.state.borrow_mut();
 
             if self.idx == 0 {
@@ -147,7 +147,7 @@ fn tasks_are_scheduled_fairly() {
                 return Poll::Ready(());
             }
 
-            waker.wake();
+            cx.waker().wake();
             Poll::Pending
         }
     }
