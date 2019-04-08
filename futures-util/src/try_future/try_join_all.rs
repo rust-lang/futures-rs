@@ -6,7 +6,7 @@ use core::future::Future;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
-use core::task::{Poll, Waker};
+use core::task::{Context, Poll};
 use alloc::prelude::v1::*;
 
 use super::TryFuture;
@@ -134,12 +134,12 @@ where
 {
     type Output = Result<Vec<F::Ok>, F::Error>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut state = FinalState::AllDone;
 
         for mut elem in iter_pin_mut(self.elems.as_mut()) {
             if let Some(pending) = elem.as_mut().pending_pin_mut() {
-                match pending.try_poll(waker) {
+                match pending.try_poll(cx) {
                     Poll::Pending => state = FinalState::Pending,
                     Poll::Ready(output) => match output {
                         Ok(item) => elem.set(ElemState::Done(Some(item))),

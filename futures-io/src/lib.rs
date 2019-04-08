@@ -14,7 +14,7 @@
 
 #[cfg(feature = "std")]
 mod if_std {
-    use futures_core::task::{Waker, Poll};
+    use futures_core::task::{Context, Poll};
     use std::boxed::Box;
     use std::cmp;
     use std::io as StdIo;
@@ -100,7 +100,7 @@ mod if_std {
         ///
         /// If no data is available for reading, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `waker.wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// # Implementation
@@ -109,7 +109,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_read(self: Pin<&mut Self>, waker: &Waker, buf: &mut [u8])
+        fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
             -> Poll<Result<usize>>;
 
         /// Attempt to read from the `AsyncRead` into `vec` using vectored
@@ -122,7 +122,7 @@ mod if_std {
         ///
         /// If no data is available for reading, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `waker.wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
         /// buffer in `vec`. Objects which support vectored IO should override
@@ -134,11 +134,11 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_read(self: Pin<&mut Self>, waker: &Waker, vec: &mut [&mut IoVec])
+        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
             -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
-                self.poll_read(waker, first_iovec)
+                self.poll_read(cx, first_iovec)
             } else {
                 // `vec` is empty.
                 Poll::Ready(Ok(0))
@@ -160,7 +160,7 @@ mod if_std {
         ///
         /// If the object is not ready for writing, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `waker.wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// # Implementation
@@ -169,7 +169,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_write(self: Pin<&mut Self>, waker: &Waker, buf: &[u8])
+        fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>;
 
         /// Attempt to write bytes from `vec` into the object using vectored
@@ -182,7 +182,7 @@ mod if_std {
         ///
         /// If the object is not ready for writing, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `waker.wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// By default, this method delegates to using `poll_write` on the first
@@ -195,11 +195,11 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_write(self: Pin<&mut Self>, waker: &Waker, vec: &[&IoVec])
+        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
             -> Poll<Result<usize>>
         {
             if let Some(ref first_iovec) = vec.get(0) {
-                self.poll_write(waker, &*first_iovec)
+                self.poll_write(cx, &*first_iovec)
             } else {
                 // `vec` is empty.
                 Poll::Ready(Ok(0))
@@ -213,7 +213,7 @@ mod if_std {
         ///
         /// If flushing cannot immediately complete, this method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `waker.wake()`) to receive a notification when the object can make
+        /// `cx.waker().wake()`) to receive a notification when the object can make
         /// progress towards flushing.
         ///
         /// # Implementation
@@ -222,7 +222,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_flush(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>>;
+        fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>>;
 
         /// Attempt to close the object.
         ///
@@ -230,7 +230,7 @@ mod if_std {
         ///
         /// If closing cannot immediately complete, this function returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `waker.wake()`) to receive a notification when the object can make
+        /// `cx.waker().wake()`) to receive a notification when the object can make
         /// progress towards closing.
         ///
         /// # Implementation
@@ -239,7 +239,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>>;
+        fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>>;
     }
 
     macro_rules! deref_async_read {
@@ -248,16 +248,16 @@ mod if_std {
                 (**self).initializer()
             }
 
-            fn poll_read(mut self: Pin<&mut Self>, waker: &Waker, buf: &mut [u8])
+            fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_read(waker, buf)
+                Pin::new(&mut **self).poll_read(cx, buf)
             }
 
-            fn poll_vectored_read(mut self: Pin<&mut Self>, waker: &Waker, vec: &mut [&mut IoVec])
+            fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_vectored_read(waker, vec)
+                Pin::new(&mut **self).poll_vectored_read(cx, vec)
             }
         }
     }
@@ -275,16 +275,16 @@ mod if_std {
             (**self).initializer()
         }
 
-        fn poll_read(mut self: Pin<&mut Self>, waker: &Waker, buf: &mut [u8])
+        fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
             -> Poll<Result<usize>>
         {
-            T::poll_read((*self).as_mut(), waker, buf)
+            T::poll_read((*self).as_mut(), cx, buf)
         }
 
-        fn poll_vectored_read(mut self: Pin<&mut Self>, waker: &Waker, vec: &mut [&mut IoVec])
+        fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
             -> Poll<Result<usize>>
         {
-            T::poll_vectored_read((*self).as_mut(), waker, vec)
+            T::poll_vectored_read((*self).as_mut(), cx, vec)
         }
     }
 
@@ -296,7 +296,7 @@ mod if_std {
                 Initializer::nop()
             }
 
-            fn poll_read(mut self: Pin<&mut Self>, _: &Waker, buf: &mut [u8])
+            fn poll_read(mut self: Pin<&mut Self>, _: &mut Context<'_>, buf: &mut [u8])
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Read::read(&mut *self, buf))
@@ -318,24 +318,24 @@ mod if_std {
 
     macro_rules! deref_async_write {
         () => {
-            fn poll_write(mut self: Pin<&mut Self>, waker: &Waker, buf: &[u8])
+            fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_write(waker, buf)
+                Pin::new(&mut **self).poll_write(cx, buf)
             }
 
-            fn poll_vectored_write(mut self: Pin<&mut Self>, waker: &Waker, vec: &[&IoVec])
+            fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_vectored_write(waker, vec)
+                Pin::new(&mut **self).poll_vectored_write(cx, vec)
             }
 
-            fn poll_flush(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>> {
-                Pin::new(&mut **self).poll_flush(waker)
+            fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+                Pin::new(&mut **self).poll_flush(cx)
             }
 
-            fn poll_close(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>> {
-                Pin::new(&mut **self).poll_close(waker)
+            fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+                Pin::new(&mut **self).poll_close(cx)
             }
         }
     }
@@ -349,41 +349,41 @@ mod if_std {
     }
 
     impl<'a, T: ?Sized + AsyncWrite> AsyncWrite for Pin<&'a mut T> {
-        fn poll_write(mut self: Pin<&mut Self>, waker: &Waker, buf: &[u8])
+        fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>
         {
-            T::poll_write((*self).as_mut(), waker, buf)
+            T::poll_write((*self).as_mut(), cx, buf)
         }
 
-        fn poll_vectored_write(mut self: Pin<&mut Self>, waker: &Waker, vec: &[&IoVec])
+        fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
             -> Poll<Result<usize>>
         {
-            T::poll_vectored_write((*self).as_mut(), waker, vec)
+            T::poll_vectored_write((*self).as_mut(), cx, vec)
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>> {
-            T::poll_flush((*self).as_mut(), waker)
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+            T::poll_flush((*self).as_mut(), cx)
         }
 
-        fn poll_close(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>> {
-            T::poll_close((*self).as_mut(), waker)
+        fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+            T::poll_close((*self).as_mut(), cx)
         }
     }
 
     macro_rules! delegate_async_write_to_stdio {
         () => {
-            fn poll_write(mut self: Pin<&mut Self>, _: &Waker, buf: &[u8])
+            fn poll_write(mut self: Pin<&mut Self>, _: &mut Context<'_>, buf: &[u8])
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Write::write(&mut *self, buf))
             }
 
-            fn poll_flush(mut self: Pin<&mut Self>, _: &Waker) -> Poll<Result<()>> {
+            fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
                 Poll::Ready(StdIo::Write::flush(&mut *self))
             }
 
-            fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>> {
-                self.poll_flush(waker)
+            fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+                self.poll_flush(cx)
             }
         }
     }
@@ -391,7 +391,7 @@ mod if_std {
     impl<T: AsMut<[u8]> + Unpin> AsyncWrite for StdIo::Cursor<T> {
         fn poll_write(
             mut self: Pin<&mut Self>,
-            _: &Waker,
+            _: &mut Context<'_>,
             buf: &[u8],
         ) -> Poll<Result<usize>> {
             let position = self.position();
@@ -406,12 +406,12 @@ mod if_std {
             Poll::Ready(result)
         }
 
-        fn poll_flush(self: Pin<&mut Self>, _: &Waker) -> Poll<Result<()>> {
+        fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
             Poll::Ready(StdIo::Write::flush(&mut self.get_mut().get_mut().as_mut()))
         }
 
-        fn poll_close(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<()>> {
-            self.poll_flush(waker)
+        fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+            self.poll_flush(cx)
         }
     }
 

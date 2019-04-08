@@ -25,7 +25,7 @@ matrix:
 
     # When updating this, the reminder to update the minimum required version in README.md.
     - name: cargo test (minimum required version)
-      rust: nightly-2019-02-15
+      rust: nightly-2019-04-08
 
     - name: cargo clippy
       rust: nightly

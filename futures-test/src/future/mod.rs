@@ -34,7 +34,7 @@ pub trait FutureTestExt: Future {
     ///
     /// ```
     /// #![feature(async_await, futures_api)]
-    /// use futures::task::Poll;
+    /// use futures::task::{Context, Poll};
     /// use futures::future::FutureExt;
     /// use futures_test::task;
     /// use futures_test::future::FutureTestExt;
@@ -43,10 +43,10 @@ pub trait FutureTestExt: Future {
     /// let future = (async { 5 }).pending_once();
     /// pin_mut!(future);
     ///
-    /// let lw = &task::noop_waker_ref();
+    /// let mut cx = Context::from_waker(task::noop_waker_ref());
     ///
-    /// assert_eq!(future.poll_unpin(lw), Poll::Pending);
-    /// assert_eq!(future.poll_unpin(lw), Poll::Ready(5));
+    /// assert_eq!(future.poll_unpin(&mut cx), Poll::Pending);
+    /// assert_eq!(future.poll_unpin(&mut cx), Poll::Ready(5));
     /// ```
     fn pending_once(self) -> PendingOnce<Self>
     where

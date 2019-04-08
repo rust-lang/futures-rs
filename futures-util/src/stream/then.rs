@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -48,10 +48,10 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Fut::Output>> {
         if self.as_mut().future().as_pin_mut().is_none() {
-            let item = match ready!(self.as_mut().stream().poll_next(waker)) {
+            let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                 None => return Poll::Ready(None),
                 Some(e) => e,
             };
@@ -59,7 +59,7 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
             self.as_mut().future().set(Some(fut));
         }
 
-        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(waker));
+        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
         self.as_mut().future().set(None);
         Poll::Ready(Some(e))
     }

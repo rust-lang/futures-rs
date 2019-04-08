@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Stream for the [`chain`](super::StreamExt::chain) method.
@@ -41,14 +41,14 @@ where St1: Stream,
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         if let Some(first) = self.as_mut().first().as_pin_mut() {
-            if let Some(item) = ready!(first.poll_next(waker)) {
+            if let Some(item) = ready!(first.poll_next(cx)) {
                 return Poll::Ready(Some(item))
             }
         }
         self.as_mut().first().set(None);
-        self.as_mut().second().poll_next(waker)
+        self.as_mut().second().poll_next(cx)
     }
 }

@@ -1,7 +1,7 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 /// Future for the [`into_future`](super::StreamExt::into_future) method.
 #[derive(Debug)]
@@ -66,11 +66,11 @@ impl<St: Stream + Unpin> Future for StreamFuture<St> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            ready!(Pin::new(s).poll_next(waker))
+            ready!(Pin::new(s).poll_next(cx))
         };
         let stream = self.stream.take().unwrap();
         Poll::Ready((item, stream))

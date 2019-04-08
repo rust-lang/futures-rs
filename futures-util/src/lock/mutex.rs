@@ -1,5 +1,5 @@
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
 use std::{fmt, mem, usize};
 use std::cell::UnsafeCell;
@@ -147,7 +147,7 @@ impl<T> FusedFuture for MutexLockFuture<'_, T> {
 impl<'a, T> Future for MutexLockFuture<'a, T> {
     type Output = MutexGuard<'a, T>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mutex = self.mutex.expect("polled MutexLockFuture after completion");
 
         if let Some(lock) = mutex.try_lock() {
@@ -159,12 +159,12 @@ impl<'a, T> Future for MutexLockFuture<'a, T> {
         {
             let mut waiters = mutex.waiters.lock().unwrap();
             if self.wait_key == WAIT_KEY_NONE {
-                self.wait_key = waiters.insert(Waiter::Waiting(waker.clone()));
+                self.wait_key = waiters.insert(Waiter::Waiting(cx.waker().clone()));
                 if waiters.len() == 1 {
                     mutex.state.fetch_or(HAS_WAITERS, Ordering::Relaxed); // released by mutex unlock
                 }
             } else {
-                waiters[self.wait_key].register(waker);
+                waiters[self.wait_key].register(cx.waker());
             }
         }
 

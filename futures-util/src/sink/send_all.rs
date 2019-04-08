@@ -2,7 +2,7 @@ use crate::stream::{StreamExt, Fuse};
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 /// Future for the [`send_all`](super::SinkExt::send_all) method.
@@ -43,11 +43,11 @@ where
 
     fn try_start_send(
         &mut self,
-        waker: &Waker,
+        cx: &mut Context<'_>,
         item: St::Item,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
-        match Pin::new(&mut self.sink).poll_ready(waker) {
+        match Pin::new(&mut self.sink).poll_ready(cx) {
             Poll::Ready(Ok(())) => {
                 Poll::Ready(Pin::new(&mut self.sink).start_send(item))
             }
@@ -69,26 +69,26 @@ where
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         let this = &mut *self;
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = this.buffered.take() {
-            try_ready!(this.try_start_send(waker, item))
+            try_ready!(this.try_start_send(cx, item))
         }
 
         loop {
-            match this.stream.poll_next_unpin(waker) {
+            match this.stream.poll_next_unpin(cx) {
                 Poll::Ready(Some(item)) => {
-                    try_ready!(this.try_start_send(waker, item))
+                    try_ready!(this.try_start_send(cx, item))
                 }
                 Poll::Ready(None) => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(waker));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(waker));
+                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
                     return Poll::Pending
                 }
             }

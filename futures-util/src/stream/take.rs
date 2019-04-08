@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -56,12 +56,12 @@ impl<St> Stream for Take<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
         if self.remaining == 0 {
             Poll::Ready(None)
         } else {
-            let next = ready!(self.as_mut().stream().poll_next(waker));
+            let next = ready!(self.as_mut().stream().poll_next(cx));
             match next {
                 Some(_) => *self.as_mut().remaining() -= 1,
                 None => *self.as_mut().remaining() = 0,

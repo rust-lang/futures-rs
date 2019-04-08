@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 #[derive(Debug)]
@@ -48,16 +48,16 @@ where
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
         let resolved_stream = match self.as_mut().project_pin() {
-            Ready(s) => return s.poll_ready(waker),
-            Waiting(f) => try_ready!(f.try_poll(waker)),
+            Ready(s) => return s.poll_ready(cx),
+            Waiting(f) => try_ready!(f.try_poll(cx)),
             Closed => panic!("poll_ready called after eof"),
         };
         Pin::set(&mut self.as_mut(), FlattenSink(Ready(resolved_stream)));
         if let Ready(resolved_stream) = self.project_pin() {
-            resolved_stream.poll_ready(waker)
+            resolved_stream.poll_ready(cx)
         } else {
             unreachable!()
         }
@@ -76,10 +76,10 @@ where
 
     fn poll_flush(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
         match self.project_pin() {
-            Ready(s) => s.poll_flush(waker),
+            Ready(s) => s.poll_flush(cx),
             // if sink not yet resolved, nothing written ==> everything flushed
             Waiting(_) => Poll::Ready(Ok(())),
             Closed => panic!("poll_flush called after eof"),
@@ -88,10 +88,10 @@ where
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
         let res = match self.as_mut().project_pin() {
-            Ready(s) => s.poll_close(waker),
+            Ready(s) => s.poll_close(cx),
             Waiting(_) | Closed => Poll::Ready(Ok(())),
         };
         if res.is_ready() {

@@ -7,7 +7,7 @@ use core::pin::Pin;
 use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -1058,11 +1058,11 @@ pub trait StreamExt: Stream {
     /// stream types.
     fn poll_next_unpin(
         &mut self,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>>
     where Self: Unpin + Sized
     {
-        Pin::new(self).poll_next(waker)
+        Pin::new(self).poll_next(cx)
     }
 
     /// Returns a [`Future`] that resolves when the next item in this stream is

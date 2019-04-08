@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`inspect`](super::FutureExt::inspect) method.
@@ -35,8 +35,8 @@ impl<Fut, F> Future for Inspect<Fut, F>
 {
     type Output = Fut::Output;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Fut::Output> {
-        let e = match self.as_mut().future().poll(waker) {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut::Output> {
+        let e = match self.as_mut().future().poll(cx) {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(e) => e,
         };

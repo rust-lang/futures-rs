@@ -4,6 +4,7 @@ use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureExt, FutureObj};
 use futures::stream::{StreamExt, FuturesOrdered};
+use futures::task::Context;
 use futures_test::task::noop_waker_ref;
 
 #[test]
@@ -15,7 +16,7 @@ fn works_1() {
     let mut stream = vec![a_rx, b_rx, c_rx].into_iter().collect::<FuturesOrdered<_>>();
 
     b_tx.send(99).unwrap();
-    assert!(stream.poll_next_unpin(&noop_waker_ref()).is_pending());
+    assert!(stream.poll_next_unpin(&mut Context::from_waker(noop_waker_ref())).is_pending());
 
     a_tx.send(33).unwrap();
     c_tx.send(33).unwrap();
@@ -38,13 +39,13 @@ fn works_2() {
         FutureObj::new(Box::new(b_rx.join(c_rx).map(|(a, b)| Ok(a? + b?)))),
     ].into_iter().collect::<FuturesOrdered<_>>();
 
-    let lw = &noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     a_tx.send(33).unwrap();
     b_tx.send(33).unwrap();
-    assert!(stream.poll_next_unpin(lw).is_ready());
-    assert!(stream.poll_next_unpin(lw).is_pending());
+    assert!(stream.poll_next_unpin(&mut cx).is_ready());
+    assert!(stream.poll_next_unpin(&mut cx).is_pending());
     c_tx.send(33).unwrap();
-    assert!(stream.poll_next_unpin(lw).is_ready());
+    assert!(stream.poll_next_unpin(&mut cx).is_ready());
 }
 
 #[test]
@@ -70,15 +71,15 @@ fn queue_never_unblocked() {
         Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))) as _,
     ]);
 
-    with_no_spawn_context(|lw| {
+    with_no_spawn_context(|cx| {
         for _ in 0..10 {
-            assert!(stream.poll_next(lw).unwrap().is_pending());
+            assert!(stream.poll_next(cx).unwrap().is_pending());
         }
 
         b_tx.send(Box::new(())).unwrap();
-        assert!(stream.poll_next(lw).unwrap().is_pending());
+        assert!(stream.poll_next(cx).unwrap().is_pending());
         c_tx.send(Box::new(())).unwrap();
-        assert!(stream.poll_next(lw).unwrap().is_pending());
-        assert!(stream.poll_next(lw).unwrap().is_pending());
+        assert!(stream.poll_next(cx).unwrap().is_pending());
+        assert!(stream.poll_next(cx).unwrap().is_pending());
     })
 }*/

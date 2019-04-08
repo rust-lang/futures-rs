@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 /// Stream for the [`iter`] function.
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl<I> Stream for Iter<I>
 {
     type Item = I::Item;
 
-    fn poll_next(mut self: Pin<&mut Self>, _: &Waker) -> Poll<Option<I::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<I::Item>> {
         Poll::Ready(self.iter.next())
     }
 }

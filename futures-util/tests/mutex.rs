@@ -4,7 +4,7 @@ use futures::channel::mpsc;
 use futures::future::{ready, FutureExt};
 use futures::lock::Mutex;
 use futures::stream::StreamExt;
-use futures::task::SpawnExt;
+use futures::task::{Context, SpawnExt};
 use futures_test::future::FutureTestExt;
 use futures_test::task::{panic_waker_ref, new_count_waker};
 use std::sync::Arc;
@@ -13,25 +13,26 @@ use std::sync::Arc;
 fn mutex_acquire_uncontested() {
     let mutex = Mutex::new(());
     for _ in 0..10 {
-        assert!(mutex.lock().poll_unpin(panic_waker_ref()).is_ready());
+        assert!(mutex.lock().poll_unpin(&mut Context::from_waker(panic_waker_ref())).is_ready());
     }
 }
 
 #[test]
 fn mutex_wakes_waiters() {
     let mutex = Mutex::new(());
-    let (lw, counter) = new_count_waker();
-    let lock = mutex.lock().poll_unpin(panic_waker_ref());
+    let (waker, counter) = new_count_waker();
+    let lock = mutex.lock().poll_unpin(&mut Context::from_waker(panic_waker_ref()));
     assert!(lock.is_ready());
 
+    let mut cx = Context::from_waker(&waker);
     let mut waiter = mutex.lock();
-    assert!(waiter.poll_unpin(&lw).is_pending());
+    assert!(waiter.poll_unpin(&mut cx).is_pending());
     assert_eq!(counter, 0);
 
     drop(lock);
 
     assert_eq!(counter, 1);
-    assert!(waiter.poll_unpin(panic_waker_ref()).is_ready());
+    assert!(waiter.poll_unpin(&mut Context::from_waker(panic_waker_ref())).is_ready());
 }
 
 #[test]

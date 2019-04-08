@@ -9,7 +9,7 @@ use {
         ready,
         stream::{Stream, StreamExt},
         sink::Sink,
-        task::{Waker, Poll},
+        task::{Context, Poll},
     },
     futures_test::task::noop_waker_ref,
     std::pin::Pin,
@@ -18,7 +18,7 @@ use {
 /// Single producer, single consumer
 #[bench]
 fn unbounded_1_tx(b: &mut Bencher) {
-    let waker = noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     b.iter(|| {
         let (tx, mut rx) = mpsc::unbounded();
 
@@ -27,12 +27,12 @@ fn unbounded_1_tx(b: &mut Bencher) {
         for i in 0..1000 {
 
             // Poll, not ready, park
-            assert_eq!(Poll::Pending, rx.poll_next_unpin(waker));
+            assert_eq!(Poll::Pending, rx.poll_next_unpin(&mut cx));
 
             UnboundedSender::unbounded_send(&tx, i).unwrap();
 
             // Now poll ready
-            assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(waker));
+            assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(&mut cx));
         }
     })
 }
@@ -40,7 +40,7 @@ fn unbounded_1_tx(b: &mut Bencher) {
 /// 100 producers, single consumer
 #[bench]
 fn unbounded_100_tx(b: &mut Bencher) {
-    let waker = noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     b.iter(|| {
         let (tx, mut rx) = mpsc::unbounded();
 
@@ -49,11 +49,11 @@ fn unbounded_100_tx(b: &mut Bencher) {
         // 1000 send/recv operations total, result should be divided by 1000
         for _ in 0..10 {
             for i in 0..tx.len() {
-                assert_eq!(Poll::Pending, rx.poll_next_unpin(waker));
+                assert_eq!(Poll::Pending, rx.poll_next_unpin(&mut cx));
 
                 UnboundedSender::unbounded_send(&tx[i], i).unwrap();
 
-                assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(waker));
+                assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(&mut cx));
             }
         }
     })
@@ -61,14 +61,14 @@ fn unbounded_100_tx(b: &mut Bencher) {
 
 #[bench]
 fn unbounded_uncontended(b: &mut Bencher) {
-    let waker = noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     b.iter(|| {
         let (tx, mut rx) = mpsc::unbounded();
 
         for i in 0..1000 {
             UnboundedSender::unbounded_send(&tx, i).expect("send");
             // No need to create a task, because poll is not going to park.
-            assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(waker));
+            assert_eq!(Poll::Ready(Some(i)), rx.poll_next_unpin(&mut cx));
         }
     })
 }
@@ -84,16 +84,16 @@ struct TestSender {
 impl Stream for TestSender {
     type Item = u32;
 
-    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker)
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
         -> Poll<Option<Self::Item>>
     {
         let this = &mut *self;
         let mut tx = Pin::new(&mut this.tx);
 
-        ready!(tx.as_mut().poll_ready(waker)).unwrap();
+        ready!(tx.as_mut().poll_ready(cx)).unwrap();
         tx.as_mut().start_send(this.last + 1).unwrap();
         this.last += 1;
-        assert_eq!(Poll::Ready(Ok(())), tx.as_mut().poll_flush(waker));
+        assert_eq!(Poll::Ready(Ok(())), tx.as_mut().poll_flush(cx));
         Poll::Ready(Some(this.last))
     }
 }
@@ -101,16 +101,16 @@ impl Stream for TestSender {
 /// Single producers, single consumer
 #[bench]
 fn bounded_1_tx(b: &mut Bencher) {
-    let waker = noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     b.iter(|| {
         let (tx, mut rx) = mpsc::channel(0);
 
         let mut tx = TestSender { tx, last: 0 };
 
         for i in 0..1000 {
-            assert_eq!(Poll::Ready(Some(i + 1)), tx.poll_next_unpin(waker));
-            assert_eq!(Poll::Pending, tx.poll_next_unpin(waker));
-            assert_eq!(Poll::Ready(Some(i + 1)), rx.poll_next_unpin(waker));
+            assert_eq!(Poll::Ready(Some(i + 1)), tx.poll_next_unpin(&mut cx));
+            assert_eq!(Poll::Pending, tx.poll_next_unpin(&mut cx));
+            assert_eq!(Poll::Ready(Some(i + 1)), rx.poll_next_unpin(&mut cx));
         }
     })
 }
@@ -118,7 +118,7 @@ fn bounded_1_tx(b: &mut Bencher) {
 /// 100 producers, single consumer
 #[bench]
 fn bounded_100_tx(b: &mut Bencher) {
-    let waker = noop_waker_ref();
+    let mut cx = Context::from_waker(noop_waker_ref());
     b.iter(|| {
         // Each sender can send one item after specified capacity
         let (tx, mut rx) = mpsc::channel(0);
@@ -133,11 +133,11 @@ fn bounded_100_tx(b: &mut Bencher) {
         for i in 0..10 {
             for j in 0..tx.len() {
                 // Send an item
-                assert_eq!(Poll::Ready(Some(i + 1)), tx[j].poll_next_unpin(waker));
+                assert_eq!(Poll::Ready(Some(i + 1)), tx[j].poll_next_unpin(&mut cx));
                 // Then block
-                assert_eq!(Poll::Pending, tx[j].poll_next_unpin(waker));
+                assert_eq!(Poll::Pending, tx[j].poll_next_unpin(&mut cx));
                 // Recv the item
-                assert_eq!(Poll::Ready(Some(i + 1)), rx.poll_next_unpin(waker));
+                assert_eq!(Poll::Ready(Some(i + 1)), rx.poll_next_unpin(&mut cx));
             }
         }
     })

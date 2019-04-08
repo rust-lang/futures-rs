@@ -2,7 +2,7 @@
 
 #[cfg(feature = "bench")]
 mod bench {
-use futures::task::Waker;
+use futures::task::{Context, Waker};
 use futures::executor::LocalPool;
 use futures_util::lock::BiLock;
 use futures_util::lock::BiLockAcquire;
@@ -46,8 +46,8 @@ impl Stream for LockStream {
     type Item = BiLockAcquired<u32>;
     type Error = ();
 
-    fn poll_next(&mut self, waker: &Waker) -> Poll<Option<Self::Item>, Self::Error> {
-        self.lock.poll(waker).map(|a| match a {
+    fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Item>, Self::Error> {
+        self.lock.poll(cx).map(|a| match a {
             Poll::Ready(a) => Poll::Ready(Some(a)),
             Poll::Pending => Poll::Pending,
         })

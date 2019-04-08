@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 /// Future for the [`ready`](ready()) function.
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ impl<T> Future for Ready<T> {
     type Output = T;
 
     #[inline]
-    fn poll(mut self: Pin<&mut Self>, _waker: &Waker) -> Poll<T> {
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<T> {
         Poll::Ready(self.0.take().unwrap())
     }
 }

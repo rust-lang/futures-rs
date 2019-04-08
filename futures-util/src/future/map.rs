@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`map`](super::FutureExt::map) method.
@@ -33,8 +33,8 @@ impl<Fut, F, T> Future for Map<Fut, F>
 {
     type Output = T;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<T> {
-        match self.as_mut().future().poll(waker) {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
+        match self.as_mut().future().poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(output) => {
                 let f = self.f().take()

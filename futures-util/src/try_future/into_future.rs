@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future, TryFuture};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the [`into_future`](super::TryFutureExt::into_future) method.
@@ -29,8 +29,8 @@ impl<Fut: TryFuture> Future for IntoFuture<Fut> {
     #[inline]
     fn poll(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        self.future().try_poll(waker)
+        self.future().try_poll(cx)
     }
 }

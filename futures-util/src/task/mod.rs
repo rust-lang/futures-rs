@@ -6,11 +6,11 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     macro_rules! waker_vtable {
         ($ty:ident) => {
-            &RawWakerVTable {
-                clone: clone_arc_raw::<$ty>,
-                drop: drop_arc_raw::<$ty>,
-                wake: wake_arc_raw::<$ty>,
-            }
+            &RawWakerVTable::new(
+                clone_arc_raw::<$ty>,
+                wake_arc_raw::<$ty>,
+                drop_arc_raw::<$ty>,
+            )
         };
     }
 
@@ -37,4 +37,4 @@ pub use self::spawn::{SpawnExt, LocalSpawnExt};
 
 // re-export for `select!`
 #[doc(hidden)]
-pub use futures_core::task::{Waker, Poll};
+pub use futures_core::task::{Context, Poll, Waker};

@@ -1,7 +1,7 @@
 use core::marker;
 use core::pin::Pin;
 use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 /// Future for the [`empty`] function.
 #[derive(Debug)]
@@ -38,7 +38,7 @@ pub fn empty<T>() -> Empty<T> {
 impl<T> Future for Empty<T> {
     type Output = T;
 
-    fn poll(self: Pin<&mut Self>, _: &Waker) -> Poll<T> {
+    fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<T> {
         Poll::Pending
     }
 }

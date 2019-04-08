@@ -3,7 +3,7 @@ use core::mem;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -86,9 +86,9 @@ impl<S, Item, U, Fut, F> Stream for With<S, Item, U, Fut, F>
 
     fn poll_next(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
-        self.sink().poll_next(waker)
+        self.sink().poll_next(cx)
     }
 }
 
@@ -118,11 +118,11 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), E>> {
         let buffered = match self.as_mut().state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
-            State::Process(fut) => Some(try_ready!(fut.poll(waker))),
+            State::Process(fut) => Some(try_ready!(fut.poll(cx))),
             State::Buffered(_) => None,
         };
         if let Some(buffered) = buffered {
@@ -146,9 +146,9 @@ impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
 
     fn poll_ready(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        self.poll(waker)
+        self.poll(cx)
     }
 
     fn start_send(
@@ -162,19 +162,19 @@ impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.as_mut().poll(waker));
-        try_ready!(self.as_mut().sink().poll_flush(waker));
+        try_ready!(self.as_mut().poll(cx));
+        try_ready!(self.as_mut().sink().poll_flush(cx));
         Poll::Ready(Ok(()))
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.as_mut().poll(waker));
-        try_ready!(self.as_mut().sink().poll_close(waker));
+        try_ready!(self.as_mut().poll(cx));
+        try_ready!(self.as_mut().sink().poll_close(cx));
         Poll::Ready(Ok(()))
     }
 }

@@ -4,7 +4,7 @@ use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, FutureExt, FutureObj};
 use futures::stream::{StreamExt, FuturesUnordered};
-use futures::task::Poll;
+use futures::task::{Context, Poll};
 use futures_test::{assert_stream_done, assert_stream_next};
 use futures_test::future::FutureTestExt;
 use futures_test::task::noop_waker_ref;
@@ -42,11 +42,11 @@ fn works_2() {
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
 
-    let lw = &noop_waker_ref();
-    assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(Some(Ok(9))));
+    let mut cx = Context::from_waker(noop_waker_ref());
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(9))));
     c_tx.send(20).unwrap();
-    assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(Some(Ok(30))));
-    assert_eq!(stream.poll_next_unpin(lw), Poll::Ready(None));
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(30))));
+    assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(None));
 }
 
 #[test]
@@ -72,16 +72,16 @@ fn finished_future() {
         //FutureObj::new(Box::new(b_rx.select(c_rx))),
     ]);
 
-    support::with_noop_waker_context(f)(|lw| {
+    support::with_noop_waker_context(f)(|cx| {
         for _ in 0..10 {
-            assert!(stream.poll_next_unpin(lw).is_pending());
+            assert!(stream.poll_next_unpin(cx).is_pending());
         }
 
         b_tx.send(12).unwrap();
-        assert!(stream.poll_next_unpin(lw).is_ready());
+        assert!(stream.poll_next_unpin(cx).is_ready());
         c_tx.send(3).unwrap();
-        assert!(stream.poll_next_unpin(lw).is_pending());
-        assert!(stream.poll_next_unpin(lw).is_pending());
+        assert!(stream.poll_next_unpin(cx).is_pending());
+        assert!(stream.poll_next_unpin(cx).is_pending());
     })
 }*/
 

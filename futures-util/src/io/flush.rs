@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use std::io;
 use std::pin::Pin;
@@ -23,7 +23,7 @@ impl<W> Future for Flush<'_, W>
 {
     type Output = io::Result<()>;
 
-    fn poll(mut self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
-        Pin::new(&mut *self.writer).poll_flush(waker)
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut *self.writer).poll_flush(cx)
     }
 }

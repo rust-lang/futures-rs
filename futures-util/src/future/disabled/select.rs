@@ -18,12 +18,12 @@ impl<A, B> Future for Select<A, B> where A: Future, B: Future {
     type Item = Either<(A::Item, B), (B::Item, A)>;
     type Error = Either<(A::Error, B), (B::Error, A)>;
 
-    fn poll(&mut self, waker: &Waker) -> Poll<Self::Item, Self::Error> {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Self::Item, Self::Error> {
         let (mut a, mut b) = self.inner.take().expect("cannot poll Select twice");
-        match a.poll(waker) {
+        match a.poll(cx) {
             Err(e) => Err(Either::Left((e, b))),
             Ok(Poll::Ready(x)) => Ok(Poll::Ready(Either::Left((x, b)))),
-            Ok(Poll::Pending) => match b.poll(waker) {
+            Ok(Poll::Pending) => match b.poll(cx) {
                 Err(e) => Err(Either::Right((e, a))),
                 Ok(Poll::Ready(x)) => Ok(Poll::Ready(Either::Right((x, a)))),
                 Ok(Poll::Pending) => {

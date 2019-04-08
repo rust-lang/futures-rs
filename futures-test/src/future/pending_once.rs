@@ -1,5 +1,5 @@
 use futures_core::future::{Future, FusedFuture};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use std::pin::Pin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -33,13 +33,13 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         if self.polled_before {
-            self.as_mut().future().poll(waker)
+            self.as_mut().future().poll(cx)
         } else {
             *self.as_mut().polled_before() = true;
-            waker.wake();
+            cx.waker().wake();
             Poll::Pending
         }
     }

@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
@@ -68,16 +68,16 @@ impl<St> Stream for Flatten<St>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         loop {
             if self.as_mut().next().as_pin_mut().is_none() {
-                match ready!(self.as_mut().stream().poll_next(waker)) {
+                match ready!(self.as_mut().stream().poll_next(cx)) {
                     Some(e) => self.as_mut().next().set(Some(e)),
                     None => return Poll::Ready(None),
                 }
             }
-            let item = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(waker));
+            let item = ready!(self.as_mut().next().as_pin_mut().unwrap().poll_next(cx));
             if item.is_some() {
                 return Poll::Ready(item);
             } else {

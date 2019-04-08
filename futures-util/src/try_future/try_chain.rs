@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::TryFuture;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
@@ -34,7 +34,7 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
 
     pub(crate) fn poll<F>(
         self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
         f: F,
     ) -> Poll<Result<Fut2::Ok, Fut2::Error>>
         where F: FnOnce(Result<Fut1::Ok, Fut1::Error>, Data) -> TryChainAction<Fut2>,
@@ -48,14 +48,14 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
             let (output, data) = match this {
                 TryChain::First(fut1, data) => {
                     // Poll the first future
-                    match unsafe { Pin::new_unchecked(fut1) }.try_poll(waker) {
+                    match unsafe { Pin::new_unchecked(fut1) }.try_poll(cx) {
                         Poll::Pending => return Poll::Pending,
                         Poll::Ready(output) => (output, data.take().unwrap()),
                     }
                 }
                 TryChain::Second(fut2) => {
                     // Poll the second future
-                    return unsafe { Pin::new_unchecked(fut2) }.try_poll(waker)
+                    return unsafe { Pin::new_unchecked(fut2) }.try_poll(cx)
                 }
                 TryChain::Empty => {
                     panic!("future must not be polled after it returned `Poll::Ready`");

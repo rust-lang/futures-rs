@@ -12,7 +12,7 @@ impl AssertSendSync for FuturesUnordered<()> {}
 
 #[test]
 fn basic_usage() {
-    block_on(future::lazy(move |lw| {
+    block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
@@ -22,19 +22,19 @@ fn basic_usage() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!queue.poll_next(lw).unwrap().is_ready());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         tx2.send("hello").unwrap();
 
-        assert_eq!(Ready(Some("hello")), queue.poll_next(lw).unwrap());
-        assert!(!queue.poll_next(lw).unwrap().is_ready());
+        assert_eq!(Ready(Some("hello")), queue.poll_next(cx).unwrap());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         tx1.send("world").unwrap();
         tx3.send("world2").unwrap();
 
-        assert_eq!(Ready(Some("world")), queue.poll_next(lw).unwrap());
-        assert_eq!(Ready(Some("world2")), queue.poll_next(lw).unwrap());
-        assert_eq!(Ready(None), queue.poll_next(lw).unwrap());
+        assert_eq!(Ready(Some("world")), queue.poll_next(cx).unwrap());
+        assert_eq!(Ready(Some("world2")), queue.poll_next(cx).unwrap());
+        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
 
         Ok::<_, ()>(())
     })).unwrap();
@@ -42,7 +42,7 @@ fn basic_usage() {
 
 #[test]
 fn resolving_errors() {
-    block_on(future::lazy(move |lw| {
+    block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         let (tx1, rx1) = oneshot::channel();
         let (tx2, rx2) = oneshot::channel();
@@ -52,19 +52,19 @@ fn resolving_errors() {
         queue.push(rx2);
         queue.push(rx3);
 
-        assert!(!queue.poll_next(lw).unwrap().is_ready());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         drop(tx2);
 
-        assert!(queue.poll_next(lw).is_err());
-        assert!(!queue.poll_next(lw).unwrap().is_ready());
+        assert!(queue.poll_next(cx).is_err());
+        assert!(!queue.poll_next(cx).unwrap().is_ready());
 
         drop(tx1);
         tx3.send("world2").unwrap();
 
-        assert!(queue.poll_next(lw).is_err());
-        assert_eq!(Ready(Some("world2")), queue.poll_next(lw).unwrap());
-        assert_eq!(Ready(None), queue.poll_next(lw).unwrap());
+        assert!(queue.poll_next(cx).is_err());
+        assert_eq!(Ready(Some("world2")), queue.poll_next(cx).unwrap());
+        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
 
         Ok::<_, ()>(())
     })).unwrap();
@@ -82,16 +82,16 @@ fn dropping_ready_queue() {
         queue.push(rx2);
         queue.push(rx3);
 
-        support::noop_waker_lw(|lw| {
-            assert!(!tx1.poll_cancel(lw).unwrap().is_ready());
-            assert!(!tx2.poll_cancel(lw).unwrap().is_ready());
-            assert!(!tx3.poll_cancel(lw).unwrap().is_ready());
+        support::noop_waker_lw(|cx| {
+            assert!(!tx1.poll_cancel(cx).unwrap().is_ready());
+            assert!(!tx2.poll_cancel(cx).unwrap().is_ready());
+            assert!(!tx3.poll_cancel(cx).unwrap().is_ready());
 
             drop(queue);
 
-            assert!(tx1.poll_cancel(lw).unwrap().is_ready());
-            assert!(tx2.poll_cancel(lw).unwrap().is_ready());
-            assert!(tx3.poll_cancel(lw).unwrap().is_ready());
+            assert!(tx1.poll_cancel(cx).unwrap().is_ready());
+            assert!(tx2.poll_cancel(cx).unwrap().is_ready());
+            assert!(tx3.poll_cancel(cx).unwrap().is_ready());
         });
 
         Ok::<_, ()>(()).into_future()
@@ -149,16 +149,16 @@ fn stress() {
 
 #[test]
 fn panicking_future_dropped() {
-    block_on(future::lazy(move |lw| {
+    block_on(future::lazy(move |cx| {
         let mut queue = FuturesUnordered::new();
         queue.push(future::poll_fn(|_| -> Poll<i32, i32> {
             panic!()
         }));
 
-        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next(lw)));
+        let r = panic::catch_unwind(AssertUnwindSafe(|| queue.poll_next(cx)));
         assert!(r.is_err());
         assert!(queue.is_empty());
-        assert_eq!(Ready(None), queue.poll_next(lw).unwrap());
+        assert_eq!(Ready(None), queue.poll_next(cx).unwrap());
 
         Ok::<_, ()>(())
     })).unwrap();

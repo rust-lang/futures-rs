@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
 /// Future for the `unit_error` combinator, turning a `Future` into a `TryFuture`.
@@ -32,7 +32,7 @@ impl<Fut, T> Future for UnitError<Fut>
 {
     type Output = Result<T, ()>;
 
-    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Result<T, ()>> {
-        self.future().poll(waker).map(Ok)
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<T, ()>> {
+        self.future().poll(cx).map(Ok)
     }
 }

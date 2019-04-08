@@ -57,11 +57,11 @@ where
 
     // Similar to `waker_vtable`, but with a no-op `drop` function.
     // Clones of the resulting `RawWaker` will still be dropped normally.
-    let vtable = &RawWakerVTable {
-        clone: clone_arc_raw::<W>,
-        drop: noop,
-        wake: wake_arc_raw::<W>,
-    };
+    let vtable = &RawWakerVTable::new(
+        clone_arc_raw::<W>,
+        wake_arc_raw::<W>,
+        noop,
+    );
 
     let waker = unsafe {
         Waker::new_unchecked(RawWaker::new(ptr, vtable))

@@ -1,5 +1,5 @@
 use futures_core::future::Future;
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 use std::any::Any;
 use std::pin::Pin;
@@ -26,8 +26,8 @@ impl<Fut> Future for CatchUnwind<Fut>
 {
     type Output = Result<Fut::Output, Box<dyn Any + Send>>;
 
-    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
-        match catch_unwind(AssertUnwindSafe(|| self.future().poll(waker))) {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match catch_unwind(AssertUnwindSafe(|| self.future().poll(cx))) {
             Ok(res) => res.map(Ok),
             Err(e) => Poll::Ready(Err(e))
         }

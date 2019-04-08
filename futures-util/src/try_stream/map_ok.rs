@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -40,9 +40,9 @@ where
     #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker,
+        cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match self.as_mut().stream().try_poll_next(waker) {
+        match self.as_mut().stream().try_poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(opt) =>
                 Poll::Ready(opt.map(|res| res.map(|x| self.as_mut().f()(x)))),

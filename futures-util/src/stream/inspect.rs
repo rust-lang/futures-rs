@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll};
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -63,9 +63,9 @@ impl<St, F> Stream for Inspect<St, F>
 
     fn poll_next(
         mut self: Pin<&mut Self>,
-        waker: &Waker
+        cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
-        let item = ready!(self.as_mut().stream().poll_next(waker));
+        let item = ready!(self.as_mut().stream().poll_next(cx));
         Poll::Ready(item.map(|e| {
             (self.as_mut().f())(&e);
             e

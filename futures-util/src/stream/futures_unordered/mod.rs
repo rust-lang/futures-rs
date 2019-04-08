@@ -3,7 +3,7 @@
 use crate::task::{AtomicWaker};
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
 use futures_core::stream::{FusedStream, Stream};
-use futures_core::task::{Waker, Poll, Spawn, LocalSpawn, SpawnError};
+use futures_core::task::{Context, Poll, Spawn, LocalSpawn, SpawnError};
 use core::cell::UnsafeCell;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -287,11 +287,11 @@ impl<Fut> FuturesUnordered<Fut> {
 impl<Fut: Future> Stream for FuturesUnordered<Fut> {
     type Item = Fut::Output;
 
-    fn poll_next(mut self: Pin<&mut Self>, waker: &Waker)
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
         -> Poll<Option<Self::Item>>
     {
         // Ensure `parent` is correctly set.
-        self.ready_to_run_queue.waker.register(waker);
+        self.ready_to_run_queue.waker.register(cx.waker());
 
         loop {
             // Safety: &mut self guarantees the mutual exclusion `dequeue`
@@ -311,7 +311,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    waker.wake();
+                    cx.waker().wake();
                     return Poll::Pending;
                 }
                 Dequeue::Data(task) => task,
@@ -403,11 +403,12 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
             // deallocating the task if need be.
             let res = {
                 let waker = Task::waker_ref(bomb.task.as_ref().unwrap());
+                let mut cx = Context::from_waker(&waker);
 
                 // Safety: We won't move the future ever again
                 let future = unsafe { Pin::new_unchecked(future) };
 
-                future.poll(&waker)
+                future.poll(&mut cx)
             };
 
             match res {
