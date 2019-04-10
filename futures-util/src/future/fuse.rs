@@ -42,7 +42,7 @@ impl<Fut: Future> Future for Fuse<Fut> {
             None => return Poll::Pending,
         };
 
-        Pin::set(&mut self.as_mut().future(), None);
+        self.as_mut().future().set(None);
         Poll::Ready(v)
     }
 }

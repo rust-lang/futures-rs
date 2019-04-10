@@ -35,7 +35,7 @@ impl<Fut: Future> Stream for IntoStream<Fut> {
             None => return Poll::Ready(None),
         };
 
-        Pin::set(&mut self.as_mut().future(), None);
+        self.as_mut().future().set(None);
         Poll::Ready(Some(v))
     }
 }
