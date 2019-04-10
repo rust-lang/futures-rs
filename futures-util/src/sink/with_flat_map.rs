@@ -98,7 +98,7 @@ where
                 };
             }
         }
-        Pin::set(&mut stream, None);
+        stream.set(None);
         Poll::Ready(Ok(()))
     }
 }

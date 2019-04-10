@@ -215,7 +215,7 @@ mod if_alloc {
         where F: Stream<Item = T> + 'a
     {
         fn into_raw(mut self) -> *mut () {
-            let mut_ref: &mut F = unsafe { Pin::get_unchecked_mut(Pin::as_mut(&mut self)) };
+            let mut_ref: &mut F = unsafe { Pin::get_unchecked_mut(self.as_mut()) };
             let ptr = mut_ref as *mut F as *mut ();
             mem::forget(self); // Don't drop the box
             ptr

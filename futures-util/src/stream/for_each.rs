@@ -55,7 +55,7 @@ impl<St, Fut, F> Future for ForEach<St, Fut, F>
             if let Some(future) = self.as_mut().future().as_pin_mut() {
                 ready!(future.poll(cx));
             }
-            self.as_mut().future().as_mut().set(None);
+            self.as_mut().future().set(None);
 
             match ready!(self.as_mut().stream().poll_next(cx)) {
                 Some(e) => {
