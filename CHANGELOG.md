@@ -1,3 +1,14 @@
+# 0.3.0-alpha.14 - 2019-4-15
+* Updated to new nightly `futures_api`.
+* Changed `Forward` combinator to drop sink after completion, and allow `!Unpin` `Sink`s.
+* Added 0.1 <-> 0.3 compatability shim for `Sink`s.
+* Changed `Sink::Item` to a generic parameter `Sink<Item>`, allowing `Sink`s to accept
+  multiple different types, including types containing references.
+* Changed `AsyncRead` and `AsyncWrite` to take `Pin<&mut Self>` rather than `&mut self`.
+* Added support for `no_std` + `alloc` use.
+* Changed `join` and `try_join` combinators to functions.
+* Fixed propagation of `cfg-target-has-atomic` feature.
+
 # 0.3.0-alpha.13 - 2019-2-20
 * Updated to new nightly with stabilization candidate API.
 * Removed `LocalWaker`.
