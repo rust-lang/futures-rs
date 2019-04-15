@@ -100,7 +100,7 @@ mod if_std {
         ///
         /// If no data is available for reading, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `cx.waker().wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// # Implementation
@@ -122,7 +122,7 @@ mod if_std {
         ///
         /// If no data is available for reading, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `cx.waker().wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
         /// buffer in `vec`. Objects which support vectored IO should override
@@ -160,7 +160,7 @@ mod if_std {
         ///
         /// If the object is not ready for writing, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `cx.waker().wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// # Implementation
@@ -182,7 +182,7 @@ mod if_std {
         ///
         /// If the object is not ready for writing, the method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `cx.waker().wake()`) to receive a notification when the object becomes
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
         /// By default, this method delegates to using `poll_write` on the first
@@ -213,7 +213,7 @@ mod if_std {
         ///
         /// If flushing cannot immediately complete, this method returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `cx.waker().wake()`) to receive a notification when the object can make
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object can make
         /// progress towards flushing.
         ///
         /// # Implementation
@@ -230,7 +230,7 @@ mod if_std {
         ///
         /// If closing cannot immediately complete, this function returns
         /// `Ok(Poll::Pending)` and arranges for the current task (via
-        /// `cx.waker().wake()`) to receive a notification when the object can make
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object can make
         /// progress towards closing.
         ///
         /// # Implementation

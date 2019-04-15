@@ -9,6 +9,7 @@ cfg_target_has_atomic! {
             &RawWakerVTable::new(
                 clone_arc_raw::<$ty>,
                 wake_arc_raw::<$ty>,
+                wake_by_ref_arc_raw::<$ty>,
                 drop_arc_raw::<$ty>,
             )
         };

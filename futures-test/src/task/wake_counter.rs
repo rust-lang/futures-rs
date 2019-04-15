@@ -30,7 +30,7 @@ struct WakerInner {
 }
 
 impl ArcWake for WakerInner {
-    fn wake(arc_self: &Arc<Self>) {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
         let _ = arc_self.count.fetch_add(1, Ordering::SeqCst);
     }
 }
@@ -49,7 +49,7 @@ impl ArcWake for WakerInner {
 ///
 /// assert_eq!(count, 0);
 ///
-/// waker.wake();
+/// waker.wake_by_ref();
 /// waker.wake();
 ///
 /// assert_eq!(count, 2);

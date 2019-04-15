@@ -311,7 +311,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                     // At this point, it may be worth yielding the thread &
                     // spinning a few times... but for now, just yield using the
                     // task system.
-                    cx.waker().wake();
+                    cx.waker().wake_by_ref();
                     return Poll::Pending;
                 }
                 Dequeue::Data(task) => task,

@@ -2,19 +2,19 @@ use futures_core::task::{Waker, RawWaker, RawWakerVTable};
 use core::cell::UnsafeCell;
 use core::ptr::null;
 
-unsafe fn clone_panic_waker(_data: *const()) -> RawWaker {
+unsafe fn clone_panic_waker(_data: *const ()) -> RawWaker {
     raw_panic_waker()
 }
 
-unsafe fn noop(_data: *const()) {
-}
+unsafe fn noop(_data: *const ()) {}
 
-unsafe fn wake_panic(_data: *const()) {
+unsafe fn wake_panic(_data: *const ()) {
     panic!("should not be woken");
 }
 
 const PANIC_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
     clone_panic_waker,
+    wake_panic,
     wake_panic,
     noop,
 );
@@ -37,7 +37,7 @@ fn raw_panic_waker() -> RawWaker {
 /// waker.wake(); // Will panic
 /// ```
 pub fn panic_waker() -> Waker {
-    unsafe { Waker::new_unchecked(raw_panic_waker()) }
+    unsafe { Waker::from_raw(raw_panic_waker()) }
 }
 
 /// Get a global reference to a
@@ -52,7 +52,7 @@ pub fn panic_waker() -> Waker {
 /// use futures_test::task::panic_waker_ref;
 ///
 /// let waker = panic_waker_ref();
-/// waker.wake(); // Will panic
+/// waker.wake_by_ref(); // Will panic
 /// ```
 pub fn panic_waker_ref() -> &'static Waker {
     thread_local! {

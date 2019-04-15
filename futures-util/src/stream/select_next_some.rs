@@ -34,7 +34,7 @@ impl<'a, St: Stream + FusedStream + Unpin> Future for SelectNextSome<'a, St> {
             Poll::Ready(item)
         } else {
             debug_assert!(self.stream.is_terminated());
-            cx.waker().wake();
+            cx.waker().wake_by_ref();
             Poll::Pending
         }
     }

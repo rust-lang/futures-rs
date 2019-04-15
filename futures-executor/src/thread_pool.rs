@@ -339,7 +339,7 @@ impl fmt::Debug for Task {
 }
 
 impl ArcWake for WakeHandle {
-    fn wake(arc_self: &Arc<Self>) {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
         match arc_self.mutex.notify() {
             Ok(task) => arc_self.exec.state.send(Message::Run(task)),
             Err(()) => {}

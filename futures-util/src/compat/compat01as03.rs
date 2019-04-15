@@ -316,7 +316,7 @@ impl<'a> From<WakerToHandle<'a>> for NotifyHandle01 {
 
 impl Notify01 for NotifyWaker {
     fn notify(&self, _: usize) {
-        self.0.wake();
+        self.0.wake_by_ref();
     }
 }
 

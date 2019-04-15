@@ -147,7 +147,7 @@ fn tasks_are_scheduled_fairly() {
                 return Poll::Ready(());
             }
 
-            cx.waker().wake();
+            cx.waker().wake_by_ref();
             Poll::Pending
         }
     }
@@ -167,4 +167,3 @@ fn tasks_are_scheduled_fairly() {
 
     pool.run();
 }
-

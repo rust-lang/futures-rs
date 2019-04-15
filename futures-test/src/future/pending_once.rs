@@ -39,7 +39,7 @@ impl<Fut: Future> Future for PendingOnce<Fut> {
             self.as_mut().future().poll(cx)
         } else {
             *self.as_mut().polled_before() = true;
-            cx.waker().wake();
+            cx.waker().wake_by_ref();
             Poll::Pending
         }
     }
