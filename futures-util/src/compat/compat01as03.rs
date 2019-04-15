@@ -37,6 +37,11 @@ impl<T> Compat01As03<T> {
         let notify = &WakerToHandle(cx.waker());
         self.inner.poll_fn_notify(notify, 0, f)
     }
+
+    /// Get a reference to 0.1 Future, Stream, AsyncRead, or AsyncWrite object contained within.
+    pub fn get_ref(&self) -> &T {
+        self.inner.get_ref()
+    }
 }
 
 /// Extension trait for futures 0.1 [`Future`](futures::future::Future)
@@ -188,6 +193,11 @@ impl<S, SinkItem> Compat01As03Sink<S, SinkItem> {
     ) -> R {
         let notify = &WakerToHandle(cx.waker());
         self.inner.poll_fn_notify(notify, 0, f)
+    }
+
+    /// Get a reference to 0.1 Sink object contained within.
+    pub fn get_ref(&self) -> &S {
+        self.inner.get_ref()
     }
 }
 
