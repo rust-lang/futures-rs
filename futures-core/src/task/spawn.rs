@@ -60,7 +60,7 @@ pub struct SpawnError {
 
 impl fmt::Debug for SpawnError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("SpanError")
+        f.debug_tuple("SpawnError")
             .field(&"shutdown")
             .finish()
     }
