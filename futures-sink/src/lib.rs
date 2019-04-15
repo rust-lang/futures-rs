@@ -8,15 +8,9 @@
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.13/futures_sink")]
 
 #![feature(futures_api)]
-#![cfg_attr(all(feature = "alloc", not(feature = "std")), feature(alloc))]
 
-#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "nightly"))))]
-compile_error!("The `alloc` feature without `std` requires the `nightly` feature active to explicitly opt-in to unstable features");
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(feature = "std")]
-extern crate std as alloc;
 
 use futures_core::task::{Context, Poll};
 use core::pin::Pin;
