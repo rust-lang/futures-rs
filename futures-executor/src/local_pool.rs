@@ -50,7 +50,7 @@ thread_local! {
 }
 
 impl ArcWake for ThreadNotify {
-    fn wake(arc_self: &Arc<Self>) {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
         arc_self.thread.unpark();
     }
 }

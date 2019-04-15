@@ -24,7 +24,7 @@ fn thread_yield_single_thread_one_wait(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                cx.waker().wake();
+                cx.waker().wake_by_ref();
                 Poll::Pending
             }
         }
@@ -52,7 +52,7 @@ fn thread_yield_single_thread_many_wait(b: &mut Bencher) {
                 Poll::Ready(())
             } else {
                 self.rem -= 1;
-                cx.waker().wake();
+                cx.waker().wake_by_ref();
                 Poll::Pending
             }
         }

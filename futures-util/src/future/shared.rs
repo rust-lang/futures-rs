@@ -315,7 +315,7 @@ where
 }
 
 impl ArcWake for Notifier {
-    fn wake(arc_self: &Arc<Self>) {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
         arc_self.state.compare_and_swap(POLLING, REPOLL, SeqCst);
 
         let wakers = &mut *arc_self.wakers.lock().unwrap();

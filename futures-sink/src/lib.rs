@@ -59,7 +59,7 @@ pub trait Sink<Item> {
     ///
     /// This method returns `Poll::Ready` once the underlying sink is ready to
     /// receive data. If this method returns `Poll::Pending`, the current task
-    /// is registered to be notified (via `cx.waker().wake()`) when `poll_ready`
+    /// is registered to be notified (via `cx.waker().wake_by_ref()`) when `poll_ready`
     /// should be called again.
     ///
     /// In most cases, if the sink encounters an error, the sink will
@@ -95,7 +95,7 @@ pub trait Sink<Item> {
     /// via `start_send` have been flushed.
     ///
     /// Returns `Ok(Poll::Pending)` if there is more work left to do, in which
-    /// case the current task is scheduled (via `cx.waker().wake()`) to wake up when
+    /// case the current task is scheduled (via `cx.waker().wake_by_ref()`) to wake up when
     /// `poll_flush` should be called again.
     ///
     /// In most cases, if the sink encounters an error, the sink will
@@ -108,7 +108,7 @@ pub trait Sink<Item> {
     /// has been successfully closed.
     ///
     /// Returns `Ok(Poll::Pending)` if there is more work left to do, in which
-    /// case the current task is scheduled (via `cx.waker().wake()`) to wake up when
+    /// case the current task is scheduled (via `cx.waker().wake_by_ref()`) to wake up when
     /// `poll_close` should be called again.
     ///
     /// If this function encounters an error, the sink should be considered to

@@ -241,7 +241,7 @@ impl AtomicWaker {
                 // Currently in the process of waking the task, i.e.,
                 // `wake` is currently being called on the old task handle.
                 // So, we call wake on the new waker
-                waker.wake();
+                waker.wake_by_ref();
             }
             state => {
                 // In this case, a concurrent thread is holding the

@@ -17,7 +17,22 @@ pub trait ArcWake {
     ///
     /// Executors generally maintain a queue of "ready" tasks; `wake` should place
     /// the associated task onto this queue.
-    fn wake(arc_self: &Arc<Self>);
+    fn wake(self: Arc<Self>) {
+        Self::wake_by_ref(&self)
+    }
+
+    /// Indicates that the associated task is ready to make progress and should
+    /// be `poll`ed.
+    ///
+    /// This function can be called from an arbitrary thread, including threads which
+    /// did not create the `ArcWake` based `Waker`.
+    ///
+    /// Executors generally maintain a queue of "ready" tasks; `wake_by_ref` should place
+    /// the associated task onto this queue.
+    ///
+    /// This function is similar to `wake`, but must not consume the provided data
+    /// pointer.
+    fn wake_by_ref(arc_self: &Arc<Self>);
 
     /// Creates a `Waker` from an Arc<T>, if T implements `ArcWake`.
     ///
@@ -25,10 +40,10 @@ pub trait ArcWake {
     /// the `wake()` function that is defined inside this trait will get called.
     fn into_waker(self: Arc<Self>) -> Waker where Self: Sized
     {
-        let ptr = Arc::into_raw(self) as *const();
+        let ptr = Arc::into_raw(self) as *const ();
 
         unsafe {
-            Waker::new_unchecked(RawWaker::new(ptr, waker_vtable!(Self)))
+            Waker::from_raw(RawWaker::new(ptr, waker_vtable!(Self)))
         }
     }
 }
@@ -36,7 +51,7 @@ pub trait ArcWake {
 // FIXME: panics on Arc::clone / refcount changes could wreak havoc on the
 // code here. We should guard against this by aborting.
 
-unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
+unsafe fn increase_refcount<T: ArcWake>(data: *const ()) {
     // Retain Arc by creating a copy
     let arc: Arc<T> = Arc::from_raw(data as *const T);
     let arc_clone = arc.clone();
@@ -46,19 +61,25 @@ unsafe fn increase_refcount<T: ArcWake>(data: *const()) {
 }
 
 // used by `waker_ref`
-pub(super) unsafe fn clone_arc_raw<T: ArcWake>(data: *const()) -> RawWaker {
+pub(super) unsafe fn clone_arc_raw<T: ArcWake>(data: *const ()) -> RawWaker {
     increase_refcount::<T>(data);
     RawWaker::new(data, waker_vtable!(T))
 }
 
-unsafe fn drop_arc_raw<T: ArcWake>(data: *const()) {
+unsafe fn drop_arc_raw<T: ArcWake>(data: *const ()) {
     drop(Arc::<T>::from_raw(data as *const T))
 }
 
 // used by `waker_ref`
-pub(super) unsafe fn wake_arc_raw<T: ArcWake>(data: *const()) {
+pub(super) unsafe fn wake_arc_raw<T: ArcWake>(data: *const ()) {
     let arc: Arc<T> = Arc::from_raw(data as *const T);
-    ArcWake::wake(&arc);
+    ArcWake::wake(arc);
+}
+
+// used by `waker_ref`
+pub(super) unsafe fn wake_by_ref_arc_raw<T: ArcWake>(data: *const ()) {
+    let arc: Arc<T> = Arc::from_raw(data as *const T);
+    ArcWake::wake_by_ref(&arc);
     mem::forget(arc);
 }
 
@@ -84,7 +105,7 @@ mod tests {
     }
 
     impl ArcWake for CountingWaker {
-        fn wake(arc_self: &Arc<Self>) {
+        fn wake_by_ref(arc_self: &Arc<Self>) {
             let mut lock = arc_self.nr_wake.lock().unwrap();
             *lock += 1;
         }
@@ -96,13 +117,13 @@ mod tests {
 
         let w1: Waker = ArcWake::into_waker(some_w.clone());
         assert_eq!(2, Arc::strong_count(&some_w));
-        w1.wake();
+        w1.wake_by_ref();
         assert_eq!(1, some_w.wakes());
 
         let w2 = w1.clone();
         assert_eq!(3, Arc::strong_count(&some_w));
 
-        w2.wake();
+        w2.wake_by_ref();
         assert_eq!(2, some_w.wakes());
 
         drop(w2);

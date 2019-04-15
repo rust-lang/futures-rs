@@ -174,15 +174,15 @@ impl Current {
         }
 
         let ptr = current_to_ptr(self);
-        let vtable = &RawWakerVTable::new(clone, wake, drop);
+        let vtable = &RawWakerVTable::new(clone, wake, wake, drop);
         unsafe {
-            WakerRef::new(task03::Waker::new_unchecked(RawWaker::new(ptr, vtable)))
+            WakerRef::new(task03::Waker::from_raw(RawWaker::new(ptr, vtable)))
         }
     }
 }
 
 impl ArcWake03 for Current {
-    fn wake(arc_self: &Arc<Self>) {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
         arc_self.0.notify();
     }
 }

@@ -1,6 +1,6 @@
 #![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
 
-use super::arc_wake::{ArcWake, clone_arc_raw, wake_arc_raw};
+use super::arc_wake::{ArcWake, clone_arc_raw, wake_arc_raw, wake_by_ref_arc_raw};
 use alloc::sync::Arc;
 use core::marker::PhantomData;
 use core::ops::Deref;
@@ -53,18 +53,19 @@ where
 {
     // This uses the same mechanism as Arc::into_raw, without needing a reference.
     // This is potentially not stable
-    let ptr = &*wake as &W as *const W as *const();
+    let ptr = &*wake as &W as *const W as *const ();
 
     // Similar to `waker_vtable`, but with a no-op `drop` function.
     // Clones of the resulting `RawWaker` will still be dropped normally.
     let vtable = &RawWakerVTable::new(
         clone_arc_raw::<W>,
         wake_arc_raw::<W>,
+        wake_by_ref_arc_raw::<W>,
         noop,
     );
 
     let waker = unsafe {
-        Waker::new_unchecked(RawWaker::new(ptr, vtable))
+        Waker::from_raw(RawWaker::new(ptr, vtable))
     };
     WakerRef::new(waker)
 }
