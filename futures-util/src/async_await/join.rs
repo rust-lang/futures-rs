@@ -32,11 +32,8 @@ macro_rules! join {
         await!($crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
-                if $crate::core_reexport::future::Future::poll(
-                    unsafe { $crate::core_reexport::pin::Pin::new_unchecked(&mut $fut) }, cx).is_pending()
-                {
-                    all_done = false;
-                }
+                all_done &= $crate::core_reexport::future::Future::poll(
+                    unsafe { $crate::core_reexport::pin::Pin::new_unchecked(&mut $fut) }, cx).is_ready();
             )*
             if all_done {
                 $crate::core_reexport::task::Poll::Ready(($(

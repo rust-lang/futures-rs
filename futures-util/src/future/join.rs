@@ -47,15 +47,12 @@ macro_rules! generate {
         impl<$($Fut: Future),*> Future for $Join<$($Fut),*> {
             type Output = ($($Fut::Output),*);
 
-            #[allow(clippy::useless_let_if_seq)]
             fn poll(
                 mut self: Pin<&mut Self>, cx: &mut Context<'_>
             ) -> Poll<Self::Output> {
                 let mut all_done = true;
                 $(
-                    if self.as_mut().$Fut().poll(cx).is_pending() {
-                        all_done = false;
-                    }
+                    all_done &= self.as_mut().$Fut().poll(cx).is_ready();
                 )*
 
                 if all_done {

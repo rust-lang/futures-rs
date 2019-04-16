@@ -68,7 +68,6 @@ macro_rules! generate {
         {
             type Output = Result<(Fut1::Ok, $($Fut::Ok),*), Fut1::Error>;
 
-            #[allow(clippy::useless_let_if_seq)]
             fn poll(
                 mut self: Pin<&mut Self>, cx: &mut Context<'_>
             ) -> Poll<Self::Output> {
