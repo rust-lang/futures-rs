@@ -2,14 +2,14 @@
 
 use futures::future;
 use futures::FutureExt;
-use futures::task::{Context, Poll};
+use futures::task::Poll;
 use futures::stream::FusedStream;
 use futures::stream::{SelectAll, StreamExt};
-use futures_test::task::noop_waker_ref;
+use futures_test::task::noop_context;
 
 #[test]
 fn is_terminated() {
-    let mut cx = Context::from_waker(noop_waker_ref());
+    let mut cx = noop_context();
     let mut tasks = SelectAll::new();
 
     assert_eq!(tasks.is_terminated(), false);

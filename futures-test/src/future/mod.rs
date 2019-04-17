@@ -34,16 +34,16 @@ pub trait FutureTestExt: Future {
     ///
     /// ```
     /// #![feature(async_await, futures_api)]
-    /// use futures::task::{Context, Poll};
+    /// use futures::task::Poll;
     /// use futures::future::FutureExt;
-    /// use futures_test::task;
+    /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;
     /// use pin_utils::pin_mut;
     ///
     /// let future = (async { 5 }).pending_once();
     /// pin_mut!(future);
     ///
-    /// let mut cx = Context::from_waker(task::noop_waker_ref());
+    /// let mut cx = noop_context();
     ///
     /// assert_eq!(future.poll_unpin(&mut cx), Poll::Pending);
     /// assert_eq!(future.poll_unpin(&mut cx), Poll::Ready(5));

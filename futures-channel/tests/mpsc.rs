@@ -5,8 +5,8 @@ use futures::executor::{block_on, block_on_stream};
 use futures::future::{join, poll_fn};
 use futures::stream::{Stream, StreamExt};
 use futures::sink::{Sink, SinkExt};
-use futures::task::{Context, Poll};
-use futures_test::task::noop_waker_ref;
+use futures::task::Poll;
+use futures_test::task::noop_context;
 use pin_utils::pin_mut;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -304,7 +304,7 @@ fn stress_receiver_multi_task_bounded_hard() {
                     } else {
                         // Just poll
                         let n = n.clone();
-                        match rx.poll_next_unpin(&mut Context::from_waker(noop_waker_ref())) {
+                        match rx.poll_next_unpin(&mut noop_context()) {
                             Poll::Ready(Some(_)) => {
                                 n.fetch_add(1, Ordering::Relaxed);
                             }

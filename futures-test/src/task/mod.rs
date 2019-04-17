@@ -1,8 +1,15 @@
 //! Task related testing utilities.
 //!
 //! This module provides utilities for creating test
+//! [`Context`](futures_core::task::Context)s,
 //! [`Waker`](futures_core::task::Waker)s and
 //! [`Spawn`](futures_core::task::Spawn) implementations.
+//!
+//! Test contexts:
+//! - [`noop_context`] creates a context that ignores calls to
+//!   [`cx.waker().wake_by_ref()`](futures_core::task::Waker).
+//! - [`panic_context`] creates a context that panics when
+//!   [`cx.waker().wake_by_ref()`](futures_core::task::Waker) is called.
 //!
 //! Test wakers:
 //! - [`noop_waker`] creates a waker that ignores calls to
@@ -22,6 +29,9 @@
 //! For convenience there additionally exist various functions that directly
 //! return waker/spawner references: [`noop_waker_ref`],
 //! [`panic_waker_ref`], [`noop_spawner_mut`] and [`panic_spawner_mut`].
+
+mod context;
+pub use self::context::{noop_context, panic_context};
 
 mod noop_spawner;
 pub use self::noop_spawner::{noop_spawner_mut, NoopSpawner};
