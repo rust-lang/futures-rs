@@ -4,10 +4,10 @@ use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, join, FutureExt, FutureObj};
 use futures::stream::{StreamExt, FuturesUnordered};
-use futures::task::{Context, Poll};
+use futures::task::Poll;
 use futures_test::{assert_stream_done, assert_stream_next};
 use futures_test::future::FutureTestExt;
-use futures_test::task::noop_waker_ref;
+use futures_test::task::noop_context;
 use std::boxed::Box;
 
 #[test]
@@ -42,7 +42,7 @@ fn works_2() {
     a_tx.send(9).unwrap();
     b_tx.send(10).unwrap();
 
-    let mut cx = Context::from_waker(noop_waker_ref());
+    let mut cx = noop_context();
     assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(9))));
     c_tx.send(20).unwrap();
     assert_eq!(stream.poll_next_unpin(&mut cx), Poll::Ready(Some(Ok(30))));

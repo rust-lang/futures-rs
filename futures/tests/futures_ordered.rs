@@ -4,8 +4,7 @@ use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, join, FutureExt, FutureObj};
 use futures::stream::{StreamExt, FuturesOrdered};
-use futures::task::Context;
-use futures_test::task::noop_waker_ref;
+use futures_test::task::noop_context;
 
 #[test]
 fn works_1() {
@@ -16,7 +15,7 @@ fn works_1() {
     let mut stream = vec![a_rx, b_rx, c_rx].into_iter().collect::<FuturesOrdered<_>>();
 
     b_tx.send(99).unwrap();
-    assert!(stream.poll_next_unpin(&mut Context::from_waker(noop_waker_ref())).is_pending());
+    assert!(stream.poll_next_unpin(&mut noop_context()).is_pending());
 
     a_tx.send(33).unwrap();
     c_tx.send(33).unwrap();
@@ -39,7 +38,7 @@ fn works_2() {
         FutureObj::new(Box::new(join(b_rx, c_rx).map(|(a, b)| Ok(a? + b?)))),
     ].into_iter().collect::<FuturesOrdered<_>>();
 
-    let mut cx = Context::from_waker(noop_waker_ref());
+    let mut cx = noop_context();
     a_tx.send(33).unwrap();
     b_tx.send(33).unwrap();
     assert!(stream.poll_next_unpin(&mut cx).is_ready());
