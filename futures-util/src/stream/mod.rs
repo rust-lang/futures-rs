@@ -30,6 +30,9 @@ pub use self::concat::Concat;
 mod empty;
 pub use self::empty::{empty, Empty};
 
+mod enumerate;
+pub use self::enumerate::Enumerate;
+
 mod filter;
 pub use self::filter::Filter;
 
@@ -240,6 +243,51 @@ pub trait StreamExt: Stream {
               Self: Sized
     {
         Map::new(self, f)
+    }
+
+    /// Creates a stream which gives the current iteration count as well as
+    /// the next value.
+    ///
+    /// The stream returned yields pairs `(i, val)`, where `i` is the
+    /// current index of iteration and `val` is the value returned by the
+    /// stream.
+    ///
+    /// `enumerate()` keeps its count as a [`usize`]. If you want to count by a
+    /// different sized integer, the [`zip`](StreamExt::zip) function provides similar
+    /// functionality.
+    ///
+    /// # Overflow Behavior
+    ///
+    /// The method does no guarding against overflows, so enumerating more than
+    /// [`usize::max_value()`] elements either produces the wrong result or panics. If
+    /// debug assertions are enabled, a panic is guaranteed.
+    ///
+    /// # Panics
+    ///
+    /// The returned stream might panic if the to-be-returned index would
+    /// overflow a [`usize`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(vec!['a', 'b', 'c']);
+    ///
+    /// let mut stream = stream.enumerate();
+    ///
+    /// assert_eq!(await!(stream.next()), Some((0, 'a')));
+    /// assert_eq!(await!(stream.next()), Some((1, 'b')));
+    /// assert_eq!(await!(stream.next()), Some((2, 'c')));
+    /// assert_eq!(await!(stream.next()), None);
+    /// # });
+    /// ```
+    fn enumerate(self) -> Enumerate<Self>
+        where Self: Sized,
+    {
+        Enumerate::new(self)
     }
 
     /// Filters the values produced by this stream according to the provided

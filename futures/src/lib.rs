@@ -345,9 +345,10 @@ pub mod stream {
         unfold, Unfold,
 
         StreamExt,
-        Chain, Collect, Concat, Filter, FilterMap, Flatten, Fold, Forward,
-        ForEach, Fuse, StreamFuture, Inspect, Map, Next, SelectNextSome,
-        Peekable, Select, Skip, SkipWhile, Take, TakeWhile, Then, Zip
+        Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
+        Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
+        SelectNextSome, Peekable, Select, Skip, SkipWhile, Take, TakeWhile,
+        Then, Zip
     };
 
     #[cfg(feature = "alloc")]
