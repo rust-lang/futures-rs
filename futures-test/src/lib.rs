@@ -1,6 +1,8 @@
 //! Utilities to make testing [`Future`s](futures_core::Future) easier
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
+#![warn(clippy::all)]
+
 #![doc(
     html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.5/futures_test"
 )]
