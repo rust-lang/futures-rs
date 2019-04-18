@@ -121,7 +121,7 @@ mod tests {
         let (tx2, rx2) = mpsc::channel(2);
         let tx = tx1.fanout(tx2).sink_map_err(|_| ());
 
-        let src = stream::iter((0..10).map(|x| Ok(x)));
+        let src = stream::iter((0..10).map(Ok));
         let fwd = src.forward(tx);
 
         let collect_fut1 = rx1.collect::<Vec<_>>();
