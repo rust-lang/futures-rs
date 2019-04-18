@@ -25,7 +25,6 @@ where
         FlattenSink(Waiting(future))
     }
 
-    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     fn project_pin<'a>(
         self: Pin<&'a mut Self>
     ) -> State<Pin<&'a mut Fut>, Pin<&'a mut Si>> {
