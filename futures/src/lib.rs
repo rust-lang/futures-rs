@@ -195,8 +195,10 @@ pub mod future {
         maybe_done, MaybeDone,
         poll_fn, PollFn,
         ready, ok, err, Ready,
+        select, Select,
         join, join3, join4, join5,
         Join, Join3, Join4, Join5,
+        Either,
 
         OptionFuture,
 

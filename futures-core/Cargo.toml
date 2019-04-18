@@ -16,13 +16,12 @@ name = "futures_core"
 
 [features]
 default = ["std"]
-std = ["alloc", "either/use_std"]
+std = ["alloc"]
 nightly = []
 cfg-target-has-atomic = []
 alloc = []
 
 [dependencies]
-either = { version = "1.4", default-features = false, optional = true }
 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "=0.3.0-alpha.14" }

@@ -4,13 +4,13 @@
 //! including the `StreamExt` trait which adds methods to `Stream` types.
 
 use core::pin::Pin;
-use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
+use crate::future::Either;
 
 mod iter;
 pub use self::iter::{iter, Iter};
