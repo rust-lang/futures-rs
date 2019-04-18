@@ -96,10 +96,10 @@ mod if_std {
 
         /// Attempt to read from the `AsyncRead` into `buf`.
         ///
-        /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
+        /// On success, returns `Poll::Ready(Ok(num_bytes_read))`.
         ///
         /// If no data is available for reading, the method returns
-        /// `Ok(Poll::Pending)` and arranges for the current task (via
+        /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -118,10 +118,10 @@ mod if_std {
         /// This method is similar to `poll_read`, but allows data to be read
         /// into multiple buffers using a single operation.
         ///
-        /// On success, returns `Ok(Poll::Ready(num_bytes_read))`.
+        /// On success, returns `Poll::Ready(Ok(num_bytes_read))`.
         ///
         /// If no data is available for reading, the method returns
-        /// `Ok(Poll::Pending)` and arranges for the current task (via
+        /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
@@ -156,10 +156,10 @@ mod if_std {
     pub trait AsyncWrite {
         /// Attempt to write bytes from `buf` into the object.
         ///
-        /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
+        /// On success, returns `Poll::Ready(Ok(num_bytes_written))`.
         ///
         /// If the object is not ready for writing, the method returns
-        /// `Ok(Poll::Pending)` and arranges for the current task (via
+        /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -178,10 +178,10 @@ mod if_std {
         /// This method is similar to `poll_write`, but allows data from multiple buffers to be written
         /// using a single operation.
         ///
-        /// On success, returns `Ok(Poll::Ready(num_bytes_written))`.
+        /// On success, returns `Poll::Ready(Ok(num_bytes_written))`.
         ///
         /// If the object is not ready for writing, the method returns
-        /// `Ok(Poll::Pending)` and arranges for the current task (via
+        /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         ///
@@ -209,10 +209,10 @@ mod if_std {
         /// Attempt to flush the object, ensuring that any buffered data reach
         /// their destination.
         ///
-        /// On success, returns `Ok(Poll::Ready(()))`.
+        /// On success, returns `Poll::Ready(Ok(()))`.
         ///
         /// If flushing cannot immediately complete, this method returns
-        /// `Ok(Poll::Pending)` and arranges for the current task (via
+        /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object can make
         /// progress towards flushing.
         ///
@@ -226,10 +226,10 @@ mod if_std {
 
         /// Attempt to close the object.
         ///
-        /// On success, returns `Ok(Poll::Ready(()))`.
+        /// On success, returns `Poll::Ready(Ok(()))`.
         ///
         /// If closing cannot immediately complete, this function returns
-        /// `Ok(Poll::Pending)` and arranges for the current task (via
+        /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object can make
         /// progress towards closing.
         ///

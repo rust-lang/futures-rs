@@ -48,7 +48,7 @@ pub trait Sink<Item> {
 
     /// Attempts to prepare the `Sink` to receive a value.
     ///
-    /// This method must be called and return `Ok(Poll::Ready(()))` prior to
+    /// This method must be called and return `Poll::Ready(Ok(()))` prior to
     /// each call to `start_send`.
     ///
     /// This method returns `Poll::Ready` once the underlying sink is ready to
@@ -62,7 +62,7 @@ pub trait Sink<Item> {
 
     /// Begin the process of sending a value to the sink.
     /// Each call to this function must be proceeded by a successful call to
-    /// `poll_ready` which returned `Ok(Poll::Ready(()))`.
+    /// `poll_ready` which returned `Poll::Ready(Ok(()))`.
     ///
     /// As the name suggests, this method only *begins* the process of sending
     /// the item. If the sink employs buffering, the item isn't fully processed
@@ -84,11 +84,11 @@ pub trait Sink<Item> {
 
     /// Flush any remaining output from this sink.
     ///
-    /// Returns `Ok(Poll::Ready(()))` when no buffered items remain. If this
+    /// Returns `Poll::Ready(Ok(()))` when no buffered items remain. If this
     /// value is returned then it is guaranteed that all previous values sent
     /// via `start_send` have been flushed.
     ///
-    /// Returns `Ok(Poll::Pending)` if there is more work left to do, in which
+    /// Returns `Poll::Pending` if there is more work left to do, in which
     /// case the current task is scheduled (via `cx.waker().wake_by_ref()`) to wake up when
     /// `poll_flush` should be called again.
     ///
@@ -98,10 +98,10 @@ pub trait Sink<Item> {
 
     /// Flush any remaining output and close this sink, if necessary.
     ///
-    /// Returns `Ok(Poll::Ready(()))` when no buffered items remain and the sink
+    /// Returns `Poll::Ready(Ok(()))` when no buffered items remain and the sink
     /// has been successfully closed.
     ///
-    /// Returns `Ok(Poll::Pending)` if there is more work left to do, in which
+    /// Returns `Poll::Pending` if there is more work left to do, in which
     /// case the current task is scheduled (via `cx.waker().wake_by_ref()`) to wake up when
     /// `poll_close` should be called again.
     ///
