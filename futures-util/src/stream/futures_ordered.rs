@@ -101,7 +101,7 @@ impl<Fut: Future> FuturesOrdered<Fut> {
     /// Constructs a new, empty `FuturesOrdered`
     ///
     /// The returned `FuturesOrdered` does not contain any futures and, in this
-    /// state, `FuturesOrdered::poll` will return `Ok(Poll::Ready(None))`.
+    /// state, `FuturesOrdered::poll_next` will return `Poll::Ready(None)`.
     pub fn new() -> FuturesOrdered<Fut> {
         FuturesOrdered {
             in_progress_queue: FuturesUnordered::new(),

@@ -548,11 +548,11 @@ impl<T> SenderInner<T> {
     ///
     /// This method returns:
     ///
-    /// - `Ok(Poll::Ready(_))` if there is sufficient capacity;
-    /// - `Ok(Poll::Pending)` if the channel may not have
+    /// - `Poll::Ready(Ok(_))` if there is sufficient capacity;
+    /// - `Poll::Pending` if the channel may not have
     ///   capacity, in which case the current task is queued to be notified once
     ///   capacity is available;
-    /// - `Err(SendError)` if the receiver has been dropped.
+    /// - `Poll::Ready(Err(SendError))` if the receiver has been dropped.
     fn poll_ready(
         &mut self,
         cx: &mut Context<'_>,
@@ -642,11 +642,11 @@ impl<T> Sender<T> {
     ///
     /// This method returns:
     ///
-    /// - `Ok(Poll::Ready(_))` if there is sufficient capacity;
-    /// - `Ok(Poll::Pending)` if the channel may not have
+    /// - `Poll::Ready(Ok(_))` if there is sufficient capacity;
+    /// - `Poll::Pending` if the channel may not have
     ///   capacity, in which case the current task is queued to be notified once
     ///   capacity is available;
-    /// - `Err(SendError)` if the receiver has been dropped.
+    /// - `Poll::Ready(Err(SendError))` if the receiver has been dropped.
     pub fn poll_ready(
         &mut self,
         cx: &mut Context<'_>,
