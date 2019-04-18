@@ -15,8 +15,8 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["alloc", "futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "either/use_std", "rand", "rand_core", "slab"]
-default = ["std", "futures-core-preview/either", "futures-sink-preview/either"]
+std = ["alloc", "futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "futures-select-macro-preview/std", "rand", "rand_core", "slab"]
+default = ["std"]
 compat = ["std", "futures_01"]
 io-compat = ["compat", "tokio-io"]
 bench = []
@@ -31,7 +31,6 @@ futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.14", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.14", default-features = false}
 futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.14", default-features = false }
-either = { version = "1.4", default-features = false }
 proc-macro-hack = "0.5"
 proc-macro-nested = "0.1.2"
 rand = { version = "0.6.4", optional = true }

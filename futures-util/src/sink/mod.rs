@@ -3,10 +3,10 @@
 //! This module contains a number of functions for working with `Sink`s,
 //! including the `SinkExt` trait which adds methods to `Sink` types.
 
-use either::Either;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_sink::Sink;
+use crate::future::Either;
 
 #[cfg(feature = "compat")]
 use crate::compat::CompatSink;

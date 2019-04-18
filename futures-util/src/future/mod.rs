@@ -57,9 +57,8 @@ pub use self::into_stream::IntoStream;
 mod map;
 pub use self::map::Map;
 
-// Todo
-// mod select;
-// pub use self::select::Select;
+mod select;
+pub use self::select::{select, Select};
 
 mod then;
 pub use self::then::Then;
@@ -74,6 +73,9 @@ pub use self::unit_error::UnitError;
 mod never_error;
 #[cfg(feature = "never-type")]
 pub use self::never_error::NeverError;
+
+mod either;
+pub use self::either::Either;
 
 // Implementation details
 mod chain;
@@ -179,52 +181,6 @@ pub trait FutureExt: Future {
         assert_future::<Fut::Output, _>(Then::new(self, f))
     }
 
-    /* TODO
-    /// Waits for either one of two differently-typed futures to complete.
-    ///
-    /// This function will return a new future which awaits for either this or
-    /// the `other` future to complete. The returned future will finish with
-    /// both the value resolved and a future representing the completion of the
-    /// other work.
-    ///
-    /// Note that this function consumes the receiving futures and returns a
-    /// wrapped version of them.
-    ///
-    /// Also note that if both this and the second future have the same
-    /// success/error type you can use the `Either::split` method to
-    /// conveniently extract out the value at the end.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::future::{self, Either};
-    ///
-    /// // A poor-man's join implemented on top of select
-    ///
-    /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
-    ///     where A: Future<Error = E> + 'static,
-    ///           B: Future<Error = E> + 'static,
-    ///           E: 'static,
-    /// {
-    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
-    ///         match res {
-    ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
-    ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
-    ///             Err(Either::Left((e, _))) => Box::new(future::err(e)),
-    ///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
-    ///         }
-    ///     }))
-    /// }
-    /// ```
-    fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture, Self: Sized
-    {
-        select::new(self, other.into_future())
-    }
-    */
-
-    /* ToDo: futures-core cannot implement Future for Either anymore because of
-             the orphan rule. Remove? Implement our own `Either`?
     /// Wrap this future in an `Either` future, making it the left-hand variant
     /// of that `Either`.
     ///
@@ -234,16 +190,19 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future::{self, FutureExt};
     ///
     /// let x = 6;
     /// let future = if x < 10 {
-    ///     ready(true).left_future()
+    ///     future::ready(true).left_future()
     /// } else {
-    ///     ready(false).right_future()
+    ///     future::ready(false).right_future()
     /// };
     ///
-    /// assert_eq!(true, block_on(future));
+    /// assert_eq!(await!(future), true);
+    /// # });
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
         where B: Future<Output = Self::Output>,
@@ -261,23 +220,26 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future::{self, FutureExt};
     ///
     /// let x = 6;
-    /// let future = if x < 10 {
-    ///     ready(true).left_future()
+    /// let future = if x > 10 {
+    ///     future::ready(true).left_future()
     /// } else {
-    ///     ready(false).right_future()
+    ///     future::ready(false).right_future()
     /// };
     ///
-    /// assert_eq!(false, block_on(future));
+    /// assert_eq!(await!(future), false);
+    /// # });
     /// ```
     fn right_future<A>(self) -> Either<A, Self>
         where A: Future<Output = Self::Output>,
               Self: Sized,
     {
         Either::Right(self)
-    }*/
+    }
 
     /// Convert this future into a single element stream.
     ///

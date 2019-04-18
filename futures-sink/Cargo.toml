@@ -15,12 +15,11 @@ The asynchronous `Sink` trait for the futures-rs library.
 name = "futures_sink"
 
 [features]
-std = ["alloc", "either/use_std", "futures-core-preview/std", "futures-channel-preview/std"]
+std = ["alloc", "futures-core-preview/std", "futures-channel-preview/std"]
 default = ["std"]
 nightly = ["futures-core-preview/nightly"]
 alloc = ["futures-core-preview/alloc"]
 
 [dependencies]
-either = { version = "1.4", default-features = false, optional = true }
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.14", default-features = false }
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.14", default-features = false }

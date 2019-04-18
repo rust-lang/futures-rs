@@ -4,9 +4,6 @@ use core::ops;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-#[cfg(feature = "either")]
-use either::Either;
-
 mod stream_obj;
 pub use self::stream_obj::{StreamObj,LocalStreamObj,UnsafeStreamObj};
 
@@ -81,23 +78,6 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         Pin::get_mut(self).as_mut().poll_next(cx)
-    }
-}
-
-#[cfg(feature = "either")]
-impl<A, B> Stream for Either<A, B>
-    where A: Stream,
-          B: Stream<Item = A::Item>
-{
-    type Item = A::Item;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<A::Item>> {
-        unsafe {
-            match Pin::get_unchecked_mut(self) {
-                Either::Left(a) => Pin::new_unchecked(a).poll_next(cx),
-                Either::Right(b) => Pin::new_unchecked(b).poll_next(cx),
-            }
-        }
     }
 }
 
