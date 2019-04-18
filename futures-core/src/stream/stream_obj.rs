@@ -17,7 +17,7 @@ pub struct LocalStreamObj<'a, T> {
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a, T> Unpin for LocalStreamObj<'a, T> {}
+impl<T> Unpin for LocalStreamObj<'_, T> {}
 
 impl<'a, T> LocalStreamObj<'a, T> {
     /// Create a `LocalStreamObj` from a custom trait object representation.
@@ -41,7 +41,7 @@ impl<'a, T> LocalStreamObj<'a, T> {
     }
 }
 
-impl<'a, T> fmt::Debug for LocalStreamObj<'a, T> {
+impl<T> fmt::Debug for LocalStreamObj<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalStreamObj").finish()
     }
@@ -54,7 +54,7 @@ impl<'a, T> From<StreamObj<'a, T>> for LocalStreamObj<'a, T> {
     }
 }
 
-impl<'a, T> Stream for LocalStreamObj<'a, T> {
+impl<T> Stream for LocalStreamObj<'_, T> {
     type Item = T;
 
     #[inline]
@@ -66,7 +66,7 @@ impl<'a, T> Stream for LocalStreamObj<'a, T> {
     }
 }
 
-impl<'a, T> Drop for LocalStreamObj<'a, T> {
+impl<T> Drop for LocalStreamObj<'_, T> {
     fn drop(&mut self) {
         unsafe { (self.drop_fn)(self.ptr) }
     }
@@ -85,8 +85,8 @@ impl<'a, T> Drop for LocalStreamObj<'a, T> {
 ///   information #44874)
 pub struct StreamObj<'a, T>(LocalStreamObj<'a, T>);
 
-impl<'a, T> Unpin for StreamObj<'a, T> {}
-unsafe impl<'a, T> Send for StreamObj<'a, T> {}
+impl<T> Unpin for StreamObj<'_, T> {}
+unsafe impl<T> Send for StreamObj<'_, T> {}
 
 impl<'a, T> StreamObj<'a, T> {
     /// Create a `StreamObj` from a custom trait object representation.
@@ -96,13 +96,13 @@ impl<'a, T> StreamObj<'a, T> {
     }
 }
 
-impl<'a, T> fmt::Debug for StreamObj<'a, T> {
+impl<T> fmt::Debug for StreamObj<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("StreamObj").finish()
     }
 }
 
-impl<'a, T> Stream for StreamObj<'a, T> {
+impl<T> Stream for StreamObj<'_, T> {
     type Item = T;
 
     #[inline]

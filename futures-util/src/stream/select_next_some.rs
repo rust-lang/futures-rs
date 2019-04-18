@@ -18,13 +18,13 @@ impl<'a, St> SelectNextSome<'a, St> {
     }
 }
 
-impl<'a, St: FusedStream> FusedFuture for SelectNextSome<'a, St> {
+impl<St: FusedStream> FusedFuture for SelectNextSome<'_, St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
-impl<'a, St: Stream + FusedStream + Unpin> Future for SelectNextSome<'a, St> {
+impl<St: Stream + FusedStream + Unpin> Future for SelectNextSome<'_, St> {
     type Output = St::Item;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

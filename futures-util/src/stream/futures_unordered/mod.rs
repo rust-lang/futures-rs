@@ -64,7 +64,7 @@ unsafe impl<Fut: Send> Send for FuturesUnordered<Fut> {}
 unsafe impl<Fut: Sync> Sync for FuturesUnordered<Fut> {}
 impl<Fut> Unpin for FuturesUnordered<Fut> {}
 
-impl<'a> Spawn for FuturesUnordered<FutureObj<'a, ()>> {
+impl Spawn for FuturesUnordered<FutureObj<'_, ()>> {
     fn spawn_obj(&mut self, future_obj: FutureObj<'static, ()>)
         -> Result<(), SpawnError>
     {
@@ -73,7 +73,7 @@ impl<'a> Spawn for FuturesUnordered<FutureObj<'a, ()>> {
     }
 }
 
-impl<'a> LocalSpawn for FuturesUnordered<LocalFutureObj<'a, ()>> {
+impl LocalSpawn for FuturesUnordered<LocalFutureObj<'_, ()>> {
     fn spawn_local_obj(&mut self, future_obj: LocalFutureObj<'static, ()>)
         -> Result<(), SpawnError>
     {
@@ -377,7 +377,7 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
                 task: Option<Arc<Task<Fut>>>,
             }
 
-            impl<'a, Fut> Drop for Bomb<'a, Fut> {
+            impl<Fut> Drop for Bomb<'_, Fut> {
                 fn drop(&mut self) {
                     if let Some(task) = self.task.take() {
                         self.queue.release_task(task);

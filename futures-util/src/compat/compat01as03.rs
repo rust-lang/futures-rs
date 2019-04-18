@@ -316,8 +316,8 @@ struct NotifyWaker(task03::Waker);
 #[derive(Clone)]
 struct WakerToHandle<'a>(&'a task03::Waker);
 
-impl<'a> From<WakerToHandle<'a>> for NotifyHandle01 {
-    fn from(handle: WakerToHandle<'a>) -> NotifyHandle01 {
+impl From<WakerToHandle<'_>> for NotifyHandle01 {
+    fn from(handle: WakerToHandle<'_>) -> NotifyHandle01 {
         let ptr = Box::new(NotifyWaker(handle.0.clone()));
 
         unsafe { NotifyHandle01::new(Box::into_raw(ptr)) }

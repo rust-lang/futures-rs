@@ -16,7 +16,7 @@ pub struct WakerRef<'a> {
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a> WakerRef<'a> {
+impl WakerRef<'_> {
     /// Create a new [`WakerRef`] from a [`Waker`].
     ///
     /// Note: this function is safe, but it is generally only used
@@ -30,7 +30,7 @@ impl<'a> WakerRef<'a> {
     }
 }
 
-impl<'a> Deref for WakerRef<'a> {
+impl Deref for WakerRef<'_> {
     type Target = Waker;
 
     fn deref(&self) -> &Waker {

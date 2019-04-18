@@ -45,7 +45,7 @@ impl<T> Sink<T> for UnboundedSender<T> {
     }
 }
 
-impl<'a, T> Sink<T> for &'a UnboundedSender<T> {
+impl<T> Sink<T> for &UnboundedSender<T> {
     type SinkError = SendError;
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {

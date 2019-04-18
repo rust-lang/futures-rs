@@ -266,11 +266,11 @@ mod if_std {
         deref_async_read!();
     }
 
-    impl<'a, T: ?Sized + AsyncRead + Unpin> AsyncRead for &'a mut T {
+    impl<T: ?Sized + AsyncRead + Unpin> AsyncRead for &mut T {
         deref_async_read!();
     }
 
-    impl<'a, T: ?Sized + AsyncRead> AsyncRead for Pin<&'a mut T> {
+    impl<T: ?Sized + AsyncRead> AsyncRead for Pin<&mut T> {
         unsafe fn initializer(&self) -> Initializer {
             (**self).initializer()
         }
@@ -304,7 +304,7 @@ mod if_std {
         }
     }
 
-    impl<'a> AsyncRead for &'a [u8] {
+    impl AsyncRead for &[u8] {
         unsafe_delegate_async_read_to_stdio!();
     }
 
@@ -344,11 +344,11 @@ mod if_std {
         deref_async_write!();
     }
 
-    impl<'a, T: ?Sized + AsyncWrite + Unpin> AsyncWrite for &'a mut T {
+    impl<T: ?Sized + AsyncWrite + Unpin> AsyncWrite for &mut T {
         deref_async_write!();
     }
 
-    impl<'a, T: ?Sized + AsyncWrite> AsyncWrite for Pin<&'a mut T> {
+    impl<T: ?Sized + AsyncWrite> AsyncWrite for Pin<&mut T> {
         fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>
         {
