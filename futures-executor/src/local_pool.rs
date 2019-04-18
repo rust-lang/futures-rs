@@ -147,7 +147,7 @@ impl LocalPool {
     /// The function will block the calling thread *only* until the future `f`
     /// completes; there may still be incomplete tasks in the pool, which will
     /// be inert after the call completes, but can continue with further use of
-    /// one of the pool's run or poll mothods. While the function is running,
+    /// one of the pool's run or poll methods. While the function is running,
     /// however, all tasks in the pool will try to make progress.
     pub fn run_until<F: Future>(&mut self, future: F) -> F::Output {
         pin_mut!(future);
@@ -183,11 +183,11 @@ impl LocalPool {
     /// spawner.spawn_local(empty());
     ///
     /// // Run the two ready tasks and return true for them.
-    /// pool.poll_one(); // returns true after completing one of the ready futures
-    /// pool.poll_one(); // returns true after completing the other ready future
+    /// pool.try_run_one(); // returns true after completing one of the ready futures
+    /// pool.try_run_one(); // returns true after completing the other ready future
     ///
     /// // the remaining task can not be completed
-    /// pool.poll_one(); // returns false
+    /// pool.try_run_one(); // returns false
     /// ```
     ///
     /// This function will not block the calling thread and will return the moment
@@ -195,7 +195,7 @@ impl LocalPool {
     /// task was completed; Remaining incomplete tasks in the pool can continue with
     /// further use of one of the pool's run or poll methods.
     /// Though only one task will be completed, progress may be made on multiple tasks.
-    pub fn poll_one(&mut self) -> bool {
+    pub fn try_run_one(&mut self) -> bool {
         poll_executor(|ctx| {
             let ret = self.poll_pool_once(ctx);
 
@@ -225,7 +225,7 @@ impl LocalPool {
     ///
     /// // Runs the two ready task and returns.
     /// // The empty task remains in the pool.
-    /// pool.poll();
+    /// pool.run_until_stalled();
     /// ```
     ///
     /// This function will not block the calling thread and will return the moment
@@ -233,7 +233,7 @@ impl LocalPool {
     /// remaining incomplete tasks in the pool can continue with further use of one
     /// of the pool's run or poll methods. While the function is running, all tasks
     /// in the pool will try to make progress.
-    pub fn poll(&mut self) {
+    pub fn run_until_stalled(&mut self) {
         poll_executor(|ctx| {
             loop {
                 let result = self.poll_pool_once(ctx);

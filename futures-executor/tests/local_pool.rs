@@ -111,13 +111,13 @@ fn run_spawn_many() {
 }
 
 #[test]
-fn poll_one_returns_if_empty() {
+fn try_run_one_returns_if_empty() {
     let mut pool = LocalPool::new();
-    assert!(pool.poll_one() == false);
+    assert!(pool.try_run_one() == false);
 }
 
 #[test]
-fn poll_one_executes_one_ready() {
+fn try_run_one_executes_one_ready() {
     const ITER: usize = 200;
 
     let cnt = Rc::new(Cell::new(0));
@@ -139,14 +139,14 @@ fn poll_one_executes_one_ready() {
 
     for i in 0..ITER {
         assert_eq!(cnt.get(), i);
-        assert!(pool.poll_one());
+        assert!(pool.try_run_one());
         assert_eq!(cnt.get(), i + 1);
     }
-    assert!(pool.poll_one() == false);
+    assert!(pool.try_run_one() == false);
 }
 
 #[test]
-fn poll_one_returns_on_no_progress() {
+fn try_run_one_returns_on_no_progress() {
     const ITER: usize = 10;
 
     let cnt = Rc::new(Cell::new(0));
@@ -171,42 +171,42 @@ fn poll_one_returns_on_no_progress() {
 
     for i in 0..ITER - 1 {
         assert_eq!(cnt.get(), i);
-        assert!(!pool.poll_one());
+        assert!(!pool.try_run_one());
         assert_eq!(cnt.get(), i + 1);
         let w = waker.take();
         assert!(w.is_some());
         w.unwrap().wake();
     }
-    assert!(pool.poll_one());
+    assert!(pool.try_run_one());
     assert_eq!(cnt.get(), ITER);
 }
 
 #[test]
-fn poll_returns_if_empty() {
+fn run_until_stalled_returns_if_empty() {
     let mut pool = LocalPool::new();
-    pool.poll();
-    pool.poll();
+    pool.run_until_stalled();
+    pool.run_until_stalled();
 }
 
 #[test]
-fn poll_returns_multiple_times() {
+fn run_until_stalled_returns_multiple_times() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
     let cnt = Rc::new(Cell::new(0));
 
     let cnt1 = cnt.clone();
     spawn.spawn_local_obj(Box::pin(lazy(move |_|{ cnt1.set(cnt1.get() + 1) })).into()).unwrap();
-    pool.poll();
+    pool.run_until_stalled();
     assert_eq!(cnt.get(), 1);
 
     let cnt2 = cnt.clone();
     spawn.spawn_local_obj(Box::pin(lazy(move |_|{ cnt2.set(cnt2.get() + 1) })).into()).unwrap();
-    pool.poll();
+    pool.run_until_stalled();
     assert_eq!(cnt.get(), 2);
 }
 
 #[test]
-fn poll_executes_all_ready() {
+fn run_until_stalled_executes_all_ready() {
     const ITER: usize = 200;
     const PER_ITER: usize = 3;
 
@@ -229,7 +229,7 @@ fn poll_executes_all_ready() {
             spawn.spawn_local_obj(Box::pin(pending()).into()).unwrap();
         }
         assert_eq!(cnt.get(), i * PER_ITER);
-        pool.poll();
+        pool.run_until_stalled();
         assert_eq!(cnt.get(), (i + 1) * PER_ITER);
     }
 }
@@ -250,13 +250,13 @@ fn nesting_run() {
 
 #[test]
 #[should_panic]
-fn nesting_run_poll() {
+fn nesting_run_run_until_stalled() {
     let mut pool = LocalPool::new();
     let mut spawn = pool.spawner();
 
     spawn.spawn_obj(Box::pin(lazy(|_| {
         let mut pool = LocalPool::new();
-        pool.poll();
+        pool.run_until_stalled();
     })).into()).unwrap();
 
     pool.run();
