@@ -219,7 +219,7 @@ where
 
         struct Reset<'a>(&'a AtomicUsize);
 
-        impl<'a> Drop for Reset<'a> {
+        impl Drop for Reset<'_> {
             fn drop(&mut self) {
                 use std::thread;
 

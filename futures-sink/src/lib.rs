@@ -110,7 +110,7 @@ pub trait Sink<Item> {
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>>;
 }
 
-impl<'a, S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for &'a mut S {
+impl<S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for &mut S {
     type SinkError = S::SinkError;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
@@ -130,7 +130,7 @@ impl<'a, S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for &'a mut S {
     }
 }
 
-impl<'a, S: ?Sized + Sink<Item>, Item> Sink<Item> for Pin<&'a mut S> {
+impl<S: ?Sized + Sink<Item>, Item> Sink<Item> for Pin<&mut S> {
     type SinkError = S::SinkError;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {

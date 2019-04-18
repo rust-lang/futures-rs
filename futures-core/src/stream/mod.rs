@@ -58,7 +58,7 @@ pub trait Stream {
     ) -> Poll<Option<Self::Item>>;
 }
 
-impl<'a, S: ?Sized + Stream + Unpin> Stream for &'a mut S {
+impl<S: ?Sized + Stream + Unpin> Stream for &mut S {
     type Item = S::Item;
 
     fn poll_next(

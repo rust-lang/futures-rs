@@ -61,7 +61,7 @@ impl<T> Lock<T> {
     }
 }
 
-impl<'a, T> Deref for TryLock<'a, T> {
+impl<T> Deref for TryLock<'_, T> {
     type Target = T;
     fn deref(&self) -> &T {
         // The existence of `TryLock` represents that we own the lock, so we
@@ -70,7 +70,7 @@ impl<'a, T> Deref for TryLock<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for TryLock<'a, T> {
+impl<T> DerefMut for TryLock<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         // The existence of `TryLock` represents that we own the lock, so we
         // can safely access the data here.
@@ -81,7 +81,7 @@ impl<'a, T> DerefMut for TryLock<'a, T> {
     }
 }
 
-impl<'a, T> Drop for TryLock<'a, T> {
+impl<T> Drop for TryLock<'_, T> {
     fn drop(&mut self) {
         self.__ptr.locked.store(false, SeqCst);
     }

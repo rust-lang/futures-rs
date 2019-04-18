@@ -19,7 +19,7 @@ pub struct LocalFutureObj<'a, T> {
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a, T> Unpin for LocalFutureObj<'a, T> {}
+impl<T> Unpin for LocalFutureObj<'_, T> {}
 
 impl<'a, T> LocalFutureObj<'a, T> {
     /// Create a `LocalFutureObj` from a custom trait object representation.
@@ -43,7 +43,7 @@ impl<'a, T> LocalFutureObj<'a, T> {
     }
 }
 
-impl<'a, T> fmt::Debug for LocalFutureObj<'a, T> {
+impl<T> fmt::Debug for LocalFutureObj<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalFutureObj")
             .finish()
@@ -57,7 +57,7 @@ impl<'a, T> From<FutureObj<'a, T>> for LocalFutureObj<'a, T> {
     }
 }
 
-impl<'a, T> Future for LocalFutureObj<'a, T> {
+impl<T> Future for LocalFutureObj<'_, T> {
     type Output = T;
 
     #[inline]
@@ -68,7 +68,7 @@ impl<'a, T> Future for LocalFutureObj<'a, T> {
     }
 }
 
-impl<'a, T> Drop for LocalFutureObj<'a, T> {
+impl<T> Drop for LocalFutureObj<'_, T> {
     fn drop(&mut self) {
         unsafe {
             (self.drop_fn)(self.ptr)
@@ -89,8 +89,8 @@ impl<'a, T> Drop for LocalFutureObj<'a, T> {
 ///   information #44874)
 pub struct FutureObj<'a, T>(LocalFutureObj<'a, T>);
 
-impl<'a, T> Unpin for FutureObj<'a, T> {}
-unsafe impl<'a, T> Send for FutureObj<'a, T> {}
+impl<T> Unpin for FutureObj<'_, T> {}
+unsafe impl<T> Send for FutureObj<'_, T> {}
 
 impl<'a, T> FutureObj<'a, T> {
     /// Create a `FutureObj` from a custom trait object representation.
@@ -100,19 +100,19 @@ impl<'a, T> FutureObj<'a, T> {
     }
 }
 
-impl<'a, T> fmt::Debug for FutureObj<'a, T> {
+impl<T> fmt::Debug for FutureObj<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FutureObj")
             .finish()
     }
 }
 
-impl<'a, T> Future for FutureObj<'a, T> {
+impl<T> Future for FutureObj<'_, T> {
     type Output = T;
 
     #[inline]
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        let pinned_field: Pin<&mut LocalFutureObj<'a, T>> = unsafe {
+        let pinned_field: Pin<&mut LocalFutureObj<'_, T>> = unsafe {
             Pin::map_unchecked_mut(self, |x| &mut x.0)
         };
         LocalFutureObj::poll(pinned_field, cx)

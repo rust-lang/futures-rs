@@ -229,20 +229,20 @@ pub struct BiLockGuard<'a, T> {
     bilock: &'a BiLock<T>,
 }
 
-impl<'a, T> Deref for BiLockGuard<'a, T> {
+impl<T> Deref for BiLockGuard<'_, T> {
     type Target = T;
     fn deref(&self) -> &T {
         unsafe { &*self.bilock.arc.value.as_ref().unwrap().get() }
     }
 }
 
-impl<'a, T: Unpin> DerefMut for BiLockGuard<'a, T> {
+impl<T: Unpin> DerefMut for BiLockGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.bilock.arc.value.as_ref().unwrap().get() }
     }
 }
 
-impl<'a, T> BiLockGuard<'a, T> {
+impl<T> BiLockGuard<'_, T> {
     /// Get a mutable pinned reference to the locked value.
     pub fn as_pin_mut(&mut self) -> Pin<&mut T> {
         // Safety: we never allow moving a !Unpin value out of a bilock, nor
@@ -251,7 +251,7 @@ impl<'a, T> BiLockGuard<'a, T> {
     }
 }
 
-impl<'a, T> Drop for BiLockGuard<'a, T> {
+impl<T> Drop for BiLockGuard<'_, T> {
     fn drop(&mut self) {
         self.bilock.unlock();
     }
@@ -266,7 +266,7 @@ pub struct BiLockAcquire<'a, T> {
 }
 
 // Pinning is never projected to fields
-impl<'a, T> Unpin for BiLockAcquire<'a, T> {}
+impl<T> Unpin for BiLockAcquire<'_, T> {}
 
 impl<'a, T> Future for BiLockAcquire<'a, T> {
     type Output = BiLockGuard<'a, T>;

@@ -15,7 +15,7 @@ fn dropping_drops_the_future() {
 
     struct Inc<'a>(&'a mut u32);
 
-    impl<'a> Future for Inc<'a> {
+    impl Future for Inc<'_> {
         type Output = ();
 
         fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<()> {
@@ -23,7 +23,7 @@ fn dropping_drops_the_future() {
         }
     }
 
-    impl<'a> Drop for Inc<'a> {
+    impl Drop for Inc<'_> {
         fn drop(&mut self) {
             *self.0 += 1;
         }
