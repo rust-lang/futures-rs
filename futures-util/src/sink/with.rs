@@ -58,7 +58,6 @@ enum State<Fut, T> {
 }
 
 impl<Fut, T> State<Fut, T> {
-    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     #[allow(clippy::wrong_self_convention)]
     fn as_pin_mut<'a>(
         self: Pin<&'a mut Self>,

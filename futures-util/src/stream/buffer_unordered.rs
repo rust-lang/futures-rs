@@ -80,7 +80,6 @@ where
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
-    #[allow(clippy::needless_lifetimes)] // https://github.com/rust-lang/rust/issues/52675
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
         unsafe { Pin::map_unchecked_mut(self, |x| x.get_mut()) }
     }
