@@ -65,6 +65,7 @@ matrix:
     - name: cargo build (default features)
       rust: nightly
       script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --all
 
     - name: cargo build (compat feature)
