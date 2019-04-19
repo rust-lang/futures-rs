@@ -11,6 +11,9 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "compat")]
 use crate::compat::Compat;
 
+mod and_then;
+pub use self::and_then::AndThen;
+
 mod err_into;
 pub use self::err_into::ErrInto;
 
@@ -22,6 +25,9 @@ pub use self::map_ok::MapOk;
 
 mod map_err;
 pub use self::map_err::MapErr;
+
+mod or_else;
+pub use self::or_else::OrElse;
 
 mod try_next;
 pub use self::try_next::TryNext;
@@ -143,6 +149,77 @@ pub trait TryStreamExt: TryStream {
         F: FnMut(Self::Error) -> E,
     {
         MapErr::new(self, f)
+    }
+
+    /// Chain on a computation for when a value is ready, passing the successful
+    /// results to the provided closure `f`.
+    ///
+    /// This function can be used to run a unit of work when the next successful
+    /// value on a stream is ready. The closure provided will be yielded a value
+    /// when ready, and the returned future will then be run to completion to
+    /// produce the next value on this stream.
+    ///
+    /// Any errors produced by this stream will not be passed to the closure,
+    /// and will be passed through.
+    ///
+    /// The returned value of the closure must implement the `TryFuture` trait
+    /// and can represent some more work to be done before the composed stream
+    /// is finished.
+    ///
+    /// Note that this function consumes the receiving stream and returns a
+    /// wrapped version of it.
+    ///
+    /// To process the entire stream and return a single future representing
+    /// success or error, use `try_for_each` instead.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use futures::channel::mpsc;
+    /// use futures::future;
+    /// use futures::stream::TryStreamExt;
+    ///
+    /// let (_tx, rx) = mpsc::channel::<Result<i32, ()>>(1);
+    ///
+    /// let rx = rx.and_then(|result| {
+    ///     future::ok(if result % 2 == 0 {
+    ///         Some(result)
+    ///     } else {
+    ///         None
+    ///     })
+    /// });
+    /// ```
+    fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
+        where F: FnMut(Self::Ok) -> Fut,
+              Fut: TryFuture<Error = Self::Error>,
+              Self: Sized,
+    {
+        AndThen::new(self, f)
+    }
+
+    /// Chain on a computation for when an error happens, passing the
+    /// erroneous result to the provided closure `f`.
+    ///
+    /// This function can be used to run a unit of work and attempt to recover from
+    /// an error if one happens. The closure provided will be yielded an error
+    /// when one appears, and the returned future will then be run to completion
+    /// to produce the next value on this stream.
+    ///
+    /// Any successful values produced by this stream will not be passed to the
+    /// closure, and will be passed through.
+    ///
+    /// The returned value of the closure must implement the [`TryFuture`] trait
+    /// and can represent some more work to be done before the composed stream
+    /// is finished.
+    ///
+    /// Note that this function consumes the receiving stream and returns a
+    /// wrapped version of it.
+    fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
+        where F: FnMut(Self::Error) -> Fut,
+              Fut: TryFuture<Ok = Self::Ok>,
+              Self: Sized,
+    {
+        OrElse::new(self, f)
     }
 
     /// Wraps a [`TryStream`] into a type that implements
