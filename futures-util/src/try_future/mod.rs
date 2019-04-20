@@ -62,7 +62,7 @@ pub use self::unwrap_or_else::UnwrapOrElse;
 mod try_chain;
 pub(crate) use self::try_chain::{TryChain, TryChainAction};
 
-impl<Fut: TryFuture> TryFutureExt for Fut {}
+impl<Fut: ?Sized + TryFuture> TryFutureExt for Fut {}
 
 /// Adapters specific to [`Result`]-returning futures
 pub trait TryFutureExt: TryFuture {

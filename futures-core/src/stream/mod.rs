@@ -1,6 +1,6 @@
 //! Asynchronous streams.
 
-use core::ops;
+use core::ops::DerefMut;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
@@ -68,7 +68,7 @@ impl<S: ?Sized + Stream + Unpin> Stream for &mut S {
 
 impl<P> Stream for Pin<P>
 where
-    P: ops::DerefMut + Unpin,
+    P: DerefMut + Unpin,
     P::Target: Stream,
 {
     type Item = <P::Target as Stream>::Item;
@@ -94,6 +94,22 @@ pub trait FusedStream {
     fn is_terminated(&self) -> bool;
 }
 
+impl<F: ?Sized + FusedStream> FusedStream for &mut F {
+    fn is_terminated(&self) -> bool {
+        <F as FusedStream>::is_terminated(&**self)
+    }
+}
+
+impl<P> FusedStream for Pin<P>
+where
+    P: DerefMut + Unpin,
+    P::Target: FusedStream,
+{
+    fn is_terminated(&self) -> bool {
+        <P::Target as FusedStream>::is_terminated(&**self)
+    }
+}
+
 /// A convenience for streams that return `Result` values that includes
 /// a variety of adapters tailored to such futures.
 pub trait TryStream {
@@ -113,7 +129,7 @@ pub trait TryStream {
 }
 
 impl<S, T, E> TryStream for S
-    where S: Stream<Item = Result<T, E>>
+    where S: ?Sized + Stream<Item = Result<T, E>>
 {
     type Ok = T;
     type Error = E;
@@ -161,6 +177,12 @@ mod if_alloc {
             _cx: &mut Context<'_>,
         ) -> Poll<Option<Self::Item>> {
             Poll::Ready(self.pop_front())
+        }
+    }
+
+    impl<S: ?Sized + FusedStream> FusedStream for Box<S> {
+        fn is_terminated(&self) -> bool {
+            <S as FusedStream>::is_terminated(&**self)
         }
     }
 }

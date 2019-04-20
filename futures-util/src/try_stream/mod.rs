@@ -69,7 +69,7 @@ mod into_async_read;
 #[cfg(feature = "std")]
 pub use self::into_async_read::IntoAsyncRead;
 
-impl<S: TryStream> TryStreamExt for S {}
+impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
 /// Adapters specific to `Result`-returning streams
 pub trait TryStreamExt: TryStream {
