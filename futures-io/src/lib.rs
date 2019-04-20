@@ -18,6 +18,7 @@ mod if_std {
     use std::boxed::Box;
     use std::cmp;
     use std::io as StdIo;
+    use std::ops::DerefMut;
     use std::pin::Pin;
     use std::ptr;
 
@@ -270,21 +271,25 @@ mod if_std {
         deref_async_read!();
     }
 
-    impl<T: ?Sized + AsyncRead> AsyncRead for Pin<&mut T> {
+    impl<P> AsyncRead for Pin<P>
+    where
+        P: DerefMut + Unpin,
+        P::Target: AsyncRead,
+    {
         unsafe fn initializer(&self) -> Initializer {
             (**self).initializer()
         }
 
-        fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
+        fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
             -> Poll<Result<usize>>
         {
-            T::poll_read((*self).as_mut(), cx, buf)
+            Pin::get_mut(self).as_mut().poll_read(cx, buf)
         }
 
-        fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
             -> Poll<Result<usize>>
         {
-            T::poll_vectored_read((*self).as_mut(), cx, vec)
+            Pin::get_mut(self).as_mut().poll_vectored_read(cx, vec)
         }
     }
 
@@ -348,25 +353,29 @@ mod if_std {
         deref_async_write!();
     }
 
-    impl<T: ?Sized + AsyncWrite> AsyncWrite for Pin<&mut T> {
-        fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
+    impl<P> AsyncWrite for Pin<P>
+    where
+        P: DerefMut + Unpin,
+        P::Target: AsyncWrite,
+    {
+        fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>
         {
-            T::poll_write((*self).as_mut(), cx, buf)
+            Pin::get_mut(self).as_mut().poll_write(cx, buf)
         }
 
-        fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
             -> Poll<Result<usize>>
         {
-            T::poll_vectored_write((*self).as_mut(), cx, vec)
+            Pin::get_mut(self).as_mut().poll_vectored_write(cx, vec)
         }
 
-        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            T::poll_flush((*self).as_mut(), cx)
+        fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+            Pin::get_mut(self).as_mut().poll_flush(cx)
         }
 
-        fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            T::poll_close((*self).as_mut(), cx)
+        fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+            Pin::get_mut(self).as_mut().poll_close(cx)
         }
     }
 

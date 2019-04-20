@@ -13,6 +13,7 @@
 extern crate alloc;
 
 use futures_core::task::{Context, Poll};
+use core::ops::DerefMut;
 use core::pin::Pin;
 
 /// A `Sink` is a value into which other values can be sent, asynchronously.
@@ -130,23 +131,27 @@ impl<S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for &mut S {
     }
 }
 
-impl<S: ?Sized + Sink<Item>, Item> Sink<Item> for Pin<&mut S> {
-    type SinkError = S::SinkError;
+impl<P, Item> Sink<Item> for Pin<P>
+where
+    P: DerefMut + Unpin,
+    P::Target: Sink<Item>,
+{
+    type SinkError = <P::Target as Sink<Item>>::SinkError;
 
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
-        S::poll_ready((*self).as_mut(), cx)
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+        Pin::get_mut(self).as_mut().poll_ready(cx)
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
-        S::start_send((*self).as_mut(), item)
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
+        Pin::get_mut(self).as_mut().start_send(item)
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
-        S::poll_flush((*self).as_mut(), cx)
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+        Pin::get_mut(self).as_mut().poll_flush(cx)
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
-        S::poll_close((*self).as_mut(), cx)
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+        Pin::get_mut(self).as_mut().poll_close(cx)
     }
 }
 

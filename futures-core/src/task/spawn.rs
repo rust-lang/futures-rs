@@ -78,6 +78,28 @@ impl SpawnError {
     }
 }
 
+impl<Sp: ?Sized + Spawn> Spawn for &mut Sp {
+    fn spawn_obj(&mut self, future: FutureObj<'static, ()>)
+    -> Result<(), SpawnError> {
+        Sp::spawn_obj(self, future)
+    }
+
+    fn status(&self) -> Result<(), SpawnError> {
+        Sp::status(self)
+    }
+}
+
+impl<Sp: ?Sized + LocalSpawn> LocalSpawn for &mut Sp {
+    fn spawn_local_obj(&mut self, future: LocalFutureObj<'static, ()>)
+    -> Result<(), SpawnError> {
+        Sp::spawn_local_obj(self, future)
+    }
+
+    fn status_local(&self) -> Result<(), SpawnError> {
+        Sp::status_local(self)
+    }
+}
+
 #[cfg(feature = "alloc")]
 mod if_alloc {
     use alloc::boxed::Box;

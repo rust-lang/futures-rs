@@ -1,5 +1,6 @@
 //! Futures.
 
+use core::ops::DerefMut;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
@@ -21,40 +22,19 @@ pub trait FusedFuture {
     fn is_terminated(&self) -> bool;
 }
 
-impl<F: FusedFuture> FusedFuture for Pin<&mut F> {
-    fn is_terminated(&self) -> bool {
-        <F as FusedFuture>::is_terminated(&**self)
-    }
-}
-
 impl<F: FusedFuture + ?Sized> FusedFuture for &mut F {
     fn is_terminated(&self) -> bool {
         <F as FusedFuture>::is_terminated(&**self)
     }
 }
 
-#[cfg(feature = "alloc")]
-mod if_alloc {
-    use alloc::boxed::Box;
-    use super::*;
-
-    impl<F: FusedFuture + ?Sized> FusedFuture for Box<F> {
-        fn is_terminated(&self) -> bool {
-            <F as FusedFuture>::is_terminated(&**self)
-        }
-    }
-
-    impl<F: FusedFuture + ?Sized> FusedFuture for Pin<Box<F>> {
-        fn is_terminated(&self) -> bool {
-            <F as FusedFuture>::is_terminated(&**self)
-        }
-    }
-
-    #[cfg(feature = "std")]
-    impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
-        fn is_terminated(&self) -> bool {
-            <F as FusedFuture>::is_terminated(&**self)
-        }
+impl<P> FusedFuture for Pin<P>
+where
+    P: DerefMut + Unpin,
+    P::Target: FusedFuture,
+{
+    fn is_terminated(&self) -> bool {
+        <P::Target as FusedFuture>::is_terminated(&**self)
     }
 }
 
@@ -79,7 +59,7 @@ pub trait TryFuture {
 }
 
 impl<F, T, E> TryFuture for F
-    where F: Future<Output = Result<T, E>>
+    where F: ?Sized + Future<Output = Result<T, E>>
 {
     type Ok = T;
     type Error = E;
@@ -87,5 +67,24 @@ impl<F, T, E> TryFuture for F
     #[inline]
     fn try_poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<F::Output> {
         self.poll(cx)
+    }
+}
+
+#[cfg(feature = "alloc")]
+mod if_alloc {
+    use alloc::boxed::Box;
+    use super::*;
+
+    impl<F: FusedFuture + ?Sized> FusedFuture for Box<F> {
+        fn is_terminated(&self) -> bool {
+            <F as FusedFuture>::is_terminated(&**self)
+        }
+    }
+
+    #[cfg(feature = "std")]
+    impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
+        fn is_terminated(&self) -> bool {
+            <F as FusedFuture>::is_terminated(&**self)
+        }
     }
 }
