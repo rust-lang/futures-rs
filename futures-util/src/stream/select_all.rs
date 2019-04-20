@@ -1,6 +1,7 @@
 //! An unbounded set of streams
 
 use core::fmt::{self, Debug};
+use core::iter::FromIterator;
 use core::pin::Pin;
 
 use futures_core::{Poll, Stream, FusedStream};
@@ -120,4 +121,10 @@ pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
     }
 
     set
+}
+
+impl<St: Stream + Unpin> FromIterator<St> for SelectAll<St> {
+    fn from_iter<T: IntoIterator<Item = St>>(iter: T) -> Self {
+        select_all(iter)
+    }
 }
