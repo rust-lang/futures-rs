@@ -207,7 +207,10 @@ pub mod future {
     };
 
     #[cfg(feature = "alloc")]
-    pub use futures_util::future::{join_all, JoinAll};
+    pub use futures_util::future::{
+        join_all, JoinAll,
+        select_all, SelectAll,
+    };
 
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
@@ -224,7 +227,7 @@ pub mod future {
         // For FutureExt:
         CatchUnwind, Shared,
 
-        // ToDo: SelectAll, SelectOk, select_all, select_ok
+        // ToDo: SelectOk, select_ok
     };
 
     pub use futures_util::try_future::{
