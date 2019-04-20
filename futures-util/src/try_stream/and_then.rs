@@ -14,6 +14,8 @@ pub struct AndThen<St, Fut, F> {
     f: F,
 }
 
+impl<St: Unpin, Fut: Unpin, F> Unpin for AndThen<St, Fut, F> {}
+
 impl<St, Fut, F> AndThen<St, Fut, F>
     where St: TryStream,
           F: FnMut(St::Ok) -> Fut,
