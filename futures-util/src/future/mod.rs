@@ -41,6 +41,14 @@ mod join_all;
 #[cfg(feature = "alloc")]
 pub use self::join_all::{join_all, JoinAll};
 
+mod select;
+pub use self::select::{select, Select};
+
+#[cfg(feature = "alloc")]
+mod select_all;
+#[cfg(feature = "alloc")]
+pub use self::select_all::{select_all, SelectAll};
+
 // Combinators
 mod flatten;
 pub use self::flatten::Flatten;
@@ -56,9 +64,6 @@ pub use self::into_stream::IntoStream;
 
 mod map;
 pub use self::map::Map;
-
-mod select;
-pub use self::select::{select, Select};
 
 mod then;
 pub use self::then::Then;
@@ -97,11 +102,6 @@ pub use self::catch_unwind::CatchUnwind;
 mod remote_handle;
 #[cfg(feature = "std")]
 pub use self::remote_handle::{Remote, RemoteHandle};
-
-// #[cfg(feature = "std")]
-// mod select_all;
-// #[cfg(feature = "std")]
-// pub use self::select_all::{SelectAll, SelectAllNext, select_all};
 
 // #[cfg(feature = "std")]
 // mod select_ok;
