@@ -14,6 +14,8 @@ pub struct OrElse<St, Fut, F> {
     f: F,
 }
 
+impl<St: Unpin, Fut: Unpin, F> Unpin for OrElse<St, Fut, F> {}
+
 impl<St, Fut, F> OrElse<St, Fut, F>
     where St: TryStream,
           F: FnMut(St::Error) -> Fut,
