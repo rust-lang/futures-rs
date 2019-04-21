@@ -1,12 +1,12 @@
 #![feature(async_await)]
 
-use futures::future::{Future, FutureObj};
+use futures::future::{Future, FutureObj, FutureExt};
 use std::pin::Pin;
 use futures::task::{Context, Poll};
 
 #[test]
 fn dropping_does_not_segfault() {
-    FutureObj::new(Box::new(async { String::new() }));
+    FutureObj::new(async { String::new() }.boxed());
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn dropping_drops_the_future() {
         }
     }
 
-    FutureObj::new(Box::new(Inc(&mut times_dropped)));
+    FutureObj::new(Inc(&mut times_dropped).boxed());
 
     assert_eq!(times_dropped, 1);
 }
