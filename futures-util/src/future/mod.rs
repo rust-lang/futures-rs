@@ -493,8 +493,8 @@ pub trait FutureExt: Future {
 
     /// Wrap the future in a Box, pinning it.
     #[cfg(feature = "alloc")]
-    fn boxed(self) -> BoxFuture<'static, Self::Output>
-        where Self: Sized + Send + 'static
+    fn boxed<'a>(self) -> BoxFuture<'a, Self::Output>
+        where Self: Sized + Send + 'a
     {
         Box::pin(self)
     }
