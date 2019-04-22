@@ -21,6 +21,24 @@ impl<Si1, Si2> Fanout<Si1, Si2> {
         Fanout { sink1, sink2 }
     }
 
+    /// Get a shared reference to the inner sinks.
+    pub fn get_ref(&self) -> (&Si1, &Si2) {
+        (&self.sink1, &self.sink2)
+    }
+
+    /// Get a mutable reference to the inner sinks.
+    pub fn get_mut(&mut self) -> (&mut Si1, &mut Si2) {
+        (&mut self.sink1, &mut self.sink2)
+    }
+
+    /// Get a pinned mutable reference to the inner sinks.
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut Si1>, Pin<&'a mut Si2>)
+        where Si1: Unpin, Si2: Unpin,
+    {
+        let Self { sink1, sink2 } = Pin::get_mut(self);
+        (Pin::new(sink1), Pin::new(sink2))
+    }
+
     /// Consumes this combinator, returning the underlying sinks.
     ///
     /// Note that this may discard intermediate state of this combinator,

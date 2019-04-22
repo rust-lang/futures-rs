@@ -16,6 +16,7 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     pub(super) fn new(stream: St) -> StreamFuture<St> {
         StreamFuture { stream: Some(stream) }
     }
+
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
     ///
@@ -39,6 +40,20 @@ impl<St: Stream + Unpin> StreamFuture<St> {
     /// an element.
     pub fn get_mut(&mut self) -> Option<&mut St> {
         self.stream.as_mut()
+    }
+
+    /// Acquires a pinned mutable reference to the underlying stream that this
+    /// combinator is pulling from.
+    ///
+    /// Note that care must be taken to avoid tampering with the state of the
+    /// stream which may otherwise confuse this combinator.
+    ///
+    /// This method returns an `Option` to account for the fact that `StreamFuture`'s
+    /// implementation of `Future::poll` consumes the underlying stream during polling
+    /// in order to return it to the caller of `Future::poll` if the stream yielded
+    /// an element.
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Option<Pin<&'a mut St>> {
+        Pin::new(&mut Pin::get_mut(self).stream).as_pin_mut()
     }
 
     /// Consumes this combinator, returning the underlying stream.

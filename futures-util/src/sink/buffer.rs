@@ -36,6 +36,24 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
         &self.sink
     }
 
+    /// Get a mutable reference to the inner sink.
+    pub fn get_mut(&mut self) -> &mut Si {
+        &mut self.sink
+    }
+
+    /// Get a pinned mutable reference to the inner sink.
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
+        unsafe { Pin::map_unchecked_mut(self, Self::get_mut) }
+    }
+
+    /// Consumes this combinator, returning the underlying sink.
+    ///
+    /// Note that this may discard intermediate state of this combinator, so
+    /// care should be taken to avoid losing resources when this is called.
+    pub fn into_inner(self) -> Si {
+        self.sink
+    }
+
     fn try_empty_buffer(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

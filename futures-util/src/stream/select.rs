@@ -25,6 +25,41 @@ impl<St1, St2> Select<St1, St2>
             flag: false,
         }
     }
+
+    /// Acquires a reference to the underlying streams that this combinator is
+    /// pulling from.
+    pub fn get_ref(&self) -> (&St1, &St2) {
+        (self.stream1.get_ref(), self.stream2.get_ref())
+    }
+
+    /// Acquires a mutable reference to the underlying streams that this
+    /// combinator is pulling from.
+    ///
+    /// Note that care must be taken to avoid tampering with the state of the
+    /// stream which may otherwise confuse this combinator.
+    pub fn get_mut(&mut self) -> (&mut St1, &mut St2) {
+        (self.stream1.get_mut(), self.stream2.get_mut())
+    }
+
+    /// Acquires a pinned mutable reference to the underlying streams that this
+    /// combinator is pulling from.
+    ///
+    /// Note that care must be taken to avoid tampering with the state of the
+    /// stream which may otherwise confuse this combinator.
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut St1>, Pin<&'a mut St2>)
+        where St1: Unpin, St2: Unpin,
+    {
+        let Self { stream1, stream2, .. } = Pin::get_mut(self);
+        (Pin::new(stream1.get_mut()), Pin::new(stream2.get_mut()))
+    }
+
+    /// Consumes this combinator, returning the underlying streams.
+    ///
+    /// Note that this may discard intermediate state of this combinator, so
+    /// care should be taken to avoid losing resources when this is called.
+    pub fn into_inner(self) -> (St1, St2) {
+        (self.stream1.into_inner(), self.stream2.into_inner())
+    }
 }
 
 impl<St1, St2> FusedStream for Select<St1, St2> {
