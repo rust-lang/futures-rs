@@ -46,13 +46,13 @@ impl<St: Stream> Fuse<St> {
         &mut self.stream
     }
 
-    /// Acquires a mutable pinned reference to the underlying stream that this
+    /// Acquires a pinned mutable reference to the underlying stream that this
     /// combinator is pulling from.
     ///
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        unsafe { Pin::map_unchecked_mut(self, |x| x.get_mut()) }
+        unsafe { Pin::map_unchecked_mut(self, Self::get_mut) }
     }
 
     /// Consumes this combinator, returning the underlying stream.

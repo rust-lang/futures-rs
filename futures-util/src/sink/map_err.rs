@@ -32,9 +32,9 @@ impl<Si, F> SinkMapErr<Si, F> {
         &mut self.sink
     }
 
-    /// Get a pinned reference to the inner sink.
+    /// Get a pinned mutable reference to the inner sink.
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
-        unsafe { Pin::map_unchecked_mut(self, |x| &mut x.sink) }
+        unsafe { Pin::map_unchecked_mut(self, Self::get_mut) }
     }
 
     /// Consumes this combinator, returning the underlying sink.
