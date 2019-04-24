@@ -28,6 +28,7 @@ futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alp
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.17", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.17", default-features = false }
 futures-util-preview = { path = "../futures-util", version = "=0.3.0-alpha.17", default-features = false, features = ["sink"] }
+futures-async-macro-preview = { path = "../futures-async-macro", version = "=0.3.0-alpha.17", optional = true }
 
 [dev-dependencies]
 pin-utils = "0.1.0-alpha.4"
@@ -44,6 +45,7 @@ async-await = ["futures-util-preview/async-await", "futures-util-preview/select-
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
+async-stream = ["std", "futures-util-preview/async-stream", "futures-async-macro-preview"]
 
 [package.metadata.docs.rs]
 all-features = true

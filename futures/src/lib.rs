@@ -40,6 +40,9 @@ compile_error!("The `async-await` feature requires the `nightly` feature as an e
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
+#[cfg(all(feature = "async-stream", not(feature = "nightly")))]
+compile_error!("The `async-stream` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
 #[doc(hidden)] pub use futures_core::core_reexport;
 
 #[doc(hidden)] pub use futures_core::future::Future;
@@ -72,6 +75,15 @@ pub use futures_util::{
     // Async-await
     join, try_join, pending, poll,
 };
+// Async stream
+#[cfg(feature = "async-stream")]
+pub use futures_util::{await_item, stream_yield};
+#[cfg(feature = "async-stream")]
+#[doc(hidden)]
+pub use futures_util::async_stream;
+#[cfg(feature = "async-stream")]
+#[doc(hidden)] // https://github.com/rust-lang/rust/issues/58696
+pub use futures_async_macro::*;
 
 #[cfg_attr(
     feature = "cfg-target-has-atomic",

@@ -3,6 +3,7 @@
 
 #![cfg_attr(feature = "async-await", feature(async_await))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
+#![cfg_attr(feature = "async-stream", feature(gen_future, generator_trait, generators))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
@@ -19,6 +20,9 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` featu
 
 #[cfg(all(feature = "async-await", not(feature = "nightly")))]
 compile_error!("The `async-await` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
+#[cfg(all(feature = "async-stream", not(feature = "nightly")))]
+compile_error!("The `async-stream` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -37,6 +41,14 @@ pub mod async_await;
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use self::async_await::*;
+
+#[cfg(feature = "async-stream")]
+#[macro_use]
+#[doc(hidden)]
+pub mod async_stream;
+#[cfg(feature = "async-stream")]
+#[doc(hidden)]
+pub use self::async_stream::*;
 
 #[cfg(feature = "select-macro")]
 #[doc(hidden)]

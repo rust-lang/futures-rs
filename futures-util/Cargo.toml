@@ -28,6 +28,7 @@ sink = ["futures-sink-preview"]
 io = ["std", "futures-io-preview", "memchr"]
 channel = ["std", "futures-channel-preview"]
 select-macro = ["async-await", "futures-select-macro-preview", "proc-macro-hack", "proc-macro-nested", "rand"]
+async-stream = ["std"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.17", default-features = false }

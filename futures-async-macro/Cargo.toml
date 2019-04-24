@@ -1,0 +1,24 @@
+[package]
+name = "futures-async-macro-preview"
+edition = "2018"
+version = "0.3.0-alpha.17"
+authors = ["Alex Crichton <alex@alexcrichton.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-lang-nursery/futures-rs"
+homepage = "https://rust-lang-nursery.github.io/futures-rs"
+documentation = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures_async_macro"
+description = """
+Definition of the `#[async_stream]` macro for the `futures-rs` crate as well as a few other assorted macros.
+"""
+
+[lib]
+name = "futures_async_macro"
+proc-macro = true
+
+[features]
+std = []
+
+[dependencies]
+proc-macro2 = "0.4"
+quote = "0.6"
+syn = { version = "0.15.31", features = ["full", "fold"] }
