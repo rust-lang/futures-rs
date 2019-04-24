@@ -344,12 +344,13 @@ pub mod stream {
         empty, Empty,
         once, Once,
         poll_fn, PollFn,
+        select, Select,
         unfold, Unfold,
 
         StreamExt,
         Chain, Collect, Concat, Enumerate, Filter, FilterMap, Flatten, Fold,
         Forward, ForEach, Fuse, StreamFuture, Inspect, Map, Next,
-        SelectNextSome, Peekable, Select, Skip, SkipWhile, Take, TakeWhile,
+        SelectNextSome, Peekable, Skip, SkipWhile, Take, TakeWhile,
         Then, Zip
     };
 

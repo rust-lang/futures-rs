@@ -3,7 +3,7 @@ use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
-/// Stream for the [`select`](super::StreamExt::select) method.
+/// Stream for the [`select`] function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Select<St1, St2> {
@@ -14,16 +14,24 @@ pub struct Select<St1, St2> {
 
 impl<St1: Unpin, St2: Unpin> Unpin for Select<St1, St2> {}
 
-impl<St1, St2> Select<St1, St2>
+/// This function will attempt to pull items from both streams. Each
+/// stream will be polled in a round-robin fashion, and whenever a stream is
+/// ready to yield an item that item is yielded.
+///
+/// After one of the two input stream completes, the remaining one will be
+/// polled exclusively. The returned stream completes when both input
+/// streams have completed.
+///
+/// Note that this function consumes both streams and returns a wrapped
+/// version of them.
+pub fn select<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
     where St1: Stream,
           St2: Stream<Item = St1::Item>
 {
-    pub(super) fn new(stream1: St1, stream2: St2) -> Select<St1, St2> {
-        Select {
-            stream1: stream1.fuse(),
-            stream2: stream2.fuse(),
-            flag: false,
-        }
+    Select {
+        stream1: stream1.fuse(),
+        stream2: stream2.fuse(),
+        flag: false,
     }
 }
 
