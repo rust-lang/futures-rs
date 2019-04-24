@@ -79,7 +79,7 @@ mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
 mod select;
-pub use self::select::Select;
+pub use self::select::{select, Select};
 
 mod skip;
 pub use self::skip::Skip;
@@ -1012,23 +1012,6 @@ pub trait StreamExt: Stream {
         where Self: Sized
     {
         Chunks::new(self, capacity)
-    }
-
-    /// This combinator will attempt to pull items from both streams. Each
-    /// stream will be polled in a round-robin fashion, and whenever a stream is
-    /// ready to yield an item that item is yielded.
-    ///
-    /// After one of the two input stream completes, the remaining one will be
-    /// polled exclusively. The returned stream completes when both input
-    /// streams have completed.
-    ///
-    /// Note that this method consumes both streams and returns a wrapped
-    /// version of them.
-    fn select<St>(self, other: St) -> Select<Self, St>
-        where St: Stream<Item = Self::Item>,
-              Self: Sized,
-    {
-        Select::new(self, other)
     }
 
     /// A future that completes after the given stream has been fully processed
