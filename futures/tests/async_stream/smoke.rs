@@ -95,19 +95,6 @@ async fn loop_in_loop() -> bool {
     cnt == sum
 }
 
-fn await_item_stream() -> impl Stream<Item = u64> {
-    stream::iter(vec![0, 1])
-}
-
-async fn test_await_item() {
-    let mut stream = await_item_stream();
-
-    assert_eq!(await_item!(&mut stream), Some(0));
-    assert_eq!(await_item!(&mut stream), Some(1));
-    assert_eq!(await_item!(&mut stream), None);
-    assert_eq!(await_item!(&mut stream), None);
-}
-
 #[test]
 fn main() {
     // https://github.com/alexcrichton/futures-await/issues/45
@@ -143,5 +130,4 @@ fn main() {
 
     assert_eq!(block_on(future1()), 10);
     assert_eq!(block_on(loop_in_loop()), true);
-    assert_eq!(block_on(test_await_item()), ());
 }

@@ -4,10 +4,6 @@
 //! with `async`/`await` code.
 
 #[macro_use]
-mod await_item;
-pub use self::await_item::*;
-
-#[macro_use]
 mod stream_yield;
 pub use self::stream_yield::*;
 

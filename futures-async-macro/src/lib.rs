@@ -207,7 +207,7 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
     tokens.into()
 }
 
-/// The scope in which `#[for_await]`, `await!` and `await_item!` was called.
+/// The scope in which `#[for_await]`, `await!` was called.
 ///
 /// The type of generator depends on which scope is called.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -218,7 +218,7 @@ enum Scope {
     Stream,
     /// `static move ||`, `||`
     ///
-    /// It cannot call `#[for_await]`, `await!` and `await_item!` in this scope.
+    /// It cannot call `#[for_await]`, `await!` in this scope.
     Closure,
 }
 
@@ -297,13 +297,7 @@ impl Expand {
     /// Expands a macro.
     fn expand_macro(&mut self, mut expr: ExprMacro) -> Expr {
         if self.0 == Stream && expr.mac.path.is_ident("await") {
-            return self.expand_await_macros(expr, "poll_with_tls_context");
-        } else if expr.mac.path.is_ident("await_item") {
-            match self.0 {
-                Stream => return self.expand_await_macros(expr, "poll_next_with_tls_context"),
-                Closure => return outside_of_async_error!(expr, "await_item!"),
-                Future => {}
-            }
+            return self.expand_await_macros(expr);
         } else if expr.mac.path.is_ident("async_stream_block") {
             // FIXME: When added Parse impl for ExprCall, replace `if let ..` + `unreachable!()`
             //        with `let` + `.unwrap()`
@@ -322,16 +316,15 @@ impl Expand {
         Expr::Macro(expr)
     }
 
-    /// Expands `await!(expr)` or `await_item!(expr)` in `async_stream` scope.
+    /// Expands `await!(expr)` in `async_stream` scope.
     ///
     /// It needs to adjust the type yielded by the macro because generators used internally by
     /// async fn yield `()` type, but generators used internally by `async_stream` yield
     /// `Poll<U>` type.
-    fn expand_await_macros(&mut self, expr: ExprMacro, poll_fn: &str) -> Expr {
+    fn expand_await_macros(&mut self, expr: ExprMacro) -> Expr {
         assert_eq!(self.0, Stream);
 
         let expr = expr.mac.tts;
-        let poll_fn = Ident::new(poll_fn, Span::call_site());
 
         // Because macro input (`#expr`) is untrusted, use `syn::parse2` + `expr_compile_error`
         // instead of `syn::parse_quote!` to generate better error messages (`syn::parse_quote!`
@@ -340,7 +333,7 @@ impl Expand {
             let mut __pinned = #expr;
             loop {
                 if let ::futures::core_reexport::task::Poll::Ready(x) =
-                    ::futures::async_stream::#poll_fn(unsafe {
+                    ::futures::async_stream::poll_with_tls_context(unsafe {
                         ::futures::core_reexport::pin::Pin::new_unchecked(&mut __pinned)
                     })
                 {
