@@ -14,7 +14,7 @@ pub struct Fuse<St> {
 
 impl<St: Unpin> Unpin for Fuse<St> {}
 
-impl<St: Stream> Fuse<St> {
+impl<St> Fuse<St> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(done: bool);
 
