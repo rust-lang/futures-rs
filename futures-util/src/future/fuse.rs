@@ -18,6 +18,56 @@ impl<Fut: Future> Fuse<Fut> {
             future: Some(f),
         }
     }
+
+    /// Creates a new `Fuse`-wrapped future which is already terminated.
+    ///
+    /// This can be useful in combination with looping and the `select!`
+    /// macro, which bypasses terminated futures.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro, futures_api)]
+    /// # futures::executor::block_on(async {
+    /// use futures::channel::mpsc;
+    /// use futures::future::{Fuse, FusedFuture, FutureExt};
+    /// use futures::select;
+    /// use futures::stream::StreamExt;
+    /// use pin_utils::pin_mut;
+    ///
+    /// let (sender, mut stream) = mpsc::unbounded();
+    ///
+    /// // Send a few messages into the stream
+    /// sender.unbounded_send(()).unwrap();
+    /// sender.unbounded_send(()).unwrap();
+    /// drop(sender);
+    ///
+    /// // Use `Fuse::termianted()` to create an already-terminated future
+    /// // which may be instantiated later.
+    /// let foo_printer = Fuse::terminated();
+    /// pin_mut!(foo_printer);
+    ///
+    /// loop {
+    ///     select! {
+    ///         _ = foo_printer => {},
+    ///         () = stream.select_next_some() => {
+    ///             if !foo_printer.is_terminated() {
+    ///                 println!("Foo is already being printed!");
+    ///             } else {
+    ///                 foo_printer.set(async {
+    ///                     // do some other async operations
+    ///                     println!("Printing foo from `foo_printer` future");
+    ///                 }.fuse());
+    ///             }
+    ///         },
+    ///         complete => break, // `foo_printer` is terminated and the stream is done
+    ///     }
+    /// }
+    /// # });
+    /// ```
+    pub fn terminated() -> Fuse<Fut> {
+        Fuse { future: None }
+    }
 }
 
 impl<Fut: Future> FusedFuture for Fuse<Fut> {
