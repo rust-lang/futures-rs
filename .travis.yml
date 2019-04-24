@@ -97,6 +97,13 @@ matrix:
         - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features --features alloc
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc
 
+    - name: cargo test (async-stream feature)
+      rust: nightly
+      script:
+        - cargo test --manifest-path futures/Cargo.toml --features async-stream,nightly --test async_stream_tests
+        - cargo clean --manifest-path futures/testcrate/Cargo.toml
+        - cargo test --manifest-path futures/testcrate/Cargo.toml
+
     - name: cargo build --target=thumbv6m-none-eabi
       rust: nightly
       install:

@@ -2,16 +2,17 @@
 name = "testcrate"
 version = "0.1.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
+edition = "2018"
+publish = false
 
 [lib]
 path = "lib.rs"
 
-[dependencies.futures]
-features = ["std", "nightly"]
-path = ".."
+[dependencies]
+futures-preview = { path = "..", features = ["async-stream", "nightly"] }
 
 [dev-dependencies]
-compiletest_rs = "0.3.7"
+compiletest = { version = "0.3.21", package = "compiletest_rs", features = ["stable"] }
 
 [[test]]
 name = "ui"

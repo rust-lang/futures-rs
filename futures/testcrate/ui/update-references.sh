@@ -19,9 +19,9 @@
 # If you find yourself manually editing a foo.stderr file, you're
 # doing it wrong.
 
-MYDIR=$(dirname $0)
+MYDIR="$(dirname "${BASH_SOURCE[0]}")"
 
-BUILD_DIR="../../target/tests/ui"
+BUILD_DIR="../target/tests/ui"
 
 while [[ "$1" != "" ]]; do
     STDERR_NAME="${1/%.rs/.stderr}"
@@ -38,5 +38,3 @@ while [[ "$1" != "" ]]; do
         cp $BUILD_DIR/$STDERR_NAME $MYDIR/$STDERR_NAME
     fi
 done
-
-

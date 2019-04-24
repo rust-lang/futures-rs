@@ -18,6 +18,6 @@
 #
 # See all `update-references.sh`, if you just want to update a single test.
 
-MY_DIR=$(dirname $0)
+MY_DIR="$(dirname "${BASH_SOURCE[0]}")"
 cd $MY_DIR
 find . -name '*.rs' | xargs ./update-references.sh

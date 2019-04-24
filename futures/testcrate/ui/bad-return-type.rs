@@ -1,33 +1,24 @@
-#![feature(proc_macro, generators)]
+#![feature(async_await, futures_api, generators)]
 
-#[async]
-fn foobar() -> Result<Option<i32>, ()> {
-    let val = Some(42);
-    if val.is_none() {
-        return Ok(None)
-    }
-    let val = val.unwrap();
-    Ok(val)
-}
+use futures::*;
 
-#[async_stream(item = Option<i32>)]
-fn foobars() -> Result<(), ()> {
+#[async_stream]
+fn foobar() -> Option<i32> {
     let val = Some(42);
     if val.is_none() {
         stream_yield!(None);
-        return Ok(())
+        return;
     }
     let val = val.unwrap();
     stream_yield!(val);
-    Ok(())
 }
 
-#[async]
-fn tuple() -> Result<(i32, i32), ()> {
+#[async_stream]
+fn tuple() -> (i32, i32) {
     if false {
-        return Ok(3);
+        stream_yield!(3);
     }
-    Ok((1, 2))
+    stream_yield!((1, 2))
 }
 
 fn main() {}

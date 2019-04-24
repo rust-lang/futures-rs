@@ -4,8 +4,10 @@ use futures::*;
 
 #[async_stream]
 fn foo() -> i32 {
-    let a: i32 = "a"; //~ ERROR: mismatched types
-    stream_yield!(1);
+    #[for_await]
+    for i in stream::iter(vec![1, 2]) {
+        stream_yield!(bar!!());
+    }
 }
 
 fn main() {}

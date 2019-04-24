@@ -3,6 +3,9 @@
 use futures::*;
 
 #[async_stream]
-fn foo() -> Left {}
+fn foo() {
+    stream_yield!(());
+    Some(())
+}
 
 fn main() {}

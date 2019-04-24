@@ -1,12 +1,14 @@
-#![feature(proc_macro, generators)]
+#![feature(async_await, futures_api, generators, proc_macro_hygiene)]
+
+use futures::*;
 
 fn foo<F: FnMut()>(_f: F) {}
 
 fn main() {
     let a = String::new();
     foo(|| {
-        async_block! {
-            Ok::<String, i32>(a)
+        async_stream_block! {
+            stream_yield!(a)
         };
     });
 }

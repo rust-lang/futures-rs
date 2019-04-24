@@ -1,0 +1,8 @@
+error: expected open delimiter
+ --> $DIR/bad-input-1.rs:9:27
+  |
+9 |         stream_yield!(bar!!());
+  |                           ^ expected open delimiter
+
+error: aborting due to previous error
+
