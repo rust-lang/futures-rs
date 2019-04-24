@@ -33,7 +33,9 @@ pub fn select<St1, St2>(stream1: St1, stream2: St2) -> Select<St1, St2>
         stream2: stream2.fuse(),
         flag: false,
     }
+}
 
+impl<St1, St2> Select<St1, St2> {
     /// Acquires a reference to the underlying streams that this combinator is
     /// pulling from.
     pub fn get_ref(&self) -> (&St1, &St2) {

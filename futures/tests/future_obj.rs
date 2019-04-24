@@ -1,6 +1,6 @@
 #![feature(async_await, futures_api)]
 
-use futures::future::{Future, FutureExt, FutureObj};
+use futures::future::{Future, FutureObj};
 use std::pin::Pin;
 use futures::task::{Context, Poll};
 
