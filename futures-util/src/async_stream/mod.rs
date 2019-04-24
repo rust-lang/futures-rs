@@ -10,7 +10,7 @@ pub use self::stream_yield::*;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use std::future::{self, get_task_context, set_task_context};
-use std::marker::{PhantomData, PhantomPinned};
+use std::marker::PhantomData;
 use std::ops::{Generator, GeneratorState};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -23,7 +23,7 @@ pub fn from_generator<U, T>(x: T) -> impl Stream<Item = U>
 where
     T: Generator<Yield = Poll<U>, Return = ()>,
 {
-    GenStream { gen: x, done: false, _phantom: PhantomData, _pin: PhantomPinned }
+    GenStream { gen: x, done: false, _phantom: PhantomData }
 }
 
 /// A wrapper around generators used to implement `Stream` for `async`/`await` code.
@@ -35,9 +35,6 @@ struct GenStream<U, T: Generator<Yield = Poll<U>, Return = ()>> {
     // because it is possible to call `next` after `next` returns `None` in many iterators.
     done: bool,
     _phantom: PhantomData<U>,
-    // We rely on the fact that async/await streams are immovable in order to create
-    // self-referential borrows in the underlying generator.
-    _pin: PhantomPinned,
 }
 
 impl<U, T: Generator<Yield = Poll<U>, Return = ()>> Stream for GenStream<U, T> {
