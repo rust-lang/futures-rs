@@ -97,7 +97,7 @@ pub mod compat;
 #[cfg(feature = "std")]
 pub mod io;
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt};
+#[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt, AsyncBufReadExt};
 
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]

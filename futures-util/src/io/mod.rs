@@ -5,17 +5,11 @@
 //! `AsyncReadExt` and `AsyncWriteExt` traits which add methods
 //! to the `AsyncRead` and `AsyncWrite` types.
 
-use std::vec::Vec;
-
-pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, IoVec, SeekFrom};
+pub use futures_io::{
+    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoVec, SeekFrom,
+};
 
 #[cfg(feature = "io-compat")] use crate::compat::Compat;
-
-// Temporarily removed until AsyncBufRead is implemented
-// pub use io::lines::{lines, Lines};
-// pub use io::read_until::{read_until, ReadUntil};
-// mod lines;
-// mod read_until;
 
 mod allow_std;
 pub use self::allow_std::AllowStdIo;
@@ -26,14 +20,25 @@ pub use self::copy_into::CopyInto;
 mod flush;
 pub use self::flush::Flush;
 
+// TODO
+// mod lines;
+// pub use self::lines::Lines;
+
 mod read;
 pub use self::read::Read;
 
 mod read_exact;
 pub use self::read_exact::ReadExact;
 
+// TODO
+// mod read_line;
+// pub use self::read_line::ReadLine;
+
 mod read_to_end;
 pub use self::read_to_end::ReadToEnd;
+
+mod read_until;
+pub use self::read_until::ReadUntil;
 
 mod close;
 pub use self::close::Close;
@@ -343,3 +348,61 @@ pub trait AsyncSeekExt: AsyncSeek {
 }
 
 impl<S: AsyncSeek + ?Sized> AsyncSeekExt for S {}
+
+/// An extension trait which adds utility methods to `AsyncBufRead` types.
+pub trait AsyncBufReadExt: AsyncBufRead {
+    /// Creates a future which will read all the bytes associated with this I/O
+    /// object into `buf` until the delimiter `byte` or EOF is reached.
+    /// This method is the async equivalent to [`BufRead::read_until`](std::io::BufRead::read_until).
+    ///
+    /// This function will read bytes from the underlying stream until the
+    /// delimiter or EOF is found. Once found, all bytes up to, and including,
+    /// the delimiter (if found) will be appended to `buf`.
+    ///
+    /// The returned future will resolve to the number of bytes read once the read
+    /// operation is completed.
+    ///
+    /// In the case of an error the buffer and the object will be discarded, with
+    /// the error yielded.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncBufReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let mut cursor = Cursor::new(b"lorem-ipsum");
+    /// let mut buf = vec![];
+    ///
+    /// // cursor is at 'l'
+    /// let num_bytes = await!(cursor.read_until(b'-', &mut buf))?;
+    /// assert_eq!(num_bytes, 6);
+    /// assert_eq!(buf, b"lorem-");
+    /// buf.clear();
+    ///
+    /// // cursor is at 'i'
+    /// let num_bytes = await!(cursor.read_until(b'-', &mut buf))?;
+    /// assert_eq!(num_bytes, 5);
+    /// assert_eq!(buf, b"ipsum");
+    /// buf.clear();
+    ///
+    /// // cursor is at EOF
+    /// let num_bytes = await!(cursor.read_until(b'-', &mut buf))?;
+    /// assert_eq!(num_bytes, 0);
+    /// assert_eq!(buf, b"");
+    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn read_until<'a>(
+        &'a mut self,
+        byte: u8,
+        buf: &'a mut Vec<u8>,
+    ) -> ReadUntil<'a, Self>
+        where Self: Unpin,
+    {
+        ReadUntil::new(self, byte, buf)
+    }
+}
+
+impl<R: AsyncBufRead + ?Sized> AsyncBufReadExt for R {}
