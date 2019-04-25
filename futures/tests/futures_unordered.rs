@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
 use futures::future::{self, join, FutureExt};

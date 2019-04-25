@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::executor::block_on;
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{self, Stream, StreamExt};

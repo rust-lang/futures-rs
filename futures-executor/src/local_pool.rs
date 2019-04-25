@@ -132,7 +132,6 @@ impl LocalPool {
     /// the `LocalPool` by using its spawner handle:
     ///
     /// ```
-    /// #![feature(futures_api)]
     /// use futures::executor::LocalPool;
     /// use futures::future::ready;
     ///
@@ -170,7 +169,6 @@ impl LocalPool {
     /// can be made. Returns `true` if one future was completed, `false` otherwise.
     ///
     /// ```
-    /// #![feature(futures_api)]
     /// use futures::executor::LocalPool;
     /// use futures::task::LocalSpawnExt;
     /// use futures::future::{ready, empty};
@@ -211,7 +209,6 @@ impl LocalPool {
     /// on any task.
     ///
     /// ```
-    /// #![feature(futures_api)]
     /// use futures::executor::LocalPool;
     /// use futures::task::LocalSpawnExt;
     /// use futures::future::{ready, empty};

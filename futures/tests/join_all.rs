@@ -1,4 +1,4 @@
-#![feature(async_await, futures_api)]
+#![feature(async_await)]
 
 use futures_util::future::*;
 use std::future::Future;

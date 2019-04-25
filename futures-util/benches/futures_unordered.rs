@@ -1,4 +1,4 @@
-#![feature(test, futures_api)]
+#![feature(test)]
 
 extern crate test;
 use crate::test::Bencher;

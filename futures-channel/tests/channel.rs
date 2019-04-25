@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, futures_api)]
+#![feature(async_await, await_macro)]
 
 use futures::channel::mpsc;
 use futures::executor::block_on;

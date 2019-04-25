@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::channel::oneshot;
 use futures::future::{self, Future, FutureExt, TryFutureExt};
 use futures::task::{Context, Poll};

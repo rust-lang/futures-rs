@@ -1,4 +1,4 @@
-#![feature(await_macro, async_await, futures_api)]
+#![feature(await_macro, async_await)]
 #![cfg(feature = "compat")]
 
 use tokio::timer::Delay;

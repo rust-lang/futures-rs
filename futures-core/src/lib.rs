@@ -1,6 +1,5 @@
 //! Core traits and types for asynchronous operations in Rust.
 
-#![feature(futures_api)]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 
 #![cfg_attr(not(feature = "std"), no_std)]

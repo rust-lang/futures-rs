@@ -21,7 +21,6 @@
 //! streams and sinks, and then spawned as independent tasks that are run to
 //! completion, but *do not block* the thread running them.
 
-#![feature(futures_api)]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
 #![cfg_attr(feature = "never-type", feature(never_type))]
 
@@ -125,7 +124,6 @@ pub mod executor {
     //! can then spawn further tasks back onto the pool to complete its work:
     //!
     //! ```
-    //! #![feature(futures_api)]
     //! use futures::executor::ThreadPool;
     //! # use futures::future::{Future, lazy};
     //! # let my_app = lazy(|_| 42);

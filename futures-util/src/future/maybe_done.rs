@@ -27,7 +27,7 @@ impl<Fut: Future + Unpin> Unpin for MaybeDone<Fut> {}
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 /// use pin_utils::pin_mut;

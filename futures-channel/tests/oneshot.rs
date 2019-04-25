@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::channel::oneshot::{self, Sender};
 use futures::executor::block_on;
 use futures::future::{Future, FutureExt, poll_fn};

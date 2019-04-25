@@ -23,7 +23,6 @@ fn noop_raw_waker() -> RawWaker {
 /// # Examples
 ///
 /// ```
-/// #![feature(futures_api)]
 /// use futures::task::noop_waker;
 /// let waker = noop_waker();
 /// waker.wake();
@@ -42,7 +41,6 @@ pub fn noop_waker() -> Waker {
 /// # Examples
 ///
 /// ```
-/// #![feature(futures_api)]
 /// use futures::task::noop_waker_ref;
 /// let waker = noop_waker_ref();
 /// waker.wake_by_ref();

@@ -1,4 +1,4 @@
-#![feature(async_await, futures_api)]
+#![feature(async_await)]
 
 use futures::future::{Future, FutureObj};
 use std::pin::Pin;

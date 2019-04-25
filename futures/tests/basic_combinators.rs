@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::future::{self, FutureExt, TryFutureExt};
 use futures_test::future::FutureTestExt;
 use std::sync::mpsc;

@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::channel::oneshot;
 use futures::executor::LocalPool;
 use futures::future::{Future, lazy, poll_fn};
