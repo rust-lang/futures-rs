@@ -268,11 +268,12 @@ pub mod io {
     //! sinks.
 
     pub use futures_io::{
-        Error, Initializer, IoVec, ErrorKind, AsyncRead, AsyncWrite, Result
+        Error, Initializer, IoVec, ErrorKind, AsyncRead, AsyncWrite, AsyncSeek,
+        Result, SeekFrom,
     };
     pub use futures_util::io::{
-        AsyncReadExt, AsyncWriteExt, AllowStdIo, Close, CopyInto, Flush,
-        Read, ReadExact, ReadHalf, ReadToEnd, Window, WriteAll, WriteHalf,
+        AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AllowStdIo, Close, CopyInto, Flush,
+        Read, ReadExact, ReadHalf, ReadToEnd, Seek, Window, WriteAll, WriteHalf,
     };
 }
 
