@@ -1,4 +1,4 @@
-#![feature(async_await, futures_api, generators)]
+#![feature(async_await, generators)]
 
 use futures::*;
 
