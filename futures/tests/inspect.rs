@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::executor::block_on;
 use futures::future::{self, FutureExt};
 

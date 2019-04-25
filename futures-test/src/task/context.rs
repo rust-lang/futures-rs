@@ -7,7 +7,6 @@ use futures_core::task::Context;
 /// # Examples
 ///
 /// ```should_panic
-/// #![feature(futures_api)]
 /// use futures_test::task::panic_context;
 ///
 /// let cx = panic_context();
@@ -23,7 +22,7 @@ pub fn panic_context() -> Context<'static> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api)]
+/// #![feature(async_await)]
 /// use futures::future::Future;
 /// use futures::task::Poll;
 /// use futures_test::task::noop_context;

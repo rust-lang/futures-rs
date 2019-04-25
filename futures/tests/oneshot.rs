@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::channel::oneshot;
 use futures::future::{FutureExt, TryFutureExt};
 use futures_test::future::FutureTestExt;

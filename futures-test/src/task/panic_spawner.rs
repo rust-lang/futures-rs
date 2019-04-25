@@ -7,7 +7,7 @@ use futures_core::task::{Spawn, SpawnError};
 /// # Examples
 ///
 /// ```should_panic
-/// #![feature(async_await, futures_api)]
+/// #![feature(async_await)]
 /// use futures::task::SpawnExt;
 /// use futures_test::task::PanicSpawner;
 ///
@@ -46,7 +46,7 @@ impl Default for PanicSpawner {
 /// # Examples
 ///
 /// ```should_panic
-/// #![feature(async_await, futures_api)]
+/// #![feature(async_await)]
 /// use futures::task::SpawnExt;
 /// use futures_test::task::panic_spawner_mut;
 ///

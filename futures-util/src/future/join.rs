@@ -90,7 +90,7 @@ generate! {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -115,7 +115,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -145,7 +145,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -179,7 +179,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///

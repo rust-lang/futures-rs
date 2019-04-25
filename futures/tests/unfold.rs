@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use futures::future;
 use futures::stream;
 

@@ -270,7 +270,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -643,7 +643,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -741,7 +741,6 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(futures_api)]
     /// use futures::executor::block_on_stream;
     /// use futures::stream::{self, StreamExt};
     /// use futures::task::Poll;
@@ -892,7 +891,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -1116,7 +1115,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::{future, select};
     /// use futures::stream::{StreamExt, FuturesUnordered};

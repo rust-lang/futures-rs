@@ -28,7 +28,6 @@ impl<A: Unpin, B: Unpin> Unpin for Select<A, B> {}
 /// # Examples
 ///
 /// ```
-/// #![feature(futures_api)]
 /// use futures::future::{self, Either, Future, FutureExt};
 ///
 /// // A poor-man's join implemented on top of select

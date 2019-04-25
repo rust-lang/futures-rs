@@ -42,7 +42,6 @@ impl ArcWake for WakerInner {
 /// # Examples
 ///
 /// ```
-/// #![feature(futures_api)]
 /// use futures_test::task::new_count_waker;
 ///
 /// let (waker, count) = new_count_waker();

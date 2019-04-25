@@ -22,7 +22,7 @@ impl<T> FusedFuture for Empty<T> {
 /// # Examples
 ///
 /// ```ignore
-/// #![feature(async_await, await_macro, futures_api)]
+/// #![feature(async_await, await_macro)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///

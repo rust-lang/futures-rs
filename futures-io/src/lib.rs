@@ -10,8 +10,6 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures_io")]
 
-#![feature(futures_api)]
-
 #[cfg(feature = "std")]
 mod if_std {
     use futures_core::task::{Context, Poll};

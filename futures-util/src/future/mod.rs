@@ -134,7 +134,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -166,7 +166,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -192,7 +192,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -222,7 +222,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -251,7 +251,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::stream::StreamExt;
@@ -285,7 +285,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -315,7 +315,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::stream::{self, StreamExt};
@@ -368,7 +368,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -405,7 +405,7 @@ pub trait FutureExt: Future {
     // TODO: minimize and open rust-lang/rust ticket, currently errors:
     //       'assertion failed: !value.has_escaping_regions()'
     /// ```ignore
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};
     ///
@@ -438,7 +438,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, await_macro)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///

@@ -1,5 +1,3 @@
-#![feature(futures_api)]
-
 use assert_matches::assert_matches;
 use futures::Poll;
 use futures::future::lazy;

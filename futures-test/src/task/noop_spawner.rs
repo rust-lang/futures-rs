@@ -7,7 +7,7 @@ use futures_core::task::{Spawn, SpawnError};
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api)]
+/// #![feature(async_await)]
 /// use futures::task::SpawnExt;
 /// use futures_test::task::NoopSpawner;
 ///
@@ -46,7 +46,7 @@ impl Default for NoopSpawner {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, futures_api)]
+/// #![feature(async_await)]
 /// use futures::task::SpawnExt;
 /// use futures_test::task::noop_spawner_mut;
 ///

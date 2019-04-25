@@ -3,8 +3,6 @@
 //! This crate provides channels that can be used to communicate between
 //! asynchronous tasks.
 
-#![feature(futures_api)]
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]

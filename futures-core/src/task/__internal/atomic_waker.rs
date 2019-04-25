@@ -169,7 +169,6 @@ impl AtomicWaker {
     /// Here is how `register` is used when implementing a flag.
     ///
     /// ```
-    /// #![feature(futures_api)]
     /// use futures::future::Future;
     /// use futures::task::{Context, Poll, AtomicWaker};
     /// use std::sync::atomic::AtomicBool;
