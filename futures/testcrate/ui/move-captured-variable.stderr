@@ -5,7 +5,7 @@ error[E0507]: cannot move out of captured variable in an `FnMut` closure
    |           - captured outer variable
 9  |       foo(|| {
 10 | /         async_stream_block! {
-11 | |             stream_yield!(a)
+11 | |             yield a
 12 | |         };
    | |__________^ cannot move out of captured variable in an `FnMut` closure
 

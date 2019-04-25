@@ -3,10 +3,6 @@
 //! This module contains a number of functions and combinators for working
 //! with `async`/`await` code.
 
-#[macro_use]
-mod stream_yield;
-pub use self::stream_yield::*;
-
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use std::future::{self, get_task_context, set_task_context};

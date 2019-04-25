@@ -8,7 +8,7 @@ fn main() {
     let a = String::new();
     foo(|| {
         async_stream_block! {
-            stream_yield!(a)
+            yield a
         };
     });
 }

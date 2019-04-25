@@ -41,12 +41,3 @@ macro_rules! outside_of_async_error {
         ))
     };
 }
-
-macro_rules! outside_of_async_stream_error {
-    ($tokens:expr, $name:expr) => {
-        $crate::error::expr_compile_error(&syn::Error::new_spanned(
-            $tokens,
-            concat!($name, " cannot be allowed outside of async_stream blocks, and functions."),
-        ))
-    };
-}

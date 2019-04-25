@@ -77,8 +77,6 @@ pub use futures_util::{
 };
 // Async stream
 #[cfg(feature = "async-stream")]
-pub use futures_util::stream_yield;
-#[cfg(feature = "async-stream")]
 #[doc(hidden)]
 pub use futures_util::async_stream;
 #[cfg(feature = "async-stream")]

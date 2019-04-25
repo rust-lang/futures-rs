@@ -17,14 +17,14 @@ async fn future1() -> i32 {
 
 #[async_stream]
 fn stream1() -> u64 {
-    stream_yield!(0);
-    stream_yield!(1);
+    yield 0;
+    yield 1;
 }
 
 #[async_stream]
 fn stream2<T: Clone>(t: T) -> T {
-    stream_yield!(t.clone());
-    stream_yield!(t.clone());
+    yield t.clone();
+    yield t.clone();
 }
 
 #[async_stream]
@@ -33,9 +33,9 @@ fn stream3() -> i32 {
     #[for_await]
     for x in stream::iter(vec![1, 2, 3, 4]) {
         cnt += x;
-        stream_yield!(x);
+        yield x;
     }
-    stream_yield!(cnt);
+    yield cnt;
 }
 
 mod foo {
@@ -44,26 +44,26 @@ mod foo {
 
 #[async_stream]
 fn _stream5() -> foo::_Foo {
-    stream_yield!(foo::_Foo(0));
-    stream_yield!(foo::_Foo(1));
+    yield foo::_Foo(0);
+    yield foo::_Foo(1);
 }
 
 #[async_stream]
 fn _stream6() -> i32 {
     #[for_await]
     for foo::_Foo(i) in _stream5() {
-        stream_yield!(i * i);
+        yield i * i;
     }
 }
 
 #[async_stream]
 fn _stream7() -> () {
-    stream_yield!(());
+    yield ();
 }
 
 #[async_stream]
 fn _stream8() -> [u32; 4] {
-    stream_yield!([1, 2, 3, 4]);
+    yield [1, 2, 3, 4];
 }
 
 struct A(i32);
@@ -71,12 +71,12 @@ struct A(i32);
 impl A {
     #[async_stream]
     fn a_foo(self) -> i32 {
-        stream_yield!(self.0)
+        yield self.0
     }
 
     #[async_stream]
     fn _a_foo2(self: Box<Self>) -> i32 {
-        stream_yield!(self.0)
+        yield self.0
     }
 }
 
@@ -100,7 +100,7 @@ fn main() {
     // https://github.com/alexcrichton/futures-await/issues/45
     #[async_stream]
     fn _stream10() {
-        stream_yield!(());
+        yield;
     }
 
     block_on(async {

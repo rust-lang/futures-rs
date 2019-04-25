@@ -7,15 +7,15 @@ fn stream1() -> u64 {
         1
     }
     let x = &integer();
-    stream_yield!(0);
-    stream_yield!(*x);
+    yield 0;
+    yield *x;
 }
 
 fn stream1_block() -> impl Stream<Item = u64> {
     async_stream_block! {
         #[for_await]
         for item in stream1() {
-            stream_yield!(item)
+            yield item
         }
     }
 }

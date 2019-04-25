@@ -5,12 +5,12 @@ struct Ref<'a, T>(&'a T);
 
 #[async_stream]
 fn references(x: &i32) -> i32 {
-    stream_yield!(*x);
+    yield *x;
 }
 
 #[async_stream]
 fn new_types(x: Ref<'_, i32>) -> i32 {
-    stream_yield!(*x.0);
+    yield *x.0;
 }
 
 struct Foo(i32);
@@ -18,18 +18,18 @@ struct Foo(i32);
 impl Foo {
     #[async_stream]
     fn foo(&self) -> &i32 {
-        stream_yield!(&self.0)
+        yield &self.0
     }
 }
 
 #[async_stream]
 fn single_ref(x: &i32) -> &i32 {
-    stream_yield!(x)
+    yield x
 }
 
 #[async_stream]
 fn check_for_name_colision<'_async0, T>(_x: &T, _y: &'_async0 i32) {
-    stream_yield!(())
+    yield
 }
 
 #[test]

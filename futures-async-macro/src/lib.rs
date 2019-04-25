@@ -10,8 +10,8 @@ use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree as TokenTree2};
 use quote::{quote, ToTokens};
 use syn::{
     fold::{self, Fold},
-    token, ArgCaptured, Error, Expr, ExprForLoop, ExprMacro, FnArg, FnDecl, Ident, Item, ItemFn,
-    Pat, PatIdent, ReturnType, TypeTuple,
+    token, ArgCaptured, Error, Expr, ExprForLoop, ExprMacro, ExprYield, FnArg, FnDecl, Ident, Item,
+    ItemFn, Pat, PatIdent, ReturnType, TypeTuple,
 };
 
 #[macro_use]
@@ -276,9 +276,6 @@ impl Expand {
         }}
     }
 
-    /* TODO: If this is enabled, it can be used for `yield` instead of `stream_yield!`.
-             Raw `yield` is simpler, but it may be preferable to distinguish it from `yield` called
-             in other scopes.
     /// Expands `yield expr` in `async_stream` scope.
     fn expand_yield(&self, expr: ExprYield) -> ExprYield {
         if self.0 != Stream {
@@ -292,7 +289,6 @@ impl Expand {
         };
         ExprYield { attrs, yield_token, expr: Some(Box::new(expr)) }
     }
-    */
 
     /// Expands a macro.
     fn expand_macro(&mut self, mut expr: ExprMacro) -> Expr {
@@ -307,10 +303,6 @@ impl Expand {
             } else {
                 unreachable!()
             }
-        } else if self.0 != Stream && expr.mac.path.is_ident("stream_yield") {
-            // TODO: Should we remove real `stream_yield!` macro and replace `stream_yield!` call in
-            //       here? -- or should we use `yield` instead of ``?
-            return outside_of_async_stream_error!(expr, "stream_yield!");
         }
 
         Expr::Macro(expr)
@@ -360,7 +352,7 @@ impl Fold for Expand {
 
         let expr = match fold::fold_expr(self, expr) {
             Expr::ForLoop(expr) => self.expand_for_await(expr),
-            // Expr::Yield(expr) => Expr::Yield(self.expand_yield(expr)),
+            Expr::Yield(expr) => Expr::Yield(self.expand_yield(expr)),
             Expr::Macro(expr) => self.expand_macro(expr),
             expr => expr,
         };

@@ -1,11 +1,11 @@
 error: attribute must be of the form `#[for_await]`
- --> $DIR/bad-input-2.rs:8:5
+ --> $DIR/bad-input.rs:8:5
   |
 8 |     #[for_await(bar)]
   |     ^^^^^^^^^^^^^^^^^
 
 error: attribute must be of the form `#[async_stream]`
-  --> $DIR/bad-input-2.rs:14:1
+  --> $DIR/bad-input.rs:14:1
    |
 14 | #[async_stream(baz)]
    | ^^^^^^^^^^^^^^^^^^^^

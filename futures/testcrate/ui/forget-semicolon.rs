@@ -4,7 +4,7 @@ use futures::*;
 
 #[async_stream]
 fn foo() {
-    stream_yield!(());
+    yield;
     Some(())
 }
 

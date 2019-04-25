@@ -34,18 +34,18 @@ This is a reimplement of [futures-await]'s `#[async_stream]` for futures 0.3 and
 
 ```rust
 use futures::prelude::*;
-use futures::{async_stream, stream_yield};
+use futures::async_stream;
 
 // Returns a stream of i32
 #[async_stream]
 fn foo(stream: impl Stream<Item = String>) -> i32 {
     #[for_await]
     for x in stream {
-        stream_yield!(x.parse().unwrap());
+        yield x.parse().unwrap();
     }
 }
 ```
 
-`#[async_stream]` have an item type specified via `-> some::Path` and the values output from the stream must be yielded via the `stream_yield!` macro.
+`#[async_stream]` have an item type specified via `-> some::Path` and the values output from the stream must be yielded via the `yield` expression.
 
 [futures-await]: https://github.com/alexcrichton/futures-await
