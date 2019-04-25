@@ -125,7 +125,7 @@ where
 {
     let elems: Box<[_]> = i.into_iter().map(ElemState::Pending).collect();
     TryJoinAll {
-        elems: Box::into_pin(elems),
+        elems: elems.into(),
     }
 }
 
