@@ -116,7 +116,7 @@ where
     I::Item: Future,
 {
     let elems: Box<[_]> = i.into_iter().map(ElemState::Pending).collect();
-    JoinAll { elems: Box::into_pin(elems) }
+    JoinAll { elems: elems.into() }
 }
 
 impl<F> Future for JoinAll<F>
