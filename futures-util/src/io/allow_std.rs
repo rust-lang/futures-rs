@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite};
+use futures_io::{AsyncRead, AsyncWrite, AsyncSeek};
 use std::{fmt, io};
 use std::pin::Pin;
 use std::string::String;
@@ -114,5 +114,19 @@ impl<T> AsyncRead for AllowStdIo<T> where T: io::Read {
         -> Poll<io::Result<usize>>
     {
         Poll::Ready(Ok(try_with_interrupt!(self.0.read(buf))))
+    }
+}
+
+impl<T> io::Seek for AllowStdIo<T> where T: io::Seek {
+    fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+        self.0.seek(pos)
+    }
+}
+
+impl<T> AsyncSeek for AllowStdIo<T> where T: io::Seek {
+    fn poll_seek(mut self: Pin<&mut Self>, _: &mut Context<'_>, pos: io::SeekFrom)
+        -> Poll<io::Result<u64>>
+    {
+        Poll::Ready(Ok(try_with_interrupt!(self.0.seek(pos))))
     }
 }
