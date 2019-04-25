@@ -1,9 +1,7 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite, AsyncSeek};
+use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
 use std::{fmt, io};
 use std::pin::Pin;
-use std::string::String;
-use std::vec::Vec;
 
 /// A simple wrapper type which allows types which implement only
 /// implement `std::io::Read` or `std::io::Write`
@@ -128,5 +126,27 @@ impl<T> AsyncSeek for AllowStdIo<T> where T: io::Seek {
         -> Poll<io::Result<u64>>
     {
         Poll::Ready(Ok(try_with_interrupt!(self.0.seek(pos))))
+    }
+}
+
+impl<T> io::BufRead for AllowStdIo<T> where T: io::BufRead {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.0.fill_buf()
+    }
+    fn consume(&mut self, amt: usize) {
+        self.0.consume(amt)
+    }
+}
+
+impl<T> AsyncBufRead for AllowStdIo<T> where T: io::BufRead {
+    fn poll_fill_buf<'a>(mut self: Pin<&'a mut Self>, _: &mut Context<'_>)
+        -> Poll<io::Result<&'a [u8]>>
+    {
+        let this: *mut Self = &mut *self as *mut _;
+        Poll::Ready(Ok(try_with_interrupt!(unsafe { &mut *this }.0.fill_buf())))
+    }
+
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        self.0.consume(amt)
     }
 }

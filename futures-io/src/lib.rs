@@ -266,6 +266,63 @@ mod if_std {
             -> Poll<Result<u64>>;
     }
 
+    /// Read bytes asynchronously.
+    ///
+    /// This trait is analogous to the `std::io::BufRead` trait, but integrates
+    /// with the asynchronous task system. In particular, the `poll_fill_buf`
+    /// method, unlike `BufRead::fill_buf`, will automatically queue the current task
+    /// for wakeup and return if data is not yet available, rather than blocking
+    /// the calling thread.
+    pub trait AsyncBufRead: AsyncRead {
+        /// Attempt to return the contents of the internal buffer, filling it with more data
+        /// from the inner reader if it is empty.
+        ///
+        /// On success, returns `Poll::Ready(Ok(buf))`.
+        ///
+        /// If no data is available for reading, the method returns
+        /// `Poll::Pending` and arranges for the current task (via
+        /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
+        /// readable or is closed.
+        ///
+        /// This function is a lower-level call. It needs to be paired with the
+        /// [`consume`] method to function properly. When calling this
+        /// method, none of the contents will be "read" in the sense that later
+        /// calling [`poll_read`] may return the same contents. As such, [`consume`] must
+        /// be called with the number of bytes that are consumed from this buffer to
+        /// ensure that the bytes are never returned twice.
+        ///
+        /// [`poll_read`]: AsyncRead::poll_read
+        /// [`consume`]: AsyncBufRead::consume
+        ///
+        /// An empty buffer returned indicates that the stream has reached EOF.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Poll::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
+        fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, cx: &mut Context<'_>)
+            -> Poll<Result<&'a [u8]>>;
+
+        /// Tells this buffer that `amt` bytes have been consumed from the buffer,
+        /// so they should no longer be returned in calls to [`poll_read`].
+        ///
+        /// This function is a lower-level call. It needs to be paired with the
+        /// [`poll_fill_buf`] method to function properly. This function does
+        /// not perform any I/O, it simply informs this object that some amount of
+        /// its buffer, returned from [`poll_fill_buf`], has been consumed and should
+        /// no longer be returned. As such, this function may do odd things if
+        /// [`poll_fill_buf`] isn't called before calling it.
+        ///
+        /// The `amt` must be `<=` the number of bytes in the buffer returned by
+        /// [`poll_fill_buf`].
+        ///
+        /// [`poll_read`]: AsyncRead::poll_read
+        /// [`poll_fill_buf`]: AsyncBufRead::poll_fill_buf
+        fn consume(self: Pin<&mut Self>, amt: usize);
+    }
+
     macro_rules! deref_async_read {
         () => {
             unsafe fn initializer(&self) -> Initializer {
@@ -337,6 +394,10 @@ mod if_std {
     }
 
     impl AsyncRead for StdIo::Repeat {
+        unsafe_delegate_async_read_to_stdio!();
+    }
+
+    impl AsyncRead for StdIo::Empty {
         unsafe_delegate_async_read_to_stdio!();
     }
 
@@ -498,6 +559,70 @@ mod if_std {
 
     impl<T: AsRef<[u8]> + Unpin> AsyncSeek for StdIo::Cursor<T> {
         delegate_async_seek_to_stdio!();
+    }
+
+    macro_rules! deref_async_buf_read {
+        () => {
+            fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, cx: &mut Context<'_>)
+                -> Poll<Result<&'a [u8]>>
+            {
+                Pin::new(&mut **self.get_mut()).poll_fill_buf(cx)
+            }
+
+            fn consume(self: Pin<&mut Self>, amt: usize) {
+                Pin::new(&mut **self.get_mut()).consume(amt)
+            }
+        }
+    }
+
+    impl<T: ?Sized + AsyncBufRead + Unpin> AsyncBufRead for Box<T> {
+        deref_async_buf_read!();
+    }
+
+    impl<T: ?Sized + AsyncBufRead + Unpin> AsyncBufRead for &mut T {
+        deref_async_buf_read!();
+    }
+
+    impl<P> AsyncBufRead for Pin<P>
+    where
+        P: DerefMut + Unpin,
+        P::Target: AsyncBufRead,
+    {
+        fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, cx: &mut Context<'_>)
+            -> Poll<Result<&'a [u8]>>
+        {
+            self.get_mut().as_mut().poll_fill_buf(cx)
+        }
+
+        fn consume(self: Pin<&mut Self>, amt: usize) {
+            self.get_mut().as_mut().consume(amt)
+        }
+    }
+
+    macro_rules! delegate_async_buf_read_to_stdio {
+        () => {
+            fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, _: &mut Context<'_>)
+                -> Poll<Result<&'a [u8]>>
+            {
+                Poll::Ready(StdIo::BufRead::fill_buf(self.get_mut()))
+            }
+
+            fn consume(self: Pin<&mut Self>, amt: usize) {
+                StdIo::BufRead::consume(self.get_mut(), amt)
+            }
+        }
+    }
+
+    impl AsyncBufRead for &[u8] {
+        delegate_async_buf_read_to_stdio!();
+    }
+
+    impl AsyncBufRead for StdIo::Empty {
+        delegate_async_buf_read_to_stdio!();
+    }
+
+    impl<T: AsRef<[u8]> + Unpin> AsyncBufRead for StdIo::Cursor<T> {
+        delegate_async_buf_read_to_stdio!();
     }
 }
 
