@@ -46,7 +46,7 @@ impl<St: Stream> Skip<St> {
     /// Note that care must be taken to avoid tampering with the state of the
     /// stream which may otherwise confuse this combinator.
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut St> {
-        unsafe { Pin::map_unchecked_mut(self, Self::get_mut) }
+        self.stream()
     }
 
     /// Consumes this combinator, returning the underlying stream.

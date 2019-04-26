@@ -36,7 +36,7 @@ impl<Si, E, Item> SinkErrInto<Si, Item, E>
 
     /// Get a pinned mutable reference to the inner sink.
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Si> {
-        unsafe { Pin::map_unchecked_mut(self, Self::get_mut) }
+        self.sink().get_pin_mut()
     }
 
     /// Consumes this combinator, returning the underlying sink.
