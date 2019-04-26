@@ -52,7 +52,7 @@ impl<St, Fut, T, F> Future for Fold<St, Fut, T, F>
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
         loop {
             // we're currently processing a future to produce a new accum value
-            if self.as_mut().accum().is_none() {
+            if self.accum.is_none() {
                 let accum = ready!(self.as_mut().future().as_pin_mut().unwrap().poll(cx));
                 *self.as_mut().accum() = Some(accum);
                 self.as_mut().future().set(None);

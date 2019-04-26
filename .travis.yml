@@ -43,9 +43,12 @@ matrix:
         - cargo bench --all
         - cargo bench --manifest-path futures-util/Cargo.toml --features=bench
 
-    - name: cargo build --no-default-features
+    - name: cargo +stable build --no-default-features
       rust: nightly
+      env:
+        - RUSTFLAGS="-Z allow-features="
       script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --manifest-path futures/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
@@ -54,22 +57,31 @@ matrix:
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
 
-    - name: cargo build (alloc)
+    - name: cargo +stable build (alloc)
       rust: nightly
+      env:
+        - RUSTFLAGS="-Z allow-features="
       script:
-        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc,nightly
-        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc,nightly
-        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc,nightly
-        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc,nightly
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
+        - cargo build --manifest-path futures/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-core/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features --features alloc
+        - cargo build --manifest-path futures-util/Cargo.toml --no-default-features --features alloc
 
-    - name: cargo build (default features)
+    - name: cargo +stable build (default features)
       rust: nightly
+      env:
+        - RUSTFLAGS="-Z allow-features="
       script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --all
 
-    - name: cargo build (compat feature)
+    - name: cargo +stable build (compat feature)
       rust: nightly
+      env:
+        - RUSTFLAGS="-Z allow-features="
       script:
+        - cargo run --manifest-path ci/remove-dev-dependencies/Cargo.toml */Cargo.toml
         - cargo build --manifest-path futures/Cargo.toml --features io-compat
 
     - name: cargo build --target=thumbv6m-none-eabi

@@ -63,7 +63,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
             let mut made_progress_this_iter = false;
 
             // Try and pull an item from the stream
-            let current_len = self.as_mut().futures().len();
+            let current_len = self.futures.len();
             // Check if we've already created a number of futures greater than `limit`
             if self.limit.map(|limit| limit.get() > current_len).unwrap_or(true) {
                 let poll_res = match self.as_mut().stream().as_pin_mut() {
@@ -99,7 +99,7 @@ impl<St, Fut, F> Future for TryForEachConcurrent<St, Fut, F>
             match self.as_mut().futures().poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(()))) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
-                    if self.as_mut().stream().is_none() {
+                    if self.stream.is_none() {
                         return Poll::Ready(Ok(()))
                     }
                 },

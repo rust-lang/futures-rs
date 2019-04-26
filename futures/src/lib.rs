@@ -30,6 +30,9 @@
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.14/futures")]
 
+#[cfg(all(feature = "async-await", not(feature = "nightly")))]
+compile_error!("The `async-await` feature requires the `nightly` feature as an explicit opt-in to unstable features");
+
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
@@ -58,7 +61,7 @@ pub use futures_util::{
     // Error/readiness propagation
     try_ready, ready,
 };
-#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
 pub use futures_util::{
     // Async-await
     join, try_join, pending, poll,
@@ -455,17 +458,17 @@ pub mod task {
 
 // `select!` re-export --------------------------------------
 
-#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub use futures_util::rand_reexport;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod inner_select {
     pub use futures_util::select;
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "async-await")]
 futures_util::document_select_macro! {
     #[macro_export]
     macro_rules! select { // replace `::futures_util` with `::futures` as the crate path
