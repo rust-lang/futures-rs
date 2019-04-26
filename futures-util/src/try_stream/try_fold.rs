@@ -52,7 +52,7 @@ impl<St, Fut, T, F> Future for TryFold<St, Fut, T, F>
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
             // we're currently processing a future to produce a new accum value
-            if self.as_mut().accum().is_none() {
+            if self.accum.is_none() {
                 let accum = match ready!(
                     self.as_mut().future().as_pin_mut()
                        .expect("TryFold polled after completion")

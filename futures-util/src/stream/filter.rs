@@ -99,7 +99,7 @@ impl<St, Fut, F> Stream for Filter<St, Fut, F>
         cx: &mut Context<'_>,
     ) -> Poll<Option<St::Item>> {
         loop {
-            if self.as_mut().pending_fut().as_pin_mut().is_none() {
+            if self.pending_fut.is_none() {
                 let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                     Some(e) => e,
                     None => return Poll::Ready(None),

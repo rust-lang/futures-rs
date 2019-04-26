@@ -92,7 +92,7 @@ impl<St, Fut, F> Future for ForEachConcurrent<St, Fut, F>
             match self.as_mut().futures().poll_next_unpin(cx) {
                 Poll::Ready(Some(())) => made_progress_this_iter = true,
                 Poll::Ready(None) => {
-                    if self.as_mut().stream().is_none() {
+                    if self.stream.is_none() {
                         return Poll::Ready(())
                     }
                 },

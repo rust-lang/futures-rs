@@ -77,7 +77,7 @@ impl<S: Stream> Stream for Fuse<S> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<S::Item>> {
-        if *self.as_mut().done() {
+        if self.done {
             return Poll::Ready(None);
         }
 
