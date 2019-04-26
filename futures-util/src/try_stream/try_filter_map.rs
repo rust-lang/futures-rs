@@ -1,6 +1,6 @@
 use core::pin::Pin;
 use futures_core::future::{TryFuture};
-use futures_core::stream::{Stream, TryStream};
+use futures_core::stream::{Stream, TryStream, FusedStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -58,6 +58,16 @@ impl<St, Fut, F> TryFilterMap<St, Fut, F> {
     /// care should be taken to avoid losing resources when this is called.
     pub fn into_inner(self) -> St {
         self.stream
+    }
+}
+
+impl<St, Fut, F, T> FusedStream for TryFilterMap<St, Fut, F>
+    where St: TryStream + FusedStream,
+          Fut: TryFuture<Ok = Option<T>, Error = St::Error>,
+          F: FnMut(St::Ok) -> Fut,
+{
+    fn is_terminated(&self) -> bool {
+        self.pending.is_none() && self.stream.is_terminated()
     }
 }
 
