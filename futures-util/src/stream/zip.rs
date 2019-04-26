@@ -90,7 +90,7 @@ impl<St1, St2> Stream for Zip<St1, St2>
                 Poll::Ready(None) | Poll::Pending => {}
             }
         }
-        if self.as_mut().queued2().is_none() {
+        if self.queued2.is_none() {
             match self.as_mut().stream2().poll_next(cx) {
                 Poll::Ready(Some(item2)) => *self.as_mut().queued2() = Some(item2),
                 Poll::Ready(None) | Poll::Pending => {}

@@ -82,7 +82,7 @@ impl<St, Fut, F> Stream for Then<St, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Fut::Output>> {
-        if self.as_mut().future().as_pin_mut().is_none() {
+        if self.future.is_none() {
             let item = match ready!(self.as_mut().stream().poll_next(cx)) {
                 None => return Poll::Ready(None),
                 Some(e) => e,

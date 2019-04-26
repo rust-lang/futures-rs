@@ -80,7 +80,7 @@ impl<St> Stream for Flatten<St>
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
         loop {
-            if self.as_mut().next().as_pin_mut().is_none() {
+            if self.next.is_none() {
                 match ready!(self.as_mut().stream().poll_next(cx)) {
                     Some(e) => self.as_mut().next().set(Some(e)),
                     None => return Poll::Ready(None),

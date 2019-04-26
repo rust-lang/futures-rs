@@ -31,7 +31,7 @@ impl<St: Stream + UnwindSafe> Stream for CatchUnwind<St>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        if *self.as_mut().caught_unwind() {
+        if self.caught_unwind {
             Poll::Ready(None)
         } else {
             let res = catch_unwind(AssertUnwindSafe(|| {
