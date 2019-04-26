@@ -1,3 +1,16 @@
+# 0.3.0-alpha.15 - 2019-4-26
+* Updated to stabilized `futures_api`.
+* Removed `StreamObj`, cautioned against usage of `FutureObj`.
+* Changed `StreamExt::select` to a function.
+* Added `AsyncBufRead` and `AsyncSeek` traits.
+* Expanded trait impls to include more pinned pointers and ?Sized types. 
+* Added `future::Fuse::terminated` constructor.
+* Added `never_error` combinator.
+* Added `StreamExt::enumerate`.
+* Re-added `TryStreamExt::{and_then, or_else}`.
+* Added functions to partially progress a local pool.
+* Changed to use our own `Either` type rather than the one from the `either` crate.
+
 # 0.3.0-alpha.14 - 2019-4-15
 * Updated to new nightly `futures_api`.
 * Changed `Forward` combinator to drop sink after completion, and allow `!Unpin` `Sink`s.
