@@ -16,7 +16,7 @@ pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send 
 
 #[cfg(feature = "alloc")]
 /// `BoxFuture`, but without the `Send` requirement.
-pub type BoxFutureLocal<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
+pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
 
 /// A `Future` or `TryFuture` which tracks whether or not the underlying future
 /// should no longer be polled.

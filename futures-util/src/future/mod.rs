@@ -10,7 +10,7 @@ use futures_core::task::{Context, Poll};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
-use futures_core::future::{BoxFuture, BoxFutureLocal};
+use futures_core::future::{BoxFuture, LocalBoxFuture};
 
 // re-export for `select!`
 #[doc(hidden)]
@@ -503,7 +503,7 @@ pub trait FutureExt: Future {
     ///
     /// Similar to `boxed`, but without the `Send` requirement.
     #[cfg(feature = "alloc")]
-    fn boxed_local<'a>(self) -> BoxFutureLocal<'a, Self::Output>
+    fn boxed_local<'a>(self) -> LocalBoxFuture<'a, Self::Output>
         where Self: Sized + 'a
     {
         Box::pin(self)
