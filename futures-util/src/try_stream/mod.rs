@@ -4,7 +4,7 @@
 //! that return `Result`s, allowing for short-circuiting computations.
 
 use core::pin::Pin;
-use futures_core::future::TryFuture;
+use futures_core::future::{Future, TryFuture};
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 
@@ -35,6 +35,9 @@ pub use self::try_next::TryNext;
 mod try_for_each;
 pub use self::try_for_each::TryForEach;
 
+mod try_filter;
+pub use self::try_filter::TryFilter;
+
 mod try_filter_map;
 pub use self::try_filter_map::TryFilterMap;
 
@@ -60,8 +63,6 @@ cfg_target_has_atomic! {
     mod try_for_each_concurrent;
     #[cfg(feature = "alloc")]
     pub use self::try_for_each_concurrent::TryForEachConcurrent;
-    #[cfg(feature = "alloc")]
-    use futures_core::future::Future;
 }
 
 #[cfg(feature = "std")]
@@ -442,6 +443,46 @@ pub trait TryStreamExt: TryStream {
         where Self: Sized
     {
         TryCollect::new(self)
+    }
+
+    /// Attempt to filter the values produced by this stream according to the
+    /// provided asynchronous closure.
+    ///
+    /// As values of this stream are made available, the provided predicate `f`
+    /// will be run on them. If the predicate returns a `Future` which resolves
+    /// to `true`, then the stream will yield the value, but if the predicate
+    /// return a `Future` which resolves to `false`, then the value will be
+    /// discarded and the next value will be produced.
+    ///
+    /// All errors are passed through without filtering in this combinator.
+    ///
+    /// Note that this function consumes the stream passed into it and returns a
+    /// wrapped version of it, similar to the existing `filter` methods in
+    /// the standard library.
+    ///
+    /// # Examples
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::executor::block_on;
+    /// use futures::future;
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok(1i32), Ok(2i32), Ok(3i32), Err("error")]);
+    /// let mut evens = stream.try_filter(|x| {
+    ///     future::ready(x % 2 == 0)
+    /// });
+    ///
+    /// assert_eq!(await!(evens.next()), Some(Ok(2)));
+    /// assert_eq!(await!(evens.next()), Some(Err("error")));
+    /// # })
+    /// ```
+    fn try_filter<Fut, F>(self, f: F) -> TryFilter<Self, Fut, F>
+        where Fut: Future<Output = bool>,
+              F: FnMut(&Self::Ok) -> Fut,
+              Self: Sized
+    {
+        TryFilter::new(self, f)
     }
 
     /// Attempt to filter the values produced by this stream while
