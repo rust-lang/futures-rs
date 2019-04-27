@@ -45,7 +45,7 @@ async-await = ["futures-util-preview/async-await", "futures-util-preview/select-
 compat = ["std", "futures-util-preview/compat"]
 io-compat = ["compat", "futures-util-preview/io-compat"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-channel-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
-async-stream = ["std", "futures-util-preview/async-stream", "futures-async-macro-preview"]
+async-stream = ["std", "async-await", "futures-util-preview/async-stream", "futures-async-macro-preview"]
 
 [package.metadata.docs.rs]
 all-features = true
