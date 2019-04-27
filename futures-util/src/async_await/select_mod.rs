@@ -20,6 +20,8 @@ macro_rules! document_select_macro {
         /// branch has to have the same return type.
         ///
         /// This macro is only usable inside of async functions, closures, and blocks.
+        /// It is also gated behind the `async-await` feature of this library, which is
+        /// _not_ activated by default.
         ///
         /// # Examples
         ///

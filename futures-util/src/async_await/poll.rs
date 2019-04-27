@@ -6,6 +6,8 @@ use futures_core::task::{Context, Poll};
 /// current `async` context.
 ///
 /// This macro is only usable inside of `async` functions, closures, and blocks.
+/// It is also gated behind the `async-await` feature of this library, which is
+/// _not_ activated by default.
 #[macro_export]
 macro_rules! poll {
     ($x:expr) => {
