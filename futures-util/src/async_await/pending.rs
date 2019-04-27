@@ -10,6 +10,8 @@ use futures_core::task::{Context, Poll};
 /// is called somewhere when further progress can be made.
 ///
 /// This macro is only usable inside of async functions, closures, and blocks.
+/// It is also gated behind the `async-await` feature of this library, which is
+/// _not_ activated by default.
 #[macro_export]
 macro_rules! pending {
     () => {
