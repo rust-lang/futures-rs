@@ -8,20 +8,6 @@ use futures_sink::Sink;
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
 
-/* TODO
-mod select;
-pub use self::select::Select;
-
-#[cfg(feature = "std")]
-mod select_all;
-#[cfg(feature = "std")]
-mod select_ok;
-#[cfg(feature = "std")]
-pub use self::select_all::{SelectAll, SelectAllNext, select_all};
-#[cfg(feature = "std")]
-pub use self::select_ok::{SelectOk, select_ok};
-*/
-
 mod try_join;
 pub use self::try_join::{
     try_join, try_join3, try_join4, try_join5,
@@ -32,6 +18,15 @@ pub use self::try_join::{
 mod try_join_all;
 #[cfg(feature = "alloc")]
 pub use self::try_join_all::{try_join_all, TryJoinAll};
+
+// TODO
+// mod try_select;
+// pub use self::try_select::{try_select, TrySelect};
+
+#[cfg(feature = "alloc")]
+mod select_ok;
+#[cfg(feature = "alloc")]
+pub use self::select_ok::{select_ok, SelectOk};
 
 // Combinators
 mod and_then;
