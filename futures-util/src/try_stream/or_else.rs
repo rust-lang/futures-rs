@@ -83,17 +83,9 @@ impl<St, Fut, F> Stream for OrElse<St, Fut, F>
             self.as_mut().future().set(Some(fut));
         }
 
-        assert!(self.future.is_some());
-        match ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx)) {
-            Ok(e) => {
-                self.as_mut().future().set(None);
-                Poll::Ready(Some(Ok(e)))
-            }
-            Err(e) => {
-                self.as_mut().future().set(None);
-                Poll::Ready(Some(Err(e)))
-            }
-        }
+        let e = ready!(self.as_mut().future().as_pin_mut().unwrap().try_poll(cx));
+        self.as_mut().future().set(None);
+        Poll::Ready(Some(e))
     }
 }
 
