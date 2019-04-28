@@ -19,6 +19,7 @@ mod error;
 
 mod elision;
 
+/// Processes streams using a for loop.
 #[proc_macro_attribute]
 pub fn for_await(args: TokenStream, input: TokenStream) -> TokenStream {
     assert_!(args.is_empty(), args_is_not_empty!("for_await"));
@@ -28,6 +29,7 @@ pub fn for_await(args: TokenStream, input: TokenStream) -> TokenStream {
     Expand(Future).fold_expr(Expr::ForLoop(expr)).into_token_stream().into()
 }
 
+/// Creates streams via generators.
 #[proc_macro_attribute]
 pub fn async_stream(args: TokenStream, input: TokenStream) -> TokenStream {
     assert_!(args.is_empty(), args_is_not_empty!("async_stream"));
@@ -180,6 +182,7 @@ fn expand_async_stream_fn(item: ItemFn) -> TokenStream {
     })
 }
 
+/// Creates streams via generators.
 #[proc_macro]
 pub fn async_stream_block(input: TokenStream) -> TokenStream {
     let input = TokenStream::from(TokenTree::Group(Group::new(Delimiter::Brace, input)));

@@ -7,7 +7,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = { version = "0.3.0-alpha.14", features = ["async-stream", "nightly"] }
+futures-preview = { version = "0.3.0-alpha.15", features = ["async-stream", "nightly"] }
 ```
 
 ### \#\[for_await\]
@@ -17,6 +17,7 @@ Processes streams using a for loop.
 This is a reimplement of [futures-await]'s `#[async]` for loops for futures 0.3 and is an experimental implementation of [the idea listed as the next step of async/await](https://github.com/rust-lang/rfcs/blob/master/text/2394-async_await.md#for-await-and-processing-streams).
 
 ```rust
+#![feature(async_await, generators, stmt_expr_attributes, proc_macro_hygiene)]
 use futures::for_await;
 use futures::prelude::*;
 
@@ -26,13 +27,16 @@ for value in stream::iter(1..=5) {
 }
 ```
 
-`value` has the `Item` type of the stream passed in. Note that async for loops can only be used inside of `async` functions or `#[async_stream]` functions.
+`value` has the `Item` type of the stream passed in. Note that async for loops can only be used inside of `async` functions, closures, blocks, `#[async_stream]` functions and `async_stream_block!` macros.
 
 ### \#\[async_stream\]
+
+Creates streams via generators.
 
 This is a reimplement of [futures-await]'s `#[async_stream]` for futures 0.3 and is an experimental implementation of [the idea listed as the next step of async/await](https://github.com/rust-lang/rfcs/blob/master/text/2394-async_await.md#generators-and-streams).
 
 ```rust
+#![feature(async_await, generators)]
 use futures::prelude::*;
 use futures::async_stream;
 
