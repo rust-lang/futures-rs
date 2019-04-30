@@ -1101,7 +1101,7 @@ pub trait StreamExt: Stream {
     ///
     /// This is similar to the [`next`][StreamExt::next] method, but it won't
     /// resolve to [`None`] if used on an empty [`Stream`]. Instead, the
-    /// returned future type will return [`true`] from
+    /// returned future type will return `true` from
     /// [`FusedFuture::is_terminated`][] when the [`Stream`] is empty, allowing
     /// [`select_next_some`][StreamExt::select_next_some] to be easily used with
     /// the [`select!`] macro.

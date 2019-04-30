@@ -3,7 +3,7 @@ use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
-/// Stream for the [`select`] function.
+/// Stream for the [`select()`] function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Select<St1, St2> {
