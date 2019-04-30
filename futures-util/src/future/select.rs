@@ -3,7 +3,7 @@ use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 use crate::future::Either;
 
-/// Future for the [`select`](super::FutureExt::select) function.
+/// Future for the [`select()`] function.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct Select<A: Unpin, B: Unpin> {

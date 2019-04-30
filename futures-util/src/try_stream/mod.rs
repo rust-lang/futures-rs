@@ -709,7 +709,9 @@ pub trait TryStreamExt: TryStream {
         TryBufferUnordered::new(self, n)
     }
 
-    /// A convenience method for calling [`TryStream::poll_next_unpin`] on [`Unpin`]
+    // TODO: false positive warning from rustdoc. Verify once #43466 settles
+    //
+    /// A convenience method for calling [`poll_next_unpin`](StreamExt::poll_next_unpin) on [`Unpin`]
     /// stream types.
     fn try_poll_next_unpin(
         &mut self,
@@ -748,9 +750,13 @@ pub trait TryStreamExt: TryStream {
         Compat::new(self)
     }
 
-    /// Adapter that converts this stream into an [`AsyncRead`].
+    // TODO: I tried to make these doc links work, but failed to have the link work with
+    // anything other than `trait.AsyncRead.html`. We should probably try again to use
+    // paths once rustdoc has less issues.
+    //
+    /// Adapter that converts this stream into an [`AsyncRead`](trait.AsyncRead.html).
     ///
-    /// Note that because `into_async_read` moves the stream, the [`Stream`] type must be
+    /// Note that because `into_async_read` moves the stream, the [`Stream`](trait.Stream.html) type must be
     /// [`Unpin`]. If you want to use `into_async_read` with a [`!Unpin`](Unpin) stream, you'll
     /// first have to pin the stream. This can be done by boxing the stream using [`Box::pin`]
     /// or pinning it to the stack using the `pin_mut!` macro from the `pin_utils` crate.

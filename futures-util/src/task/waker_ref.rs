@@ -6,6 +6,9 @@ use core::marker::PhantomData;
 use core::ops::Deref;
 use core::task::{Waker, RawWaker, RawWakerVTable};
 
+// TODO: The link to Waker below points to futures::task::Waker and not to std. Is that a
+// bug in rustdoc?
+//
 /// A [`Waker`](::std::task::Waker) that is only valid for a given lifetime.
 ///
 /// Note: this type implements [`Deref<Target = Waker>`](::std::ops::Deref),
@@ -42,10 +45,10 @@ impl Deref for WakerRef<'_> {
 unsafe fn noop(_data: *const ()) {}
 
 /// Creates a reference to a [`Waker`](::std::task::Waker)
-/// from a local [`wake`](::std::task::Wake).
+/// from a local [`ArcWake`].
 ///
 /// The resulting [`Waker`](::std::task::Waker) will call
-/// [`wake.wake()`](::std::task::Wake::wake) if awoken.
+/// [`ArcWake.wake()`](ArcWake::wake) if awoken.
 #[inline]
 pub fn waker_ref<W>(wake: &Arc<W>) -> WakerRef<'_>
 where
