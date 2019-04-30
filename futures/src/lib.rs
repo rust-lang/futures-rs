@@ -276,8 +276,9 @@ pub mod io {
 
     pub use futures_io::{
         AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
-        Initializer, IoVec, Result, SeekFrom,
+        Initializer, IoSlice, IoSliceMut, Result, SeekFrom,
     };
+
     pub use futures_util::io::{
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
         Close, CopyInto, Flush, Read, ReadExact, ReadHalf, ReadToEnd, ReadUntil,

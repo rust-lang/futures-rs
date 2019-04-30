@@ -6,7 +6,7 @@
 //! to the `AsyncRead` and `AsyncWrite` types.
 
 pub use futures_io::{
-    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoVec, SeekFrom,
+    AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom,
 };
 
 #[cfg(feature = "io-compat")] use crate::compat::Compat;

@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
+use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom};
 use std::{fmt, io};
 use std::pin::Pin;
 
@@ -62,6 +62,9 @@ impl<T> io::Write for AllowStdIo<T> where T: io::Write {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
     }
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.0.write_vectored(bufs)
+    }
     fn flush(&mut self) -> io::Result<()> {
         self.0.flush()
     }
@@ -80,6 +83,12 @@ impl<T> AsyncWrite for AllowStdIo<T> where T: io::Write {
         Poll::Ready(Ok(try_with_interrupt!(self.0.write(buf))))
     }
 
+    fn poll_write_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &[IoSlice<'_>])
+        -> Poll<io::Result<usize>>
+    {
+        Poll::Ready(Ok(try_with_interrupt!(self.0.write_vectored(bufs))))
+    }
+
     fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
         try_with_interrupt!(self.0.flush());
         Poll::Ready(Ok(()))
@@ -93,6 +102,9 @@ impl<T> AsyncWrite for AllowStdIo<T> where T: io::Write {
 impl<T> io::Read for AllowStdIo<T> where T: io::Read {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.read(buf)
+    }
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.0.read_vectored(bufs)
     }
     // TODO: implement the `initializer` fn when it stabilizes.
     // See rust-lang/rust #42788
@@ -113,16 +125,22 @@ impl<T> AsyncRead for AllowStdIo<T> where T: io::Read {
     {
         Poll::Ready(Ok(try_with_interrupt!(self.0.read(buf))))
     }
+
+    fn poll_read_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
+        -> Poll<io::Result<usize>>
+    {
+        Poll::Ready(Ok(try_with_interrupt!(self.0.read_vectored(bufs))))
+    }
 }
 
 impl<T> io::Seek for AllowStdIo<T> where T: io::Seek {
-    fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.0.seek(pos)
     }
 }
 
 impl<T> AsyncSeek for AllowStdIo<T> where T: io::Seek {
-    fn poll_seek(mut self: Pin<&mut Self>, _: &mut Context<'_>, pos: io::SeekFrom)
+    fn poll_seek(mut self: Pin<&mut Self>, _: &mut Context<'_>, pos: SeekFrom)
         -> Poll<io::Result<u64>>
     {
         Poll::Ready(Ok(try_with_interrupt!(self.0.seek(pos))))
