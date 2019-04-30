@@ -51,7 +51,7 @@ where
     ) -> Poll<Result<(), Self::SinkError>> {
         let resolved_stream = match self.as_mut().project_pin() {
             Ready(s) => return s.poll_ready(cx),
-            Waiting(f) => try_ready!(f.try_poll(cx)),
+            Waiting(f) => ready!(f.try_poll(cx))?,
             Closed => panic!("poll_ready called after eof"),
         };
         self.set(FlattenSink(Ready(resolved_stream)));

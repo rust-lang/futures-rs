@@ -125,7 +125,7 @@ impl<S: Sink> Future for StartSendFut<S> {
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<S, S::SinkError> {
         {
             let inner = self.0.as_mut().unwrap();
-            try_ready!(inner.poll_ready(cx));
+            ready!(inner.poll_ready(cx))?;
             inner.start_send(self.1.take().unwrap())?;
         }
         Ok(Poll::Ready(self.0.take().unwrap()))

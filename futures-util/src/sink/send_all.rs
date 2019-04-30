@@ -75,20 +75,20 @@ where
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = this.buffered.take() {
-            try_ready!(this.try_start_send(cx, item))
+            ready!(this.try_start_send(cx, item))?
         }
 
         loop {
             match this.stream.poll_next_unpin(cx) {
                 Poll::Ready(Some(item)) => {
-                    try_ready!(this.try_start_send(cx, item))
+                    ready!(this.try_start_send(cx, item))?
                 }
                 Poll::Ready(None) => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
+                    ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
+                    ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
                     return Poll::Pending
                 }
             }

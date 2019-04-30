@@ -45,7 +45,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             // If our buffer is empty, then we need to read some data to
             // continue.
             if this.pos == this.cap && !this.read_done {
-                let n = try_ready!(Pin::new(&mut this.reader).poll_read(cx, &mut this.buf));
+                let n = ready!(Pin::new(&mut this.reader).poll_read(cx, &mut this.buf))?;
                 if n == 0 {
                     this.read_done = true;
                 } else {
@@ -56,7 +56,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
 
             // If our buffer has some data, let's write it out!
             while this.pos < this.cap {
-                let i = try_ready!(Pin::new(&mut this.writer).poll_write(cx, &this.buf[this.pos..this.cap]));
+                let i = ready!(Pin::new(&mut this.writer).poll_write(cx, &this.buf[this.pos..this.cap]))?;
                 if i == 0 {
                     return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
                 } else {
@@ -69,7 +69,7 @@ impl<R, W> Future for CopyInto<'_, R, W>
             // data and finish the transfer.
             // done with the entire transfer.
             if this.pos == this.cap && this.read_done {
-                try_ready!(Pin::new(&mut this.writer).poll_flush(cx));
+                ready!(Pin::new(&mut this.writer).poll_flush(cx))?;
                 return Poll::Ready(Ok(this.amt));
             }
         }
