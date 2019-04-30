@@ -1,6 +1,6 @@
 use crate::lock::BiLock;
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite, IoVec};
+use futures_io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
 use std::io;
 use std::pin::Pin;
 
@@ -43,10 +43,10 @@ impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_read(cx, buf))
     }
 
-    fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+    fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_read(cx, vec))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_read_vectored(cx, vec))
     }
 }
 
@@ -57,10 +57,10 @@ impl<W: AsyncWrite> AsyncWrite for WriteHalf<W> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_write(cx, buf))
     }
 
-    fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+    fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_vectored_write(cx, vec))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_write_vectored(cx, bufs))
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {

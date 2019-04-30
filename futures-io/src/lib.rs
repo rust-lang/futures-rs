@@ -20,14 +20,13 @@ mod if_std {
     use std::pin::Pin;
     use std::ptr;
 
-    // Re-export IoVec for convenience
-    pub use iovec::IoVec;
-
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
     pub use self::StdIo::Error as Error;
     pub use self::StdIo::ErrorKind as ErrorKind;
     pub use self::StdIo::Result as Result;
+    pub use self::StdIo::IoSlice as IoSlice;
+    pub use self::StdIo::IoSliceMut as IoSliceMut;
     pub use self::StdIo::SeekFrom as SeekFrom;
 
     /// A type used to conditionally initialize buffers passed to `AsyncRead`
@@ -112,7 +111,7 @@ mod if_std {
         fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
             -> Poll<Result<usize>>;
 
-        /// Attempt to read from the `AsyncRead` into `vec` using vectored
+        /// Attempt to read from the `AsyncRead` into `bufs` using vectored
         /// IO operations.
         ///
         /// This method is similar to `poll_read`, but allows data to be read
@@ -125,7 +124,7 @@ mod if_std {
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
         /// readable or is closed.
         /// By default, this method delegates to using `poll_read` on the first
-        /// buffer in `vec`. Objects which support vectored IO should override
+        /// buffer in `bufs`. Objects which support vectored IO should override
         /// this method.
         ///
         /// # Implementation
@@ -134,7 +133,7 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
             -> Poll<Result<usize>>
         {
             if let Some(ref mut first_iovec) = vec.get_mut(0) {
@@ -172,7 +171,7 @@ mod if_std {
         fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>;
 
-        /// Attempt to write bytes from `vec` into the object using vectored
+        /// Attempt to write bytes from `bufs` into the object using vectored
         /// IO operations.
         ///
         /// This method is similar to `poll_write`, but allows data from multiple buffers to be written
@@ -186,7 +185,7 @@ mod if_std {
         /// readable or is closed.
         ///
         /// By default, this method delegates to using `poll_write` on the first
-        /// buffer in `vec`. Objects which support vectored IO should override
+        /// buffer in `bufs`. Objects which support vectored IO should override
         /// this method.
         ///
         /// # Implementation
@@ -195,13 +194,13 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+        fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>])
             -> Poll<Result<usize>>
         {
-            if let Some(ref first_iovec) = vec.get(0) {
+            if let Some(ref first_iovec) = bufs.get(0) {
                 self.poll_write(cx, &*first_iovec)
             } else {
-                // `vec` is empty.
+                // `bufs` is empty.
                 Poll::Ready(Ok(0))
             }
         }
@@ -335,10 +334,10 @@ mod if_std {
                 Pin::new(&mut **self).poll_read(cx, buf)
             }
 
-            fn poll_vectored_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+            fn poll_read_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_vectored_read(cx, vec)
+                Pin::new(&mut **self).poll_read_vectored(cx, vec)
             }
         }
     }
@@ -366,10 +365,10 @@ mod if_std {
             Pin::get_mut(self).as_mut().poll_read(cx, buf)
         }
 
-        fn poll_vectored_read(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [&mut IoVec])
+        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_vectored_read(cx, vec)
+            Pin::get_mut(self).as_mut().poll_read_vectored(cx, vec)
         }
     }
 
@@ -385,6 +384,12 @@ mod if_std {
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Read::read(&mut *self, buf))
+            }
+
+            fn poll_read_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
+                -> Poll<Result<usize>>
+            {
+                Poll::Ready(StdIo::Read::read_vectored(&mut *self, vec))
             }
         }
     }
@@ -413,10 +418,10 @@ mod if_std {
                 Pin::new(&mut **self).poll_write(cx, buf)
             }
 
-            fn poll_vectored_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+            fn poll_write_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_vectored_write(cx, vec)
+                Pin::new(&mut **self).poll_write_vectored(cx, bufs)
             }
 
             fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
@@ -448,10 +453,10 @@ mod if_std {
             Pin::get_mut(self).as_mut().poll_write(cx, buf)
         }
 
-        fn poll_vectored_write(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &[&IoVec])
+        fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_vectored_write(cx, vec)
+            Pin::get_mut(self).as_mut().poll_write_vectored(cx, bufs)
         }
 
         fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
@@ -469,6 +474,12 @@ mod if_std {
                 -> Poll<Result<usize>>
             {
                 Poll::Ready(StdIo::Write::write(&mut *self, buf))
+            }
+
+            fn poll_write_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &[IoSlice<'_>])
+                -> Poll<Result<usize>>
+            {
+                Poll::Ready(StdIo::Write::write_vectored(&mut *self, bufs))
             }
 
             fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
@@ -497,6 +508,12 @@ mod if_std {
                 self.get_mut().set_position(position + offset as u64);
             }
             Poll::Ready(result)
+        }
+
+        fn poll_write_vectored(self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &[IoSlice<'_>])
+            -> Poll<Result<usize>>
+        {
+            Poll::Ready(StdIo::Write::write_vectored(&mut self.get_mut().get_mut().as_mut(), bufs))
         }
 
         fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
