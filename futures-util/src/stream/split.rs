@@ -75,7 +75,7 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
             }
-            try_ready!(self.as_mut().poll_flush(cx));
+            ready!(self.as_mut().poll_flush(cx))?;
         }
     }
 
@@ -89,7 +89,7 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
         match this.lock.poll_lock(cx) {
             Poll::Ready(mut inner) => {
                 if this.slot.is_some() {
-                    try_ready!(inner.as_pin_mut().poll_ready(cx));
+                    ready!(inner.as_pin_mut().poll_ready(cx))?;
                     if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
                         return Poll::Ready(Err(e));
                     }
@@ -105,7 +105,7 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
         match this.lock.poll_lock(cx) {
             Poll::Ready(mut inner) => {
                 if this.slot.is_some() {
-                    try_ready!(inner.as_pin_mut().poll_ready(cx));
+                    ready!(inner.as_pin_mut().poll_ready(cx))?;
                     if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
                         return Poll::Ready(Err(e));
                     }

@@ -73,23 +73,21 @@ where
         // If we've got an item buffered already, we need to write it to the
         // sink before we can do anything else
         if let Some(item) = self.as_mut().buffered_item().take() {
-            try_ready!(self.as_mut().try_start_send(cx, item));
+            ready!(self.as_mut().try_start_send(cx, item))?;
         }
 
         loop {
             match self.as_mut().stream().poll_next(cx) {
                 Poll::Ready(Some(Ok(item))) =>
-                   try_ready!(self.as_mut().try_start_send(cx, item)),
+                   ready!(self.as_mut().try_start_send(cx, item))?,
                 Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
                 Poll::Ready(None) => {
-                    try_ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL)
-                                   .poll_close(cx));
+                    ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_close(cx))?;
                     self.as_mut().sink().set(None);
                     return Poll::Ready(Ok(()))
                 }
                 Poll::Pending => {
-                    try_ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL)
-                                   .poll_flush(cx));
+                    ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_flush(cx))?;
                     return Poll::Pending
                 }
             }

@@ -49,7 +49,7 @@ impl<Si: Sink<Item> + Unpin + ?Sized, Item> Future for Send<'_, Si, Item> {
 
         // we're done sending the item, but want to block on flushing the
         // sink
-        try_ready!(Pin::new(&mut this.sink).poll_flush(cx));
+        ready!(Pin::new(&mut this.sink).poll_flush(cx))?;
 
         Poll::Ready(Ok(()))
     }

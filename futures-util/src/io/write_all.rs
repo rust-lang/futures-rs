@@ -26,7 +26,7 @@ impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAll<'_, W> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = &mut *self;
         while !this.buf.is_empty() {
-            let n = try_ready!(Pin::new(&mut this.writer).poll_write(cx, this.buf));
+            let n = ready!(Pin::new(&mut this.writer).poll_write(cx, this.buf))?;
             {
                 let (_, rest) = mem::replace(&mut this.buf, &[]).split_at(n);
                 this.buf = rest;

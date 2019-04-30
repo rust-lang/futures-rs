@@ -43,7 +43,7 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
             if let Some(future) = self.as_mut().future().as_pin_mut() {
-                try_ready!(future.try_poll(cx));
+                ready!(future.try_poll(cx))?;
             }
             self.as_mut().future().set(None);
 

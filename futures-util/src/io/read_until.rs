@@ -31,7 +31,7 @@ fn read_until_internal<R: AsyncBufRead + ?Sized + Unpin>(
 ) -> Poll<io::Result<usize>> {
     loop {
         let (done, used) = {
-            let available = try_ready!(reader.as_mut().poll_fill_buf(cx));
+            let available = ready!(reader.as_mut().poll_fill_buf(cx))?;
             if let Some(i) = memchr::memchr(byte, available) {
                 buf.extend_from_slice(&available[..=i]);
                 (true, i + 1)

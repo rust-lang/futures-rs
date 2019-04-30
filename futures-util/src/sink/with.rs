@@ -126,7 +126,7 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
     ) -> Poll<Result<(), E>> {
         let buffered = match self.as_mut().state().as_pin_mut() {
             State::Empty => return Poll::Ready(Ok(())),
-            State::Process(fut) => Some(try_ready!(fut.poll(cx))),
+            State::Process(fut) => Some(ready!(fut.poll(cx))?),
             State::Buffered(_) => None,
         };
         if let Some(buffered) = buffered {
@@ -168,8 +168,8 @@ impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.as_mut().poll(cx));
-        try_ready!(self.as_mut().sink().poll_flush(cx));
+        ready!(self.as_mut().poll(cx))?;
+        ready!(self.as_mut().sink().poll_flush(cx))?;
         Poll::Ready(Ok(()))
     }
 
@@ -177,8 +177,8 @@ impl<Si, Item, U, Fut, F, E> Sink<U> for With<Si, Item, U, Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        try_ready!(self.as_mut().poll(cx));
-        try_ready!(self.as_mut().sink().poll_close(cx));
+        ready!(self.as_mut().poll(cx))?;
+        ready!(self.as_mut().sink().poll_close(cx))?;
         Poll::Ready(Ok(()))
     }
 }
