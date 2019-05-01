@@ -1,28 +1,30 @@
+use crate::stream::inspect;
 use core::pin::Pin;
-use futures_core::stream::{FusedStream, Stream};
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-/// Stream for the [`inspect`](super::StreamExt::inspect) method.
+/// Stream for the [`inspect_err`](super::TryStreamExt::inspect_err) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Inspect<St, F> where St: Stream {
+pub struct InspectErr<St, F> {
     stream: St,
     f: F,
 }
 
-impl<St: Stream + Unpin, F> Unpin for Inspect<St, F> {}
+impl<St: TryStream + Unpin, F> Unpin for InspectErr<St, F> {}
 
-impl<St, F> Inspect<St, F>
-    where St: Stream,
-          F: FnMut(&St::Item),
+impl<St, F> InspectErr<St, F>
+where
+    St: TryStream,
+    F: FnMut(&St::Error),
 {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
 
-    pub(super) fn new(stream: St, f: F) -> Inspect<St, F> {
-        Inspect { stream, f }
+    pub(super) fn new(stream: St, f: F) -> Self {
+        Self { stream, f }
     }
 
     /// Acquires a reference to the underlying stream that this combinator is
@@ -58,40 +60,35 @@ impl<St, F> Inspect<St, F>
     }
 }
 
-impl<St: Stream + FusedStream, F> FusedStream for Inspect<St, F> {
+impl<St: TryStream + FusedStream, F> FusedStream for InspectErr<St, F> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
-// used by `TryStreamExt::{inspect_ok, inspect_err}`
-#[inline]
-pub(crate) fn inspect<T, F: FnMut(&T)>(x: T, mut f: F) -> T {
-    f(&x);
-    x
-}
-
-impl<St, F> Stream for Inspect<St, F>
-    where St: Stream,
-          F: FnMut(&St::Item),
+impl<St, F> Stream for InspectErr<St, F>
+where
+    St: TryStream,
+    F: FnMut(&St::Error),
 {
-    type Item = St::Item;
+    type Item = Result<St::Ok, St::Error>;
 
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<St::Item>> {
+    ) -> Poll<Option<Self::Item>> {
         self.as_mut()
             .stream()
-            .poll_next(cx)
-            .map(|opt| opt.map(|e| inspect(e, self.as_mut().f())))
+            .try_poll_next(cx)
+            .map(|opt| opt.map(|res| res.map_err(|e| inspect(e, self.as_mut().f()))))
     }
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S, F, Item> Sink<Item> for Inspect<S, F>
-    where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item),
+impl<S, F, Item> Sink<Item> for InspectErr<S, F>
+where
+    S: TryStream + Sink<Item>,
+    F: FnMut(&S::Error),
 {
     type SinkError = S::SinkError;
 
