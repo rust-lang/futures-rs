@@ -52,7 +52,7 @@ pub trait FutureTestExt: Future {
     where
         Self: Sized,
     {
-        pending_once::PendingOnce::new(self)
+        PendingOnce::new(self)
     }
 
     /// Runs this future on a dedicated executor running in a background thread.
