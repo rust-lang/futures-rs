@@ -26,3 +26,9 @@ pub mod task;
 
 #[cfg(feature = "std")]
 pub mod future;
+
+#[cfg(feature = "std")]
+pub mod stream;
+
+#[cfg(feature = "std")]
+pub mod io;
