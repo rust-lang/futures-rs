@@ -750,13 +750,10 @@ pub trait TryStreamExt: TryStream {
         Compat::new(self)
     }
 
-    // TODO: I tried to make these doc links work, but failed to have the link work with
-    // anything other than `trait.AsyncRead.html`. We should probably try again to use
-    // paths once rustdoc has less issues.
-    //
-    /// Adapter that converts this stream into an [`AsyncRead`](trait.AsyncRead.html).
+
+    /// Adapter that converts this stream into an [`AsyncRead`](crate::io::AsyncRead).
     ///
-    /// Note that because `into_async_read` moves the stream, the [`Stream`](trait.Stream.html) type must be
+    /// Note that because `into_async_read` moves the stream, the [`Stream`](futures_core::stream::Stream) type must be
     /// [`Unpin`]. If you want to use `into_async_read` with a [`!Unpin`](Unpin) stream, you'll
     /// first have to pin the stream. This can be done by boxing the stream using [`Box::pin`]
     /// or pinning it to the stack using the `pin_mut!` macro from the `pin_utils` crate.
