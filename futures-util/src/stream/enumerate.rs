@@ -4,9 +4,7 @@ use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-// TODO: rustdoc false positive warning about being unable to resolve: StreamExt::enumerate
-//
-/// Stream for the [`enumerate`](StreamExt::enumerate) method.
+/// Stream for the [`enumerate`](super::StreamExt::enumerate) method.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Enumerate<St: Stream> {
