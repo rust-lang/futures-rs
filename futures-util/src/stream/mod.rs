@@ -58,6 +58,7 @@ mod into_future;
 pub use self::into_future::StreamFuture;
 
 mod inspect;
+pub(crate) use self::inspect::inspect; // used by `TryStreamExt::{inspect_ok, inspect_err}`
 pub use self::inspect::Inspect;
 
 mod map;

@@ -17,6 +17,12 @@ pub use self::and_then::AndThen;
 mod err_into;
 pub use self::err_into::ErrInto;
 
+mod inspect_ok;
+pub use self::inspect_ok::InspectOk;
+
+mod inspect_err;
+pub use self::inspect_err::InspectErr;
+
 mod into_stream;
 pub use self::into_stream::IntoStream;
 
@@ -221,6 +227,31 @@ pub trait TryStreamExt: TryStream {
               Self: Sized,
     {
         OrElse::new(self, f)
+    }
+
+    /// Do something with the success value of this stream, afterwards passing
+    /// it on.
+    ///
+    /// This is similar to the `StreamExt::inspect` method where it allows
+    /// easily inspecting the success value as it passes through the stream, for
+    /// example to debug what's going on.
+    fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
+        where F: FnMut(&Self::Ok),
+              Self: Sized,
+    {
+        InspectOk::new(self, f)
+    }
+
+    /// Do something with the error value of this stream, afterwards passing it on.
+    ///
+    /// This is similar to the `StreamExt::inspect` method where it allows
+    /// easily inspecting the error value as it passes through the stream, for
+    /// example to debug what's going on.
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+        where F: FnMut(&Self::Error),
+              Self: Sized,
+    {
+        InspectErr::new(self, f)
     }
 
     /// Wraps a [`TryStream`] into a type that implements

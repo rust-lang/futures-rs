@@ -404,10 +404,10 @@ pub mod stream {
     pub use futures_util::try_stream::{
         TryStreamExt,
         AndThen, ErrInto, MapOk, MapErr, OrElse,
+        InspectOk, InspectErr,
         TryNext, TryForEach, TryFilterMap,
         TryCollect, TryFold, TrySkipWhile,
         IntoStream,
-        // ToDo: InspectErr
     };
 
     #[cfg_attr(
