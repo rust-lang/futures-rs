@@ -711,7 +711,7 @@ pub trait TryStreamExt: TryStream {
 
     // TODO: false positive warning from rustdoc. Verify once #43466 settles
     //
-    /// A convenience method for calling [`poll_next_unpin`](StreamExt::poll_next_unpin) on [`Unpin`]
+    /// A convenience method for calling [`TryStream::try_poll_next`] on [`Unpin`]
     /// stream types.
     fn try_poll_next_unpin(
         &mut self,
