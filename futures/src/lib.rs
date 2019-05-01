@@ -54,6 +54,11 @@ compile_error!("The `never-type` feature requires the `nightly` feature as an ex
 #[doc(hidden)] pub use futures_sink::Sink;
 #[doc(hidden)] pub use futures_util::sink::SinkExt;
 
+#[cfg(feature = "std")]
+#[doc(hidden)] pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
+#[cfg(feature = "std")]
+#[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
+
 #[doc(hidden)] pub use futures_core::task::Poll;
 
 // Macro reexports
@@ -305,7 +310,10 @@ pub mod prelude {
     pub use crate::sink::{self, Sink, SinkExt};
 
     #[cfg(feature = "std")]
-    pub use crate::io::{ AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt };
+    pub use crate::io::{
+        AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead,
+        AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt,
+    };
 }
 
 pub mod sink {
