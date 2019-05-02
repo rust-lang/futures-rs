@@ -235,8 +235,6 @@ pub mod future {
         Remote, RemoteHandle,
         // For FutureExt:
         CatchUnwind, Shared,
-
-        // ToDo: SelectOk, select_ok
     };
 
     pub use futures_util::try_future::{
@@ -254,6 +252,7 @@ pub mod future {
     #[cfg(feature = "alloc")]
     pub use futures_util::try_future::{
         try_join_all, TryJoinAll,
+        select_ok, SelectOk,
     };
 }
 

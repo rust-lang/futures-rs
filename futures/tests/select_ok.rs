@@ -1,4 +1,5 @@
 use futures::executor::block_on;
+use futures::future::{err, ok, select_ok};
 
 #[test]
 fn ignore_err() {

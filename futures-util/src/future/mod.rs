@@ -105,11 +105,6 @@ mod remote_handle;
 #[cfg(feature = "std")]
 pub use self::remote_handle::{Remote, RemoteHandle};
 
-// #[cfg(feature = "std")]
-// mod select_ok;
-// #[cfg(feature = "std")]
-// pub use self::select_ok::{SelectOk, select_ok};
-
 #[cfg(feature = "std")]
 mod shared;
 #[cfg(feature = "std")]

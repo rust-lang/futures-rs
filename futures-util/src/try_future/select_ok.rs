@@ -1,18 +1,18 @@
-//! Definition of the `SelectOk` combinator, finding the first successful future
-//! in a list.
-
-use std::mem;
-use std::prelude::v1::*;
-
-use futures_core::{Future, IntoFuture, Poll, Async};
-use futures_core::task;
+use core::iter::FromIterator;
+use core::mem;
+use core::pin::Pin;
+use alloc::vec::Vec;
+use futures_core::future::{Future, TryFuture};
+use futures_core::task::{Context, Poll};
 
 /// Future for the [`select_ok`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless polled"]
-pub struct SelectOk<A> where A: Future {
-    inner: Vec<A>,
+pub struct SelectOk<Fut> {
+    inner: Vec<Fut>,
 }
+
+impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
 
 /// Creates a new future which will select the first successful future over a list of futures.
 ///
@@ -24,34 +24,29 @@ pub struct SelectOk<A> where A: Future {
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.
-pub fn select_ok<I>(iter: I) -> SelectOk<<I::Item as IntoFuture>::Future>
+pub fn select_ok<I>(iter: I) -> SelectOk<I::Item>
     where I: IntoIterator,
-          I::Item: IntoFuture,
+          I::Item: TryFuture + Unpin,
 {
     let ret = SelectOk {
-        inner: iter.into_iter()
-                   .map(|a| a.into_future())
-                   .collect(),
+        inner: iter.into_iter().collect()
     };
-    assert!(ret.inner.len() > 0);
+    assert!(!ret.inner.is_empty());
     ret
 }
 
-impl<A> Future for SelectOk<A> where A: Future {
-    type Item = (A::Item, Vec<A>);
-    type Error = A::Error;
+impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
+    type Output = Result<(Fut::Ok, Vec<Fut>), Fut::Error>;
 
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Self::Item, Self::Error> {
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
-            let item = self.inner.iter_mut().enumerate().filter_map(|(i, f)| {
-                match f.poll(cx) {
-                    Ok(Poll::Pending) => None,
-                    Ok(Poll::Ready(e)) => Some((i, Ok(e))),
-                    Err(e) => Some((i, Err(e))),
+            let item = self.inner.iter_mut().enumerate().find_map(|(i, f)| {
+                match Pin::new(f).try_poll(cx) {
+                    Poll::Pending => None,
+                    Poll::Ready(e) => Some((i, e)),
                 }
-            }).next();
-
+            });
             match item {
                 Some((idx, res)) => {
                     // always remove Ok or Err, if it's not the last Err continue looping
@@ -59,20 +54,26 @@ impl<A> Future for SelectOk<A> where A: Future {
                     match res {
                         Ok(e) => {
                             let rest = mem::replace(&mut self.inner, Vec::new());
-                            return Ok(Poll::Ready((e, rest)))
-                        },
+                            return Poll::Ready(Ok((e, rest)))
+                        }
                         Err(e) => {
                             if self.inner.is_empty() {
-                                return Err(e)
+                                return Poll::Ready(Err(e))
                             }
-                        },
+                        }
                     }
                 }
                 None => {
                     // based on the filter above, nothing is ready, return
-                    return Ok(Poll::Pending)
-                },
+                    return Poll::Pending
+                }
             }
         }
+    }
+}
+
+impl<Fut: TryFuture + Unpin> FromIterator<Fut> for SelectOk<Fut> {
+    fn from_iter<T: IntoIterator<Item = Fut>>(iter: T) -> Self {
+        select_ok(iter)
     }
 }
