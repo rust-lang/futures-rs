@@ -14,6 +14,10 @@ pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 /// statically type your result or need to add some indirection.
 pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
 
+#[cfg(feature = "alloc")]
+/// `BoxFuture`, but without the `Send` requirement.
+pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
+
 /// A `Future` or `TryFuture` which tracks whether or not the underlying future
 /// should no longer be polled.
 ///
