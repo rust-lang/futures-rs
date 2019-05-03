@@ -36,16 +36,13 @@ pub use self::async_await::*;
 #[cfg(feature = "async-await")]
 #[doc(hidden)]
 pub mod rand_reexport { // used by select!
-    pub use rand::{prelude::SliceRandom, thread_rng};
-
-    // HACK: Define dummy `ThreadRng` to avoid `intra_doc_link_resolution_failure` warning.
-    #[allow(missing_debug_implementations)]
     #[doc(hidden)]
-    pub struct ThreadRng {}
+    pub use rand::{prelude::SliceRandom, thread_rng};
 }
 
 #[doc(hidden)]
 pub mod core_reexport {
+    #[doc(hidden)]
     pub use core::*;
 }
 
