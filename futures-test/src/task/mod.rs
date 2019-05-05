@@ -30,8 +30,8 @@
 //!
 //! Test spawners:
 //! - [`NoopSpawner`](crate::task::NoopSpawner) ignores calls to
-//!   [`spawn`](::futures_core::task::Spawn::spawn)
-//! - [`PanicSpawner`](crate::task::PanicSpawner) panics if [`spawn`](futures_core::task::Spawn::spawn) is
+//!   [`spawn`](futures_util::task::SpawnExt::spawn)
+//! - [`PanicSpawner`](crate::task::PanicSpawner) panics if [`spawn`](futures_util::task::SpawnExt::spawn) is
 //!   called.
 //! - [`RecordSpawner`](crate::task::RecordSpawner) records the spawned futures.
 //!
