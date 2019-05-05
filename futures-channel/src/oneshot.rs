@@ -13,7 +13,7 @@ use crate::lock::Lock;
 
 /// A future for a value that will be provided by another asynchronous task.
 ///
-/// This is created by the [`channel`](channel) function.
+/// This is created by the [`channel`] function.
 #[must_use = "futures do nothing unless polled"]
 #[derive(Debug)]
 pub struct Receiver<T> {
@@ -22,7 +22,7 @@ pub struct Receiver<T> {
 
 /// A means of transmitting a single value to another task.
 ///
-/// This is created by the [`channel`](channel) function.
+/// This is created by the [`channel`] function.
 #[derive(Debug)]
 pub struct Sender<T> {
     inner: Arc<Inner<T>>,
