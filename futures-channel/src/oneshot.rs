@@ -399,7 +399,7 @@ impl<T> Receiver<T> {
     ///
     /// Any `send` operation which happens after this method returns is
     /// guaranteed to fail. After calling this method, you can use
-    /// [`Receiver::poll`](Future::poll) to determine whether a
+    /// [`Receiver::poll`](core::future::Future::poll) to determine whether a
     /// message had previously been sent.
     pub fn close(&mut self) {
         self.inner.close_rx()
