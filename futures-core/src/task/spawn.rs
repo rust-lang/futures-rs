@@ -27,7 +27,7 @@ pub trait Spawn {
     }
 }
 
-/// The `LocalSpawn` is similar to `[Spawn]`, but allows spawning futures
+/// The `LocalSpawn` is similar to [`Spawn`], but allows spawning futures
 /// that don't implement `Send`.
 pub trait LocalSpawn {
     /// Spawns a future that will be run to completion.
