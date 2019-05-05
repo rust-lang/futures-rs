@@ -215,7 +215,7 @@ pub trait TryStreamExt: TryStream {
     /// Any successful values produced by this stream will not be passed to the
     /// closure, and will be passed through.
     ///
-    /// The returned value of the closure must implement the [`TryFuture`] trait
+    /// The returned value of the closure must implement the [`TryFuture`](futures_core::future::TryFuture) trait
     /// and can represent some more work to be done before the composed stream
     /// is finished.
     ///
@@ -639,7 +639,7 @@ pub trait TryStreamExt: TryStream {
 
     /// Attempt to execute several futures from a stream concurrently.
     ///
-    /// This stream's `Ok` type must be a [`TryFuture`] with an `Error` type
+    /// This stream's `Ok` type must be a [`TryFuture`](futures_core::future::TryFuture) with an `Error` type
     /// that matches the stream's `Error` type.
     ///
     /// This adaptor will buffer up to `n` futures and then return their

@@ -158,7 +158,7 @@ impl<Fut> FuturesUnordered<Fut> {
     /// Push a future into the set.
     ///
     /// This method adds the given future to the set. This method will not
-    /// call [`poll`](Future::poll) on the submitted future. The caller must
+    /// call [`poll`](core::future::Future::poll) on the submitted future. The caller must
     /// ensure that [`FuturesUnordered::poll_next`](Stream::poll_next) is called
     /// in order to receive wake-up notifications for the given future.
     pub fn push(&mut self, future: Fut) {
