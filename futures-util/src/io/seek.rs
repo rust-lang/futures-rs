@@ -4,11 +4,7 @@ use futures_core::task::{Context, Poll};
 use std::io;
 use std::pin::Pin;
 
-// TODO: Currently this throws a warning, but it's a false positive as it generates a
-// correct link. See: https://github.com/rust-lang/rust/issues/55907
-// Verify everything works fine here when that get's resolved.
-//
-/// Future for the [`seek`](AsyncSeekExt::seek) method.
+/// Future for the [`seek`](crate::io::AsyncSeekExt::seek) method.
 #[derive(Debug)]
 pub struct Seek<'a, S: ?Sized + Unpin> {
     seek: &'a mut S,
