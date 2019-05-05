@@ -23,7 +23,7 @@ use std::thread::{self, Thread};
 /// [`Spawn`](futures_core::task::Spawn), use the
 /// [`spawner()`](LocalPool::spawner) method. Because the executor is
 /// single-threaded, it supports a special form of task spawning for non-`Send`
-/// futures, via [`spawn_local_obj`](crate::task::LocalSpawn::spawn_local_obj).
+/// futures, via [`spawn_local_obj`](futures_core::task::LocalSpawn::spawn_local_obj).
 #[derive(Debug)]
 pub struct LocalPool {
     pool: FuturesUnordered<LocalFutureObj<'static, ()>>,
