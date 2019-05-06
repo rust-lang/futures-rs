@@ -40,9 +40,8 @@ pub use self::read::Read;
 mod read_exact;
 pub use self::read_exact::ReadExact;
 
-// TODO
-// mod read_line;
-// pub use self::read_line::ReadLine;
+mod read_line;
+pub use self::read_line::ReadLine;
 
 mod read_to_end;
 pub use self::read_to_end::ReadToEnd;
@@ -412,6 +411,65 @@ pub trait AsyncBufReadExt: AsyncBufRead {
         where Self: Unpin,
     {
         ReadUntil::new(self, byte, buf)
+    }
+
+    /// Creates a future which will read all the bytes associated with this I/O
+    /// object into `buf` until a newline (the 0xA byte) or EOF is reached,
+    /// This method is the async equivalent to [`BufRead::read_line`](std::io::BufRead::read_line).
+    ///
+    /// This function will read bytes from the underlying stream until the
+    /// newline delimiter (the 0xA byte) or EOF is found. Once found, all bytes
+    /// up to, and including, the delimiter (if found) will be appended to
+    /// `buf`.
+    ///
+    /// The returned future will resolve to the number of bytes read once the read
+    /// operation is completed.
+    ///
+    /// In the case of an error the buffer and the object will be discarded, with
+    /// the error yielded.
+    ///
+    /// # Errors
+    ///
+    /// This function has the same error semantics as [`read_until`] and will
+    /// also return an error if the read bytes are not valid UTF-8. If an I/O
+    /// error is encountered then `buf` may contain some bytes already read in
+    /// the event that all data read so far was valid UTF-8.
+    ///
+    /// [`read_until`]: AsyncBufReadExt::read_until
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncBufReadExt;
+    /// use std::io::Cursor;
+    ///
+    /// let mut cursor = Cursor::new(b"foo\nbar");
+    /// let mut buf = String::new();
+    ///
+    /// // cursor is at 'f'
+    /// let num_bytes = await!(cursor.read_line(&mut buf))?;
+    /// assert_eq!(num_bytes, 4);
+    /// assert_eq!(buf, "foo\n");
+    /// buf.clear();
+    ///
+    /// // cursor is at 'b'
+    /// let num_bytes = await!(cursor.read_line(&mut buf))?;
+    /// assert_eq!(num_bytes, 3);
+    /// assert_eq!(buf, "bar");
+    /// buf.clear();
+    ///
+    /// // cursor is at EOF
+    /// let num_bytes = await!(cursor.read_line(&mut buf))?;
+    /// assert_eq!(num_bytes, 0);
+    /// assert_eq!(buf, "");
+    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn read_line<'a>(&'a mut self, buf: &'a mut String) -> ReadLine<'a, Self>
+        where Self: Unpin,
+    {
+        ReadLine::new(self, buf)
     }
 }
 
