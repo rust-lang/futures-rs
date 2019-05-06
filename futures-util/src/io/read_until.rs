@@ -22,7 +22,7 @@ impl<'a, R: AsyncBufRead + ?Sized + Unpin> ReadUntil<'a, R> {
     }
 }
 
-fn read_until_internal<R: AsyncBufRead + ?Sized + Unpin>(
+pub(super) fn read_until_internal<R: AsyncBufRead + ?Sized + Unpin>(
     mut reader: Pin<&mut R>,
     byte: u8,
     buf: &mut Vec<u8>,
