@@ -280,7 +280,7 @@ pub mod io {
     };
 
     pub use futures_util::io::{
-        AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo,
+        AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo, BufReader,
         Close, CopyInto, Flush, Read, ReadExact, ReadHalf, ReadToEnd, ReadUntil,
         Seek, Window, WriteAll, WriteHalf,
     };
