@@ -11,8 +11,18 @@ pub use futures_io::{
 
 #[cfg(feature = "io-compat")] use crate::compat::Compat;
 
+// used by `BufReader` and `BufWriter`
+// https://github.com/rust-lang/rust/blob/master/src/libstd/sys_common/io.rs#L1
+const DEFAULT_BUF_SIZE: usize = 8 * 1024;
+
 mod allow_std;
 pub use self::allow_std::AllowStdIo;
+
+mod buf_reader;
+pub use self::buf_reader::BufReader;
+
+// mod buf_writer;
+// pub use self::buf_writer::BufWriter;
 
 mod copy_into;
 pub use self::copy_into::CopyInto;
