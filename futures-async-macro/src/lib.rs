@@ -10,8 +10,8 @@ use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree as TokenTree2};
 use quote::{quote, ToTokens};
 use syn::{
     fold::{self, Fold},
-    token, ArgCaptured, Error, Expr, ExprForLoop, ExprMacro, ExprYield, FnArg, FnDecl, Ident, Item,
-    ItemFn, Pat, PatIdent, ReturnType, TypeTuple,
+    token, ArgCaptured, Error, Expr, ExprCall, ExprForLoop, ExprMacro, ExprYield, FnArg, FnDecl,
+    Ident, Item, ItemFn, Pat, PatIdent, ReturnType, TypeTuple,
 };
 
 #[macro_use]
@@ -298,14 +298,9 @@ impl Expand {
         if self.0 == Stream && expr.mac.path.is_ident("await") {
             return self.expand_await_macros(expr);
         } else if expr.mac.path.is_ident("async_stream_block") {
-            // FIXME: When added Parse impl for ExprCall, replace `if let ..` + `unreachable!()`
-            //        with `let` + `.unwrap()`
-            if let Ok(Expr::Call(mut e)) = syn::parse(async_stream_block(expr.mac.tts.into())) {
-                e.attrs.append(&mut expr.attrs);
-                return Expr::Call(e);
-            } else {
-                unreachable!()
-            }
+            let mut e: ExprCall = syn::parse(async_stream_block(expr.mac.tts.into())).unwrap();
+            e.attrs.append(&mut expr.attrs);
+            return Expr::Call(e);
         }
 
         Expr::Macro(expr)
