@@ -69,7 +69,6 @@ where
 {
     type Item = Result<St::Ok, E>;
 
-    #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
     fn poll_next(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,

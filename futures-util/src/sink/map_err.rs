@@ -60,7 +60,6 @@ impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.as_mut().sink().poll_ready(cx).map_err(|e| self.as_mut().take_f()(e))
     }
 
@@ -68,7 +67,6 @@ impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
         mut self: Pin<&mut Self>,
         item: Item,
     ) -> Result<(), Self::SinkError> {
-        #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.as_mut().sink().start_send(item).map_err(|e| self.as_mut().take_f()(e))
     }
 
@@ -76,7 +74,6 @@ impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.as_mut().sink().poll_flush(cx).map_err(|e| self.as_mut().take_f()(e))
     }
 
@@ -84,7 +81,6 @@ impl<Si, F, E, Item> Sink<Item> for SinkMapErr<Si, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        #[allow(clippy::redundant_closure)] // https://github.com/rust-lang-nursery/rust-clippy/issues/1439
         self.as_mut().sink().poll_close(cx).map_err(|e| self.as_mut().take_f()(e))
     }
 }
