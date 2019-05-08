@@ -30,9 +30,8 @@ pub use self::copy_into::CopyInto;
 mod flush;
 pub use self::flush::Flush;
 
-// TODO
-// mod lines;
-// pub use self::lines::Lines;
+mod lines;
+pub use self::lines::Lines;
 
 mod read;
 pub use self::read::Read;
@@ -470,6 +469,46 @@ pub trait AsyncBufReadExt: AsyncBufRead {
         where Self: Unpin,
     {
         ReadLine::new(self, buf)
+    }
+
+    /// Returns a stream over the lines of this reader.
+    /// This method is the async equivalent to [`BufRead::lines`](std::io::BufRead::lines).
+    ///
+    /// The stream returned from this function will yield instances of
+    /// [`io::Result`]`<`[`String`]`>`. Each string returned will *not* have a newline
+    /// byte (the 0xA byte) or CRLF (0xD, 0xA bytes) at the end.
+    ///
+    /// [`io::Result`]: std::io::Result
+    /// [`String`]: String
+    ///
+    /// # Errors
+    ///
+    /// Each line of the stream has the same error semantics as [`AsyncBufReadExt::read_line`].
+    ///
+    /// [`AsyncBufReadExt::read_line`]: AsyncBufReadExt::read_line
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await, await_macro)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncBufReadExt;
+    /// use futures::stream::StreamExt;
+    /// use std::io::Cursor;
+    ///
+    /// let cursor = Cursor::new(b"lorem\nipsum\r\ndolor");
+    ///
+    /// let mut lines_stream = cursor.lines().map(|l| l.unwrap());
+    /// assert_eq!(await!(lines_stream.next()), Some(String::from("lorem")));
+    /// assert_eq!(await!(lines_stream.next()), Some(String::from("ipsum")));
+    /// assert_eq!(await!(lines_stream.next()), Some(String::from("dolor")));
+    /// assert_eq!(await!(lines_stream.next()), None);
+    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn lines(self) -> Lines<Self>
+        where Self: Sized,
+    {
+        Lines::new(self)
     }
 }
 
