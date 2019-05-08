@@ -284,6 +284,7 @@ pub mod io {
         AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt, AllowStdIo, BufReader,
         Close, CopyInto, Flush, Read, ReadExact, ReadHalf, ReadLine, ReadToEnd,
         ReadUntil, Seek, Window, WriteAll, WriteHalf,
+        Lines,
     };
 }
 
