@@ -27,7 +27,7 @@ impl<Fut: Future> Fuse<Fut> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro, futures_api)]
+    /// #![feature(async_await, futures_api)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
     /// use futures::future::{Fuse, FusedFuture, FutureExt};

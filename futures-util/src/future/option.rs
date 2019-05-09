@@ -12,15 +12,15 @@ use pin_utils::unsafe_pinned;
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future::{self, OptionFuture};
 ///
 /// let mut a: OptionFuture<_> = Some(future::ready(123)).into();
-/// assert_eq!(await!(a), Some(123));
+/// assert_eq!(a.await, Some(123));
 ///
 /// a = None.into();
-/// assert_eq!(await!(a), None);
+/// assert_eq!(a.await, None);
 /// # });
 /// ```
 #[derive(Debug, Clone)]

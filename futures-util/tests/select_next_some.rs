@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use futures::{future, select};
 use futures::future::{FusedFuture, FutureExt};

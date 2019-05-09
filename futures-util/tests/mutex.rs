@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use futures::channel::mpsc;
 use futures::future::{ready, FutureExt};
@@ -51,8 +51,8 @@ fn mutex_contested() {
         let tx = tx.clone();
         let mutex = mutex.clone();
         pool.spawn(async move {
-            let mut lock = await!(mutex.lock());
-            await!(ready(()).pending_once());
+            let mut lock = mutex.lock().await;
+            ready(()).pending_once().await;
             *lock += 1;
             tx.unbounded_send(()).unwrap();
             drop(lock);
@@ -61,9 +61,9 @@ fn mutex_contested() {
 
     pool.run(async {
         for _ in 0..num_tasks {
-            let () = await!(rx.next()).unwrap();
+            let () = rx.next().await.unwrap();
         }
-        let lock = await!(mutex.lock());
+        let lock = mutex.lock().await;
         assert_eq!(num_tasks, *lock);
     })
 }

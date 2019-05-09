@@ -32,7 +32,7 @@ pub trait SpawnExt: Spawn {
     /// today. Feel free to use this method in the meantime.
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::executor::ThreadPool;
     /// use futures::task::SpawnExt;
     ///
@@ -57,7 +57,7 @@ pub trait SpawnExt: Spawn {
     /// resolves to the output of the spawned future.
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::executor::ThreadPool;
     /// use futures::future;
     /// use futures::task::SpawnExt;
@@ -110,7 +110,7 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// today. Feel free to use this method in the meantime.
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::executor::LocalPool;
     /// use futures::task::LocalSpawnExt;
     ///
@@ -136,7 +136,7 @@ pub trait LocalSpawnExt: LocalSpawn {
     /// resolves to the output of the spawned future.
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::executor::LocalPool;
     /// use futures::future;
     /// use futures::task::LocalSpawnExt;

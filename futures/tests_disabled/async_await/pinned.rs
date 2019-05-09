@@ -13,7 +13,7 @@ fn bar(x: &i32) -> Result<i32, i32> {
 
 #[async]
 fn baz(x: i32) -> Result<i32, i32> {
-    await!(bar(&x))
+    bar(&x).await
 }
 
 #[async(boxed)]
@@ -43,7 +43,7 @@ fn spawnable() -> Result<(), Never> {
 
 fn baz_block(x: i32) -> impl StableFuture<Item = i32, Error = i32> {
     async_block! {
-        await!(bar(&x))
+        bar(&x).await
     }
 }
 

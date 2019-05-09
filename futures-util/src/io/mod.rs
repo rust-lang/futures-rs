@@ -77,7 +77,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -85,7 +85,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut writer = Cursor::new([0u8; 5]);
     ///
-    /// let bytes = await!(reader.copy_into(&mut writer))?;
+    /// let bytes = reader.copy_into(&mut writer).await?;
     ///
     /// assert_eq!(bytes, 4);
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
@@ -109,7 +109,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -117,7 +117,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = [0u8; 5];
     ///
-    /// let bytes = await!(reader.read(&mut output[..]))?;
+    /// let bytes = reader.read(&mut output[..]).await?;
     ///
     /// // This is only guaranteed to be 4 because `&[u8]` is a synchronous
     /// // reader. In a real system you could get anywhere from 1 to
@@ -143,7 +143,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -151,7 +151,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = [0u8; 4];
     ///
-    /// await!(reader.read_exact(&mut output))?;
+    /// reader.read_exact(&mut output).await?;
     ///
     /// assert_eq!(output, [1, 2, 3, 4]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
@@ -160,7 +160,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// ## EOF is hit before `buf` is filled
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::{self, Cursor};
@@ -168,7 +168,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = [0u8; 5];
     ///
-    /// let result = await!(reader.read_exact(&mut output));
+    /// let result = reader.read_exact(&mut output).await;
     ///
     /// assert_eq!(result.unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
     /// # });
@@ -187,7 +187,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -195,7 +195,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// let mut reader = Cursor::new([1, 2, 3, 4]);
     /// let mut output = Vec::with_capacity(4);
     ///
-    /// await!(reader.read_to_end(&mut output))?;
+    /// reader.read_to_end(&mut output).await?;
     ///
     /// assert_eq!(output, vec![1, 2, 3, 4]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
@@ -217,7 +217,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncReadExt;
     /// use std::io::Cursor;
@@ -232,8 +232,8 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// {
     ///     let (mut buffer_reader, mut buffer_writer) = (&mut buffer).split();
-    ///     await!(reader.copy_into(&mut buffer_writer))?;
-    ///     await!(buffer_reader.copy_into(&mut writer))?;
+    ///     reader.copy_into(&mut buffer_writer).await?;
+    ///     buffer_reader.copy_into(&mut writer).await?;
     /// }
     ///
     /// assert_eq!(buffer.into_inner(), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -269,7 +269,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::{AllowStdIo, AsyncWriteExt};
     /// use std::io::{BufWriter, Cursor};
@@ -279,9 +279,9 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// {
     ///     let mut writer = Cursor::new(&mut output[..]);
     ///     let mut buffered = AllowStdIo::new(BufWriter::new(writer));
-    ///     await!(buffered.write_all(&[1, 2]))?;
-    ///     await!(buffered.write_all(&[3, 4]))?;
-    ///     await!(buffered.flush())?;
+    ///     buffered.write_all(&[1, 2]).await?;
+    ///     buffered.write_all(&[3, 4]).await?;
+    ///     buffered.flush().await?;
     /// }
     ///
     /// assert_eq!(output, [1, 2, 3, 4, 0]);
@@ -310,14 +310,14 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncWriteExt;
     /// use std::io::Cursor;
     ///
     /// let mut writer = Cursor::new([0u8; 5]);
     ///
-    /// await!(writer.write_all(&[1, 2, 3, 4]))?;
+    /// writer.write_all(&[1, 2, 3, 4]).await?;
     ///
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
@@ -376,7 +376,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncBufReadExt;
     /// use std::io::Cursor;
@@ -385,19 +385,19 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// let mut buf = vec![];
     ///
     /// // cursor is at 'l'
-    /// let num_bytes = await!(cursor.read_until(b'-', &mut buf))?;
+    /// let num_bytes = cursor.read_until(b'-', &mut buf).await?;
     /// assert_eq!(num_bytes, 6);
     /// assert_eq!(buf, b"lorem-");
     /// buf.clear();
     ///
     /// // cursor is at 'i'
-    /// let num_bytes = await!(cursor.read_until(b'-', &mut buf))?;
+    /// let num_bytes = cursor.read_until(b'-', &mut buf).await?;
     /// assert_eq!(num_bytes, 5);
     /// assert_eq!(buf, b"ipsum");
     /// buf.clear();
     ///
     /// // cursor is at EOF
-    /// let num_bytes = await!(cursor.read_until(b'-', &mut buf))?;
+    /// let num_bytes = cursor.read_until(b'-', &mut buf).await?;
     /// assert_eq!(num_bytes, 0);
     /// assert_eq!(buf, b"");
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
@@ -439,7 +439,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncBufReadExt;
     /// use std::io::Cursor;
@@ -448,19 +448,19 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// let mut buf = String::new();
     ///
     /// // cursor is at 'f'
-    /// let num_bytes = await!(cursor.read_line(&mut buf))?;
+    /// let num_bytes = cursor.read_line(&mut buf).await?;
     /// assert_eq!(num_bytes, 4);
     /// assert_eq!(buf, "foo\n");
     /// buf.clear();
     ///
     /// // cursor is at 'b'
-    /// let num_bytes = await!(cursor.read_line(&mut buf))?;
+    /// let num_bytes = cursor.read_line(&mut buf).await?;
     /// assert_eq!(num_bytes, 3);
     /// assert_eq!(buf, "bar");
     /// buf.clear();
     ///
     /// // cursor is at EOF
-    /// let num_bytes = await!(cursor.read_line(&mut buf))?;
+    /// let num_bytes = cursor.read_line(&mut buf).await?;
     /// assert_eq!(num_bytes, 0);
     /// assert_eq!(buf, "");
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
@@ -490,7 +490,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::io::AsyncBufReadExt;
     /// use futures::stream::StreamExt;
@@ -499,10 +499,10 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// let cursor = Cursor::new(b"lorem\nipsum\r\ndolor");
     ///
     /// let mut lines_stream = cursor.lines().map(|l| l.unwrap());
-    /// assert_eq!(await!(lines_stream.next()), Some(String::from("lorem")));
-    /// assert_eq!(await!(lines_stream.next()), Some(String::from("ipsum")));
-    /// assert_eq!(await!(lines_stream.next()), Some(String::from("dolor")));
-    /// assert_eq!(await!(lines_stream.next()), None);
+    /// assert_eq!(lines_stream.next().await, Some(String::from("lorem")));
+    /// assert_eq!(lines_stream.next().await, Some(String::from("ipsum")));
+    /// assert_eq!(lines_stream.next().await, Some(String::from("dolor")));
+    /// assert_eq!(lines_stream.next().await, None);
     /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
     /// ```
     fn lines(self) -> Lines<Self>

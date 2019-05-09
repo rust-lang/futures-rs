@@ -11,7 +11,7 @@ use futures_core::task::{Context, Poll};
 #[macro_export]
 macro_rules! poll {
     ($x:expr) => {
-        await!($crate::async_await::poll($x))
+        $crate::async_await::poll($x).await
     }
 }
 

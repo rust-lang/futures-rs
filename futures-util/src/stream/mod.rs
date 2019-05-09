@@ -271,7 +271,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
@@ -279,10 +279,10 @@ pub trait StreamExt: Stream {
     ///
     /// let mut stream = stream.enumerate();
     ///
-    /// assert_eq!(await!(stream.next()), Some((0, 'a')));
-    /// assert_eq!(await!(stream.next()), Some((1, 'b')));
-    /// assert_eq!(await!(stream.next()), Some((2, 'c')));
-    /// assert_eq!(await!(stream.next()), None);
+    /// assert_eq!(stream.next().await, Some((0, 'a')));
+    /// assert_eq!(stream.next().await, Some((1, 'b')));
+    /// assert_eq!(stream.next().await, Some((2, 'c')));
+    /// assert_eq!(stream.next().await, None);
     /// # });
     /// ```
     fn enumerate(self) -> Enumerate<Self>
@@ -644,7 +644,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -656,13 +656,13 @@ pub trait StreamExt: Stream {
     /// let fut = stream::iter(vec![rx1, rx2, rx3]).for_each_concurrent(
     ///     /* limit */ 2,
     ///     async move |rx| {
-    ///         await!(rx).unwrap();
+    ///         rx.await.unwrap();
     ///     }
     /// );
     /// tx1.send(()).unwrap();
     /// tx2.send(()).unwrap();
     /// tx3.send(()).unwrap();
-    /// await!(fut);
+    /// fut.await;
     /// # })
     /// ```
     #[cfg_attr(
@@ -892,7 +892,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
     /// use futures::stream::{self, StreamExt};
@@ -904,12 +904,12 @@ pub trait StreamExt: Stream {
     /// let mut buffered = stream_of_futures.buffer_unordered(10);
     ///
     /// send_two.send(2i32);
-    /// assert_eq!(await!(buffered.next()), Some(Ok(2i32)));
+    /// assert_eq!(buffered.next().await, Some(Ok(2i32)));
     ///
     /// send_one.send(1i32);
-    /// assert_eq!(await!(buffered.next()), Some(Ok(1i32)));
+    /// assert_eq!(buffered.next().await, Some(Ok(1i32)));
     ///
-    /// assert_eq!(await!(buffered.next()), None);
+    /// assert_eq!(buffered.next().await, None);
     /// # })
     /// ```
     #[cfg_attr(
@@ -1116,7 +1116,7 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::{future, select};
     /// use futures::stream::{StreamExt, FuturesUnordered};

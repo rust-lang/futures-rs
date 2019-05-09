@@ -247,7 +247,7 @@ pub fn select(input: TokenStream) -> TokenStream {
         }
     } else {
         quote! {
-            match r#await!(#futures_crate::future::poll_fn(__poll_fn)) {
+            match #futures_crate::future::poll_fn(__poll_fn).await {
                 #branches
             }
         }

@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use futures::channel::{mpsc, oneshot};
 use futures::executor::{block_on, block_on_stream};
@@ -357,7 +357,7 @@ fn stress_drop_sender() {
 
 async fn send_one_two_three(mut tx: mpsc::Sender<i32>) {
     for i in 1..=3 {
-        await!(tx.send(i)).unwrap();
+        tx.send(i).await.unwrap();
     }
 }
 
@@ -403,7 +403,7 @@ fn stress_close_receiver() {
 
 async fn stress_poll_ready_sender(mut sender: mpsc::Sender<u32>, count: u32) {
     for i in (1..=count).rev() {
-        await!(sender.send(i)).unwrap();
+        sender.send(i).await.unwrap();
     }
 }
 

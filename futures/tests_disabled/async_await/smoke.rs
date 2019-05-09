@@ -66,13 +66,13 @@ fn _foo9() -> Result<(), Never> {
 
 #[async]
 fn _bar() -> Result<i32, i32> {
-    await!(foo())
+    foo().await
 }
 
 #[async]
 fn _bar2() -> Result<i32, i32> {
-    let a = await!(foo())?;
-    let b = await!(foo())?;
+    let a = foo().await?;
+    let b = foo().await?;
     Ok(a + b)
 }
 

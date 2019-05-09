@@ -97,7 +97,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future::{self, try_join_all};
 ///
@@ -107,7 +107,7 @@ where
 ///     future::ok::<u32, u32>(3),
 /// ];
 ///
-/// assert_eq!(await!(try_join_all(futures)), Ok(vec![1, 2, 3]));
+/// assert_eq!(try_join_all(futures).await, Ok(vec![1, 2, 3]));
 ///
 /// let futures = vec![
 ///     future::ok::<u32, u32>(1),
@@ -115,7 +115,7 @@ where
 ///     future::ok::<u32, u32>(3),
 /// ];
 ///
-/// assert_eq!(await!(try_join_all(futures)), Err(2));
+/// assert_eq!(try_join_all(futures).await, Err(2));
 /// # });
 /// ```
 pub fn try_join_all<I>(i: I) -> TryJoinAll<I::Item>

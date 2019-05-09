@@ -129,13 +129,13 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
     /// let future = future::ready(1);
     /// let new_future = future.map(|x| x + 3);
-    /// assert_eq!(await!(new_future), 4);
+    /// assert_eq!(new_future.await, 4);
     /// # });
     /// ```
     fn map<U, F>(self, f: F) -> Map<Self, F>
@@ -161,13 +161,13 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
     /// let future_of_1 = future::ready(1);
     /// let future_of_4 = future_of_1.then(|x| future::ready(x + 3));
-    /// assert_eq!(await!(future_of_4), 4);
+    /// assert_eq!(future_of_4.await, 4);
     /// # });
     /// ```
     fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
@@ -187,7 +187,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -198,7 +198,7 @@ pub trait FutureExt: Future {
     ///     future::ready(false).right_future()
     /// };
     ///
-    /// assert_eq!(await!(future), true);
+    /// assert_eq!(future.await, true);
     /// # });
     /// ```
     fn left_future<B>(self) -> Either<Self, B>
@@ -217,7 +217,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -228,7 +228,7 @@ pub trait FutureExt: Future {
     ///     future::ready(false).right_future()
     /// };
     ///
-    /// assert_eq!(await!(future), false);
+    /// assert_eq!(future.await, false);
     /// # });
     /// ```
     fn right_future<A>(self) -> Either<A, Self>
@@ -246,14 +246,14 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::stream::StreamExt;
     ///
     /// let future = future::ready(17);
     /// let stream = future.into_stream();
-    /// let collected: Vec<_> = await!(stream.collect());
+    /// let collected: Vec<_> = stream.collect().await;
     /// assert_eq!(collected, vec![17]);
     /// # });
     /// ```
@@ -280,13 +280,13 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
     /// let nested_future = future::ready(future::ready(1));
     /// let future = nested_future.flatten();
-    /// assert_eq!(await!(future), 1);
+    /// assert_eq!(future.await, 1);
     /// # });
     /// ```
     fn flatten(self) -> Flatten<Self>
@@ -310,7 +310,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::stream::{self, StreamExt};
@@ -319,7 +319,7 @@ pub trait FutureExt: Future {
     /// let future_of_a_stream = future::ready(stream::iter(stream_items));
     ///
     /// let stream = future_of_a_stream.flatten_stream();
-    /// let list: Vec<_> = await!(stream.collect());
+    /// let list: Vec<_> = stream.collect().await;
     /// assert_eq!(list, vec![17, 18, 19]);
     /// # });
     /// ```
@@ -363,13 +363,13 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
     /// let future = future::ready(1);
     /// let new_future = future.inspect(|&x| println!("about to resolve: {}", x));
-    /// assert_eq!(await!(new_future), 1);
+    /// assert_eq!(new_future.await, 1);
     /// # });
     /// ```
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
@@ -400,17 +400,17 @@ pub trait FutureExt: Future {
     // TODO: minimize and open rust-lang/rust ticket, currently errors:
     //       'assertion failed: !value.has_escaping_regions()'
     /// ```ignore
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};
     ///
     /// let future = future::ready(2);
-    /// assert!(await!(future.catch_unwind()).is_ok());
+    /// assert!(future.catch_unwind().await.is_ok());
     ///
     /// let future = future::lazy(|_| -> Ready<i32> {
     ///     unimplemented!()
     /// });
-    /// assert!(await!(future.catch_unwind()).is_err());
+    /// assert!(future.catch_unwind().await.is_err());
     /// # });
     /// ```
     #[cfg(feature = "std")]
@@ -433,7 +433,7 @@ pub trait FutureExt: Future {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     ///
@@ -441,8 +441,8 @@ pub trait FutureExt: Future {
     /// let shared1 = future.shared();
     /// let shared2 = shared1.clone();
     ///
-    /// assert_eq!(6, await!(shared1));
-    /// assert_eq!(6, await!(shared2));
+    /// assert_eq!(6, shared1.await);
+    /// assert_eq!(6, shared2.await);
     /// # });
     /// ```
     ///

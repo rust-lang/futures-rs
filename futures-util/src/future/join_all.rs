@@ -99,7 +99,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future::{join_all};
 ///
@@ -107,7 +107,7 @@ where
 ///
 /// let futures = vec![foo(1), foo(2), foo(3)];
 ///
-/// assert_eq!(await!(join_all(futures)), [1, 2, 3]);
+/// assert_eq!(join_all(futures).await, [1, 2, 3]);
 /// # });
 /// ```
 pub fn join_all<I>(i: I) -> JoinAll<I::Item>
