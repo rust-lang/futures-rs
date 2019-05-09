@@ -33,7 +33,7 @@
 #[allow(deprecated)]
 pub use task_impl::{Spawn, spawn, Unpark, Executor, Run, park};
 
-pub use task_impl::{Task, AtomicTask, current, init};
+pub use task_impl::{Task, AtomicTask, current, init, is_in_task};
 
 #[allow(deprecated)]
 #[cfg(feature = "use_std")]

@@ -27,6 +27,11 @@ pub use task_impl::core::init;
 
 thread_local!(static CURRENT_TASK: Cell<*mut u8> = Cell::new(ptr::null_mut()));
 
+/// Return whether the caller is running in a task (and so can use task_local!).
+pub fn is_in_task() -> bool {
+    CURRENT_TASK.with(|task| !task.get().is_null())
+}
+
 static INIT: Once = ONCE_INIT;
 
 pub fn get_ptr() -> Option<*mut u8> {

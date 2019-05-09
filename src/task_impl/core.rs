@@ -140,6 +140,15 @@ pub unsafe fn init(get: fn() -> *mut u8, set: fn(*mut u8)) -> bool {
     }
 }
 
+/// Return whether the caller is running in a task (and so can use task_local!).
+pub fn is_in_task() -> bool {
+    if let Some(ptr) = get_ptr() {
+        !ptr.is_null()
+    } else {
+        false
+    }
+}
+
 #[inline]
 pub fn get_ptr() -> Option<*mut u8> {
     match GET.load(Relaxed) {
