@@ -1,5 +1,5 @@
 #![recursion_limit="128"]
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use futures::{Poll, pending, poll, join, try_join, select};
 use futures::channel::{mpsc, oneshot};
@@ -72,8 +72,8 @@ fn select_streams() {
             _ = rx1.next() => panic!(),
             _ = rx2.next() => panic!(),
             default => {
-                await!(tx1.send(2)).unwrap();
-                await!(tx2.send(3)).unwrap();
+                tx1.send(2).await.unwrap();
+                tx2.send(3).await.unwrap();
                 tx1_opt = Some(tx1);
                 tx2_opt = Some(tx2);
             }
@@ -113,12 +113,12 @@ fn select_can_move_uncompleted_futures() {
         select! {
             res = rx1 => {
                 assert_eq!(Ok(1), res);
-                assert_eq!(Ok(2), await!(rx2));
+                assert_eq!(Ok(2), rx2.await);
                 ran = true;
             },
             res = rx2 => {
                 assert_eq!(Ok(2), res);
-                assert_eq!(Ok(1), await!(rx1));
+                assert_eq!(Ok(1), rx1.await);
                 ran = true;
             },
         }

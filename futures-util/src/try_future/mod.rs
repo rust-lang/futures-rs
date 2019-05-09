@@ -117,13 +117,13 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Ok::<i32, i32>(1));
     /// let future = future.map_ok(|x| x + 3);
-    /// assert_eq!(await!(future), Ok(4));
+    /// assert_eq!(future.await, Ok(4));
     /// # });
     /// ```
     ///
@@ -131,13 +131,13 @@ pub trait TryFutureExt: TryFuture {
     /// effect:
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Err::<i32, i32>(1));
     /// let future = future.map_ok(|x| x + 3);
-    /// assert_eq!(await!(future), Err(1));
+    /// assert_eq!(future.await, Err(1));
     /// # });
     /// ```
     fn map_ok<T, F>(self, f: F) -> MapOk<Self, F>
@@ -165,13 +165,13 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Err::<i32, i32>(1));
     /// let future = future.map_err(|x| x + 3);
-    /// assert_eq!(await!(future), Err(4));
+    /// assert_eq!(future.await, Err(4));
     /// # });
     /// ```
     ///
@@ -179,13 +179,13 @@ pub trait TryFutureExt: TryFuture {
     /// no effect:
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Ok::<i32, i32>(1));
     /// let future = future.map_err(|x| x + 3);
-    /// assert_eq!(await!(future), Ok(1));
+    /// assert_eq!(future.await, Ok(1));
     /// # });
     /// ```
     fn map_err<E, F>(self, f: F) -> MapErr<Self, F>
@@ -210,7 +210,7 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
@@ -240,13 +240,13 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Ok::<i32, i32>(1));
     /// let future = future.and_then(|x| future::ready(Ok::<i32, i32>(x + 3)));
-    /// assert_eq!(await!(future), Ok(4));
+    /// assert_eq!(future.await, Ok(4));
     /// # });
     /// ```
     ///
@@ -254,13 +254,13 @@ pub trait TryFutureExt: TryFuture {
     /// effect:
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Err::<i32, i32>(1));
     /// let future = future.and_then(|x| future::ready(Err::<i32, i32>(x + 3)));
-    /// assert_eq!(await!(future), Err(1));
+    /// assert_eq!(future.await, Err(1));
     /// # });
     /// ```
     fn and_then<Fut, F>(self, f: F) -> AndThen<Self, Fut, F>
@@ -286,13 +286,13 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Err::<i32, i32>(1));
     /// let future = future.or_else(|x| future::ready(Err::<i32, i32>(x + 3)));
-    /// assert_eq!(await!(future), Err(4));
+    /// assert_eq!(future.await, Err(4));
     /// # });
     /// ```
     ///
@@ -300,13 +300,13 @@ pub trait TryFutureExt: TryFuture {
     /// no effect:
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Ok::<i32, i32>(1));
     /// let future = future.or_else(|x| future::ready(Ok::<i32, i32>(x + 3)));
-    /// assert_eq!(await!(future), Ok(1));
+    /// assert_eq!(future.await, Ok(1));
     /// # });
     /// ```
     fn or_else<Fut, F>(self, f: F) -> OrElse<Self, Fut, F>
@@ -375,13 +375,13 @@ pub trait TryFutureExt: TryFuture {
     /// # Examples
     ///
     /// ```
-    /// #![feature(async_await, await_macro)]
+    /// #![feature(async_await)]
     /// use futures::future::{self, TryFutureExt};
     ///
     /// # futures::executor::block_on(async {
     /// let future = future::ready(Err::<(), &str>("Boom!"));
     /// let future = future.unwrap_or_else(|_| ());
-    /// assert_eq!(await!(future), ());
+    /// assert_eq!(future.await, ());
     /// # });
     /// ```
     fn unwrap_or_else<F>(self, f: F) -> UnwrapOrElse<Self, F>

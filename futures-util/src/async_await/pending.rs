@@ -15,7 +15,7 @@ use futures_core::task::{Context, Poll};
 #[macro_export]
 macro_rules! pending {
     () => {
-        await!($crate::async_await::pending_once())
+        $crate::async_await::pending_once().await
     }
 }
 

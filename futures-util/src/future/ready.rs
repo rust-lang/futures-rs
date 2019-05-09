@@ -29,12 +29,12 @@ impl<T> Future for Ready<T> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
 /// let a = future::ready(1);
-/// assert_eq!(await!(a), 1);
+/// assert_eq!(a.await, 1);
 /// # });
 /// ```
 pub fn ready<T>(t: T) -> Ready<T> {
@@ -46,12 +46,12 @@ pub fn ready<T>(t: T) -> Ready<T> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
 /// let a = future::ok::<i32, i32>(1);
-/// assert_eq!(await!(a), Ok(1));
+/// assert_eq!(a.await, Ok(1));
 /// # });
 /// ```
 pub fn ok<T, E>(t: T) -> Ready<Result<T, E>> {
@@ -63,12 +63,12 @@ pub fn ok<T, E>(t: T) -> Ready<Result<T, E>> {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
 /// let a = future::err::<i32, i32>(1);
-/// assert_eq!(await!(a), Err(1));
+/// assert_eq!(a.await, Err(1));
 /// # });
 /// ```
 pub fn err<T, E>(err: E) -> Ready<Result<T, E>> {

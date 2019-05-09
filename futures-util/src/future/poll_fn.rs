@@ -20,7 +20,7 @@ impl<F> Unpin for PollFn<F> {}
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future::poll_fn;
 /// use futures::task::{Context, Poll};
@@ -30,7 +30,7 @@ impl<F> Unpin for PollFn<F> {}
 /// }
 ///
 /// let read_future = poll_fn(read_line);
-/// assert_eq!(await!(read_future), "Hello, World!".to_owned());
+/// assert_eq!(read_future.await, "Hello, World!".to_owned());
 /// # });
 /// ```
 pub fn poll_fn<T, F>(f: F) -> PollFn<F>

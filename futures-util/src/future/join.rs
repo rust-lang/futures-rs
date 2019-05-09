@@ -90,7 +90,7 @@ generate! {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -98,7 +98,7 @@ generate! {
 /// let b = future::ready(2);
 /// let pair = future::join(a, b);
 ///
-/// assert_eq!(await!(pair), (1, 2));
+/// assert_eq!(pair.await, (1, 2));
 /// # });
 /// ```
 pub fn join<Fut1, Fut2>(future1: Fut1, future2: Fut2) -> Join<Fut1, Fut2>
@@ -115,7 +115,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -124,7 +124,7 @@ where
 /// let c = future::ready(3);
 /// let tuple = future::join3(a, b, c);
 ///
-/// assert_eq!(await!(tuple), (1, 2, 3));
+/// assert_eq!(tuple.await, (1, 2, 3));
 /// # });
 /// ```
 pub fn join3<Fut1, Fut2, Fut3>(
@@ -145,7 +145,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -155,7 +155,7 @@ where
 /// let d = future::ready(4);
 /// let tuple = future::join4(a, b, c, d);
 ///
-/// assert_eq!(await!(tuple), (1, 2, 3, 4));
+/// assert_eq!(tuple.await, (1, 2, 3, 4));
 /// # });
 /// ```
 pub fn join4<Fut1, Fut2, Fut3, Fut4>(
@@ -179,7 +179,7 @@ where
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
@@ -190,7 +190,7 @@ where
 /// let e = future::ready(5);
 /// let tuple = future::join5(a, b, c, d, e);
 ///
-/// assert_eq!(await!(tuple), (1, 2, 3, 4, 5));
+/// assert_eq!(tuple.await, (1, 2, 3, 4, 5));
 /// # });
 /// ```
 pub fn join5<Fut1, Fut2, Fut3, Fut4, Fut5>(

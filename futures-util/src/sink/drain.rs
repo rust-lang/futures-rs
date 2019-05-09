@@ -23,12 +23,12 @@ pub enum DrainError {
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::sink::{self, SinkExt};
 ///
 /// let mut drain = sink::drain();
-/// await!(drain.send(5))?;
+/// drain.send(5).await?;
 /// # Ok::<(), futures::sink::DrainError>(()) }).unwrap();
 /// ```
 pub fn drain<T>() -> Drain<T> {

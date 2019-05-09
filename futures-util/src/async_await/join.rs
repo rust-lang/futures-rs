@@ -3,7 +3,7 @@
 /// Polls multiple futures simultaneously, returning a tuple
 /// of all results once complete.
 ///
-/// While `join!(a, b)` is similar to `(await!(a), await!(b))`,
+/// While `join!(a, b)` is similar to `(a.await, b.await)`,
 /// `join!` polls both futures concurrently and therefore is more efficent.
 ///
 /// This macro is only usable inside of async functions, closures, and blocks.
@@ -13,7 +13,7 @@
 /// # Examples
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::{join, future};
 ///
@@ -31,7 +31,7 @@ macro_rules! join {
             // is no longer accessible by the end user.
             let mut $fut = $crate::future::maybe_done($fut);
         )*
-        await!($crate::future::poll_fn(move |cx| {
+        $crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
                 all_done &= $crate::core_reexport::future::Future::poll(
@@ -44,7 +44,7 @@ macro_rules! join {
             } else {
                 $crate::core_reexport::task::Poll::Pending
             }
-        }))
+        }).await
     } }
 }
 
@@ -64,7 +64,7 @@ macro_rules! join {
 /// `Ok` of a tuple of the values:
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::{try_join, future};
 ///
@@ -79,7 +79,7 @@ macro_rules! join {
 /// that error:
 ///
 /// ```
-/// #![feature(async_await, await_macro)]
+/// #![feature(async_await)]
 /// # futures::executor::block_on(async {
 /// use futures::{try_join, future};
 ///
@@ -98,7 +98,7 @@ macro_rules! try_join {
             let mut $fut = $crate::future::maybe_done($fut);
         )*
 
-        let res: $crate::core_reexport::result::Result<_, _> = await!($crate::future::poll_fn(move |cx| {
+        let res: $crate::core_reexport::result::Result<_, _> = $crate::future::poll_fn(move |cx| {
             let mut all_done = true;
             $(
                 if $crate::core_reexport::future::Future::poll(
@@ -126,7 +126,7 @@ macro_rules! try_join {
             } else {
                 $crate::core_reexport::task::Poll::Pending
             }
-        }));
+        }).await;
 
         res
     } }

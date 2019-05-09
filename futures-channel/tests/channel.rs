@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use futures::channel::mpsc;
 use futures::executor::block_on;
@@ -28,7 +28,7 @@ fn sequence() {
 
 async fn send_sequence(n: u32, mut sender: mpsc::Sender<u32>) {
     for x in 0..n {
-        await!(sender.send(n - x)).unwrap();
+        sender.send(n - x).await.unwrap();
     }
 }
 
