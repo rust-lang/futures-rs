@@ -30,7 +30,8 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// # Example
 ///
 /// ```
-/// use futures::executor::block_on;
+/// #![feature(async_await)]
+/// # futures::executor::block_on(async {
 /// use futures::future;
 /// use futures::stream::{self, StreamExt};
 ///
@@ -44,8 +45,9 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 ///     }
 /// });
 ///
-/// let result = block_on(stream.collect::<Vec<i32>>());
+/// let result = stream.collect::<Vec<i32>>().await;
 /// assert_eq!(result, vec![0, 2, 4]);
+/// # });
 /// ```
 pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
     where F: FnMut(T) -> Fut,

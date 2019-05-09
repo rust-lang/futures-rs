@@ -453,7 +453,6 @@ pub trait TryStreamExt: TryStream {
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::executor::block_on;
     /// use futures::stream::TryStreamExt;
     /// use std::thread;
     ///
@@ -495,7 +494,6 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
-    /// use futures::executor::block_on;
     /// use futures::future;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
     ///
@@ -535,7 +533,6 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
-    /// use futures::executor::block_on;
     /// use futures::future;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
     ///
@@ -611,8 +608,9 @@ pub trait TryStreamExt: TryStream {
     /// # Examples
     ///
     /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::executor::block_on;
     /// use futures::stream::TryStreamExt;
     /// use std::thread;
     ///
@@ -625,9 +623,10 @@ pub trait TryStreamExt: TryStream {
     ///     }
     /// });
     ///
-    /// let result = block_on(rx.try_concat());
+    /// let result = rx.try_concat().await;
     ///
     /// assert_eq!(result, Ok(vec![7, 8, 9, 4, 5, 6, 1, 2, 3]));
+    /// # });
     /// ```
     fn try_concat(self) -> TryConcat<Self>
     where Self: Sized,
@@ -763,7 +762,6 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
-    /// use futures::executor::block_on;
     /// use futures::future::lazy;
     /// use futures::stream::{self, StreamExt, TryStreamExt};
     /// use futures::io::{AsyncRead, AsyncReadExt};

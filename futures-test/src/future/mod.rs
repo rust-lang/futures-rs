@@ -61,15 +61,16 @@ pub trait FutureTestExt: Future {
     ///
     /// ```
     /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::oneshot;
-    /// use futures::executor::block_on;
     /// use futures_test::future::FutureTestExt;
     ///
     /// let (tx, rx) = oneshot::channel::<i32>();
     ///
     /// (async { tx.send(5).unwrap() }).run_in_background();
     ///
-    /// assert_eq!(block_on(rx), Ok(5));
+    /// assert_eq!(rx.await, Ok(5));
+    /// # });
     /// ```
     fn run_in_background(self)
     where

@@ -16,11 +16,13 @@ pub struct Repeat<T> {
 /// available memory as it tries to just fill up all RAM.
 ///
 /// ```
-/// use futures::executor::block_on;
+/// #![feature(async_await)]
+/// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::repeat(9);
-/// assert_eq!(vec![9, 9, 9], block_on(stream.take(3).collect::<Vec<i32>>()));
+/// assert_eq!(vec![9, 9, 9], stream.take(3).collect::<Vec<i32>>().await);
+/// # });
 /// ```
 pub fn repeat<T>(item: T) -> Repeat<T>
     where T: Clone

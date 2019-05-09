@@ -18,11 +18,13 @@ impl<I> Unpin for Iter<I> {}
 /// simply always calls `iter.next()` and returns that.
 ///
 /// ```
-/// use futures::executor::block_on;
+/// #![feature(async_await)]
+/// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::iter(vec![17, 19]);
-/// assert_eq!(vec![17, 19], block_on(stream.collect::<Vec<i32>>()));
+/// assert_eq!(vec![17, 19], stream.collect::<Vec<i32>>().await);
+/// # });
 /// ```
 pub fn iter<I>(i: I) -> Iter<I::IntoIter>
     where I: IntoIterator,
