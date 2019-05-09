@@ -86,8 +86,9 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// # Examples
     ///
     /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::executor::block_on;
     /// use futures::sink::SinkExt;
     /// use futures::stream::StreamExt;
     /// use std::collections::VecDeque;
@@ -98,10 +99,11 @@ pub trait SinkExt<Item>: Sink<Item> {
     ///     VecDeque::from(vec![Ok(42); x])
     /// });
     ///
-    /// block_on(tx.send(5)).unwrap();
+    /// tx.send(5).await.unwrap();
     /// drop(tx);
-    /// let received: Vec<i32> = block_on(rx.collect());
+    /// let received: Vec<i32> = rx.collect().await;
     /// assert_eq!(received, vec![42, 42, 42, 42, 42]);
+    /// # });
     /// ```
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, Item, U, St, F>
         where F: FnMut(U) -> St,

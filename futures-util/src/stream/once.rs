@@ -7,13 +7,15 @@ use pin_utils::unsafe_pinned;
 /// Creates a stream of single element
 ///
 /// ```
+/// #![feature(async_await)]
+/// # futures::executor::block_on(async {
 /// use futures::future;
-/// use futures::executor::block_on;
 /// use futures::stream::{self, StreamExt};
 ///
 /// let mut stream = stream::once(future::ready(17));
-/// let collected = block_on(stream.collect::<Vec<i32>>());
+/// let collected = stream.collect::<Vec<i32>>().await;
 /// assert_eq!(collected, vec![17]);
+/// # });
 /// ```
 pub fn once<Fut: Future>(future: Fut) -> Once<Fut> {
     Once { future: Some(future) }

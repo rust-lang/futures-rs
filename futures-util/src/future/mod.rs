@@ -451,6 +451,8 @@ pub trait FutureExt: Future {
     /// // synchronous function to better illustrate the cross-thread aspect of
     /// // the `shared` combinator.
     ///
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt};
     /// use futures::executor::block_on;
     /// use std::thread;
@@ -461,8 +463,9 @@ pub trait FutureExt: Future {
     /// let join_handle = thread::spawn(move || {
     ///     assert_eq!(6, block_on(shared2));
     /// });
-    /// assert_eq!(6, block_on(shared1));
+    /// assert_eq!(6, shared1.await);
     /// join_handle.join().unwrap();
+    /// # });
     /// ```
     #[cfg(feature = "std")]
     fn shared(self) -> Shared<Self>

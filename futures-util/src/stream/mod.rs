@@ -168,15 +168,17 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..=3);
     ///
-    /// assert_eq!(block_on(stream.next()), Some(1));
-    /// assert_eq!(block_on(stream.next()), Some(2));
-    /// assert_eq!(block_on(stream.next()), Some(3));
-    /// assert_eq!(block_on(stream.next()), None);
+    /// assert_eq!(stream.next().await, Some(1));
+    /// assert_eq!(stream.next().await, Some(2));
+    /// assert_eq!(stream.next().await, Some(3));
+    /// assert_eq!(stream.next().await, None);
+    /// # });
     /// ```
     fn next(&mut self) -> Next<'_, Self>
         where Self: Sized + Unpin,
@@ -200,16 +202,18 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     ///
-    /// let (item, stream) = block_on(stream.into_future());
+    /// let (item, stream) = stream.into_future().await;
     /// assert_eq!(Some(1), item);
     ///
-    /// let (item, stream) = block_on(stream.into_future());
+    /// let (item, stream) = stream.into_future().await;
     /// assert_eq!(Some(2), item);
+    /// # });
     /// ```
     fn into_future(self) -> StreamFuture<Self>
         where Self: Sized + Unpin,
@@ -231,13 +235,15 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     /// let stream = stream.map(|x| x + 3);
     ///
-    /// assert_eq!(vec![4, 5, 6], block_on(stream.collect::<Vec<_>>()));
+    /// assert_eq!(vec![4, 5, 6], stream.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn map<T, F>(self, f: F) -> Map<Self, F>
         where F: FnMut(Self::Item) -> T,
@@ -307,14 +313,16 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10);
     /// let evens = stream.filter(|x| future::ready(x % 2 == 0));
     ///
-    /// assert_eq!(vec![2, 4, 6, 8, 10], block_on(evens.collect::<Vec<_>>()));
+    /// assert_eq!(vec![2, 4, 6, 8, 10], evens.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn filter<Fut, F>(self, f: F) -> Filter<Self, Fut, F>
         where F: FnMut(&Self::Item) -> Fut,
@@ -338,7 +346,8 @@ pub trait StreamExt: Stream {
     ///
     /// # Examples
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
@@ -348,7 +357,8 @@ pub trait StreamExt: Stream {
     ///     future::ready(ret)
     /// });
     ///
-    /// assert_eq!(vec![3, 5, 7, 9, 11], block_on(evens.collect::<Vec<_>>()));
+    /// assert_eq!(vec![3, 5, 7, 9, 11], evens.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn filter_map<Fut, T, F>(self, f: F) -> FilterMap<Self, Fut, F>
         where F: FnMut(Self::Item) -> Fut,
@@ -371,14 +381,16 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=3);
     /// let stream = stream.then(|x| future::ready(x + 3));
     ///
-    /// assert_eq!(vec![4, 5, 6], block_on(stream.collect::<Vec<_>>()));
+    /// assert_eq!(vec![4, 5, 6], stream.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn then<Fut, F>(self, f: F) -> Then<Self, Fut, F>
         where F: FnMut(Self::Item) -> Fut,
@@ -396,8 +408,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::executor::block_on;
     /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
@@ -409,8 +422,9 @@ pub trait StreamExt: Stream {
     ///     }
     /// });
     ///
-    /// let output = block_on(rx.collect::<Vec<i32>>());
+    /// let output = rx.collect::<Vec<i32>>().await;
     /// assert_eq!(output, vec![1, 2, 3, 4, 5]);
+    /// # });
     /// ```
     fn collect<C: Default + Extend<Self::Item>>(self) -> Collect<Self, C>
         where Self: Sized
@@ -431,8 +445,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::executor::block_on;
     /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
@@ -445,9 +460,10 @@ pub trait StreamExt: Stream {
     ///     }
     /// });
     ///
-    /// let result = block_on(rx.concat());
+    /// let result = rx.concat().await;
     ///
     /// assert_eq!(result, vec![7, 8, 9, 4, 5, 6, 1, 2, 3]);
+    /// # });
     /// ```
     fn concat(self) -> Concat<Self>
     where Self: Sized,
@@ -469,13 +485,15 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let number_stream = stream::iter(0..6);
     /// let sum = number_stream.fold(0, |acc, x| future::ready(acc + x));
-    /// assert_eq!(block_on(sum), 15);
+    /// assert_eq!(sum.await, 15);
+    /// # });
     /// ```
     fn fold<T, Fut, F>(self, init: T, f: F) -> Fold<Self, Fut, T, F>
         where F: FnMut(T, Self::Item) -> Fut,
@@ -490,8 +508,9 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
-    /// use futures::executor::block_on;
     /// use futures::stream::StreamExt;
     /// use std::thread;
     ///
@@ -512,8 +531,9 @@ pub trait StreamExt: Stream {
     ///     tx3.unbounded_send(rx2).unwrap();
     /// });
     ///
-    /// let output = block_on(rx3.flatten().collect::<Vec<i32>>());
+    /// let output = rx3.flatten().collect::<Vec<i32>>().await;
     /// assert_eq!(output, vec![1, 2, 3, 4]);
+    /// # });
     /// ```
     fn flatten(self) -> Flatten<Self>
         where Self::Item: Stream,
@@ -533,7 +553,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
@@ -541,7 +562,8 @@ pub trait StreamExt: Stream {
     ///
     /// let stream = stream.skip_while(|x| future::ready(*x <= 5));
     ///
-    /// assert_eq!(vec![6, 7, 8, 9, 10], block_on(stream.collect::<Vec<_>>()));
+    /// assert_eq!(vec![6, 7, 8, 9, 10], stream.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn skip_while<Fut, F>(self, f: F) -> SkipWhile<Self, Fut, F>
         where F: FnMut(&Self::Item) -> Fut,
@@ -561,7 +583,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
@@ -569,7 +592,8 @@ pub trait StreamExt: Stream {
     ///
     /// let stream = stream.take_while(|x| future::ready(*x <= 5));
     ///
-    /// assert_eq!(vec![1, 2, 3, 4, 5], block_on(stream.collect::<Vec<_>>()));
+    /// assert_eq!(vec![1, 2, 3, 4, 5], stream.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn take_while<Fut, F>(self, f: F) -> TakeWhile<Self, Fut, F>
         where F: FnMut(&Self::Item) -> Fut,
@@ -595,7 +619,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
@@ -606,10 +631,11 @@ pub trait StreamExt: Stream {
     ///         x += item;
     ///         future::ready(())
     ///     });
-    ///     block_on(fut);
+    ///     fut.await;
     /// }
     ///
     /// assert_eq!(x, 3);
+    /// # });
     /// ```
     fn for_each<Fut, F>(self, f: F) -> ForEach<Self, Fut, F>
         where F: FnMut(Self::Item) -> Fut,
@@ -690,12 +716,14 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10).take(3);
     ///
-    /// assert_eq!(vec![1, 2, 3], block_on(stream.collect::<Vec<_>>()));
+    /// assert_eq!(vec![1, 2, 3], stream.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn take(self, n: u64) -> Take<Self>
         where Self: Sized
@@ -711,12 +739,14 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(1..=10).skip(5);
     ///
-    /// assert_eq!(vec![6, 7, 8, 9, 10], block_on(stream.collect::<Vec<_>>()));
+    /// assert_eq!(vec![6, 7, 8, 9, 10], stream.collect::<Vec<_>>().await);
+    /// # });
     /// ```
     fn skip(self, n: u64) -> Skip<Self>
         where Self: Sized
@@ -777,20 +807,25 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::future;
     /// use futures::stream::{self, StreamExt};
     ///
     /// let mut stream = stream::iter(1..5);
     ///
-    /// let sum = block_on(stream.by_ref()
-    ///                          .take(2)
-    ///                          .fold(0, |a, b| future::ready(a + b)));
+    /// let sum = stream.by_ref()
+    ///                 .take(2)
+    ///                 .fold(0, |a, b| future::ready(a + b))
+    ///                 .await;
     /// assert_eq!(sum, 3);
     ///
     /// // You can use the stream again
-    /// let sum = block_on(stream.take(2).fold(0, |a, b| future::ready(a + b)));
+    /// let sum = stream.take(2)
+    ///                 .fold(0, |a, b| future::ready(a + b))
+    ///                 .await;
     /// assert_eq!(sum, 7);
+    /// # });
     /// ```
     fn by_ref(&mut self) -> &mut Self
         where Self: Sized
@@ -820,7 +855,8 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream = stream::iter(vec![Some(10), None, Some(11)]);
@@ -829,13 +865,14 @@ pub trait StreamExt: Stream {
     /// // Collect all the results
     /// let stream = stream_panicking.catch_unwind();
     ///
-    /// let results: Vec<Result<i32, _>> = block_on(stream.collect());
+    /// let results: Vec<Result<i32, _>> = stream.collect().await;
     /// match results[0] {
     ///     Ok(10) => {}
     ///     _ => panic!("unexpected result!"),
     /// }
     /// assert!(results[1].is_err());
     /// assert_eq!(results.len(), 2);
+    /// # });
     /// ```
     #[cfg(feature = "std")]
     fn catch_unwind(self) -> CatchUnwind<Self>
@@ -933,15 +970,18 @@ pub trait StreamExt: Stream {
     /// # Examples
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream1 = stream::iter(1..=3);
     /// let stream2 = stream::iter(5..=10);
     ///
-    /// let vec = block_on(stream1.zip(stream2)
-    ///                           .collect::<Vec<_>>());
+    /// let vec = stream1.zip(stream2)
+    ///                  .collect::<Vec<_>>()
+    ///                  .await;
     /// assert_eq!(vec![(1, 5), (2, 6), (3, 7)], vec);
+    /// # });
     /// ```
     ///
     fn zip<St>(self, other: St) -> Zip<Self, St>
@@ -957,7 +997,8 @@ pub trait StreamExt: Stream {
     /// first stream reaches the end, emits the elements from the second stream.
     ///
     /// ```
-    /// use futures::executor::block_on;
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
     /// use futures::stream::{self, StreamExt};
     ///
     /// let stream1 = stream::iter(vec![Ok(10), Err(false)]);
@@ -965,13 +1006,14 @@ pub trait StreamExt: Stream {
     ///
     /// let stream = stream1.chain(stream2);
     ///
-    /// let result: Vec<_> = block_on(stream.collect());
+    /// let result: Vec<_> = stream.collect().await;
     /// assert_eq!(result, vec![
     ///     Ok(10),
     ///     Err(false),
     ///     Err(true),
     ///     Ok(20),
     /// ]);
+    /// # });
     /// ```
     fn chain<St>(self, other: St) -> Chain<Self, St>
         where St: Stream<Item = Self::Item>,
