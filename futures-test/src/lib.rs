@@ -3,9 +3,7 @@
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 #![warn(clippy::all)]
 
-#![doc(
-    html_root_url = "https://rust-lang-nursery.github.io/futures-doc/0.3.0-alpha.5/futures_test"
-)]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/futures_test")]
 
 #[cfg(not(feature = "std"))]
 compile_error!("`futures-test` must have the `std` feature activated, this is a default-active feature");

@@ -1,9 +1,20 @@
+# 0.3.0-alpha.16 - 2019-5-10
+* Updated to new nightly `async_await`.
+* Changed `AsyncRead::poll_vectored_read` and `AsyncWrite::poll_vectored_write` to use
+  stabilized `std::io::{IoSlice, IoSliceMut}` instead of `iovec::IoVec`, and renamed to
+  `AsyncRead::poll_read_vectored` and `AsyncWrite::poll_write_vectored`.
+* Added `LocalBoxFuture` and `FutureExt::boxed_local`.
+* Added `TryStreamExt::{try_filter, inspect_ok, inspect_err}`.
+* Added `try_future::select_ok`.
+* Added `AsyncBufReadExt::{read_line, lines}`.
+* Added `io::BufReader`.
+
 # 0.3.0-alpha.15 - 2019-4-26
 * Updated to stabilized `futures_api`.
 * Removed `StreamObj`, cautioned against usage of `FutureObj`.
 * Changed `StreamExt::select` to a function.
 * Added `AsyncBufRead` and `AsyncSeek` traits.
-* Expanded trait impls to include more pinned pointers and ?Sized types. 
+* Expanded trait impls to include more pinned pointers and ?Sized types.
 * Added `future::Fuse::terminated` constructor.
 * Added `never_error` combinator.
 * Added `StreamExt::enumerate`.
