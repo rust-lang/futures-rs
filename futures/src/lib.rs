@@ -29,7 +29,7 @@
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 #![warn(clippy::all)]
 
-#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.15/futures")]
+#![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/futures")]
 
 #[cfg(all(feature = "async-await", not(feature = "nightly")))]
 compile_error!("The `async-await` feature requires the `nightly` feature as an explicit opt-in to unstable features");
