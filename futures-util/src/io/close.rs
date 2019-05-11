@@ -6,6 +6,7 @@ use std::pin::Pin;
 
 /// Future for the [`close`](super::AsyncWriteExt::close) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct Close<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,
 }

@@ -6,7 +6,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`try_for_each`](super::TryStreamExt::try_for_each) method.
 #[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
+#[must_use = "futures do nothing unless polled"]
 pub struct TryForEach<St, Fut, F> {
     stream: St,
     f: F,

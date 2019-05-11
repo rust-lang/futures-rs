@@ -7,6 +7,7 @@ use std::pin::Pin;
 
 /// Future for the [`read_exact`](super::AsyncReadExt::read_exact) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct ReadExact<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,
     buf: &'a mut [u8],

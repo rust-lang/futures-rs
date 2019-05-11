@@ -6,6 +6,7 @@ use std::pin::Pin;
 
 /// Future for the [`flush`](super::AsyncWriteExt::flush) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct Flush<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,
 }

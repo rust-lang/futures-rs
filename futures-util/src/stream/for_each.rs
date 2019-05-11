@@ -6,7 +6,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`for_each`](super::StreamExt::for_each) method.
 #[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
+#[must_use = "futures do nothing unless polled"]
 pub struct ForEach<St, Fut, F> {
     stream: St,
     f: F,

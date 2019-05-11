@@ -7,7 +7,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`try_concat`](super::TryStreamExt::try_concat) method.
 #[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
+#[must_use = "futures do nothing unless polled"]
 pub struct TryConcat<St: TryStream> {
     stream: St,
     accum: Option<St::Ok>,

@@ -7,6 +7,7 @@ use std::pin::Pin;
 
 /// Future for the [`write_all`](super::AsyncWriteExt::write_all) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct WriteAll<'a, W: ?Sized + Unpin> {
     writer: &'a mut W,
     buf: &'a [u8],

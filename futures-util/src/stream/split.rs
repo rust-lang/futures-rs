@@ -11,8 +11,8 @@ use std::error::Error;
 use crate::lock::BiLock;
 
 /// A `Stream` part of the split pair
-#[must_use = "streams do nothing unless polled"]
 #[derive(Debug)]
+#[must_use = "streams do nothing unless polled"]
 pub struct SplitStream<S>(BiLock<S>);
 
 impl<S> Unpin for SplitStream<S> {}
@@ -49,6 +49,7 @@ fn SplitSink<S: Sink<Item>, Item>(lock: BiLock<S>) -> SplitSink<S, Item> {
 
 /// A `Sink` part of the split pair
 #[derive(Debug)]
+#[must_use = "sinks do nothing unless polled"]
 pub struct SplitSink<S: Sink<Item>, Item> {
     lock: BiLock<S>,
     slot: Option<Item>,

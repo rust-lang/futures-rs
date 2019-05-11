@@ -8,6 +8,7 @@ use super::read_line::read_line_internal;
 
 /// Stream for the [`lines`](super::AsyncBufReadExt::lines) method.
 #[derive(Debug)]
+#[must_use = "streams do nothing unless polled"]
 pub struct Lines<R> {
     reader: R,
     buf: String,

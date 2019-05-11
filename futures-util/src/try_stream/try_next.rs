@@ -5,7 +5,7 @@ use core::pin::Pin;
 
 /// Future for the [`try_next`](super::TryStreamExt::try_next) method.
 #[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
+#[must_use = "futures do nothing unless polled"]
 pub struct TryNext<'a, St: Unpin> {
     stream: &'a mut St,
 }

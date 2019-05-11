@@ -6,7 +6,7 @@ use futures_sink::Sink;
 
 /// Sink for the [`drain`] function.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "sinks do nothing unless polled"]
 pub struct Drain<T> {
     marker: PhantomData<T>,
 }

@@ -6,7 +6,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`fold`](super::StreamExt::fold) method.
 #[derive(Debug)]
-#[must_use = "streams do nothing unless polled"]
+#[must_use = "futures do nothing unless polled"]
 pub struct Fold<St, Fut, T, F> {
     stream: St,
     f: F,
