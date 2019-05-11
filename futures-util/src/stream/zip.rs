@@ -14,7 +14,13 @@ pub struct Zip<St1: Stream, St2: Stream> {
     queued2: Option<St2::Item>,
 }
 
-impl<St1: Stream + Unpin, St2: Stream + Unpin> Unpin for Zip<St1, St2> {}
+impl<St1, St2> Unpin for Zip<St1, St2>
+where
+    St1: Stream,
+    Fuse<St1>: Unpin,
+    St2: Stream,
+    Fuse<St2>: Unpin,
+{}
 
 impl<St1: Stream, St2: Stream> Zip<St1, St2> {
     unsafe_pinned!(stream1: Fuse<St1>);
