@@ -59,6 +59,9 @@ pub use self::try_fold::TryFold;
 mod try_skip_while;
 pub use self::try_skip_while::TrySkipWhile;
 
+mod try_zip;
+pub use self::try_zip::TryZip;
+
 cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     mod try_buffer_unordered;
@@ -706,6 +709,54 @@ pub trait TryStreamExt: TryStream {
               Self: Sized
     {
         TryBufferUnordered::new(self, n)
+    }
+
+    /// Attempt to zip two streams together.
+    ///
+    /// The zipped stream waits for both streams to produce an item,
+    /// and then returns that pair. If either stream produces an
+    /// error, that error is returned instead. If both streams produce
+    /// an error, an arbitrary error is chosen. If either stream ends
+    /// then the zipped stream will also end.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let stream1 = stream::iter(vec![Ok(1), Err(2), Ok(3)]);
+    /// let stream2 = stream::iter(vec![Ok(5), Ok(6), Err(7)]);
+    ///
+    /// let output = stream1.try_zip(stream2)
+    ///                     .into_stream()
+    ///                     .collect::<Vec<_>>()
+    ///                     .await;
+    /// assert_eq!(vec![Ok((1, 5)), Err(2), Err(7)], output);
+    /// # });
+    /// ```
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::stream::{self, StreamExt, TryStreamExt};
+    ///
+    /// let stream1 = stream::iter(vec![Ok(1), Err(2), Ok(3)]);
+    /// let stream2 = stream::iter(vec![Ok(5), Ok(6), Err(7)]);
+    ///
+    /// let output = stream1.try_zip(stream2)
+    ///                     .try_collect::<Vec<_>>()
+    ///                     .await;
+    /// assert_eq!(Err(2), output);
+    /// # });
+    /// ```
+    ///
+    fn try_zip<St>(self, other: St) -> TryZip<Self, St>
+        where St: TryStream<Error = Self::Error>,
+              Self: Sized,
+    {
+        TryZip::new(self, other)
     }
 
     // TODO: false positive warning from rustdoc. Verify once #43466 settles
