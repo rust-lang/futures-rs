@@ -39,7 +39,7 @@ enum Waiter {
 impl Waiter {
     fn register(&mut self, waker: &Waker) {
         match self {
-            Waiter::Waiting(waker) if waker.will_wake(waker) => {},
+            Waiter::Waiting(w) if waker.will_wake(w) => {},
             _ => *self = Waiter::Waiting(waker.clone()),
         }
     }
