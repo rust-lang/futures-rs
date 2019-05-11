@@ -11,8 +11,9 @@ enum State<Fut, Si> {
 }
 use self::State::*;
 
-/// Future for the [`flatten_sink`](super::TryFutureExt::flatten_sink) method.
+/// Sink for the [`flatten_sink`](super::TryFutureExt::flatten_sink) method.
 #[derive(Debug)]
+#[must_use = "sinks do nothing unless polled"]
 pub struct FlattenSink<Fut, Si>(State<Fut, Si>);
 
 impl<Fut: Unpin, Si: Unpin> Unpin for FlattenSink<Fut, Si> {}

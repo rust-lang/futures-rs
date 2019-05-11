@@ -7,6 +7,7 @@ use std::pin::Pin;
 
 /// Future for the [`copy_into`](super::AsyncReadExt::copy_into) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct CopyInto<'a, R: ?Sized + Unpin, W: ?Sized + Unpin> {
     reader: &'a mut R,
     read_done: bool,

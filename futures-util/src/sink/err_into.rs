@@ -7,7 +7,7 @@ use pin_utils::unsafe_pinned;
 
 /// Sink for the [`sink_err_into`](super::SinkExt::sink_err_into) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "sinks do nothing unless polled"]
 pub struct SinkErrInto<Si: Sink<Item>, Item, E> {
     sink: SinkMapErr<Si, fn(Si::SinkError) -> E>,
 }

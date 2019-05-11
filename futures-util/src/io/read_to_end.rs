@@ -7,6 +7,7 @@ use std::vec::Vec;
 
 /// Future for the [`read_to_end`](super::AsyncReadExt::read_to_end) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct ReadToEnd<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,
     buf: &'a mut Vec<u8>,

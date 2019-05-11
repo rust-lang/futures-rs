@@ -9,6 +9,7 @@ use super::read_until::read_until_internal;
 
 /// Future for the [`read_line`](super::AsyncBufReadExt::read_line) method.
 #[derive(Debug)]
+#[must_use = "futures do nothing unless polled"]
 pub struct ReadLine<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,
     buf: &'a mut String,

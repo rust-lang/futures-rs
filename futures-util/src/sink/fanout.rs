@@ -8,6 +8,7 @@ use pin_utils::unsafe_pinned;
 ///
 /// Backpressure from any downstream sink propagates up, which means that this sink
 /// can only process items as fast as its _slowest_ downstream sink.
+#[must_use = "sinks do nothing unless polled"]
 pub struct Fanout<Si1, Si2> {
     sink1: Si1,
     sink2: Si2
