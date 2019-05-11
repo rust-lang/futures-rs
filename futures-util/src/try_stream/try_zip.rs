@@ -15,7 +15,13 @@ pub struct TryZip<St1: TryStream, St2: TryStream> {
     queued2: Option<Result<St2::Ok, St2::Error>>,
 }
 
-impl<St1: TryStream + Unpin, St2: TryStream + Unpin> Unpin for TryZip<St1, St2> {}
+impl<St1, St2> Unpin for TryZip<St1, St2>
+where
+    St1: TryStream,
+    Fuse<IntoStream<St1>>: Unpin,
+    St2: TryStream,
+    Fuse<IntoStream<St2>>: Unpin,
+{}
 
 impl<St1: TryStream, St2: TryStream> TryZip<St1, St2> {
     unsafe_pinned!(stream1: Fuse<IntoStream<St1>>);
