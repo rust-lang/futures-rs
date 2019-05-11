@@ -74,11 +74,12 @@ where
                 ReadState::PendingChunk => {
                     match ready!(Pin::new(&mut self.stream).try_poll_next(cx)) {
                         Some(Ok(chunk)) => {
-                            self.state = ReadState::Ready {
-                                chunk,
-                                chunk_start: 0,
-                            };
-                            continue;
+                            if !chunk.as_ref().is_empty() {
+                                self.state = ReadState::Ready {
+                                    chunk,
+                                    chunk_start: 0,
+                                };
+                            }
                         }
                         Some(Err(err)) => {
                             self.state = ReadState::Eof;
@@ -107,13 +108,15 @@ where
         mut self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<&'a [u8]>> {
-        if let ReadState::PendingChunk = self.state {
+        while let ReadState::PendingChunk = self.state {
             match ready!(Pin::new(&mut self.stream).try_poll_next(cx)) {
                 Some(Ok(chunk)) => {
-                    self.state = ReadState::Ready {
-                        chunk,
-                        chunk_start: 0,
-                    };
+                    if !chunk.as_ref().is_empty() {
+                        self.state = ReadState::Ready {
+                            chunk,
+                            chunk_start: 0,
+                        };
+                    }
                 }
                 Some(Err(err)) => {
                     self.state = ReadState::Eof;
@@ -156,22 +159,45 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::stream::{self, StreamExt, TryStreamExt};
+    use futures::stream::{self, TryStreamExt};
     use futures_io::AsyncRead;
-    use futures_test::task::noop_context;
+    use futures_test::{task::noop_context, stream::StreamTestExt};
 
     macro_rules! assert_read {
         ($reader:expr, $buf:expr, $item:expr) => {
             let mut cx = noop_context();
-            match Pin::new(&mut $reader).poll_read(&mut cx, $buf) {
-                Poll::Ready(Ok(x)) => {
-                    assert_eq!(x, $item);
+            loop {
+                match Pin::new(&mut $reader).poll_read(&mut cx, $buf) {
+                    Poll::Ready(Ok(x)) => {
+                        assert_eq!(x, $item);
+                        break;
+                    }
+                    Poll::Ready(Err(err)) => {
+                        panic!("assertion failed: expected value but got {}", err);
+                    }
+                    Poll::Pending => {
+                        continue;
+                    }
                 }
-                Poll::Ready(Err(err)) => {
-                    panic!("assertion failed: expected value but got {}", err);
-                }
-                Poll::Pending => {
-                    panic!("assertion failed: reader was not ready");
+            }
+        };
+    }
+
+    macro_rules! assert_fill_buf {
+        ($reader:expr, $buf:expr) => {
+            let mut cx = noop_context();
+            loop {
+                match Pin::new(&mut $reader).poll_fill_buf(&mut cx) {
+                    Poll::Ready(Ok(x)) => {
+                        assert_eq!(x, $buf);
+                        break;
+                    }
+                    Poll::Ready(Err(err)) => {
+                        panic!("assertion failed: expected value but got {}", err);
+                    }
+                    Poll::Pending => {
+                        continue;
+                    }
                 }
             }
         };
@@ -179,8 +205,8 @@ mod tests {
 
     #[test]
     fn test_into_async_read() {
-        let stream = stream::iter(1..=3).map(|_| Ok(vec![1, 2, 3, 4, 5]));
-        let mut reader = stream.into_async_read();
+        let stream = stream::iter((1..=3).flat_map(|_| vec![Ok(vec![]), Ok(vec![1, 2, 3, 4, 5])]));
+        let mut reader = stream.interleave_pending().into_async_read();
         let mut buf = vec![0; 3];
 
         assert_read!(reader, &mut buf, 3);
@@ -206,25 +232,24 @@ mod tests {
 
     #[test]
     fn test_into_async_bufread() -> std::io::Result<()> {
-        let stream = stream::iter(1..=2).map(|_| Ok(vec![1, 2, 3, 4, 5]));
-        let mut reader = stream.into_async_read();
+        let stream = stream::iter((1..=2).flat_map(|_| vec![Ok(vec![]), Ok(vec![1, 2, 3, 4, 5])]));
+        let mut reader = stream.interleave_pending().into_async_read();
 
-        let mut cx = noop_context();
         let mut reader = Pin::new(&mut reader);
 
-        assert_eq!(reader.as_mut().poll_fill_buf(&mut cx)?, Poll::Ready(&[1, 2, 3, 4, 5][..]));
+        assert_fill_buf!(reader, &[1, 2, 3, 4, 5][..]);
         reader.as_mut().consume(3);
 
-        assert_eq!(reader.as_mut().poll_fill_buf(&mut cx)?, Poll::Ready(&[4, 5][..]));
+        assert_fill_buf!(reader, &[4, 5][..]);
         reader.as_mut().consume(2);
 
-        assert_eq!(reader.as_mut().poll_fill_buf(&mut cx)?, Poll::Ready(&[1, 2, 3, 4, 5][..]));
+        assert_fill_buf!(reader, &[1, 2, 3, 4, 5][..]);
         reader.as_mut().consume(2);
 
-        assert_eq!(reader.as_mut().poll_fill_buf(&mut cx)?, Poll::Ready(&[3, 4, 5][..]));
+        assert_fill_buf!(reader, &[3, 4, 5][..]);
         reader.as_mut().consume(3);
 
-        assert_eq!(reader.as_mut().poll_fill_buf(&mut cx)?, Poll::Ready(&[][..]));
+        assert_fill_buf!(reader, &[][..]);
 
         Ok(())
     }
