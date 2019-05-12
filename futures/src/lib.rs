@@ -63,10 +63,7 @@ compile_error!("The `never-type` feature requires the `nightly` feature as an ex
 #[doc(hidden)] pub use futures_core::task::Poll;
 
 // Macro reexports
-pub use futures_util::{
-    // Error/readiness propagation
-    try_ready, ready,
-};
+pub use futures_util::ready; // Readiness propagation
 #[cfg(feature = "async-await")]
 pub use futures_util::{
     // Async-await
