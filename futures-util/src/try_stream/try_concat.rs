@@ -40,8 +40,8 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(cx)) {
-                Some(Ok(x)) => {
+            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                Some(x) => {
                     let accum = self.as_mut().accum();
                     if let Some(a) = accum {
                         a.extend(x)
@@ -49,7 +49,6 @@ where
                         *accum = Some(x)
                     }
                 },
-                Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => {
                     return Poll::Ready(Ok(self.as_mut().accum().take().unwrap_or_default()))
                 }

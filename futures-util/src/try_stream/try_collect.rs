@@ -47,9 +47,8 @@ impl<St, C> Future for TryCollect<St, C>
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         loop {
-            match ready!(self.as_mut().stream().try_poll_next(cx)) {
-                Some(Ok(x)) => self.as_mut().items().extend(Some(x)),
-                Some(Err(e)) => return Poll::Ready(Err(e)),
+            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                Some(x) => self.as_mut().items().extend(Some(x)),
                 None => return Poll::Ready(Ok(self.as_mut().finish())),
             }
         }

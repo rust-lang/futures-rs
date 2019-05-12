@@ -47,11 +47,10 @@ where
         item: St::Item,
     ) -> Poll<Result<(), Si::SinkError>> {
         debug_assert!(self.buffered.is_none());
-        match Pin::new(&mut self.sink).poll_ready(cx) {
-            Poll::Ready(Ok(())) => {
+        match Pin::new(&mut self.sink).poll_ready(cx)? {
+            Poll::Ready(()) => {
                 Poll::Ready(Pin::new(&mut self.sink).start_send(item))
             }
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
             Poll::Pending => {
                 self.buffered = Some(item);
                 Poll::Pending
