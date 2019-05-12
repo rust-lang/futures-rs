@@ -1,19 +1,3 @@
-/// Extracts the successful type of a `Poll<Result<T, E>>`.
-///
-/// This macro bakes in propagation of `Pending` and `Err` signals by returning early.
-#[macro_export]
-macro_rules! try_ready {
-    ($x:expr) => {
-        match $x {
-            $crate::core_reexport::task::Poll::Ready(Ok(x)) => x,
-            $crate::core_reexport::task::Poll::Ready(Err(e)) =>
-                return $crate::core_reexport::task::Poll::Ready(Err(e.into())),
-            $crate::core_reexport::task::Poll::Pending =>
-                return $crate::core_reexport::task::Poll::Pending,
-        }
-    }
-}
-
 /// Extracts the successful type of a `Poll<T>`.
 ///
 /// This macro bakes in propagation of `Pending` signals by returning early.
