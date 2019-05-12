@@ -146,21 +146,15 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.as_mut().sink().poll_flush(cx),
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-        }
+        ready!(self.as_mut().try_empty_stream(cx)?);
+        self.as_mut().sink().poll_flush(cx)
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
-        match self.as_mut().try_empty_stream(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(())) => self.as_mut().sink().poll_close(cx),
-            Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-        }
+        ready!(self.as_mut().try_empty_stream(cx)?);
+        self.as_mut().sink().poll_close(cx)
     }
 }

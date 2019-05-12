@@ -60,9 +60,7 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     ) -> Poll<Result<(), Si::SinkError>> {
         ready!(self.as_mut().sink().poll_ready(cx))?;
         while let Some(item) = self.as_mut().buf().pop_front() {
-            if let Err(e) = self.as_mut().sink().start_send(item) {
-                return Poll::Ready(Err(e));
-            }
+            self.as_mut().sink().start_send(item)?;
             if !self.buf.is_empty() {
                 ready!(self.as_mut().sink().poll_ready(cx))?;
             }
@@ -91,9 +89,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
             return self.as_mut().sink().poll_ready(cx);
         }
 
-        if let Poll::Ready(Err(e)) = self.as_mut().try_empty_buffer(cx) {
-            return Poll::Ready(Err(e));
-        }
+        let _ = self.as_mut().try_empty_buffer(cx)?;
 
         if self.buf.len() >= self.capacity {
             Poll::Pending

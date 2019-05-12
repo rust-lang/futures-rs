@@ -77,10 +77,9 @@ where
         }
 
         loop {
-            match self.as_mut().stream().poll_next(cx) {
-                Poll::Ready(Some(Ok(item))) =>
+            match self.as_mut().stream().poll_next(cx)? {
+                Poll::Ready(Some(item)) =>
                    ready!(self.as_mut().try_start_send(cx, item))?,
-                Poll::Ready(Some(Err(e))) => return Poll::Ready(Err(e)),
                 Poll::Ready(None) => {
                     ready!(self.as_mut().sink().as_pin_mut().expect(INVALID_POLL).poll_close(cx))?;
                     self.as_mut().sink().set(None);

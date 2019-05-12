@@ -27,9 +27,6 @@ impl<Fut> Future for CatchUnwind<Fut>
     type Output = Result<Fut::Output, Box<dyn Any + Send>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match catch_unwind(AssertUnwindSafe(|| self.future().poll(cx))) {
-            Ok(res) => res.map(Ok),
-            Err(e) => Poll::Ready(Err(e))
-        }
+        catch_unwind(AssertUnwindSafe(|| self.future().poll(cx)))?.map(Ok)
     }
 }
