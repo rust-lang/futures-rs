@@ -1,30 +1,26 @@
 [package]
-name = "futures"
+name = "futures01"
 version = "0.1.27"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 license = "MIT/Apache-2.0"
-readme = "README.md"
-keywords = ["futures", "async", "future"]
 repository = "https://github.com/rust-lang-nursery/futures-rs"
 homepage = "https://github.com/rust-lang-nursery/futures-rs"
 documentation = "https://docs.rs/futures"
 description = """
 An implementation of futures and streams featuring zero allocations,
 composability, and iterator-like interfaces.
+
+Note that this crate tracks permanently to the 0.1 branch of
+the `futures` crate.
 """
-categories = ["asynchronous"]
 
-[badges]
-travis-ci = { repository = "rust-lang-nursery/futures-rs" }
-appveyor = { repository = "rust-lang-nursery/futures-rs" }
-
-[dependencies]
+[dependencies.futures]
+path = ".."
+version = "0.1.27"
+default-features = false
 
 [features]
-nightly = []
-use_std = []
-with-deprecated = []
 default = ["use_std", "with-deprecated"]
-
-[workspace]
-members = ["futures01", "futures-cpupool"]
+nightly = ["futures/nightly"]
+use_std = ["futures/use_std"]
+with-deprecated = ["futures/with-deprecated"]
