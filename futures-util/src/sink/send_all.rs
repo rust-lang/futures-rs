@@ -7,7 +7,7 @@ use futures_sink::Sink;
 
 /// Future for the [`send_all`](super::SinkExt::send_all) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SendAll<'a, Si, St>
 where
     Si: Sink<St::Item> + Unpin + ?Sized,

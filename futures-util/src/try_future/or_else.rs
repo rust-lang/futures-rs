@@ -6,7 +6,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`or_else`](super::TryFutureExt::or_else) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct OrElse<Fut1, Fut2, F> {
     try_chain: TryChain<Fut1, Fut2, F>,
 }

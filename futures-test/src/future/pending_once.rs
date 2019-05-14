@@ -10,7 +10,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// [`FutureTestExt::pending_once`](super::FutureTestExt::pending_once)
 /// method.
 #[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct PendingOnce<Fut: Future> {
     future: Fut,
     polled_before: bool,

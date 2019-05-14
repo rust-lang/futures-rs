@@ -10,7 +10,7 @@ use std::thread::panicking;
 /// [`FutureTestExt::assert_unmoved`](super::FutureTestExt::assert_unmoved)
 /// method.
 #[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct AssertUnmoved<Fut> {
     future: Fut,
     this_ptr: *const AssertUnmoved<Fut>,

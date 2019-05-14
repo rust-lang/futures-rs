@@ -4,7 +4,7 @@ use futures_core::task::{Context, Poll};
 use crate::future::Either;
 
 /// Future for the [`select()`] function.
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct Select<A: Unpin, B: Unpin> {
     inner: Option<(A, B)>,

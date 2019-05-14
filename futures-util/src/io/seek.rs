@@ -6,7 +6,7 @@ use std::pin::Pin;
 
 /// Future for the [`seek`](crate::io::AsyncSeekExt::seek) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Seek<'a, S: ?Sized + Unpin> {
     seek: &'a mut S,
     pos: SeekFrom,

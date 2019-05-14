@@ -5,7 +5,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`unit_error`](super::FutureExt::unit_error) combinator.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct UnitError<Fut> {
     future: Fut,
 }

@@ -21,7 +21,7 @@ use {
 
 /// The handle to a remote future returned by
 /// [`remote_handle`](crate::future::FutureExt::remote_handle).
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct RemoteHandle<T> {
     rx: Receiver<thread::Result<T>>,
@@ -55,7 +55,7 @@ type SendMsg<Fut> = Result<<Fut as Future>::Output, Box<(dyn Any + Send + 'stati
 
 /// A future which sends its output to the corresponding `RemoteHandle`.
 /// Created by [`remote_handle`](crate::future::FutureExt::remote_handle).
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Remote<Fut: Future> {
     tx: Option<Sender<SendMsg<Fut>>>,
     keep_running: Arc<AtomicBool>,

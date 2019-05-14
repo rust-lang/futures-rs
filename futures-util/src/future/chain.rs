@@ -2,7 +2,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub(crate) enum Chain<Fut1, Fut2, Data> {
     First(Fut1, Option<Data>),

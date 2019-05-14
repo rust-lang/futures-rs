@@ -7,7 +7,7 @@ use futures_core::task::{Context, Poll};
 
 /// Future for the [`select_all`] function.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SelectAll<Fut> {
     inner: Vec<Fut>,
 }

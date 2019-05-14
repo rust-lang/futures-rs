@@ -7,7 +7,7 @@ use crate::stream::StreamExt;
 /// Future for the [`select_next_some`](super::StreamExt::select_next_some)
 /// method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct SelectNextSome<'a, St> {
     stream: &'a mut St,
 }

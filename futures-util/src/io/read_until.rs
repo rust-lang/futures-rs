@@ -7,7 +7,7 @@ use std::pin::Pin;
 
 /// Future for the [`read_until`](super::AsyncBufReadExt::read_until) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ReadUntil<'a, R: ?Sized + Unpin> {
     reader: &'a mut R,
     byte: u8,

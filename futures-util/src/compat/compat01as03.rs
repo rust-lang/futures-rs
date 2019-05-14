@@ -17,7 +17,7 @@ pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite
 /// object to a futures 0.3-compatible version,
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Compat01As03<T> {
     pub(crate) inner: Spawn01<T>,
 }

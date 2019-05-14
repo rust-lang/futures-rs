@@ -6,7 +6,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Future for the [`unwrap_or_else`](super::TryFutureExt::unwrap_or_else)
 /// method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct UnwrapOrElse<Fut, F> {
     future: Fut,
     f: Option<F>,

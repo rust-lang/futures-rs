@@ -8,7 +8,7 @@ use std::prelude::v1::*;
 
 /// Future for the [`catch_unwind`](super::FutureExt::catch_unwind) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct CatchUnwind<Fut> where Fut: Future {
     future: Fut,
 }

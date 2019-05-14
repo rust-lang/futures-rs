@@ -5,7 +5,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`fuse`](super::FutureExt::fuse) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Fuse<Fut: Future> {
     future: Option<Fut>,
 }

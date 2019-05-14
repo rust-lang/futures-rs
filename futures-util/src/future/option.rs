@@ -24,7 +24,7 @@ use pin_utils::unsafe_pinned;
 /// # });
 /// ```
 #[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct OptionFuture<F> {
     option: Option<F>,
 }

@@ -9,7 +9,7 @@ use core::iter::FromIterator;
 use core::pin::Pin;
 use alloc::collections::binary_heap::{BinaryHeap, PeekMut};
 
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 struct OrderWrapper<T> {
     data: T, // A future or a future's output

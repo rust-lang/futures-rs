@@ -11,7 +11,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// [`try_for_each_concurrent`](super::TryStreamExt::try_for_each_concurrent)
 /// method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct TryForEachConcurrent<St, Fut, F> {
     stream: Option<St>,
     f: F,
