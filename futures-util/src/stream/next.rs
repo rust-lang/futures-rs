@@ -5,7 +5,7 @@ use futures_core::task::{Context, Poll};
 
 /// Future for the [`next`](super::StreamExt::next) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Next<'a, St> {
     stream: &'a mut St,
 }

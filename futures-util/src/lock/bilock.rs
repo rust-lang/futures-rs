@@ -259,7 +259,7 @@ impl<T> Drop for BiLockGuard<'_, T> {
 
 /// Future returned by `BiLock::lock` which will resolve when the lock is
 /// acquired.
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct BiLockAcquire<'a, T> {
     bilock: &'a BiLock<T>,

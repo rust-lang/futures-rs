@@ -7,7 +7,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`collect`](super::StreamExt::collect) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Collect<St, C> {
     stream: St,
     collection: C,

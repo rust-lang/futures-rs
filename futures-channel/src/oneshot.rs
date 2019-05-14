@@ -14,7 +14,7 @@ use crate::lock::Lock;
 /// A future for a value that will be provided by another asynchronous task.
 ///
 /// This is created by the [`channel`] function.
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 pub struct Receiver<T> {
     inner: Arc<Inner<T>>,

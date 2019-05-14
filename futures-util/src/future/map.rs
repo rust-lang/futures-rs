@@ -5,7 +5,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`map`](super::FutureExt::map) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Map<Fut, F> {
     future: Fut,
     f: Option<F>,

@@ -14,7 +14,7 @@ macro_rules! generate {
         ($Join:ident, <$($Fut:ident),*>),
     )*) => ($(
         $(#[$doc])*
-        #[must_use = "futures do nothing unless polled"]
+        #[must_use = "futures do nothing unless you `.await` or poll them"]
         pub struct $Join<$($Fut: Future),*> {
             $($Fut: MaybeDone<$Fut>,)*
         }

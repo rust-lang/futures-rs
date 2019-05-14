@@ -5,7 +5,7 @@ use futures_sink::Sink;
 
 /// Future for the [`send`](super::SinkExt::send) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Send<'a, Si: Sink<Item> + Unpin + ?Sized, Item> {
     sink: &'a mut Si,
     item: Option<Item>,

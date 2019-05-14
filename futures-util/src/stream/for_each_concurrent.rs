@@ -9,7 +9,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Future for the [`for_each_concurrent`](super::StreamExt::for_each_concurrent)
 /// method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ForEachConcurrent<St, Fut, F> {
     stream: Option<St>,
     f: F,

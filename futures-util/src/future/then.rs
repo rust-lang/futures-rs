@@ -6,7 +6,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`then`](super::FutureExt::then) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Then<Fut1, Fut2, F> {
     chain: Chain<Fut1, Fut2, F>,
 }

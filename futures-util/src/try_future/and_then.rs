@@ -6,7 +6,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`and_then`](super::TryFutureExt::and_then) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct AndThen<Fut1, Fut2, F> {
     try_chain: TryChain<Fut1, Fut2, F>,
 }

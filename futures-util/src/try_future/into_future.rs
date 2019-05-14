@@ -5,7 +5,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`into_future`](super::TryFutureExt::into_future) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct IntoFuture<Fut> {
     future: Fut,
 }

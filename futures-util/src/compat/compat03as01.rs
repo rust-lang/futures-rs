@@ -29,7 +29,7 @@ use std::{
 /// [`Stream`](futures::stream::Stream) or
 /// [`Sink`](futures::sink::Sink).
 #[derive(Debug, Clone, Copy)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Compat<T> {
     pub(crate) inner: T,
 }

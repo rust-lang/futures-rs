@@ -6,7 +6,7 @@ use pin_utils::unsafe_pinned;
 
 /// Future for the [`err_into`](super::TryFutureExt::err_into) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ErrInto<Fut, E> {
     future: Fut,
     _marker: PhantomData<E>,

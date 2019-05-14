@@ -7,7 +7,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`try_collect`](super::TryStreamExt::try_collect) method.
 #[derive(Debug)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct TryCollect<St, C> {
     stream: St,
     items: C,

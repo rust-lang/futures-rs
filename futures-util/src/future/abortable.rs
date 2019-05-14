@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 
 /// A future which can be remotely short-circuited using an `AbortHandle`.
 #[derive(Debug, Clone)]
-#[must_use = "futures do nothing unless polled"]
+#[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Abortable<Fut> {
     future: Fut,
     inner: Arc<AbortInner>,
