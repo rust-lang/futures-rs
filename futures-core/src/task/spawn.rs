@@ -66,6 +66,15 @@ impl fmt::Debug for SpawnError {
     }
 }
 
+impl fmt::Display for SpawnError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Executor is shutdown")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for SpawnError {}
+
 impl SpawnError {
     /// Spawning failed because the executor has been shut down.
     pub fn shutdown() -> Self {
