@@ -388,7 +388,7 @@ pub trait TryStreamExt: TryStream {
     /// but will resolve to an error immediately if the underlying stream or the provided
     /// closure return an error.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -649,7 +649,7 @@ pub trait TryStreamExt: TryStream {
     /// an error or a future's output. An error can be produced either by the
     /// underlying stream itself or by one of the futures it yielded.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -756,6 +756,9 @@ pub trait TryStreamExt: TryStream {
     /// [`Unpin`]. If you want to use `into_async_read` with a [`!Unpin`](Unpin) stream, you'll
     /// first have to pin the stream. This can be done by boxing the stream using [`Box::pin`]
     /// or pinning it to the stack using the `pin_mut!` macro from the `pin_utils` crate.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
     ///
     /// # Examples
     ///

@@ -94,6 +94,9 @@ where
 /// however, then the returned future will succeed with a `Vec` of all the
 /// successful results.
 ///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
 /// # Examples
 ///
 /// ```

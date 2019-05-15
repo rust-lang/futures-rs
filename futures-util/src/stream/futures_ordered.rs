@@ -87,6 +87,9 @@ impl<T> Future for OrderWrapper<T>
 /// Note that you can create a ready-made `FuturesOrdered` via the
 /// [`collect`](Iterator::collect) method, or you can start with an empty queue
 /// with the `FuturesOrdered::new` constructor.
+///
+/// This type is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesOrdered<T: Future> {
     in_progress_queue: FuturesUnordered<OrderWrapper<T>>,

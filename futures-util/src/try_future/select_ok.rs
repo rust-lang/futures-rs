@@ -21,6 +21,9 @@ impl<Fut: Unpin> Unpin for SelectOk<Fut> {}
 /// failure. This is useful in contexts where any success is desired and failures
 /// are ignored, unless all the futures fail.
 ///
+///  This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.

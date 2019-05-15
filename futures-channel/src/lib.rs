@@ -2,6 +2,9 @@
 //!
 //! This crate provides channels that can be used to communicate between
 //! asynchronous tasks.
+//!
+//! All items of this library are only available when the `std` feature of this
+//! library is activated, and it is activated by default.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

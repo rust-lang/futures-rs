@@ -1,9 +1,13 @@
 //! IO
 //!
 //! This module contains a number of functions for working with
-//! `AsyncRead` and `AsyncWrite` types, including the
-//! `AsyncReadExt` and `AsyncWriteExt` traits which add methods
-//! to the `AsyncRead` and `AsyncWrite` types.
+//! `AsyncRead`, `AsyncWrite`, `AsyncSeek`, and `AsyncBufRead` types, including
+//! the `AsyncReadExt`, `AsyncWriteExt`, `AsyncSeekExt`, and `AsyncBufReadExt`
+//! traits which add methods to the `AsyncRead`, `AsyncWrite`, `AsyncSeek`,
+//! and `AsyncBufRead` types.
+//!
+//! This module is only available when the `std` feature of this
+//! library is activated, and it is activated by default.
 
 pub use futures_io::{
     AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom,

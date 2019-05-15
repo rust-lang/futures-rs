@@ -84,6 +84,9 @@ where
 /// collecting the results into a destination `Vec<T>` in the same order as they
 /// were provided.
 ///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
 /// # See Also
 ///
 /// This is purposefully a very simple API for basic use-cases. In a lot of

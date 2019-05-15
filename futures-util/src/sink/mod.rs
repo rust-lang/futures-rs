@@ -156,7 +156,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// Note that this function consumes the given sink, returning a wrapped
     /// version, much like `Iterator::map`.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn buffer(self, capacity: usize) -> Buffer<Self, Item>
