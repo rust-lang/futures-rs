@@ -72,6 +72,7 @@ impl fmt::Display for SpawnError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for SpawnError {}
 
 impl SpawnError {
