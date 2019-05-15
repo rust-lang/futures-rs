@@ -481,6 +481,9 @@ pub trait FutureExt: Future {
     ///
     /// This can be used with spawning executors to easily retrieve the result
     /// of a future executing on a separate task or thread.
+    ///
+    /// This method is only available when the `std` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "std")]
     fn remote_handle(self) -> (Remote<Self>, RemoteHandle<Self::Output>)
     where

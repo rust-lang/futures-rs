@@ -664,7 +664,7 @@ pub trait StreamExt: Stream {
     /// `Some(10)`, or just `10`. Note: a limit of zero is interpreted as
     /// no limit at all, and will have the same result as passing in `None`.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -882,6 +882,9 @@ pub trait StreamExt: Stream {
     }
 
     /// Wrap the stream in a Box, pinning it.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this
+    /// library is activated, and it is activated by default.
     #[cfg(feature = "alloc")]
     fn boxed(self) -> Pin<Box<Self>>
         where Self: Sized
@@ -899,7 +902,7 @@ pub trait StreamExt: Stream {
     ///
     /// The returned stream will be a stream of each future's output.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
@@ -923,7 +926,7 @@ pub trait StreamExt: Stream {
     ///
     /// The returned stream will be a stream of each future's output.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Examples
@@ -1043,7 +1046,7 @@ pub trait StreamExt: Stream {
     /// from the underlying stream then the currently buffered items will be
     /// yielded.
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     ///
     /// # Panics
@@ -1078,7 +1081,7 @@ pub trait StreamExt: Stream {
     /// allow direct interaction between the two objects (e.g. via
     /// `Sink::send_all`).
     ///
-    /// This method is only available when the `std` feature of this
+    /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
     #[cfg_attr(
         feature = "cfg-target-has-atomic",

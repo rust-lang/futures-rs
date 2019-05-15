@@ -82,6 +82,9 @@ pub mod channel {
     //! - [mpsc](crate::channel::mpsc), a multi-producer, single-consumer
     //!   channel for sending values between tasks, analogous to the
     //!   similarly-named structure in the standard library.
+    //!
+    //! This module is only available when the `std` feature of this
+    //! library is activated, and it is activated by default.
 
     pub use futures_channel::{oneshot, mpsc};
 }
@@ -89,6 +92,9 @@ pub mod channel {
 #[cfg(feature = "compat")]
 pub mod compat {
     //! Interop between `futures` 0.1 and 0.3.
+    //!
+    //! This module is only available when the `compat` feature of this
+    //! library is activated.
 
     pub use futures_util::compat::{
         Compat,
@@ -117,6 +123,9 @@ pub mod executor {
     //! All asynchronous computation occurs within an executor, which is
     //! capable of spawning futures as tasks. This module provides several
     //! built-in executors, as well as tools for building your own.
+    //!
+    //! This module is only available when the `std` feature of this
+    //! library is activated, and it is activated by default.
     //!
     //! # Using a thread pool (M:N task scheduling)
     //!
@@ -259,18 +268,26 @@ pub mod io {
     //! Asynchronous I/O.
     //!
     //! This module is the asynchronous version of `std::io`. It defines two
-    //! traits, [`AsyncRead`](crate::io::AsyncRead) and
-    //! [`AsyncWrite`](crate::io::AsyncWrite), which mirror the `Read` and
-    //! `Write` traits of the standard library. However, these traits integrate
+    //! traits, [`AsyncRead`](crate::io::AsyncRead),
+    //! [`AsyncWrite`](crate::io::AsyncWrite),
+    //! [`AsyncSeek`](crate::io::AsyncSeek), and
+    //! [`AsyncBufRead`](crate::io::AsyncBufRead), which mirror the `Read`,
+    //! `Write`, `Seek`, and `BufRead` traits of the standard library. However,
+    //! these traits integrate
     //! with the asynchronous task system, so that if an I/O object isn't ready
     //! for reading (or writing), the thread is not blocked, and instead the
     //! current task is queued to be woken when I/O is ready.
     //!
-    //! In addition, the [`AsyncReadExt`](crate::io::AsyncReadExt) and
-    //! [`AsyncWriteExt`](crate::io::AsyncWriteExt) extension traits offer a
+    //! In addition, the [`AsyncReadExt`](crate::io::AsyncReadExt),
+    //! [`AsyncWriteExt`](crate::io::AsyncWriteExt),
+    //! [`AsyncSeekExt`](crate::io::AsyncSeekExt), and
+    //! [`AsyncBufReadExt`](crate::io::AsyncBufReadExt) extension traits offer a
     //! variety of useful combinators for operating with asynchronous I/O
     //! objects, including ways to work with them using futures, streams and
     //! sinks.
+    //!
+    //! This module is only available when the `std` feature of this
+    //! library is activated, and it is activated by default.
 
     pub use futures_io::{
         AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
@@ -288,6 +305,10 @@ pub mod io {
 #[cfg(feature = "std")]
 pub mod lock {
     //! Futures-powered synchronization primitives.
+    //!
+    //! This module is only available when the `std` feature of this
+    //! library is activated, and it is activated by default.
+
     pub use futures_util::lock::{Mutex, MutexLockFuture, MutexGuard};
 }
 

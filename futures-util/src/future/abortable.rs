@@ -109,6 +109,9 @@ struct AbortInner {
 ///
 /// This function is a convenient (but less flexible) alternative to calling
 /// `AbortHandle::new` and `Abortable::new` manually.
+///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
 pub fn abortable<Fut>(future: Fut) -> (Abortable<Fut>, AbortHandle)
     where Fut: Future
 {

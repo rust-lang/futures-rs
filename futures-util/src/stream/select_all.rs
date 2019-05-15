@@ -110,6 +110,9 @@ impl<St: Stream + Unpin> FusedStream for SelectAll<St> {
 ///
 /// Note that the returned set can also be used to dynamically push more
 /// futures into the set as they become available.
+///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
 pub fn select_all<I>(streams: I) -> SelectAll<I::Item>
     where I: IntoIterator,
           I::Item: Stream + Unpin

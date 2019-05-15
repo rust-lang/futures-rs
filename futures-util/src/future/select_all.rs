@@ -20,6 +20,9 @@ impl<Fut: Unpin> Unpin for SelectAll<Fut> {}
 /// completion the item resolved will be returned, along with the index of the
 /// future that was ready and the list of all the remaining futures.
 ///
+/// This function is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
+///
 /// # Panics
 ///
 /// This function will panic if the iterator specified contains no items.

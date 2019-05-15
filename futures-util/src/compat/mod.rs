@@ -1,4 +1,7 @@
 //! Futures 0.1 / 0.3 shims
+//!
+//! This module is only available when the `compat` feature of this
+//! library is activated.
 
 #![allow(missing_debug_implementations)]
 

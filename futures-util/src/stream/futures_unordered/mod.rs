@@ -1,4 +1,7 @@
 //! An unbounded set of futures.
+//!
+//! This module is only available when the `std` or `alloc` feature of this
+//! library is activated, and it is activated by default.
 
 use crate::task::{AtomicWaker};
 use futures_core::future::{Future, FutureObj, LocalFutureObj};
@@ -53,6 +56,9 @@ const TERMINATED_SENTINEL_LENGTH: usize = usize::max_value();
 /// Note that you can create a ready-made [`FuturesUnordered`] via the
 /// [`collect`](Iterator::collect) method, or you can start with an empty set
 /// with the [`FuturesUnordered::new`] constructor.
+///
+/// This type is only available when the `std` or `alloc` feature of this
+/// library is activated, and it is activated by default.
 #[must_use = "streams do nothing unless polled"]
 pub struct FuturesUnordered<Fut> {
     ready_to_run_queue: Arc<ReadyToRunQueue<Fut>>,
