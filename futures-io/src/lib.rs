@@ -266,6 +266,13 @@ mod if_std {
         /// # Errors
         ///
         /// Seeking to a negative offset is considered an error.
+        ///
+        /// # Implementation
+        ///
+        /// This function may not return errors of kind `WouldBlock` or
+        /// `Interrupted`.  Implementations must convert `WouldBlock` into
+        /// `Poll::Pending` and either internally retry or convert
+        /// `Interrupted` into another error kind.
         fn poll_seek(self: Pin<&mut Self>, cx: &mut Context<'_>, pos: SeekFrom)
             -> Poll<Result<u64>>;
     }
