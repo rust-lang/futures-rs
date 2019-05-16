@@ -3,7 +3,9 @@
 //! This module contains a number of functions for working with `Future`s,
 //! including the `FutureExt` trait which adds methods to `Future` types.
 
+use core::pin::Pin;
 use futures_core::future::TryFuture;
+use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
@@ -425,5 +427,16 @@ pub trait TryFutureExt: TryFuture {
         where Self: Sized,
     {
         IntoFuture::new(self)
+    }
+
+    /// A convenience method for calling [`TryFuture::try_poll`] on [`Unpin`]
+    /// future types.
+    fn try_poll_unpin(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Self::Ok, Self::Error>>
+    where Self: Unpin,
+    {
+        Pin::new(self).try_poll(cx)
     }
 }
