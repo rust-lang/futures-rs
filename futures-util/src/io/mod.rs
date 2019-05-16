@@ -40,6 +40,9 @@ pub use self::lines::Lines;
 mod read;
 pub use self::read::Read;
 
+mod read_vectored;
+pub use self::read_vectored::ReadVectored;
+
 mod read_exact;
 pub use self::read_exact::ReadExact;
 
@@ -63,6 +66,12 @@ pub use self::split::{ReadHalf, WriteHalf};
 
 mod window;
 pub use self::window::Window;
+
+mod write;
+pub use self::write::Write;
+
+mod write_vectored;
+pub use self::write_vectored::WriteVectored;
 
 mod write_all;
 pub use self::write_all::WriteAll;
@@ -134,6 +143,17 @@ pub trait AsyncReadExt: AsyncRead {
         where Self: Unpin,
     {
         Read::new(self, buf)
+    }
+
+    /// Creates a future which will read from the `AsyncRead` into `bufs` using vectored
+    /// IO operations.
+    ///
+    /// The returned future will resolve to the number of bytes read once the read
+    /// operation is completed.
+    fn read_vectored<'a>(&'a mut self, bufs: &'a mut [IoSliceMut<'a>]) -> ReadVectored<'a, Self>
+        where Self: Unpin,
+    {
+        ReadVectored::new(self, bufs)
     }
 
     /// Creates a future which will read exactly enough bytes to fill `buf`,
@@ -302,6 +322,27 @@ pub trait AsyncWriteExt: AsyncWrite {
         where Self: Unpin,
     {
         Close::new(self)
+    }
+
+    /// Creates a future which will write bytes from `buf` into the object.
+    ///
+    /// The returned future will resolve to the number of bytes written once the write
+    /// operation is completed.
+    fn write<'a>(&'a mut self, buf: &'a [u8]) -> Write<'a, Self>
+        where Self: Unpin,
+    {
+        Write::new(self, buf)
+    }
+
+    /// Creates a future which will write bytes from `bufs` into the object using vectored
+    /// IO operations.
+    ///
+    /// The returned future will resolve to the number of bytes written once the write
+    /// operation is completed.
+    fn write_vectored<'a>(&'a mut self, bufs: &'a [IoSlice<'a>]) -> WriteVectored<'a, Self>
+        where Self: Unpin,
+    {
+        WriteVectored::new(self, bufs)
     }
 
     /// Write data into this object.
