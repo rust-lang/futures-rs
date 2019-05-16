@@ -43,10 +43,10 @@ impl<R: AsyncRead> AsyncRead for ReadHalf<R> {
         lock_and_then(&self.handle, cx, |l, cx| l.poll_read(cx, buf))
     }
 
-    fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
+    fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
         -> Poll<io::Result<usize>>
     {
-        lock_and_then(&self.handle, cx, |l, cx| l.poll_read_vectored(cx, vec))
+        lock_and_then(&self.handle, cx, |l, cx| l.poll_read_vectored(cx, bufs))
     }
 }
 

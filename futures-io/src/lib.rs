@@ -138,13 +138,13 @@ mod if_std {
         /// `Interrupted`.  Implementations must convert `WouldBlock` into
         /// `Poll::Pending` and either internally retry or convert
         /// `Interrupted` into another error kind.
-        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
+        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
             -> Poll<Result<usize>>
         {
-            if let Some(ref mut first_iovec) = vec.get_mut(0) {
+            if let Some(ref mut first_iovec) = bufs.get_mut(0) {
                 self.poll_read(cx, first_iovec)
             } else {
-                // `vec` is empty.
+                // `bufs` is empty.
                 Poll::Ready(Ok(0))
             }
         }
@@ -346,10 +346,10 @@ mod if_std {
                 Pin::new(&mut **self).poll_read(cx, buf)
             }
 
-            fn poll_read_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
+            fn poll_read_vectored(mut self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
                 -> Poll<Result<usize>>
             {
-                Pin::new(&mut **self).poll_read_vectored(cx, vec)
+                Pin::new(&mut **self).poll_read_vectored(cx, bufs)
             }
         }
     }
@@ -377,10 +377,10 @@ mod if_std {
             Pin::get_mut(self).as_mut().poll_read(cx, buf)
         }
 
-        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
+        fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_read_vectored(cx, vec)
+            Pin::get_mut(self).as_mut().poll_read_vectored(cx, bufs)
         }
     }
 
@@ -398,10 +398,10 @@ mod if_std {
                 Poll::Ready(StdIo::Read::read(&mut *self, buf))
             }
 
-            fn poll_read_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, vec: &mut [IoSliceMut<'_>])
+            fn poll_read_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
                 -> Poll<Result<usize>>
             {
-                Poll::Ready(StdIo::Read::read_vectored(&mut *self, vec))
+                Poll::Ready(StdIo::Read::read_vectored(&mut *self, bufs))
             }
         }
     }
