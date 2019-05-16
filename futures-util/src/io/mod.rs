@@ -25,8 +25,8 @@ pub use self::allow_std::AllowStdIo;
 mod buf_reader;
 pub use self::buf_reader::BufReader;
 
-// mod buf_writer;
-// pub use self::buf_writer::BufWriter;
+mod buf_writer;
+pub use self::buf_writer::BufWriter;
 
 mod copy_into;
 pub use self::copy_into::CopyInto;
