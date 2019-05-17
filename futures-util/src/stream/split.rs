@@ -118,7 +118,7 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
     }
 }
 
-pub fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitSink<S, Item>, SplitStream<S>) {
+pub(super) fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitSink<S, Item>, SplitStream<S>) {
     let (a, b) = BiLock::new(s);
     let read = SplitStream(a);
     let write = SplitSink(b);

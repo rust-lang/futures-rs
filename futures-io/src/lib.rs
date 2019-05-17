@@ -10,7 +10,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
+#![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 #![warn(clippy::all)]
 
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/futures_io")]
@@ -27,12 +27,16 @@ mod if_std {
 
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
-    pub use self::StdIo::Error as Error;
-    pub use self::StdIo::ErrorKind as ErrorKind;
-    pub use self::StdIo::Result as Result;
-    pub use self::StdIo::IoSlice as IoSlice;
-    pub use self::StdIo::IoSliceMut as IoSliceMut;
-    pub use self::StdIo::SeekFrom as SeekFrom;
+    #[allow(clippy::useless_attribute)] // https://github.com/rust-lang/rust-clippy/issues/4106
+    #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
+    pub use self::StdIo::{
+        Error as Error,
+        ErrorKind as ErrorKind,
+        Result as Result,
+        IoSlice as IoSlice,
+        IoSliceMut as IoSliceMut,
+        SeekFrom as SeekFrom,
+    };
 
     /// A type used to conditionally initialize buffers passed to `AsyncRead`
     /// methods, modeled after `std`.

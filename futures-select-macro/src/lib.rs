@@ -1,7 +1,7 @@
 //! The futures-rs `select! macro implementation.
 
 #![recursion_limit="128"]
-#![warn(rust_2018_idioms)]
+#![warn(rust_2018_idioms, unreachable_pub)]
 #![warn(clippy::all)]
 
 extern crate proc_macro;
