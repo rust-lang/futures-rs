@@ -758,6 +758,10 @@ impl<T> PartialEq for SenderInner<T> {
     }
 }
 
+impl<T> Eq for Sender<T> {}
+impl<T> Eq for UnboundedSender<T> {}
+impl<T> Eq for SenderInner<T> {}
+
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
         Sender(self.0.clone())
