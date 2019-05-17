@@ -31,7 +31,7 @@ fn lock_and_then<T, U, E, F>(
     }
 }
 
-pub fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {
+pub(super) fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {
     let (a, b) = BiLock::new(t);
     (ReadHalf { handle: a }, WriteHalf { handle: b })
 }

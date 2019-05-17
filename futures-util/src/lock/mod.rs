@@ -5,6 +5,7 @@ mod mutex;
 #[cfg(feature = "std")]
 pub use self::mutex::{Mutex, MutexLockFuture, MutexGuard};
 
+#[allow(unreachable_pub)]
 mod bilock;
 #[cfg(any(test, feature = "bench"))]
 pub use self::bilock::{BiLock, BiLockAcquire, BiLockGuard, ReuniteError};

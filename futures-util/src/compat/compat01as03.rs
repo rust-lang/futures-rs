@@ -12,6 +12,8 @@ use std::task::Context;
 use futures_sink::Sink as Sink03;
 
 #[cfg(feature = "io-compat")]
+#[allow(clippy::useless_attribute)] // https://github.com/rust-lang/rust-clippy/issues/4106
+#[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
 pub use io::{AsyncRead01CompatExt, AsyncWrite01CompatExt};
 
 /// Converts a futures 0.1 Future, Stream, AsyncRead, or AsyncWrite

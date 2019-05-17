@@ -297,7 +297,7 @@ struct WakeHandle {
 impl Task {
     /// Actually run the task (invoking `poll` on the future) on the current
     /// thread.
-    pub fn run(self) {
+    fn run(self) {
         let Task { mut future, wake_handle, mut exec } = self;
         let waker = waker_ref(&wake_handle);
         let mut cx = Context::from_waker(&waker);

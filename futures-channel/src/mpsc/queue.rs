@@ -41,7 +41,7 @@
 // NOTE: this implementation is lifted from the standard library and only
 //       slightly modified
 
-pub use self::PopResult::*;
+pub(super) use self::PopResult::*;
 use std::prelude::v1::*;
 
 use std::thread;
@@ -50,7 +50,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 /// A result of the `pop` function.
-pub enum PopResult<T> {
+pub(super) enum PopResult<T> {
     /// Some data has been popped
     Data(T),
     /// The queue is empty
@@ -72,7 +72,7 @@ struct Node<T> {
 /// may be safely shared so long as it is guaranteed that there is only one
 /// popper at a time (many pushers are allowed).
 #[derive(Debug)]
-pub struct Queue<T> {
+pub(super) struct Queue<T> {
     head: AtomicPtr<Node<T>>,
     tail: UnsafeCell<*mut Node<T>>,
 }
@@ -92,7 +92,7 @@ impl<T> Node<T> {
 impl<T> Queue<T> {
     /// Creates a new queue that is safe to share among multiple producers and
     /// one consumer.
-    pub fn new() -> Queue<T> {
+    pub(super) fn new() -> Queue<T> {
         let stub = unsafe { Node::new(None) };
         Queue {
             head: AtomicPtr::new(stub),
@@ -101,7 +101,7 @@ impl<T> Queue<T> {
     }
 
     /// Pushes a new value onto this queue.
-    pub fn push(&self, t: T) {
+    pub(super) fn push(&self, t: T) {
         unsafe {
             let n = Node::new(Some(t));
             let prev = self.head.swap(n, Ordering::AcqRel);
@@ -121,7 +121,7 @@ impl<T> Queue<T> {
     /// it does not currently have access to it at this time.
     ///
     /// This function is unsafe because only one thread can call it at a time.
-    pub unsafe fn pop(&self) -> PopResult<T> {
+    pub(super) unsafe fn pop(&self) -> PopResult<T> {
         let tail = *self.tail.get();
         let next = (*tail).next.load(Ordering::Acquire);
 
@@ -141,7 +141,7 @@ impl<T> Queue<T> {
     /// queue state instead of returning `Inconsistent`.
     ///
     /// This function is unsafe because only one thread can call it at a time.
-    pub unsafe fn pop_spin(&self) -> Option<T> {
+    pub(super) unsafe fn pop_spin(&self) -> Option<T> {
         loop {
             match self.pop() {
                 Empty => return None,
