@@ -740,6 +740,24 @@ impl<T> UnboundedSender<T> {
     }
 }
 
+impl<T> PartialEq for Sender<T> {
+    fn eq(&self, other: &Sender<T>) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T> PartialEq for UnboundedSender<T> {
+    fn eq(&self, other: &UnboundedSender<T>) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<T> PartialEq for SenderInner<T> {
+    fn eq(&self, other: &SenderInner<T>) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+}
+
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
         Sender(self.0.clone())

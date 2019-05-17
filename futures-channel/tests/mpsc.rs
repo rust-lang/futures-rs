@@ -521,3 +521,23 @@ fn try_send_recv() {
     rx.try_next().unwrap();
     rx.try_next().unwrap_err(); // should be empty
 }
+
+#[test]
+fn partial_eq() {
+    let (mut txa1, _) = mpsc::channel::<i32>(1);
+    let txa2 = txa1.clone();
+
+    let (mut txb1, _) = mpsc::channel::<i32>(1);
+    let txb2 = txb1.clone();
+
+    assert_eq!(txa1, txa2);
+    assert_eq!(txb1, txb2);
+
+    assert_ne!(txa1, txb1);
+
+    txa1.disconnect();
+    txb1.close_channel();
+
+    assert_ne!(txa1, txa2);
+    assert_eq!(txb1, txb2);
+}
