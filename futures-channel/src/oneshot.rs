@@ -387,11 +387,7 @@ impl fmt::Display for Canceled {
     }
 }
 
-impl Error for Canceled {
-    fn description(&self) -> &str {
-        "oneshot canceled"
-    }
-}
+impl Error for Canceled {}
 
 impl<T> Receiver<T> {
     /// Gracefully close this receiver, preventing any subsequent attempts to

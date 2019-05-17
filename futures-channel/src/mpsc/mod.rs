@@ -178,15 +178,7 @@ impl fmt::Display for SendError {
     }
 }
 
-impl Error for SendError {
-    fn description(&self) -> &str {
-        if self.is_full() {
-            "send failed because channel is full"
-        } else {
-            "send failed because receiver is gone"
-        }
-    }
-}
+impl Error for SendError {}
 
 impl SendError {
     /// Returns true if this error is a result of the channel being full.
@@ -224,15 +216,7 @@ impl<T> fmt::Display for TrySendError<T> {
     }
 }
 
-impl<T: Any> Error for TrySendError<T> {
-    fn description(&self) -> &str {
-        if self.is_full() {
-            "send failed because channel is full"
-        } else {
-            "send failed because receiver is gone"
-        }
-    }
-}
+impl<T: Any> Error for TrySendError<T> {}
 
 impl<T> TrySendError<T> {
     /// Returns true if this error is a result of the channel being full.
@@ -265,15 +249,11 @@ impl fmt::Debug for TryRecvError {
 
 impl fmt::Display for TryRecvError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.description())
+        write!(fmt, "receiver channel is empty")
     }
 }
 
-impl Error for TryRecvError {
-    fn description(&self) -> &str {
-        "receiver channel is empty"
-    }
-}
+impl Error for TryRecvError {}
 
 #[derive(Debug)]
 struct Inner<T> {
