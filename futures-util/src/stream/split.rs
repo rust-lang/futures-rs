@@ -144,8 +144,4 @@ impl<T: Sink<Item>, Item> fmt::Display for ReuniteError<T, Item> {
 }
 
 #[cfg(feature = "std")]
-impl<T: Any + Sink<Item>, Item> Error for ReuniteError<T, Item> {
-    fn description(&self) -> &str {
-        "tried to reunite a SplitStream and SplitSink that don't form a pair"
-    }
-}
+impl<T: Any + Sink<Item>, Item> Error for ReuniteError<T, Item> {}

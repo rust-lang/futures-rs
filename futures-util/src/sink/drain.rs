@@ -75,8 +75,7 @@ impl fmt::Display for DrainError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for DrainError {
-}
+impl std::error::Error for DrainError {}
 
 impl DrainError {
     /// Convert this drain error into any type

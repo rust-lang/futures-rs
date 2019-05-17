@@ -213,11 +213,7 @@ impl<T> fmt::Display for ReuniteError<T> {
 }
 
 #[cfg(feature = "std")]
-impl<T: Any> Error for ReuniteError<T> {
-    fn description(&self) -> &str {
-        "tried to reunite two BiLocks that don't form a pair"
-    }
-}
+impl<T: Any> Error for ReuniteError<T> {}
 
 /// Returned RAII guard from the `poll_lock` method.
 ///
