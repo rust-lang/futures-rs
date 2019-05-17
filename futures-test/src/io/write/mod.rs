@@ -5,6 +5,9 @@ use futures_io::AsyncWrite;
 mod interleave_pending_write;
 pub use self::interleave_pending_write::InterleavePendingWrite;
 
+mod limited_write;
+pub use self::limited_write::LimitedWrite;
+
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {
     /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
@@ -47,6 +50,40 @@ pub trait AsyncWriteTestExt: AsyncWrite {
         Self: Sized,
     {
         InterleavePendingWrite::new(self)
+    }
+
+    /// Limit the number of bytes allowed to be written on each call to `poll_write`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// use futures::task::Poll;
+    /// use futures::io::AsyncWrite;
+    /// use futures_test::task::noop_context;
+    /// use futures_test::io::AsyncWriteTestExt;
+    /// use pin_utils::pin_mut;
+    ///
+    /// let writer = std::io::Cursor::new([0u8; 4]).limited_write(2);
+    /// pin_mut!(writer);
+    ///
+    /// let mut cx = noop_context();
+    ///
+    /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[1, 2])?, Poll::Ready(2));
+    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 0, 0]);
+    /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[3])?, Poll::Ready(1));
+    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 3, 0]);
+    /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[4, 5])?, Poll::Ready(1));
+    /// assert_eq!(writer.get_ref().get_ref(), &[1, 2, 3, 4]);
+    /// assert_eq!(writer.as_mut().poll_write(&mut cx, &[5])?, Poll::Ready(0));
+    ///
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    fn limited_write(self, limit: usize) -> LimitedWrite<Self>
+    where
+        Self: Sized,
+    {
+        LimitedWrite::new(self, limit)
     }
 }
 
