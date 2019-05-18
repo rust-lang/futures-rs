@@ -567,6 +567,11 @@ impl<T> SenderInner<T> {
         self.poll_unparked(Some(cx)).map(Ok)
     }
 
+    /// Returns whether the senders send to the same receiver.
+    fn same_receiver(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+
     /// Returns whether this channel is closed without needing a context.
     fn is_closed(&self) -> bool {
         !decode_state(self.inner.state.load(SeqCst)).is_open
@@ -673,6 +678,14 @@ impl<T> Sender<T> {
     pub fn disconnect(&mut self) {
         self.0 = None;
     }
+
+    /// Returns whether the senders send to the same receiver.
+    pub fn same_receiver(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Some(inner), Some(other)) => inner.same_receiver(other),
+            _ => false,
+        }
+    }
 }
 
 impl<T> UnboundedSender<T> {
@@ -738,29 +751,15 @@ impl<T> UnboundedSender<T> {
     pub fn unbounded_send(&self, msg: T) -> Result<(), TrySendError<T>> {
         self.do_send_nb(msg)
     }
-}
 
-impl<T> PartialEq for Sender<T> {
-    fn eq(&self, other: &Sender<T>) -> bool {
-        self.0 == other.0
+    /// Returns whether the senders send to the same receiver.
+    pub fn same_receiver(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Some(inner), Some(other)) => inner.same_receiver(other),
+            _ => false,
+        }
     }
 }
-
-impl<T> PartialEq for UnboundedSender<T> {
-    fn eq(&self, other: &UnboundedSender<T>) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<T> PartialEq for SenderInner<T> {
-    fn eq(&self, other: &SenderInner<T>) -> bool {
-        Arc::ptr_eq(&self.inner, &other.inner)
-    }
-}
-
-impl<T> Eq for Sender<T> {}
-impl<T> Eq for UnboundedSender<T> {}
-impl<T> Eq for SenderInner<T> {}
 
 impl<T> Clone for Sender<T> {
     fn clone(&self) -> Sender<T> {
