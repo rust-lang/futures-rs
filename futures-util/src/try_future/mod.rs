@@ -5,6 +5,7 @@
 
 use core::pin::Pin;
 use futures_core::future::TryFuture;
+use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
 
@@ -50,6 +51,9 @@ pub use self::map_ok::MapOk;
 
 mod or_else;
 pub use self::or_else::OrElse;
+
+mod try_flatten_stream;
+pub use self::try_flatten_stream::TryFlattenStream;
 
 mod unwrap_or_else;
 pub use self::unwrap_or_else::UnwrapOrElse;
@@ -316,6 +320,39 @@ pub trait TryFutureExt: TryFuture {
               Self: Sized,
     {
         OrElse::new(self, f)
+    }
+
+    /// Flatten the execution of this future when the successful result of this
+    /// future is a stream.
+    ///
+    /// This can be useful when stream initialization is deferred, and it is
+    /// convenient to work with that stream as if stream was available at the
+    /// call site.
+    ///
+    /// Note that this function consumes this future and returns a wrapped
+    /// version of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future::{self, TryFutureExt};
+    /// use futures::stream::{self, TryStreamExt};
+    ///
+    /// let stream_items = vec![17, 18, 19].into_iter().map(Ok);
+    /// let future_of_a_stream = future::ok::<_, ()>(stream::iter(stream_items));
+    ///
+    /// let stream = future_of_a_stream.try_flatten_stream();
+    /// let list = stream.try_collect::<Vec<_>>().await;
+    /// assert_eq!(list, Ok(vec![17, 18, 19]));
+    /// # });
+    /// ```
+    fn try_flatten_stream(self) -> TryFlattenStream<Self>
+        where Self::Ok: TryStream<Error = Self::Error>,
+              Self: Sized
+    {
+        TryFlattenStream::new(self)
     }
 
     /// Unwraps this future's ouput, producing a future with this future's

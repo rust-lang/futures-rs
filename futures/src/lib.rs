@@ -251,7 +251,7 @@ pub mod future {
 
         TryFutureExt,
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
-        UnwrapOrElse,
+        TryFlattenStream, UnwrapOrElse,
     };
 
     #[cfg(feature = "never-type")]
