@@ -11,7 +11,7 @@ pub struct TryFlattenStream<Fut>
 where
     Fut: TryFuture,
 {
-    state: State<Fut>
+    state: State<Fut, Fut::Ok>,
 }
 
 impl<Fut: TryFuture> TryFlattenStream<Fut>
@@ -19,7 +19,7 @@ where
     Fut: TryFuture,
     Fut::Ok: TryStream<Error = Fut::Error>,
 {
-    unsafe_pinned!(state: State<Fut>);
+    unsafe_pinned!(state: State<Fut, Fut::Ok>);
 
     pub(super) fn new(future: Fut) -> Self {
         Self {
@@ -41,13 +41,28 @@ where
 }
 
 #[derive(Debug)]
-enum State<Fut: TryFuture> {
+enum State<Fut, St> {
     // future is not yet called or called and not ready
     Future(Fut),
     // future resolved to Stream
-    Stream(Fut::Ok),
+    Stream(St),
     // future resolved to error
     Done,
+}
+
+impl<Fut, St> State<Fut, St> {
+    fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> State<Pin<&'a mut Fut>, Pin<&'a mut St>> {
+        // safety: data is never moved via the resulting &mut reference
+        match unsafe { Pin::get_unchecked_mut(self) } {
+            // safety: the future we're re-pinning here will never be moved;
+            // it will just be polled, then dropped in place
+            State::Future(f) => State::Future(unsafe { Pin::new_unchecked(f) }),
+            // safety: the stream we're repinning here will never be moved;
+            // it will just be polled, then dropped in place
+            State::Stream(s) => State::Stream(unsafe { Pin::new_unchecked(s) }),
+            State::Done => State::Done,
+        }
+    }
 }
 
 impl<Fut> FusedStream for TryFlattenStream<Fut>
@@ -73,12 +88,9 @@ where
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
-            // safety: data is never moved via the resulting &mut reference
-            match &mut unsafe { Pin::get_unchecked_mut(self.as_mut()) }.state {
+            match self.as_mut().state().get_pin_mut() {
                 State::Future(f) => {
-                    // safety: the future we're re-pinning here will never be moved;
-                    // it will just be polled, then dropped in place
-                    match ready!(unsafe { Pin::new_unchecked(f) }.try_poll(cx)) {
+                    match ready!(f.try_poll(cx)) {
                         Ok(stream) => {
                             // Future resolved to stream.
                             // We do not return, but poll that
@@ -93,11 +105,7 @@ where
                         }
                     }
                 }
-                State::Stream(s) => {
-                    // safety: the stream we're repinning here will never be moved;
-                    // it will just be polled, then dropped in place
-                    return unsafe { Pin::new_unchecked(s) }.try_poll_next(cx);
-                }
+                State::Stream(s) => return s.try_poll_next(cx),
                 State::Done => return Poll::Ready(None),
             }
         }
