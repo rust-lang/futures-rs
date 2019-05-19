@@ -30,3 +30,8 @@ pub use crate::thread_pool::{ThreadPool, ThreadPoolBuilder};
 mod enter;
 #[cfg(feature = "std")]
 pub use crate::enter::{enter, Enter, EnterError};
+
+#[cfg(feature = "std")]
+mod park;
+#[cfg(feature = "std")]
+pub use crate::park::{Park, ParkDuration};
