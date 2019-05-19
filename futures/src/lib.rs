@@ -247,6 +247,7 @@ pub mod future {
     pub use futures_util::try_future::{
         try_join, try_join3, try_join4, try_join5,
         TryJoin, TryJoin3, TryJoin4, TryJoin5,
+        try_select, TrySelect,
 
         TryFutureExt,
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
