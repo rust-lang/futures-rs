@@ -21,9 +21,8 @@ mod try_join_all;
 #[cfg(feature = "alloc")]
 pub use self::try_join_all::{try_join_all, TryJoinAll};
 
-// TODO
-// mod try_select;
-// pub use self::try_select::{try_select, TrySelect};
+mod try_select;
+pub use self::try_select::{try_select, TrySelect};
 
 #[cfg(feature = "alloc")]
 mod select_ok;
@@ -318,50 +317,6 @@ pub trait TryFutureExt: TryFuture {
     {
         OrElse::new(self, f)
     }
-
-    /* TODO
-    /// Waits for either one of two differently-typed futures to complete.
-    ///
-    /// This function will return a new future which awaits for either this or
-    /// the `other` future to complete. The returned future will finish with
-    /// both the value resolved and a future representing the completion of the
-    /// other work.
-    ///
-    /// Note that this function consumes the receiving futures and returns a
-    /// wrapped version of them.
-    ///
-    /// Also note that if both this and the second future have the same
-    /// success/error type you can use the `Either::split` method to
-    /// conveniently extract out the value at the end.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use futures::future::{self, Either};
-    ///
-    /// // A poor-man's join implemented on top of select
-    ///
-    /// fn join<A, B, E>(a: A, b: B) -> Box<Future<Item=(A::Item, B::Item), Error=E>>
-    ///     where A: Future<Error = E> + 'static,
-    ///           B: Future<Error = E> + 'static,
-    ///           E: 'static,
-    /// {
-    ///     Box::new(a.select(b).then(|res| -> Box<Future<Item=_, Error=_>> {
-    ///         match res {
-    ///             Ok(Either::Left((x, b))) => Box::new(b.map(move |y| (x, y))),
-    ///             Ok(Either::Right((y, a))) => Box::new(a.map(move |x| (x, y))),
-    ///             Err(Either::Left((e, _))) => Box::new(future::err(e)),
-    ///             Err(Either::Right((e, _))) => Box::new(future::err(e)),
-    ///         }
-    ///     }))
-    /// }}
-    /// ```
-    fn select<B>(self, other: B) -> Select<Self, B::Future>
-        where B: IntoFuture, Self: Sized
-    {
-        select::new(self, other.into_future())
-    }
-*/
 
     /// Unwraps this future's ouput, producing a future with this future's
     /// [`Ok`](TryFuture::Ok) type as its
