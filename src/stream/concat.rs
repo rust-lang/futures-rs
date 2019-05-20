@@ -9,7 +9,7 @@ use stream::Stream;
 /// A stream combinator to concatenate the results of a stream into the first
 /// yielded item.
 ///
-/// This structure is produced by the `Stream::concat` method.
+/// This structure is produced by the `Stream::concat2` method.
 #[must_use = "streams do nothing unless polled"]
 pub struct Concat2<S>
     where S: Stream,
