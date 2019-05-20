@@ -1,10 +1,9 @@
 #![feature(async_await)]
 
-use futures::future;
-use futures::FutureExt;
+use futures::executor::block_on_stream;
+use futures::future::{self, FutureExt};
+use futures::stream::{self, FusedStream, SelectAll, StreamExt};
 use futures::task::Poll;
-use futures::stream::FusedStream;
-use futures::stream::{SelectAll, StreamExt};
 use futures_test::task::noop_context;
 
 #[test]
@@ -30,4 +29,22 @@ fn is_terminated() {
     assert_eq!(tasks.is_terminated(), false);
     assert_eq!(tasks.poll_next_unpin(&mut cx), Poll::Ready(None));
     assert_eq!(tasks.is_terminated(), true);
+}
+
+#[test]
+fn issue_1626() {
+    let a = stream::iter(0..=2);
+    let b = stream::iter(10..=14);
+
+    let mut s = block_on_stream(stream::select_all(vec![a, b]));
+
+    assert_eq!(s.next(), Some(0));
+    assert_eq!(s.next(), Some(10));
+    assert_eq!(s.next(), Some(1));
+    assert_eq!(s.next(), Some(11));
+    assert_eq!(s.next(), Some(2));
+    assert_eq!(s.next(), Some(12));
+    assert_eq!(s.next(), Some(13));
+    assert_eq!(s.next(), Some(14));
+    assert_eq!(s.next(), None);
 }
