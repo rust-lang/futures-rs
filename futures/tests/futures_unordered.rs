@@ -1,6 +1,6 @@
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, FutureExt};
+use futures::future::{self, join, Future, FutureExt};
 use futures::stream::{StreamExt, FuturesUnordered};
 use futures::task::Poll;
 use futures_test::{assert_stream_done, assert_stream_next};
@@ -57,7 +57,6 @@ fn from_iterator() {
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);
 }
 
-/* ToDo: This requires FutureExt::select to be implemented
 #[test]
 fn finished_future() {
     let (_a_tx, a_rx) = oneshot::channel::<i32>();
@@ -65,22 +64,21 @@ fn finished_future() {
     let (c_tx, c_rx) = oneshot::channel::<i32>();
 
     let mut stream = vec![
-        a_rx.boxed(),
-        b_rx.select(c_rx).boxed(),
+        Box::new(a_rx) as Box<dyn Future<Output = Result<_, _>> + Unpin>,
+        Box::new(future::select(b_rx, c_rx).map(|e| e.factor_first().0)) as _,
     ].into_iter().collect::<FuturesUnordered<_>>();
 
-    support::with_noop_waker_context(f)(|cx| {
-        for _ in 0..10 {
-            assert!(stream.poll_next_unpin(cx).is_pending());
-        }
+    let cx = &mut noop_context();
+    for _ in 0..10 {
+        assert!(stream.poll_next_unpin(cx).is_pending());
+    }
 
-        b_tx.send(12).unwrap();
-        assert!(stream.poll_next_unpin(cx).is_ready());
-        c_tx.send(3).unwrap();
-        assert!(stream.poll_next_unpin(cx).is_pending());
-        assert!(stream.poll_next_unpin(cx).is_pending());
-    })
-}*/
+    b_tx.send(12).unwrap();
+    c_tx.send(3).unwrap();
+    assert!(stream.poll_next_unpin(cx).is_ready());
+    assert!(stream.poll_next_unpin(cx).is_pending());
+    assert!(stream.poll_next_unpin(cx).is_pending());
+}
 
 #[test]
 fn iter_mut_cancel() {

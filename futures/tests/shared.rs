@@ -1,6 +1,6 @@
 use futures::channel::oneshot;
 use futures::executor::{block_on, LocalPool};
-use futures::future::{self, FutureExt, LocalFutureObj};
+use futures::future::{self, FutureExt, TryFutureExt, LocalFutureObj};
 use futures::task::LocalSpawn;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -41,7 +41,6 @@ fn many_threads() {
     send_shared_oneshot_and_wait_on_multiple_threads(1000);
 }
 
-/* ToDo: This requires FutureExt::select to be implemented
 #[test]
 fn drop_on_one_task_ok() {
     let (tx, rx) = oneshot::channel::<u32>();
@@ -51,14 +50,14 @@ fn drop_on_one_task_ok() {
     let (tx2, rx2) = oneshot::channel::<u32>();
 
     let t1 = thread::spawn(|| {
-        let f = f1.map_err(|_| ()).map(|x| *x).select(rx2.map_err(|_| ()));
+        let f = future::try_select(f1.map_err(|_| ()), rx2.map_err(|_| ()));
         drop(block_on(f));
     });
 
     let (tx3, rx3) = oneshot::channel::<u32>();
 
     let t2 = thread::spawn(|| {
-        let _ = block_on(f2.map(|x| tx3.send(*x).unwrap()).map_err(|_| ()));
+        let _ = block_on(f2.map_ok(|x| tx3.send(x).unwrap()).map_err(|_| ()));
     });
 
     tx2.send(11).unwrap(); // cancel `f1`
@@ -68,7 +67,7 @@ fn drop_on_one_task_ok() {
     let result = block_on(rx3).unwrap();
     assert_eq!(result, 42);
     t2.join().unwrap();
-}*/
+}
 
 #[test]
 fn drop_in_poll() {

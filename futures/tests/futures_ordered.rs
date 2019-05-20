@@ -1,8 +1,9 @@
 use futures::channel::oneshot;
 use futures::executor::{block_on, block_on_stream};
-use futures::future::{self, join, FutureExt};
+use futures::future::{self, join, Future, FutureExt, TryFutureExt};
 use futures::stream::{StreamExt, FuturesOrdered};
 use futures_test::task::noop_context;
+use std::any::Any;
 
 #[test]
 fn works_1() {
@@ -56,27 +57,27 @@ fn from_iterator() {
     assert_eq!(block_on(stream.collect::<Vec<_>>()), vec![1,2,3]);
 }
 
-/* ToDo: This requires FutureExt::select to be implemented
 #[test]
 fn queue_never_unblocked() {
-    let (_a_tx, a_rx) = oneshot::channel::<Box<Any+Send>>();
-    let (b_tx, b_rx) = oneshot::channel::<Box<Any+Send>>();
-    let (c_tx, c_rx) = oneshot::channel::<Box<Any+Send>>();
+    let (_a_tx, a_rx) = oneshot::channel::<Box<dyn Any + Send>>();
+    let (b_tx, b_rx) = oneshot::channel::<Box<dyn Any + Send>>();
+    let (c_tx, c_rx) = oneshot::channel::<Box<dyn Any + Send>>();
 
     let mut stream = vec![
-        Box::new(a_rx) as Box<Future<Item = _, Error = _>>,
-        Box::new(b_rx.select(c_rx).then(|res| Ok(Box::new(res) as Box<Any+Send>))) as _,
+        Box::new(a_rx) as Box<dyn Future<Output = _> + Unpin>,
+        Box::new(future::try_select(b_rx, c_rx)
+            .map_err(|e| e.factor_first().0)
+            .and_then(|e| future::ok(Box::new(e) as Box<dyn Any + Send>))) as _,
     ].into_iter().collect::<FuturesOrdered<_>>();
 
-    with_no_spawn_context(|cx| {
-        for _ in 0..10 {
-            assert!(stream.poll_next(cx).unwrap().is_pending());
-        }
+    let cx = &mut noop_context();
+    for _ in 0..10 {
+        assert!(stream.poll_next_unpin(cx).is_pending());
+    }
 
-        b_tx.send(Box::new(())).unwrap();
-        assert!(stream.poll_next(cx).unwrap().is_pending());
-        c_tx.send(Box::new(())).unwrap();
-        assert!(stream.poll_next(cx).unwrap().is_pending());
-        assert!(stream.poll_next(cx).unwrap().is_pending());
-    })
-}*/
+    b_tx.send(Box::new(())).unwrap();
+    assert!(stream.poll_next_unpin(cx).is_pending());
+    c_tx.send(Box::new(())).unwrap();
+    assert!(stream.poll_next_unpin(cx).is_pending());
+    assert!(stream.poll_next_unpin(cx).is_pending());
+}
