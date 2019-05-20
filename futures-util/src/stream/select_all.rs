@@ -77,20 +77,20 @@ impl<St: Stream + Unpin> Stream for SelectAll<St> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match self.inner.poll_next_unpin(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Some((Some(item), remaining))) => {
-                self.push(remaining);
-                Poll::Ready(Some(item))
+        loop {
+            match ready!(self.inner.poll_next_unpin(cx)) {
+                Some((Some(item), remaining)) => {
+                    self.push(remaining);
+                    return Poll::Ready(Some(item));
+                }
+                Some((None, _)) => {
+                    // `FuturesUnordered` thinks it isn't terminated
+                    // because it yielded a Some.
+                    // We do not return, but poll `FuturesUnordered`
+                    // in the next loop iteration.
+                }
+                None => return Poll::Ready(None),
             }
-            Poll::Ready(Some((None, _))) => {
-                // FuturesUnordered thinks it isn't terminated
-                // because it yielded a Some. Here we poll it
-                // so it can realize it is terminated.
-                let _ = self.inner.poll_next_unpin(cx);
-                Poll::Ready(None)
-            }
-            Poll::Ready(_) => Poll::Ready(None),
         }
     }
 }
