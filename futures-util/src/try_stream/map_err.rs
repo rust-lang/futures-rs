@@ -73,11 +73,10 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match self.as_mut().stream().try_poll_next(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(opt) =>
-                Poll::Ready(opt.map(|res| res.map_err(|e| self.as_mut().f()(e)))),
-        }
+        self.as_mut()
+            .stream()
+            .try_poll_next(cx)
+            .map(|opt| opt.map(|res| res.map_err(|e| self.as_mut().f()(e))))
     }
 }
 

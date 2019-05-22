@@ -47,12 +47,11 @@ impl<St, Fut, F> Future for TryForEach<St, Fut, F>
             }
             self.as_mut().future().set(None);
 
-            match ready!(self.as_mut().stream().try_poll_next(cx)) {
-                Some(Ok(e)) => {
+            match ready!(self.as_mut().stream().try_poll_next(cx)?) {
+                Some(e) => {
                     let future = (self.as_mut().f())(e);
                     self.as_mut().future().set(Some(future));
                 }
-                Some(Err(e)) => return Poll::Ready(Err(e)),
                 None => return Poll::Ready(Ok(())),
             }
         }

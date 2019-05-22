@@ -1,4 +1,4 @@
-use crate::stream::FuturesUnordered;
+use crate::stream::{FuturesUnordered, StreamExt};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
@@ -168,8 +168,8 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
         }
 
         loop {
-            match Pin::new(&mut this.in_progress_queue).poll_next(cx) {
-                Poll::Ready(Some(output)) => {
+            match ready!(this.in_progress_queue.poll_next_unpin(cx)) {
+                Some(output) => {
                     if output.index == this.next_outgoing_index {
                         this.next_outgoing_index += 1;
                         return Poll::Ready(Some(output.data));
@@ -177,8 +177,7 @@ impl<Fut: Future> Stream for FuturesOrdered<Fut> {
                         this.queued_outputs.push(output)
                     }
                 }
-                Poll::Ready(None) => return Poll::Ready(None),
-                Poll::Pending => return Poll::Pending,
+                None => return Poll::Ready(None),
             }
         }
     }

@@ -32,10 +32,7 @@ impl<S: Stream> Stream for SplitStream<S> {
     type Item = S::Item;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<S::Item>> {
-        match self.0.poll_lock(cx) {
-            Poll::Ready(mut inner) => inner.as_pin_mut().poll_next(cx),
-            Poll::Pending => Poll::Pending,
-        }
+        ready!(self.0.poll_lock(cx)).as_pin_mut().poll_next(cx)
     }
 }
 
@@ -87,34 +84,22 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
-        match this.lock.poll_lock(cx) {
-            Poll::Ready(mut inner) => {
-                if this.slot.is_some() {
-                    ready!(inner.as_pin_mut().poll_ready(cx))?;
-                    if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
-                        return Poll::Ready(Err(e));
-                    }
-                }
-                inner.as_pin_mut().poll_flush(cx)
-            }
-            Poll::Pending => Poll::Pending,
+        let mut inner = ready!(this.lock.poll_lock(cx));
+        if this.slot.is_some() {
+            ready!(inner.as_pin_mut().poll_ready(cx))?;
+            inner.as_pin_mut().start_send(this.slot.take().unwrap())?;
         }
+        inner.as_pin_mut().poll_flush(cx)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::SinkError>> {
         let this = &mut *self;
-        match this.lock.poll_lock(cx) {
-            Poll::Ready(mut inner) => {
-                if this.slot.is_some() {
-                    ready!(inner.as_pin_mut().poll_ready(cx))?;
-                    if let Err(e) = inner.as_pin_mut().start_send(this.slot.take().unwrap()) {
-                        return Poll::Ready(Err(e));
-                    }
-                }
-                inner.as_pin_mut().poll_close(cx)
-            }
-            Poll::Pending => Poll::Pending,
+        let mut inner = ready!(this.lock.poll_lock(cx));
+        if this.slot.is_some() {
+            ready!(inner.as_pin_mut().poll_ready(cx))?;
+            inner.as_pin_mut().start_send(this.slot.take().unwrap())?
         }
+        inner.as_pin_mut().poll_close(cx)
     }
 }
 

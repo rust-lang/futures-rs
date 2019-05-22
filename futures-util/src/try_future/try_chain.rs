@@ -48,10 +48,8 @@ impl<Fut1, Fut2, Data> TryChain<Fut1, Fut2, Data>
             let (output, data) = match this {
                 TryChain::First(fut1, data) => {
                     // Poll the first future
-                    match unsafe { Pin::new_unchecked(fut1) }.try_poll(cx) {
-                        Poll::Pending => return Poll::Pending,
-                        Poll::Ready(output) => (output, data.take().unwrap()),
-                    }
+                    let output = ready!(unsafe { Pin::new_unchecked(fut1) }.try_poll(cx));
+                    (output, data.take().unwrap())
                 }
                 TryChain::Second(fut2) => {
                     // Poll the second future

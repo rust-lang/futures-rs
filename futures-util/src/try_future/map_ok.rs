@@ -39,13 +39,13 @@ impl<Fut, F, T> Future for MapOk<Fut, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        match self.as_mut().future().try_poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(result) => {
+        self.as_mut()
+            .future()
+            .try_poll(cx)
+            .map(|result| {
                 let op = self.as_mut().f().take()
                     .expect("MapOk must not be polled after it returned `Poll::Ready`");
-                Poll::Ready(result.map(op))
-            }
-        }
+                result.map(op)
+            })
     }
 }

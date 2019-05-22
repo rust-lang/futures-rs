@@ -76,10 +76,9 @@ impl<T, Item> CompatSink<T, Item> {
 fn poll_03_to_01<T, E>(x: task03::Poll<Result<T, E>>)
     -> Result<Async01<T>, E>
 {
-    match x {
-        task03::Poll::Ready(Ok(t)) => Ok(Async01::Ready(t)),
+    match x? {
+        task03::Poll::Ready(t) => Ok(Async01::Ready(t)),
         task03::Poll::Pending => Ok(Async01::NotReady),
-        task03::Poll::Ready(Err(e)) => Err(e),
     }
 }
 
@@ -103,11 +102,10 @@ where
     type Error = St::Error;
 
     fn poll(&mut self) -> Poll01<Option<Self::Item>, Self::Error> {
-        with_context(self, |inner, cx| match inner.try_poll_next(cx) {
+        with_context(self, |inner, cx| match inner.try_poll_next(cx)? {
             task03::Poll::Ready(None) => Ok(Async01::Ready(None)),
-            task03::Poll::Ready(Some(Ok(t))) => Ok(Async01::Ready(Some(t))),
+            task03::Poll::Ready(Some(t)) => Ok(Async01::Ready(Some(t))),
             task03::Poll::Pending => Ok(Async01::NotReady),
-            task03::Poll::Ready(Some(Err(e))) => Err(e),
         })
     }
 }
@@ -124,12 +122,11 @@ where
         item: Self::SinkItem,
     ) -> StartSend01<Self::SinkItem, Self::SinkError> {
         with_sink_context(self, |mut inner, cx| {
-            match inner.as_mut().poll_ready(cx) {
-                task03::Poll::Ready(Ok(())) => {
+            match inner.as_mut().poll_ready(cx)? {
+                task03::Poll::Ready(()) => {
                     inner.start_send(item).map(|()| AsyncSink01::Ready)
                 }
                 task03::Poll::Pending => Ok(AsyncSink01::NotReady(item)),
-                task03::Poll::Ready(Err(e)) => Err(e),
             }
         })
     }

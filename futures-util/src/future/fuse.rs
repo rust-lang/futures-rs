@@ -80,15 +80,8 @@ impl<Fut: Future> Future for Fuse<Fut> {
     type Output = Fut::Output;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut::Output> {
-        // safety: we use this &mut only for matching, not for movement
         let v = match self.as_mut().future().as_pin_mut() {
-            Some(fut) => {
-                // safety: this re-pinned future will never move before being dropped
-                match fut.poll(cx) {
-                    Poll::Pending => return Poll::Pending,
-                    Poll::Ready(v) => v
-                }
-            }
+            Some(fut) => ready!(fut.poll(cx)),
             None => return Poll::Pending,
         };
 

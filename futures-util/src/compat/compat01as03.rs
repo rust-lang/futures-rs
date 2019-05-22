@@ -133,10 +133,9 @@ pub trait Sink01CompatExt: Sink01 {
 impl<Si: Sink01> Sink01CompatExt for Si {}
 
 fn poll_01_to_03<T, E>(x: Result<Async01<T>, E>) -> task03::Poll<Result<T, E>> {
-    match x {
-        Ok(Async01::Ready(t)) => task03::Poll::Ready(Ok(t)),
-        Ok(Async01::NotReady) => task03::Poll::Pending,
-        Err(e) => task03::Poll::Ready(Err(e)),
+    match x? {
+        Async01::Ready(t) => task03::Poll::Ready(Ok(t)),
+        Async01::NotReady => task03::Poll::Pending,
     }
 }
 
@@ -158,11 +157,10 @@ impl<St: Stream01> Stream03 for Compat01As03<St> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> task03::Poll<Option<Self::Item>> {
-        match self.in_notify(cx, Stream01::poll) {
-            Ok(Async01::Ready(Some(t))) => task03::Poll::Ready(Some(Ok(t))),
-            Ok(Async01::Ready(None)) => task03::Poll::Ready(None),
-            Ok(Async01::NotReady) => task03::Poll::Pending,
-            Err(e) => task03::Poll::Ready(Some(Err(e))),
+        match self.in_notify(cx, Stream01::poll)? {
+            Async01::Ready(Some(t)) => task03::Poll::Ready(Some(Ok(t))),
+            Async01::Ready(None) => task03::Poll::Ready(None),
+            Async01::NotReady => task03::Poll::Pending,
         }
     }
 }
@@ -213,11 +211,10 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> task03::Poll<Option<Self::Item>> {
-        match self.in_notify(cx, Stream01::poll) {
-            Ok(Async01::Ready(Some(t))) => task03::Poll::Ready(Some(Ok(t))),
-            Ok(Async01::Ready(None)) => task03::Poll::Ready(None),
-            Ok(Async01::NotReady) => task03::Poll::Pending,
-            Err(e) => task03::Poll::Ready(Some(Err(e))),
+        match self.in_notify(cx, Stream01::poll)? {
+            Async01::Ready(Some(t)) => task03::Poll::Ready(Some(Ok(t))),
+            Async01::Ready(None) => task03::Poll::Ready(None),
+            Async01::NotReady => task03::Poll::Pending,
         }
     }
 }
@@ -242,13 +239,12 @@ where
         cx: &mut Context<'_>,
     ) -> task03::Poll<Result<(), Self::SinkError>> {
         match self.buffer.take() {
-            Some(item) => match self.in_notify(cx, |f| f.start_send(item)) {
-                Ok(AsyncSink01::Ready) => task03::Poll::Ready(Ok(())),
-                Ok(AsyncSink01::NotReady(i)) => {
+            Some(item) => match self.in_notify(cx, |f| f.start_send(item))? {
+                AsyncSink01::Ready => task03::Poll::Ready(Ok(())),
+                AsyncSink01::NotReady(i) => {
                     self.buffer = Some(i);
                     task03::Poll::Pending
                 }
-                Err(e) => task03::Poll::Ready(Err(e)),
             },
             None => task03::Poll::Ready(Ok(())),
         }
@@ -260,21 +256,19 @@ where
     ) -> task03::Poll<Result<(), Self::SinkError>> {
         let item = self.buffer.take();
         match self.in_notify(cx, |f| match item {
-            Some(i) => match f.start_send(i) {
-                Ok(AsyncSink01::Ready) => f.poll_complete().map(|i| (i, None)),
-                Ok(AsyncSink01::NotReady(t)) => {
+            Some(i) => match f.start_send(i)? {
+                AsyncSink01::Ready => f.poll_complete().map(|i| (i, None)),
+                AsyncSink01::NotReady(t) => {
                     Ok((Async01::NotReady, Some(t)))
                 }
-                Err(e) => Err(e),
             },
             None => f.poll_complete().map(|i| (i, None)),
-        }) {
-            Ok((Async01::Ready(_), _)) => task03::Poll::Ready(Ok(())),
-            Ok((Async01::NotReady, item)) => {
+        })? {
+            (Async01::Ready(_), _) => task03::Poll::Ready(Ok(())),
+            (Async01::NotReady, item) => {
                 self.buffer = item;
                 task03::Poll::Pending
             }
-            Err(e) => task03::Poll::Ready(Err(e)),
         }
     }
 
@@ -301,14 +295,13 @@ where
             Ok((<S as Sink01>::close(f)?, None, true))
         });
 
-        match result {
-            Ok((Async01::Ready(_), _, _)) => task03::Poll::Ready(Ok(())),
-            Ok((Async01::NotReady, item, close_started)) => {
+        match result? {
+            (Async01::Ready(_), _, _) => task03::Poll::Ready(Ok(())),
+            (Async01::NotReady, item, close_started) => {
                 self.buffer = item;
                 self.close_started = close_started;
                 task03::Poll::Pending
             }
-            Err(e) => task03::Poll::Ready(Err(e)),
         }
     }
 }

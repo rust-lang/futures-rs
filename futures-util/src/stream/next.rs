@@ -1,3 +1,4 @@
+use crate::stream::StreamExt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
@@ -31,6 +32,6 @@ impl<St: Stream + Unpin> Future for Next<'_, St> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        Pin::new(&mut *self.stream).poll_next(cx)
+        self.stream.poll_next_unpin(cx)
     }
 }
