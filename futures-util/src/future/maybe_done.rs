@@ -94,13 +94,7 @@ impl<Fut: Future> Future for MaybeDone<Fut> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let res = unsafe {
             match Pin::get_unchecked_mut(self.as_mut()) {
-                MaybeDone::Future(a) => {
-                    if let Poll::Ready(res) = Pin::new_unchecked(a).poll(cx) {
-                        res
-                    } else {
-                        return Poll::Pending
-                    }
-                }
+                MaybeDone::Future(a) => ready!(Pin::new_unchecked(a).poll(cx)),
                 MaybeDone::Done(_) => return Poll::Ready(()),
                 MaybeDone::Gone => panic!("MaybeDone polled after value taken"),
             }

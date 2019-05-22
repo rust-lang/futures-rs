@@ -53,12 +53,11 @@ where St: Stream,
         mut self: Pin<&mut Self>, cx: &mut Context<'_>
     ) -> Poll<Self::Output> {
         loop {
-            match self.as_mut().stream().poll_next(cx) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(None) => {
+            match ready!(self.as_mut().stream().poll_next(cx)) {
+                None => {
                     return Poll::Ready(self.as_mut().accum().take().unwrap_or_default())
                 }
-                Poll::Ready(Some(e)) => {
+                Some(e) => {
                     let accum = self.as_mut().accum();
                     if let Some(a) = accum {
                         a.extend(e)

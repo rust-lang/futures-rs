@@ -42,11 +42,10 @@ impl<T: Send + 'static> Future for RemoteHandle<T> {
     type Output = T;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<T> {
-        match self.rx.poll_unpin(cx) {
-            Poll::Ready(Ok(Ok(output))) => Poll::Ready(output),
-            Poll::Ready(Ok(Err(e))) => panic::resume_unwind(e),
-            Poll::Ready(Err(e)) => panic::resume_unwind(Box::new(e)),
-            Poll::Pending => Poll::Pending,
+        match ready!(self.rx.poll_unpin(cx)) {
+            Ok(Ok(output)) => Poll::Ready(output),
+            Ok(Err(e)) => panic::resume_unwind(e),
+            Err(e) => panic::resume_unwind(Box::new(e)),
         }
     }
 }
@@ -88,10 +87,7 @@ impl<Fut: Future> Future for Remote<Fut> {
             }
         }
 
-        let output = match self.as_mut().future().poll(cx) {
-            Poll::Ready(output) => output,
-            Poll::Pending => return Poll::Pending,
-        };
+        let output = ready!(self.as_mut().future().poll(cx));
 
         // if the receiving end has gone away then that's ok, we just ignore the
         // send error here.

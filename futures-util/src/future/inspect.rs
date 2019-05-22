@@ -36,11 +36,7 @@ impl<Fut, F> Future for Inspect<Fut, F>
     type Output = Fut::Output;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Fut::Output> {
-        let e = match self.as_mut().future().poll(cx) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(e) => e,
-        };
-
+        let e = ready!(self.as_mut().future().poll(cx));
         let f = self.as_mut().f().take().expect("cannot poll Inspect twice");
         f(&e);
         Poll::Ready(e)

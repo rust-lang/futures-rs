@@ -55,14 +55,13 @@ fn read_to_end_internal<R: AsyncRead + ?Sized>(
             }
         }
 
-        match rd.as_mut().poll_read(cx, &mut g.buf[g.len..]) {
-            Poll::Ready(Ok(0)) => {
+        match ready!(rd.as_mut().poll_read(cx, &mut g.buf[g.len..])) {
+            Ok(0) => {
                 ret = Poll::Ready(Ok(()));
                 break;
             }
-            Poll::Ready(Ok(n)) => g.len += n,
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(Err(e)) => {
+            Ok(n) => g.len += n,
+            Err(e) => {
                 ret = Poll::Ready(Err(e));
                 break;
             }

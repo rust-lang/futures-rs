@@ -74,8 +74,10 @@ impl<St, F, T> Stream for Map<St, F>
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<T>> {
-        let option = ready!(self.as_mut().stream().poll_next(cx));
-        Poll::Ready(option.map(self.as_mut().f()))
+        self.as_mut()
+            .stream()
+            .poll_next(cx)
+            .map(|opt| opt.map(|x| self.as_mut().f()(x)))
     }
 }
 

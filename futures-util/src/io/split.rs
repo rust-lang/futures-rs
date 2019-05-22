@@ -23,12 +23,8 @@ fn lock_and_then<T, U, E, F>(
 ) -> Poll<Result<U, E>>
     where F: FnOnce(Pin<&mut T>, &mut Context<'_>) -> Poll<Result<U, E>>
 {
-    match lock.poll_lock(cx) {
-        // Safety: the value behind the bilock used by `ReadHalf` and `WriteHalf` is never exposed
-        // as a `Pin<&mut T>` anywhere other than here as a way to get to `&mut T`.
-        Poll::Ready(mut l) => f(l.as_pin_mut(), cx),
-        Poll::Pending => Poll::Pending,
-    }
+    let mut l = ready!(lock.poll_lock(cx));
+    f(l.as_pin_mut(), cx)
 }
 
 pub(super) fn split<T: AsyncRead + AsyncWrite>(t: T) -> (ReadHalf<T>, WriteHalf<T>) {

@@ -1,7 +1,8 @@
+use crate::try_stream::TryStreamExt;
+use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, TryStream};
 use futures_core::task::{Context, Poll};
-use core::pin::Pin;
 
 /// Future for the [`try_next`](super::TryStreamExt::try_next) method.
 #[derive(Debug)]
@@ -31,11 +32,6 @@ impl<St: TryStream + Unpin> Future for TryNext<'_, St> {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        match Pin::new(&mut *self.stream).try_poll_next(cx) {
-            Poll::Ready(Some(Ok(x))) => Poll::Ready(Ok(Some(x))),
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Err(e)),
-            Poll::Ready(None) => Poll::Ready(Ok(None)),
-            Poll::Pending => Poll::Pending,
-        }
+        self.stream.try_poll_next_unpin(cx)?.map(Ok)
     }
 }

@@ -47,10 +47,7 @@ impl Stream for LockStream {
     type Error = ();
 
     fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Item>, Self::Error> {
-        self.lock.poll(cx).map(|a| match a {
-            Poll::Ready(a) => Poll::Ready(Some(a)),
-            Poll::Pending => Poll::Pending,
-        })
+        self.lock.poll(cx).map(|a| a.map(Some))
     }
 }
 
