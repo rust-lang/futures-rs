@@ -373,7 +373,7 @@ pub trait FutureExt: Future {
     /// # });
     /// ```
     fn inspect<F>(self, f: F) -> Inspect<Self, F>
-        where F: FnOnce(&Self::Output) -> (),
+        where F: FnOnce(&Self::Output),
               Self: Sized,
     {
         assert_future::<Self::Output, _>(Inspect::new(self, f))
