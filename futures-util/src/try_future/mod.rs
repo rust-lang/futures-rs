@@ -40,6 +40,12 @@ pub use self::err_into::ErrInto;
 mod flatten_sink;
 pub use self::flatten_sink::FlattenSink;
 
+mod inspect_ok;
+pub use self::inspect_ok::InspectOk;
+
+mod inspect_err;
+pub use self::inspect_err::InspectErr;
+
 mod into_future;
 pub use self::into_future::IntoFuture;
 
@@ -320,6 +326,58 @@ pub trait TryFutureExt: TryFuture {
               Self: Sized,
     {
         OrElse::new(self, f)
+    }
+
+    /// Do something with the success value of a future before passing it on.
+    ///
+    /// When using futures, you'll often chain several of them together.  While
+    /// working on such code, you might want to check out what's happening at
+    /// various parts in the pipeline, without consuming the intermediate
+    /// value. To do that, insert a call to `inspect_ok`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future::{self, TryFutureExt};
+    ///
+    /// let future = future::ok::<_, ()>(1);
+    /// let new_future = future.inspect_ok(|&x| println!("about to resolve: {}", x));
+    /// assert_eq!(new_future.await, Ok(1));
+    /// # });
+    /// ```
+    fn inspect_ok<F>(self, f: F) -> InspectOk<Self, F>
+        where F: FnOnce(&Self::Ok),
+              Self: Sized,
+    {
+        InspectOk::new(self, f)
+    }
+
+    /// Do something with the error value of a future before passing it on.
+    ///
+    /// When using futures, you'll often chain several of them together.  While
+    /// working on such code, you might want to check out what's happening at
+    /// various parts in the pipeline, without consuming the intermediate
+    /// value. To do that, insert a call to `inspect_err`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::future::{self, TryFutureExt};
+    ///
+    /// let future = future::err::<(), _>(1);
+    /// let new_future = future.inspect_err(|&x| println!("about to error: {}", x));
+    /// assert_eq!(new_future.await, Err(1));
+    /// # });
+    /// ```
+    fn inspect_err<F>(self, f: F) -> InspectErr<Self, F>
+        where F: FnOnce(&Self::Error),
+              Self: Sized,
+    {
+        InspectErr::new(self, f)
     }
 
     /// Flatten the execution of this future when the successful result of this
