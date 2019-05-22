@@ -184,7 +184,7 @@ impl<T> BiLock<T> {
 
 impl<T: Unpin> Inner<T> {
     unsafe fn into_value(mut self) -> T {
-        mem::replace(&mut self.value, None).unwrap().into_inner()
+        self.value.take().unwrap().into_inner()
     }
 }
 
