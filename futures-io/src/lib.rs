@@ -169,7 +169,7 @@ mod if_std {
         /// If the object is not ready for writing, the method returns
         /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
-        /// readable or is closed.
+        /// writable or is closed.
         ///
         /// # Implementation
         ///
@@ -191,7 +191,7 @@ mod if_std {
         /// If the object is not ready for writing, the method returns
         /// `Poll::Pending` and arranges for the current task (via
         /// `cx.waker().wake_by_ref()`) to receive a notification when the object becomes
-        /// readable or is closed.
+        /// writable or is closed.
         ///
         /// By default, this method delegates to using `poll_write` on the first
         /// buffer in `bufs`. Objects which support vectored IO should override
