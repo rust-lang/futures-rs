@@ -108,3 +108,6 @@ cfg_target_has_atomic! {
     #[cfg(feature = "alloc")]
     pub mod lock;
 }
+
+pub mod option;
+#[doc(hidden)] pub use crate::option::OptionExt;
