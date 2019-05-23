@@ -30,7 +30,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = "0.3.0-alpha.16"
+futures-preview = "=0.3.0-alpha.16"
 ```
 
 Now, you can use futures-rs:
@@ -39,7 +39,7 @@ Now, you can use futures-rs:
 use futures::future::Future; // Note: It's not `futures_preview`
 ```
 
-The current version of futures-rs requires Rust nightly 2019-05-09 or later.
+The current futures-rs requires Rust 1.36 or later.
 
 ### Feature `std`
 
@@ -51,6 +51,19 @@ a `#[no_std]` environment, use:
 [dependencies]
 futures-preview = { version = "=0.3.0-alpha.16", default-features = false }
 ```
+
+### Feature `async-await`
+
+The `async-await` feature provides several convenient features using unstable
+async/await. Note that this is an unstable feature, and upstream changes can
+make it cannot compile. To use futures-rs with async/await, use:
+
+```toml
+[dependencies]
+futures-preview = { version = "=0.3.0-alpha.16", features = ["async-await", "nightly"] }
+```
+
+The current `async-await` feature requires Rust nightly 2019-05-09 or later.
 
 # License
 
