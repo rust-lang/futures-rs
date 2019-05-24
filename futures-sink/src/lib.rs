@@ -62,7 +62,7 @@ pub trait Sink<Item> {
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>>;
 
     /// Begin the process of sending a value to the sink.
-    /// Each call to this function must be proceeded by a successful call to
+    /// Each call to this function must be preceded by a successful call to
     /// `poll_ready` which returned `Poll::Ready(Ok(()))`.
     ///
     /// As the name suggests, this method only *begins* the process of sending
