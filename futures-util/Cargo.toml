@@ -47,3 +47,6 @@ futures-preview = { path = "../futures", version = "=0.3.0-alpha.16", features =
 futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.16" }
 futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.16" }
 tokio = "0.1.11"
+
+[package.metadata.docs.rs]
+all-features = true
