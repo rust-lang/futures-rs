@@ -117,7 +117,7 @@ matrix:
     - name: cargo doc
       rust: nightly
       script:
-        - cargo doc --all --no-deps --all-features
+        - RUSTDOCFLAGS=-Dwarnings cargo doc --all --no-deps --all-features
 
     - name: publish docs
       stage: release
