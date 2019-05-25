@@ -166,7 +166,7 @@ pub mod executor {
     //! [`LocalPool`](crate::executor::LocalPool) executor. Aside from cutting
     //! down on synchronization costs, this executor also makes it possible to
     //! spawn non-`Send` tasks, via
-    //! [`spawn_local_obj`](crate::executor::LocalSpawn::spawn_local_obj).
+    //! [`spawn_local_obj`](crate::task::LocalSpawn::spawn_local_obj).
     //! The `LocalPool` is best suited for running I/O-bound tasks that do
     //! relatively little work between I/O operations.
     //!

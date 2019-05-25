@@ -25,9 +25,9 @@ use std::{
 /// Converts a futures 0.3 [`TryFuture`](futures_core::future::TryFuture),
 /// [`TryStream`](futures_core::stream::TryStream) or
 /// [`Sink`](futures_sink::Sink) into a futures 0.1
-/// [`Future`](futures::future::Future),
-/// [`Stream`](futures::stream::Stream) or
-/// [`Sink`](futures::sink::Sink).
+/// [`Future`](futures_01::future::Future),
+/// [`Stream`](futures_01::stream::Stream) or
+/// [`Sink`](futures_01::sink::Sink).
 #[derive(Debug, Clone, Copy)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Compat<T> {
