@@ -4,11 +4,11 @@ error: attribute must be of the form `#[for_await]`
 8 |     #[for_await(bar)]
   |     ^^^^^^^^^^^^^^^^^
 
-error: attribute must be of the form `#[async_stream]`
-  --> $DIR/bad-input.rs:14:1
+error: expected `item`
+  --> $DIR/bad-input.rs:14:16
    |
-14 | #[async_stream(baz)]
-   | ^^^^^^^^^^^^^^^^^^^^
+14 | #[async_stream(baz, item = i32)]
+   |                ^^^
 
 error: aborting due to 2 previous errors
 

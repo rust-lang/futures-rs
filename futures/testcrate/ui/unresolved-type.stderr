@@ -1,18 +1,18 @@
 error[E0412]: cannot find type `Left` in this scope
- --> $DIR/unresolved-type.rs:6:13
+ --> $DIR/unresolved-type.rs:5:23
   |
-6 | fn foo() -> Left {}
-  |             ^^^^ not found in this scope
+5 | #[async_stream(item = Left)]
+  |                       ^^^^ not found in this scope
 help: there is an enum variant `core::fmt::Alignment::Left` and 7 others; try using the variant's enum
   |
-6 | fn foo() -> core::fmt::Alignment {}
-  |             ^^^^^^^^^^^^^^^^^^^^
-6 | fn foo() -> core::fmt::rt::v1::Alignment {}
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-6 | fn foo() -> futures::core_reexport::fmt::Alignment {}
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-6 | fn foo() -> futures::core_reexport::fmt::rt::v1::Alignment {}
-  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 | #[async_stream(item = core::fmt::Alignment)]
+  |                       ^^^^^^^^^^^^^^^^^^^^
+5 | #[async_stream(item = core::fmt::rt::v1::Alignment)]
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 | #[async_stream(item = futures::core_reexport::fmt::Alignment)]
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 | #[async_stream(item = futures::core_reexport::fmt::rt::v1::Alignment)]
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 and 3 other candidates
 
 error: aborting due to previous error

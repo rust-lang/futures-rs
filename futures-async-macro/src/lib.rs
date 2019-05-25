@@ -11,8 +11,9 @@ use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree as TokenTree2};
 use quote::{quote, ToTokens};
 use syn::{
     fold::{self, Fold},
+    parse::{Parse, ParseStream},
     token, ArgCaptured, Error, Expr, ExprCall, ExprField, ExprForLoop, ExprMacro, ExprYield, FnArg,
-    FnDecl, Ident, Item, ItemFn, Member, Pat, PatIdent, ReturnType, TypeTuple,
+    FnDecl, Ident, Item, ItemFn, Member, Pat, PatIdent, ReturnType, Token, Type, TypeTuple,
 };
 
 #[macro_use]
@@ -33,27 +34,25 @@ pub fn for_await(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Creates streams via generators.
 #[proc_macro_attribute]
 pub fn async_stream(args: TokenStream, input: TokenStream) -> TokenStream {
-    assert_!(args.is_empty(), args_is_not_empty!("async_stream"));
-
-    let item: ItemFn = syn::parse_macro_input!(input);
-    expand_async_stream_fn(item)
+    let arg: Arg = syn::parse_macro_input!(args);
+    let function: ItemFn = syn::parse_macro_input!(input);
+    expand_async_stream_fn(function, &arg.0)
 }
 
-fn expand_async_stream_fn(item: ItemFn) -> TokenStream {
+fn expand_async_stream_fn(function: ItemFn, item_ty: &Type) -> TokenStream {
     // Parse our item, expecting a function. This function may be an actual
     // top-level function or it could be a method (typically dictated by the
     // arguments). We then extract everything we'd like to use.
-    let ItemFn { ident, vis, constness, unsafety, abi, block, decl, attrs, .. } = item;
+    let ItemFn { ident, vis, constness, unsafety, abi, block, decl, attrs, .. } = function;
     let FnDecl { inputs, output, variadic, mut generics, fn_token, .. } = *decl;
     let where_clause = &generics.where_clause;
     assert_!(variadic.is_none(), "variadic functions cannot be async");
-    let (output, rarrow_token) = match output {
-        ReturnType::Type(rarrow_token, t) => (*t, rarrow_token),
-        ReturnType::Default => (
-            TypeTuple { elems: Default::default(), paren_token: Default::default() }.into(),
-            Default::default(),
-        ),
-    };
+    if let ReturnType::Type(_, t) = output {
+        match &*t {
+            Type::Tuple(TypeTuple { elems, .. }) if elems.is_empty() => {}
+            _ => error!(t, "async stream functions must return the unit type"),
+        }
+    }
 
     // We've got to get a bit creative with our handling of arguments. For a
     // number of reasons we translate this:
@@ -150,10 +149,10 @@ fn expand_async_stream_fn(item: ItemFn) -> TokenStream {
         gen_body_inner.to_tokens(tokens);
     });
 
-    // Give the invocation of the `from_generator` function the same span as the output
+    // Give the invocation of the `from_generator` function the same span as the `item_ty`
     // as currently errors related to it being a result are targeted here. Not
     // sure if more errors will highlight this function call...
-    let output_span = first_last(&output);
+    let output_span = first_last(item_ty);
     let gen_function = quote! { ::futures::async_stream::from_generator };
     let gen_function = respan(gen_function, output_span);
     let body_inner = quote! {
@@ -170,14 +169,14 @@ fn expand_async_stream_fn(item: ItemFn) -> TokenStream {
     // Raw `impl` breaks syntax highlighting in some editors.
     let impl_token = token::Impl::default();
     let return_ty = quote! {
-        #impl_token ::futures::stream::Stream<Item = #output> + #(#lifetimes +)*
+        #impl_token ::futures::stream::Stream<Item = #item_ty> + #(#lifetimes +)*
     };
     let return_ty = respan(return_ty, output_span);
     TokenStream::from(quote! {
         #(#attrs)*
         #vis #unsafety #abi #constness
         #fn_token #ident #generics (#(#inputs_no_patterns),*)
-            #rarrow_token #return_ty
+            -> #return_ty
             #where_clause
         #body
     })
@@ -209,6 +208,20 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
     });
 
     tokens.into()
+}
+
+struct Arg(Type);
+
+mod kw {
+    syn::custom_keyword!(item);
+}
+
+impl Parse for Arg {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let _: kw::item = input.parse()?;
+        let _: Token![=] = input.parse()?;
+        input.parse().map(Self)
+    }
 }
 
 /// The scope in which `#[for_await]`, `.await` was called.

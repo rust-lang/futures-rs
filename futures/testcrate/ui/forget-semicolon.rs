@@ -2,7 +2,7 @@
 
 use futures::*;
 
-#[async_stream]
+#[async_stream(item = ())]
 fn foo() {
     yield;
     Some(())

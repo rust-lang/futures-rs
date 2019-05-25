@@ -15,20 +15,20 @@ async fn future1() -> i32 {
     cnt
 }
 
-#[async_stream]
-fn stream1() -> u64 {
+#[async_stream(item = u64)]
+fn stream1() {
     yield 0;
     yield 1;
 }
 
-#[async_stream]
-fn stream2<T: Clone>(t: T) -> T {
+#[async_stream(item = T)]
+fn stream2<T: Clone>(t: T) {
     yield t.clone();
     yield t.clone();
 }
 
-#[async_stream]
-fn stream3() -> i32 {
+#[async_stream(item = i32)]
+fn stream3() {
     let mut cnt = 0;
     #[for_await]
     for x in stream::iter(vec![1, 2, 3, 4]) {
@@ -42,40 +42,40 @@ mod foo {
     pub struct _Foo(pub i32);
 }
 
-#[async_stream]
-fn _stream5() -> foo::_Foo {
+#[async_stream(item = foo::_Foo)]
+fn _stream5() {
     yield foo::_Foo(0);
     yield foo::_Foo(1);
 }
 
-#[async_stream]
-fn _stream6() -> i32 {
+#[async_stream(item = i32)]
+fn _stream6() {
     #[for_await]
     for foo::_Foo(i) in _stream5() {
         yield i * i;
     }
 }
 
-#[async_stream]
-fn _stream7() -> () {
+#[async_stream(item = ())]
+fn _stream7() {
     yield ();
 }
 
-#[async_stream]
-fn _stream8() -> [u32; 4] {
+#[async_stream(item = [u32; 4])]
+fn _stream8() {
     yield [1, 2, 3, 4];
 }
 
 struct A(i32);
 
 impl A {
-    #[async_stream]
-    fn a_foo(self) -> i32 {
+    #[async_stream(item = i32)]
+    fn a_foo(self) {
         yield self.0
     }
 
-    #[async_stream]
-    fn _a_foo2(self: Box<Self>) -> i32 {
+    #[async_stream(item = i32)]
+    fn _a_foo2(self: Box<Self>) {
         yield self.0
     }
 }
@@ -98,7 +98,7 @@ async fn loop_in_loop() -> bool {
 #[test]
 fn main() {
     // https://github.com/alexcrichton/futures-await/issues/45
-    #[async_stream]
+    #[async_stream(item = ())]
     fn _stream10() {
         yield;
     }

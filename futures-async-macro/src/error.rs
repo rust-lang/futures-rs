@@ -5,6 +5,11 @@ macro_rules! error {
             syn::Error::new(proc_macro2::Span::call_site(), $msg).to_compile_error(),
         )
     };
+    ($span:expr, $msg:expr) => {
+        return proc_macro::TokenStream::from(
+            syn::Error::new_spanned($span, $msg).to_compile_error(),
+        )
+    };
 }
 
 // TODO: Should we give another name?

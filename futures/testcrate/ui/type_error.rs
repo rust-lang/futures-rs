@@ -2,8 +2,8 @@
 
 use futures::*;
 
-#[async_stream]
-fn foo() -> i32 {
+#[async_stream(item = i32)]
+fn foo() {
     let a: i32 = "a"; //~ ERROR: mismatched types
     yield 1;
 }

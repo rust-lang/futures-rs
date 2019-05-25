@@ -2,7 +2,7 @@
 
 use futures::*;
 
-#[async_stream(item = Left)]
-fn foo() {}
+#[async_stream]
+fn foo(a: String) {}
 
 fn main() {}

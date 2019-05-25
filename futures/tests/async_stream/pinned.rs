@@ -1,8 +1,8 @@
 use futures::executor::block_on;
 use futures::*;
 
-#[async_stream]
-fn stream1() -> u64 {
+#[async_stream(item = u64)]
+fn stream1() {
     fn integer() -> u64 {
         1
     }

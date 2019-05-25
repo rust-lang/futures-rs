@@ -1,0 +1,8 @@
+error: unexpected end of input, expected `item`
+ --> $DIR/missing-item.rs:5:1
+  |
+5 | #[async_stream]
+  | ^^^^^^^^^^^^^^^
+
+error: aborting due to previous error
+

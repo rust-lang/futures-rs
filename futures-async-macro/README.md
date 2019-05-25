@@ -7,7 +7,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-futures-preview = { version = "0.3.0-alpha.16", features = ["async-stream", "nightly"] }
+futures-preview = { version = "=0.3.0-alpha.16", features = ["async-stream", "nightly"] }
 ```
 
 ### \#\[for_await\]
@@ -41,8 +41,8 @@ use futures::prelude::*;
 use futures::async_stream;
 
 // Returns a stream of i32
-#[async_stream]
-fn foo(stream: impl Stream<Item = String>) -> i32 {
+#[async_stream(item = i32)]
+fn foo(stream: impl Stream<Item = String>) {
     #[for_await]
     for x in stream {
         yield x.parse().unwrap();
@@ -50,6 +50,6 @@ fn foo(stream: impl Stream<Item = String>) -> i32 {
 }
 ```
 
-`#[async_stream]` have an item type specified via `-> some::Path` and the values output from the stream must be yielded via the `yield` expression.
+`#[async_stream]` must have an item type specified via `item = some::Path` and the values output from the stream must be yielded via the `yield` expression.
 
 [futures-await]: https://github.com/alexcrichton/futures-await

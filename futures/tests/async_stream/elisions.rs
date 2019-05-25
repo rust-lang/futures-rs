@@ -3,31 +3,31 @@ use futures::*;
 
 struct Ref<'a, T>(&'a T);
 
-#[async_stream]
-fn references(x: &i32) -> i32 {
+#[async_stream(item = i32)]
+fn references(x: &i32) {
     yield *x;
 }
 
-#[async_stream]
-fn new_types(x: Ref<'_, i32>) -> i32 {
+#[async_stream(item = i32)]
+fn new_types(x: Ref<'_, i32>) {
     yield *x.0;
 }
 
 struct Foo(i32);
 
 impl Foo {
-    #[async_stream]
-    fn foo(&self) -> &i32 {
+    #[async_stream(item = &i32)]
+    fn foo(&self) {
         yield &self.0
     }
 }
 
-#[async_stream]
-fn single_ref(x: &i32) -> &i32 {
+#[async_stream(item = &i32)]
+fn single_ref(x: &i32) {
     yield x
 }
 
-#[async_stream]
+#[async_stream(item = ())]
 fn check_for_name_colision<'_async0, T>(_x: &T, _y: &'_async0 i32) {
     yield
 }
