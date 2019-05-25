@@ -45,3 +45,6 @@ io-compat = ["compat", "futures-util-preview/io-compat"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic", "futures-util-preview/cfg-target-has-atomic"]
 never-type = ["futures-util-preview/never-type"]
 alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc", "futures-util-preview/alloc"]
+
+[package.metadata.docs.rs]
+all-features = true
