@@ -1,7 +1,8 @@
 //! Procedural macro for the `#[async_stream]` attribute.
 
 #![recursion_limit = "128"]
-#![warn(rust_2018_idioms)]
+#![warn(rust_2018_idioms, unreachable_pub)]
+#![warn(clippy::all)]
 
 extern crate proc_macro;
 
@@ -10,8 +11,8 @@ use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree as TokenTree2};
 use quote::{quote, ToTokens};
 use syn::{
     fold::{self, Fold},
-    token, ArgCaptured, Error, Expr, ExprCall, ExprForLoop, ExprMacro, ExprYield, FnArg, FnDecl,
-    Ident, Item, ItemFn, Pat, PatIdent, ReturnType, TypeTuple,
+    token, ArgCaptured, Error, Expr, ExprCall, ExprField, ExprForLoop, ExprMacro, ExprYield, FnArg,
+    FnDecl, Ident, Item, ItemFn, Member, Pat, PatIdent, ReturnType, TypeTuple,
 };
 
 #[macro_use]
@@ -210,7 +211,7 @@ pub fn async_stream_block(input: TokenStream) -> TokenStream {
     tokens.into()
 }
 
-/// The scope in which `#[for_await]`, `await!` was called.
+/// The scope in which `#[for_await]`, `.await` was called.
 ///
 /// The type of generator depends on which scope is called.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -221,7 +222,7 @@ enum Scope {
     Stream,
     /// `static move ||`, `||`
     ///
-    /// It cannot call `#[for_await]`, `await!` in this scope.
+    /// It cannot call `#[for_await]`, `.await` in this scope.
     Closure,
 }
 
@@ -241,49 +242,66 @@ impl Expand {
             ));
         }
 
+        let ExprForLoop { label, pat, expr, body, .. } = &expr;
         // It needs to adjust the type yielded by the macro because generators used internally by
         // async fn yield `()` type, but generators used internally by `async_stream` yield
         // `Poll<U>` type.
-        let yield_ = match self.0 {
-            Future => TokenStream2::new(),
-            Stream => quote! { ::futures::core_reexport::task::Poll::Pending },
-            Closure => return outside_of_async_error!(expr, "#[for_await]"),
-        };
-        let ExprForLoop { label, pat, expr, body, .. } = expr;
-
-        // Basically just expand to a `poll` loop
-        syn::parse_quote! {{
-            let mut __pinned = #expr;
-            #label
-            loop {
-                let #pat = {
-                    match ::futures::async_stream::poll_next_with_tls_context(unsafe {
-                            ::futures::core_reexport::pin::Pin::new_unchecked(&mut __pinned)
-                        })
-                    {
-                        ::futures::core_reexport::task::Poll::Ready(e) => {
-                            match e {
+        match self.0 {
+            Future => {
+                // Basically just expand to a `poll` loop
+                syn::parse_quote! {{
+                    let mut __pinned = #expr;
+                    let mut __pinned = unsafe {
+                        ::futures::core_reexport::pin::Pin::new_unchecked(&mut __pinned)
+                    };
+                    #label
+                    loop {
+                        let #pat = {
+                            match ::futures::stream::StreamExt::next(&mut __pinned).await {
                                 ::futures::core_reexport::option::Option::Some(e) => e,
                                 ::futures::core_reexport::option::Option::None => break,
                             }
-                        }
-                        ::futures::core_reexport::task::Poll::Pending => {
-                            yield #yield_;
-                            continue
-                        }
-                    }
-                };
+                        };
 
-                #body
+                        #body
+                    }
+                }}
             }
-        }}
+            Stream => {
+                // Basically just expand to a `poll` loop
+                syn::parse_quote! {{
+                    let mut __pinned = #expr;
+                    #label
+                    loop {
+                        let #pat = {
+                            match ::futures::async_stream::poll_next_with_tls_context(unsafe {
+                                    ::futures::core_reexport::pin::Pin::new_unchecked(&mut __pinned)
+                                })
+                            {
+                                ::futures::core_reexport::task::Poll::Ready(e) => {
+                                    match e {
+                                        ::futures::core_reexport::option::Option::Some(e) => e,
+                                        ::futures::core_reexport::option::Option::None => break,
+                                    }
+                                }
+                                ::futures::core_reexport::task::Poll::Pending => {
+                                    yield ::futures::core_reexport::task::Poll::Pending;
+                                    continue
+                                }
+                            }
+                        };
+
+                        #body
+                    }
+                }}
+            }
+            Closure => return outside_of_async_error!(expr, "#[for_await]"),
+        }
     }
 
     /// Expands `yield expr` in `async_stream` scope.
     fn expand_yield(&self, expr: ExprYield) -> ExprYield {
-        if self.0 != Stream {
-            return expr;
-        }
+        if self.0 != Stream { return expr }
 
         let ExprYield { attrs, yield_token, expr } = expr;
         let expr = expr.map_or_else(|| quote!(()), ToTokens::into_token_stream);
@@ -293,28 +311,30 @@ impl Expand {
         ExprYield { attrs, yield_token, expr: Some(Box::new(expr)) }
     }
 
-    /// Expands a macro.
+    /// Expands `async_stream_block!` macro.
     fn expand_macro(&mut self, mut expr: ExprMacro) -> Expr {
-        if self.0 == Stream && expr.mac.path.is_ident("await") {
-            return self.expand_await_macros(expr);
-        } else if expr.mac.path.is_ident("async_stream_block") {
+        if expr.mac.path.is_ident("async_stream_block") {
             let mut e: ExprCall = syn::parse(async_stream_block(expr.mac.tts.into())).unwrap();
             e.attrs.append(&mut expr.attrs);
-            return Expr::Call(e);
+            Expr::Call(e)
+        } else {
+            Expr::Macro(expr)
         }
-
-        Expr::Macro(expr)
     }
 
-    /// Expands `await!(expr)` in `async_stream` scope.
+    /// Expands `expr.await` in `async_stream` scope.
     ///
     /// It needs to adjust the type yielded by the macro because generators used internally by
     /// async fn yield `()` type, but generators used internally by `async_stream` yield
     /// `Poll<U>` type.
-    fn expand_await_macros(&mut self, expr: ExprMacro) -> Expr {
-        assert_eq!(self.0, Stream);
+    fn expand_await(&mut self, expr: ExprField) -> Expr {
+        if self.0 != Stream { return Expr::Field(expr) }
 
-        let expr = expr.mac.tts;
+        match &expr.member {
+            Member::Named(x) if x == "await" => {}
+            _ => return Expr::Field(expr),
+        }
+        let expr = expr.base;
 
         // Because macro input (`#expr`) is untrusted, use `syn::parse2` + `expr_compile_error`
         // instead of `syn::parse_quote!` to generate better error messages (`syn::parse_quote!`
@@ -349,8 +369,9 @@ impl Fold for Expand {
         }
 
         let expr = match fold::fold_expr(self, expr) {
-            Expr::ForLoop(expr) => self.expand_for_await(expr),
             Expr::Yield(expr) => Expr::Yield(self.expand_yield(expr)),
+            Expr::Field(expr) => self.expand_await(expr),
+            Expr::ForLoop(expr) => self.expand_for_await(expr),
             Expr::Macro(expr) => self.expand_macro(expr),
             expr => expr,
         };
