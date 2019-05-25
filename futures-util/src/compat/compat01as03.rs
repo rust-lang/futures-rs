@@ -46,10 +46,10 @@ impl<T> Compat01As03<T> {
     }
 }
 
-/// Extension trait for futures 0.1 [`Future`](futures::future::Future)
+/// Extension trait for futures 0.1 [`Future`](futures_01::future::Future)
 pub trait Future01CompatExt: Future01 {
     /// Converts a futures 0.1
-    /// [`Future<Item = T, Error = E>`](futures::future::Future)
+    /// [`Future<Item = T, Error = E>`](futures_01::future::Future)
     /// into a futures 0.3
     /// [`Future<Output = Result<T, E>>`](futures_core::future::Future).
     ///
@@ -73,10 +73,10 @@ pub trait Future01CompatExt: Future01 {
 }
 impl<Fut: Future01> Future01CompatExt for Fut {}
 
-/// Extension trait for futures 0.1 [`Stream`](futures::stream::Stream)
+/// Extension trait for futures 0.1 [`Stream`](futures_01::stream::Stream)
 pub trait Stream01CompatExt: Stream01 {
     /// Converts a futures 0.1
-    /// [`Stream<Item = T, Error = E>`](futures::stream::Stream)
+    /// [`Stream<Item = T, Error = E>`](futures_01::stream::Stream)
     /// into a futures 0.3
     /// [`Stream<Item = Result<T, E>>`](futures_core::stream::Stream).
     ///
@@ -101,12 +101,12 @@ pub trait Stream01CompatExt: Stream01 {
 }
 impl<St: Stream01> Stream01CompatExt for St {}
 
-/// Extension trait for futures 0.1 [`Sink`](futures::sink::Sink)
+/// Extension trait for futures 0.1 [`Sink`](futures_01::sink::Sink)
 pub trait Sink01CompatExt: Sink01 {
     /// Converts a futures 0.1
-    /// [`Sink<SinkItem = T, SinkError = E>`](futures::sink::Sink)
+    /// [`Sink<SinkItem = T, SinkError = E>`](futures_01::sink::Sink)
     /// into a futures 0.3
-    /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::sink::Sink).
+    /// [`Sink<SinkItem = T, SinkError = E>`](futures_sink::Sink).
     ///
     /// ```
     /// #![feature(async_await)]
