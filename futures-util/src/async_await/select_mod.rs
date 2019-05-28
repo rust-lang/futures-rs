@@ -7,7 +7,8 @@ use proc_macro_hack::proc_macro_hack;
 macro_rules! document_select_macro {
     ($item:item) => {
         /// Polls multiple futures and streams simultaneously, executing the branch
-        /// for the future that finishes first. Futures passed to
+        /// for the future that finishes first. If multiple futures are ready,
+        /// one will be pseudo-randomly selected at runtime. Futures passed to
         /// `select!` must be `Unpin` and implement `FusedFuture`.
         /// Futures and streams which are not already fused can be fused using the
         /// `.fuse()` method. Note, though, that fusing a future or stream directly
