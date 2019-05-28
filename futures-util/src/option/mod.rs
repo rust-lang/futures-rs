@@ -55,6 +55,7 @@
 //! [`Stream`]: futures_core::stream::Stream
 //! [`Future`]: futures_core::future::Future
 
+use crate::{future::FutureExt as _, stream::StreamExt as _};
 use core::pin::Pin;
 use futures_core::{
     future::{FusedFuture, Future},
@@ -68,6 +69,13 @@ impl<T> OptionExt<T> for Option<T> {
         T: Stream + Unpin,
     {
         Next { stream: self }
+    }
+
+    fn select_next_some(&mut self) -> SelectNextSome<'_, T>
+    where
+        T: Stream + Unpin,
+    {
+        SelectNextSome { stream: self }
     }
 
     fn current(&mut self) -> Current<'_, T>
@@ -92,6 +100,15 @@ pub trait OptionExt<T>: Sized {
     /// [`None`]: Option::None
     /// [`Stream`]: Stream
     fn next(&mut self) -> Next<'_, T>
+    where
+        T: Stream + Unpin;
+
+    /// Returns a [Future] that resolves when the next item in this stream is ready.
+    ///
+    /// If the [`Option`] is [`None`], the returned future will always be pending.
+    ///
+    /// [Future]: Future
+    fn select_next_some(&mut self) -> SelectNextSome<'_, T>
     where
         T: Stream + Unpin;
 
@@ -125,23 +142,58 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        Poll::Ready(match *self.stream {
-            Some(ref mut stream) => {
-                match ready!(Pin::new(stream).poll_next(cx)) {
-                    Some(result) => Some(result),
-                    None => {
-                        // NB: we do this to mark the stream as terminated.
-                        *self.stream = None;
-                        None
-                    }
-                }
+        assert!(self.stream.is_some(), "Next polled after terminated");
+
+        if let Some(stream) = self.stream.as_mut() {
+            if let Some(result) = ready!(stream.poll_next_unpin(cx)) {
+                return Poll::Ready(Some(result));
             }
-            None => None,
-        })
+        }
+
+        *self.stream = None;
+        Poll::Ready(None)
     }
 }
 
 impl<'a, T> FusedFuture for Next<'a, T> {
+    fn is_terminated(&self) -> bool {
+        self.stream.is_none()
+    }
+}
+
+/// Adapter future for `Option` to get the next value of the stored future.
+///
+/// Resolves to `None` if no future is present.
+#[derive(Debug)]
+pub struct SelectNextSome<'a, T> {
+    pub(crate) stream: &'a mut Option<T>,
+}
+
+impl<'a, T> Future for SelectNextSome<'a, T>
+where
+    T: Stream + Unpin,
+{
+    type Output = T::Item;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        assert!(self.stream.is_some(), "SelectNextSome polled after terminated");
+
+        if let Some(stream) = self.stream.as_mut() {
+            if let Some(result) = ready!(stream.poll_next_unpin(cx)) {
+                return Poll::Ready(result);
+            }
+        }
+
+        *self.stream = None;
+        cx.waker().wake_by_ref();
+        return Poll::Pending;
+    }
+}
+
+impl<'a, T> FusedFuture for SelectNextSome<'a, T> {
     fn is_terminated(&self) -> bool {
         self.stream.is_none()
     }
@@ -165,8 +217,8 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        let future = self.future.as_mut().expect("poll on terminated future");
-        let result = ready!(Pin::new(future).poll(cx));
+        let future = self.future.as_mut().expect("Current polled after terminated");
+        let result = ready!(future.poll_unpin(cx));
         // NB: we do this to mark the future as terminated.
         *self.future = None;
         Poll::Ready(result)
