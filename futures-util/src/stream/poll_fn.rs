@@ -13,9 +13,9 @@ pub struct PollFn<F> {
 
 impl<F> Unpin for PollFn<F> {}
 
-/// Creates a new stream wrapping around a function returning `Poll`.
+/// Creates a new stream wrapping a function returning `Poll<Option<T>>`.
 ///
-/// Polling the returned stream delegates to the wrapped function.
+/// Polling the returned stream calls the wrapped function.
 ///
 /// # Examples
 ///

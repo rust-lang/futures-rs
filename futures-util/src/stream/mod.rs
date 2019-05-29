@@ -1051,7 +1051,7 @@ pub trait StreamExt: Stream {
     ///
     /// # Panics
     ///
-    /// This method will panic of `capacity` is zero.
+    /// This method will panic if `capacity` is zero.
     #[cfg(feature = "alloc")]
     fn chunks(self, capacity: usize) -> Chunks<Self>
         where Self: Sized
