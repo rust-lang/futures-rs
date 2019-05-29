@@ -4,7 +4,7 @@ use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
 
-/// Creates a stream of single element
+/// Creates a stream of a single element.
 ///
 /// ```
 /// #![feature(async_await)]
