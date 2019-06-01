@@ -53,7 +53,7 @@ impl<W: AsyncWrite> BufWriter<W> {
     }
 
     fn flush_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let Self { inner, buf, written } = unsafe { Pin::get_unchecked_mut(self) };
+        let Self { inner, buf, written } = unsafe { self.get_unchecked_mut() };
         let mut inner = unsafe { Pin::new_unchecked(inner) };
 
         let len = buf.len();

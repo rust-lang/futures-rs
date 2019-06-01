@@ -76,7 +76,7 @@ where
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Si::SinkError>> {
         let WithFlatMap { sink, stream, buffer, .. } =
-            unsafe { Pin::get_unchecked_mut(self) };
+            unsafe { self.get_unchecked_mut() };
         let mut sink = unsafe { Pin::new_unchecked(sink) };
         let mut stream = unsafe { Pin::new_unchecked(stream) };
 

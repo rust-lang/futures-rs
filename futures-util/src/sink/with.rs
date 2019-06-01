@@ -63,7 +63,7 @@ impl<Fut, T> State<Fut, T> {
         self: Pin<&'a mut Self>,
     ) -> State<Pin<&'a mut Fut>, Pin<&'a mut T>> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 State::Empty =>
                     State::Empty,
                 State::Process(fut) =>
@@ -132,7 +132,7 @@ impl<Si, Item, U, Fut, F, E> With<Si, Item, U, Fut, F>
         if let Some(buffered) = buffered {
             self.as_mut().state().set(State::Buffered(buffered));
         }
-        if let State::Buffered(item) = unsafe { mem::replace(Pin::get_unchecked_mut(self.as_mut().state()), State::Empty) } {
+        if let State::Buffered(item) = unsafe { mem::replace(self.as_mut().state().get_unchecked_mut(), State::Empty) } {
             Poll::Ready(self.as_mut().sink().start_send(item).map_err(Into::into))
         } else {
             unreachable!()

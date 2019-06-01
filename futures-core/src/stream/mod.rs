@@ -79,7 +79,7 @@ where
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        Pin::get_mut(self).as_mut().poll_next(cx)
+        self.get_mut().as_mut().poll_next(cx)
     }
 }
 

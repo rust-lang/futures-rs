@@ -139,19 +139,19 @@ where
     type SinkError = <P::Target as Sink<Item>>::SinkError;
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
-        Pin::get_mut(self).as_mut().poll_ready(cx)
+        self.get_mut().as_mut().poll_ready(cx)
     }
 
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
-        Pin::get_mut(self).as_mut().start_send(item)
+        self.get_mut().as_mut().start_send(item)
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
-        Pin::get_mut(self).as_mut().poll_flush(cx)
+        self.get_mut().as_mut().poll_flush(cx)
     }
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
-        Pin::get_mut(self).as_mut().poll_close(cx)
+        self.get_mut().as_mut().poll_close(cx)
     }
 }
 
@@ -176,7 +176,7 @@ mod if_alloc {
 
         fn start_send(self: Pin<&mut Self>, item: T) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
-            unsafe { Pin::get_unchecked_mut(self) }.push(item);
+            unsafe { self.get_unchecked_mut() }.push(item);
             Ok(())
         }
 
@@ -198,7 +198,7 @@ mod if_alloc {
 
         fn start_send(self: Pin<&mut Self>, item: T) -> Result<(), Self::SinkError> {
             // TODO: impl<T> Unpin for Vec<T> {}
-            unsafe { Pin::get_unchecked_mut(self) }.push_back(item);
+            unsafe { self.get_unchecked_mut() }.push_back(item);
             Ok(())
         }
 
