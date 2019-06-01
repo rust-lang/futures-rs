@@ -36,7 +36,7 @@ impl<Si1, Si2> Fanout<Si1, Si2> {
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut Si1>, Pin<&'a mut Si2>)
         where Si1: Unpin, Si2: Unpin,
     {
-        let Self { sink1, sink2 } = Pin::get_mut(self);
+        let Self { sink1, sink2 } = self.get_mut();
         (Pin::new(sink1), Pin::new(sink2))
     }
 

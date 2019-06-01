@@ -59,7 +59,7 @@ impl<St1, St2> Select<St1, St2> {
     pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut St1>, Pin<&'a mut St2>)
         where St1: Unpin, St2: Unpin,
     {
-        let Self { stream1, stream2, .. } = Pin::get_mut(self);
+        let Self { stream1, stream2, .. } = self.get_mut();
         (Pin::new(stream1.get_mut()), Pin::new(stream2.get_mut()))
     }
 
@@ -89,7 +89,7 @@ impl<St1, St2> Stream for Select<St1, St2>
         cx: &mut Context<'_>,
     ) -> Poll<Option<St1::Item>> {
         let Select { flag, stream1, stream2 } =
-            unsafe { Pin::get_unchecked_mut(self) };
+            unsafe { self.get_unchecked_mut() };
         let stream1 = unsafe { Pin::new_unchecked(stream1) };
         let stream2 = unsafe { Pin::new_unchecked(stream2) };
 

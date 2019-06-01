@@ -57,7 +57,7 @@ where
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<A::Output> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 Either::Left(a) => Pin::new_unchecked(a).poll(cx),
                 Either::Right(b) => Pin::new_unchecked(b).poll(cx),
             }
@@ -74,7 +74,7 @@ where
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<A::Item>> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 Either::Left(a) => Pin::new_unchecked(a).poll_next(cx),
                 Either::Right(b) => Pin::new_unchecked(b).poll_next(cx),
             }
@@ -91,7 +91,7 @@ where
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).poll_ready(cx),
                 Either::Right(x) => Pin::new_unchecked(x).poll_ready(cx),
             }
@@ -100,7 +100,7 @@ where
 
     fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).start_send(item),
                 Either::Right(x) => Pin::new_unchecked(x).start_send(item),
             }
@@ -109,7 +109,7 @@ where
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).poll_flush(cx),
                 Either::Right(x) => Pin::new_unchecked(x).poll_flush(cx),
             }
@@ -118,7 +118,7 @@ where
 
     fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
         unsafe {
-            match Pin::get_unchecked_mut(self) {
+            match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).poll_close(cx),
                 Either::Right(x) => Pin::new_unchecked(x).poll_close(cx),
             }

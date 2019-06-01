@@ -59,7 +59,7 @@ enum State<Fut, S> {
 impl<Fut, S> State<Fut, S> {
     fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> State<Pin<&'a mut Fut>, Pin<&'a mut S>> {
         // safety: data is never moved via the resulting &mut reference
-        match unsafe { Pin::get_unchecked_mut(self) } {
+        match unsafe { self.get_unchecked_mut() } {
             // safety: the future we're re-pinning here will never be moved;
             // it will just be polled, then dropped in place
             State::Future(f) => State::Future(unsafe { Pin::new_unchecked(f) }),

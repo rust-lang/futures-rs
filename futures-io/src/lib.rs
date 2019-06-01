@@ -376,13 +376,13 @@ mod if_std {
         fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_read(cx, buf)
+            self.get_mut().as_mut().poll_read(cx, buf)
         }
 
         fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_read_vectored(cx, bufs)
+            self.get_mut().as_mut().poll_read_vectored(cx, bufs)
         }
     }
 
@@ -464,21 +464,21 @@ mod if_std {
         fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_write(cx, buf)
+            self.get_mut().as_mut().poll_write(cx, buf)
         }
 
         fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>])
             -> Poll<Result<usize>>
         {
-            Pin::get_mut(self).as_mut().poll_write_vectored(cx, bufs)
+            self.get_mut().as_mut().poll_write_vectored(cx, bufs)
         }
 
         fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            Pin::get_mut(self).as_mut().poll_flush(cx)
+            self.get_mut().as_mut().poll_flush(cx)
         }
 
         fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
-            Pin::get_mut(self).as_mut().poll_close(cx)
+            self.get_mut().as_mut().poll_close(cx)
         }
     }
 

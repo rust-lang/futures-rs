@@ -176,7 +176,7 @@ impl<R: AsyncRead> AsyncBufRead for BufReader<R> {
         self: Pin<&'a mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<io::Result<&'a [u8]>> {
-        let Self { inner, buf, cap, pos } = unsafe { Pin::get_unchecked_mut(self) };
+        let Self { inner, buf, cap, pos } = unsafe { self.get_unchecked_mut() };
         let mut inner = unsafe { Pin::new_unchecked(inner) };
 
         // If we've reached the end of our internal buffer then we need to fetch
