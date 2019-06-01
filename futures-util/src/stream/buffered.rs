@@ -1,4 +1,4 @@
-use crate::stream::{Fuse, FuturesOrdered};
+use crate::stream::{Fuse, FuturesOrdered, StreamExt};
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
@@ -109,7 +109,7 @@ where
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        let res = Pin::new(self.as_mut().in_progress_queue()).poll_next(cx);
+        let res = self.as_mut().in_progress_queue().poll_next_unpin(cx);
         if let Some(val) = ready!(res) {
             return Poll::Ready(Some(val))
         }

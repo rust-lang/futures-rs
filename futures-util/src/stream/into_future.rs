@@ -1,3 +1,4 @@
+use crate::stream::StreamExt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
@@ -85,7 +86,7 @@ impl<St: Stream + Unpin> Future for StreamFuture<St> {
     ) -> Poll<Self::Output> {
         let item = {
             let s = self.stream.as_mut().expect("polling StreamFuture twice");
-            ready!(Pin::new(s).poll_next(cx))
+            ready!(s.poll_next_unpin(cx))
         };
         let stream = self.stream.take().unwrap();
         Poll::Ready((item, stream))

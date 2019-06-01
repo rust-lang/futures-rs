@@ -1,3 +1,4 @@
+use crate::try_future::TryFutureExt;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
@@ -45,7 +46,7 @@ impl<Fut: TryFuture + Unpin> Future for SelectOk<Fut> {
         // loop until we've either exhausted all errors, a success was hit, or nothing is ready
         loop {
             let item = self.inner.iter_mut().enumerate().find_map(|(i, f)| {
-                match Pin::new(f).try_poll(cx) {
+                match f.try_poll_unpin(cx) {
                     Poll::Pending => None,
                     Poll::Ready(e) => Some((i, e)),
                 }

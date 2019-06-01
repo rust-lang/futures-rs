@@ -1,3 +1,4 @@
+use crate::future::FutureExt;
 use core::iter::FromIterator;
 use core::mem;
 use core::pin::Pin;
@@ -42,7 +43,7 @@ impl<Fut: Future + Unpin> Future for SelectAll<Fut> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let item = self.inner.iter_mut().enumerate().find_map(|(i, f)| {
-            match Pin::new(f).poll(cx) {
+            match f.poll_unpin(cx) {
                 Poll::Pending => None,
                 Poll::Ready(e) => Some((i, e)),
             }

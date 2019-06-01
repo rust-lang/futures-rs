@@ -92,7 +92,7 @@ impl<St> Stream for TryBufferUnordered<St>
         }
 
         // Attempt to pull the next value from the in_progress_queue
-        match Pin::new(self.as_mut().in_progress_queue()).poll_next(cx) {
+        match self.as_mut().in_progress_queue().poll_next_unpin(cx) {
             x @ Poll::Pending | x @ Poll::Ready(Some(_)) => return x,
             Poll::Ready(None) => {}
         }

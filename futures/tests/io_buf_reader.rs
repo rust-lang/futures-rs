@@ -1,5 +1,5 @@
 use futures::executor::block_on;
-use futures::future::Future;
+use futures::future::{Future, FutureExt};
 use futures::io::{
     AsyncSeek, AsyncSeekExt, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt,
     AllowStdIo, BufReader, SeekFrom,
@@ -259,7 +259,7 @@ impl AsyncBufRead for MaybePending<'_> {
 fn run<F: Future + Unpin>(mut f: F) -> F::Output {
     let mut cx = noop_context();
     loop {
-        if let Poll::Ready(x) = Pin::new(&mut f).poll(&mut cx) {
+        if let Poll::Ready(x) = f.poll_unpin(&mut cx) {
             return x;
         }
     }

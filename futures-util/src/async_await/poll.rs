@@ -1,3 +1,4 @@
+use crate::future::FutureExt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
@@ -29,6 +30,6 @@ pub struct PollOnce<F: Future + Unpin> {
 impl<F: Future + Unpin> Future for PollOnce<F> {
     type Output = Poll<F::Output>;
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(Pin::new(&mut self.future).poll(cx))
+        Poll::Ready(self.future.poll_unpin(cx))
     }
 }
