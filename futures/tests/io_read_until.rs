@@ -1,12 +1,11 @@
 use futures::executor::block_on;
-use futures::future::Future;
+use futures::future::{Future, FutureExt};
 use futures::stream::{self, StreamExt, TryStreamExt};
 use futures::io::AsyncBufReadExt;
 use futures::task::Poll;
 use futures_test::io::AsyncReadTestExt;
 use futures_test::task::noop_context;
 use std::io::Cursor;
-use std::pin::Pin;
 
 #[test]
 fn read_until() {
@@ -30,7 +29,7 @@ fn read_until() {
 fn run<F: Future + Unpin>(mut f: F) -> F::Output {
     let mut cx = noop_context();
     loop {
-        if let Poll::Ready(x) = Pin::new(&mut f).poll(&mut cx) {
+        if let Poll::Ready(x) = f.poll_unpin(&mut cx) {
             return x;
         }
     }
