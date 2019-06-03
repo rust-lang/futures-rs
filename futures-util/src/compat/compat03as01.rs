@@ -56,6 +56,12 @@ impl<T> Compat<T> {
     pub fn new(inner: T) -> Compat<T> {
         Compat { inner }
     }
+
+    /// Get a reference to 0.3 Future, Stream, AsyncRead, or AsyncWrite object
+    /// contained within.
+    pub fn get_ref(&self) -> &T {
+        &self.inner
+    }
 }
 
 impl<T, Item> CompatSink<T, Item> {
