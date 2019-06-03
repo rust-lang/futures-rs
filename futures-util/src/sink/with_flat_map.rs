@@ -83,11 +83,10 @@ where
         if buffer.is_some() {
             ready!(sink.as_mut().poll_ready(cx))?;
             let item = buffer.take().unwrap();
-            ready!(Poll::Ready(sink.as_mut().start_send(item)))?;
+            sink.as_mut().start_send(item)?;
         }
         if let Some(mut some_stream) = stream.as_mut().as_pin_mut() {
-            while let Some(x) = ready!(some_stream.as_mut().poll_next(cx)) {
-                let item = ready!(Poll::Ready(x))?;
+            while let Some(item) = ready!(some_stream.as_mut().poll_next(cx)?) {
                 match sink.as_mut().poll_ready(cx)? {
                     Poll::Ready(()) => sink.as_mut().start_send(item)?,
                     Poll::Pending => {
