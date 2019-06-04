@@ -1,6 +1,6 @@
 #![allow(clippy::cast_ptr_alignment)] // clippy is too strict here
 
-use super::arc_wake::{ArcWake, clone_arc_raw, wake_arc_raw, wake_by_ref_arc_raw};
+use super::arc_wake::{ArcWake, clone_arc_raw, wake_by_ref_arc_raw};
 use alloc::sync::Arc;
 use core::marker::PhantomData;
 use core::ops::Deref;
@@ -44,6 +44,18 @@ impl Deref for WakerRef<'_> {
 #[inline]
 unsafe fn noop(_data: *const ()) {}
 
+unsafe fn wake_unreachable(_data: *const ()) {
+    // With only a reference, calling `wake_arc_raw()` would be unsound,
+    // since the `WakerRef` didn't increment the refcount of the `ArcWake`,
+    // and `wake_arc_raw` would *decrement* it.
+    //
+    // This should never be reachable, since `WakerRef` only provides a `Deref`
+    // to the inner `Waker`.
+    //
+    // Still, safer to panic here than to call `wake_arc_raw`.
+    unreachable!("WakerRef::wake");
+}
+
 /// Creates a reference to a [`Waker`](::std::task::Waker)
 /// from a local [`ArcWake`].
 ///
@@ -62,7 +74,7 @@ where
     // Clones of the resulting `RawWaker` will still be dropped normally.
     let vtable = &RawWakerVTable::new(
         clone_arc_raw::<W>,
-        wake_arc_raw::<W>,
+        wake_unreachable,
         wake_by_ref_arc_raw::<W>,
         noop,
     );
