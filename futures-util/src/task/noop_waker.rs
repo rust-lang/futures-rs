@@ -17,8 +17,7 @@ fn noop_raw_waker() -> RawWaker {
 }
 
 /// Create a new [`Waker`](futures_core::task::Waker) which does
-/// nothing when `wake()` is called on it. The [`Waker`](futures_core::task::Waker) can be converted
-/// into a [`Waker`](futures_core::task::Waker) which will behave the same way.
+/// nothing when `wake()` is called on it.
 ///
 /// # Examples
 ///
@@ -34,9 +33,8 @@ pub fn noop_waker() -> Waker {
     }
 }
 
-/// Get a thread local reference to a
-/// [`Waker`](futures_core::task::Waker) referencing a singleton
-/// instance of a [`Waker`](futures_core::task::Waker) which panics when woken.
+/// Get a static reference to a [`Waker`](futures_core::task::Waker) which
+/// does nothing when `wake()` is called on it.
 ///
 /// # Examples
 ///
