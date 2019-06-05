@@ -1065,7 +1065,10 @@ pub trait StreamExt: Stream {
     /// This future will drive the stream to keep producing items until it is
     /// exhausted, sending each item to the sink. It will complete once the
     /// stream is exhausted, the sink has received and flushed all items, and
-    /// the sink is closed.
+    /// the sink is closed. Note that neither the original stream nor provided
+    /// sink will be output by this future.  Pass the sink by `Pin<&mut S>`
+    /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
+    /// order to preserve access to the Sink.
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
         S: Sink<<Self as TryStream>::Ok>,
