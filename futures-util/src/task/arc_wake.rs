@@ -8,7 +8,9 @@ use alloc::sync::Arc;
 /// can be converted into `Waker` objects.
 /// Those Wakers can be used to signal executors that a task it owns
 /// is ready to be `poll`ed again.
-pub trait ArcWake {
+// Note: Send + Sync required because `Arc<T>` doesn't automatically imply
+// those bounds, but `Waker` implements them.
+pub trait ArcWake: Send + Sync {
     /// Indicates that the associated task is ready to make progress and should
     /// be `poll`ed.
     ///
