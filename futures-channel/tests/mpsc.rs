@@ -101,7 +101,7 @@ fn send_recv_threads_no_capacity() {
         let (send_res_1, send_res_2) = block_on(join(tx.send(1), readytx.send(())));
         send_res_1.unwrap();
         send_res_2.unwrap();
-        block_on(join(tx.send(2), readytx.send(())));
+        block_on(join(tx.send(2), readytx.send(())))
     });
 
     readyrx.next();
@@ -111,7 +111,9 @@ fn send_recv_threads_no_capacity() {
     assert_eq!(rx.next(), Some(2));
     drop(rx);
 
-    t.join().unwrap();
+    let (x, y) = t.join().unwrap();
+    assert!(x.is_ok());
+    assert!(y.is_ok());
 }
 
 #[test]
