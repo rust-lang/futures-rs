@@ -326,14 +326,14 @@ pub mod prelude {
     //!
     //! The prelude may grow over time as additional items see ubiquitous use.
 
-    pub use crate::future::{self, Future, TryFuture, FutureExt, TryFutureExt};
-    pub use crate::stream::{self, Stream, TryStream, StreamExt, TryStreamExt};
-    pub use crate::sink::{self, Sink, SinkExt};
+    pub use crate::future::{self, Future, TryFuture, FutureExt as _, TryFutureExt as _};
+    pub use crate::stream::{self, Stream, TryStream, StreamExt as _, TryStreamExt as _};
+    pub use crate::sink::{self, Sink, SinkExt as _};
 
     #[cfg(feature = "std")]
     pub use crate::io::{
         AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead,
-        AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt,
+        AsyncReadExt as _, AsyncWriteExt as _, AsyncSeekExt as _, AsyncBufReadExt as _,
     };
 }
 
