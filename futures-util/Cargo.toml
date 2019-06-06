@@ -34,8 +34,8 @@ futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.16", 
 futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.16", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
-rand = { version = "0.6.4", optional = true }
-rand_core = { version = ">=0.2.2, <0.4", optional = true } # See https://github.com/rust-random/rand/issues/645
+rand = { version = "0.6.5", optional = true }
+rand_core = { version = "0.4", optional = true } # See https://github.com/rust-lang-nursery/futures-rs/pull/1664
 slab = { version = "0.4", optional = true }
 memchr = { version = "2.2", optional = true }
 futures_01 = { version = "0.1.25", optional = true, package = "futures" }
