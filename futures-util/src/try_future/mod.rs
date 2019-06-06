@@ -65,6 +65,9 @@ mod unwrap_or_else;
 pub use self::unwrap_or_else::UnwrapOrElse;
 
 // Implementation details
+mod flatten_stream_sink;
+pub(crate) use self::flatten_stream_sink::FlattenStreamSink;
+
 mod try_chain;
 pub(crate) use self::try_chain::{TryChain, TryChainAction};
 

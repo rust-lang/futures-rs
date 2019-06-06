@@ -1,41 +1,53 @@
+use super::FlattenStreamSink;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
+use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
 use futures_sink::Sink;
-
-#[derive(Debug)]
-enum State<Fut, Si> {
-    Waiting(Fut),
-    Ready(Si),
-    Closed,
-}
-use self::State::*;
+use pin_utils::unsafe_pinned;
 
 /// Sink for the [`flatten_sink`](super::TryFutureExt::flatten_sink) method.
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct FlattenSink<Fut, Si>(State<Fut, Si>);
-
-impl<Fut: Unpin, Si: Unpin> Unpin for FlattenSink<Fut, Si> {}
+pub struct FlattenSink<Fut, Si>
+where
+    Fut: TryFuture<Ok = Si>,
+{
+    inner: FlattenStreamSink<Fut>,
+}
 
 impl<Fut, Si> FlattenSink<Fut, Si>
 where
     Fut: TryFuture<Ok = Si>,
 {
-    pub(super) fn new(future: Fut) -> FlattenSink<Fut, Si> {
-        FlattenSink(Waiting(future))
-    }
+    unsafe_pinned!(inner: FlattenStreamSink<Fut>);
 
-    fn project_pin<'a>(
-        self: Pin<&'a mut Self>
-    ) -> State<Pin<&'a mut Fut>, Pin<&'a mut Si>> {
-        unsafe {
-            match &mut Pin::get_unchecked_mut(self).0 {
-                Waiting(f) => Waiting(Pin::new_unchecked(f)),
-                Ready(s) => Ready(Pin::new_unchecked(s)),
-                Closed => Closed,
-            }
+    pub(super) fn new(future: Fut) -> Self {
+        Self {
+            inner: FlattenStreamSink::new(future),
         }
+    }
+}
+
+impl<Fut, S> FusedStream for FlattenSink<Fut, S>
+where
+    Fut: TryFuture<Ok = S>,
+    S: FusedStream,
+{
+    fn is_terminated(&self) -> bool {
+        self.inner.is_terminated()
+    }
+}
+
+impl<Fut, S> Stream for FlattenSink<Fut, S>
+where
+    Fut: TryFuture<Ok = S>,
+    S: TryStream<Error = Fut::Error>,
+{
+    type Item = Result<S::Ok, Fut::Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.inner().poll_next(cx)
     }
 }
 
@@ -44,59 +56,21 @@ where
     Fut: TryFuture<Ok = Si>,
     Si: Sink<Item, SinkError = Fut::Error>,
 {
-    type SinkError = Si::SinkError;
+    type SinkError = Fut::Error;
 
-    fn poll_ready(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
-        let resolved_stream = match self.as_mut().project_pin() {
-            Ready(s) => return s.poll_ready(cx),
-            Waiting(f) => ready!(f.try_poll(cx))?,
-            Closed => panic!("poll_ready called after eof"),
-        };
-        self.set(FlattenSink(Ready(resolved_stream)));
-        if let Ready(resolved_stream) = self.project_pin() {
-            resolved_stream.poll_ready(cx)
-        } else {
-            unreachable!()
-        }
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+        self.inner().poll_ready(cx)
     }
 
-    fn start_send(
-        self: Pin<&mut Self>,
-        item: Item,
-    ) -> Result<(), Self::SinkError> {
-        match self.project_pin() {
-            Ready(s) => s.start_send(item),
-            Waiting(_) => panic!("poll_ready not called first"),
-            Closed => panic!("start_send called after eof"),
-        }
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
+        self.inner().start_send(item)
     }
 
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
-        match self.project_pin() {
-            Ready(s) => s.poll_flush(cx),
-            // if sink not yet resolved, nothing written ==> everything flushed
-            Waiting(_) => Poll::Ready(Ok(())),
-            Closed => panic!("poll_flush called after eof"),
-        }
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+        self.inner().poll_flush(cx)
     }
 
-    fn poll_close(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
-        let res = match self.as_mut().project_pin() {
-            Ready(s) => s.poll_close(cx),
-            Waiting(_) | Closed => Poll::Ready(Ok(())),
-        };
-        if res.is_ready() {
-            self.set(FlattenSink(Closed));
-        }
-        res
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+        self.inner().poll_close(cx)
     }
 }
