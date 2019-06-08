@@ -181,7 +181,7 @@ pub trait StreamExt: Stream {
     /// # });
     /// ```
     fn next(&mut self) -> Next<'_, Self>
-        where Self: Sized + Unpin,
+        where Self: Unpin,
     {
         Next::new(self)
     }
@@ -830,9 +830,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(sum, 7);
     /// # });
     /// ```
-    fn by_ref(&mut self) -> &mut Self
-        where Self: Sized
-    {
+    fn by_ref(&mut self) -> &mut Self {
         self
     }
 
@@ -1142,7 +1140,7 @@ pub trait StreamExt: Stream {
         &mut self,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>>
-    where Self: Unpin + Sized
+    where Self: Unpin
     {
         Pin::new(self).poll_next(cx)
     }
@@ -1196,7 +1194,7 @@ pub trait StreamExt: Stream {
     /// assert_eq!(total, 6);
     /// # });
     /// ```
-    fn select_next_some(&mut self) -> SelectNextSome<'_, Self> where Self: Sized + Unpin + FusedStream {
+    fn select_next_some(&mut self) -> SelectNextSome<'_, Self> where Self: Unpin + FusedStream {
         SelectNextSome::new(self)
     }
 }
