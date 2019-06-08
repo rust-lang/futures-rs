@@ -529,7 +529,7 @@ pub trait FutureExt: Future {
 
     /// A convenience for calling `Future::poll` on `Unpin` future types.
     fn poll_unpin(&mut self, cx: &mut Context<'_>) -> Poll<Self::Output>
-        where Self: Unpin + Sized
+        where Self: Unpin
     {
         Pin::new(self).poll(cx)
     }

@@ -303,7 +303,7 @@ pub trait TryStreamExt: TryStream {
     /// # })
     /// ```
     fn try_next(&mut self) -> TryNext<'_, Self>
-        where Self: Sized + Unpin,
+        where Self: Unpin,
     {
         TryNext::new(self)
     }

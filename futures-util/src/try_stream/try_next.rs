@@ -7,25 +7,25 @@ use futures_core::task::{Context, Poll};
 /// Future for the [`try_next`](super::TryStreamExt::try_next) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct TryNext<'a, St: Unpin> {
+pub struct TryNext<'a, St: ?Sized + Unpin> {
     stream: &'a mut St,
 }
 
-impl<St: Unpin> Unpin for TryNext<'_, St> {}
+impl<St: ?Sized + Unpin> Unpin for TryNext<'_, St> {}
 
-impl<'a, St: TryStream + Unpin> TryNext<'a, St> {
+impl<'a, St: ?Sized + TryStream + Unpin> TryNext<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {
         TryNext { stream }
     }
 }
 
-impl<St: Unpin + FusedStream> FusedFuture for TryNext<'_, St> {
+impl<St: ?Sized + Unpin + FusedStream> FusedFuture for TryNext<'_, St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
-impl<St: TryStream + Unpin> Future for TryNext<'_, St> {
+impl<St: ?Sized + TryStream + Unpin> Future for TryNext<'_, St> {
     type Output = Result<Option<St::Ok>, St::Error>;
 
     fn poll(

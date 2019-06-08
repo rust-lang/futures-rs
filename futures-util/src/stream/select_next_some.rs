@@ -8,23 +8,23 @@ use crate::stream::StreamExt;
 /// method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct SelectNextSome<'a, St> {
+pub struct SelectNextSome<'a, St: ?Sized> {
     stream: &'a mut St,
 }
 
-impl<'a, St> SelectNextSome<'a, St> {
+impl<'a, St: ?Sized> SelectNextSome<'a, St> {
     pub(super) fn new(stream: &'a mut St) -> Self {
         SelectNextSome { stream }
     }
 }
 
-impl<St: FusedStream> FusedFuture for SelectNextSome<'_, St> {
+impl<St: ?Sized + FusedStream> FusedFuture for SelectNextSome<'_, St> {
     fn is_terminated(&self) -> bool {
         self.stream.is_terminated()
     }
 }
 
-impl<St: Stream + FusedStream + Unpin> Future for SelectNextSome<'_, St> {
+impl<St: ?Sized + Stream + FusedStream + Unpin> Future for SelectNextSome<'_, St> {
     type Output = St::Item;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
