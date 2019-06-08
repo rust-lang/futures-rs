@@ -4,7 +4,6 @@ use pin_utils::unsafe_pinned;
 use std::any::Any;
 use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
-use std::prelude::v1::*;
 
 /// Future for the [`catch_unwind`](super::FutureExt::catch_unwind) method.
 #[derive(Debug)]

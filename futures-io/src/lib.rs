@@ -18,7 +18,6 @@
 #[cfg(feature = "std")]
 mod if_std {
     use futures_core::task::{Context, Poll};
-    use std::boxed::Box;
     use std::cmp;
     use std::io as StdIo;
     use std::ops::DerefMut;

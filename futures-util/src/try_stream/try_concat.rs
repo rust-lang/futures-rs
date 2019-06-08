@@ -1,4 +1,3 @@
-use core::default::Default;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::TryStream;

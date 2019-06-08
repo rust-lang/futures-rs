@@ -4,7 +4,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::any::Any;
 use std::pin::Pin;
 use std::panic::{catch_unwind, UnwindSafe, AssertUnwindSafe};
-use std::prelude::v1::*;
 
 /// Stream for the [`catch_unwind`](super::StreamExt::catch_unwind) method.
 #[derive(Debug)]

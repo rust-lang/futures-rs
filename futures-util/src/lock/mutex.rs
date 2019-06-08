@@ -1,7 +1,7 @@
 use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll, Waker};
 use slab::Slab;
-use std::{fmt, mem, usize};
+use std::{fmt, mem};
 use std::cell::UnsafeCell;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
@@ -113,7 +113,7 @@ impl<T> Mutex<T> {
 }
 
 // Sentinel for when no slot in the `Slab` has been dedicated to this object.
-const WAIT_KEY_NONE: usize = usize::MAX;
+const WAIT_KEY_NONE: usize = usize::max_value();
 
 /// A future which resolves when the target mutex has been successfully acquired.
 pub struct MutexLockFuture<'a, T> {
