@@ -3,7 +3,7 @@ use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
 use pin_utils::unsafe_pinned;
-use core::cmp::{Eq, PartialEq, PartialOrd, Ord, Ordering};
+use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::pin::Pin;

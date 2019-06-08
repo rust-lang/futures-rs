@@ -1,8 +1,5 @@
 #![feature(async_await)]
 
-extern crate futures;
-extern crate futures_util;
-
 use futures::executor::block_on;
 use futures::stream;
 use futures_util::StreamExt;

@@ -16,7 +16,6 @@ use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::Ordering::SeqCst;
 use core::sync::atomic::{AtomicPtr, AtomicBool};
-use core::usize;
 use alloc::sync::{Arc, Weak};
 
 mod abort;

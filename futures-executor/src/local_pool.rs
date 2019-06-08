@@ -8,7 +8,6 @@ use futures_util::stream::StreamExt;
 use pin_utils::pin_mut;
 use std::cell::{RefCell};
 use std::ops::{Deref, DerefMut};
-use std::prelude::v1::*;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::thread::{self, Thread};

@@ -2,7 +2,6 @@ use futures_io::{self as io, AsyncWrite};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{
     cmp,
-    marker::Unpin,
     pin::Pin,
     task::{Context, Poll},
 };

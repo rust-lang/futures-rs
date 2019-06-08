@@ -1,6 +1,5 @@
 use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::pin::Pin;
-use core::default::Default;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};

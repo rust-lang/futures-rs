@@ -42,7 +42,6 @@
 //       slightly modified
 
 pub(super) use self::PopResult::*;
-use std::prelude::v1::*;
 
 use std::thread;
 use std::cell::UnsafeCell;
