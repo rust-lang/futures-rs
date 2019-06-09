@@ -1,4 +1,4 @@
-use std::ops;
+use std::ops::{Bound, Range, RangeBounds};
 
 /// A owned window around an underlying buffer.
 ///
@@ -20,7 +20,7 @@ use std::ops;
 #[derive(Debug)]
 pub struct Window<T> {
     inner: T,
-    range: ops::Range<usize>,
+    range: Range<usize>,
 }
 
 impl<T: AsRef<[u8]>> Window<T> {
@@ -29,8 +29,8 @@ impl<T: AsRef<[u8]>> Window<T> {
     ///
     /// Further methods can be called on the returned `Window<T>` to alter the
     /// window into the data provided.
-    pub fn new(t: T) -> Window<T> {
-        Window {
+    pub fn new(t: T) -> Self {
+        Self {
             range: 0..t.as_ref().len(),
             inner: t,
         }
@@ -65,43 +65,36 @@ impl<T: AsRef<[u8]>> Window<T> {
         self.range.end
     }
 
-    /// Changes the starting index of this window to the index specified.
+    /// Changes the range of this window to the range specified.
     ///
     /// Returns the windows back to chain multiple calls to this method.
     ///
     /// # Panics
     ///
-    /// This method will panic if `start` is out of bounds for the underlying
-    /// slice or if it comes after the `end` configured in this window.
-    pub fn set_start(&mut self, start: usize) -> &mut Window<T> {
-        assert!(start <= self.inner.as_ref().len());
-        assert!(start <= self.range.end);
-        self.range.start = start;
-        self
-    }
+    /// This method will panic if `range` is out of bounds for the underlying
+    /// slice or if [`start_bound()`] of `range` comes after the [`end_bound()`].
+    ///
+    /// [`start_bound()`]: std::ops::RangeBounds::start_bound
+    /// [`end_bound()`]: std::ops::RangeBounds::end_bound
+    pub fn set<R: RangeBounds<usize>>(&mut self, range: R) -> &mut Self {
+        let start = match range.start_bound() {
+            Bound::Included(n) => *n,
+            Bound::Excluded(n) => *n + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(n) => *n + 1,
+            Bound::Excluded(n) => *n,
+            Bound::Unbounded => self.inner.as_ref().len(),
+        };
 
-    /// Changes the end index of this window to the index specified.
-    ///
-    /// Returns the windows back to chain multiple calls to this method.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if `end` is out of bounds for the underlying
-    /// slice or if it comes before the `start` configured in this window.
-    pub fn set_end(&mut self, end: usize) -> &mut Window<T> {
         assert!(end <= self.inner.as_ref().len());
-        assert!(self.range.start <= end);
+        assert!(start <= end);
+
+        self.range.start = start;
         self.range.end = end;
         self
     }
-
-    // TODO: how about a generic set() method along the lines of:
-    //
-    //       buffer.set(..3)
-    //             .set(0..2)
-    //             .set(4..)
-    //
-    // etc.
 }
 
 impl<T: AsRef<[u8]>> AsRef<[u8]> for Window<T> {
