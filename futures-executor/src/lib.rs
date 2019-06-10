@@ -78,3 +78,8 @@ pub use crate::enter::{Enter, EnterError, enter};
 mod park;
 #[cfg(feature = "std")]
 pub use crate::park::{Park, ParkDuration, ParkPoll};
+
+#[cfg(feature = "std")]
+mod park_thread;
+#[cfg(feature = "std")]
+pub use crate::park_thread::ParkThread;
