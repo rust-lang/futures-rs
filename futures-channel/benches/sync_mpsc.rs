@@ -93,7 +93,7 @@ impl Stream for TestSender {
         ready!(tx.as_mut().poll_ready(cx)).unwrap();
         tx.as_mut().start_send(this.last + 1).unwrap();
         this.last += 1;
-        assert_eq!(Poll::Ready(Ok(())), tx.as_mut().poll_flush(cx));
+        assert_eq!(Poll::Pending, tx.as_mut().poll_flush(cx));
         Poll::Ready(Some(this.last))
     }
 }
