@@ -3,10 +3,10 @@ use futures::io::Window;
 #[test]
 fn set() {
     let mut buffer = Window::new(&[1, 2, 3]);
-    buffer.set(..3)
-          .set(3..3)
-          .set(3..=2) // == 3..3
-          .set(0..2);
+    buffer.set(..3);
+    buffer.set(3..3);
+    buffer.set(3..=2); // == 3..3
+    buffer.set(0..2);
 
     assert_eq!(buffer.as_ref(), &[1, 2]);
 }
