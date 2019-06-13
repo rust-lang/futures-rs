@@ -67,8 +67,6 @@ impl<T: AsRef<[u8]>> Window<T> {
 
     /// Changes the range of this window to the range specified.
     ///
-    /// Returns the windows back to chain multiple calls to this method.
-    ///
     /// # Panics
     ///
     /// This method will panic if `range` is out of bounds for the underlying
@@ -76,7 +74,7 @@ impl<T: AsRef<[u8]>> Window<T> {
     ///
     /// [`start_bound()`]: std::ops::RangeBounds::start_bound
     /// [`end_bound()`]: std::ops::RangeBounds::end_bound
-    pub fn set<R: RangeBounds<usize>>(&mut self, range: R) -> &mut Self {
+    pub fn set<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(n) => *n,
             Bound::Excluded(n) => *n + 1,
@@ -93,7 +91,6 @@ impl<T: AsRef<[u8]>> Window<T> {
 
         self.range.start = start;
         self.range.end = end;
-        self
     }
 }
 
