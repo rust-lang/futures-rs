@@ -2,8 +2,7 @@
 
 use futures_io::AsyncWrite;
 
-mod interleave_pending_write;
-pub use self::interleave_pending_write::InterleavePendingWrite;
+pub use super::interleave_pending::InterleavePending;
 
 mod limited_write;
 pub use self::limited_write::LimitedWrite;
@@ -45,11 +44,11 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     ///
     /// # Ok::<(), std::io::Error>(())
     /// ```
-    fn interleave_pending_write(self) -> InterleavePendingWrite<Self>
+    fn interleave_pending_write(self) -> InterleavePending<Self>
     where
         Self: Sized,
     {
-        InterleavePendingWrite::new(self)
+        InterleavePending::new(self)
     }
 
     /// Limit the number of bytes allowed to be written on each call to `poll_write`.

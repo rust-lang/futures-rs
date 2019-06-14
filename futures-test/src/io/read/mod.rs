@@ -2,8 +2,7 @@
 
 use futures_io::AsyncRead;
 
-mod interleave_pending;
-pub use self::interleave_pending::InterleavePending;
+pub use super::interleave_pending::InterleavePending;
 
 /// Additional combinators for testing async readers.
 pub trait AsyncReadTestExt: AsyncRead {
