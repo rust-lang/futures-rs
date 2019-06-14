@@ -3,9 +3,7 @@
 use futures_io::AsyncWrite;
 
 pub use super::interleave_pending::InterleavePending;
-
-mod limited_write;
-pub use self::limited_write::LimitedWrite;
+pub use super::limited::Limited;
 
 /// Additional combinators for testing async writers.
 pub trait AsyncWriteTestExt: AsyncWrite {
@@ -78,11 +76,11 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     ///
     /// # Ok::<(), std::io::Error>(())
     /// ```
-    fn limited_write(self, limit: usize) -> LimitedWrite<Self>
+    fn limited_write(self, limit: usize) -> Limited<Self>
     where
         Self: Sized,
     {
-        LimitedWrite::new(self, limit)
+        Limited::new(self, limit)
     }
 }
 
