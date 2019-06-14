@@ -3,75 +3,32 @@ use futures_core::task::{Context, Poll};
 use futures_io::{AsyncRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
+use super::{BufReader, CopyBufInto};
+use pin_utils::unsafe_pinned;
 
 /// Future for the [`copy_into`](super::AsyncReadExt::copy_into) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyInto<'a, R: ?Sized + Unpin, W: ?Sized + Unpin> {
-    reader: &'a mut R,
-    read_done: bool,
-    writer: &'a mut W,
-    pos: usize,
-    cap: usize,
-    amt: u64,
-    buf: Box<[u8]>,
+pub struct CopyInto<R: AsyncRead, W> {
+    inner: CopyBufInto<BufReader<R>, W>,
 }
 
-impl<R: ?Sized + Unpin, W: ?Sized + Unpin> Unpin for CopyInto<'_, R, W> {}
+impl<R: AsyncRead, W> Unpin for CopyInto<R, W> where CopyBufInto<BufReader<R>, W>: Unpin {}
 
-impl<'a, R: ?Sized + Unpin, W: ?Sized + Unpin> CopyInto<'a, R, W> {
-    pub(super) fn new(reader: &'a mut R, writer: &'a mut W) -> Self {
+impl<R: AsyncRead, W> CopyInto<R, W> {
+    unsafe_pinned!(inner: CopyBufInto<BufReader<R>, W>);
+
+    pub(super) fn new(reader: R, writer: W) -> Self {
         CopyInto {
-            reader,
-            read_done: false,
-            writer,
-            amt: 0,
-            pos: 0,
-            cap: 0,
-            buf: Box::new([0; 2048]),
+            inner: CopyBufInto::new(BufReader::new(reader), writer),
         }
     }
 }
 
-impl<R, W> Future for CopyInto<'_, R, W>
-    where R: AsyncRead + ?Sized + Unpin,
-          W: AsyncWrite + ?Sized + Unpin,
-{
+impl<R: AsyncRead, W: AsyncWrite> Future for CopyInto<R, W> {
     type Output = io::Result<u64>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = &mut *self;
-        loop {
-            // If our buffer is empty, then we need to read some data to
-            // continue.
-            if this.pos == this.cap && !this.read_done {
-                let n = ready!(Pin::new(&mut this.reader).poll_read(cx, &mut this.buf))?;
-                if n == 0 {
-                    this.read_done = true;
-                } else {
-                    this.pos = 0;
-                    this.cap = n;
-                }
-            }
-
-            // If our buffer has some data, let's write it out!
-            while this.pos < this.cap {
-                let i = ready!(Pin::new(&mut this.writer).poll_write(cx, &this.buf[this.pos..this.cap]))?;
-                if i == 0 {
-                    return Poll::Ready(Err(io::ErrorKind::WriteZero.into()))
-                } else {
-                    this.pos += i;
-                    this.amt += i as u64;
-                }
-            }
-
-            // If we've written al the data and we've seen EOF, flush out the
-            // data and finish the transfer.
-            // done with the entire transfer.
-            if this.pos == this.cap && this.read_done {
-                ready!(Pin::new(&mut this.writer).poll_flush(cx))?;
-                return Poll::Ready(Ok(this.amt));
-            }
-        }
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.inner().poll(cx)
     }
 }
