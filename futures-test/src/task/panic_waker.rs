@@ -47,7 +47,6 @@ pub fn panic_waker() -> Waker {
 ///
 /// ```should_panic
 /// #![feature(async_await)]
-/// use futures::task;
 /// use futures_test::task::panic_waker_ref;
 ///
 /// let waker = panic_waker_ref();

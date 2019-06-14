@@ -183,7 +183,7 @@ impl AtomicWaker {
     /// impl Future for Flag {
     ///     type Output = ();
     ///
-    ///     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+    ///     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
     ///         // Register **before** checking `set` to avoid a race condition
     ///         // that would result in lost notifications.
     ///         self.waker.register(cx.waker());

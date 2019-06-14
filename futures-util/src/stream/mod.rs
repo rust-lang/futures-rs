@@ -944,14 +944,14 @@ pub trait StreamExt: Stream {
     /// let stream_of_futures = stream::iter(vec![recv_one, recv_two]);
     /// let mut buffered = stream_of_futures.buffer_unordered(10);
     ///
-    /// send_two.send(2i32);
+    /// send_two.send(2i32)?;
     /// assert_eq!(buffered.next().await, Some(Ok(2i32)));
     ///
-    /// send_one.send(1i32);
+    /// send_one.send(1i32)?;
     /// assert_eq!(buffered.next().await, Some(Ok(1i32)));
     ///
     /// assert_eq!(buffered.next().await, None);
-    /// # })
+    /// # Ok::<(), i32>(()) }).unwrap();
     /// ```
     #[cfg_attr(
         feature = "cfg-target-has-atomic",

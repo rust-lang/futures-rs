@@ -12,7 +12,7 @@ use futures_core::task::{Spawn, SpawnError};
 /// use futures_test::task::RecordSpawner;
 ///
 /// let mut recorder = RecordSpawner::new();
-/// recorder.spawn(async { });
+/// recorder.spawn(async { }).unwrap();
 /// assert_eq!(recorder.spawned().len(), 1);
 /// ```
 #[derive(Debug)]

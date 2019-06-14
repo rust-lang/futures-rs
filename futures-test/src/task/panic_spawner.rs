@@ -12,7 +12,8 @@ use futures_core::task::{Spawn, SpawnError};
 /// use futures_test::task::PanicSpawner;
 ///
 /// let mut spawn = PanicSpawner::new();
-/// spawn.spawn(async { }); // Will panic
+/// spawn.spawn(async { })?; // Will panic
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug)]
 pub struct PanicSpawner {
@@ -51,7 +52,8 @@ impl Default for PanicSpawner {
 /// use futures_test::task::panic_spawner_mut;
 ///
 /// let spawner = panic_spawner_mut();
-/// spawner.spawn(async { }); // Will panic
+/// spawner.spawn(async { })?; // Will panic
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn panic_spawner_mut() -> &'static mut PanicSpawner {
     Box::leak(Box::new(PanicSpawner::new()))

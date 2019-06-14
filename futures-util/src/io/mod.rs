@@ -102,7 +102,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// assert_eq!(bytes, 4);
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn copy_into<'a, W>(
         &'a mut self,
@@ -137,7 +137,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// // `output.len()` bytes in a single read.
     /// assert_eq!(bytes, 4);
     /// assert_eq!(output, [1, 2, 3, 4, 0]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Read<'a, Self>
         where Self: Unpin,
@@ -178,7 +178,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// reader.read_exact(&mut output).await?;
     ///
     /// assert_eq!(output, [1, 2, 3, 4]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     ///
     /// ## EOF is hit before `buf` is filled
@@ -222,7 +222,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// reader.read_to_end(&mut output).await?;
     ///
     /// assert_eq!(output, vec![1, 2, 3, 4]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn read_to_end<'a>(
         &'a mut self,
@@ -262,7 +262,7 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// assert_eq!(buffer.into_inner(), [1, 2, 3, 4, 5, 6, 7, 8]);
     /// assert_eq!(writer.into_inner(), [5, 6, 7, 8, 0]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn split(self) -> (ReadHalf<Self>, WriteHalf<Self>)
         where Self: AsyncWrite + Sized,
@@ -301,7 +301,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// let mut output = [0u8; 5];
     ///
     /// {
-    ///     let mut writer = Cursor::new(&mut output[..]);
+    ///     let writer = Cursor::new(&mut output[..]);
     ///     let mut buffered = AllowStdIo::new(BufWriter::new(writer));
     ///     buffered.write_all(&[1, 2]).await?;
     ///     buffered.write_all(&[3, 4]).await?;
@@ -309,7 +309,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// }
     ///
     /// assert_eq!(output, [1, 2, 3, 4, 0]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn flush(&mut self) -> Flush<'_, Self>
         where Self: Unpin,
@@ -365,7 +365,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// writer.write_all(&[1, 2, 3, 4]).await?;
     ///
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> WriteAll<'a, Self>
         where Self: Unpin,
@@ -445,7 +445,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// let num_bytes = cursor.read_until(b'-', &mut buf).await?;
     /// assert_eq!(num_bytes, 0);
     /// assert_eq!(buf, b"");
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn read_until<'a>(
         &'a mut self,
@@ -508,7 +508,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// let num_bytes = cursor.read_line(&mut buf).await?;
     /// assert_eq!(num_bytes, 0);
     /// assert_eq!(buf, "");
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn read_line<'a>(&'a mut self, buf: &'a mut String) -> ReadLine<'a, Self>
         where Self: Unpin,
@@ -548,7 +548,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// assert_eq!(lines_stream.next().await, Some(String::from("ipsum")));
     /// assert_eq!(lines_stream.next().await, Some(String::from("dolor")));
     /// assert_eq!(lines_stream.next().await, None);
-    /// # Ok::<(), Box<std::error::Error>>(()) }).unwrap();
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     fn lines(self) -> Lines<Self>
         where Self: Sized,

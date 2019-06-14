@@ -365,7 +365,7 @@ pub trait TryStreamExt: TryStream {
     /// use futures::stream::{self, TryStreamExt};
     ///
     /// let stream = stream::iter(vec![Ok::<i32, i32>(1), Ok(3), Ok(2)]);
-    /// let mut stream = stream.try_skip_while(|x| future::ready(Ok(*x < 3)));
+    /// let stream = stream.try_skip_while(|x| future::ready(Ok(*x < 3)));
     ///
     /// let output: Result<Vec<i32>, i32> = stream.try_collect().await;
     /// assert_eq!(output, Ok(vec![3, 2]));
@@ -670,14 +670,14 @@ pub trait TryStreamExt: TryStream {
     ///
     /// let mut buffered = stream_of_futures.try_buffer_unordered(10);
     ///
-    /// send_two.send(2i32);
+    /// send_two.send(2i32)?;
     /// assert_eq!(buffered.next().await, Some(Ok(2i32)));
     ///
-    /// send_one.send(1i32);
+    /// send_one.send(1i32)?;
     /// assert_eq!(buffered.next().await, Some(Ok(1i32)));
     ///
     /// assert_eq!(buffered.next().await, None);
-    /// # })
+    /// # Ok::<(), i32>(()) }).unwrap();
     /// ```
     ///
     /// Errors from the underlying stream itself are propagated:
@@ -691,12 +691,12 @@ pub trait TryStreamExt: TryStream {
     /// let (sink, stream_of_futures) = mpsc::unbounded();
     /// let mut buffered = stream_of_futures.try_buffer_unordered(10);
     ///
-    /// sink.unbounded_send(Ok(future::ready(Ok(7i32))));
+    /// sink.unbounded_send(Ok(future::ready(Ok(7i32))))?;
     /// assert_eq!(buffered.next().await, Some(Ok(7i32)));
     ///
-    /// sink.unbounded_send(Err("error in the stream"));
+    /// sink.unbounded_send(Err("error in the stream"))?;
     /// assert_eq!(buffered.next().await, Some(Err("error in the stream")));
-    /// # })
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
@@ -767,10 +767,8 @@ pub trait TryStreamExt: TryStream {
     /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
-    /// use futures::future::lazy;
-    /// use futures::stream::{self, StreamExt, TryStreamExt};
-    /// use futures::io::{AsyncRead, AsyncReadExt};
-    /// use std::io::Error;
+    /// use futures::stream::{self, TryStreamExt};
+    /// use futures::io::AsyncReadExt;
     ///
     /// let stream = stream::iter(vec![Ok(vec![1, 2, 3, 4, 5])]);
     /// let mut reader = stream.into_async_read();

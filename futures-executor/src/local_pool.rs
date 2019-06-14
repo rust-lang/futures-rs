@@ -175,16 +175,16 @@ impl LocalPool {
     /// let mut pool = LocalPool::new();
     /// let mut spawner = pool.spawner();
     ///
-    /// spawner.spawn_local(ready(()));
-    /// spawner.spawn_local(ready(()));
-    /// spawner.spawn_local(empty());
+    /// spawner.spawn_local(ready(())).unwrap();
+    /// spawner.spawn_local(ready(())).unwrap();
+    /// spawner.spawn_local(empty()).unwrap();
     ///
     /// // Run the two ready tasks and return true for them.
     /// pool.try_run_one(); // returns true after completing one of the ready futures
     /// pool.try_run_one(); // returns true after completing the other ready future
     ///
     /// // the remaining task can not be completed
-    /// pool.try_run_one(); // returns false
+    /// assert!(!pool.try_run_one()); // returns false
     /// ```
     ///
     /// This function will not block the calling thread and will return the moment
@@ -215,9 +215,9 @@ impl LocalPool {
     /// let mut pool = LocalPool::new();
     /// let mut spawner = pool.spawner();
     ///
-    /// spawner.spawn_local(ready(()));
-    /// spawner.spawn_local(ready(()));
-    /// spawner.spawn_local(empty());
+    /// spawner.spawn_local(ready(())).unwrap();
+    /// spawner.spawn_local(ready(())).unwrap();
+    /// spawner.spawn_local(empty()).unwrap();
     ///
     /// // Runs the two ready task and returns.
     /// // The empty task remains in the pool.

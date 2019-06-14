@@ -35,7 +35,7 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// use futures::future;
 /// use futures::stream::{self, StreamExt};
 ///
-/// let mut stream = stream::unfold(0, |state| {
+/// let stream = stream::unfold(0, |state| {
 ///     if state <= 2 {
 ///         let next_state = state + 1;
 ///         let yielded = state  * 2;
