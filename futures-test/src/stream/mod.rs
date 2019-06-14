@@ -2,8 +2,7 @@
 
 use futures_core::stream::Stream;
 
-mod interleave_pending;
-pub use self::interleave_pending::InterleavePending;
+pub use crate::interleave_pending::InterleavePending;
 
 /// Additional combinators for testing streams.
 pub trait StreamTestExt: Stream {

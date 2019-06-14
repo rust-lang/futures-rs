@@ -1,3 +1,4 @@
+use futures_core::stream::Stream;
 use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{
@@ -5,55 +6,80 @@ use std::{
     task::{Context, Poll},
 };
 
-/// I/O wrapper for interleaving [`Poll::Pending`] in calls to read or write.
+/// Wrapper that interleaves [`Poll::Pending`] in calls to poll.
 ///
-/// See the [`interleave_pending`] and [`interleave_pending_write`] methods.
-///
-/// [`interleave_pending`]: super::AsyncReadTestExt::interleave_pending
-/// [`interleave_pending_write`]: super::AsyncWriteTestExt::interleave_pending_write
+/// See the `interleave_pending` methods on:
+/// * [`FutureTestExt`](crate::future::FutureTestExt::interleave_pending)
+/// * [`StreamTestExt`](crate::stream::StreamTestExt::interleave_pending)
+/// * [`AsyncReadTestExt`](crate::io::AsyncReadTestExt::interleave_pending)
+/// * [`AsyncWriteTestExt`](crate::io::AsyncWriteTestExt::interleave_pending_write)
 #[derive(Debug)]
-pub struct InterleavePending<Io> {
-    io: Io,
+pub struct InterleavePending<T> {
+    inner: T,
     pended: bool,
 }
 
-impl<Io: Unpin> Unpin for InterleavePending<Io> {}
+impl<T: Unpin> Unpin for InterleavePending<T> {}
 
-impl<Io> InterleavePending<Io> {
-    unsafe_pinned!(io: Io);
+impl<T> InterleavePending<T> {
+    unsafe_pinned!(inner: T);
     unsafe_unpinned!(pended: bool);
 
-    pub(crate) fn new(io: Io) -> Self {
-        Self { io, pended: false }
+    pub(crate) fn new(inner: T) -> Self {
+        Self {
+            inner,
+            pended: false,
+        }
     }
 
     /// Acquires a reference to the underlying I/O object that this adaptor is
     /// wrapping.
-    pub fn get_ref(&self) -> &Io {
-        &self.io
+    pub fn get_ref(&self) -> &T {
+        &self.inner
     }
 
     /// Acquires a mutable reference to the underlying I/O object that this
     /// adaptor is wrapping.
-    pub fn get_mut(&mut self) -> &mut Io {
-        &mut self.io
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
     }
 
     /// Acquires a pinned mutable reference to the underlying I/O object that
     /// this adaptor is wrapping.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Io> {
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut T> {
         self.project().0
     }
 
     /// Consumes this adaptor returning the underlying I/O object.
-    pub fn into_inner(self) -> Io {
-        self.io
+    pub fn into_inner(self) -> T {
+        self.inner
     }
 
-    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut Io>, &'a mut bool) {
+    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut T>, &'a mut bool) {
         unsafe {
             let this = self.get_unchecked_mut();
-            (Pin::new_unchecked(&mut this.io), &mut this.pended)
+            (Pin::new_unchecked(&mut this.inner), &mut this.pended)
+        }
+    }
+}
+
+impl<St: Stream> Stream for InterleavePending<St> {
+    type Item = St::Item;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        if *self.as_mut().pended() {
+            let next = self.as_mut().inner().poll_next(cx);
+            if next.is_ready() {
+                *self.pended() = false;
+            }
+            next
+        } else {
+            cx.waker().wake_by_ref();
+            *self.pended() = true;
+            Poll::Pending
         }
     }
 }
@@ -156,6 +182,6 @@ impl<R: AsyncBufRead> AsyncBufRead for InterleavePending<R> {
     }
 
     fn consume(self: Pin<&mut Self>, amount: usize) {
-        self.io().consume(amount)
+        self.inner().consume(amount)
     }
 }
