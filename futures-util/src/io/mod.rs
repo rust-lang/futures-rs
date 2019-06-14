@@ -93,29 +93,28 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// On success the number of bytes is returned.
     ///
+    /// Note that this method consumes `writer` but does not close it, you will likely want to pass
+    /// it by reference as shown in the example.
+    ///
     /// # Examples
     ///
     /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
-    /// use futures::io::AsyncReadExt;
+    /// use futures::io::{AsyncReadExt, AsyncWriteExt};
     /// use std::io::Cursor;
     ///
-    /// let mut reader = Cursor::new([1, 2, 3, 4]);
+    /// let reader = Cursor::new([1, 2, 3, 4]);
     /// let mut writer = Cursor::new([0u8; 5]);
     ///
     /// let bytes = reader.copy_into(&mut writer).await?;
+    /// writer.close().await?;
     ///
     /// assert_eq!(bytes, 4);
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn copy_into<'a, W>(
-        &'a mut self,
-        writer: &'a mut W,
-    ) -> CopyInto<'a, Self, W>
-        where Self: Unpin, W: AsyncWrite + Unpin,
-    {
+    fn copy_into<W: AsyncWrite>(self, writer: W) -> CopyInto<Self, W> where Self: Sized {
         CopyInto::new(self, writer)
     }
 
@@ -256,12 +255,12 @@ pub trait AsyncReadExt: AsyncRead {
     /// // seek position. This may or may not be true for other types that
     /// // implement both `AsyncRead` and `AsyncWrite`.
     ///
-    /// let mut reader = Cursor::new([1, 2, 3, 4]);
+    /// let reader = Cursor::new([1, 2, 3, 4]);
     /// let mut buffer = Cursor::new([0, 0, 0, 0, 5, 6, 7, 8]);
     /// let mut writer = Cursor::new([0u8; 5]);
     ///
     /// {
-    ///     let (mut buffer_reader, mut buffer_writer) = (&mut buffer).split();
+    ///     let (buffer_reader, mut buffer_writer) = (&mut buffer).split();
     ///     reader.copy_into(&mut buffer_writer).await?;
     ///     buffer_reader.copy_into(&mut writer).await?;
     /// }
