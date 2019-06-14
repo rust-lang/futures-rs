@@ -397,9 +397,7 @@ pub trait FutureExt: Future {
     ///
     /// # Examples
     ///
-    // TODO: minimize and open rust-lang/rust ticket, currently errors:
-    //       'assertion failed: !value.has_escaping_regions()'
-    /// ```ignore
+    /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::future::{self, FutureExt, Ready};

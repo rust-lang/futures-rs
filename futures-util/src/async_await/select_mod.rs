@@ -29,7 +29,7 @@ macro_rules! document_select_macro {
         /// ```
         /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
-        /// use futures::future::{self, FutureExt};
+        /// use futures::future;
         /// use futures::select;
         /// let mut a = future::ready(4);
         /// let mut b = future::empty::<()>();
@@ -45,7 +45,7 @@ macro_rules! document_select_macro {
         /// ```
         /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
-        /// use futures::future::{self, FutureExt};
+        /// use futures::future;
         /// use futures::stream::{self, StreamExt};
         /// use futures::select;
         /// let mut st = stream::iter(vec![2]).fuse();
@@ -67,7 +67,7 @@ macro_rules! document_select_macro {
         /// ```
         /// #![feature(async_await)]
         /// # futures::executor::block_on(async {
-        /// use futures::future::{self, FutureExt};
+        /// use futures::future;
         /// use futures::select;
         /// let mut a_fut = future::ready(4);
         /// let mut b_fut = future::ready(6);

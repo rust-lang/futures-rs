@@ -12,7 +12,7 @@ use futures_core::task::{Spawn, SpawnError};
 /// use futures_test::task::NoopSpawner;
 ///
 /// let mut spawner = NoopSpawner::new();
-/// spawner.spawn(async { });
+/// spawner.spawn(async { }).unwrap();
 /// ```
 #[derive(Debug)]
 pub struct NoopSpawner {
@@ -51,7 +51,7 @@ impl Default for NoopSpawner {
 /// use futures_test::task::noop_spawner_mut;
 ///
 /// let spawner = noop_spawner_mut();
-/// spawner.spawn(async { });
+/// spawner.spawn(async { }).unwrap();
 /// ```
 pub fn noop_spawner_mut() -> &'static mut NoopSpawner {
     Box::leak(Box::new(NoopSpawner::new()))

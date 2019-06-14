@@ -29,6 +29,8 @@
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
 #![warn(clippy::all)]
 
+#![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
+
 #![doc(html_root_url = "https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.16/futures")]
 
 #[cfg(all(feature = "async-await", not(feature = "nightly")))]
@@ -140,7 +142,7 @@ pub mod executor {
     //!
     //! ```
     //! use futures::executor::ThreadPool;
-    //! # use futures::future::{Future, lazy};
+    //! # use futures::future::lazy;
     //! # let my_app = lazy(|_| 42);
     //!
     //! // assuming `my_app: Future`
@@ -321,6 +323,7 @@ pub mod prelude {
     //! standard library's prelude you'll have to do so manually:
     //!
     //! ```
+    //! # #[allow(unused_imports)]
     //! use futures::prelude::*;
     //! ```
     //!

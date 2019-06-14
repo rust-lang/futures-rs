@@ -20,7 +20,7 @@ pub struct Repeat<T> {
 /// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///
-/// let mut stream = stream::repeat(9);
+/// let stream = stream::repeat(9);
 /// assert_eq!(vec![9, 9, 9], stream.take(3).collect::<Vec<i32>>().await);
 /// # });
 /// ```

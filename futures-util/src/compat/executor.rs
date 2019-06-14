@@ -23,7 +23,6 @@ pub trait Executor01CompatExt: Executor01<Executor01Future> +
     ///
     /// ```
     /// #![feature(async_await)]
-    /// use futures::Future;
     /// use futures::task::SpawnExt;
     /// use futures::future::{FutureExt, TryFutureExt};
     /// use futures_util::compat::Executor01CompatExt;

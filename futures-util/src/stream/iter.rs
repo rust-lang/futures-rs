@@ -22,7 +22,7 @@ impl<I> Unpin for Iter<I> {}
 /// # futures::executor::block_on(async {
 /// use futures::stream::{self, StreamExt};
 ///
-/// let mut stream = stream::iter(vec![17, 19]);
+/// let stream = stream::iter(vec![17, 19]);
 /// assert_eq!(vec![17, 19], stream.collect::<Vec<i32>>().await);
 /// # });
 /// ```
