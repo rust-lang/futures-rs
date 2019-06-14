@@ -34,6 +34,9 @@ pub use self::copy_into::CopyInto;
 mod flush;
 pub use self::flush::Flush;
 
+mod into_sink;
+pub use self::into_sink::IntoSink;
+
 mod lines;
 pub use self::lines::Lines;
 
@@ -381,6 +384,40 @@ pub trait AsyncWriteExt: AsyncWrite {
         where Self: Sized + Unpin,
     {
         Compat::new(self)
+    }
+
+
+    /// Allow using an [`AsyncWrite`] as a [`Sink`](futures_sink::Sink)`<Item: AsRef<[u8]>>`.
+    ///
+    /// This adapter produces a sink that will write each value passed to it
+    /// into the underlying writer.
+    ///
+    /// Note that this function consumes the given writer, returning a wrapped
+    /// version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::AsyncWriteExt;
+    /// use futures::stream::{self, StreamExt};
+    ///
+    /// let stream = stream::iter(vec![Ok([1, 2, 3]), Ok([4, 5, 6])]);
+    ///
+    /// let mut writer = vec![];
+    ///
+    /// stream.forward((&mut writer).into_sink()).await?;
+    ///
+    /// assert_eq!(writer, vec![1, 2, 3, 4, 5, 6]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # })?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    fn into_sink(self) -> IntoSink<Self>
+        where Self: Sized,
+    {
+        IntoSink::new(self)
     }
 }
 
