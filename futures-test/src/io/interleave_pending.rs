@@ -12,45 +12,45 @@ use std::{
 /// [`interleave_pending`]: super::AsyncReadTestExt::interleave_pending
 /// [`interleave_pending_write`]: super::AsyncWriteTestExt::interleave_pending_write
 #[derive(Debug)]
-pub struct InterleavePending<IO> {
-    io: IO,
+pub struct InterleavePending<Io> {
+    io: Io,
     pended: bool,
 }
 
-impl<IO: Unpin> Unpin for InterleavePending<IO> {}
+impl<Io: Unpin> Unpin for InterleavePending<Io> {}
 
-impl<IO> InterleavePending<IO> {
-    unsafe_pinned!(io: IO);
+impl<Io> InterleavePending<Io> {
+    unsafe_pinned!(io: Io);
     unsafe_unpinned!(pended: bool);
 
-    pub(crate) fn new(io: IO) -> Self {
+    pub(crate) fn new(io: Io) -> Self {
         Self { io, pended: false }
     }
 
     /// Acquires a reference to the underlying I/O object that this adaptor is
     /// wrapping.
-    pub fn get_ref(&self) -> &IO {
+    pub fn get_ref(&self) -> &Io {
         &self.io
     }
 
     /// Acquires a mutable reference to the underlying I/O object that this
     /// adaptor is wrapping.
-    pub fn get_mut(&mut self) -> &mut IO {
+    pub fn get_mut(&mut self) -> &mut Io {
         &mut self.io
     }
 
     /// Acquires a pinned mutable reference to the underlying I/O object that
     /// this adaptor is wrapping.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut IO> {
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Io> {
         self.project().0
     }
 
     /// Consumes this adaptor returning the underlying I/O object.
-    pub fn into_inner(self) -> IO {
+    pub fn into_inner(self) -> Io {
         self.io
     }
 
-    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut IO>, &'a mut bool) {
+    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut Io>, &'a mut bool) {
         unsafe {
             let this = self.get_unchecked_mut();
             (Pin::new_unchecked(&mut this.io), &mut this.pended)
