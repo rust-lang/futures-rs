@@ -32,3 +32,5 @@ pub mod stream;
 
 #[cfg(feature = "std")]
 pub mod io;
+
+mod interleave_pending;
