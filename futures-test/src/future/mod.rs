@@ -10,6 +10,8 @@ use futures_core::future::Future;
 use futures_executor;
 use std::thread;
 
+pub use crate::interleave_pending::InterleavePending;
+
 /// Additional combinators for testing futures.
 pub trait FutureTestExt: Future {
     /// Asserts that the given is not moved after being polled.
@@ -78,6 +80,34 @@ pub trait FutureTestExt: Future {
         Self::Output: Send,
     {
         thread::spawn(|| futures_executor::block_on(self));
+    }
+
+    /// Introduces an extra [`Poll::Pending`](futures_core::task::Poll::Pending)
+    /// in between each call to poll.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// use futures::task::Poll;
+    /// use futures::future::{self, Future};
+    /// use futures_test::task::noop_context;
+    /// use futures_test::future::FutureTestExt;
+    /// use pin_utils::pin_mut;
+    ///
+    /// let future = future::ready(1).interleave_pending();
+    /// pin_mut!(future);
+    ///
+    /// let mut cx = noop_context();
+    ///
+    /// assert_eq!(future.as_mut().poll(&mut cx), Poll::Pending);
+    /// assert_eq!(future.as_mut().poll(&mut cx), Poll::Ready(1));
+    /// ```
+    fn interleave_pending(self) -> InterleavePending<Self>
+    where
+        Self: Sized,
+    {
+        InterleavePending::new(self)
     }
 }
 

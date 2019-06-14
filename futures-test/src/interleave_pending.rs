@@ -1,3 +1,4 @@
+use futures_core::future::Future;
 use futures_core::stream::Stream;
 use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
@@ -59,6 +60,27 @@ impl<T> InterleavePending<T> {
         unsafe {
             let this = self.get_unchecked_mut();
             (Pin::new_unchecked(&mut this.inner), &mut this.pended)
+        }
+    }
+}
+
+impl<Fut: Future> Future for InterleavePending<Fut> {
+    type Output = Fut::Output;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Self::Output> {
+        if *self.as_mut().pended() {
+            let next = self.as_mut().inner().poll(cx);
+            if next.is_ready() {
+                *self.pended() = false;
+            }
+            next
+        } else {
+            cx.waker().wake_by_ref();
+            *self.pended() = true;
+            Poll::Pending
         }
     }
 }
