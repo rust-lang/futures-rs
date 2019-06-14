@@ -13,41 +13,41 @@ use std::{
 /// [`limited`]: super::AsyncReadTestExt::limited
 /// [`limited_write`]: super::AsyncWriteTestExt::limited_write
 #[derive(Debug)]
-pub struct Limited<IO> {
-    io: IO,
+pub struct Limited<Io> {
+    io: Io,
     limit: usize,
 }
 
-impl<IO: Unpin> Unpin for Limited<IO> {}
+impl<Io: Unpin> Unpin for Limited<Io> {}
 
-impl<IO> Limited<IO> {
-    unsafe_pinned!(io: IO);
+impl<Io> Limited<Io> {
+    unsafe_pinned!(io: Io);
     unsafe_unpinned!(limit: usize);
 
-    pub(crate) fn new(io: IO, limit: usize) -> Limited<IO> {
+    pub(crate) fn new(io: Io, limit: usize) -> Limited<Io> {
         Limited { io, limit }
     }
 
     /// Acquires a reference to the underlying I/O object that this adaptor is
     /// wrapping.
-    pub fn get_ref(&self) -> &IO {
+    pub fn get_ref(&self) -> &Io {
         &self.io
     }
 
     /// Acquires a mutable reference to the underlying I/O object that this
     /// adaptor is wrapping.
-    pub fn get_mut(&mut self) -> &mut IO {
+    pub fn get_mut(&mut self) -> &mut Io {
         &mut self.io
     }
 
     /// Acquires a pinned mutable reference to the underlying I/O object that
     /// this adaptor is wrapping.
-    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut IO> {
+    pub fn get_pin_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut Io> {
         self.io()
     }
 
     /// Consumes this adaptor returning the underlying I/O object.
-    pub fn into_inner(self) -> IO {
+    pub fn into_inner(self) -> Io {
         self.io
     }
 }
