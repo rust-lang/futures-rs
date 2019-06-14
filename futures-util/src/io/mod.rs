@@ -31,6 +31,9 @@ pub use self::buf_writer::BufWriter;
 mod copy_into;
 pub use self::copy_into::CopyInto;
 
+mod copy_buf_into;
+pub use self::copy_buf_into::CopyBufInto;
+
 mod flush;
 pub use self::flush::Flush;
 
@@ -441,6 +444,40 @@ impl<S: AsyncSeek + ?Sized> AsyncSeekExt for S {}
 
 /// An extension trait which adds utility methods to `AsyncBufRead` types.
 pub trait AsyncBufReadExt: AsyncBufRead {
+    /// Creates a future which copies all the bytes from one object to another.
+    ///
+    /// The returned future will copy all the bytes read from this `AsyncBufRead` into the
+    /// `writer` specified. This future will only complete once the `reader` has hit
+    /// EOF and all bytes have been written to and flushed from the `writer`
+    /// provided.
+    ///
+    /// On success the number of bytes is returned.
+    ///
+    /// Note that this method consumes `writer` but does not close it, you will likely want to pass
+    /// it by reference as shown in the example.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// # futures::executor::block_on(async {
+    /// use futures::io::{AsyncBufReadExt, AsyncWriteExt};
+    /// use std::io::Cursor;
+    ///
+    /// let reader = Cursor::new([1, 2, 3, 4]);
+    /// let mut writer = Cursor::new([0u8; 5]);
+    ///
+    /// let bytes = reader.copy_buf_into(&mut writer).await?;
+    /// writer.close().await?;
+    ///
+    /// assert_eq!(bytes, 4);
+    /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
+    /// ```
+    fn copy_buf_into<W: AsyncWrite>(self, writer: W) -> CopyBufInto<Self, W> where Self: Sized {
+        CopyBufInto::new(self, writer)
+    }
+
     /// Creates a future which will read all the bytes associated with this I/O
     /// object into `buf` until the delimiter `byte` or EOF is reached.
     /// This method is the async equivalent to [`BufRead::read_until`](std::io::BufRead::read_until).
