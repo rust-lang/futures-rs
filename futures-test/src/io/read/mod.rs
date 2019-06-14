@@ -3,6 +3,7 @@
 use futures_io::AsyncRead;
 
 pub use super::interleave_pending::InterleavePending;
+pub use super::limited::Limited;
 
 /// Additional combinators for testing async readers.
 pub trait AsyncReadTestExt: AsyncRead {
@@ -71,6 +72,41 @@ pub trait AsyncReadTestExt: AsyncRead {
         Self: Sized,
     {
         InterleavePending::new(self)
+    }
+
+    /// Limit the number of bytes allowed to be read on each call to `poll_read`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(async_await)]
+    /// use futures::task::Poll;
+    /// use futures::io::AsyncRead;
+    /// use futures_test::task::noop_context;
+    /// use futures_test::io::AsyncReadTestExt;
+    /// use pin_utils::pin_mut;
+    ///
+    /// let reader = std::io::Cursor::new(&[1, 2, 3, 4, 5]).limited(2);
+    /// pin_mut!(reader);
+    ///
+    /// let mut cx = noop_context();
+    ///
+    /// let mut buf = [0; 10];
+    ///
+    /// assert_eq!(reader.as_mut().poll_read(&mut cx, &mut buf)?, Poll::Ready(2));
+    /// assert_eq!(&buf[..2], &[1, 2]);
+    /// assert_eq!(reader.as_mut().poll_read(&mut cx, &mut buf)?, Poll::Ready(2));
+    /// assert_eq!(&buf[..2], &[3, 4]);
+    /// assert_eq!(reader.as_mut().poll_read(&mut cx, &mut buf)?, Poll::Ready(1));
+    /// assert_eq!(&buf[..1], &[5]);
+    ///
+    /// # Ok::<(), std::io::Error>(())
+    /// ```
+    fn limited(self, limit: usize) -> Limited<Self>
+    where
+        Self: Sized,
+    {
+        Limited::new(self, limit)
     }
 }
 

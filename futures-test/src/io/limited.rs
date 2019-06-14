@@ -76,3 +76,27 @@ impl<W: AsyncWrite> AsyncWrite for Limited<W> {
         self.io().poll_close(cx)
     }
 }
+
+impl<R: AsyncRead> AsyncRead for Limited<R> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        let limit = cmp::min(*self.as_mut().limit(), buf.len());
+        self.io().poll_read(cx, &mut buf[..limit])
+    }
+}
+
+impl<R: AsyncBufRead> AsyncBufRead for Limited<R> {
+    fn poll_fill_buf<'a>(
+        self: Pin<&'a mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<io::Result<&'a [u8]>> {
+        self.io().poll_fill_buf(cx)
+    }
+
+    fn consume(self: Pin<&mut Self>, amount: usize) {
+        self.io().consume(amount)
+    }
+}
