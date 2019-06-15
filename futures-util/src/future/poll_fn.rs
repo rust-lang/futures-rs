@@ -1,11 +1,11 @@
 //! Definition of the `PollFn` adapter combinator
 
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
 
 /// Future for the [`poll_fn`] function.
-#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct PollFn<F> {
     f: F,
@@ -38,6 +38,12 @@ where
     F: FnMut(&mut Context<'_>) -> Poll<T>
 {
     PollFn { f }
+}
+
+impl<F> fmt::Debug for PollFn<F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PollFn").finish()
+    }
 }
 
 impl<T, F> Future for PollFn<F>

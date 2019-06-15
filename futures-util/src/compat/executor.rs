@@ -60,7 +60,7 @@ where Ex: Executor01<Executor01Future> + Clone + Send + 'static
 
 /// Converts a futures 0.1 [`Executor`](futures_01::future::Executor) into a
 /// futures 0.3 [`Spawn`](futures_core::task::Spawn).
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Executor01As03<Ex> {
     executor01: Ex
 }

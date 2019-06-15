@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
@@ -5,7 +6,6 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`map`](super::StreamExt::map) method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Map<St, F> {
     stream: St,
@@ -13,6 +13,17 @@ pub struct Map<St, F> {
 }
 
 impl<St: Unpin, F> Unpin for Map<St, F> {}
+
+impl<St, F> fmt::Debug for Map<St, F>
+where
+    St: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Map")
+            .field("stream", &self.stream)
+            .finish()
+    }
+}
 
 impl<St, T, F> Map<St, F>
     where St: Stream,

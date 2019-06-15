@@ -313,8 +313,8 @@ impl Default for AtomicWaker {
 }
 
 impl fmt::Debug for AtomicWaker {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "AtomicWaker")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AtomicWaker")
     }
 }
 

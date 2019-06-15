@@ -157,8 +157,8 @@ impl<W: AsyncWrite> AsyncWrite for BufWriter<W> {
 }
 
 impl<W: AsyncWrite + fmt::Debug> fmt::Debug for BufWriter<W> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("BufWriter")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BufWriter")
             .field("writer", &self.inner)
             .field("buffer", &format_args!("{}/{}", self.buf.len(), self.buf.capacity()))
             .field("written", &self.written)

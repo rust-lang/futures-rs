@@ -307,6 +307,7 @@ where
 
 struct NotifyWaker(task03::Waker);
 
+#[allow(missing_debug_implementations)] // false positive: this is private type
 #[derive(Clone)]
 struct WakerToHandle<'a>(&'a task03::Waker);
 

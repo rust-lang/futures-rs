@@ -1,3 +1,4 @@
+use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::stream::Stream;
@@ -6,13 +7,10 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the [`with_flat_map`](super::SinkExt::with_flat_map) method.
-#[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct WithFlatMap<Si, Item, U, St, F>
 where
     Si: Sink<Item>,
-    F: FnMut(U) -> St,
-    St: Stream<Item = Result<Item, Si::SinkError>>,
 {
     sink: Si,
     f: F,
@@ -24,9 +22,23 @@ where
 impl<Si, Item, U, St, F> Unpin for WithFlatMap<Si, Item, U, St, F>
 where
     Si: Sink<Item> + Unpin,
-    F: FnMut(U) -> St,
-    St: Stream<Item = Result<Item, Si::SinkError>> + Unpin,
+    St: Unpin,
 {}
+
+impl<Si, Item, U, St, F> fmt::Debug for WithFlatMap<Si, Item, U, St, F>
+where
+    Si: Sink<Item> + fmt::Debug,
+    St: fmt::Debug,
+    Item: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("WithFlatMap")
+            .field("sink", &self.sink)
+            .field("stream", &self.stream)
+            .field("buffer", &self.buffer)
+            .finish()
+    }
+}
 
 impl<Si, Item, U, St, F> WithFlatMap<Si, Item, U, St, F>
 where

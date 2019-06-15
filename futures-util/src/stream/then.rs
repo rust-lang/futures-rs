@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
@@ -6,7 +7,6 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`then`](super::StreamExt::then) method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Then<St, Fut, F> {
     stream: St,
@@ -15,6 +15,19 @@ pub struct Then<St, Fut, F> {
 }
 
 impl<St: Unpin, Fut: Unpin, F> Unpin for Then<St, Fut, F> {}
+
+impl<St, Fut, F> fmt::Debug for Then<St, Fut, F>
+where
+    St: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Then")
+            .field("stream", &self.stream)
+            .field("future", &self.future)
+            .finish()
+    }
+}
 
 impl<St, Fut, F> Then<St, Fut, F>
     where St: Stream,

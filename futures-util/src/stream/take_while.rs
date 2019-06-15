@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -6,7 +7,6 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`take_while`](super::StreamExt::take_while) method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TakeWhile<St: Stream , Fut, F> {
     stream: St,
@@ -17,6 +17,22 @@ pub struct TakeWhile<St: Stream , Fut, F> {
 }
 
 impl<St: Unpin + Stream, Fut: Unpin, F> Unpin for TakeWhile<St, Fut, F> {}
+
+impl<St, Fut, F> fmt::Debug for TakeWhile<St, Fut, F>
+where
+    St: Stream + fmt::Debug,
+    St::Item: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TakeWhile")
+            .field("stream", &self.stream)
+            .field("pending_fut", &self.pending_fut)
+            .field("pending_item", &self.pending_item)
+            .field("done_taking", &self.done_taking)
+            .finish()
+    }
+}
 
 impl<St, Fut, F> TakeWhile<St, Fut, F>
     where St: Stream,

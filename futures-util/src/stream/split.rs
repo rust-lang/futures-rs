@@ -115,16 +115,16 @@ pub(super) fn split<S: Stream + Sink<Item>, Item>(s: S) -> (SplitSink<S, Item>, 
 pub struct ReuniteError<T: Sink<Item>, Item>(pub SplitSink<T, Item>, pub SplitStream<T>);
 
 impl<T: Sink<Item>, Item> fmt::Debug for ReuniteError<T, Item> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_tuple("ReuniteError")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ReuniteError")
             .field(&"...")
             .finish()
     }
 }
 
 impl<T: Sink<Item>, Item> fmt::Display for ReuniteError<T, Item> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "tried to reunite a SplitStream and SplitSink that don't form a pair")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "tried to reunite a SplitStream and SplitSink that don't form a pair")
     }
 }
 
