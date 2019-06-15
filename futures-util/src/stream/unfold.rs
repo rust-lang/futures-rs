@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
@@ -61,7 +62,6 @@ pub fn unfold<T, F, Fut, It>(init: T, f: F) -> Unfold<T, F, Fut>
 }
 
 /// Stream for the [`unfold`] function.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Unfold<T, F, Fut> {
     f: F,
@@ -70,6 +70,19 @@ pub struct Unfold<T, F, Fut> {
 }
 
 impl<T, F, Fut: Unpin> Unpin for Unfold<T, F, Fut> {}
+
+impl<T, F, Fut> fmt::Debug for Unfold<T, F, Fut>
+where
+    T: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Unfold")
+            .field("state", &self.state)
+            .field("fut", &self.fut)
+            .finish()
+    }
+}
 
 impl<T, F, Fut> Unfold<T, F, Fut> {
     unsafe_unpinned!(f: F);

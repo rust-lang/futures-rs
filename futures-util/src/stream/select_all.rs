@@ -27,8 +27,8 @@ pub struct SelectAll<St> {
 }
 
 impl<St: Debug> Debug for SelectAll<St> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "SelectAll {{ ... }}")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SelectAll {{ ... }}")
     }
 }
 

@@ -168,11 +168,11 @@ pub struct TryRecvError {
 }
 
 impl fmt::Display for SendError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_full() {
-            write!(fmt, "send failed because channel is full")
+            write!(f, "send failed because channel is full")
         } else {
-            write!(fmt, "send failed because receiver is gone")
+            write!(f, "send failed because receiver is gone")
         }
     }
 }
@@ -198,19 +198,19 @@ impl SendError {
 }
 
 impl<T> fmt::Debug for TrySendError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("TrySendError")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TrySendError")
             .field("kind", &self.err.kind)
             .finish()
     }
 }
 
 impl<T> fmt::Display for TrySendError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_full() {
-            write!(fmt, "send failed because channel is full")
+            write!(f, "send failed because channel is full")
         } else {
-            write!(fmt, "send failed because receiver is gone")
+            write!(f, "send failed because receiver is gone")
         }
     }
 }
@@ -240,15 +240,15 @@ impl<T> TrySendError<T> {
 }
 
 impl fmt::Debug for TryRecvError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_tuple("TryRecvError")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("TryRecvError")
             .finish()
     }
 }
 
 impl fmt::Display for TryRecvError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "receiver channel is empty")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "receiver channel is empty")
     }
 }
 

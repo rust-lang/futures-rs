@@ -1,3 +1,4 @@
+use core::fmt;
 use core::marker::PhantomData;
 use core::mem;
 use core::pin::Pin;
@@ -8,17 +9,32 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Sink for the [`with`](super::SinkExt::with) method.
-#[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
-pub struct With<Si, Item, U, Fut, F>
-    where Si: Sink<Item>,
-          F: FnMut(U) -> Fut,
-          Fut: Future,
-{
+pub struct With<Si, Item, U, Fut, F> {
     sink: Si,
     f: F,
     state: State<Fut, Item>,
     _phantom: PhantomData<fn(U)>,
+}
+
+impl<Si, Item, U, Fut, F> Unpin for With<Si, Item, U, Fut, F>
+where
+    Si: Unpin,
+    Fut: Unpin,
+{}
+
+impl<Si, Item, U, Fut, F> fmt::Debug for With<Si, Item, U, Fut, F>
+where
+    Si: fmt::Debug,
+    Fut: fmt::Debug,
+    Item: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("With")
+            .field("sink", &self.sink)
+            .field("state", &self.state)
+            .finish()
+    }
 }
 
 impl<Si, Item, U, Fut, F> With<Si, Item, U, Fut, F>
@@ -43,12 +59,6 @@ where Si: Sink<Item>,
         }
     }
 }
-
-impl<Si, Item, U, Fut, F> Unpin for With<Si, Item, U, Fut, F>
-where Si: Sink<Item> + Unpin,
-      F: FnMut(U) -> Fut,
-      Fut: Future + Unpin,
-{}
 
 #[derive(Debug)]
 enum State<Fut, T> {

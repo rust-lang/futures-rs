@@ -1,4 +1,5 @@
 use crate::stream::inspect;
+use core::fmt;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
@@ -6,14 +7,24 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`inspect_ok`](super::TryStreamExt::inspect_ok) method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct InspectOk<St, F> {
     stream: St,
     f: F,
 }
 
-impl<St: TryStream + Unpin, F> Unpin for InspectOk<St, F> {}
+impl<St: Unpin, F> Unpin for InspectOk<St, F> {}
+
+impl<St, F> fmt::Debug for InspectOk<St, F>
+where
+    St: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InspectOk")
+            .field("stream", &self.stream)
+            .finish()
+    }
+}
 
 impl<St, F> InspectOk<St, F>
 where

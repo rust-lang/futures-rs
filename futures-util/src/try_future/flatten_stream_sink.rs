@@ -26,8 +26,8 @@ where
     Fut: TryFuture + fmt::Debug,
     Fut::Ok: fmt::Debug,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("FlattenStreamSink")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FlattenStreamSink")
             .field("state", &self.state)
             .finish()
     }

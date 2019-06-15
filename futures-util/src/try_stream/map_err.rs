@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
@@ -5,11 +6,23 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`map_err`](super::TryStreamExt::map_err) method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct MapErr<St, F> {
     stream: St,
     f: F,
+}
+
+impl<St: Unpin, F> Unpin for MapErr<St, F> {}
+
+impl<St, F> fmt::Debug for MapErr<St, F>
+where
+    St: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MapErr")
+            .field("stream", &self.stream)
+            .finish()
+    }
 }
 
 impl<St, F> MapErr<St, F> {
@@ -53,8 +66,6 @@ impl<St, F> MapErr<St, F> {
         self.stream
     }
 }
-
-impl<St: Unpin, F> Unpin for MapErr<St, F> {}
 
 impl<St: FusedStream, F> FusedStream for MapErr<St, F> {
     fn is_terminated(&self) -> bool {

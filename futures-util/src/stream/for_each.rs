@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::{FusedStream, Stream};
@@ -5,7 +6,6 @@ use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`for_each`](super::StreamExt::for_each) method.
-#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct ForEach<St, Fut, F> {
     stream: St,
@@ -14,10 +14,23 @@ pub struct ForEach<St, Fut, F> {
 }
 
 impl<St, Fut, F> Unpin for ForEach<St, Fut, F>
-where St: Stream + Unpin,
-      F: FnMut(St::Item) -> Fut,
-      Fut: Future<Output = ()> + Unpin,
+where
+    St: Unpin,
+    Fut: Unpin,
 {}
+
+impl<St, Fut, F> fmt::Debug for ForEach<St, Fut, F>
+where
+    St: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ForEach")
+            .field("stream", &self.stream)
+            .field("future", &self.future)
+            .finish()
+    }
+}
 
 impl<St, Fut, F> ForEach<St, Fut, F>
 where St: Stream,

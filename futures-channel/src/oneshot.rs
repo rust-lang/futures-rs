@@ -382,8 +382,8 @@ impl<T> Drop for Sender<T> {
 pub struct Canceled;
 
 impl fmt::Display for Canceled {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "oneshot canceled")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "oneshot canceled")
     }
 }
 

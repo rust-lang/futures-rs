@@ -75,8 +75,8 @@ where
     F::Ok: fmt::Debug,
     F::Error: fmt::Debug,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("TryJoinAll")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TryJoinAll")
             .field("elems", &self.elems)
             .finish()
     }

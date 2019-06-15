@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::{FusedFuture, Future};
 use futures_core::stream::Stream;
@@ -5,7 +6,6 @@ use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`fold`](super::StreamExt::fold) method.
-#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Fold<St, Fut, T, F> {
     stream: St,
@@ -15,6 +15,21 @@ pub struct Fold<St, Fut, T, F> {
 }
 
 impl<St: Unpin, Fut: Unpin, T, F> Unpin for Fold<St, Fut, T, F> {}
+
+impl<St, Fut, T, F> fmt::Debug for Fold<St, Fut, T, F>
+where
+    St: fmt::Debug,
+    Fut: fmt::Debug,
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Fold")
+            .field("stream", &self.stream)
+            .field("accum", &self.accum)
+            .field("future", &self.future)
+            .finish()
+    }
+}
 
 impl<St, Fut, T, F> Fold<St, Fut, T, F>
 where St: Stream,

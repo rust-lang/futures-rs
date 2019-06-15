@@ -430,8 +430,8 @@ impl<Fut: Future> Stream for FuturesUnordered<Fut> {
 }
 
 impl<Fut> Debug for FuturesUnordered<Fut> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "FuturesUnordered {{ ... }}")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "FuturesUnordered {{ ... }}")
     }
 }
 

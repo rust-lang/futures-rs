@@ -31,8 +31,8 @@ where
     St: Stream + fmt::Debug,
     St::Item: Future,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("BufferUnordered")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BufferUnordered")
             .field("stream", &self.stream)
             .field("in_progress_queue", &self.in_progress_queue)
             .field("max", &self.max)

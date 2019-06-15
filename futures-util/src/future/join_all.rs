@@ -70,8 +70,8 @@ where
     F: Future + fmt::Debug,
     F::Output: fmt::Debug,
 {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("JoinAll")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("JoinAll")
             .field("elems", &self.elems)
             .finish()
     }

@@ -3,8 +3,6 @@
 //! This module is only available when the `compat` feature of this
 //! library is activated.
 
-#![allow(missing_debug_implementations)]
-
 mod executor;
 pub use self::executor::{Executor01CompatExt, Executor01Future, Executor01As03};
 

@@ -1,4 +1,5 @@
 use crate::stream::{FuturesUnordered, StreamExt};
+use core::fmt;
 use core::mem;
 use core::pin::Pin;
 use core::num::NonZeroUsize;
@@ -10,7 +11,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 /// Future for the
 /// [`try_for_each_concurrent`](super::TryStreamExt::try_for_each_concurrent)
 /// method.
-#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct TryForEachConcurrent<St, Fut, F> {
     stream: Option<St>,
@@ -23,6 +23,20 @@ impl<St, Fut, F> Unpin for TryForEachConcurrent<St, Fut, F>
 where St: Unpin,
       Fut: Unpin,
 {}
+
+impl<St, Fut, F> fmt::Debug for TryForEachConcurrent<St, Fut, F>
+where
+    St: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TryForEachConcurrent")
+            .field("stream", &self.stream)
+            .field("futures", &self.futures)
+            .field("limit", &self.limit)
+            .finish()
+    }
+}
 
 impl<St, Fut, F> FusedFuture for TryForEachConcurrent<St, Fut, F> {
     fn is_terminated(&self) -> bool {

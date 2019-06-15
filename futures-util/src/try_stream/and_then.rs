@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
@@ -6,7 +7,6 @@ use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`and_then`](super::TryStreamExt::and_then) method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct AndThen<St, Fut, F> {
     stream: St,
@@ -15,6 +15,19 @@ pub struct AndThen<St, Fut, F> {
 }
 
 impl<St: Unpin, Fut: Unpin, F> Unpin for AndThen<St, Fut, F> {}
+
+impl<St, Fut, F> fmt::Debug for AndThen<St, Fut, F>
+where
+    St: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AndThen")
+            .field("stream", &self.stream)
+            .field("future", &self.future)
+            .finish()
+    }
+}
 
 impl<St, Fut, F> AndThen<St, Fut, F>
     where St: TryStream,

@@ -1,4 +1,3 @@
-use core::fmt::{Debug, Formatter, Result as FmtResult};
 use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::Stream;
@@ -6,6 +5,7 @@ use futures_core::task::{Context, Poll};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Future for the [`concat`](super::StreamExt::concat) method.
+#[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct Concat<St: Stream> {
     stream: St,
@@ -27,17 +27,6 @@ where St: Stream,
             stream,
             accum: None,
         }
-    }
-}
-
-impl<St> Debug for Concat<St>
-where St: Stream + Debug,
-      St::Item: Debug,
-{
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> FmtResult {
-        fmt.debug_struct("Concat")
-            .field("accum", &self.accum)
-            .finish()
     }
 }
 

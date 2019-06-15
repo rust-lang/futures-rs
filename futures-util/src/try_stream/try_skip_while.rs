@@ -1,3 +1,4 @@
+use core::fmt;
 use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
@@ -7,7 +8,6 @@ use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
 /// Stream for the [`try_skip_while`](super::TryStreamExt::try_skip_while)
 /// method.
-#[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
     stream: St,
@@ -18,6 +18,22 @@ pub struct TrySkipWhile<St, Fut, F> where St: TryStream {
 }
 
 impl<St: Unpin + TryStream, Fut: Unpin, F> Unpin for TrySkipWhile<St, Fut, F> {}
+
+impl<St, Fut, F> fmt::Debug for TrySkipWhile<St, Fut, F>
+where
+    St: TryStream + fmt::Debug,
+    St::Ok: fmt::Debug,
+    Fut: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TrySkipWhile")
+            .field("stream", &self.stream)
+            .field("pending_fut", &self.pending_fut)
+            .field("pending_item", &self.pending_item)
+            .field("done_skipping", &self.done_skipping)
+            .finish()
+    }
+}
 
 impl<St, Fut, F> TrySkipWhile<St, Fut, F>
     where St: TryStream,

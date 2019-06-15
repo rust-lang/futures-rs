@@ -199,16 +199,16 @@ impl<T> Drop for Inner<T> {
 pub struct ReuniteError<T>(pub BiLock<T>, pub BiLock<T>);
 
 impl<T> fmt::Debug for ReuniteError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_tuple("ReuniteError")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ReuniteError")
             .field(&"...")
             .finish()
     }
 }
 
 impl<T> fmt::Display for ReuniteError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "tried to reunite two BiLocks that don't form a pair")
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "tried to reunite two BiLocks that don't form a pair")
     }
 }
 
