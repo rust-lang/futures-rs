@@ -1,38 +1,38 @@
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncWrite;
 use futures_sink::Sink;
-use std::fmt;
 use std::io;
 use std::pin::Pin;
 use std::marker::Unpin;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
-struct Block {
+#[derive(Debug)]
+struct Block<Item> {
     offset: usize,
-    bytes: Box<dyn AsRef<[u8]>>,
+    bytes: Item,
 }
 
 /// Sink for the [`into_sink`](super::AsyncWriteExt::into_sink) method.
 #[must_use = "sinks do nothing unless polled"]
 #[derive(Debug)]
-pub struct IntoSink<W> {
+pub struct IntoSink<W, Item> {
     writer: W,
     /// An outstanding block for us to push into the underlying writer, along with an offset of how
     /// far into this block we have written already.
-    buffer: Option<Block>,
+    buffer: Option<Block<Item>>,
 }
 
-impl<W: Unpin> Unpin for IntoSink<W> {}
+impl<W: Unpin, Item> Unpin for IntoSink<W, Item> {}
 
-impl<W: AsyncWrite> IntoSink<W> {
+impl<W: AsyncWrite, Item: AsRef<[u8]>> IntoSink<W, Item> {
     unsafe_pinned!(writer: W);
-    unsafe_unpinned!(buffer: Option<Block>);
+    unsafe_unpinned!(buffer: Option<Block<Item>>);
 
     pub(super) fn new(writer: W) -> Self {
         IntoSink { writer, buffer: None }
     }
 
-    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut W>, &'a mut Option<Block>) {
+    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut W>, &'a mut Option<Block<Item>>) {
         unsafe {
             let this = self.get_unchecked_mut();
             (Pin::new_unchecked(&mut this.writer), &mut this.buffer)
@@ -49,7 +49,7 @@ impl<W: AsyncWrite> IntoSink<W> {
         let (mut writer, buffer) = self.project();
         if let Some(buffer) = buffer {
             loop {
-                let bytes = (*buffer.bytes).as_ref();
+                let bytes = buffer.bytes.as_ref();
                 let written = ready!(writer.as_mut().poll_write(cx, &bytes[buffer.offset..]))?;
                 buffer.offset += written;
                 if buffer.offset == bytes.len() {
@@ -63,7 +63,7 @@ impl<W: AsyncWrite> IntoSink<W> {
 
 }
 
-impl<W: AsyncWrite, Item: AsRef<[u8]> + 'static> Sink<Item> for IntoSink<W> {
+impl<W: AsyncWrite, Item: AsRef<[u8]>> Sink<Item> for IntoSink<W, Item> {
     type SinkError = io::Error;
 
     fn poll_ready(
@@ -81,7 +81,7 @@ impl<W: AsyncWrite, Item: AsRef<[u8]> + 'static> Sink<Item> for IntoSink<W> {
     ) -> Result<(), Self::SinkError>
     {
         debug_assert!(self.as_mut().buffer().is_none());
-        *self.as_mut().buffer() = Some(Block { offset: 0, bytes: Box::new(item)} );
+        *self.as_mut().buffer() = Some(Block { offset: 0, bytes: item });
         Ok(())
     }
 
@@ -103,12 +103,5 @@ impl<W: AsyncWrite, Item: AsRef<[u8]> + 'static> Sink<Item> for IntoSink<W> {
         ready!(self.as_mut().poll_flush_buffer(cx))?;
         ready!(self.as_mut().writer().poll_close(cx))?;
         Poll::Ready(Ok(()))
-    }
-}
-
-impl fmt::Debug for Block {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[... {}/{} bytes ...]", self.offset, (*self.bytes).as_ref().len())?;
-        Ok(())
     }
 }

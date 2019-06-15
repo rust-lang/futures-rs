@@ -414,7 +414,7 @@ pub trait AsyncWriteExt: AsyncWrite {
     /// # })?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    fn into_sink(self) -> IntoSink<Self>
+    fn into_sink<Item: AsRef<[u8]>>(self) -> IntoSink<Self, Item>
         where Self: Sized,
     {
         IntoSink::new(self)
