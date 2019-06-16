@@ -4,7 +4,7 @@
 //! code:
 //!
 //! - [Futures](crate::future::Future) are single eventual values produced by
-//!   asychronous computations. Some programming languages (e.g. JavaScript)
+//!   asynchronous computations. Some programming languages (e.g. JavaScript)
 //!   call this concept "promise".
 //! - [Streams](crate::stream::Stream) represent a series of values
 //!   produced asynchronously.
