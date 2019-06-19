@@ -45,7 +45,7 @@ matrix:
       script:
         - if rustup component add clippy-preview;
           then
-            cargo clippy --all -- -Dwarnings -Drust-2018-idioms;
+            cargo clippy --all --all-features;
           else
             echo 'Skipping clippy';
           fi
