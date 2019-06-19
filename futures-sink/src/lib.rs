@@ -165,14 +165,10 @@ mod channel_impls;
 #[cfg(feature = "alloc")]
 mod if_alloc {
     use super::*;
+    use futures_core::never::Never;
 
-    /// The error type for `Vec` and `VecDequeue` when used as `Sink`s.
-    /// Values of this type can never be created.
-    #[derive(Copy, Clone, Debug)]
-    pub enum VecSinkError {}
-
-    impl<T> Sink<T> for ::alloc::vec::Vec<T> {
-        type SinkError = VecSinkError;
+    impl<T> Sink<T> for alloc::vec::Vec<T> {
+        type SinkError = Never;
 
         fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
@@ -193,8 +189,8 @@ mod if_alloc {
         }
     }
 
-    impl<T> Sink<T> for ::alloc::collections::VecDeque<T> {
-        type SinkError = VecSinkError;
+    impl<T> Sink<T> for alloc::collections::VecDeque<T> {
+        type SinkError = Never;
 
         fn poll_ready(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
             Poll::Ready(Ok(()))
@@ -215,7 +211,7 @@ mod if_alloc {
         }
     }
 
-    impl<S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for ::alloc::boxed::Box<S> {
+    impl<S: ?Sized + Sink<Item> + Unpin, Item> Sink<Item> for alloc::boxed::Box<S> {
         type SinkError = S::SinkError;
 
         fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
@@ -235,6 +231,3 @@ mod if_alloc {
         }
     }
 }
-
-#[cfg(feature = "alloc")]
-pub use self::if_alloc::*;

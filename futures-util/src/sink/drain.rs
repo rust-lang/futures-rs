@@ -1,7 +1,7 @@
-use core::fmt;
 use core::marker::PhantomData;
 use core::pin::Pin;
 use futures_core::task::{Context, Poll};
+use futures_core::never::Never;
 use futures_sink::Sink;
 
 /// Sink for the [`drain`] function.
@@ -9,11 +9,6 @@ use futures_sink::Sink;
 #[must_use = "sinks do nothing unless polled"]
 pub struct Drain<T> {
     marker: PhantomData<T>,
-}
-
-/// The error type for the [`Drain`] sink.
-#[derive(Debug)]
-pub enum DrainError {
 }
 
 /// Create a sink that will just discard all items given to it.
@@ -29,14 +24,14 @@ pub enum DrainError {
 ///
 /// let mut drain = sink::drain();
 /// drain.send(5).await?;
-/// # Ok::<(), futures::sink::DrainError>(()) }).unwrap();
+/// # Ok::<(), futures::never::Never>(()) }).unwrap();
 /// ```
 pub fn drain<T>() -> Drain<T> {
     Drain { marker: PhantomData }
 }
 
 impl<T> Sink<T> for Drain<T> {
-    type SinkError = DrainError;
+    type SinkError = Never;
 
     fn poll_ready(
         self: Pin<&mut Self>,
@@ -64,23 +59,5 @@ impl<T> Sink<T> for Drain<T> {
         _cx: &mut Context<'_>,
     ) -> Poll<Result<(), Self::SinkError>> {
         Poll::Ready(Ok(()))
-    }
-}
-
-impl fmt::Display for DrainError {
-    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for DrainError {}
-
-impl DrainError {
-    /// Convert this drain error into any type
-    pub fn into_any<T>(self) -> T {
-        match self {
-        }
     }
 }
