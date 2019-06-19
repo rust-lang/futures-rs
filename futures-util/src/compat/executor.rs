@@ -81,6 +81,7 @@ where Ex: Executor01<Executor01Future>,
     }
 }
 
+#[allow(single_use_lifetimes)] // https://github.com/rust-lang/rust/issues/55058
 impl<Sp, Fut> Executor01<Fut> for Compat<Sp>
 where
     for<'a> &'a Sp: Spawn03,
