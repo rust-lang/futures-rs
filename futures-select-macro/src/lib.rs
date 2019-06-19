@@ -2,6 +2,7 @@
 
 #![recursion_limit="128"]
 #![warn(rust_2018_idioms, unreachable_pub)]
+#![warn(single_use_lifetimes)]
 #![warn(clippy::all)]
 
 extern crate proc_macro;

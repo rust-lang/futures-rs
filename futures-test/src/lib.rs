@@ -1,6 +1,7 @@
 //! Utilities to make testing [`Future`s](futures_core::Future) easier
 
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
+#![warn(single_use_lifetimes)]
 #![warn(clippy::all)]
 
 #![doc(test(attr(deny(warnings), allow(dead_code, unused_assignments, unused_variables))))]
