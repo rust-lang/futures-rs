@@ -66,6 +66,8 @@ compile_error!("The `never-type` feature requires the `nightly` feature as an ex
 
 #[doc(hidden)] pub use futures_core::task::Poll;
 
+#[doc(hidden)] pub use futures_core::never::Never;
+
 // Macro reexports
 pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
@@ -369,7 +371,7 @@ pub mod sink {
 
     pub use futures_util::sink::{
         Close, Flush, Send, SendAll, SinkErrInto, SinkMapErr, With,
-        SinkExt, Fanout, Drain, DrainError, drain,
+        SinkExt, Fanout, Drain, drain,
         WithFlatMap,
     };
 
@@ -502,6 +504,14 @@ pub mod task {
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
     )]
     pub use futures_util::task::AtomicWaker;
+}
+
+pub mod never {
+    //! This module contains the `Never` type.
+    //!
+    //! Values of this type can never be created and will never exist.
+
+    pub use futures_core::never::Never;
 }
 
 // `select!` re-export --------------------------------------

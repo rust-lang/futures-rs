@@ -29,6 +29,9 @@ pub mod stream;
 pub mod task;
 #[doc(hidden)] pub use self::task::Poll;
 
+pub mod never;
+#[doc(hidden)] pub use self::never::Never;
+
 #[doc(hidden)]
 pub mod core_reexport {
     #[doc(hidden)]
