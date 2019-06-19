@@ -22,4 +22,4 @@ std = []
 proc-macro2 = "0.4"
 proc-macro-hack = "0.5.3"
 quote = "0.6"
-syn = { version = "0.15.22", features = ["full"] }
+syn = { version = "0.15.25", features = ["full"] }
