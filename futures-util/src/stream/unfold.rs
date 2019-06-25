@@ -116,9 +116,9 @@ impl<T, F, Fut, It> Stream for Unfold<T, F, Fut>
 
         if let Some((item, next_state)) = step {
             *self.as_mut().state() = Some(next_state);
-            return Poll::Ready(Some(item))
+            Poll::Ready(Some(item))
         } else {
-            return Poll::Ready(None)
+            Poll::Ready(None)
         }
     }
 }
