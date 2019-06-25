@@ -9,23 +9,23 @@ use pin_utils::unsafe_pinned;
 /// Future for the [`copy_into`](super::AsyncReadExt::copy_into) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyInto<R: AsyncRead, W> {
-    inner: CopyBufInto<BufReader<R>, W>,
+pub struct CopyInto<'a, R: AsyncRead, W> {
+    inner: CopyBufInto<'a, BufReader<R>, W>,
 }
 
-impl<R: AsyncRead, W> Unpin for CopyInto<R, W> where CopyBufInto<BufReader<R>, W>: Unpin {}
+impl<'a, R: AsyncRead, W> Unpin for CopyInto<'a, R, W> where CopyBufInto<'a, BufReader<R>, W>: Unpin {}
 
-impl<R: AsyncRead, W> CopyInto<R, W> {
-    unsafe_pinned!(inner: CopyBufInto<BufReader<R>, W>);
+impl<'a, R: AsyncRead, W> CopyInto<'a, R, W> {
+    unsafe_pinned!(inner: CopyBufInto<'a, BufReader<R>, W>);
 
-    pub(super) fn new(reader: R, writer: W) -> Self {
+    pub(super) fn new(reader: R, writer: &mut W) -> CopyInto<'_, R, W> {
         CopyInto {
             inner: CopyBufInto::new(BufReader::new(reader), writer),
         }
     }
 }
 
-impl<R: AsyncRead, W: AsyncWrite> Future for CopyInto<R, W> {
+impl<R: AsyncRead, W: AsyncWrite + Unpin> Future for CopyInto<'_, R, W> {
     type Output = io::Result<u64>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
