@@ -7,15 +7,15 @@ use std::pin::Pin;
 /// Future for the [`copy_buf_into`](super::AsyncBufReadExt::copy_buf_into) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyBufInto<'a, R, W> {
+pub struct CopyBufInto<'a, R, W: ?Sized> {
     reader: R,
     writer: &'a mut W,
     amt: u64,
 }
 
-impl<R: Unpin, W> Unpin for CopyBufInto<'_, R, W> {}
+impl<R: Unpin, W: ?Sized> Unpin for CopyBufInto<'_, R, W> {}
 
-impl<R, W> CopyBufInto<'_, R, W> {
+impl<R, W: ?Sized> CopyBufInto<'_, R, W> {
     pub(super) fn new(reader: R, writer: &mut W) -> CopyBufInto<'_, R, W> {
         CopyBufInto {
             reader,
@@ -25,7 +25,7 @@ impl<R, W> CopyBufInto<'_, R, W> {
     }
 }
 
-impl<R, W: Unpin> CopyBufInto<'_, R, W> {
+impl<R, W: Unpin + ?Sized> CopyBufInto<'_, R, W> {
     fn project<'b>(self: Pin<&'b mut Self>) -> (Pin<&'b mut R>, Pin<&'b mut W>, &'b mut u64) {
         unsafe {
             let this = self.get_unchecked_mut();
@@ -36,7 +36,7 @@ impl<R, W: Unpin> CopyBufInto<'_, R, W> {
 
 impl<R, W> Future for CopyBufInto<'_, R, W>
     where R: AsyncBufRead,
-          W: AsyncWrite + Unpin,
+          W: AsyncWrite + Unpin + ?Sized,
 {
     type Output = io::Result<u64>;
 
