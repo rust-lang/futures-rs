@@ -93,9 +93,6 @@ pub trait AsyncReadExt: AsyncRead {
     ///
     /// On success the number of bytes is returned.
     ///
-    /// Note that this method consumes `writer` but does not close it, you will likely want to pass
-    /// it by reference as shown in the example.
-    ///
     /// # Examples
     ///
     /// ```
@@ -114,7 +111,7 @@ pub trait AsyncReadExt: AsyncRead {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn copy_into<W: AsyncWrite>(self, writer: W) -> CopyInto<Self, W> where Self: Sized {
+    fn copy_into<W: AsyncWrite + Unpin>(self, writer: &mut W) -> CopyInto<'_, Self, W> where Self: Sized {
         CopyInto::new(self, writer)
     }
 
@@ -452,9 +449,6 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     ///
     /// On success the number of bytes is returned.
     ///
-    /// Note that this method consumes `writer` but does not close it, you will likely want to pass
-    /// it by reference as shown in the example.
-    ///
     /// # Examples
     ///
     /// ```
@@ -473,7 +467,7 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn copy_buf_into<W: AsyncWrite>(self, writer: W) -> CopyBufInto<Self, W> where Self: Sized {
+    fn copy_buf_into<W: AsyncWrite + Unpin>(self, writer: &mut W) -> CopyBufInto<'_, Self, W> where Self: Sized {
         CopyBufInto::new(self, writer)
     }
 

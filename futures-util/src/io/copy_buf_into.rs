@@ -7,34 +7,36 @@ use std::pin::Pin;
 /// Future for the [`copy_buf_into`](super::AsyncBufReadExt::copy_buf_into) method.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct CopyBufInto<R, W> {
+pub struct CopyBufInto<'a, R, W> {
     reader: R,
-    writer: W,
+    writer: &'a mut W,
     amt: u64,
 }
 
-impl<R: Unpin, W: Unpin> Unpin for CopyBufInto<R, W> {}
+impl<R: Unpin, W> Unpin for CopyBufInto<'_, R, W> {}
 
-impl<R, W> CopyBufInto<R, W> {
-    pub(super) fn new(reader: R, writer: W) -> Self {
+impl<R, W> CopyBufInto<'_, R, W> {
+    pub(super) fn new(reader: R, writer: &mut W) -> CopyBufInto<'_, R, W> {
         CopyBufInto {
             reader,
             writer,
             amt: 0,
         }
     }
+}
 
-    fn project<'a>(self: Pin<&'a mut Self>) -> (Pin<&'a mut R>, Pin<&'a mut W>, &'a mut u64) {
+impl<R, W: Unpin> CopyBufInto<'_, R, W> {
+    fn project<'b>(self: Pin<&'b mut Self>) -> (Pin<&'b mut R>, Pin<&'b mut W>, &'b mut u64) {
         unsafe {
             let this = self.get_unchecked_mut();
-            (Pin::new_unchecked(&mut this.reader), Pin::new_unchecked(&mut this.writer), &mut this.amt)
+            (Pin::new_unchecked(&mut this.reader), Pin::new(&mut *this.writer), &mut this.amt)
         }
     }
 }
 
-impl<R, W> Future for CopyBufInto<R, W>
+impl<R, W> Future for CopyBufInto<'_, R, W>
     where R: AsyncBufRead,
-          W: AsyncWrite,
+          W: AsyncWrite + Unpin,
 {
     type Output = io::Result<u64>;
 
