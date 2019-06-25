@@ -111,7 +111,11 @@ pub trait AsyncReadExt: AsyncRead {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn copy_into<W: AsyncWrite + Unpin>(self, writer: &mut W) -> CopyInto<'_, Self, W> where Self: Sized {
+    fn copy_into<W>(self, writer: &mut W) -> CopyInto<'_, Self, W>
+    where
+        Self: Sized,
+        W: AsyncWrite + Unpin + ?Sized,
+    {
         CopyInto::new(self, writer)
     }
 
@@ -467,7 +471,11 @@ pub trait AsyncBufReadExt: AsyncBufRead {
     /// assert_eq!(writer.into_inner(), [1, 2, 3, 4, 0]);
     /// # Ok::<(), Box<dyn std::error::Error>>(()) }).unwrap();
     /// ```
-    fn copy_buf_into<W: AsyncWrite + Unpin>(self, writer: &mut W) -> CopyBufInto<'_, Self, W> where Self: Sized {
+    fn copy_buf_into<W>(self, writer: &mut W) -> CopyBufInto<'_, Self, W>
+    where
+        Self: Sized,
+        W: AsyncWrite + Unpin + ?Sized,
+    {
         CopyBufInto::new(self, writer)
     }
 
