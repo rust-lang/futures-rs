@@ -449,8 +449,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// # Examples
     ///
-    // TODO: https://github.com/rust-lang-nursery/futures-rs/issues/1657
-    /// ```ignore
+    /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
@@ -608,8 +607,7 @@ pub trait TryStreamExt: TryStream {
     ///
     /// # Examples
     ///
-    // TODO: https://github.com/rust-lang-nursery/futures-rs/issues/1657
-    /// ```ignore
+    /// ```
     /// #![feature(async_await)]
     /// # futures::executor::block_on(async {
     /// use futures::channel::mpsc;
