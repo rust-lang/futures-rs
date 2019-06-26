@@ -30,6 +30,9 @@ extern crate alloc;
 #[macro_use]
 mod macros;
 
+// Re-export pin_mut! for convenience
+pub use pin_utils::pin_mut;
+
 #[cfg(feature = "async-await")]
 #[macro_use]
 #[doc(hidden)]

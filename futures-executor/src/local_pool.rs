@@ -5,7 +5,7 @@ use futures_core::task::{Context, Poll, Spawn, LocalSpawn, SpawnError};
 use futures_util::task::{waker_ref, ArcWake};
 use futures_util::stream::FuturesUnordered;
 use futures_util::stream::StreamExt;
-use pin_utils::pin_mut;
+use futures_util::pin_mut;
 use std::cell::{RefCell};
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
