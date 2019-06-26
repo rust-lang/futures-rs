@@ -24,4 +24,3 @@ futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.16", 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "=0.3.0-alpha.16", default-features = true }
 futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.16", default-features = true }
-pin-utils = "0.1.0-alpha.4"
