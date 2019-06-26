@@ -456,10 +456,10 @@ pub trait TryStreamExt: TryStream {
     /// use futures::stream::TryStreamExt;
     /// use std::thread;
     ///
-    /// let (mut tx, rx) = mpsc::unbounded();
+    /// let (tx, rx) = mpsc::unbounded();
     ///
     /// thread::spawn(move || {
-    ///     for i in (1..=5) {
+    ///     for i in 1..=5 {
     ///         tx.unbounded_send(Ok(i)).unwrap();
     ///     }
     ///     tx.unbounded_send(Err(6)).unwrap();
@@ -614,7 +614,7 @@ pub trait TryStreamExt: TryStream {
     /// use futures::stream::TryStreamExt;
     /// use std::thread;
     ///
-    /// let (mut tx, rx) = mpsc::unbounded::<Result<Vec<i32>, ()>>();
+    /// let (tx, rx) = mpsc::unbounded::<Result<Vec<i32>, ()>>();
     ///
     /// thread::spawn(move || {
     ///     for i in (0..3).rev() {

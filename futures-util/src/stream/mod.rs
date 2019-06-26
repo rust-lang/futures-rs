@@ -420,7 +420,7 @@ pub trait StreamExt: Stream {
     /// let (tx, rx) = mpsc::unbounded();
     ///
     /// thread::spawn(move || {
-    ///     for i in (1..=5) {
+    ///     for i in 1..=5 {
     ///         tx.unbounded_send(i).unwrap();
     ///     }
     /// });
