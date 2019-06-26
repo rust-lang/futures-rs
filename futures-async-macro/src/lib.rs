@@ -2,6 +2,8 @@
 
 #![recursion_limit = "128"]
 #![warn(rust_2018_idioms, unreachable_pub)]
+// It cannot be included in the published code because this lints have false positives in the minimum required version.
+#![cfg_attr(test, warn(single_use_lifetimes))]
 #![warn(clippy::all)]
 
 extern crate proc_macro;
