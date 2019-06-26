@@ -19,7 +19,7 @@
 # If you find yourself manually editing a foo.stderr file, you're
 # doing it wrong.
 
-MYDIR="$(dirname "${BASH_SOURCE[0]}")"
+MYDIR=$(dirname $0)
 
 BUILD_DIR="../target/tests/ui"
 

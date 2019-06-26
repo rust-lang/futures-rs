@@ -1,4 +1,4 @@
-error[E0507]: cannot move out of captured variable in an `FnMut` closure
+error[E0507]: cannot move out of `a`, a captured variable in an `FnMut` closure
   --> $DIR/move-captured-variable.rs:10:9
    |
 8  |       let a = String::new();
@@ -6,8 +6,12 @@ error[E0507]: cannot move out of captured variable in an `FnMut` closure
 9  |       foo(|| {
 10 | /         async_stream_block! {
 11 | |             yield a
+   | |                   -
+   | |                   |
+   | |                   move occurs because `a` has type `std::string::String`, which does not implement the `Copy` trait
+   | |                   move occurs due to use in generator
 12 | |         };
-   | |__________^ cannot move out of captured variable in an `FnMut` closure
+   | |__________^ move out of `a` occurs here
 
 error: aborting due to previous error
 

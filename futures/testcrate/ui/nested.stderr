@@ -1,14 +1,8 @@
 error[E0727]: `async` generators are not yet supported
-  --> $DIR/nested.rs:7:19
+  --> $DIR/nested.rs:10:13
    |
-7  |       let _ = async {
-   |  ___________________^
-8  | |         #[for_await]
-9  | |         for i in stream::iter(vec![1, 2]) {
-10 | |             yield i * i;
-11 | |         }
-12 | |     };
-   | |_____^
+10 |             yield i * i;
+   |             ^^^^^^^^^^^
 
 error: aborting due to previous error
 
