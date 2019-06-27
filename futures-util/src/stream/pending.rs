@@ -4,9 +4,7 @@ use core::pin::Pin;
 use futures_core::{Stream, Poll};
 use futures_core::task;
 
-/// A stream which never returns any elements.
-///
-/// This stream can be created with the `stream::pending` function.
+/// Stream for the [`pending()`] function.
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct Pending<T> {
