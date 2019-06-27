@@ -32,7 +32,7 @@ macro_rules! document_select_macro {
         /// use futures::future;
         /// use futures::select;
         /// let mut a = future::ready(4);
-        /// let mut b = future::empty::<()>();
+        /// let mut b = future::pending::<()>();
         ///
         /// let res = select! {
         ///     a_res = a => a_res + 1,
@@ -49,7 +49,7 @@ macro_rules! document_select_macro {
         /// use futures::stream::{self, StreamExt};
         /// use futures::select;
         /// let mut st = stream::iter(vec![2]).fuse();
-        /// let mut fut = future::empty::<()>();
+        /// let mut fut = future::pending::<()>();
         ///
         /// select! {
         ///     x = st.next() => assert_eq!(Some(2), x),

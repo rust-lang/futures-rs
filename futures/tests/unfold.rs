@@ -1,10 +1,10 @@
 use futures::future;
 use futures::stream;
 
-use futures_test::{
-    assert_stream_pending, assert_stream_next, assert_stream_done,
-};
 use futures_test::future::FutureTestExt;
+use futures_test::{
+    assert_stream_done, assert_stream_next, assert_stream_pending,
+};
 
 #[test]
 fn unfold1() {

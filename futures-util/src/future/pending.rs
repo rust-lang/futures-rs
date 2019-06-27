@@ -1,17 +1,19 @@
 use core::marker;
 use core::pin::Pin;
-use futures_core::future::{Future, FusedFuture};
+use futures_core::future::{FusedFuture, Future};
 use futures_core::task::{Context, Poll};
 
-/// Future for the [`empty`] function.
+/// Future for the [`pending`] function.
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct Empty<T> {
+pub struct Pending<T> {
     _data: marker::PhantomData<T>,
 }
 
-impl<T> FusedFuture for Empty<T> {
-    fn is_terminated(&self) -> bool { false }
+impl<T> FusedFuture for Pending<T> {
+    fn is_terminated(&self) -> bool {
+        false
+    }
 }
 
 /// Creates a future which never resolves, representing a computation that never
@@ -26,16 +28,18 @@ impl<T> FusedFuture for Empty<T> {
 /// # futures::executor::block_on(async {
 /// use futures::future;
 ///
-/// let future = future::empty();
+/// let future = future::pending();
 /// let () = future.await;
 /// unreachable!();
 /// # });
 /// ```
-pub fn empty<T>() -> Empty<T> {
-    Empty { _data: marker::PhantomData }
+pub fn pending<T>() -> Pending<T> {
+    Pending {
+        _data: marker::PhantomData,
+    }
 }
 
-impl<T> Future for Empty<T> {
+impl<T> Future for Pending<T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<T> {
