@@ -76,6 +76,9 @@ pub use self::once::{once, Once};
 mod peek;
 pub use self::peek::Peekable;
 
+mod pending;
+pub use self::pending::{pending, Pending};
+
 mod poll_fn;
 pub use self::poll_fn::{poll_fn, PollFn};
 
