@@ -17,11 +17,11 @@ use futures_core::future::{BoxFuture, LocalBoxFuture};
 pub use futures_core::future::FusedFuture;
 
 // Primitive futures
-mod empty;
-pub use self::empty::{empty, Empty};
-
 mod lazy;
 pub use self::lazy::{lazy, Lazy};
+
+mod pending;
+pub use self::pending::{pending, Pending};
 
 mod maybe_done;
 pub use self::maybe_done::{maybe_done, MaybeDone};

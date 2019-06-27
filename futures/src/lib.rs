@@ -211,9 +211,9 @@ pub mod future {
     pub use futures_core::future::BoxFuture;
 
     pub use futures_util::future::{
-        empty, Empty,
         lazy, Lazy,
         maybe_done, MaybeDone,
+        pending, Pending,
         poll_fn, PollFn,
         ready, ok, err, Ready,
         select, Select,

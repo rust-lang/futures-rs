@@ -170,14 +170,14 @@ impl LocalPool {
     /// ```
     /// use futures::executor::LocalPool;
     /// use futures::task::LocalSpawnExt;
-    /// use futures::future::{ready, empty};
+    /// use futures::future::{ready, pending};
     ///
     /// let mut pool = LocalPool::new();
     /// let mut spawner = pool.spawner();
     ///
     /// spawner.spawn_local(ready(())).unwrap();
     /// spawner.spawn_local(ready(())).unwrap();
-    /// spawner.spawn_local(empty()).unwrap();
+    /// spawner.spawn_local(pending()).unwrap();
     ///
     /// // Run the two ready tasks and return true for them.
     /// pool.try_run_one(); // returns true after completing one of the ready futures
@@ -210,14 +210,14 @@ impl LocalPool {
     /// ```
     /// use futures::executor::LocalPool;
     /// use futures::task::LocalSpawnExt;
-    /// use futures::future::{ready, empty};
+    /// use futures::future::{ready, pending};
     ///
     /// let mut pool = LocalPool::new();
     /// let mut spawner = pool.spawner();
     ///
     /// spawner.spawn_local(ready(())).unwrap();
     /// spawner.spawn_local(ready(())).unwrap();
-    /// spawner.spawn_local(empty()).unwrap();
+    /// spawner.spawn_local(pending()).unwrap();
     ///
     /// // Runs the two ready task and returns.
     /// // The empty task remains in the pool.

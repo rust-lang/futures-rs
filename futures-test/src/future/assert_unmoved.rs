@@ -63,7 +63,7 @@ impl<Fut> Drop for AssertUnmoved<Fut> {
 mod tests {
     use futures_core::future::Future;
     use futures_core::task::{Context, Poll};
-    use futures_util::future::empty;
+    use futures_util::future::pending;
     use futures_util::task::noop_waker;
     use std::pin::Pin;
 
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn dont_panic_when_not_polled() {
         // This shouldn't panic.
-        let future = AssertUnmoved::new(empty::<()>());
+        let future = AssertUnmoved::new(pending::<()>());
         drop(future);
     }
 
@@ -84,7 +84,7 @@ mod tests {
         let mut cx = Context::from_waker(&waker);
 
         // First we allocate the future on the stack and poll it.
-        let mut future = AssertUnmoved::new(empty::<()>());
+        let mut future = AssertUnmoved::new(pending::<()>());
         let pinned_future = unsafe { Pin::new_unchecked(&mut future) };
         assert_eq!(pinned_future.poll(&mut cx), Poll::Pending);
 
