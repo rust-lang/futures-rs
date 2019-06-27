@@ -1,6 +1,6 @@
 use futures_core::future::Future;
 use futures_core::task::{Context, Poll};
-use futures_io::AsyncRead;
+use futures_core::io::AsyncRead;
 use std::io;
 use std::pin::Pin;
 use std::vec::Vec;

@@ -27,3 +27,8 @@ pub mod stream;
 
 pub mod task;
 #[doc(hidden)] pub use self::task::Poll;
+
+#[cfg(feature = "std")]
+pub mod io;
+#[cfg(feature = "std")]
+#[doc(hidden)] pub use self::io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};

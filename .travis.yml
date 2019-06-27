@@ -64,7 +64,6 @@ matrix:
         - cargo build --manifest-path futures-core/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-channel/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-executor/Cargo.toml --no-default-features
-        - cargo build --manifest-path futures-io/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-sink/Cargo.toml --no-default-features
         - cargo build --manifest-path futures-util/Cargo.toml --no-default-features
 

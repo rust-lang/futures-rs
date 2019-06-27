@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
+use futures_core::io::{AsyncSeek, AsyncWrite, IoSlice, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::fmt;
 use std::io::{self, Write};
@@ -23,7 +23,7 @@ use super::DEFAULT_BUF_SIZE;
 /// stream can cause data loss. If you need to write out the contents of its
 /// buffer, you must manually call flush before the writer is dropped.
 ///
-/// [`AsyncWrite`]: futures_io::AsyncWrite
+/// [`AsyncWrite`]: futures_core::io::AsyncWrite
 /// [`flush`]: super::AsyncWriteExt::flush
 ///
 // TODO: Examples

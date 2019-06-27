@@ -60,7 +60,7 @@ compile_error!("The `never-type` feature requires the `nightly` feature as an ex
 #[doc(hidden)] pub use futures_util::sink::SinkExt;
 
 #[cfg(feature = "std")]
-#[doc(hidden)] pub use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
+#[doc(hidden)] pub use futures_core::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead};
 #[cfg(feature = "std")]
 #[doc(hidden)] pub use futures_util::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
 
@@ -295,7 +295,7 @@ pub mod io {
     //! This module is only available when the `std` feature of this
     //! library is activated, and it is activated by default.
 
-    pub use futures_io::{
+    pub use futures_core::io::{
         AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, Error, ErrorKind,
         Initializer, IoSlice, IoSliceMut, Result, SeekFrom,
     };

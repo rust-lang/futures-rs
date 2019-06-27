@@ -1,6 +1,6 @@
 //! Additional combinators for testing async writers.
 
-use futures_io::AsyncWrite;
+use futures_core::io::AsyncWrite;
 
 pub use super::limited::Limited;
 pub use crate::interleave_pending::InterleavePending;

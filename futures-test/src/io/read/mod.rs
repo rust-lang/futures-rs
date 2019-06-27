@@ -1,6 +1,6 @@
 //! Additional combinators for testing async readers.
 
-use futures_io::AsyncRead;
+use futures_core::io::AsyncRead;
 
 pub use super::limited::Limited;
 pub use crate::interleave_pending::InterleavePending;

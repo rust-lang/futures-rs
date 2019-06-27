@@ -215,7 +215,7 @@ where
 #[cfg(feature = "io-compat")]
 mod io {
     use super::*;
-    use futures_io::{AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03};
+    use futures_core::io::{AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03};
     use tokio_io::{AsyncRead as AsyncRead01, AsyncWrite as AsyncWrite01};
 
     fn poll_03_to_io<T>(x: task03::Poll<Result<T, std::io::Error>>)

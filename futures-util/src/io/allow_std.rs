@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom};
+use futures_core::io::{AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom};
 use std::{fmt, io};
 use std::pin::Pin;
 

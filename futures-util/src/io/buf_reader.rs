@@ -1,5 +1,5 @@
 use futures_core::task::{Context, Poll};
-use futures_io::{AsyncBufRead, AsyncRead, AsyncSeek, Initializer, IoSliceMut, SeekFrom};
+use futures_core::io::{AsyncBufRead, AsyncRead, AsyncSeek, Initializer, IoSliceMut, SeekFrom};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::io::{self, Read};
 use std::pin::Pin;
@@ -22,7 +22,7 @@ use super::DEFAULT_BUF_SIZE;
 /// discarded. Creating multiple instances of a `BufReader` on the same
 /// stream can cause data loss.
 ///
-/// [`AsyncRead`]: futures_io::AsyncRead
+/// [`AsyncRead`]: futures_core::io::AsyncRead
 ///
 // TODO: Examples
 pub struct BufReader<R> {
@@ -220,7 +220,7 @@ impl<R: AsyncRead + AsyncSeek> AsyncSeek for BufReader<R> {
     /// To seek without discarding the internal buffer, use
     /// [`BufReader::poll_seek_relative`](BufReader::poll_seek_relative).
     ///
-    /// See [`AsyncSeek`](futures_io::AsyncSeek) for more details.
+    /// See [`AsyncSeek`](futures_core::io::AsyncSeek) for more details.
     ///
     /// Note: In the edge case where you're seeking with `SeekFrom::Current(n)`
     /// where `n` minus the internal buffer length overflows an `i64`, two

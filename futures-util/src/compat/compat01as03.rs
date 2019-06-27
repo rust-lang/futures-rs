@@ -339,7 +339,7 @@ unsafe impl UnsafeNotify01 for NotifyWaker {
 #[cfg(feature = "io-compat")]
 mod io {
     use super::*;
-    use futures_io::{
+    use futures_core::io::{
         AsyncRead as AsyncRead03, AsyncWrite as AsyncWrite03, Initializer,
     };
     use std::io::Error;
@@ -347,8 +347,8 @@ mod io {
 
     /// Extension trait for tokio-io [`AsyncRead`](tokio_io::AsyncRead)
     pub trait AsyncRead01CompatExt: AsyncRead01 {
-        /// Converts a tokio-io [`AsyncRead`](tokio_io::AsyncRead) into a futures-io 0.3
-        /// [`AsyncRead`](futures_io::AsyncRead).
+        /// Converts a tokio-io [`AsyncRead`](tokio_io::AsyncRead) into a futures 0.3
+        /// [`AsyncRead`](futures_core::io::AsyncRead).
         ///
         /// ```
         /// #![feature(async_await, impl_trait_in_bindings)]
@@ -376,8 +376,8 @@ mod io {
 
     /// Extension trait for tokio-io [`AsyncWrite`](tokio_io::AsyncWrite)
     pub trait AsyncWrite01CompatExt: AsyncWrite01 {
-        /// Converts a tokio-io [`AsyncWrite`](tokio_io::AsyncWrite) into a futures-io 0.3
-        /// [`AsyncWrite`](futures_io::AsyncWrite).
+        /// Converts a tokio-io [`AsyncWrite`](tokio_io::AsyncWrite) into a futures 0.3
+        /// [`AsyncWrite`](futures_core::io::AsyncWrite).
         ///
         /// ```
         /// #![feature(async_await, impl_trait_in_bindings)]

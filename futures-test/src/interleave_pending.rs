@@ -1,6 +1,6 @@
 use futures_core::future::Future;
 use futures_core::stream::Stream;
-use futures_io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
+use futures_core::io::{self as io, AsyncBufRead, AsyncRead, AsyncWrite};
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use std::{
     pin::Pin,

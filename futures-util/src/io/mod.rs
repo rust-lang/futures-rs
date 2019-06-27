@@ -9,7 +9,7 @@
 //! This module is only available when the `std` feature of this
 //! library is activated, and it is activated by default.
 
-pub use futures_io::{
+pub use futures_core::io::{
     AsyncRead, AsyncWrite, AsyncSeek, AsyncBufRead, IoSlice, IoSliceMut, SeekFrom,
 };
 

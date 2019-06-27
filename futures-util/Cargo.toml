@@ -15,7 +15,7 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["alloc", "futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "slab", "memchr"]
+std = ["alloc", "futures-core-preview/std", "futures-sink-preview/std", "slab", "memchr"]
 default = ["std"]
 async-await = ["std", "futures-select-macro-preview", "proc-macro-hack", "proc-macro-nested", "rand", "rand_core"]
 compat = ["std", "futures_01"]
@@ -29,7 +29,6 @@ alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc"]
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.16", default-features = false }
 futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.16", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.16", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.16", default-features = false}
 futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.16", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5", optional = true }
