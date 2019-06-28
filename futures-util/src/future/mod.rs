@@ -495,7 +495,7 @@ pub trait FutureExt: Future {
     fn boxed<'a>(self) -> BoxFuture<'a, Self::Output>
         where Self: Sized + Send + 'a
     {
-        Box::pin(self)
+        BoxFuture::new(Box::pin(self))
     }
 
     /// Wrap the future in a Box, pinning it.
@@ -505,7 +505,7 @@ pub trait FutureExt: Future {
     fn boxed_local<'a>(self) -> LocalBoxFuture<'a, Self::Output>
         where Self: Sized + 'a
     {
-        Box::pin(self)
+        LocalBoxFuture::new(Box::pin(self))
     }
 
     /// Turns a [`Future<Output = T>`](Future) into a

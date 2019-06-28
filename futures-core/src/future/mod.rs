@@ -10,13 +10,17 @@ mod future_obj;
 pub use self::future_obj::{FutureObj, LocalFutureObj, UnsafeFutureObj};
 
 #[cfg(feature = "alloc")]
+#[must_use = "futures do nothing unless polled"]
+#[allow(missing_debug_implementations)]
 /// An owned dynamically typed [`Future`] for use in cases where you can't
 /// statically type your result or need to add some indirection.
-pub type BoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>;
+pub struct BoxFuture<'a, T>(Pin<alloc::boxed::Box<dyn Future<Output = T> + Send + 'a>>);
 
 #[cfg(feature = "alloc")]
+#[must_use = "futures do nothing unless polled"]
+#[allow(missing_debug_implementations)]
 /// `BoxFuture`, but without the `Send` requirement.
-pub type LocalBoxFuture<'a, T> = Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>;
+pub struct LocalBoxFuture<'a, T>(Pin<alloc::boxed::Box<dyn Future<Output = T> + 'a>>);
 
 /// A `Future` or `TryFuture` which tracks whether or not the underlying future
 /// should no longer be polled.
@@ -81,6 +85,7 @@ impl<F, T, E> TryFuture for F
 
 #[cfg(feature = "alloc")]
 mod if_alloc {
+    use core::mem;
     use alloc::boxed::Box;
     use super::*;
 
@@ -94,6 +99,64 @@ mod if_alloc {
     impl<F: FusedFuture> FusedFuture for std::panic::AssertUnwindSafe<F> {
         fn is_terminated(&self) -> bool {
             <F as FusedFuture>::is_terminated(&**self)
+        }
+    }
+
+    impl<O> Future for BoxFuture<'_, O> {
+        type Output = O;
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            let mut_pin = self.0.as_mut();
+            mut_pin.poll(cx)
+        }
+    }
+
+    impl<O> BoxFuture<'_, O> {
+        /// Converts Pin<Box<Future<Output=O>> to PinnedFuture<O>
+        pub fn new<'a>(f: Pin<Box<dyn Future<Output = O> + Send + 'a>>) -> BoxFuture<'a, O> {
+            BoxFuture(f)
+        }
+    }
+
+    impl<O> Future for LocalBoxFuture<'_, O> {
+        type Output = O;
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            let mut_pin = self.0.as_mut();
+            mut_pin.poll(cx)
+        }
+    }
+
+    impl<O> LocalBoxFuture<'_, O> {
+        /// Converts Pin<Box<Future<Output=O>> to PinnedFuture<O>
+        pub fn new<'a>(f: Pin<Box<dyn Future<Output = O> + 'a>>) -> LocalBoxFuture<'a, O> {
+            LocalBoxFuture(f)
+        }
+    }
+
+    unsafe impl<'a, T> UnsafeFutureObj<'a, T> for BoxFuture<'a, T> where T: 'a
+    {
+        fn into_raw(mut self) -> *mut (dyn Future<Output = T> + 'a) {
+            let ptr = unsafe { self.0.as_mut().get_unchecked_mut() as *mut _ };
+            mem::forget(self);
+            ptr
+        }
+
+        unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
+            drop(Pin::from(Box::from_raw(ptr)))
+        }
+    }
+
+    unsafe impl<'a, T> UnsafeFutureObj<'a, T> for LocalBoxFuture<'a, T> where T: 'a
+    {
+        fn into_raw(mut self) -> *mut (dyn Future<Output = T> + 'a) {
+            let ptr = unsafe { self.0.as_mut().get_unchecked_mut() as *mut _ };
+            mem::forget(self);
+            ptr
+        }
+
+        unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
+            drop(Pin::from(Box::from_raw(ptr)))
         }
     }
 }
