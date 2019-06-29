@@ -15,7 +15,7 @@ pub fn assert_is_unpin_stream<S: Stream + Unpin>(_: &mut S) {}
 /// use futures_test::{
 ///     assert_stream_pending, assert_stream_next, assert_stream_done,
 /// };
-/// use pin_utils::pin_mut;
+/// use futures::pin_mut;
 ///
 /// let stream = stream::once((async { 5 }).pending_once());
 /// pin_mut!(stream);
@@ -52,7 +52,7 @@ macro_rules! assert_stream_pending {
 /// use futures_test::{
 ///     assert_stream_pending, assert_stream_next, assert_stream_done,
 /// };
-/// use pin_utils::pin_mut;
+/// use futures::pin_mut;
 ///
 /// let stream = stream::once((async { 5 }).pending_once());
 /// pin_mut!(stream);
@@ -95,7 +95,7 @@ macro_rules! assert_stream_next {
 /// use futures_test::{
 ///     assert_stream_pending, assert_stream_next, assert_stream_done,
 /// };
-/// use pin_utils::pin_mut;
+/// use futures::pin_mut;
 ///
 /// let stream = stream::once((async { 5 }).pending_once());
 /// pin_mut!(stream);

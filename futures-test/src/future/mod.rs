@@ -40,7 +40,7 @@ pub trait FutureTestExt: Future {
     /// use futures::future::FutureExt;
     /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let future = (async { 5 }).pending_once();
     /// pin_mut!(future);
@@ -93,7 +93,7 @@ pub trait FutureTestExt: Future {
     /// use futures::future::{self, Future};
     /// use futures_test::task::noop_context;
     /// use futures_test::future::FutureTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let future = future::ready(1).interleave_pending();
     /// pin_mut!(future);

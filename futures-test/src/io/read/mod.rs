@@ -18,7 +18,7 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// use futures::io::AsyncRead;
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let reader = std::io::Cursor::new(&[1, 2, 3]).interleave_pending();
     /// pin_mut!(reader);
@@ -49,7 +49,7 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// use futures::io::AsyncBufRead;
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let reader = std::io::Cursor::new(&[1, 2, 3]).interleave_pending();
     /// pin_mut!(reader);
@@ -84,7 +84,7 @@ pub trait AsyncReadTestExt: AsyncRead {
     /// use futures::io::AsyncRead;
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncReadTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let reader = std::io::Cursor::new(&[1, 2, 3, 4, 5]).limited(2);
     /// pin_mut!(reader);

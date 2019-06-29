@@ -17,7 +17,7 @@ pub trait StreamTestExt: Stream {
     /// use futures::stream::{self, Stream};
     /// use futures_test::task::noop_context;
     /// use futures_test::stream::StreamTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let stream = stream::iter(vec![1, 2]).interleave_pending();
     /// pin_mut!(stream);
