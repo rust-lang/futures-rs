@@ -18,7 +18,7 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// use futures::io::AsyncWrite;
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let writer = std::io::Cursor::new([0u8; 4]).interleave_pending_write();
     /// pin_mut!(writer);
@@ -59,7 +59,7 @@ pub trait AsyncWriteTestExt: AsyncWrite {
     /// use futures::io::AsyncWrite;
     /// use futures_test::task::noop_context;
     /// use futures_test::io::AsyncWriteTestExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let writer = std::io::Cursor::new([0u8; 4]).limited_write(2);
     /// pin_mut!(writer);

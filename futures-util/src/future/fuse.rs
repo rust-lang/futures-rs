@@ -33,7 +33,7 @@ impl<Fut: Future> Fuse<Fut> {
     /// use futures::future::{Fuse, FusedFuture, FutureExt};
     /// use futures::select;
     /// use futures::stream::StreamExt;
-    /// use pin_utils::pin_mut;
+    /// use futures::pin_mut;
     ///
     /// let (sender, mut stream) = mpsc::unbounded();
     ///
