@@ -21,17 +21,17 @@
 
 #[cfg(feature = "std")]
 mod if_std {
-    use futures_core::task::{Context, Poll};
     use std::cmp;
-    use std::io as StdIo;
+    use std::io;
     use std::ops::DerefMut;
     use std::pin::Pin;
     use std::ptr;
+    use std::task::{Context, Poll};
 
     // Re-export some types from `std::io` so that users don't have to deal
     // with conflicts when `use`ing `futures::io` and `std::io`.
     #[allow(unreachable_pub)] // https://github.com/rust-lang/rust/issues/57411
-    pub use self::StdIo::{
+    pub use io::{
         Error as Error,
         ErrorKind as ErrorKind,
         Result as Result,
@@ -147,8 +147,8 @@ mod if_std {
         fn poll_read_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
             -> Poll<Result<usize>>
         {
-            if let Some(ref mut first_iovec) = bufs.get_mut(0) {
-                self.poll_read(cx, first_iovec)
+            if let Some(first_iovec) = bufs.get_mut(0) {
+                self.poll_read(cx, &mut **first_iovec)
             } else {
                 // `bufs` is empty.
                 Poll::Ready(Ok(0))
@@ -208,8 +208,8 @@ mod if_std {
         fn poll_write_vectored(self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[IoSlice<'_>])
             -> Poll<Result<usize>>
         {
-            if let Some(ref first_iovec) = bufs.get(0) {
-                self.poll_write(cx, &*first_iovec)
+            if let Some(first_iovec) = bufs.get(0) {
+                self.poll_write(cx, &**first_iovec)
             } else {
                 // `bufs` is empty.
                 Poll::Ready(Ok(0))
@@ -390,7 +390,7 @@ mod if_std {
         }
     }
 
-    /// `unsafe` because the `StdIo::Read` type must not access the buffer
+    /// `unsafe` because the `io::Read` type must not access the buffer
     /// before reading data into it.
     macro_rules! unsafe_delegate_async_read_to_stdio {
         () => {
@@ -401,13 +401,13 @@ mod if_std {
             fn poll_read(mut self: Pin<&mut Self>, _: &mut Context<'_>, buf: &mut [u8])
                 -> Poll<Result<usize>>
             {
-                Poll::Ready(StdIo::Read::read(&mut *self, buf))
+                Poll::Ready(io::Read::read(&mut *self, buf))
             }
 
             fn poll_read_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &mut [IoSliceMut<'_>])
                 -> Poll<Result<usize>>
             {
-                Poll::Ready(StdIo::Read::read_vectored(&mut *self, bufs))
+                Poll::Ready(io::Read::read_vectored(&mut *self, bufs))
             }
         }
     }
@@ -416,15 +416,15 @@ mod if_std {
         unsafe_delegate_async_read_to_stdio!();
     }
 
-    impl AsyncRead for StdIo::Repeat {
+    impl AsyncRead for io::Repeat {
         unsafe_delegate_async_read_to_stdio!();
     }
 
-    impl AsyncRead for StdIo::Empty {
+    impl AsyncRead for io::Empty {
         unsafe_delegate_async_read_to_stdio!();
     }
 
-    impl<T: AsRef<[u8]> + Unpin> AsyncRead for StdIo::Cursor<T> {
+    impl<T: AsRef<[u8]> + Unpin> AsyncRead for io::Cursor<T> {
         unsafe_delegate_async_read_to_stdio!();
     }
 
@@ -491,17 +491,17 @@ mod if_std {
             fn poll_write(mut self: Pin<&mut Self>, _: &mut Context<'_>, buf: &[u8])
                 -> Poll<Result<usize>>
             {
-                Poll::Ready(StdIo::Write::write(&mut *self, buf))
+                Poll::Ready(io::Write::write(&mut *self, buf))
             }
 
             fn poll_write_vectored(mut self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &[IoSlice<'_>])
                 -> Poll<Result<usize>>
             {
-                Poll::Ready(StdIo::Write::write_vectored(&mut *self, bufs))
+                Poll::Ready(io::Write::write_vectored(&mut *self, bufs))
             }
 
             fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
-                Poll::Ready(StdIo::Write::flush(&mut *self))
+                Poll::Ready(io::Write::flush(&mut *self))
             }
 
             fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
@@ -510,7 +510,7 @@ mod if_std {
         }
     }
 
-    impl<T: AsMut<[u8]> + Unpin> AsyncWrite for StdIo::Cursor<T> {
+    impl<T: AsMut<[u8]> + Unpin> AsyncWrite for io::Cursor<T> {
         fn poll_write(
             mut self: Pin<&mut Self>,
             _: &mut Context<'_>,
@@ -520,7 +520,7 @@ mod if_std {
             let result = {
                 let out = (&mut *self).get_mut().as_mut();
                 let pos = cmp::min(out.len() as u64, position) as usize;
-                StdIo::Write::write(&mut &mut out[pos..], buf)
+                io::Write::write(&mut &mut out[pos..], buf)
             };
             if let Ok(offset) = result {
                 self.get_mut().set_position(position + offset as u64);
@@ -531,11 +531,11 @@ mod if_std {
         fn poll_write_vectored(self: Pin<&mut Self>, _: &mut Context<'_>, bufs: &[IoSlice<'_>])
             -> Poll<Result<usize>>
         {
-            Poll::Ready(StdIo::Write::write_vectored(&mut self.get_mut().get_mut().as_mut(), bufs))
+            Poll::Ready(io::Write::write_vectored(&mut self.get_mut().get_mut().as_mut(), bufs))
         }
 
         fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<()>> {
-            Poll::Ready(StdIo::Write::flush(&mut self.get_mut().get_mut().as_mut()))
+            Poll::Ready(io::Write::flush(&mut self.get_mut().get_mut().as_mut()))
         }
 
         fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
@@ -547,7 +547,7 @@ mod if_std {
         delegate_async_write_to_stdio!();
     }
 
-    impl AsyncWrite for StdIo::Sink {
+    impl AsyncWrite for io::Sink {
         delegate_async_write_to_stdio!();
     }
 
@@ -569,7 +569,6 @@ mod if_std {
         deref_async_seek!();
     }
 
-
     impl<P> AsyncSeek for Pin<P>
     where
         P: DerefMut + Unpin,
@@ -587,12 +586,12 @@ mod if_std {
             fn poll_seek(mut self: Pin<&mut Self>, _: &mut Context<'_>, pos: SeekFrom)
             -> Poll<Result<u64>>
             {
-                Poll::Ready(StdIo::Seek::seek(&mut *self, pos))
+                Poll::Ready(io::Seek::seek(&mut *self, pos))
             }
         }
     }
 
-    impl<T: AsRef<[u8]> + Unpin> AsyncSeek for StdIo::Cursor<T> {
+    impl<T: AsRef<[u8]> + Unpin> AsyncSeek for io::Cursor<T> {
         delegate_async_seek_to_stdio!();
     }
 
@@ -604,8 +603,8 @@ mod if_std {
                 Pin::new(&mut **self.get_mut()).poll_fill_buf(cx)
             }
 
-            fn consume(self: Pin<&mut Self>, amt: usize) {
-                Pin::new(&mut **self.get_mut()).consume(amt)
+            fn consume(mut self: Pin<&mut Self>, amt: usize) {
+                Pin::new(&mut **self).consume(amt)
             }
         }
     }
@@ -639,11 +638,11 @@ mod if_std {
             fn poll_fill_buf<'a>(self: Pin<&'a mut Self>, _: &mut Context<'_>)
                 -> Poll<Result<&'a [u8]>>
             {
-                Poll::Ready(StdIo::BufRead::fill_buf(self.get_mut()))
+                Poll::Ready(io::BufRead::fill_buf(self.get_mut()))
             }
 
             fn consume(self: Pin<&mut Self>, amt: usize) {
-                StdIo::BufRead::consume(self.get_mut(), amt)
+                io::BufRead::consume(self.get_mut(), amt)
             }
         }
     }
@@ -652,11 +651,11 @@ mod if_std {
         delegate_async_buf_read_to_stdio!();
     }
 
-    impl AsyncBufRead for StdIo::Empty {
+    impl AsyncBufRead for io::Empty {
         delegate_async_buf_read_to_stdio!();
     }
 
-    impl<T: AsRef<[u8]> + Unpin> AsyncBufRead for StdIo::Cursor<T> {
+    impl<T: AsRef<[u8]> + Unpin> AsyncBufRead for io::Cursor<T> {
         delegate_async_buf_read_to_stdio!();
     }
 }
