@@ -27,10 +27,14 @@ compile_error!("The `async-await` feature requires the `nightly` feature as an e
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[macro_use(ready)]
+extern crate futures_core;
+
 #[macro_use]
 mod macros;
 
-// Re-export pin_mut! for convenience
+// Macro re-exports
+pub use futures_core::ready;
 pub use pin_utils::pin_mut;
 
 #[cfg(feature = "async-await")]
@@ -49,10 +53,7 @@ pub mod rand_reexport { // used by select!
 }
 
 #[doc(hidden)]
-pub mod core_reexport {
-    #[doc(hidden)]
-    pub use core::*;
-}
+pub use futures_core::core_reexport;
 
 macro_rules! delegate_sink {
     ($field:ident, $item:ty) => {

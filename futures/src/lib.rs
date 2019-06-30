@@ -44,7 +44,7 @@ compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` featu
 #[cfg(all(feature = "never-type", not(feature = "nightly")))]
 compile_error!("The `never-type` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
-#[doc(hidden)] pub use futures_util::core_reexport;
+#[doc(hidden)] pub use futures_core::core_reexport;
 
 #[doc(hidden)] pub use futures_core::future::Future;
 #[doc(hidden)] pub use futures_core::future::TryFuture;
@@ -67,8 +67,8 @@ compile_error!("The `never-type` feature requires the `nightly` feature as an ex
 #[doc(hidden)] pub use futures_core::task::Poll;
 
 // Macro reexports
+pub use futures_core::ready; // Readiness propagation
 pub use futures_util::pin_mut;
-pub use futures_util::ready; // Readiness propagation
 #[cfg(feature = "async-await")]
 pub use futures_util::{
     // Async-await

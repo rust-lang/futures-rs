@@ -25,5 +25,12 @@ pub mod future;
 pub mod stream;
 #[doc(hidden)] pub use self::stream::{Stream, FusedStream, TryStream};
 
+#[macro_use]
 pub mod task;
 #[doc(hidden)] pub use self::task::Poll;
+
+#[doc(hidden)]
+pub mod core_reexport {
+    #[doc(hidden)]
+    pub use core::*;
+}
