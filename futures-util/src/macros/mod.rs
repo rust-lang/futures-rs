@@ -1,6 +1,3 @@
-#[macro_use]
-mod poll;
-
 macro_rules! cfg_target_has_atomic {
     ($($item:item)*) => {$(
         #[cfg_attr(
