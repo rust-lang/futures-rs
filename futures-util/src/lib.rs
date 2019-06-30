@@ -30,9 +30,6 @@ extern crate alloc;
 #[macro_use(ready)]
 extern crate futures_core;
 
-#[macro_use]
-mod macros;
-
 // Macro re-exports
 pub use futures_core::ready;
 pub use pin_utils::pin_mut;
@@ -54,6 +51,16 @@ pub mod rand_reexport { // used by select!
 
 #[doc(hidden)]
 pub use futures_core::core_reexport;
+
+macro_rules! cfg_target_has_atomic {
+    ($($item:item)*) => {$(
+        #[cfg_attr(
+            feature = "cfg-target-has-atomic",
+            cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))
+        )]
+        $item
+    )*};
+}
 
 macro_rules! delegate_sink {
     ($field:ident, $item:ty) => {
