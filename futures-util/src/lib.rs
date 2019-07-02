@@ -3,7 +3,6 @@
 
 #![cfg_attr(feature = "async-await", feature(async_await))]
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
-#![cfg_attr(feature = "never-type", feature(never_type))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms, unreachable_pub)]
@@ -17,9 +16,6 @@
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
-
-#[cfg(all(feature = "never-type", not(feature = "nightly")))]
-compile_error!("The `never-type` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[cfg(all(feature = "async-await", not(feature = "nightly")))]
 compile_error!("The `async-await` feature requires the `nightly` feature as an explicit opt-in to unstable features");
