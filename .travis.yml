@@ -1,6 +1,7 @@
 language: rust
 sudo: false
-cache: cargo
+# TODO: https://github.com/rust-lang-nursery/futures-rs/pull/1681#issuecomment-507791279
+# cache: cargo
 
 stages:
   - name: test
