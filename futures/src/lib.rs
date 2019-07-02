@@ -22,7 +22,6 @@
 //! completion, but *do not block* the thread running them.
 
 #![cfg_attr(feature = "cfg-target-has-atomic", feature(cfg_target_has_atomic))]
-#![cfg_attr(feature = "never-type", feature(never_type))]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -40,9 +39,6 @@ compile_error!("The `async-await` feature requires the `nightly` feature as an e
 
 #[cfg(all(feature = "cfg-target-has-atomic", not(feature = "nightly")))]
 compile_error!("The `cfg-target-has-atomic` feature requires the `nightly` feature as an explicit opt-in to unstable features");
-
-#[cfg(all(feature = "never-type", not(feature = "nightly")))]
-compile_error!("The `never-type` feature requires the `nightly` feature as an explicit opt-in to unstable features");
 
 #[doc(hidden)] pub use futures_core::core_reexport;
 
@@ -227,6 +223,7 @@ pub mod future {
 
         FutureExt,
         FlattenStream, Flatten, Fuse, Inspect, IntoStream, Map, Then, UnitError,
+        NeverError,
     };
 
     #[cfg(feature = "alloc")]
@@ -260,9 +257,6 @@ pub mod future {
         AndThen, ErrInto, FlattenSink, IntoFuture, MapErr, MapOk, OrElse,
         InspectOk, InspectErr, TryFlattenStream, UnwrapOrElse,
     };
-
-    #[cfg(feature = "never-type")]
-    pub use futures_util::future::NeverError;
 
     #[cfg(feature = "alloc")]
     pub use futures_util::try_future::{

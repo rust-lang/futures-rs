@@ -23,7 +23,6 @@ io-compat = ["compat", "tokio-io"]
 bench = []
 nightly = ["futures-core-preview/nightly", "futures-sink-preview/nightly"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
-never-type = []
 alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc"]
 
 [dependencies]
