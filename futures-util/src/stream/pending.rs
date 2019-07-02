@@ -1,8 +1,7 @@
 use core::marker;
 use core::pin::Pin;
-
-use futures_core::{Stream, Poll};
-use futures_core::task;
+use futures_core::stream::{FusedStream, Stream};
+use futures_core::task::{Context, Poll};
 
 /// Stream for the [`pending()`] function.
 #[derive(Debug)]
@@ -18,10 +17,16 @@ pub fn pending<T>() -> Pending<T> {
     Pending { _data: marker::PhantomData }
 }
 
+impl<T> FusedStream for Pending<T> {
+    fn is_terminated(&self) -> bool {
+        true
+    }
+}
+
 impl<T> Stream for Pending<T> {
     type Item = T;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut task::Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Poll::Pending
     }
 }

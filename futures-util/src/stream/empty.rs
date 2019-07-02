@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 use core::pin::Pin;
-use futures_core::stream::Stream;
+use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
 
 /// Stream for the [`empty`] function.
@@ -20,6 +20,12 @@ pub fn empty<T>() -> Empty<T> {
 }
 
 impl<T> Unpin for Empty<T> {}
+
+impl<T> FusedStream for Empty<T> {
+    fn is_terminated(&self) -> bool {
+        true
+    }
+}
 
 impl<T> Stream for Empty<T> {
     type Item = T;

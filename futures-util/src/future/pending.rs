@@ -12,7 +12,7 @@ pub struct Pending<T> {
 
 impl<T> FusedFuture for Pending<T> {
     fn is_terminated(&self) -> bool {
-        false
+        true
     }
 }
 
