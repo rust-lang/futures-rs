@@ -1,3 +1,31 @@
+# 0.3.0-alpha.16 - Unreleased
+* Removed `try_ready!` macro in favor of `ready!(..)?`. (#1602)
+* Removed `io::Window::{set_start, set_end}` in favor of `io::Window::set`. (#1667)
+* Re-exported `pin_utils::pin_mut!` macro. (#1686)
+* Made all extension traits unnamed in the prelude. (#1662)
+* Allowed `?Sized` types in some methods and structs. (#1647)
+* Added `Send + Sync` bounds to `ArcWake` trait to fix unsoundness. (#1654)
+* Changed `AsyncReadExt::copy_into` to consume `self`. (#1674)
+* Renamed `future::empty` to `pending`. (#1689)
+* Added `#[must_use]` to some combinators. (#1600)
+* Added `AsyncWriteExt::{write, write_vectored}`. (#1612)
+* Added `AsyncReadExt::read_vectored`. (#1612)
+* Added `TryFutureExt::try_poll_unpin`. (#1613)
+* Added `TryFutureExt::try_flatten_stream`. (#1618)
+* Added `io::BufWriter`. (#1608)
+* Added `Sender::same_receiver` and `UnboundedSender::same_receiver`. (#1617)
+* Added `future::try_select`. (#1622)
+* Added `TryFutureExt::{inspect_ok, inspect_err}`. (#1630)
+* Added `Compat::get_ref`. (#1648)
+* Added `io::Window::set`. (#1667)
+* Added `AsyncWriteExt::into_sink`. (#1675)
+* Added `AsyncBufReadExt::copy_buf_into`. (#1674)
+* Added `stream::pending`. (#1689)
+* Implemented `std::error::Error` for `SpawnError`. (#1604)
+* Implemented `Stream` for `FlattenSink`. (#1651)
+* Implemented `Sink` for `TryFlattenStream`. (#1651)
+* Implemented `AsyncRead`, `AsyncWrite`, `AsyncSeek`, `AsyncBufRead`, `FusedFuture` and  `FusedStream` for Either. (#1695)
+
 # 0.3.0-alpha.16 - 2019-5-10
 * Updated to new nightly `async_await`.
 * Changed `AsyncRead::poll_vectored_read` and `AsyncWrite::poll_vectored_write` to use
