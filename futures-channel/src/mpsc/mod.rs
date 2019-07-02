@@ -92,6 +92,8 @@ use std::sync::atomic::Ordering::SeqCst;
 use crate::mpsc::queue::Queue;
 
 mod queue;
+#[cfg(feature = "sink")]
+mod sink_impl;
 
 #[derive(Debug)]
 struct SenderInner<T> {

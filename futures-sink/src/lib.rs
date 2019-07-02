@@ -159,9 +159,6 @@ where
     }
 }
 
-#[cfg(feature = "std")]
-mod channel_impls;
-
 #[cfg(feature = "alloc")]
 mod if_alloc {
     use super::*;
