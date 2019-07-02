@@ -46,6 +46,18 @@ impl<T> Compat01As03<T> {
     pub fn get_ref(&self) -> &T {
         self.inner.get_ref()
     }
+
+    /// Get a mutable reference to 0.1 Future, Stream, AsyncRead or AsyncWrite object contained
+    /// within.
+    pub fn get_mut(&mut self) -> &mut T {
+        self.inner.get_mut()
+    }
+
+    /// Consume this wrapper to return the underlying 0.1 Future, Stream, AsyncRead, or
+    /// AsyncWrite object.
+    pub fn into_inner(self) -> T {
+        self.inner.into_inner()
+    }
 }
 
 /// Extension trait for futures 0.1 [`Future`](futures_01::future::Future)
@@ -205,6 +217,16 @@ impl<S, SinkItem> Compat01As03Sink<S, SinkItem> {
     /// Get a reference to 0.1 Sink object contained within.
     pub fn get_ref(&self) -> &S {
         self.inner.get_ref()
+    }
+
+    /// Get a mutable reference to 0.1 Sink contained within.
+    pub fn get_mut(&mut self) -> &mut S {
+        self.inner.get_mut()
+    }
+
+    /// Consume this wrapper to return the underlying 0.1 Sink.
+    pub fn into_inner(self) -> S {
+        self.inner.into_inner()
     }
 }
 
