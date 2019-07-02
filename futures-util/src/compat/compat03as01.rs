@@ -49,11 +49,6 @@ pub struct CompatSink<T, Item> {
 }
 
 impl<T> Compat<T> {
-    /// Returns the inner item.
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-
     /// Creates a new [`Compat`].
     ///
     /// For types which implement appropriate futures `0.3`
@@ -68,21 +63,42 @@ impl<T> Compat<T> {
     pub fn get_ref(&self) -> &T {
         &self.inner
     }
-}
 
-#[cfg(feature = "sink")]
-impl<T, Item> CompatSink<T, Item> {
+    /// Get a mutable reference to 0.3 Future, Stream, AsyncRead, or AsyncWrite object
+    /// contained within.
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+
     /// Returns the inner item.
     pub fn into_inner(self) -> T {
         self.inner
     }
+}
 
+#[cfg(feature = "sink")]
+impl<T, Item> CompatSink<T, Item> {
     /// Creates a new [`CompatSink`].
     pub fn new(inner: T) -> Self {
         CompatSink {
             inner,
             _phantom: PhantomData,
         }
+    }
+    
+    /// Get a reference to 0.3 Sink contained within.
+    pub fn get_ref(&self) -> &T {
+        &self.inner
+    }
+
+    /// Get a mutable reference to 0.3 Sink contained within.
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+
+    /// Returns the inner item.
+    pub fn into_inner(self) -> T {
+        self.inner
     }
 }
 
