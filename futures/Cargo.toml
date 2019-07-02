@@ -24,7 +24,7 @@ appveyor = { repository = "rust-lang-nursery/futures-rs" }
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.16", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.16", default-features = false }
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.16", default-features = false, features = ["sink"] }
 futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.16", default-features = false }
 futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.16", default-features = false }
 futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.16", default-features = false }

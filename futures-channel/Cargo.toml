@@ -16,10 +16,12 @@ name = "futures_channel"
 
 [features]
 std = ["futures-core-preview/std"]
+sink = ["futures-sink-preview"]
 default = ["std"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.16", default-features = false }
+futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.16", default-features = false, optional = true }
 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "=0.3.0-alpha.16", default-features = true }
