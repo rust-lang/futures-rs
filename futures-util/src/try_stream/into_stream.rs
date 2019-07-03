@@ -1,6 +1,7 @@
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::unsafe_pinned;
 
@@ -71,6 +72,7 @@ impl<St: TryStream> Stream for IntoStream<St> {
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S: Sink<Item>, Item> Sink<Item> for IntoStream<S> {
     type Error = S::Error;
 

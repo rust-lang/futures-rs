@@ -7,6 +7,7 @@ use core::pin::Pin;
 use futures_core::future::TryFuture;
 use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 
 #[cfg(feature = "compat")] use crate::compat::Compat;
@@ -37,7 +38,9 @@ pub use self::and_then::AndThen;
 mod err_into;
 pub use self::err_into::ErrInto;
 
+#[cfg(feature = "sink")]
 mod flatten_sink;
+#[cfg(feature = "sink")]
 pub use self::flatten_sink::FlattenSink;
 
 mod inspect_ok;
@@ -106,6 +109,7 @@ pub trait TryFutureExt: TryFuture {
     /// let fut = make_sink_async();
     /// take_sink(fut.flatten_sink())
     /// ```
+    #[cfg(feature = "sink")]
     fn flatten_sink<Item>(self) -> FlattenSink<Self, Self::Ok>
     where
         Self::Ok: Sink<Item, Error = Self::Error>,

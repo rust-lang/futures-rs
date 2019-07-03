@@ -2,6 +2,7 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream, TryStream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -92,6 +93,7 @@ where
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S, F, Item> Sink<Item> for MapOk<S, F>
 where
     S: Sink<Item>,

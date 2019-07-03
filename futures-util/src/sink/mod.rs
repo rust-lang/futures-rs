@@ -2,6 +2,9 @@
 //!
 //! This module contains a number of functions for working with `Sink`s,
 //! including the `SinkExt` trait which adds methods to `Sink` types.
+//!
+//! This module is only available when the `sink` feature of this
+//! library is activated, and it is activated by default.
 
 use futures_core::future::Future;
 use futures_core::stream::Stream;

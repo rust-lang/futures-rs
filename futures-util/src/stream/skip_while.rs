@@ -3,6 +3,7 @@ use core::pin::Pin;
 use futures_core::future::Future;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -133,6 +134,7 @@ impl<St, Fut, F> Stream for SkipWhile<St, Fut, F>
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S, Fut, F, Item> Sink<Item> for SkipWhile<S, Fut, F>
     where S: Stream + Sink<Item>,
           F: FnMut(&S::Item) -> Fut,

@@ -15,21 +15,25 @@ Common utilities and extension traits for the futures-rs library.
 name = "futures_util"
 
 [features]
-std = ["alloc", "futures-core-preview/std", "futures-io-preview/std", "futures-sink-preview/std", "slab", "memchr"]
 default = ["std"]
-async-await = ["std", "futures-select-macro-preview", "proc-macro-hack", "proc-macro-nested", "rand"]
+std = ["alloc", "futures-core-preview/std", "slab"]
+alloc = ["futures-core-preview/alloc"]
+async-await = ["std"]
 compat = ["std", "futures_01"]
-io-compat = ["compat", "tokio-io"]
+io-compat = ["io", "compat", "tokio-io"]
 bench = []
-nightly = ["futures-core-preview/nightly", "futures-sink-preview/nightly"]
+nightly = ["futures-core-preview/nightly"]
 cfg-target-has-atomic = ["futures-core-preview/cfg-target-has-atomic"]
-alloc = ["futures-core-preview/alloc", "futures-sink-preview/alloc"]
+sink = ["futures-sink-preview"]
+io = ["std", "futures-io-preview", "memchr"]
+channel = ["std", "futures-channel-preview"]
+select-macro = ["async-await", "futures-select-macro-preview", "proc-macro-hack", "proc-macro-nested", "rand"]
 
 [dependencies]
 futures-core-preview = { path = "../futures-core", version = "=0.3.0-alpha.16", default-features = false }
-futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.16", default-features = false }
-futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.16", default-features = false }
-futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.16", default-features = false}
+futures-channel-preview = { path = "../futures-channel", version = "=0.3.0-alpha.16", default-features = false, features = ["std"], optional = true }
+futures-io-preview = { path = "../futures-io", version = "=0.3.0-alpha.16", default-features = false, features = ["std"], optional = true }
+futures-sink-preview = { path = "../futures-sink", version = "=0.3.0-alpha.16", default-features = false, optional = true }
 futures-select-macro-preview = { path = "../futures-select-macro", version = "=0.3.0-alpha.16", default-features = false, optional = true }
 proc-macro-hack = { version = "0.5", optional = true }
 proc-macro-nested = { version = "0.1.2", optional = true }
@@ -42,7 +46,6 @@ pin-utils = "0.1.0-alpha.4"
 
 [dev-dependencies]
 futures-preview = { path = "../futures", version = "=0.3.0-alpha.16", features = ["async-await", "nightly"] }
-futures-executor-preview = { path = "../futures-executor", version = "=0.3.0-alpha.16" }
 futures-test-preview = { path = "../futures-test", version = "=0.3.0-alpha.16" }
 tokio = "0.1.11"
 

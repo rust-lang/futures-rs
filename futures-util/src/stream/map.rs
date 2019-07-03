@@ -2,6 +2,7 @@ use core::fmt;
 use core::pin::Pin;
 use futures_core::stream::{FusedStream, Stream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 
@@ -93,6 +94,7 @@ impl<St, F, T> Stream for Map<St, F>
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S, F, T, Item> Sink<Item> for Map<S, F>
     where S: Stream + Sink<Item>,
           F: FnMut(S::Item) -> T,

@@ -1,7 +1,10 @@
 use futures_01::{
-    task as task01, Async as Async01, AsyncSink as AsyncSink01,
-    Future as Future01, Poll as Poll01, Sink as Sink01,
-    StartSend as StartSend01, Stream as Stream01,
+    task as task01, Async as Async01, Future as Future01, Poll as Poll01,
+    Stream as Stream01,
+};
+#[cfg(feature = "sink")]
+use futures_01::{
+    AsyncSink as AsyncSink01, Sink as Sink01, StartSend as StartSend01,
 };
 use futures_core::{
     task::{
@@ -12,10 +15,12 @@ use futures_core::{
     TryFuture as TryFuture03,
     TryStream as TryStream03,
 };
+#[cfg(feature = "sink")]
 use futures_sink::Sink as Sink03;
 use crate::task::{ArcWake as ArcWake03, WakerRef};
+#[cfg(feature = "sink")]
+use std::marker::PhantomData;
 use std::{
-    marker::PhantomData,
     mem,
     pin::Pin,
     sync::Arc,
@@ -35,6 +40,7 @@ pub struct Compat<T> {
 }
 
 /// Converts a futures 0.3 Sink object to a futures 0.1-compatible version
+#[cfg(feature = "sink")]
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct CompatSink<T, Item> {
@@ -64,6 +70,7 @@ impl<T> Compat<T> {
     }
 }
 
+#[cfg(feature = "sink")]
 impl<T, Item> CompatSink<T, Item> {
     /// Returns the inner item.
     pub fn into_inner(self) -> T {
@@ -116,6 +123,7 @@ where
     }
 }
 
+#[cfg(feature = "sink")]
 impl<T, Item> Sink01 for CompatSink<T, Item>
 where
     T: Sink03<Item> + Unpin,
@@ -201,6 +209,7 @@ where
     f(Pin::new(&mut compat.inner), &mut cx)
 }
 
+#[cfg(feature = "sink")]
 fn with_sink_context<T, Item, R, F>(compat: &mut CompatSink<T, Item>, f: F) -> R
 where
     T: Unpin,

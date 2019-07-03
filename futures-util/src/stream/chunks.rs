@@ -1,6 +1,7 @@
 use crate::stream::Fuse;
 use futures_core::stream::Stream;
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::mem;
@@ -107,6 +108,7 @@ impl<St: Stream> Stream for Chunks<St> {
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S, Item> Sink<Item> for Chunks<S>
 where
     S: Stream + Sink<Item>,

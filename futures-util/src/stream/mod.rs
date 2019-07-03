@@ -5,8 +5,11 @@
 
 use core::pin::Pin;
 use futures_core::future::Future;
-use futures_core::stream::{FusedStream, Stream, TryStream};
+use futures_core::stream::{FusedStream, Stream};
+#[cfg(feature = "sink")]
+use futures_core::stream::TryStream;
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -45,7 +48,9 @@ pub use self::flatten::Flatten;
 mod fold;
 pub use self::fold::Fold;
 
+#[cfg(feature = "sink")]
 mod forward;
+#[cfg(feature = "sink")]
 pub use self::forward::Forward;
 
 mod for_each;
@@ -138,8 +143,10 @@ cfg_target_has_atomic! {
     #[doc(inline)]
     pub use self::futures_unordered::FuturesUnordered;
 
+    #[cfg(feature = "sink")]
     #[cfg(feature = "alloc")]
     mod split;
+    #[cfg(feature = "sink")]
     #[cfg(feature = "alloc")]
     pub use self::split::{SplitStream, SplitSink, ReuniteError};
 
@@ -1070,6 +1077,7 @@ pub trait StreamExt: Stream {
     /// sink will be output by this future.  Pass the sink by `Pin<&mut S>`
     /// (for example, via `forward(&mut sink)` inside an `async` fn/block) in
     /// order to preserve access to the Sink.
+    #[cfg(feature = "sink")]
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
         S: Sink<<Self as TryStream>::Ok>,
@@ -1087,6 +1095,7 @@ pub trait StreamExt: Stream {
     ///
     /// This method is only available when the `std` or `alloc` feature of this
     /// library is activated, and it is activated by default.
+    #[cfg(feature = "sink")]
     #[cfg_attr(
         feature = "cfg-target-has-atomic",
         cfg(all(target_has_atomic = "cas", target_has_atomic = "ptr"))

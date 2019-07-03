@@ -38,7 +38,7 @@ pub mod async_await;
 #[doc(hidden)]
 pub use self::async_await::*;
 
-#[cfg(feature = "async-await")]
+#[cfg(feature = "select-macro")]
 #[doc(hidden)]
 pub mod rand_reexport { // used by select!
     #[doc(hidden)]
@@ -58,6 +58,7 @@ macro_rules! cfg_target_has_atomic {
     )*};
 }
 
+#[cfg(feature = "sink")]
 macro_rules! delegate_sink {
     ($field:ident, $item:ty) => {
         fn poll_ready(
@@ -102,7 +103,9 @@ pub mod stream;
 pub mod try_stream;
 #[doc(hidden)] pub use crate::try_stream::TryStreamExt;
 
+#[cfg(feature = "sink")]
 pub mod sink;
+#[cfg(feature = "sink")]
 #[doc(hidden)] pub use crate::sink::SinkExt;
 
 pub mod task;
@@ -110,8 +113,10 @@ pub mod task;
 #[cfg(feature = "compat")]
 pub mod compat;
 
+#[cfg(feature = "io")]
 #[cfg(feature = "std")]
 pub mod io;
+#[cfg(feature = "io")]
 #[cfg(feature = "std")]
 #[doc(hidden)] pub use crate::io::{AsyncReadExt, AsyncWriteExt, AsyncSeekExt, AsyncBufReadExt};
 

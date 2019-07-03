@@ -4,6 +4,7 @@ use crate::try_stream::IntoStream;
 use futures_core::future::TryFuture;
 use futures_core::stream::{Stream, TryStream};
 use futures_core::task::{Context, Poll};
+#[cfg(feature = "sink")]
 use futures_sink::Sink;
 use pin_utils::{unsafe_pinned, unsafe_unpinned};
 use core::pin::Pin;
@@ -107,6 +108,7 @@ impl<St> Stream for TryBufferUnordered<St>
 }
 
 // Forwarding impl of Sink from the underlying stream
+#[cfg(feature = "sink")]
 impl<S, Item, E> Sink<Item> for TryBufferUnordered<S>
     where S: TryStream + Sink<Item, Error = E>,
           S::Ok: TryFuture<Error = E>,
