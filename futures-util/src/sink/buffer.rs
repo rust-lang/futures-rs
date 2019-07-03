@@ -57,7 +57,7 @@ impl<Si: Sink<Item>, Item> Buffer<Si, Item> {
     fn try_empty_buffer(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Si::SinkError>> {
+    ) -> Poll<Result<(), Si::Error>> {
         ready!(self.as_mut().sink().poll_ready(cx))?;
         while let Some(item) = self.as_mut().buf().pop_front() {
             self.as_mut().sink().start_send(item)?;
@@ -79,12 +79,12 @@ impl<S, Item> Stream for Buffer<S, Item> where S: Sink<Item> + Stream {
 }
 
 impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
-    type SinkError = Si::SinkError;
+    type Error = Si::Error;
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         if self.capacity == 0 {
             return self.as_mut().sink().poll_ready(cx);
         }
@@ -101,7 +101,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
-    ) -> Result<(), Self::SinkError> {
+    ) -> Result<(), Self::Error> {
         if self.capacity == 0 {
             self.as_mut().sink().start_send(item)
         } else {
@@ -113,7 +113,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_buffer(cx))?;
         debug_assert!(self.as_mut().buf().is_empty());
         self.as_mut().sink().poll_flush(cx)
@@ -122,7 +122,7 @@ impl<Si: Sink<Item>, Item> Sink<Item> for Buffer<Si, Item> {
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().try_empty_buffer(cx))?;
         debug_assert!(self.as_mut().buf().is_empty());
         self.as_mut().sink().poll_close(cx)

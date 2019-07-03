@@ -121,7 +121,7 @@ where
     T: Sink03<Item> + Unpin,
 {
     type SinkItem = Item;
-    type SinkError = T::SinkError;
+    type SinkError = T::Error;
 
     fn start_send(
         &mut self,

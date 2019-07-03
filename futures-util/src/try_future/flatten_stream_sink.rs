@@ -130,14 +130,14 @@ where
 impl<Fut, Item> Sink<Item> for FlattenStreamSink<Fut>
 where
     Fut: TryFuture,
-    Fut::Ok: Sink<Item, SinkError = Fut::Error>,
+    Fut::Ok: Sink<Item, Error = Fut::Error>,
 {
-    type SinkError = Fut::Error;
+    type Error = Fut::Error;
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         ready!(self.as_mut().state().poll_future(cx)?);
         match self.as_mut().state().get_pin_mut() {
             State::StreamOrSink(s) => s.poll_ready(cx),
@@ -146,7 +146,7 @@ where
         }
     }
 
-    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         match self.state().get_pin_mut() {
             State::StreamOrSink(s) => s.start_send(item),
             State::Future(_) => panic!("poll_ready not called first"),
@@ -154,7 +154,7 @@ where
         }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match self.state().get_pin_mut() {
             State::StreamOrSink(s) => s.poll_flush(cx),
             // if sink not yet resolved, nothing written ==> everything flushed
@@ -166,7 +166,7 @@ where
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         let res = match self.as_mut().state().get_pin_mut() {
             State::StreamOrSink(s) => s.poll_close(cx),
             State::Future(_) | State::Done => Poll::Ready(Ok(())),

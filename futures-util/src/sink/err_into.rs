@@ -9,14 +9,14 @@ use pin_utils::unsafe_pinned;
 #[derive(Debug)]
 #[must_use = "sinks do nothing unless polled"]
 pub struct SinkErrInto<Si: Sink<Item>, Item, E> {
-    sink: SinkMapErr<Si, fn(Si::SinkError) -> E>,
+    sink: SinkMapErr<Si, fn(Si::Error) -> E>,
 }
 
 impl<Si, E, Item> SinkErrInto<Si, Item, E>
     where Si: Sink<Item>,
-          Si::SinkError: Into<E>,
+          Si::Error: Into<E>,
 {
-    unsafe_pinned!(sink: SinkMapErr<Si, fn(Si::SinkError) -> E>);
+    unsafe_pinned!(sink: SinkMapErr<Si, fn(Si::Error) -> E>);
 
     pub(super) fn new(sink: Si) -> Self {
         SinkErrInto {
@@ -50,16 +50,16 @@ impl<Si, E, Item> SinkErrInto<Si, Item, E>
 
 impl<Si, Item, E> Sink<Item> for SinkErrInto<Si, Item, E>
     where Si: Sink<Item>,
-          Si::SinkError: Into<E>,
+          Si::Error: Into<E>,
 {
-    type SinkError = E;
+    type Error = E;
 
     delegate_sink!(sink, Item);
 }
 
 impl<S, Item, E> Stream for SinkErrInto<S, Item, E>
     where S: Sink<Item> + Stream,
-          S::SinkError: Into<E>
+          S::Error: Into<E>
 {
     type Item = S::Item;
 

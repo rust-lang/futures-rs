@@ -71,8 +71,8 @@ impl<St: TryStream> Stream for IntoStream<St> {
 }
 
 // Forwarding impl of Sink from the underlying stream
-impl<S: TryStream + Sink<Item>, Item> Sink<Item> for IntoStream<S> {
-    type SinkError = S::SinkError;
+impl<S: Sink<Item>, Item> Sink<Item> for IntoStream<S> {
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

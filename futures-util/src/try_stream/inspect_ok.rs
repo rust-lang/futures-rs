@@ -26,14 +26,16 @@ where
     }
 }
 
+impl<St, F> InspectOk<St, F> {
+    unsafe_pinned!(stream: St);
+    unsafe_unpinned!(f: F);
+}
+
 impl<St, F> InspectOk<St, F>
 where
     St: TryStream,
     F: FnMut(&St::Ok),
 {
-    unsafe_pinned!(stream: St);
-    unsafe_unpinned!(f: F);
-
     pub(super) fn new(stream: St, f: F) -> Self {
         Self { stream, f }
     }
@@ -98,10 +100,9 @@ where
 // Forwarding impl of Sink from the underlying stream
 impl<S, F, Item> Sink<Item> for InspectOk<S, F>
 where
-    S: TryStream + Sink<Item>,
-    F: FnMut(&S::Ok),
+    S: Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

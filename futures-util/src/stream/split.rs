@@ -66,9 +66,9 @@ impl<S: Sink<Item> + Unpin, Item> SplitSink<S, Item> {
 }
 
 impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::SinkError>> {
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::Error>> {
         loop {
             if self.slot.is_none() {
                 return Poll::Ready(Ok(()));
@@ -77,12 +77,12 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
         }
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), S::SinkError> {
+    fn start_send(mut self: Pin<&mut Self>, item: Item) -> Result<(), S::Error> {
         self.slot = Some(item);
         Ok(())
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::SinkError>> {
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::Error>> {
         let this = &mut *self;
         let mut inner = ready!(this.lock.poll_lock(cx));
         if this.slot.is_some() {
@@ -92,7 +92,7 @@ impl<S: Sink<Item>, Item> Sink<Item> for SplitSink<S, Item> {
         inner.as_pin_mut().poll_flush(cx)
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::SinkError>> {
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), S::Error>> {
         let this = &mut *self;
         let mut inner = ready!(this.lock.poll_lock(cx));
         if this.slot.is_some() {

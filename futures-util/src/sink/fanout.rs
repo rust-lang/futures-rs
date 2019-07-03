@@ -61,14 +61,14 @@ impl<Si1: Debug, Si2: Debug> Debug for Fanout<Si1, Si2> {
 impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
     where Si1: Sink<Item>,
           Item: Clone,
-          Si2: Sink<Item, SinkError=Si1::SinkError>
+          Si2: Sink<Item, Error=Si1::Error>
 {
-    type SinkError = Si1::SinkError;
+    type Error = Si1::Error;
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         let sink1_ready = self.as_mut().sink1().poll_ready(cx)?.is_ready();
         let sink2_ready = self.as_mut().sink2().poll_ready(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
@@ -78,7 +78,7 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
     fn start_send(
         mut self: Pin<&mut Self>,
         item: Item,
-    ) -> Result<(), Self::SinkError> {
+    ) -> Result<(), Self::Error> {
         self.as_mut().sink1().start_send(item.clone())?;
         self.as_mut().sink2().start_send(item)?;
         Ok(())
@@ -87,7 +87,7 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         let sink1_ready = self.as_mut().sink1().poll_flush(cx)?.is_ready();
         let sink2_ready = self.as_mut().sink2().poll_flush(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;
@@ -97,7 +97,7 @@ impl<Si1, Si2, Item> Sink<Item> for Fanout<Si1, Si2>
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         let sink1_ready = self.as_mut().sink1().poll_close(cx)?.is_ready();
         let sink2_ready = self.as_mut().sink2().poll_close(cx)?.is_ready();
         let ready = sink1_ready && sink2_ready;

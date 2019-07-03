@@ -97,7 +97,7 @@ impl<S, F, T, Item> Sink<Item> for Map<S, F>
     where S: Stream + Sink<Item>,
           F: FnMut(S::Item) -> T,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

@@ -54,23 +54,23 @@ where
 impl<Fut, Si, Item> Sink<Item> for FlattenSink<Fut, Si>
 where
     Fut: TryFuture<Ok = Si>,
-    Si: Sink<Item, SinkError = Fut::Error>,
+    Si: Sink<Item, Error = Fut::Error>,
 {
-    type SinkError = Fut::Error;
+    type Error = Fut::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner().poll_ready(cx)
     }
 
-    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         self.inner().start_send(item)
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner().poll_flush(cx)
     }
 
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner().poll_close(cx)
     }
 }

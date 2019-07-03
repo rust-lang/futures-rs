@@ -34,17 +34,19 @@ where
     }
 }
 
-impl<St, Fut, F> TakeWhile<St, Fut, F>
-    where St: Stream,
-          F: FnMut(&St::Item) -> Fut,
-          Fut: Future<Output = bool>,
-{
+impl<St: Stream, Fut, F> TakeWhile<St, Fut, F> {
     unsafe_pinned!(stream: St);
     unsafe_unpinned!(f: F);
     unsafe_pinned!(pending_fut: Option<Fut>);
     unsafe_unpinned!(pending_item: Option<St::Item>);
     unsafe_unpinned!(done_taking: bool);
+}
 
+impl<St, Fut, F> TakeWhile<St, Fut, F>
+    where St: Stream,
+          F: FnMut(&St::Item) -> Fut,
+          Fut: Future<Output = bool>,
+{
     pub(super) fn new(stream: St, f: F) -> TakeWhile<St, Fut, F> {
         TakeWhile {
             stream,
@@ -129,10 +131,8 @@ impl<St, Fut, F> Stream for TakeWhile<St, Fut, F>
 // Forwarding impl of Sink from the underlying stream
 impl<S, Fut, F, Item> Sink<Item> for TakeWhile<S, Fut, F>
     where S: Stream + Sink<Item>,
-          F: FnMut(&S::Item) -> Fut,
-          Fut: Future<Output = bool>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

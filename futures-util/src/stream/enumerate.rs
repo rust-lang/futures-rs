@@ -87,7 +87,7 @@ impl<S, Item> Sink<Item> for Enumerate<S>
 where
     S: Stream + Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }

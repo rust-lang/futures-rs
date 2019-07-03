@@ -1073,7 +1073,7 @@ pub trait StreamExt: Stream {
     fn forward<S>(self, sink: S) -> Forward<Self, S>
     where
         S: Sink<<Self as TryStream>::Ok>,
-        Self: TryStream<Error = S::SinkError> + Sized,
+        Self: TryStream<Error = S::Error> + Sized,
     {
         Forward::new(self, sink)
     }

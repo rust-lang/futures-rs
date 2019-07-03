@@ -111,11 +111,11 @@ where
 impl<A, B, Item> Sink<Item> for Either<A, B>
 where
     A: Sink<Item>,
-    B: Sink<Item, SinkError = A::SinkError>,
+    B: Sink<Item, Error = A::Error>,
 {
-    type SinkError = A::SinkError;
+    type Error = A::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         unsafe {
             match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).poll_ready(cx),
@@ -124,7 +124,7 @@ where
         }
     }
 
-    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::SinkError> {
+    fn start_send(self: Pin<&mut Self>, item: Item) -> Result<(), Self::Error> {
         unsafe {
             match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).start_send(item),
@@ -133,7 +133,7 @@ where
         }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         unsafe {
             match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).poll_flush(cx),
@@ -142,7 +142,7 @@ where
         }
     }
 
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::SinkError>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         unsafe {
             match self.get_unchecked_mut() {
                 Either::Left(x) => Pin::new_unchecked(x).poll_close(cx),

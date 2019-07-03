@@ -45,7 +45,7 @@ where
         &mut self,
         cx: &mut Context<'_>,
         item: St::Item,
-    ) -> Poll<Result<(), Si::SinkError>> {
+    ) -> Poll<Result<(), Si::Error>> {
         debug_assert!(self.buffered.is_none());
         match Pin::new(&mut self.sink).poll_ready(cx)? {
             Poll::Ready(()) => {
@@ -64,7 +64,7 @@ where
     Si: Sink<St::Item> + Unpin + ?Sized,
     St: Stream + Unpin + ?Sized,
 {
-    type Output = Result<(), Si::SinkError>;
+    type Output = Result<(), Si::Error>;
 
     fn poll(
         mut self: Pin<&mut Self>,

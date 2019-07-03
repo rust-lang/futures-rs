@@ -65,7 +65,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     fn with<U, Fut, F, E>(self, f: F) -> With<Self, Item, U, Fut, F>
         where F: FnMut(U) -> Fut,
               Fut: Future<Output = Result<Item, E>>,
-              E: From<Self::SinkError>,
+              E: From<Self::Error>,
               Self: Sized
     {
         With::new(self, f)
@@ -107,7 +107,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// ```
     fn with_flat_map<U, St, F>(self, f: F) -> WithFlatMap<Self, Item, U, St, F>
         where F: FnMut(U) -> St,
-              St: Stream<Item = Result<Item, Self::SinkError>>,
+              St: Stream<Item = Result<Item, Self::Error>>,
               Self: Sized
     {
         WithFlatMap::new(self, f)
@@ -129,7 +129,7 @@ pub trait SinkExt<Item>: Sink<Item> {
 
     /// Transforms the error returned by the sink.
     fn sink_map_err<E, F>(self, f: F) -> SinkMapErr<Self, F>
-        where F: FnOnce(Self::SinkError) -> E,
+        where F: FnOnce(Self::Error) -> E,
               Self: Sized,
     {
         SinkMapErr::new(self, f)
@@ -140,7 +140,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// If wanting to map errors of a `Sink + Stream`, use `.sink_err_into().err_into()`.
     fn sink_err_into<E>(self) -> err_into::SinkErrInto<Self, Item, E>
         where Self: Sized,
-              Self::SinkError: Into<E>,
+              Self::Error: Into<E>,
     {
         SinkErrInto::new(self)
     }
@@ -179,7 +179,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     fn fanout<Si>(self, other: Si) -> Fanout<Self, Si>
         where Self: Sized,
               Item: Clone,
-              Si: Sink<Item, SinkError=Self::SinkError>
+              Si: Sink<Item, Error=Self::Error>
     {
         Fanout::new(self, other)
     }
@@ -233,7 +233,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// This can be used in combination with the `right_sink` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn left_sink<Si2>(self) -> Either<Self, Si2>
-        where Si2: Sink<Item, SinkError = Self::SinkError>,
+        where Si2: Sink<Item, Error = Self::Error>,
               Self: Sized
     {
         Either::Left(self)
@@ -245,7 +245,7 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// This can be used in combination with the `left_sink` method to write `if`
     /// statements that evaluate to different streams in different branches.
     fn right_sink<Si1>(self) -> Either<Si1, Self>
-        where Si1: Sink<Item, SinkError = Self::SinkError>,
+        where Si1: Sink<Item, Error = Self::Error>,
               Self: Sized
     {
         Either::Right(self)

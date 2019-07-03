@@ -27,33 +27,33 @@ impl<T: Stream, U> Stream for Join<T, U> {
 }
 
 impl<T, U: Sink<Item>, Item> Sink<Item> for Join<T, U> {
-    type SinkError = U::SinkError;
+    type Error = U::Error;
 
     fn poll_ready(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         self.sink().poll_ready(cx)
     }
 
     fn start_send(
         self: Pin<&mut Self>,
         item: Item,
-    ) -> Result<(), Self::SinkError> {
+    ) -> Result<(), Self::Error> {
         self.sink().start_send(item)
     }
 
     fn poll_flush(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         self.sink().poll_flush(cx)
     }
 
     fn poll_close(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Result<(), Self::SinkError>> {
+    ) -> Poll<Result<(), Self::Error>> {
         self.sink().poll_close(cx)
     }
 }

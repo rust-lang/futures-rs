@@ -84,7 +84,7 @@ impl<St> Stream for Take<St>
 impl<S, Item> Sink<Item> for Take<S>
     where S: Stream + Sink<Item>,
 {
-    type SinkError = S::SinkError;
+    type Error = S::Error;
 
     delegate_sink!(stream, Item);
 }
